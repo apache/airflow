@@ -320,7 +320,7 @@ def _import_helper(file_path: str, overwrite: bool) -> None:
     with create_session() as session:
         for conn_id, conn in connections_dict.items():
             try:
-                helpers.validate_key(conn["conn_id"], max_length=200)
+                helpers.validate_key(conn_id, max_length=200)
             except Exception as e:
                 print(f"Could not import connection. {e}")
                 continue
