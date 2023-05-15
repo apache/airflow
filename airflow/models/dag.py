@@ -3259,9 +3259,10 @@ class DagTag(Base):
 
 
 class DagOwnerAttributes(Base):
-    """
-    Table defining different owner attributes. For example, a link for an owner that will be passed as
-    a hyperlink to the DAGs view.
+    """Table defining different owner attributes.
+
+    For example, a link for an owner that will be passed as a hyperlink to the
+    "DAGs" view.
     """
 
     __tablename__ = "dag_owner_attributes"
