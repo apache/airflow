@@ -22,38 +22,49 @@ import type { KeyboardShortcutIdentifier } from "src/types";
 const keyboardShortcutIdentifier: KeyboardShortcutIdentifier = {
   dagRunClear: {
     primaryKey: "shiftKey",
-    secondaryKey: ["c", "C"],
-    detail: "dagRunClear",
+    secondaryKey: ["C", "c"],
+    detail: "Clears the selected DAG run with all its existing tasks",
   },
   dagMarkSuccess: {
     primaryKey: "shiftKey",
-    secondaryKey: ["s", "S"],
-    detail: "dagMarkSuccess",
+    secondaryKey: ["S", "s"],
+    detail: "Marks the selected DAG run as success",
   },
   dagMarkFailed: {
     primaryKey: "shiftKey",
-    secondaryKey: ["f", "F"],
-    detail: "dagMarkFailed",
+    secondaryKey: ["F", "f"],
+    detail: "Marks the selected DAG run as failed",
   },
   taskRunClear: {
     primaryKey: "shiftKey",
-    secondaryKey: ["c", "C"],
-    detail: "taskRunClear",
+    secondaryKey: ["C", "c"],
+    detail: "Opens modal to Clear selected task instance",
   },
   taskMarkSuccess: {
     primaryKey: "shiftKey",
-    secondaryKey: ["s", "S"],
-    detail: "taskMarkSuccess",
+    secondaryKey: ["S", "s"],
+    detail: "Opens Mark as Success modal for the selected failed task instance",
   },
   taskMarkFailed: {
     primaryKey: "shiftKey",
-    secondaryKey: ["f", "F"],
-    detail: "taskMarkFailed",
+    secondaryKey: ["F", "f"],
+    detail:
+      "Opens Mark as Failed modal for the selected successfull task instance",
+  },
+  viewNotes: {
+    primaryKey: "shiftKey",
+    secondaryKey: ["N", "n"],
+    detail: "View the note of the selected DAG run or Task instance",
   },
   addOrEditNotes: {
     primaryKey: "shiftKey",
-    secondaryKey: ["n", "N"],
-    detail: "addOrEditNotes",
+    secondaryKey: ["E", "e"],
+    detail: "Edit the note of the selected DAG run or Task instance",
+  },
+  toggleShortcutCheatSheet: {
+    primaryKey: "shiftKey",
+    secondaryKey: ["/", "?"],
+    detail: "Toggle Shortcut cheat sheet",
   },
 };
 

@@ -20,7 +20,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { debounce } from "lodash";
 
-import type { PrimaryShortcutKey } from "src/types";
+import type { PrimaryShortcutKey, IsInputInFocus } from "src/types";
+
+const isInputInFocus: IsInputInFocus = "isInputInFocus";
 
 const useKeysPress = (
   primaryShortcutKey: PrimaryShortcutKey,
@@ -38,6 +40,7 @@ const useKeysPress = (
     (event: KeyboardEvent) => {
       // check if one of the primaryKey and secondaryKey are pressed at once
       if (
+        !JSON.parse(localStorage.getItem(isInputInFocus) || "true") &&
         event[primaryShortcutKey] &&
         secondaryShortcutKeys.some((key: String) => event.key === key)
       ) {
