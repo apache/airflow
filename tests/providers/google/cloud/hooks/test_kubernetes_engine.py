@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import ast
 import sys
 from asyncio import Future
 
@@ -26,8 +27,15 @@ from google.cloud.container_v1 import ClusterManagerAsyncClient
 from google.cloud.container_v1.types import Cluster
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEAsyncHook, GKEHook, GKEPodAsyncHook
+from airflow.providers.google.cloud.hooks.kubernetes_engine import (
+    GKEAsyncHook,
+    GKEHook,
+    GKEPodAsyncHook,
+    GKEPodHook,
+)
 from airflow.providers.google.common.consts import CLIENT_INFO
+from tests import REPO_ROOT
+from tests.ast_helpers import extract_ast_class_def_by_name
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 if sys.version_info < (3, 8):
@@ -408,3 +416,32 @@ class TestGKEAsyncHook:
         mock_async_gke_cluster_client.get_operation.assert_called_once_with(
             name=operation_path,
         )
+
+
+def test_hook_has_methods_required_by_kpo():
+    kpo_file = REPO_ROOT / "airflow/providers/cncf/kubernetes/operators/pod.py"
+    class_def = extract_ast_class_def_by_name(kpo_file.read_text(), "KubernetesPodOperator")
+
+    def get_hook_attr_refs(tree, attr):
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute):
+                if isinstance(node.value, ast.Attribute) and node.value.attr == attr:
+                    yield node.attr
+
+    # use AST to find all hook attr references in KPO
+    methods = set(get_hook_attr_refs(class_def, "hook"))
+    # actually verify that GKE has all attrs referenced by KPO
+    assert methods.intersection(GKEPodHook.__dict__) == methods
+
+    # sanity check below
+    # the list here is not strictly required but it's helpful to verify that the test is working
+    # will need to be updated when new hook method / attr references added to KPO
+    expected = {
+        "core_v1_client",
+        "get_pod",
+        "_get_namespace",
+        "is_in_cluster",
+        "get_xcom_sidecar_container_image",
+        "get_xcom_sidecar_container_resources",
+    }
+    assert methods == expected
