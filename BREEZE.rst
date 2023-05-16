@@ -1982,7 +1982,7 @@ Finally you can specify ``--integration all-testable`` to start all testable int
 ``--integration all`` to enable all integrations.
 
 Once integration is started, it will continue to run until the environment is stopped with
-``breeze stop`` command. or restarted via ``breeze restart`` command
+``breeze stop`` command.
 
 Note that running integrations uses significant resources - CPU and memory.
 
