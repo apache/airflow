@@ -72,6 +72,7 @@ with DAG(
     env_id = test_context[ENV_ID_KEY]
     table_name = f"{env_id}-dynamodb-table"
     create_table = create_table(table_name=table_name)
+    delete_table = delete_table(table_name)
 
     # [START howto_sensor_dynamodb]
     dynamodb_sensor = DynamoDBValueSensor(
