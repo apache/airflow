@@ -44,7 +44,7 @@ from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
 
-HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
+HOOK_CLASS = "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 
 

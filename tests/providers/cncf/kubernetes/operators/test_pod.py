@@ -46,7 +46,7 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
 KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.pod"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 POD_MANAGER_MODULE = "airflow.providers.cncf.kubernetes.utils.pod_manager"
-HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
+HOOK_CLASS = "airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook"
 KUB_OP_PATH = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.{}"
 
 TEST_TASK_ID = "kubernetes_task_async"
