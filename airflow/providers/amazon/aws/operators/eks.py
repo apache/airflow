@@ -26,6 +26,7 @@ from botocore.exceptions import ClientError, WaiterError
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import EksHook
+from airflow.providers.amazon.aws.utils.fargate_logging import enable_fargate_logging
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -141,6 +142,7 @@ class EksCreateClusterOperator(BaseOperator):
         fargate_profile_name: str = DEFAULT_FARGATE_PROFILE_NAME,
         fargate_pod_execution_role_arn: str | None = None,
         fargate_selectors: list | None = None,
+        fargate_logging_config: dict | None = None,
         create_fargate_profile_kwargs: dict | None = None,
         wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
@@ -158,6 +160,7 @@ class EksCreateClusterOperator(BaseOperator):
         self.fargate_profile_name = fargate_profile_name
         self.fargate_pod_execution_role_arn = fargate_pod_execution_role_arn
         self.fargate_selectors = fargate_selectors or [{"namespace": DEFAULT_NAMESPACE_NAME}]
+        self.fargate_logging_config = fargate_logging_config or {}
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
         self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
@@ -229,12 +232,30 @@ class EksCreateClusterOperator(BaseOperator):
                 selectors=self.fargate_selectors,
                 **self.create_fargate_profile_kwargs,
             )
+
+            if self.fargate_logging_config:
+                # NOTE:  additional permissions are required on pod_execution_role for logging.
+                # See: https://raw.githubusercontent.com/aws-samples/amazon-eks-fluent-logging-examples/mainline/examples/fargate/cloudwatchlogs/permissions.json
+                # and https://docs.aws.amazon.com/eks/latest/userguide/fargate-logging.html
+                self.log.info(
+                    "A logging configuration has been provided which will "
+                    "be applied once the Fargate profile has been created."
+                )
+                self.wait_for_completion = True
+
             if self.wait_for_completion:
                 self.log.info("Waiting for Fargate profile to provision.  This will take some time.")
                 client.get_waiter("fargate_profile_active").wait(
                     clusterName=self.cluster_name,
                     fargateProfileName=self.fargate_profile_name,
                 )
+
+            if self.fargate_logging_config:
+                result = enable_fargate_logging(
+                    region=eks_hook.conn.meta.region_name, **self.fargate_logging_config
+                )
+                if result.returncode != 0:
+                    self.log.error(result.stdout)
 
 
 class EksCreateNodegroupOperator(BaseOperator):
@@ -373,6 +394,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
         selectors: list,
         fargate_profile_name: str | None = DEFAULT_FARGATE_PROFILE_NAME,
         create_fargate_profile_kwargs: dict | None = None,
+        logging_config: dict | None = None,
         wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
@@ -383,9 +405,21 @@ class EksCreateFargateProfileOperator(BaseOperator):
         self.selectors = selectors
         self.fargate_profile_name = fargate_profile_name
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
+        self.logging_config = logging_config or {}
         self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
+
+        if self.logging_config:
+            # NOTE:  additional permissions are required on pod_execution_role for logging.
+            # See: https://raw.githubusercontent.com/aws-samples/amazon-eks-fluent-logging-examples/mainline/examples/fargate/cloudwatchlogs/permissions.json
+            # and https://docs.aws.amazon.com/eks/latest/userguide/fargate-logging.html
+            self.log.info(
+                "A logging configuration has been provided which will "
+                "be applied once the Fargate profile has been created."
+            )
+            self.wait_for_completion = True
+
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
@@ -407,6 +441,11 @@ class EksCreateFargateProfileOperator(BaseOperator):
             eks_hook.conn.get_waiter("fargate_profile_active").wait(
                 clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
             )
+
+        if self.logging_config:
+            result = enable_fargate_logging(region=eks_hook.conn.meta.region_name, **self.logging_config)
+            if result.returncode != 0:
+                self.log.error(result.stdout)
 
 
 class EksDeleteClusterOperator(BaseOperator):
