@@ -223,7 +223,7 @@ const Main = () => {
       <ShortcutCheatSheet
         isOpen={isOpenShortcut}
         onClose={onCloseShortcut}
-        header="Shorcuts to interact with DAGs and Tasks"
+        header="Shortcuts to interact with DAGs and Tasks"
         keyboardShortcutIdentifier={keyboardShortcutIdentifier}
       />
     </Box>
