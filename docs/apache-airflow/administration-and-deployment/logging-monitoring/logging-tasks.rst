@@ -106,7 +106,7 @@ the example below.
 
     Executor: [SequentialExecutor]
     Task Logging Handlers: [StackdriverTaskHandler]
-    SQL Alchemy Conn: [sqlite://///root/airflow/airflow.db]
+    SQLAlchemy Conn: [sqlite://///root/airflow/airflow.db]
     DAGs Folder: [/root/airflow/dags]
     Plugins Folder: [/root/airflow/plugins]
     Base Log Folder: [/root/airflow/logs]
