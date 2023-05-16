@@ -15,6 +15,7 @@ ci-image:verify:aee88f55e8837028d19316356e29b009
 ci-image:d53ee5067c46a6d8f3b21d0098c56ca2
 cleanup:231de69d5f47ba29c883164e4575e310
 compile-www-assets:c8a8c4f002f7246d0541897fc7c70313
+down:99efb2055475cd40656d5498aee74ef6
 exec:42bbd3c1659128b0341ae118c3482da2
 k8s:build-k8s-image:bf48ee8742757dc19a4c3fad23f060a7
 k8s:configure-cluster:fe86080387f6369bd0230f709ae18ef4
@@ -47,16 +48,15 @@ release-management:start-release:acb384d86e02ff5fde1bf971897be17c
 release-management:verify-provider-packages:566c60fb1bfdc5ed7c4be590736891b2
 release-management:c0ecc3e5cd4a9f1aac18a9d6eb1ddfb6
 setup:autocomplete:03343478bf1d0cf9c101d454cdb63b68
-setup:check-all-params-in-groups:c3aca085350fc09451a6d502be9ee821
+setup:check-all-params-in-groups:1a6a07dcef12a55bf42bcbcef0d86adc
 setup:config:3ffcd35dd24b486ddf1d08b797e3d017
-setup:regenerate-command-images:aaf263095a037d2271640513d8c156fe
+setup:regenerate-command-images:873006338375c95a3d683da214366191
 setup:self-upgrade:d02f70c7a230eae3463ceec2056b63fa
 setup:version:123b462a421884dc2320ffc5e54b2478
-setup:26f37743534e14f5aad5300aad920301
+setup:f576a6309f2be7a4507304eb7700ad82
 shell:bd3e004a92ebcec8feb40fc5cd95872d
 start-airflow:ee5066f1420a489864b48bc4e5e472da
 static-checks:9985d1db64592e29ab71b8a000ce302e
-stop:e5aa686b4e53707ced4039d8414d5cd6
 testing:docker-compose-tests:183435da5d5df96f1bec016fcb5d4c76
 testing:helm-tests:936cf28fd84ce4ff5113795fdae9624b
 testing:integration-tests:6b302f81c1038215bbc9f22f9490fcfc

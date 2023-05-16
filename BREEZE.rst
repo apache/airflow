@@ -220,7 +220,7 @@ them, you may end up with some unused image data.
 
 To clean up the Docker environment:
 
-1. Stop Breeze with ``breeze stop``. (If Breeze is already running)
+1. Stop Breeze with ``breeze down``. (If Breeze is already running)
 
 2. Run the ``breeze cleanup`` command.
 
@@ -505,7 +505,7 @@ Those are all available flags of ``static-checks`` command:
 
     When you run static checks, some of the artifacts (mypy_cache) is stored in docker-compose volume
     so that it can speed up static checks execution significantly. However, sometimes, the cache might
-    get broken, in which case you should run ``breeze stop`` to clean up the cache.
+    get broken, in which case you should run ``breeze down`` to clean up the cache.
 
 
 .. note::
@@ -690,14 +690,14 @@ You can always stop it via:
 
 .. code-block:: bash
 
-   breeze stop
+   breeze down
 
-Those are all available flags of ``stop`` command:
+Those are all available flags of ``down`` command:
 
-.. image:: ./images/breeze/output_stop.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_stop.svg
+.. image:: ./images/breeze/output_down.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_down.svg
   :width: 100%
-  :alt: Breeze stop
+  :alt: Breeze down
 
 Troubleshooting
 ===============
@@ -706,7 +706,7 @@ If you are having problems with the Breeze environment, try the steps below. Aft
 can check whether your problem is fixed.
 
 1. If you are on macOS, check if you have enough disk space for Docker (Breeze will warn you if not).
-2. Stop Breeze with ``breeze stop``.
+2. Stop Breeze with ``breeze down``.
 3. Delete the ``.build`` directory and run ``breeze ci-image build``.
 4. Clean up Docker images via ``breeze cleanup`` command.
 5. Restart your Docker Engine and try again.
@@ -1925,16 +1925,16 @@ Database volumes in Breeze
 --------------------------
 
 Breeze keeps data for all it's integration in named docker volumes. Each backend and integration
-keeps data in their own volume. Those volumes are persisted until ``breeze stop`` command.
+keeps data in their own volume. Those volumes are persisted until ``breeze down`` command.
 You can also preserve the volumes by adding flag ``--preserve-volumes`` when you run the command.
 Then, next time when you start Breeze, it will have the data pre-populated.
 
-Those are all available flags of ``stop`` command:
+Those are all available flags of ``down`` command:
 
-.. image:: ./images/breeze/output-stop.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output-stop.svg
+.. image:: ./images/breeze/output-down.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output-down.svg
   :width: 100%
-  :alt: Breeze stop
+  :alt: Breeze down
 
 
 Additional tools
@@ -1982,7 +1982,7 @@ Finally you can specify ``--integration all-testable`` to start all testable int
 ``--integration all`` to enable all integrations.
 
 Once integration is started, it will continue to run until the environment is stopped with
-``breeze stop`` command.
+``breeze down`` command.
 
 Note that running integrations uses significant resources - CPU and memory.
 
