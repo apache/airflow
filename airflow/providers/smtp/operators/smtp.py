@@ -51,9 +51,9 @@ class EmailOperator(BaseOperator):
         self,
         *,
         to: list[str] | str,
-        from_email: str,
         subject: str,
         html_content: str,
+        from_email: str | None = None,
         files: list | None = None,
         cc: list[str] | str | None = None,
         bcc: list[str] | str | None = None,
@@ -65,9 +65,9 @@ class EmailOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.to = to
-        self.from_email = from_email
         self.subject = subject
         self.html_content = html_content
+        self.from_email = from_email
         self.files = files or []
         self.cc = cc
         self.bcc = bcc
@@ -79,10 +79,10 @@ class EmailOperator(BaseOperator):
     def execute(self, context: Context):
         with SmtpHook(smtp_conn_id=self.conn_id) as smtp_hook:
             return smtp_hook.send_email_smtp(
-                self.to,
-                self.from_email,
-                self.subject,
-                self.html_content,
+                to=self.to,
+                subject=self.subject,
+                html_content=self.html_content,
+                from_email=self.from_email,
                 files=self.files,
                 cc=self.cc,
                 bcc=self.bcc,

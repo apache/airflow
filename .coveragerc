@@ -27,6 +27,7 @@ omit =
     airflow/migrations/**
     airflow/providers/**/example_dags/**
     airflow/www/node_modules/**
+    airflow/providers/google/ads/_vendor/**
 
 [report]
 skip_empty = True

@@ -21,7 +21,9 @@ name: MySQL
 description: |
     `MySQL <https://www.mysql.com/products/>`__
 
+suspended: false
 versions:
+  - 5.0.0
   - 4.0.2
   - 4.0.1
   - 4.0.0
@@ -44,9 +46,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - apache-airflow-providers-common-sql>=1.3.1
-  - mysql-connector-python>=8.0.11
   - mysqlclient>=1.3.6
 
 integrations:
@@ -86,3 +87,8 @@ transfers:
 connection-types:
   - hook-class-name: airflow.providers.mysql.hooks.mysql.MySqlHook
     connection-type: mysql
+
+additional-extras:
+  - name: mysql-connector-python
+    dependencies:
+      - mysql-connector-python>=8.0.11

@@ -46,7 +46,7 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
 
 from airflow import version
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
@@ -382,7 +382,7 @@ class GoogleBaseHook(BaseHook):
         """
         warnings.warn(
             "This method is deprecated, please use `airflow.providers.google.common.consts.CLIENT_INFO`.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         return CLIENT_INFO

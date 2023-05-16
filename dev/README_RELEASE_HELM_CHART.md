@@ -38,6 +38,7 @@
   - [Publish release tag](#publish-release-tag)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
@@ -45,7 +46,7 @@
   - [Close the testing status issue](#close-the-testing-status-issue)
   - [Update issue template with the new release](#update-issue-template-with-the-new-release)
   - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
-  - [Tweet about the release](#tweet-about-the-release)
+  - [Announce about the release in social media](#announce-about-the-release-in-social-media)
   - [Bump chart version in Chart.yaml](#bump-chart-version-in-chartyaml)
   - [Remove old releases](#remove-old-releases)
 
@@ -327,6 +328,8 @@ Please vote accordingly:
 
 Only votes from PMC members are binding, but members of the community are
 encouraged to test the release and vote with "(non-binding)".
+
+Consider this my (binding) +1.
 
 For license checks, the .rat-excludes files is included, so you can run the following to verify licenses (just update your path to rat):
 
@@ -687,6 +690,20 @@ Send the same email to announce@apache.org, except change the opening line to `D
 It is more reliable to send it via the web ui at https://lists.apache.org/list.html?announce@apache.org
 (press "c" to compose a new thread)
 
+## Send announcements about security issues fixed in the release
+
+The release manager should review and mark as READY all the security issues fixed in the release.
+Such issues are marked as affecting `< <JUST_RELEASED_VERSION>` in the CVE management tool
+at https://cveprocess.apache.org/. Then the release manager should announced the issues via the tool.
+
+Once announced, each of the issue should be linked with a 'reference' with tag 'vendor advisory' with the
+URL to the announcement published automatically by the CVE management tool.
+Note that the announce@apache.org is moderated, and the link to the email thread will not be published
+immediately, that's why it is recommended to add the link to users@airflow.apache.org which takes usually
+few seconds to be published after the CVE tool sends them.
+
+The ASF Security will be notified and will submit to the CVE project and will set the state to 'PUBLIC'.
+
 ## Add release data to Apache Committee Report Helper
 
 Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
@@ -730,9 +747,19 @@ Thanks to all the contributors who made this possible.
 EOF
 ```
 
-## Tweet about the release
+## Announce about the release in social media
 
-Tweet about the release:
+------------------------------------------------------------------------------------------------------------
+Announcement is done from official Apache-Airflow accounts.
+
+* Twitter: https://twitter.com/ApacheAirflow
+* Linkedin: https://www.linkedin.com/company/apache-airflow/
+
+If you don't have access to the account ask PMC to post.
+
+------------------------------------------------------------------------------------------------------------
+
+Tweet and post on Linkedin about the release:
 
 ```shell
 cat <<EOF

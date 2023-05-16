@@ -59,12 +59,7 @@ def import_all_models():
     for name in __lazy_imports:
         __getattr__(name)
 
-    import airflow.jobs.backfill_job
-    import airflow.jobs.base_job
-    import airflow.jobs.dag_processor_job
-    import airflow.jobs.local_task_job
-    import airflow.jobs.scheduler_job
-    import airflow.jobs.triggerer_job
+    import airflow.jobs.job
     import airflow.models.dagwarning
     import airflow.models.dataset
     import airflow.models.serialized_dag

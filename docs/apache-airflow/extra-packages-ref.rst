@@ -134,6 +134,8 @@ custom bash/python providers).
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.impala       | ``pip install 'apache-airflow[apache.impala]'``     | All Impala related operators & hooks           |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache.kafka        | ``pip install 'apache-airflow[apache.kafka]'``      | All Kafka related operators & hooks            |
++---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.kylin        | ``pip install 'apache-airflow[apache.kylin]'``      | All Kylin related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.livy         | ``pip install 'apache-airflow[apache.livy]'``       | All Livy related operators, hooks & sensors    |
@@ -214,8 +216,6 @@ These are extras that add dependencies needed for integration with external serv
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | vertica             | ``pip install 'apache-airflow[vertica]'``           | Vertica hook support as an Airflow backend          |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| yandex              | ``pip install 'apache-airflow[yandex]'``            | Yandex.cloud hooks and operators                    |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | zendesk             | ``pip install 'apache-airflow[zendesk]'``           | Zendesk hooks                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 
@@ -293,6 +293,8 @@ These are extras that provide support for integration with external systems via 
 | microsoft.psrp      | ``pip install 'apache-airflow[microsoft.psrp]'``    | PSRP hooks and operators             |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | microsoft.winrm     | ``pip install 'apache-airflow[microsoft.winrm]'``   | WinRM hooks and operators            |              |
++---------------------+-----------------------------------------------------+--------------------------------------+--------------+
+| openlineage         | ``pip install 'apache-airflow[openlineage]'``       | Sending OpenLineage events           |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | papermill           | ``pip install 'apache-airflow[papermill]'``         | Papermill hooks and operators        |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+

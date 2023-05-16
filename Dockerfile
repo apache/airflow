@@ -44,11 +44,11 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.5.2"
+ARG AIRFLOW_VERSION="2.6.0"
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
 
-ARG AIRFLOW_PIP_VERSION=23.0.1
+ARG AIRFLOW_PIP_VERSION=23.1.2
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -433,7 +433,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="23.0.1"
+            export AIRFLOW_PIP_VERSION="23.1.2"
         fi
     fi
 }
@@ -684,7 +684,6 @@ set -euo pipefail
 
 : "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
 : "${ADDITIONAL_PYTHON_DEPS:?Should be set}"
-: "${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS:?Should be set}"
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
@@ -1241,18 +1240,10 @@ COPY --chown=airflow:0 ${AIRFLOW_SOURCES_FROM} ${AIRFLOW_SOURCES_TO}
 ARG ADDITIONAL_PYTHON_DEPS=""
 
 # Those are additional constraints that are needed for some extras but we do not want to
-# Force them on the main Airflow package.
-# * dill<0.3.3 required by apache-beam
-# * pyarrow>=6.0.0 is because pip resolver decides for Python 3.10 to downgrade pyarrow to 5 even if it is OK
-#   for python 3.10 and other dependencies adding the limit helps resolver to make better decisions
-# We need to limit the protobuf library to < 4.21.0 because not all google libraries we use
-# are compatible with the new protobuf version. All the google python client libraries need
-# to be upgraded to >=2.0.0 in order to able to lift that limitation
-# https://developers.google.com/protocol-buffers/docs/news/2022-05-06#python-updates
-# * authlib, gcloud_aio_auth, adal are needed to generate constraints for PyPI packages and can be removed after we release
-#   new google, azure providers
-# !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci, find_newer_dependencies.py
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 pyarrow>=6.0.0 protobuf<4.21.0 authlib>=1.0.0 gcloud_aio_auth>=4.0.0 adal>=1.2.7"
+# force them on the main Airflow package. Currently we need no extra limits as PIP 23.1+ has much better
+# dependency resolution and we do not need to limit the versions of the dependencies
+# !!! MAKE SURE YOU SYNCHRONIZE THE LIST BETWEEN: Dockerfile, Dockerfile.ci
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=""
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \

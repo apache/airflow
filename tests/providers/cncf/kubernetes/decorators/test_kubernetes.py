@@ -88,7 +88,7 @@ def test_basic_kubernetes(dag_maker, session, mock_create_pod: mock.Mock, mock_h
     (ti,) = dr.task_instances
     dag.get_task("f").execute(context=ti.get_template_context(session=session))
     mock_hook.assert_called_once_with(
-        conn_id=None,
+        conn_id="kubernetes_default",
         in_cluster=False,
         cluster_context="default",
         config_file="/tmp/fake_file",
@@ -128,17 +128,22 @@ def test_kubernetes_with_input_output(
     (ti,) = dr.task_instances
 
     mock_hook.return_value.get_xcom_sidecar_container_image.return_value = XCOM_IMAGE
+    mock_hook.return_value.get_xcom_sidecar_container_resources.return_value = {
+        "requests": {"cpu": "1m", "memory": "10Mi"},
+        "limits": {"cpu": "1m", "memory": "50Mi"},
+    }
 
     dag.get_task("my_task_id").execute(context=ti.get_template_context(session=session))
 
     mock_hook.assert_called_once_with(
-        conn_id=None,
+        conn_id="kubernetes_default",
         in_cluster=False,
         cluster_context="default",
         config_file="/tmp/fake_file",
     )
     assert mock_create_pod.call_count == 1
     assert mock_hook.return_value.get_xcom_sidecar_container_image.call_count == 1
+    assert mock_hook.return_value.get_xcom_sidecar_container_resources.call_count == 1
 
     containers = mock_create_pod.call_args[1]["pod"].spec.containers
 
@@ -203,3 +208,27 @@ def test_kubernetes_with_marked_as_teardown(
     assert len(dag.task_group.children) == 1
     teardown_task = dag.task_group.children["f"]
     assert teardown_task._is_teardown
+
+
+def test_kubernetes_with_mini_scheduler(
+    dag_maker, session, mock_create_pod: mock.Mock, mock_hook: mock.Mock
+) -> None:
+    with dag_maker(session=session):
+
+        @task.kubernetes(
+            image="python:3.10-slim-buster",
+            in_cluster=False,
+            cluster_context="default",
+            config_file="/tmp/fake_file",
+        )
+        def f(arg1, arg2, kwarg1=None, kwarg2=None):
+            return {"key1": "value1", "key2": "value2"}
+
+        f1 = f.override(task_id="my_task_id", do_xcom_push=True)("arg1", "arg2", kwarg1="kwarg1")
+        f.override(task_id="my_task_id2", do_xcom_push=False)("arg1", "arg2", kwarg1=f1)
+
+    dr = dag_maker.create_dagrun()
+    (ti, _) = dr.task_instances
+
+    # check that mini-scheduler works
+    ti.schedule_downstream_tasks()

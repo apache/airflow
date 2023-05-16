@@ -27,7 +27,7 @@ In addition to scheduling DAGs based upon time, they can also be scheduled based
 
 .. code-block:: python
 
-    from airflow import Dataset
+    from airflow.datasets import Dataset
 
     with DAG(...):
         MyOperator(
@@ -57,7 +57,7 @@ A dataset is defined by a Uniform Resource Identifier (URI):
 
 .. code-block:: python
 
-    from airflow import Dataset
+    from airflow.datasets import Dataset
 
     example_dataset = Dataset("s3://dataset-bucket/example.csv")
 

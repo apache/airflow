@@ -72,7 +72,7 @@ class TaskStateTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> typing.AsyncIterator["TriggerEvent"]:
+    async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """
         Checks periodically in the database to see if the task exists, and has
         hit one of the states yet, or not.
@@ -136,7 +136,7 @@ class DagStateTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> typing.AsyncIterator["TriggerEvent"]:
+    async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """
         Checks periodically in the database to see if the dag run exists, and has
         hit one of the states yet, or not.
@@ -144,7 +144,7 @@ class DagStateTrigger(BaseTrigger):
         while True:
             num_dags = await self.count_dags()
             if num_dags == len(self.execution_dates):
-                yield TriggerEvent(True)
+                yield TriggerEvent(self.serialize())
             await asyncio.sleep(self.poll_interval)
 
     @sync_to_async

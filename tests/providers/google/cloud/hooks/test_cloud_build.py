@@ -60,6 +60,10 @@ TRIGGER_ID = "32488e7f-09d6-4fe9-a5fb-4ca1419a6e7a"
 
 
 class TestCloudBuildHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudBuildHook(gcp_conn_id="test", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
@@ -322,6 +326,10 @@ class TestCloudBuildHook:
 
 
 class TestAsyncHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudBuildAsyncHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     @pytest.fixture
     def hook(self):
         return CloudBuildAsyncHook(
@@ -329,10 +337,13 @@ class TestAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self, client_options: None)
+    @async_mock.patch.object(
+        CloudBuildAsyncClient, "__init__", lambda self, credentials, client_info, client_options: None
+    )
+    @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook.get_credentials"))
     @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
     async def test_async_cloud_build_service_client_creation_should_execute_successfully(
-        self, mocked_get_build, hook
+        self, mocked_get_build, mock_get_creds, hook
     ):
         mocked_get_build.return_value = Future()
         await hook.get_cloud_build(project_id=PROJECT_ID, id_=BUILD_ID)
@@ -342,6 +353,7 @@ class TestAsyncHook:
                 id=BUILD_ID,
             )
         )
+        mock_get_creds.assert_called_once()
         mocked_get_build.assert_called_once_with(request=request, retry=DEFAULT, timeout=None, metadata=())
 
     @pytest.mark.asyncio

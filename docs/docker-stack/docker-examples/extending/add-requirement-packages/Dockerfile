@@ -15,7 +15,7 @@
 
 # This is an example Dockerfile. It is not intended for PRODUCTION use
 # [START Dockerfile]
-FROM apache/airflow:2.6.0.dev0
+FROM apache/airflow:2.7.0.dev0
 COPY requirements.txt /
-RUN pip install --no-cache-dir -r /requirements.txt
+RUN pip install --no-cache-dir -r /requirements.txt apache-airflow==2.7.0.dev0
 # [END Dockerfile]

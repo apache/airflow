@@ -244,7 +244,8 @@ class TaskGroup(DAGNode):
     @property
     def group_id(self) -> str | None:
         """group_id of this TaskGroup."""
-        if self.task_group and self.task_group.prefix_group_id and self.task_group.group_id:
+        if self.task_group and self.task_group.prefix_group_id and self.task_group._group_id:
+            # defer to parent whether it adds a prefix
             return self.task_group.child_id(self._group_id)
 
         return self._group_id
@@ -368,8 +369,10 @@ class TaskGroup(DAGNode):
         Prefix label with group_id if prefix_group_id is True. Otherwise return the label
         as-is.
         """
-        if self.prefix_group_id and self.group_id:
-            return f"{self.group_id}.{label}"
+        if self.prefix_group_id:
+            group_id = self.group_id
+            if group_id:
+                return f"{group_id}.{label}"
 
         return label
 

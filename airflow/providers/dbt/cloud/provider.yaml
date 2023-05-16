@@ -21,7 +21,9 @@ name: dbt Cloud
 description: |
     `dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
 
+suspended: false
 versions:
+  - 3.1.1
   - 3.1.0
   - 3.0.0
   - 2.3.1
@@ -34,7 +36,7 @@ versions:
   - 1.0.1
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - apache-airflow-providers-http
   - asgiref
   - aiohttp
@@ -64,8 +66,8 @@ hooks:
 
 triggers:
   - integration-name: dbt Cloud
-    python-modules:
-      - airflow.providers.dbt.cloud.triggers.dbt
+    class-names:
+      - airflow.providers.dbt.cloud.triggers.dbt.DbtCloudRunJobTrigger
 
 
 connection-types:

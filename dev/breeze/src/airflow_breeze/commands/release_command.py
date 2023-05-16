@@ -175,12 +175,13 @@ def tag_and_push_latest_constraint(version):
         )
     if confirm_action("Push latest constraints tag to GitHub?"):
         run_command(
-            ["git", "push", "origin", "tag", "constraints-latest"], dry_run_override=DRY_RUN, check=True
+            ["git", "push", "origin", "tag", "-f", "constraints-latest"],
+            dry_run_override=DRY_RUN,
+            check=True,
         )
 
 
 def push_tag_for_final_version(version, release_candidate):
-
     if confirm_action(f"Push tag for final version {version}?"):
         console_print(
             """

@@ -48,6 +48,7 @@ from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.utils.context import Context
 
 
@@ -141,7 +142,7 @@ class QuboleHook(BaseHook):
         self.kwargs = kwargs
         self.cls = COMMAND_CLASSES[self.kwargs["command_type"]]
         self.cmd: Command | None = None
-        self.task_instance: TaskInstance | None = None
+        self.task_instance: TaskInstance | TaskInstancePydantic | None = None
 
     @staticmethod
     def handle_failure_retry(context) -> None:

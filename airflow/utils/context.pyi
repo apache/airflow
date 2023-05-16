@@ -36,10 +36,10 @@ from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetEvent
 from airflow.models.param import ParamsDict
-from airflow.models.pydantic.dag_run import DagRunPydantic
-from airflow.models.pydantic.dataset import DatasetEventPydantic
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskinstance_pydantic import TaskInstancePydantic
+from airflow.serialization.pydantic.dag_run import DagRunPydantic
+from airflow.serialization.pydantic.dataset import DatasetEventPydantic
+from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.typing_compat import TypedDict
 
 KNOWN_CONTEXT_KEYS: set[str]

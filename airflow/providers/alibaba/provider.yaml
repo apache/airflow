@@ -21,7 +21,9 @@ name: Alibaba
 description: |
     Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com//>`__).
 
+suspended: false
 versions:
+  - 2.3.0
   - 2.2.0
   - 2.1.0
   - 2.0.1
@@ -32,7 +34,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - oss2>=2.14.0
 
 integrations:

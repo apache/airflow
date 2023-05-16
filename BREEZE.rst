@@ -426,43 +426,72 @@ You can run static checks via Breeze. You can also run them via pre-commit comma
 Breeze makes it easier to run selective static checks. If you press <TAB> after the static-check and if
 you have auto-complete setup you should see auto-completable list of all checks available.
 
-.. code-block:: bash
-
-     breeze static-checks -t run-mypy
-
-The above will run mypy check for currently staged files.
-
-You can also pass specific pre-commit flags for example ``--all-files`` :
+For example, this following command:
 
 .. code-block:: bash
 
-     breeze static-checks -t run-mypy --all-files
+     breeze static-checks -t mypy-core
+
+will run mypy check for currently staged files inside ``airflow/`` excluding providers.
+
+Selecting files to run static checks on
+........................................
+
+Pre-commits run by default on staged changes that you have locally changed. It will run it on all the
+files you run ``git add`` on and it will ignore any changes that you have modified but not staged.
+If you want to run it on all your modified files you should add them with ``git add`` command.
+
+With ``--all-files`` you can run static checks on all files in the repository. This is useful when you
+want to be sure they will not fail in CI, or when you just rebased your changes and want to
+re-run latest pre-commits on your changes, but it can take a long time (few minutes) to wait for the result.
+
+.. code-block:: bash
+
+     breeze static-checks -t mypy-core --all-files
 
 The above will run mypy check for all files.
 
-There is a convenience ``--last-commit`` flag that you can use to run static check on last commit only:
+You can limit that by selecting specific files you want to run static checks on. You can do that by
+specifying (can be multiple times) ``--file`` flag.
 
 .. code-block:: bash
 
-     breeze static-checks -t run-mypy --last-commit
+     breeze static-checks -t mypy-core --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
 
-The above will run mypy check for all files in the last commit.
+The above will run mypy check for those to files (note: autocomplete should work for the file selection).
 
-There is another convenience ``--commit-ref`` flag that you can use to run static check on specific commit:
+However, often you do not remember files you modified and you want to run checks for files that belong
+to specific commits you already have in your branch. You can use ``breeze static check`` to run the checks
+only on changed files you have already committed to your branch - either for specific commit, for last
+commit, for all changes in your branch since you branched off from main or for specific range
+of commits you choose.
 
 .. code-block:: bash
 
-     breeze static-checks -t run-mypy --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
+     breeze static-checks -t mypy-core --last-commit
+
+The above will run mypy check for all files in the last commit in your branch.
+
+.. code-block:: bash
+
+     breeze static-checks -t mypy-core --only-my-changes
+
+The above will run mypy check for all commits in your branch which were added since you branched off from main.
+
+.. code-block:: bash
+
+     breeze static-checks -t mypy-core --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
 
 The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
 Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)
 
-If you ever need to get a list of the files that will be checked (for troubleshooting) use these commands:
-
 .. code-block:: bash
 
-     breeze static-checks -t identity --verbose # currently staged files
-     breeze static-checks -t identity --verbose --from-ref $(git merge-base main HEAD) --to-ref HEAD #  branch updates
+     breeze static-checks -t identity --verbose --from-ref HEAD^^^^ --to-ref HEAD
+
+The above will run the check for the last 4 commits in your branch. You can use any ``commit-ish`` references
+in ``--from-ref`` and ``--to-ref`` flags.
+
 
 Those are all available flags of ``static-checks`` command:
 
@@ -554,18 +583,28 @@ command takes care about it. This is needed when you want to run webserver insid
 Breeze cleanup
 --------------
 
-Breeze uses docker images heavily and those images are rebuild periodically. This might cause extra
-disk usage by the images. If you need to clean-up the images periodically you can run
-``breeze setup cleanup`` command (by default it will skip removing your images before cleaning up but you
-can also remove the images to clean-up everything by adding ``--all``).
+Sometimes you need to cleanup your docker environment (and it is recommended you do that regularly). There
+are several reasons why you might want to do that.
+
+Breeze uses docker images heavily and those images are rebuild periodically and might leave dangling, unused
+images in docker cache. This might cause extra disk usage. Also running various docker compose commands
+(for example running tests with ``breeze testing tests``) might create additional docker networks that might
+prevent new networks from being created. Those networks are not removed automatically by docker-compose.
+Also Breeze uses it's own cache to keep information about all images.
+
+All those unused images, networks and cache can be removed by running ``breeze cleanup`` command. By default
+it will not remove the most recent images that you might need to run breeze commands, but you
+can also remove those breeze images to clean-up everything by adding ``--all`` command (note that you will
+need to build the images again from scratch - pulling from the registry might take a while).
+
+Breeze will ask you to confirm each step, unless you specify ``--answer yes`` flag.
 
 Those are all available flags of ``cleanup`` command:
-
 
 .. image:: ./images/breeze/output_cleanup.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_cleanup.svg
   :width: 100%
-  :alt: Breeze setup cleanup
+  :alt: Breeze cleanup
 
 Running arbitrary commands in container
 ---------------------------------------
@@ -703,6 +742,68 @@ describe your problem.
     stated in `This comment <https://github.com/moby/moby/issues/43361#issuecomment-1227617516>`_ and allows to
     run Breeze with no problems.
 
+
+ETIMEOUT Error
+--------------
+
+When running ``breeze start-airflow``, the following output might be observed:
+
+.. code-block:: bash
+
+    Skip fixing ownership of generated files as Host OS is darwin
+
+
+    Waiting for asset compilation to complete in the background.
+
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+
+    The asset compilation is taking too long.
+
+    If it does not complete soon, you might want to stop it and remove file lock:
+      * press Ctrl-C
+      * run 'rm /opt/airflow/.build/www/.asset_compile.lock'
+
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+
+    The asset compilation failed. Exiting.
+
+    [INFO] Locking pre-commit directory
+
+    Error 1 returned
+
+This error is actually caused by the following error during the asset compilation which resulted in
+ETIMEOUT when ``npm`` command is trying to install required packages:
+
+.. code-block:: bash
+
+    npm ERR! code ETIMEDOUT
+    npm ERR! syscall connect
+    npm ERR! errno ETIMEDOUT
+    npm ERR! network request to https://registry.npmjs.org/yarn failed, reason: connect ETIMEDOUT 2606:4700::6810:1723:443
+    npm ERR! network This is a problem related to network connectivity.
+    npm ERR! network In most cases you are behind a proxy or have bad network settings.
+    npm ERR! network
+    npm ERR! network If you are behind a proxy, please make sure that the
+    npm ERR! network 'proxy' config is set properly.  See: 'npm help config'
+
+In this situation, notice that the IP address ``2606:4700::6810:1723:443`` is in IPv6 format, which was the
+reason why the connection did not go through the router, as the router did not support IPv6 addresses in its DNS lookup.
+In this case, disabling IPv6 in the host machine and using IPv4 instead resolved the issue.
+
+The similar issue could happen if you are behind an HTTP/HTTPS proxy and your access to required websites are
+blocked by it, or your proxy setting has not been done properly.
+
 Advanced commands
 =================
 
@@ -776,15 +877,24 @@ For example this will only run provider tests for airbyte and http providers:
 
    breeze testing tests --test-type "Providers[airbyte,http]"
 
+You can also exclude tests for some providers from being run when whole "Providers" test type is run.
+
+For example this will run tests for all providers except amazon and google provider tests:
+
+.. code-block:: bash
+
+   breeze testing tests --test-type "Providers[-amazon,google]"
+
+
 You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
 in parallel, but you can specify the test type that you want to run with space separated list of test
-types passed to ``--test-types`` flag.
+types passed to ``--parallel-test-types`` flag.
 
 For example this will run API and WWW tests in parallel:
 
 .. code-block:: bash
 
-    breeze testing tests --test-types "API WWW" --run-in-parallel
+    breeze testing tests --parallel-test-types "API WWW" --run-in-parallel
 
 There are few special types of tests that you can run:
 
@@ -1558,23 +1668,6 @@ Those are all available flags of ``get-workflow-info`` command:
   :width: 100%
   :alt: Breeze ci get-workflow-info
 
-Tracking backtracking issues for CI builds
-..........................................
-
-When our CI runs a job, we automatically upgrade our dependencies in the ``main`` build. However, this might
-lead to conflicts and ``pip`` backtracking for a long time (possibly forever) for dependency resolution.
-Unfortunately those issues are difficult to diagnose so we had to invent our own tool to help us with
-diagnosing them. This tool is ``find-newer-dependencies`` and it works in the way that it helps to guess
-which new dependency might have caused the backtracking. The whole process is described in
-`tracking backtracking issues <dev/TRACKING_BACKTRACKING_ISSUES.md>`_.
-
-Those are all available flags of ``find-newer-dependencies`` command:
-
-.. image:: ./images/breeze/output_ci_find-newer-dependencies.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_find-newer-dependencies.svg
-  :width: 100%
-  :alt: Breeze ci find-newer-dependencies
-
 Release management tasks
 ------------------------
 
@@ -1672,7 +1765,7 @@ You can also run the verification with an earlier airflow version to check for c
 
 .. code-block:: bash
 
-    breeze release-management verify-provider-packages --use-airflow-version 2.1.0
+    breeze release-management verify-provider-packages --use-airflow-version 2.4.0
 
 All the command parameters are here:
 
@@ -1680,6 +1773,32 @@ All the command parameters are here:
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_verify-provider-packages.svg
   :width: 100%
   :alt: Breeze verify-provider-packages
+
+
+Installing provider packages
+............................
+
+In some cases we want to just see if the provider packages generated can be installed with airflow without
+verifying them. This happens automatically on CI for sdist pcackages but you can also run it manually if you
+just prepared provider packages and they are present in ``dist`` folder.
+
+.. code-block:: bash
+
+     breeze release-management install-provider-packages
+
+You can also run the verification with an earlier airflow version to check for compatibility.
+
+.. code-block:: bash
+
+    breeze release-management install-provider-packages --use-airflow-version 2.4.0
+
+All the command parameters are here:
+
+.. image:: ./images/breeze/output_release-management_install-provider-packages.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_install-provider-packages.svg
+  :width: 100%
+  :alt: Breeze install-provider-packages
+
 
 Generating Provider Issue
 .........................

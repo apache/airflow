@@ -22,11 +22,13 @@ name: Simple Mail Transfer Protocol (SMTP)
 description: |
   `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
+suspended: false
 versions:
+  - 1.0.1
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
 
 integrations:
   - integration-name: Simple Mail Transfer Protocol (SMTP)
