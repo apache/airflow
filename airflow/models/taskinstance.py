@@ -2677,8 +2677,9 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def schedule_downstream_tasks(self, session: Session = NEW_SESSION, max_tis_per_query: int | None = None):
         """
-        The mini-scheduler for scheduling downstream tasks of this task instance
-        :meta: private.
+        The mini-scheduler for scheduling downstream tasks of this task instance.
+
+        :meta: private
         """
         from sqlalchemy.exc import OperationalError
 

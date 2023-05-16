@@ -34,8 +34,10 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
     def get_conn_uri(self, conn_id: str) -> str | None:
         """
         Return URI representation of Connection conn_id.
+
         :param conn_id: the connection id
-        :return: deserialized Connection.
+
+        :return: deserialized Connection
         """
         warnings.warn(
             "This method is deprecated. Please use "

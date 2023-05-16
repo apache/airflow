@@ -59,7 +59,6 @@ class UtcDateTime(TypeDecorator):
       it never return naive :class:`~datetime.datetime`, but time zone
       aware value, even with SQLite or MySQL.
     - Always returns TIMESTAMP in UTC.
-
     """
 
     impl = TIMESTAMP(timezone=True)

@@ -265,9 +265,10 @@ def find_path_from_directory(
 ) -> Generator[str, None, None]:
     """
     Recursively search the base path and return the list of file paths that should not be ignored.
+
     :param base_dir_path: the base path to be searched
     :param ignore_file_name: the file name in which specifies the patterns of files/dirs to be ignored
-    :param ignore_file_syntax: the syntax of patterns in the ignore file: regexp or glob.
+    :param ignore_file_syntax: the syntax of patterns in the ignore file: regexp or glob
 
     :return: a generator of file paths.
     """

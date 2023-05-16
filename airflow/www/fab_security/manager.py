@@ -586,9 +586,8 @@ class BaseSecurityManager:
 
     def get_oauth_token_secret_name(self, provider):
         """
-        Returns the token_secret name for the oauth provider
-        if none is configured defaults to oauth_secret
-        this is configured using OAUTH_PROVIDERS and token_secret.
+        Returns the token_secret name for the oauth provider if none is configured defaults to oauth_secret.
+        This is configured using OAUTH_PROVIDERS and token_secret.
         """
         for _provider in self.oauth_providers:
             if _provider["name"] == provider:
@@ -1381,9 +1380,9 @@ class BaseSecurityManager:
         self, user: User | None, action_name: str, resource_names: list[str] | None = None
     ) -> set[str]:
         """
-        Return a set of resource names with a certain action name
-        that a user has access to. Mainly used to fetch all menu permissions
-        on a single db call, will also check public permissions and builtin roles.
+        Return a set of resource names with a certain action name that a user has access to.
+        Mainly used to fetch all menu permissions on a single db call, will also check public permissions
+        and builtin roles.
         """
         if not resource_names:
             resource_names = []

@@ -60,9 +60,9 @@ class SecurityManager(BaseSecurityManager):
 
     def __init__(self, appbuilder):
         """
-        Class constructor
-        param appbuilder:
-            F.A.B AppBuilder main object.
+        Class constructor.
+
+        :param appbuilder: F.A.B AppBuilder main object
         """
         super().__init__(appbuilder)
         user_datamodel = SQLAInterface(self.user_model)
