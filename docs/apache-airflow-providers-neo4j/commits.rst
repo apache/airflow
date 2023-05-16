@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.3.0
+.....
+
+Latest change: 2023-05-03
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+`cd458426c6 <https://github.com/apache/airflow/commit/cd458426c66aca201e43506c950ee68c2f6c3a0a>`_  2023-04-22   ``Removed Mandatory Encryption in Neo4jHook (#30418)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+=================================================================================================  ===========  ======================================================================
+
 3.2.1
 .....
 
-Latest change: 2022-11-24
+Latest change: 2022-11-26
 
 =================================================================================================  ===========  ===================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================
+`25bdbc8e67 <https://github.com/apache/airflow/commit/25bdbc8e6768712bad6043618242eec9c6632618>`_  2022-11-26   ``Updated docs for RC3 wave of providers (#27937)``
 `2e20e9f7eb <https://github.com/apache/airflow/commit/2e20e9f7ebf5f43bf27069f4c0063cdd72e6b2e2>`_  2022-11-24   ``Prepare for follow-up relase for November providers (#27774)``
 `973406b090 <https://github.com/apache/airflow/commit/973406b090b091914ff851d7cee9510e60a0d0a2>`_  2022-11-18   ``Fix typing problem revealed after recent Neo4J release (#27759)``
 =================================================================================================  ===========  ===================================================================

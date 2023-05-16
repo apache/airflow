@@ -18,18 +18,15 @@
 """This module contains Google BigQuery to MySQL operator."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+import warnings
+from typing import Sequence
 
-from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
-from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_data
+from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.cloud.transfers.bigquery_to_sql import BigQueryToSqlBaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
-
-class BigQueryToMySqlOperator(BaseOperator):
+class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
     """
     Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
     and insert that data into a MySQL table.
@@ -38,100 +35,41 @@ class BigQueryToMySqlOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryToMySqlOperator`
 
-    .. note::
-        If you pass fields to ``selected_fields`` which are in different order than the
-        order of columns already in
-        BQ table, the data will still be in the order of BQ table.
-        For example if the BQ table has 3 columns as
-        ``[A,B,C]`` and you pass 'B,A' in the ``selected_fields``
-        the data would still be of the form ``'A,B'`` and passed through this form
-        to MySQL
-
-    **Example**: ::
-
-       # [START howto_operator_bigquery_to_mysql]
-       transfer_data = BigQueryToMySqlOperator(
-            task_id='task_id',
-            dataset_table='origin_bq_table',
-            mysql_table='dest_table_name',
-            replace=True,
-        )
-        # [END howto_operator_bigquery_to_mysql]
-
-    :param dataset_table: A dotted ``<dataset>.<table>``: the big query table of origin
-    :param selected_fields: List of fields to return (comma-separated). If
-        unspecified, all fields are returned.
-    :param gcp_conn_id: reference to a specific Google Cloud hook.
+    :param mysql_table: target MySQL table, use dot notation to target a
+        specific database. It is deprecated: use target_table_name instead. (templated)
+    :param target_table_name: target MySQL table. It takes precedence over mysql_table. (templated)
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
-    :param database: name of database which overwrite defined one in connection
-    :param replace: Whether to replace instead of insert
-    :param batch_size: The number of rows to take in each batch
-    :param location: The location used for the operation.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Sequence[str] = tuple(BigQueryToSqlBaseOperator.template_fields) + (
         "dataset_id",
         "table_id",
-        "mysql_table",
-        "impersonation_chain",
     )
 
     def __init__(
         self,
         *,
-        dataset_table: str,
-        mysql_table: str,
-        selected_fields: list[str] | str | None = None,
-        gcp_conn_id: str = "google_cloud_default",
+        mysql_table: str | None = None,
+        target_table_name: str | None = None,
         mysql_conn_id: str = "mysql_default",
-        database: str | None = None,
-        replace: bool = False,
-        batch_size: int = 1000,
-        location: str | None = None,
-        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
-        self.selected_fields = selected_fields
-        self.gcp_conn_id = gcp_conn_id
-        self.mysql_conn_id = mysql_conn_id
-        self.database = database
-        self.mysql_table = mysql_table
-        self.replace = replace
-        self.batch_size = batch_size
-        self.location = location
-        self.impersonation_chain = impersonation_chain
-        try:
-            self.dataset_id, self.table_id = dataset_table.split(".")
-        except ValueError:
-            raise ValueError(f"Could not parse {dataset_table} as <dataset>.<table>") from None
-
-    def execute(self, context: Context) -> None:
-        big_query_hook = BigQueryHook(
-            gcp_conn_id=self.gcp_conn_id,
-            location=self.location,
-            impersonation_chain=self.impersonation_chain,
-        )
-        mysql_hook = MySqlHook(schema=self.database, mysql_conn_id=self.mysql_conn_id)
-        for rows in bigquery_get_data(
-            self.log,
-            self.dataset_id,
-            self.table_id,
-            big_query_hook,
-            self.batch_size,
-            self.selected_fields,
-        ):
-            mysql_hook.insert_rows(
-                table=self.mysql_table,
-                rows=rows,
-                target_fields=self.selected_fields,
-                replace=self.replace,
+        if mysql_table is not None:
+            warnings.warn(
+                "The `mysql_table` parameter has been deprecated. Use `target_table_name` instead.",
+                AirflowProviderDeprecationWarning,
             )
+
+            if target_table_name is not None:
+                raise ValueError(
+                    f"Cannot set both arguments: mysql_table={mysql_table!r} and "
+                    f"target_table_name={target_table_name!r}."
+                )
+
+            target_table_name = mysql_table
+
+        super().__init__(target_table_name=target_table_name, **kwargs)
+        self.mysql_conn_id = mysql_conn_id
+
+    def get_sql_hook(self) -> MySqlHook:
+        return MySqlHook(schema=self.database, mysql_conn_id=self.mysql_conn_id)
