@@ -92,21 +92,21 @@ class TestSnowflakeSqlApiOperator:
     @pytest.fixture
     def mock_execute_query(self):
         with mock.patch(
-            "airflow.providers.snowflake.operators.snowflake" ".SnowflakeSqlApiHook.execute_query"
+            "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiHook.execute_query"
         ) as execute_query:
             yield execute_query
 
     @pytest.fixture
     def mock_get_sql_api_query_status(self):
         with mock.patch(
-            "airflow.providers.snowflake.operators.snowflake." "SnowflakeSqlApiHook.get_sql_api_query_status"
+            "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiHook.get_sql_api_query_status"
         ) as get_sql_api_query_status:
             yield get_sql_api_query_status
 
     @pytest.fixture
     def mock_check_query_output(self):
         with mock.patch(
-            "airflow.providers.snowflake.operators.snowflake." "SnowflakeSqlApiHook.check_query_output"
+            "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiHook.check_query_output"
         ) as check_query_output:
             yield check_query_output
 
