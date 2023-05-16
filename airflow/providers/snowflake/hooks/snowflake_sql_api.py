@@ -157,9 +157,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:  # pragma: no cover
-            raise AirflowException(
-                f"Response: {e.response.content}, " f"Status Code: {e.response.status_code}"
-            ) 
+            raise AirflowException(f"Response: {e.response.content} Status Code: {e.response.status_code}")
         json_response = response.json()
         self.log.info("Snowflake SQL POST API response: %s", json_response)
         if "statementHandles" in json_response:
