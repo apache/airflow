@@ -191,11 +191,10 @@ class AbstractOperator(Templater, DAGNode):
                     is_relevant_setup = not task.downstream_task_ids.isdisjoint(downstream_teardowns)
                     if setup_only and not is_relevant_setup:
                         continue
-                    else:
-                        found_descendants.add(task_id)  # add the setup task
-                        found_descendants.update(  # add the setup's teardowns
-                            [x.task_id for x in task.downstream_list if x._is_teardown and not x == self]
-                        )
+                    found_descendants.add(task_id)  # add the setup task
+                    found_descendants.update(  # add the setup's teardowns
+                        [x.task_id for x in task.downstream_list if x._is_teardown and not x == self]
+                    )
                 elif not setup_only:
                     found_descendants.add(task_id)
             task_ids_to_trace = task_ids_to_trace_next
