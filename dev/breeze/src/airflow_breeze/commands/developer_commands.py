@@ -561,7 +561,7 @@ def compile_www_assets(dev: bool):
 )
 @option_verbose
 @option_dry_run
-def drop(preserve_volumes: bool, cleanup_mypy_cache: bool):
+def down(preserve_volumes: bool, cleanup_mypy_cache: bool):
     perform_environment_checks()
     command_to_execute = [*DOCKER_COMPOSE_COMMAND, "down", "--remove-orphans"]
     if not preserve_volumes:
