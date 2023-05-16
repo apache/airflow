@@ -19,8 +19,9 @@
 This is an example DAG which uses RedisPublishOperator, RedisPubSubSensor and RedisKeySensor.
 In this example, we create 3 tasks which execute sequentially.
 The first task is to publish a particular message to redis using the RedisPublishOperator.
-The second task is to wait for a particular message at a particular channel to arrive in redis using the RedisPubSubSensor,
-and the third task is to wait for a particular key to arrive in redis using the RedisKeySensor.
+The second task is to wait for a particular message at a particular channel to arrive in redis
+using the RedisPubSubSensor, and the third task is to wait for a particular key to arrive in
+redis using the RedisKeySensor.
 
 """
 from __future__ import annotations
