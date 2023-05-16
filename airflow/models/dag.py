@@ -3839,17 +3839,17 @@ def _get_or_create_dagrun(
     run_id: str,
     session: Session,
 ) -> DagRun:
-    """
-    Create a DAGRun, but only after clearing the previous instance of said dagrun to prevent collisions.
-    This function is only meant for the `dag.test` function as a helper function.
+    """Create a DAG run, replacing an existing instance if needed to prevent collisions.
 
-    :param dag: Dag to be used to find dagrun
-    :param conf: configuration to pass to newly created dagrun
-    :param start_date: start date of new dagrun, defaults to execution_date
-    :param execution_date: execution_date for finding the dagrun
-    :param run_id: run_id to pass to new dagrun
-    :param session: sqlalchemy session
-    :return:
+    This function is only meant to be used by :meth:`DAG.test` as a helper function.
+
+    :param dag: DAG to be used to find run.
+    :param conf: Configuration to pass to newly created run.
+    :param start_date: Start date of new run.
+    :param execution_date: Logical date for finding an existing run.
+    :param run_id: Run ID for the new DAG run.
+
+    :return: The newly created DAG run.
     """
     log.info("dagrun id: %s", dag.dag_id)
     dr: DagRun = (
@@ -3866,7 +3866,7 @@ def _get_or_create_dagrun(
         run_id=run_id,
         start_date=start_date or execution_date,
         session=session,
-        conf=conf,  # type: ignore
+        conf=conf,
     )
-    log.info("created dagrun " + str(dr))
+    log.info("created dagrun %s", dr)
     return dr
