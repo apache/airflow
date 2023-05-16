@@ -351,8 +351,8 @@ def downgrade():
     if dialect_name == "mssql":
 
         with op.batch_alter_table("dag_run", schema=None) as batch_op:
-            batch_op.drop_constraint("dag_run_dag_id_execution_date_key", "unique")
-            batch_op.drop_constraint("dag_run_dag_id_run_id_key", "unique")
+            batch_op.drop_constraint("dag_run_dag_id_execution_date_key", type_="unique")
+            batch_op.drop_constraint("dag_run_dag_id_run_id_key", type_="unique")
             batch_op.drop_index("dag_id_state")
             batch_op.drop_index("idx_dag_run_running_dags")
             batch_op.drop_index("idx_dag_run_queued_dags")
