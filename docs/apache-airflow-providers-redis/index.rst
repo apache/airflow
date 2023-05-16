@@ -32,6 +32,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/providers-redis/|version|/tests/system/providers/redis>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-redis/>
     Installing from sources <installing-providers-from-sources>
 
@@ -73,7 +74,7 @@ Requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.3.0``
-``redis``           ``~=4.5.5``
+``redis``           ``>=3.2.0``
 ==================  ==================
 
 .. include:: ../../airflow/providers/redis/CHANGELOG.rst
