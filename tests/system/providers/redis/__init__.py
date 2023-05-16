@@ -14,23 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import ast
-
-
-def extract_ast_class_def_by_name(content, class_name):
-    """
-    Extracts class definition by name
-
-    :param content: python file content
-    :param class_name: name of the class.
-    :return: class node found
-    """
-
-    ast_tree = ast.parse(content)
-    for node in ast.walk(ast_tree):
-        if isinstance(node, ast.ClassDef) and node.name == class_name:
-            return node
-
-    return None
