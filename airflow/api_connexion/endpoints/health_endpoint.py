@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from airflow.api_connexion.schemas.health_schema import health_schema
 from airflow.api_connexion.types import APIResponse
-from airflow.jobs.scheduler_job import SchedulerJob
-from airflow.jobs.triggerer_job import TriggererJob
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 
 HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
@@ -33,7 +33,7 @@ def get_health() -> APIResponse:
     scheduler_status = UNHEALTHY
     triggerer_status: str | None = UNHEALTHY
     try:
-        scheduler_job = SchedulerJob.most_recent_job()
+        scheduler_job = SchedulerJobRunner.most_recent_job()
 
         if scheduler_job:
             latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
@@ -42,7 +42,7 @@ def get_health() -> APIResponse:
     except Exception:
         metadatabase_status = UNHEALTHY
     try:
-        triggerer_job = TriggererJob.most_recent_job()
+        triggerer_job = TriggererJobRunner.most_recent_job()
 
         if triggerer_job:
             latest_triggerer_heartbeat = triggerer_job.latest_heartbeat.isoformat()

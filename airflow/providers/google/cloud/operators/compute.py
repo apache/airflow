@@ -27,13 +27,13 @@ from google.cloud.compute_v1.types import Instance, InstanceGroupManager, Instan
 from json_merge_patch import merge
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.links.compute import (
     ComputeInstanceDetailsLink,
     ComputeInstanceGroupManagerDetailsLink,
     ComputeInstanceTemplateDetailsLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
 
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class ComputeEngineBaseOperator(BaseOperator):
+class ComputeEngineBaseOperator(GoogleCloudBaseOperator):
     """Abstract base operator for Google Compute Engine operators to inherit from."""
 
     def __init__(

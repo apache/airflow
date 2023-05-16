@@ -17,23 +17,23 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from 'axios';
-import { useMutation, useQueryClient } from 'react-query';
+import axios, { AxiosResponse } from "axios";
+import { useMutation, useQueryClient } from "react-query";
 
-import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
-import { getMetaValue } from 'src/utils';
-import { useAutoRefresh } from 'src/context/autorefresh';
-import useErrorToast from 'src/utils/useErrorToast';
+import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
+import { getMetaValue } from "src/utils";
+import { useAutoRefresh } from "src/context/autorefresh";
+import useErrorToast from "src/utils/useErrorToast";
 
-const csrfToken = getMetaValue('csrf_token');
-const clearRunUrl = getMetaValue('dagrun_clear_url');
+const csrfToken = getMetaValue("csrf_token");
+const clearRunUrl = getMetaValue("dagrun_clear_url");
 
 export default function useClearRun(dagId: string, runId: string) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
   return useMutation(
-    ['dagRunClear', dagId, runId],
+    ["dagRunClear", dagId, runId],
     ({ confirmed = false }: { confirmed: boolean }) => {
       const params = new URLSearchParamsWrapper({
         csrf_token: csrfToken,
@@ -44,18 +44,18 @@ export default function useClearRun(dagId: string, runId: string) {
 
       return axios.post<AxiosResponse, string[]>(clearRunUrl, params, {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          "Content-Type": "application/x-www-form-urlencoded",
         },
       });
     },
     {
       onSuccess: (_, { confirmed }) => {
         if (confirmed) {
-          queryClient.invalidateQueries('gridData');
+          queryClient.invalidateQueries("gridData");
           startRefresh();
         }
       },
       onError: (error: Error) => errorToast({ error }),
-    },
+    }
   );
 }

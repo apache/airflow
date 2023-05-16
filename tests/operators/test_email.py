@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import datetime
-import unittest
 from unittest import mock
 
 from airflow.models.dag import DAG
@@ -34,15 +33,13 @@ FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 send_email_test = mock.Mock()
 
 
-class TestEmailOperator(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestEmailOperator:
+    def setup_class(self):
         self.dag = DAG(
             "test_dag",
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
             schedule=INTERVAL,
         )
-        self.addCleanup(self.dag.clear)
 
     def _run_as_operator(self, **kwargs):
         task = EmailOperator(
@@ -56,6 +53,7 @@ class TestEmailOperator(unittest.TestCase):
             **kwargs,
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.dag.clear()
 
     def test_execute(self):
         with conf_vars({("email", "email_backend"): "tests.operators.test_email.send_email_test"}):

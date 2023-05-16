@@ -16,6 +16,8 @@ adls
 afterall
 AgentKey
 aio
+aiobotocore
+AioSession
 Airbnb
 airbnb
 Airbyte
@@ -284,18 +286,21 @@ conn
 connectTimeoutMS
 connexion
 containerConfiguration
+containerd
 ContainerGroup
 containerinstance
 ContainerPort
 contentUrl
 contextmgr
 contrib
+coroutine
 coverals
 cp
 cpu
 cpus
 crd
 createDisposition
+CreateQueryOperator
 creationTimestamp
 credssp
 Cron
@@ -315,6 +320,7 @@ customDataImportUids
 customizability
 customizable
 customizations
+cwd
 cx
 Daemonize
 daemonize
@@ -325,6 +331,7 @@ dagbags
 DagCallbackRequest
 DagFileProcessorManager
 dagmodel
+DagParam
 Dagre
 dagre
 DagRun
@@ -421,6 +428,7 @@ deserialize
 Deserialized
 deserialized
 deserializer
+deserializes
 deserializing
 dest
 dev
@@ -439,6 +447,7 @@ discoverability
 discoverable
 diskTypes
 displayName
+DisplayVideo
 distcp
 distro
 distros
@@ -465,6 +474,7 @@ dogstatsd
 donot
 Dont
 DOS'ing
+DownloadReportV
 downscaling
 Drillbit
 Drivy
@@ -497,6 +507,7 @@ emr
 EmrAddSteps
 EmrCreateJobFlow
 enableAutoScale
+encodable
 encryptor
 enqueue
 enqueued
@@ -634,6 +645,7 @@ golang
 googleads
 GoogleAdsRow
 googleapiclient
+GoogleDisplayVideo
 gpu
 gpus
 greenlet
@@ -802,6 +814,8 @@ jthomas
 Jupyter
 jupyter
 jupytercmd
+Kafka
+kafka
 Kalibrr
 Kamil
 KEDA
@@ -862,11 +876,8 @@ LineItem
 lineterminator
 linter
 linux
-ListColumnSpecsPager
-ListDatasetsPager
 ListGenerator
 ListInfoTypesResponse
-ListTableSpecsPager
 Liveness
 liveness
 livy
@@ -1015,6 +1026,7 @@ OnFailure
 onkill
 Oozie
 openfaas
+openlineage
 oper
 Opsgenie
 opsgenie
@@ -1030,6 +1042,7 @@ os
 OSS
 oss
 ot
+otel
 overridable
 oversubscription
 Pagerduty
@@ -1250,6 +1263,8 @@ rtype
 ru
 runAsUser
 runnable
+RunQueryOperator
+RunQuerySensor
 runspace
 RunSubmitTaskSettings
 runtime
@@ -1368,7 +1383,6 @@ ssm
 Stackdriver
 stackdriver
 stacktrace
-StartManualTransferRunsResponse
 starttls
 StatefulSet
 StatefulSets
@@ -1435,7 +1449,6 @@ symlink
 symlinking
 symlinks
 sync'ed
-SynthesizeSpeechResponse
 sys
 syspath
 Systemd
@@ -1507,8 +1520,6 @@ tooltip
 tooltips
 traceback
 tracebacks
-TransferConfig
-TransferRun
 travis
 triage
 triaging
@@ -1543,6 +1554,7 @@ undead
 Undeads
 ungenerated
 unicode
+unindent
 unittest
 unittests
 unix
@@ -1618,6 +1630,7 @@ Webhook
 webhook
 WebhookClient
 webhooks
+webpack
 webpage
 webProperty
 Webserver

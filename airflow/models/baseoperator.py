@@ -30,7 +30,7 @@ import warnings
 from abc import ABCMeta, abstractmethod
 from datetime import datetime, timedelta
 from inspect import signature
-from types import FunctionType
+from types import ClassMethodDescriptorType, FunctionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -53,7 +53,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskDeferred
+from airflow.exceptions import AirflowException, DagInvalidTriggerRule, RemovedInAirflow3Warning, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -75,7 +75,6 @@ from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
 from airflow.models.taskmixin import DAGNode, DependencyMixin
-from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -89,14 +88,17 @@ from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.weight_rule import WeightRule
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import jinja2  # Slow import.
 
     from airflow.models.dag import DAG
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
 
@@ -149,7 +151,7 @@ def _get_parent_defaults(dag: DAG | None, task_group: TaskGroup | None) -> tuple
 def get_merged_defaults(
     dag: DAG | None,
     task_group: TaskGroup | None,
-    task_params: dict | None,
+    task_params: collections.abc.MutableMapping | None,
     task_default_args: dict | None,
 ) -> tuple[dict, ParamsDict]:
     args, params = _get_parent_defaults(dag, task_group)
@@ -169,7 +171,7 @@ def get_merged_defaults(
 class _PartialDescriptor:
     """A descriptor that guards against ``.partial`` being called on Task objects."""
 
-    class_method = None
+    class_method: ClassMethodDescriptorType | None = None
 
     def __get__(
         self, obj: BaseOperator, cls: type[BaseOperator] | None = None
@@ -183,6 +185,26 @@ class _PartialDescriptor:
         return self.class_method.__get__(cls, cls)
 
 
+_PARTIAL_DEFAULTS = {
+    "owner": DEFAULT_OWNER,
+    "trigger_rule": DEFAULT_TRIGGER_RULE,
+    "depends_on_past": False,
+    "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
+    "wait_for_past_depends_before_skipping": DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
+    "wait_for_downstream": False,
+    "retries": DEFAULT_RETRIES,
+    "queue": DEFAULT_QUEUE,
+    "pool_slots": DEFAULT_POOL_SLOTS,
+    "execution_timeout": DEFAULT_TASK_EXECUTION_TIMEOUT,
+    "retry_delay": DEFAULT_RETRY_DELAY,
+    "retry_exponential_backoff": False,
+    "priority_weight": DEFAULT_PRIORITY_WEIGHT,
+    "weight_rule": DEFAULT_WEIGHT_RULE,
+    "inlets": [],
+    "outlets": [],
+}
+
+
 # This is what handles the actual mapping.
 def partial(
     operator_class: type[BaseOperator],
@@ -190,42 +212,43 @@ def partial(
     task_id: str,
     dag: DAG | None = None,
     task_group: TaskGroup | None = None,
-    start_date: datetime | None = None,
-    end_date: datetime | None = None,
-    owner: str = DEFAULT_OWNER,
-    email: None | str | Iterable[str] = None,
-    params: dict | None = None,
-    resources: dict[str, Any] | None = None,
-    trigger_rule: str = DEFAULT_TRIGGER_RULE,
-    depends_on_past: bool = False,
-    ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
-    wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
-    wait_for_downstream: bool = False,
-    retries: int | None = DEFAULT_RETRIES,
-    queue: str = DEFAULT_QUEUE,
-    pool: str | None = None,
-    pool_slots: int = DEFAULT_POOL_SLOTS,
-    execution_timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT,
-    max_retry_delay: None | timedelta | float = None,
-    retry_delay: timedelta | float = DEFAULT_RETRY_DELAY,
-    retry_exponential_backoff: bool = False,
-    priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
-    weight_rule: str = DEFAULT_WEIGHT_RULE,
-    sla: timedelta | None = None,
-    max_active_tis_per_dag: int | None = None,
-    on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-    on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-    on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-    on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
-    run_as_user: str | None = None,
-    executor_config: dict | None = None,
-    inlets: Any | None = None,
-    outlets: Any | None = None,
-    doc: str | None = None,
-    doc_md: str | None = None,
-    doc_json: str | None = None,
-    doc_yaml: str | None = None,
-    doc_rst: str | None = None,
+    start_date: datetime | ArgNotSet = NOTSET,
+    end_date: datetime | ArgNotSet = NOTSET,
+    owner: str | ArgNotSet = NOTSET,
+    email: None | str | Iterable[str] | ArgNotSet = NOTSET,
+    params: collections.abc.MutableMapping | None = None,
+    resources: dict[str, Any] | None | ArgNotSet = NOTSET,
+    trigger_rule: str | ArgNotSet = NOTSET,
+    depends_on_past: bool | ArgNotSet = NOTSET,
+    ignore_first_depends_on_past: bool | ArgNotSet = NOTSET,
+    wait_for_past_depends_before_skipping: bool | ArgNotSet = NOTSET,
+    wait_for_downstream: bool | ArgNotSet = NOTSET,
+    retries: int | None | ArgNotSet = NOTSET,
+    queue: str | ArgNotSet = NOTSET,
+    pool: str | ArgNotSet = NOTSET,
+    pool_slots: int | ArgNotSet = NOTSET,
+    execution_timeout: timedelta | None | ArgNotSet = NOTSET,
+    max_retry_delay: None | timedelta | float | ArgNotSet = NOTSET,
+    retry_delay: timedelta | float | ArgNotSet = NOTSET,
+    retry_exponential_backoff: bool | ArgNotSet = NOTSET,
+    priority_weight: int | ArgNotSet = NOTSET,
+    weight_rule: str | ArgNotSet = NOTSET,
+    sla: timedelta | None | ArgNotSet = NOTSET,
+    max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
+    max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
+    on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
+    on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
+    on_success_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
+    on_retry_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] | ArgNotSet = NOTSET,
+    run_as_user: str | None | ArgNotSet = NOTSET,
+    executor_config: dict | None | ArgNotSet = NOTSET,
+    inlets: Any | None | ArgNotSet = NOTSET,
+    outlets: Any | None | ArgNotSet = NOTSET,
+    doc: str | None | ArgNotSet = NOTSET,
+    doc_md: str | None | ArgNotSet = NOTSET,
+    doc_json: str | None | ArgNotSet = NOTSET,
+    doc_yaml: str | None | ArgNotSet = NOTSET,
+    doc_rst: str | None | ArgNotSet = NOTSET,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -235,58 +258,67 @@ def partial(
 
     dag = dag or DagContext.get_current_dag()
     if dag:
-        task_group = TaskGroupContext.get_current_task_group(dag)
+        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
     if task_group:
         task_id = task_group.child_id(task_id)
 
     # Merge DAG and task group level defaults into user-supplied values.
-    partial_kwargs, partial_params = get_merged_defaults(
+    dag_default_args, partial_params = get_merged_defaults(
         dag=dag,
         task_group=task_group,
         task_params=params,
         task_default_args=kwargs.pop("default_args", None),
     )
-    partial_kwargs.update(kwargs)
 
-    # Always fully populate partial kwargs to exclude them from map().
-    partial_kwargs.setdefault("dag", dag)
-    partial_kwargs.setdefault("task_group", task_group)
-    partial_kwargs.setdefault("task_id", task_id)
-    partial_kwargs.setdefault("start_date", start_date)
-    partial_kwargs.setdefault("end_date", end_date)
-    partial_kwargs.setdefault("owner", owner)
-    partial_kwargs.setdefault("email", email)
-    partial_kwargs.setdefault("trigger_rule", trigger_rule)
-    partial_kwargs.setdefault("depends_on_past", depends_on_past)
-    partial_kwargs.setdefault("ignore_first_depends_on_past", ignore_first_depends_on_past)
-    partial_kwargs.setdefault("wait_for_past_depends_before_skipping", wait_for_past_depends_before_skipping)
-    partial_kwargs.setdefault("wait_for_downstream", wait_for_downstream)
-    partial_kwargs.setdefault("retries", retries)
-    partial_kwargs.setdefault("queue", queue)
-    partial_kwargs.setdefault("pool", pool)
-    partial_kwargs.setdefault("pool_slots", pool_slots)
-    partial_kwargs.setdefault("execution_timeout", execution_timeout)
-    partial_kwargs.setdefault("max_retry_delay", max_retry_delay)
-    partial_kwargs.setdefault("retry_delay", retry_delay)
-    partial_kwargs.setdefault("retry_exponential_backoff", retry_exponential_backoff)
-    partial_kwargs.setdefault("priority_weight", priority_weight)
-    partial_kwargs.setdefault("weight_rule", weight_rule)
-    partial_kwargs.setdefault("sla", sla)
-    partial_kwargs.setdefault("max_active_tis_per_dag", max_active_tis_per_dag)
-    partial_kwargs.setdefault("on_execute_callback", on_execute_callback)
-    partial_kwargs.setdefault("on_failure_callback", on_failure_callback)
-    partial_kwargs.setdefault("on_retry_callback", on_retry_callback)
-    partial_kwargs.setdefault("on_success_callback", on_success_callback)
-    partial_kwargs.setdefault("run_as_user", run_as_user)
-    partial_kwargs.setdefault("executor_config", executor_config)
-    partial_kwargs.setdefault("inlets", inlets or [])
-    partial_kwargs.setdefault("outlets", outlets or [])
-    partial_kwargs.setdefault("resources", resources)
-    partial_kwargs.setdefault("doc", doc)
-    partial_kwargs.setdefault("doc_json", doc_json)
-    partial_kwargs.setdefault("doc_md", doc_md)
-    partial_kwargs.setdefault("doc_rst", doc_rst)
-    partial_kwargs.setdefault("doc_yaml", doc_yaml)
+    # Create partial_kwargs from args and kwargs
+    partial_kwargs: dict[str, Any] = {
+        **kwargs,
+        "dag": dag,
+        "task_group": task_group,
+        "task_id": task_id,
+        "start_date": start_date,
+        "end_date": end_date,
+        "owner": owner,
+        "email": email,
+        "trigger_rule": trigger_rule,
+        "depends_on_past": depends_on_past,
+        "ignore_first_depends_on_past": ignore_first_depends_on_past,
+        "wait_for_past_depends_before_skipping": wait_for_past_depends_before_skipping,
+        "wait_for_downstream": wait_for_downstream,
+        "retries": retries,
+        "queue": queue,
+        "pool": pool,
+        "pool_slots": pool_slots,
+        "execution_timeout": execution_timeout,
+        "max_retry_delay": max_retry_delay,
+        "retry_delay": retry_delay,
+        "retry_exponential_backoff": retry_exponential_backoff,
+        "priority_weight": priority_weight,
+        "weight_rule": weight_rule,
+        "sla": sla,
+        "max_active_tis_per_dag": max_active_tis_per_dag,
+        "max_active_tis_per_dagrun": max_active_tis_per_dagrun,
+        "on_execute_callback": on_execute_callback,
+        "on_failure_callback": on_failure_callback,
+        "on_retry_callback": on_retry_callback,
+        "on_success_callback": on_success_callback,
+        "run_as_user": run_as_user,
+        "executor_config": executor_config,
+        "inlets": inlets,
+        "outlets": outlets,
+        "resources": resources,
+        "doc": doc,
+        "doc_json": doc_json,
+        "doc_md": doc_md,
+        "doc_rst": doc_rst,
+        "doc_yaml": doc_yaml,
+    }
+
+    # Inject DAG-level default args into args provided to this function.
+    partial_kwargs.update((k, v) for k, v in dag_default_args.items() if partial_kwargs.get(k) is NOTSET)
+
+    # Fill fields not provided by the user with default values.
+    partial_kwargs = {k: _PARTIAL_DEFAULTS.get(k) if v is NOTSET else v for k, v in partial_kwargs.items()}
 
     # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
     if "task_concurrency" in kwargs:  # Reject deprecated option.
@@ -577,6 +609,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param run_as_user: unix username to impersonate while running the task
     :param max_active_tis_per_dag: When set, a task will be able to limit the concurrent
         runs across execution_dates.
+    :param max_active_tis_per_dagrun: When set, a task will be able to limit the concurrent
+        task instances per DAG run.
     :param executor_config: Additional task-level configuration parameters that are
         interpreted by a specific executor. Parameters are namespaced by the name of
         executor.
@@ -686,6 +720,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
+    _is_setup = False
+    _is_teardown = False
+    _on_failure_fail_dagrun = False
+
     def __init__(
         self,
         task_id: str,
@@ -704,7 +742,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         wait_for_past_depends_before_skipping: bool = DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
         wait_for_downstream: bool = False,
         dag: DAG | None = None,
-        params: dict | None = None,
+        params: collections.abc.MutableMapping | None = None,
         default_args: dict | None = None,
         priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
         weight_rule: str = DEFAULT_WEIGHT_RULE,
@@ -724,6 +762,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         run_as_user: str | None = None,
         task_concurrency: int | None = None,
         max_active_tis_per_dag: int | None = None,
+        max_active_tis_per_dagrun: int | None = None,
         executor_config: dict | None = None,
         do_xcom_push: bool = True,
         inlets: Any | None = None,
@@ -761,6 +800,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
+
+        DagInvalidTriggerRule.check(dag, trigger_rule)
 
         self.task_id = task_group.child_id(task_id) if task_group else task_id
         if not self.__from_mapped and task_group:
@@ -867,6 +908,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             max_active_tis_per_dag = task_concurrency
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
+        self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
         self.do_xcom_push = do_xcom_push
 
         self.doc_md = doc_md
@@ -914,6 +956,34 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 stacklevel=2,
             )
             self.template_fields = [self.template_fields]
+
+        if SetupTeardownContext.active:
+            SetupTeardownContext.update_context_map(self)
+
+    @classmethod
+    def as_setup(cls, *args, **kwargs):
+        op = cls(*args, **kwargs)
+        op._is_setup = True
+        return op
+
+    @classmethod
+    def as_teardown(cls, *args, **kwargs):
+        on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
+        if "trigger_rule" in kwargs:
+            raise ValueError("Cannot set trigger rule for teardown tasks.")
+        op = cls(*args, **kwargs, trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
+        op._is_teardown = True
+        op._on_failure_fail_dagrun = on_failure_fail_dagrun
+        return op
+
+    def __enter__(self):
+        if not self._is_setup and not self._is_teardown:
+            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+        SetupTeardownContext.push_setup_teardown_task(self)
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        SetupTeardownContext.set_work_task_roots_and_leaves()
 
     def __eq__(self, other):
         if type(self) is type(other):
@@ -1458,6 +1528,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "template_fields",
                     "template_fields_renderers",
                     "params",
+                    "_is_setup",
+                    "_is_teardown",
+                    "_on_failure_fail_dagrun",
                 }
             )
             DagContext.pop_context_managed_dag()

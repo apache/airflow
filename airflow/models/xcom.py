@@ -58,15 +58,17 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
+# XCom constants below are needed for providers backward compatibility,
+# which should import the constants directly after apache-airflow>=2.6.0
+from airflow.utils.xcom import (
+    MAX_XCOM_SIZE,  # noqa: F401
+    XCOM_RETURN_KEY,
+)
+
 log = logging.getLogger(__name__)
 
-# MAX XCOM Size is 48KB
-# https://github.com/apache/airflow/pull/1618#discussion_r68249677
-MAX_XCOM_SIZE = 49344
-XCOM_RETURN_KEY = "return_value"
-
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class BaseXCom(Base, LoggingMixin):
@@ -366,7 +368,7 @@ class BaseXCom(Base, LoggingMixin):
     ) -> Any | None:
         """:sphinx-autoapi-skip:"""
         if not exactly_one(execution_date is not None, run_id is not None):
-            raise ValueError("Exactly one of ti_key, run_id, or execution_date must be passed")
+            raise ValueError("Exactly one of run_id or execution_date must be passed")
 
         if run_id:
             query = BaseXCom.get_many(
@@ -772,7 +774,10 @@ class LazyXComAccess(collections.abc.Sequence):
             yield self._query
             return
 
-        session = settings.Session()
+        Session = getattr(settings, "Session", None)
+        if Session is None:
+            raise RuntimeError("Session must be set before!")
+        session = Session()
         try:
             yield self._query.with_session(session)
         finally:

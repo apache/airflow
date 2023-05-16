@@ -77,11 +77,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
     custom_operator_name = "@task.docker"
 
-    template_fields: Sequence[str] = ("op_args", "op_kwargs")
-
-    # since we won't mutate the arguments, we should just do the shallow copy
-    # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = ("python_callable",)
+    template_fields: Sequence[str] = (*DockerOperator.template_fields, "op_args", "op_kwargs")
 
     def __init__(
         self,
@@ -90,7 +86,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
         expect_airflow: bool = True,
         **kwargs,
     ) -> None:
-        command = "dummy command"
+        command = "placeholder command"
         self.python_command = python_command
         self.expect_airflow = expect_airflow
         self.pickling_library = dill if use_dill else pickle
@@ -114,7 +110,7 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
             with open(input_filename, "wb") as file:
                 if self.op_args or self.op_kwargs:
                     self.pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
-            py_source = self._get_python_source()
+            py_source = self.get_python_source()
             write_python_script(
                 jinja_context=dict(
                     op_args=self.op_args,
@@ -140,10 +136,11 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
             self.command = self.generate_command()
             return super().execute(context)
 
-    def _get_python_source(self):
+    # TODO: Remove me once this provider min supported Airflow version is 2.6
+    def get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
         res = dedent(raw_source)
-        res = remove_task_decorator(res, "@task.docker")
+        res = remove_task_decorator(res, self.custom_operator_name)
         return res
 
 

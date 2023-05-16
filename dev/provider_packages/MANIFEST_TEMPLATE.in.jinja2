@@ -26,15 +26,11 @@
 {% if PROVIDER_PACKAGE_ID == 'amazon' %}
 include airflow/providers/amazon/aws/hooks/batch_waiters.json
 include airflow/providers/amazon/aws/waiters/*.json
-{% elif PROVIDER_PACKAGE_ID == 'google' %}
-include airflow/providers/google/cloud/example_dags/*.yaml
-include airflow/providers/google/cloud/example_dags/*.sql
 {% elif PROVIDER_PACKAGE_ID == 'cncf.kubernetes' %}
 include airflow/providers/cncf/kubernetes/*.jinja2
 {% endif %}
 
 include NOTICE
 include LICENSE
-include CHANGELOG.txt
-include README.md
+include CHANGELOG.rst
 global-exclude __pycache__  *.pyc

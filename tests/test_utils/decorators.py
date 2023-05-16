@@ -36,7 +36,6 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
             "init_appbuilder_links",
             "init_appbuilder_views",
             "init_plugins",
-            "init_connection_form",
             "init_error_handlers",
             "init_api_connexion",
             "init_api_internal",

@@ -23,7 +23,6 @@ import gzip as gz
 import os
 import shutil
 import time
-import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
@@ -51,8 +50,18 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHoo
 from airflow.utils import timezone
 from airflow.version import version
 
+try:
+    # Airflow 2.3 doesn't have this yet
+    from airflow.typing_compat import ParamSpec
+except ImportError:
+    try:
+        from typing import ParamSpec  # type: ignore[no-redef, attr-defined]
+    except ImportError:
+        from typing_extensions import ParamSpec
+
 RT = TypeVar("RT")
 T = TypeVar("T", bound=Callable)
+FParams = ParamSpec("FParams")
 
 # GCSHook has a method named 'list' (to junior devs: please don't do this), so
 # we need to create an alias to prevent Mypy being confused.
@@ -76,9 +85,9 @@ def _fallback_object_url_to_object_name_and_bucket_name(
     :return: Decorator
     """
 
-    def _wrapper(func: T):
+    def _wrapper(func: Callable[FParams, RT]) -> Callable[FParams, RT]:
         @functools.wraps(func)
-        def _inner_wrapper(self: GCSHook, *args, **kwargs) -> RT:
+        def _inner_wrapper(self, *args, **kwargs) -> RT:
             if args:
                 raise AirflowException(
                     "You must use keyword arguments in this methods rather than positional"
@@ -119,9 +128,9 @@ def _fallback_object_url_to_object_name_and_bucket_name(
 
             return func(self, *args, **kwargs)
 
-        return cast(T, _inner_wrapper)
+        return cast(Callable[FParams, RT], _inner_wrapper)
 
-    return _wrapper
+    return cast(Callable[[T], T], _wrapper)
 
 
 # A fake bucket to use in functions decorated by _fallback_object_url_to_object_name_and_bucket_name.
@@ -142,16 +151,17 @@ class GCSHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
+
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
 
@@ -686,15 +696,63 @@ class GCSHook(GoogleBaseHook):
         except NotFound:
             self.log.info("Bucket %s not exists", bucket_name)
 
-    def list(self, bucket_name, versions=None, max_results=None, prefix=None, delimiter=None) -> List:
+    def list(
+        self,
+        bucket_name: str,
+        versions: bool | None = None,
+        max_results: int | None = None,
+        prefix: str | List[str] | None = None,
+        delimiter: str | None = None,
+    ):
+        """
+        List all objects from the bucket with the given a single prefix or multiple prefixes
+
+        :param bucket_name: bucket name
+        :param versions: if true, list all versions of the objects
+        :param max_results: max count of items to return in a single page of responses
+        :param prefix: string or list of strings which filter objects whose name begin with it/them
+        :param delimiter: filters objects based on the delimiter (for e.g '.csv')
+        :return: a stream of object names matching the filtering criteria
+        """
+        objects = []
+        if isinstance(prefix, list):
+            for prefix_item in prefix:
+                objects.extend(
+                    self._list(
+                        bucket_name=bucket_name,
+                        versions=versions,
+                        max_results=max_results,
+                        prefix=prefix_item,
+                        delimiter=delimiter,
+                    )
+                )
+        else:
+            objects.extend(
+                self._list(
+                    bucket_name=bucket_name,
+                    versions=versions,
+                    max_results=max_results,
+                    prefix=prefix,
+                    delimiter=delimiter,
+                )
+            )
+        return objects
+
+    def _list(
+        self,
+        bucket_name: str,
+        versions: bool | None = None,
+        max_results: int | None = None,
+        prefix: str | None = None,
+        delimiter: str | None = None,
+    ) -> List:
         """
         List all objects from the bucket with the give string prefix in name
 
         :param bucket_name: bucket name
         :param versions: if true, list all versions of the objects
         :param max_results: max count of items to return in a single page of responses
-        :param prefix: prefix string which filters objects whose name begin with
-            this prefix
+        :param prefix: string which filters objects whose name begin with it
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         :return: a stream of object names matching the filtering criteria
         """

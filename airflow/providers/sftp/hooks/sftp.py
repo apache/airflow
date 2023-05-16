@@ -27,7 +27,7 @@ from typing import Any, Callable
 
 import paramiko
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
@@ -85,7 +85,7 @@ class SFTPHook(SSHHook):
         if self.ssh_hook is not None:
             warnings.warn(
                 "Parameter `ssh_hook` is deprecated and will be removed in a future version.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             if not isinstance(self.ssh_hook, SSHHook):
@@ -100,7 +100,7 @@ class SFTPHook(SSHHook):
         if ftp_conn_id:
             warnings.warn(
                 "Parameter `ftp_conn_id` is deprecated. Please use `ssh_conn_id` instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             ssh_conn_id = ftp_conn_id
@@ -391,3 +391,18 @@ class SFTPHook(SSHHook):
                 return file
 
         return ""
+
+    def get_files_by_pattern(self, path, fnmatch_pattern) -> list[str]:
+        """
+        Returning the list of matching files based on the given fnmatch type pattern
+
+        :param path: path to be checked
+        :param fnmatch_pattern: The pattern that will be matched with `fnmatch`
+        :return: list of string containing the found files, or an empty list if none matched
+        """
+        matched_files = []
+        for file in self.list_directory(path):
+            if fnmatch(file, fnmatch_pattern):
+                matched_files.append(file)
+
+        return matched_files

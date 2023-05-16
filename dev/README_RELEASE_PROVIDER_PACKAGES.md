@@ -45,6 +45,8 @@
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
+  - [Announce about the release in social media](#announce-about-the-release-in-social-media)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Close the testing status issue](#close-the-testing-status-issue)
 
@@ -338,7 +340,7 @@ Note if this is not the first time you clone the repo make sure main branch is r
 ```shell script
 cd "${AIRFLOW_SITE_DIRECTORY}"
 git checkout main
-git rebase --pull
+git pull --rebase
 ```
 
 - Then you can go to the directory and build the necessary documentation packages
@@ -545,6 +547,8 @@ problems have been found in some packages.
 
 Please modify the message above accordingly to clearly exclude those packages.
 
+Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
+
 ## Verify the release by PMC members
 
 ### SVN check
@@ -569,12 +573,22 @@ Or update it if you already checked it out:
 svn update .
 ```
 
-Optionally you can use `check_files.py` script to verify that all expected files are
-present in SVN. This script may help also with verifying installation of the packages.
+Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
+script to verify that all expected files are present in SVN. This script will produce a `Dockerfile.pmc` which
+may help with verifying installation of the packages.
 
 ```shell script
 # Copy the list of packages (pypi urls) into `packages.txt` then run:
 python check_files.py providers -p {PATH_TO_SVN}
+```
+
+After the above script completes you can build `Dockerfile.pmc` to trigger an installation of each provider
+package and verify the correct versions are installed:
+
+```shell script
+docker build -f Dockerfile.pmc --tag local/airflow .
+docker run --rm --entrypoint "airflow" local/airflow info
+docker image rm local/airflow
 ```
 
 ### Licences check
@@ -976,6 +990,36 @@ It is more reliable to send it via the web ui at https://lists.apache.org/list.h
 
 Note If you choose sending it with your email client make sure the email is set to plain text mode.
 Trying to send HTML content will result in failure.
+
+## Send announcements about security issues fixed in the release
+
+The release manager should review and mark as READY all the security issues fixed in the release.
+Such issues are marked as affecting `< <JUST_RELEASED_VERSION>` in the CVE management tool
+at https://cveprocess.apache.org/. Then the release manager should announced the issues via the tool.
+
+Once announced, each of the issue should be linked with a 'reference' with tag 'vendor advisory' with the
+URL to the announcement published automatically by the CVE management tool.
+Note that the announce@apache.org is moderated, and the link to the email thread will not be published
+immediately, that's why it is recommended to add the link to users@airflow.apache.org which takes usually
+few seconds to be published after the CVE tool sends them.
+
+The ASF Security will be notified and will submit to the CVE project and will set the state to 'PUBLIC'.
+
+## Announce about the release in social media
+
+------------------------------------------------------------------------------------------------------------
+Announcement is done from official Apache-Airflow accounts.
+
+* Twitter: https://twitter.com/ApacheAirflow
+* Linkedin: https://www.linkedin.com/company/apache-airflow/
+
+If you don't have access to the account ask PMC to post.
+
+------------------------------------------------------------------------------------------------------------
+
+Normally we do not announce on providers in social media other than a new provider added which doesn't happen often.
+If you believe there is a reason to announce in social media for another case consult with PMCs about it.
+Example for special case: an exciting new capability that the community waited for and should have big impact.
 
 ## Add release data to Apache Committee Report Helper
 

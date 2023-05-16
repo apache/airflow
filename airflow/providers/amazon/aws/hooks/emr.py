@@ -20,14 +20,12 @@ from __future__ import annotations
 import json
 import warnings
 from time import sleep
-from typing import Any, Callable
+from typing import Any
 
 from botocore.exceptions import ClientError
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.utils.waiter import get_state, waiter
 from airflow.utils.helpers import prune_dict
 
 
@@ -69,11 +67,15 @@ class EmrHook(AwsBaseHook):
         :param cluster_states: State(s) of cluster to find
         :return: id of the EMR cluster
         """
-        response = self.get_conn().list_clusters(ClusterStates=cluster_states)
-
-        matching_clusters = list(
-            filter(lambda cluster: cluster["Name"] == emr_cluster_name, response["Clusters"])
+        response_iterator = (
+            self.get_conn().get_paginator("list_clusters").paginate(ClusterStates=cluster_states)
         )
+        matching_clusters = [
+            cluster
+            for page in response_iterator
+            for cluster in page["Clusters"]
+            if cluster["Name"] == emr_cluster_name
+        ]
 
         if len(matching_clusters) == 1:
             cluster_id = matching_clusters[0]["Id"]
@@ -254,66 +256,41 @@ class EmrServerlessHook(AwsBaseHook):
         kwargs["client_type"] = "emr-serverless"
         super().__init__(*args, **kwargs)
 
-    @cached_property
-    def conn(self):
-        """Get the underlying boto3 EmrServerlessAPIService client (cached)"""
-        return super().conn
-
-    # This method should be replaced with boto waiters which would implement timeouts and backoff nicely.
-    def waiter(
-        self,
-        get_state_callable: Callable,
-        get_state_args: dict,
-        parse_response: list,
-        desired_state: set,
-        failure_states: set,
-        object_type: str,
-        action: str,
-        countdown: int = 25 * 60,
-        check_interval_seconds: int = 60,
-    ) -> None:
+    def cancel_running_jobs(self, application_id: str, waiter_config: dict = {}):
         """
-        Will run the sensor until it turns True.
-
-        :param get_state_callable: A callable to run until it returns True
-        :param get_state_args: Arguments to pass to get_state_callable
-        :param parse_response: Dictionary keys to extract state from response of get_state_callable
-        :param desired_state: Wait until the getter returns this value
-        :param failure_states: A set of states which indicate failure and should throw an
-            exception if any are reached before the desired_state
-        :param object_type: Used for the reporting string. What are you waiting for? (application, job, etc)
-        :param action: Used for the reporting string. What action are you waiting for? (created, deleted, etc)
-        :param countdown: Total amount of time the waiter should wait for the desired state
-            before timing out (in seconds). Defaults to 25 * 60 seconds.
-        :param check_interval_seconds: Number of seconds waiter should wait before attempting
-            to retry get_state_callable. Defaults to 60 seconds.
+        List all jobs in an intermediate state and cancel them.
+        Then wait for those jobs to reach a terminal state.
+        Note: if new jobs are triggered while this operation is ongoing,
+        it's going to time out and return an error.
         """
-        warnings.warn(
-            """This method is deprecated.
-            Please use `airflow.providers.amazon.aws.utils.waiter.waiter`.""",
-            DeprecationWarning,
-            stacklevel=2,
+        paginator = self.conn.get_paginator("list_job_runs")
+        results_per_response = 50
+        iterator = paginator.paginate(
+            applicationId=application_id,
+            states=list(self.JOB_INTERMEDIATE_STATES),
+            PaginationConfig={
+                "PageSize": results_per_response,
+            },
         )
-        waiter(
-            get_state_callable=get_state_callable,
-            get_state_args=get_state_args,
-            parse_response=parse_response,
-            desired_state=desired_state,
-            failure_states=failure_states,
-            object_type=object_type,
-            action=action,
-            countdown=countdown,
-            check_interval_seconds=check_interval_seconds,
-        )
-
-    def get_state(self, response, keys) -> str:
-        warnings.warn(
-            """This method is deprecated.
-            Please use `airflow.providers.amazon.aws.utils.waiter.get_state`.""",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return get_state(response=response, keys=keys)
+        count = 0
+        for r in iterator:
+            job_ids = [jr["id"] for jr in r["jobRuns"]]
+            count += len(job_ids)
+            if len(job_ids) > 0:
+                self.log.info(
+                    "Cancelling %s pending job(s) for the application %s so that it can be stopped",
+                    len(job_ids),
+                    application_id,
+                )
+                for job_id in job_ids:
+                    self.conn.cancel_job_run(applicationId=application_id, jobRunId=job_id)
+        if count > 0:
+            self.log.info("now waiting for the %s cancelled job(s) to terminate", count)
+            self.get_waiter("no_job_running").wait(
+                applicationId=application_id,
+                states=list(self.JOB_INTERMEDIATE_STATES.union({"CANCELLING"})),
+                WaiterConfig=waiter_config,
+            )
 
 
 class EmrContainerHook(AwsBaseHook):
@@ -483,7 +460,6 @@ class EmrContainerHook(AwsBaseHook):
     def poll_query_status(
         self,
         job_id: str,
-        max_tries: int | None = None,
         poll_interval: int = 30,
         max_polling_attempts: int | None = None,
     ) -> str | None:
@@ -492,22 +468,9 @@ class EmrContainerHook(AwsBaseHook):
         Returns one of the final states.
 
         :param job_id: The ID of the job run request.
-        :param max_tries: Deprecated - Use max_polling_attempts instead
         :param poll_interval: Time (in seconds) to wait between calls to check query status on EMR
         :param max_polling_attempts: Number of times to poll for query state before function exits
         """
-        if max_tries:
-            warnings.warn(
-                f"Method `{self.__class__.__name__}.max_tries` is deprecated and will be removed "
-                "in a future release.  Please use method `max_polling_attempts` instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            if max_polling_attempts and max_polling_attempts != max_tries:
-                raise Exception("max_polling_attempts must be the same value as max_tries")
-            else:
-                max_polling_attempts = max_tries
-
         try_number = 1
         final_query_state = None  # Query state when query reaches final state or max_polling_attempts reached
 

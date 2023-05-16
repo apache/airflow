@@ -25,6 +25,7 @@ import os
 import pathlib
 import re
 import shlex
+import stat
 import subprocess
 import sys
 import warnings
@@ -43,7 +44,6 @@ from typing_extensions import overload
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowConfigException
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
@@ -177,6 +177,7 @@ class AirflowConfigParser(ConfigParser):
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
         ("celery", "worker_precheck"): ("core", "worker_precheck", "2.0.0"),
+        ("logging", "interleave_timestamp_parser"): ("core", "interleave_timestamp_parser", "2.6.1"),
         ("logging", "base_log_folder"): ("core", "base_log_folder", "2.0.0"),
         ("logging", "remote_logging"): ("core", "remote_logging", "2.0.0"),
         ("logging", "remote_log_conn_id"): ("core", "remote_log_conn_id", "2.0.0"),
@@ -199,6 +200,8 @@ class AirflowConfigParser(ConfigParser):
             "2.0.0",
         ),
         ("logging", "task_log_reader"): ("core", "task_log_reader", "2.0.0"),
+        ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.6.0"),
+        ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.6.0"),
         ("metrics", "statsd_on"): ("scheduler", "statsd_on", "2.0.0"),
         ("metrics", "statsd_host"): ("scheduler", "statsd_host", "2.0.0"),
         ("metrics", "statsd_port"): ("scheduler", "statsd_port", "2.0.0"),
@@ -232,6 +235,22 @@ class AirflowConfigParser(ConfigParser):
         ("database", "load_default_connections"): ("core", "load_default_connections", "2.3.0"),
         ("database", "max_db_retries"): ("core", "max_db_retries", "2.3.0"),
         ("scheduler", "parsing_cleanup_interval"): ("scheduler", "deactivate_stale_dags_interval", "2.5.0"),
+        ("scheduler", "task_queued_timeout_check_interval"): (
+            "kubernetes_executor",
+            "worker_pods_pending_timeout_check_interval",
+            "2.6.0",
+        ),
+    }
+
+    # A mapping of new configurations to a list of old configurations for when one configuration
+    # deprecates more than one other deprecation. The deprecation logic for these configurations
+    # is defined in SchedulerJobRunner.
+    many_to_one_deprecated_options: dict[tuple[str, str], list[tuple[str, str, str]]] = {
+        ("scheduler", "task_queued_timeout"): [
+            ("celery", "stalled_task_timeout", "2.6.0"),
+            ("celery", "task_adoption_timeout", "2.6.0"),
+            ("kubernetes_executor", "worker_pods_pending_timeout", "2.6.0"),
+        ]
     }
 
     # A mapping of new section -> (old section, since_version).
@@ -339,7 +358,7 @@ class AirflowConfigParser(ConfigParser):
         self._suppress_future_warnings = False
 
     def validate(self):
-        self._validate_config_dependencies()
+        self._validate_sqlite3_version()
         self._validate_enums()
 
         for section, replacement in self.deprecated_values.items():
@@ -428,31 +447,27 @@ class AirflowConfigParser(ConfigParser):
                         f"{value!r}. Possible values: {', '.join(enum_options)}."
                     )
 
-    def _validate_config_dependencies(self):
+    def _validate_sqlite3_version(self):
+        """Validate SQLite version.
+
+        Some features in storing rendered fields require SQLite >= 3.15.0.
         """
-        Validate that config based on condition.
+        if "sqlite" not in self.get("database", "sql_alchemy_conn"):
+            return
 
-        Values are considered invalid when they conflict with other config values
-        or system-level limitations and requirements.
-        """
-        executor, _ = ExecutorLoader.import_default_executor_cls()
-        is_sqlite = "sqlite" in self.get("database", "sql_alchemy_conn")
+        import sqlite3
 
-        if is_sqlite and not executor.is_single_threaded:
-            raise AirflowConfigException(f"error: cannot use sqlite with the {executor.__name__}")
-        if is_sqlite:
-            import sqlite3
+        min_sqlite_version = (3, 15, 0)
+        if _parse_sqlite_version(sqlite3.sqlite_version) >= min_sqlite_version:
+            return
 
-            from airflow.utils.docs import get_docs_url
+        from airflow.utils.docs import get_docs_url
 
-            # Some features in storing rendered fields require sqlite version >= 3.15.0
-            min_sqlite_version = (3, 15, 0)
-            if _parse_sqlite_version(sqlite3.sqlite_version) < min_sqlite_version:
-                min_sqlite_version_str = ".".join(str(s) for s in min_sqlite_version)
-                raise AirflowConfigException(
-                    f"error: sqlite C library version too old (< {min_sqlite_version_str}). "
-                    f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
-                )
+        min_sqlite_version_str = ".".join(str(s) for s in min_sqlite_version)
+        raise AirflowConfigException(
+            f"error: SQLite C library too old (< {min_sqlite_version_str}). "
+            f"See {get_docs_url('howto/set-up-database.html#setting-up-a-sqlite-database')}"
+        )
 
     def _using_old_value(self, old: Pattern, current_value: str) -> bool:
         return old.search(current_value) is not None
@@ -550,12 +565,10 @@ class AirflowConfigParser(ConfigParser):
 
     @overload  # type: ignore[override]
     def get(self, section: str, key: str, fallback: str = ..., **kwargs) -> str:  # type: ignore[override]
-
         ...
 
     @overload  # type: ignore[override]
     def get(self, section: str, key: str, **kwargs) -> str | None:  # type: ignore[override]
-
         ...
 
     def get(  # type: ignore[override, misc]
@@ -1072,7 +1085,7 @@ class AirflowConfigParser(ConfigParser):
             # This ensures the ones from config file is hidden too
             # if they are not provided through env, cmd and secret
             hidden = "< hidden >"
-            for (section, key) in self.sensitive_config_values:
+            for section, key in self.sensitive_config_values:
                 if not config_sources.get(section):
                     continue
                 if config_sources[section].get(key, None):
@@ -1091,7 +1104,7 @@ class AirflowConfigParser(ConfigParser):
         display_source: bool,
         raw: bool,
     ):
-        for (section, key) in self.sensitive_config_values:
+        for section, key in self.sensitive_config_values:
             value: str | None = self._get_secret_option_from_config_sources(config_sources, section, key)
             if value:
                 if not display_sensitive:
@@ -1112,7 +1125,7 @@ class AirflowConfigParser(ConfigParser):
         display_source: bool,
         raw: bool,
     ):
-        for (section, key) in self.sensitive_config_values:
+        for section, key in self.sensitive_config_values:
             opt = self._get_cmd_option_from_config_sources(config_sources, section, key)
             if not opt:
                 continue
@@ -1190,7 +1203,7 @@ class AirflowConfigParser(ConfigParser):
         :return: None, the given config_sources is filtered if necessary,
             otherwise untouched.
         """
-        for (section, key) in self.sensitive_config_values:
+        for section, key in self.sensitive_config_values:
             # Don't bother if we don't have section / key
             if section not in config_sources or key not in config_sources[section]:
                 continue
@@ -1224,7 +1237,7 @@ class AirflowConfigParser(ConfigParser):
         include_cmds: bool,
         include_secret: bool,
     ):
-        for (source_name, config) in configs:
+        for source_name, config in configs:
             for section in config.sections():
                 AirflowConfigParser._replace_section_config_with_display_sources(
                     config,
@@ -1251,7 +1264,7 @@ class AirflowConfigParser(ConfigParser):
                 continue
             try:
                 deprecated_section_array = config.items(section=deprecated_section, raw=True)
-                for (key_candidate, _) in deprecated_section_array:
+                for key_candidate, _ in deprecated_section_array:
                     if key_candidate == deprecated_key:
                         return True
             except NoSectionError:
@@ -1489,6 +1502,7 @@ def initialize_config() -> AirflowConfigParser:
             with open(TEST_CONFIG_FILE, "w") as file:
                 cfg = _parameterized_config_from_template("default_test.cfg")
                 file.write(cfg)
+            make_group_other_inaccessible(TEST_CONFIG_FILE)
 
         local_conf.load_test_config()
     else:
@@ -1503,6 +1517,7 @@ def initialize_config() -> AirflowConfigParser:
 
             with open(AIRFLOW_CONFIG, "w") as file:
                 file.write(default_config)
+            make_group_other_inaccessible(AIRFLOW_CONFIG)
 
         log.info("Reading the config from %s", AIRFLOW_CONFIG)
 
@@ -1543,6 +1558,18 @@ def initialize_config() -> AirflowConfigParser:
         log.info("Creating new FAB webserver config file in: %s", WEBSERVER_CONFIG)
         shutil.copy(_default_config_file_path("default_webserver_config.py"), WEBSERVER_CONFIG)
     return local_conf
+
+
+def make_group_other_inaccessible(file_path: str):
+    try:
+        permissions = os.stat(file_path)
+        os.chmod(file_path, permissions.st_mode & (stat.S_IRUSR | stat.S_IWUSR))
+    except Exception as e:
+        log.warning(
+            "Could not change permissions of config file to be group/other inaccessible. "
+            "Continuing with original permissions:",
+            e,
+        )
 
 
 # Historical convenience functions to access config entries

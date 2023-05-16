@@ -161,7 +161,7 @@ Make sure you restart the webserver and scheduler after making changes to plugin
 Example
 -------
 
-The code below defines a plugin that injects a set of dummy object
+The code below defines a plugin that injects a set of illustrative object
 definitions in Airflow.
 
 .. code-block:: python

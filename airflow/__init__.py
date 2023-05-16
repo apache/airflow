@@ -26,6 +26,8 @@ isort:skip_file
 """
 from __future__ import annotations
 
+__version__ = "2.7.0.dev0"
+
 # flake8: noqa: F401
 
 import os
@@ -78,7 +80,6 @@ __lazy_imports: dict[str, tuple[str, str]] = {
     "XComArg": (".models.xcom_arg", "XComArg"),
     "AirflowException": (".exceptions", "AirflowException"),
     "version": (".version", ""),
-    "__version__": (".version", "version"),
 }
 
 

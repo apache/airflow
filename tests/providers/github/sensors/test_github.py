@@ -43,7 +43,9 @@ class TestGithubSensor:
         )
 
     @patch(
-        "airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock
+        "airflow.providers.github.hooks.github.GithubClient",
+        autospec=True,
+        return_value=github_client_mock,
     )
     def test_github_tag_created(self, github_mock):
         class MockTag:

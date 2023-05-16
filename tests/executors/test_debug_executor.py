@@ -38,7 +38,7 @@ class TestDebugExecutor:
         assert not executor.tasks_to_run
         run_task_mock.assert_has_calls([mock.call(ti1), mock.call(ti2)])
 
-    @mock.patch("airflow.executors.debug_executor.TaskInstance")
+    @mock.patch("airflow.models.taskinstance.TaskInstance")
     def test_run_task(self, task_instance_mock):
         ti_key = "key"
         job_id = " job_id"
@@ -121,3 +121,6 @@ class TestDebugExecutor:
 
     def test_is_single_threaded(self):
         assert DebugExecutor.is_single_threaded
+
+    def test_is_production_default_value(self):
+        assert not DebugExecutor.is_production

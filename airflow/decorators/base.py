@@ -20,6 +20,7 @@ import inspect
 import re
 import warnings
 from itertools import chain
+from textwrap import dedent
 from typing import (
     Any,
     Callable,
@@ -66,8 +67,10 @@ from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import ParamSpec, Protocol
 from airflow.utils import timezone
 from airflow.utils.context import KNOWN_CONTEXT_KEYS, Context
+from airflow.utils.decorators import remove_task_decorator
 from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.task_group import TaskGroup, TaskGroupContext
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
 
 
@@ -267,6 +270,12 @@ class DecoratedOperator(BaseOperator):
         kwargs["op_kwargs"] = op_kwargs
         return args, kwargs
 
+    def get_python_source(self):
+        raw_source = inspect.getsource(self.python_callable)
+        res = dedent(raw_source)
+        res = remove_task_decorator(res, self.custom_operator_name)
+        return res
+
 
 FParams = ParamSpec("FParams")
 
@@ -293,6 +302,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
     decorator_name: str = attr.ib(repr=False, default="task")
 
     _airflow_is_task_decorator: ClassVar[bool] = True
+    _is_setup: ClassVar[bool] = False
+    _is_teardown: ClassVar[bool] = False
+    _on_failure_fail_dagrun: ClassVar[bool] = False
 
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
@@ -326,6 +338,10 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         self.kwargs.setdefault("task_id", self.function.__name__)
 
     def __call__(self, *args: FParams.args, **kwargs: FParams.kwargs) -> XComArg:
+        if self._is_teardown:
+            if "trigger_rule" in self.kwargs:
+                raise ValueError("Trigger rule not configurable for teardown tasks.")
+            self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
         op = self.operator_class(
             python_callable=self.function,
             op_args=args,
@@ -333,7 +349,12 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             multiple_outputs=self.multiple_outputs,
             **self.kwargs,
         )
-        if self.function.__doc__:
+        op._is_setup = self._is_setup
+        op._is_teardown = self._is_teardown
+        op._on_failure_fail_dagrun = self._on_failure_fail_dagrun
+        op_doc_attrs = [op.doc, op.doc_json, op.doc_md, op.doc_rst, op.doc_yaml]
+        # Set the task's doc_md to the function's docstring if it exists and no other doc* args are set.
+        if self.function.__doc__ and not any(op_doc_attrs):
             op.doc_md = self.function.__doc__
         return XComArg(op)
 
@@ -463,7 +484,11 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         return attr.evolve(self, kwargs={**self.kwargs, "op_kwargs": kwargs})
 
     def override(self, **kwargs: Any) -> _TaskDecorator[FParams, FReturn, OperatorSubclass]:
-        return attr.evolve(self, kwargs={**self.kwargs, **kwargs})
+        result = attr.evolve(self, kwargs={**self.kwargs, **kwargs})
+        setattr(result, "_is_setup", self._is_setup)
+        setattr(result, "_is_teardown", self._is_teardown)
+        setattr(result, "_on_failure_fail_dagrun", self._on_failure_fail_dagrun)
+        return result
 
 
 @attr.define(kw_only=True, repr=False)
@@ -507,7 +532,7 @@ class DecoratedMappedOperator(MappedOperator):
         return super()._get_unmap_kwargs(kwargs, strict=False)
 
 
-class Task(Generic[FParams, FReturn]):
+class Task(Protocol, Generic[FParams, FReturn]):
     """Declaration of a @task-decorated callable for type-checking.
 
     An instance of this type inherits the call signature of the decorated

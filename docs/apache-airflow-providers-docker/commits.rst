@@ -28,20 +28,49 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.6.0
+.....
+
+Latest change: 2023-04-21
+
+=================================================================================================  ===========  =====================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =====================================================================================================================
+`afdc95435b <https://github.com/apache/airflow/commit/afdc95435b9814d06f5d517ea6950442d3e4019a>`_  2023-04-21   ``Add multiple exit code handling in skip logic for 'DockerOperator' and 'KubernetesPodOperator' (#30769)``
+`99a3bf2318 <https://github.com/apache/airflow/commit/99a3bf23182374699f437cfd8ed3b74af3dafba7>`_  2023-04-19   ``Deprecate 'skip_exit_code' in 'DockerOperator' and 'KubernetesPodOperator' (#30733)``
+`c1a685f752 <https://github.com/apache/airflow/commit/c1a685f752703eeb01f9369612af8c88c24cca09>`_  2023-04-14   ``In 'DockerOperator', adding an attribute 'tls_verify' to choose whether to validate certificate (#30309) (#30310)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+`b8ab594130 <https://github.com/apache/airflow/commit/b8ab594130a1525fcf30c31a917a7dfdaef9dccf>`_  2023-03-15   ``Remove "boilerplate" from all taskflow decorators (#30118)``
+`dba390e323 <https://github.com/apache/airflow/commit/dba390e32330675e1b94442c8001ea980754c189>`_  2023-02-22   ``Fix and augment 'check-for-inclusive-language' CI check (#29549)``
+=================================================================================================  ===========  =====================================================================================================================
+
+3.5.1
+.....
+
+Latest change: 2023-02-18
+
+=================================================================================================  ===========  ================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================
+`470fdaea27 <https://github.com/apache/airflow/commit/470fdaea275660970777c0f72b8867b382eabc14>`_  2023-02-18   ``Prepare docs for 02 2023 midmonth wave of Providers (#29589)``
+`7bd87e75de <https://github.com/apache/airflow/commit/7bd87e75def1855d8f5b91e9ab1ffbbf416709ec>`_  2023-02-17   ``fix template_fields in the decorator 'task.docker' (#29586)``
+=================================================================================================  ===========  ================================================================
+
 3.5.0
 .....
 
-Latest change: 2023-01-18
+Latest change: 2023-01-23
 
-=================================================================================================  ===========  ==========================================================================
+=================================================================================================  ===========  =============================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ==========================================================================
+=================================================================================================  ===========  =============================================================================
+`dd6cef7889 <https://github.com/apache/airflow/commit/dd6cef7889884bd15d4caca8aae61f3b73c29b1e>`_  2023-01-23   ``Prepare ad hoc provider release for Docker, Cassandra, Papermill (#28999)``
 `3a7bfce601 <https://github.com/apache/airflow/commit/3a7bfce6017207218889b66976dbee1ed84292dc>`_  2023-01-18   ``Skip DockerOperator task when it returns a provided exit code (#28996)``
 `cd637c223f <https://github.com/apache/airflow/commit/cd637c223f93c4306743921e85777d2eff7ae54b>`_  2023-01-16   ``Fix label name for 'reauth' field in Docker Connection (#28974)``
 `911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
 `af2c22a00a <https://github.com/apache/airflow/commit/af2c22a00afdd9302cbcda1de63fc1804b2cd2e5>`_  2023-01-03   ``Add correct widgets in Docker Hook (#28700)``
 `57a889de35 <https://github.com/apache/airflow/commit/57a889de357b269ae104b721e2a4bb78b929cea9>`_  2023-01-03   ``Make docker operators always use 'DockerHook' for API calls (#28363)``
-=================================================================================================  ===========  ==========================================================================
+=================================================================================================  ===========  =============================================================================
 
 3.4.0
 .....

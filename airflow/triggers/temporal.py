@@ -41,10 +41,8 @@ class DateTimeTrigger(BaseTrigger):
         # Make sure it's in UTC
         elif moment.tzinfo is None:
             raise ValueError("You cannot pass naive datetimes")
-        elif not hasattr(moment.tzinfo, "offset") or moment.tzinfo.offset != 0:  # type: ignore
-            raise ValueError(f"The passed datetime must be using Pendulum's UTC, not {moment.tzinfo!r}")
         else:
-            self.moment = moment
+            self.moment = timezone.convert_to_utc(moment)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return ("airflow.triggers.temporal.DateTimeTrigger", {"moment": self.moment})

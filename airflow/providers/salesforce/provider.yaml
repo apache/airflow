@@ -21,6 +21,7 @@ name: Salesforce
 description: |
     `Salesforce <https://www.salesforce.com/>`__
 
+suspended: false
 versions:
   - 5.3.0
   - 5.2.0
@@ -41,7 +42,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - simple-salesforce>=1.0.0
   - pandas>=0.17.1
 

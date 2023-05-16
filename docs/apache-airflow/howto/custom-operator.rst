@@ -94,7 +94,7 @@ logic of an operation is in one place - in the operator.
 .. _custom-operator/hook:
 
 Hooks
-^^^^^
+-----
 Hooks act as an interface to communicate with the external shared resources in a DAG.
 For example, multiple tasks in a DAG can require access to a MySQL database. Instead of
 creating a connection per task, you can retrieve a connection from the hook and utilize it.
@@ -131,7 +131,7 @@ The ``execute`` gets called only during a DAG run.
 
 
 User interface
-^^^^^^^^^^^^^^^
+--------------
 Airflow also allows the developer to control how the operator shows up in the DAG UI.
 Override ``ui_color`` to change the background color of the operator in UI.
 Override ``ui_fgcolor`` to change the color of the label.
@@ -146,7 +146,7 @@ Override ``custom_operator_name`` to change the displayed name to something othe
             # ...
 
 Templating
-^^^^^^^^^^^
+----------
 You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize your operator.
 Airflow considers the field names present in ``template_fields``  for templating while rendering
 the operator.
@@ -157,12 +157,13 @@ the operator.
 
             template_fields: Sequence[str] = ("name",)
 
-            def __init__(self, name: str, **kwargs) -> None:
+            def __init__(self, name: str, world: str, **kwargs) -> None:
                 super().__init__(**kwargs)
                 self.name = name
+                self.world = world
 
             def execute(self, context):
-                message = f"Hello from {self.name}"
+                message = f"Hello {self.world} it's {self.name}!"
                 print(message)
                 return message
 
@@ -171,7 +172,11 @@ You can use the template as follows:
 .. code-block:: python
 
         with dag:
-            hello_task = HelloOperator(task_id="task_id_1", dag=dag, name="{{ task_instance.task_id }}")
+            hello_task = HelloOperator(
+                task_id="task_id_1",
+                name="{{ task_instance.task_id }}",
+                world="Earth",
+            )
 
 In this example, Jinja looks for the ``name`` parameter and substitutes ``{{ task_instance.task_id }}`` with
 ``task_id_1``.
@@ -232,7 +237,6 @@ Then using this template as follows:
             config_task = MyConfigOperator(
                 task_id="task_id_1",
                 configuration={"query": {"job_id": "123", "sql": "select * from my_table"}},
-                dag=dag,
             )
 
 This will result in the UI rendering ``configuration`` as json in addition to the value contained in the
@@ -267,15 +271,65 @@ Currently available lexers:
 
 If you use a non-existing lexer then the value of the template field will be rendered as a pretty-printed object.
 
+Add template fields with subclassing
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+A common use case for creating a custom operator is for simply augmenting existing ``template_fields``.
+There might be a situation is which an operator you wish to use doesn't define certain parameters as
+templated, but you'd like to be able to dynamically pass an argument as a Jinja expression. This can easily be
+achieved with a quick subclassing of the existing operator.
+
+Let's assume you want to use the ``HelloOperator`` defined earlier:
+
+.. code-block:: python
+
+        class HelloOperator(BaseOperator):
+
+            template_fields: Sequence[str] = ("name",)
+
+            def __init__(self, name: str, world: str, **kwargs) -> None:
+                super().__init__(**kwargs)
+                self.name = name
+                self.world = world
+
+            def execute(self, context):
+                message = f"Hello {self.world} it's {self.name}!"
+                print(message)
+                return message
+
+However, you'd like to dynamically parameterize ``world`` arguments. Because the ``template_fields`` property
+is guaranteed to be a ``Sequence[str]`` type (i.e. a list or tuple of strings), you can subclass the
+``HelloOperator`` to modify the ``template_fields`` as desired easily.
+
+.. code-block:: python
+
+    class MyHelloOperator(HelloOperator):
+
+        template_fields: Sequence[str] = (*HelloOperator.template_fields, "world")
+
+Now you can use ``MyHelloOperator`` like this:
+
+.. code-block:: python
+
+    with dag:
+        hello_task = MyHelloOperator(
+            task_id="task_id_1",
+            name="{{ task_instance.task_id }}",
+            world="{{ var.value.my_world }}",
+        )
+
+In this example, the ``world`` argument will be dynamically set to the value of an Airflow Variable named
+"my_world" via a Jinja expression.
+
+
 Define an operator extra link
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------------
 
 For your operator, you can :doc:`Define an extra link <define-extra-link>` that can
 redirect users to external systems. For example, you can add a link that redirects
 the user to the operator's manual.
 
 Sensors
-^^^^^^^^
+-------
 Airflow provides a primitive for a special kind of operator, whose purpose is to
 poll some state (e.g. presence of a file) on a regular interval until a
 success criteria is met.

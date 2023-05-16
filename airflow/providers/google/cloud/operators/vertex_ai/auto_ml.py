@@ -18,7 +18,6 @@
 """This module contains Google Vertex AI operators."""
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import NotFound
@@ -28,19 +27,19 @@ from google.cloud.aiplatform import datasets
 from google.cloud.aiplatform.models import Model
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.auto_ml import AutoMLHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIModelLink,
     VertexAITrainingLink,
     VertexAITrainingPipelinesLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class AutoMLTrainingJobBaseOperator(BaseOperator):
+class AutoMLTrainingJobBaseOperator(GoogleCloudBaseOperator):
     """The base class for operators that launch AutoML jobs on VertexAI."""
 
     def __init__(
@@ -59,7 +58,6 @@ class AutoMLTrainingJobBaseOperator(BaseOperator):
         model_labels: dict[str, str] | None = None,
         sync: bool = True,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -78,11 +76,6 @@ class AutoMLTrainingJobBaseOperator(BaseOperator):
         self.sync = sync
         # END Run param
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.hook: AutoMLHook | None = None
 
@@ -165,7 +158,6 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     def execute(self, context: Context):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         model, training_id = self.hook.create_auto_ml_forecasting_training_job(
@@ -262,7 +254,6 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     def execute(self, context: Context):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         model, training_id = self.hook.create_auto_ml_image_training_job(
@@ -359,7 +350,6 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     def execute(self, context: Context):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         model, training_id = self.hook.create_auto_ml_tabular_training_job(
@@ -444,7 +434,6 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     def execute(self, context: Context):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         model, training_id = self.hook.create_auto_ml_text_training_job(
@@ -510,7 +499,6 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
     def execute(self, context: Context):
         self.hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         model, training_id = self.hook.create_auto_ml_video_training_job(
@@ -543,7 +531,7 @@ class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         return result
 
 
-class DeleteAutoMLTrainingJobOperator(BaseOperator):
+class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
     """Deletes an AutoMLForecastingTrainingJob, AutoMLImageTrainingJob, AutoMLTabularTrainingJob,
     AutoMLTextTrainingJob, or AutoMLVideoTrainingJob.
     """
@@ -560,7 +548,6 @@ class DeleteAutoMLTrainingJobOperator(BaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -572,17 +559,11 @@ class DeleteAutoMLTrainingJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         try:
@@ -601,7 +582,7 @@ class DeleteAutoMLTrainingJobOperator(BaseOperator):
             self.log.info("The Training Pipeline ID %s does not exist.", self.training_pipeline)
 
 
-class ListAutoMLTrainingJobOperator(BaseOperator):
+class ListAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
     """Lists AutoMLForecastingTrainingJob, AutoMLImageTrainingJob, AutoMLTabularTrainingJob,
     AutoMLTextTrainingJob, or AutoMLVideoTrainingJob in a Location.
     """
@@ -628,7 +609,6 @@ class ListAutoMLTrainingJobOperator(BaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -643,17 +623,11 @@ class ListAutoMLTrainingJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook = AutoMLHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         results = hook.list_training_pipelines(

@@ -18,8 +18,8 @@
  */
 
 /*
-*  TypeScript config
-*/
+ *  TypeScript config
+ */
 {
   "compilerOptions": {
     "strict": true,
@@ -35,13 +35,12 @@
     "jsx": "preserve",
     "types": ["node", "jest"],
     "baseUrl": ".",
-    "paths": { // Be sure to update aliases in webpack.config.js and jest.config.js
-      "src/*": ["static/js/*"],
+    "paths": {
+      // Be sure to update aliases in webpack.config.js and jest.config.js
+      "src/*": ["static/js/*"]
     },
-    "noEmit": true,
+    "noEmit": true
   },
-  "include": [
-    "static",
-  ],
+  "include": ["static"],
   "exclude": ["node_modules", "static/dist"]
 }

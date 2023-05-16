@@ -22,15 +22,14 @@ from base64 import b64encode
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from paramiko.client import SSHClient
 
     from airflow.providers.ssh.hooks.ssh import SSHHook
-
-CMD_TIMEOUT = 10
 
 
 class SSHOperator(BaseOperator):
@@ -50,6 +49,8 @@ class SSHOperator(BaseOperator):
         Nullable. If provided, it will replace the `conn_timeout` which was
         predefined in the connection of `ssh_conn_id`.
     :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
+        Nullable, `None` means no timeout. If provided, it will replace the `cmd_timeout`
+        which was predefined in the connection of `ssh_conn_id`.
     :param environment: a dict of shell environment variables. Note that the
         server will reject them silently if `AcceptEnv` is not set in SSH config. (templated)
     :param get_pty: request a pseudo-terminal from the server. Set to ``True``
@@ -84,7 +85,7 @@ class SSHOperator(BaseOperator):
         remote_host: str | None = None,
         command: str | None = None,
         conn_timeout: int | None = None,
-        cmd_timeout: int | None = None,
+        cmd_timeout: int | ArgNotSet | None = NOTSET,
         environment: dict | None = None,
         get_pty: bool = False,
         banner_timeout: float = 30.0,
@@ -96,7 +97,7 @@ class SSHOperator(BaseOperator):
         self.remote_host = remote_host
         self.command = command
         self.conn_timeout = conn_timeout
-        self.cmd_timeout = cmd_timeout if cmd_timeout else CMD_TIMEOUT
+        self.cmd_timeout = cmd_timeout
         self.environment = environment
         self.get_pty = get_pty
         self.banner_timeout = banner_timeout
@@ -112,6 +113,7 @@ class SSHOperator(BaseOperator):
                 self.ssh_hook = SSHHook(
                     ssh_conn_id=self.ssh_conn_id,
                     conn_timeout=self.conn_timeout,
+                    cmd_timeout=self.cmd_timeout,
                     banner_timeout=self.banner_timeout,
                 )
 
@@ -137,7 +139,7 @@ class SSHOperator(BaseOperator):
         warnings.warn(
             "exec_ssh_client_command method on SSHOperator is deprecated, call "
             "`ssh_hook.exec_ssh_client_command` instead",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         assert self.ssh_hook
         return self.ssh_hook.exec_ssh_client_command(

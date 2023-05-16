@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+2.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle 'jira_method_args' in JiraOperator when not provided (#29741)``
+
 2.0.0
 .....
 

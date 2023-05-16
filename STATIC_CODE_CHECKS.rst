@@ -26,7 +26,7 @@ All the static code checks can be run through pre-commit hooks.
 The pre-commit hooks perform all the necessary installation when you run them
 for the first time. See the table below to identify which pre-commit checks require the Breeze Docker images.
 
-You can also run some static code checks via `Breeze <BREEZE.rst#aout-airflow-breeze>`_ environment
+You can also run some `static code check <BREEZE.rst#running-static-checks>`_ via `Breeze <BREEZE.rst#aout-airflow-breeze>`_ environment
 using available bash scripts.
 
 Pre-commit hooks
@@ -112,29 +112,39 @@ Available pre-commit checks
 ...........................
 
 This table lists pre-commit hooks used by Airflow. The ``Image`` column indicates which hooks
-require Breeze Docker image to be build locally.
+require Breeze Docker image to be built locally.
 
 .. note:: Disabling particular checks
 
   In case you have a problem with running particular ``pre-commit`` check you can still continue using the
   benefits of having ``pre-commit`` installed, with some of the checks disabled. In order to disable
-  checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example
+  checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example,
   when you want to skip some checks (ruff/mypy for example), you should be able to do it by setting
-  ``export SKIP=ruff,run-mypy``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
+  ``export SKIP=ruff,mypy-core,``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
   do not want to set it manually every time you enter the terminal.
 
   In case you do not have breeze image configured locally, you can also disable all checks that require
   the image by setting ``SKIP_IMAGE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
   when run locally (note that those checks will anyway run in CI).
 
+.. note:: Mypy volume cache
+
+  MyPy uses a separate docker-volume (called ``mypy-cache-volume``) that keeps the cache of last MyPy
+  execution in order to speed MyPy checks up (sometimes by order of magnitude). While in most cases MyPy
+  will handle refreshing the cache when and if needed, there are some cases when it won't (cache invalidation
+  is the hard problem in computer science). This might happen for example when we upgrade MyPY. In such
+  cases you might need to manually remove the cache volume by running ``breeze stop --cleanup-mypy-cache``.
+
   .. BEGIN AUTO-GENERATED STATIC CHECK LIST
 
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | ID                                                        | Description                                                      | Image   |
 +===========================================================+==================================================================+=========+
-| black                                                     | Run black (python formatter)                                     |         |
+| black                                                     | Run black (Python formatter)                                     |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| blacken-docs                                              | Run black on python code blocks in documentation files           |         |
+| blacken-docs                                              | Run black on Python code blocks in documentation files           |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-aiobotocore-optional                                | Check if aiobotocore is an optional dependency only              |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                      | Checks for consistency between config.yml and default_config.cfg |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -187,6 +197,8 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-newsfragments-are-valid                             | Check newsfragments are valid                                    |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-no-airflow-deprecation-in-providers                 | Do not use DeprecationWarning in providers                       |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-no-providers-in-core-examples                       | No providers imports in core example DAGs                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-no-relative-imports                                 | No relative imports                                              |         |
@@ -219,6 +231,10 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-system-tests-tocs                                   | Check that system tests is properly added                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-tests-unittest-testcase                             | Check that unit tests do not inherit from unittest.TestCase      |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-urlparse-usage-in-code                              | Don't use urlparse in code                                       |         |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-xml                                                 | Check XML files with xmllint                                     |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | codespell                                                 | Run codespell to check for common misspellings in files          |         |
@@ -233,32 +249,33 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | detect-private-key                                        | Detect if private key is added to the repository                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| doctoc                                                    | Add TOC for md and rst files                                     |         |
+| doctoc                                                    | Add TOC for Markdown and RST files                               |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | end-of-file-fixer                                         | Make sure that there is an empty line at the end                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| fix-encoding-pragma                                       | Remove encoding header from python files                         |         |
+| fix-encoding-pragma                                       | Remove encoding header from Python files                         |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | flynt                                                     | Run flynt string format converter for Python                     |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | identity                                                  | Print input to the static check hooks for troubleshooting        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | insert-license                                            | * Add license for all SQL files                                  |         |
-|                                                           | * Add license for all rst files                                  |         |
-|                                                           | * Add license for all CSS/JS/PUML/TS/TSX files                   |         |
+|                                                           | * Add license for all RST files                                  |         |
+|                                                           | * Add license for all CSS/JS/JSX/PUML/TS/TSX files               |         |
 |                                                           | * Add license for all JINJA template files                       |         |
-|                                                           | * Add license for all shell files                                |         |
+|                                                           | * Add license for all Shell files                                |         |
 |                                                           | * Add license for all Python files                               |         |
 |                                                           | * Add license for all XML files                                  |         |
-|                                                           | * Add license for all YAML files                                 |         |
-|                                                           | * Add license for all md files                                   |         |
+|                                                           | * Add license for all Helm template files                        |         |
+|                                                           | * Add license for all YAML files except Helm templates           |         |
+|                                                           | * Add license for all Markdown files                             |         |
 |                                                           | * Add license for all other files                                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-chart-schema                                         | Lint chart/values.schema.json file                               |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-css                                                  | stylelint                                                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| lint-dockerfile                                           | Lint dockerfile                                                  |         |
+| lint-dockerfile                                           | Lint Dockerfile                                                  |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-helm-chart                                           | Lint Helm Chart                                                  |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -276,7 +293,15 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | mixed-line-ending                                         | Detect if mixed line ending is used (\r vs. \r\n)                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| pretty-format-json                                        | Format json files                                                |         |
+| mypy-core                                                 | Run mypy for core                                                | *       |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| mypy-dev                                                  | Run mypy for dev                                                 | *       |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| mypy-docs                                                 | Run mypy for /docs/ folder                                       | *       |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| mypy-providers                                            | Run mypy for providers                                           | *       |
++-----------------------------------------------------------+------------------------------------------------------------------+---------+
+| pretty-format-json                                        | Format JSON files                                                |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | python-no-log-warn                                        | Check if there are no deprecate log warn                         |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -286,16 +311,11 @@ require Breeze Docker image to be build locally.
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | ruff                                                      | ruff                                                             |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| run-mypy                                                  | * Run mypy for dev                                               | *       |
-|                                                           | * Run mypy for core                                              |         |
-|                                                           | * Run mypy for providers                                         |         |
-|                                                           | * Run mypy for /docs/ folder                                     |         |
-+-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| run-shellcheck                                            | Check Shell scripts syntax correctness                           |         |
+| shellcheck                                                | Check Shell scripts syntax correctness                           |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | trailing-whitespace                                       | Remove trailing whitespace at end of line                        |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
-| ts-compile-and-lint-javascript                            | TS types generation and ESLint against current UI files          |         |
+| ts-compile-format-lint-www                                | TS types generation and ESLint/Prettier against current UI files |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-black-version                                      | Update black versions everywhere                                 |         |
 +-----------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -346,17 +366,17 @@ code. But you can run pre-commit hooks manually as needed.
 
     pre-commit run
 
--   Run only mypy check on your staged files by using:
+-   Run only mypy check on your staged files (in ``airflow/`` excluding providers) by using:
 
 .. code-block:: bash
 
-    pre-commit run run-mypy
+    pre-commit run mypy-core
 
 -   Run only mypy checks on all files by using:
 
 .. code-block:: bash
 
-    pre-commit run run-mypy --all-files
+    pre-commit run mypy-core --all-files
 
 
 -   Run all checks on all files by using:
@@ -384,7 +404,7 @@ code. But you can run pre-commit hooks manually as needed.
 
 .. code-block:: bash
 
-    SKIP=run-mypy,ruff pre-commit run --all-files
+    SKIP=mypy-core,ruff pre-commit run --all-files
 
 
 You can always skip running the tests by providing ``--no-verify`` flag to the
@@ -402,19 +422,19 @@ You run the static code checks via ``breeze static-check`` or commands.
 You can see the list of available static checks either via ``--help`` flag or by using the autocomplete
 option.
 
-Run the ``mypy`` check for the currently staged changes:
+Run the ``mypy`` check for the currently staged changes (in ``airflow/`` excluding providers):
 
 .. code-block:: bash
 
-     breeze static-checks --type run-mypy
+     breeze static-checks --type mypy-core
 
 Run the ``mypy`` check for all files:
 
 .. code-block:: bash
 
-     breeze static-checks --type run-mypy --all-files
+     breeze static-checks --type mypy-core --all-files
 
-Run the ``ruff`` check for the ``tests.core.py`` file with verbose output:
+Run the ``ruff`` check for the ``tests/core.py`` file with verbose output:
 
 .. code-block:: bash
 
@@ -425,6 +445,14 @@ Run the ``ruff for the ``tests.core`` package with verbose output:
 .. code-block:: bash
 
      breeze static-checks --type ruff --file tests/core/* --verbose
+
+Run the ``black`` check for the files ``airflow/example_dags/example_bash_operator.py`` and
+``airflow/example_dags/example_python_operator.py``:
+
+.. code-block:: bash
+
+     breeze static-checks --type black --file airflow/example_dags/example_bash_operator.py \
+         airflow/example_dags/example_python_operator.py
 
 Run all checks for the currently staged files:
 
@@ -438,11 +466,20 @@ Run all checks for all files:
 
     breeze static-checks --all-files
 
-Run all checks for last commit :
+Run all checks for last commit:
 
 .. code-block:: bash
 
      breeze static-checks --last-commit
+
+Run all checks for all changes in my branch since branched from main:
+
+.. code-block:: bash
+
+     breeze static-checks -t mypy-core --only-my-changes
+
+More examples can be found in `Breeze documentation <BREEZE.rst#running-static-checks>`_
+
 
 Debugging pre-commit check scripts requiring image
 --------------------------------------------------

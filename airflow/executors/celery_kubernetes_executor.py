@@ -17,16 +17,19 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
-from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.executors.kubernetes_executor import KubernetesExecutor
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
+    from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class CeleryKubernetesExecutor(LoggingMixin):
@@ -41,10 +44,13 @@ class CeleryKubernetesExecutor(LoggingMixin):
     supports_ad_hoc_ti_run: bool = True
     supports_pickling: bool = True
     supports_sentry: bool = False
-    change_sensor_mode_to_reschedule: bool = False
-    is_single_threaded: bool = False
+
     is_local: bool = False
+    is_single_threaded: bool = False
+    is_production: bool = True
+
     serve_logs: bool = False
+    change_sensor_mode_to_reschedule: bool = False
 
     callback_sink: BaseCallbackSink | None = None
 
@@ -113,7 +119,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: str | None = None,
+        pickle_id: int | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
         wait_for_past_depends_before_skipping: bool = False,
@@ -123,6 +129,8 @@ class CeleryKubernetesExecutor(LoggingMixin):
         cfg_path: str | None = None,
     ) -> None:
         """Queues task instance via celery or kubernetes executor."""
+        from airflow.models.taskinstance import SimpleTaskInstance
+
         executor = self._router(SimpleTaskInstance.from_ti(task_instance))
         self.log.debug(
             "Using executor: %s to queue_task_instance for %s", executor.__class__.__name__, task_instance.key
@@ -140,10 +148,10 @@ class CeleryKubernetesExecutor(LoggingMixin):
             cfg_path=cfg_path,
         )
 
-    def get_task_log(self, ti: TaskInstance) -> tuple[list[str], list[str]]:
+    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
         """Fetch task log from Kubernetes executor"""
         if ti.queue == self.kubernetes_executor.kubernetes_queue:
-            return self.kubernetes_executor.get_task_log(ti=ti)
+            return self.kubernetes_executor.get_task_log(ti=ti, try_number=try_number)
         return [], []
 
     def has_task(self, task_instance: TaskInstance) -> bool:
@@ -190,6 +198,14 @@ class CeleryKubernetesExecutor(LoggingMixin):
         return [
             *self.celery_executor.try_adopt_task_instances(celery_tis),
             *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
+        ]
+
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
+        celery_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
+        kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
+        return [
+            *self.celery_executor.cleanup_stuck_queued_tasks(celery_tis),
+            *self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis),
         ]
 
     def end(self) -> None:

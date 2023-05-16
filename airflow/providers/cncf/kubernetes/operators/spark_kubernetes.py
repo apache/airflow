@@ -19,8 +19,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from kubernetes.watch import Watch
+
 from airflow.models import BaseOperator
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -55,24 +57,71 @@ class SparkKubernetesOperator(BaseOperator):
         kubernetes_conn_id: str = "kubernetes_default",
         api_group: str = "sparkoperator.k8s.io",
         api_version: str = "v1beta2",
+        in_cluster: bool | None = None,
+        cluster_context: str | None = None,
+        config_file: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.application_file = application_file
         self.namespace = namespace
         self.kubernetes_conn_id = kubernetes_conn_id
         self.api_group = api_group
         self.api_version = api_version
         self.plural = "sparkapplications"
+        self.application_file = application_file
+        self.in_cluster = in_cluster
+        self.cluster_context = cluster_context
+        self.config_file = config_file
+
+        self.hook = KubernetesHook(
+            conn_id=self.kubernetes_conn_id,
+            in_cluster=self.in_cluster,
+            config_file=self.config_file,
+            cluster_context=self.cluster_context,
+        )
 
     def execute(self, context: Context):
-        hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
-        self.log.info("Creating sparkApplication")
-        response = hook.create_custom_object(
+        body = _load_body_to_dict(self.application_file)
+        name = body["metadata"]["name"]
+        namespace = self.namespace or self.hook.get_namespace()
+        namespace_event_stream = Watch().stream(
+            self.hook.core_v1_client.list_namespaced_pod,
+            namespace=namespace,
+            _preload_content=False,
+            watch=True,
+            label_selector=f"sparkoperator.k8s.io/app-name={name},spark-role=driver",
+            field_selector="status.phase=Running",
+        )
+
+        self.hook.create_custom_object(
             group=self.api_group,
             version=self.api_version,
             plural=self.plural,
-            body=self.application_file,
-            namespace=self.namespace,
+            body=body,
+            namespace=namespace,
         )
-        return response
+        for event in namespace_event_stream:
+            if event["type"] == "ADDED":
+                pod_log_stream = Watch().stream(
+                    self.hook.core_v1_client.read_namespaced_pod_log,
+                    name=f"{name}-driver",
+                    namespace=namespace,
+                    _preload_content=False,
+                    timestamps=True,
+                )
+                for line in pod_log_stream:
+                    self.log.info(line)
+            else:
+                break
+
+    def on_kill(self) -> None:
+        body = _load_body_to_dict(self.application_file)
+        name = body["metadata"]["name"]
+        namespace = self.namespace or self.hook.get_namespace()
+        self.hook.delete_custom_object(
+            group=self.api_group,
+            version=self.api_version,
+            plural=self.plural,
+            namespace=namespace,
+            name=name,
+        )

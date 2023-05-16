@@ -41,7 +41,7 @@ def safe_load(stream: bytes | str | BinaryIO | TextIO) -> Any:
     try:
         from yaml import CSafeLoader as SafeLoader
     except ImportError:
-        from yaml import SafeLoader  # type: ignore[no-redef]
+        from yaml import SafeLoader  # type: ignore[assignment, no-redef]
 
     return orig(stream, SafeLoader)
 
@@ -54,7 +54,7 @@ def dump(data: Any, **kwargs) -> str:
     try:
         from yaml import CSafeDumper as SafeDumper
     except ImportError:
-        from yaml import SafeDumper  # type: ignore[no-redef]
+        from yaml import SafeDumper  # type: ignore[assignment, no-redef]
 
     return cast(str, orig(data, Dumper=SafeDumper, **kwargs))
 

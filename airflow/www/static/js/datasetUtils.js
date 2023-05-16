@@ -19,64 +19,70 @@
 
 /* global $, isoDateToTimeEl, document */
 
-import { getMetaValue } from './utils';
+import { getMetaValue } from "./utils";
 
-export function openDatasetModal(dagId, summary = '', nextDatasets = [], error = null) {
-  const datasetsUrl = getMetaValue('datasets_url');
-  $('#datasets_tbody').empty();
-  $('#datasets_error').hide();
-  $('#dag_id').text(dagId);
-  $('#datasetNextRunModal').modal({});
-  $('#next_run_summary').text(summary);
+export function openDatasetModal(
+  dagId,
+  summary = "",
+  nextDatasets = [],
+  error = null
+) {
+  const datasetsUrl = getMetaValue("datasets_url");
+  $("#datasets_tbody").empty();
+  $("#datasets_error").hide();
+  $("#dag_id").text(dagId);
+  $("#datasetNextRunModal").modal({});
+  $("#next_run_summary").text(summary);
   nextDatasets.forEach((d) => {
-    const row = document.createElement('tr');
+    const row = document.createElement("tr");
 
-    const uriCell = document.createElement('td');
-    const datasetLink = document.createElement('a');
+    const uriCell = document.createElement("td");
+    const datasetLink = document.createElement("a");
     datasetLink.href = `${datasetsUrl}?uri=${encodeURIComponent(d.uri)}`;
     datasetLink.innerText = d.uri;
     uriCell.append(datasetLink);
 
-    const timeCell = document.createElement('td');
+    const timeCell = document.createElement("td");
     if (d.lastUpdate) timeCell.append(isoDateToTimeEl(d.lastUpdate));
 
     row.append(uriCell);
     row.append(timeCell);
-    $('#datasets_tbody').append(row);
+    $("#datasets_tbody").append(row);
   });
 
   if (error) {
-    $('#datasets_error_msg').text(error);
-    $('#datasets_error').show();
+    $("#datasets_error_msg").text(error);
+    $("#datasets_error").show();
   }
 }
 
 export function getDatasetTooltipInfo(dagId, run, setNextDatasets) {
-  let nextRunUrl = getMetaValue('next_run_datasets_url');
+  let nextRunUrl = getMetaValue("next_run_datasets_url");
   if (dagId) {
-    if (nextRunUrl.includes('__DAG_ID__')) {
-      nextRunUrl = nextRunUrl.replace('__DAG_ID__', dagId);
+    if (nextRunUrl.includes("__DAG_ID__")) {
+      nextRunUrl = nextRunUrl.replace("__DAG_ID__", dagId);
     }
     $.get(nextRunUrl)
-      .done(
-        (datasets) => {
-          let count = 0;
-          let title = '<strong>Pending datasets:</strong><br>';
-          setNextDatasets(datasets);
-          datasets.forEach((d) => {
-            if (!d.created_at) {
-              if (count < 4) title += `${d.uri}<br>`;
-              count += 1;
-            }
-          });
-          if (count > 4) {
-            title += `<br>And ${count - 4} more.`;
+      .done((datasets) => {
+        let count = 0;
+        let title = "<strong>Pending datasets:</strong><br>";
+        setNextDatasets(datasets);
+        datasets.forEach((d) => {
+          if (!d.created_at) {
+            if (count < 4) title += `${d.uri}<br>`;
+            count += 1;
           }
-          title += '<br>Click to see more details.';
-          $(run).attr('data-original-title', () => title);
-        },
-      ).fail((response, textStatus, err) => {
-        const description = (response.responseJSON && response.responseJSON.error) || 'Something went wrong.';
+        });
+        if (count > 4) {
+          title += `<br>And ${count - 4} more.`;
+        }
+        title += "<br>Click to see more details.";
+        $(run).attr("data-original-title", () => title);
+      })
+      .fail((response, textStatus, err) => {
+        const description =
+          (response.responseJSON && response.responseJSON.error) ||
+          "Something went wrong.";
         const error = `${textStatus}: ${err} ${description}`;
         setNextDatasets([], error);
       });

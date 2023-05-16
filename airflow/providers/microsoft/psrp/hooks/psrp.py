@@ -29,7 +29,7 @@ from pypsrp.messages import MessageType
 from pypsrp.powershell import PowerShell, PSInvocationState, RunspacePool
 from pypsrp.wsman import WSMan
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 INFORMATIONAL_RECORD_LEVEL_MAP = {
@@ -75,8 +75,7 @@ class PsrpHook(BaseHook):
     or by setting this key as the extra fields of your connection.
     """
 
-    _conn = None
-    _configuration_name = None
+    _conn: RunspacePool | None = None
     _wsman_ref: WeakKeyDictionary[RunspacePool, WSMan] = WeakKeyDictionary()
 
     def __init__(
@@ -232,7 +231,7 @@ class PsrpHook(BaseHook):
                 "Passing **kwargs to 'invoke_cmdlet' is deprecated "
                 "and will be removed in a future release. Please use 'parameters' "
                 "instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             parameters = kwargs

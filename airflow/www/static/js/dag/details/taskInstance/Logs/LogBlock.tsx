@@ -17,14 +17,9 @@
  * under the License.
  */
 
-import React, {
-  useRef, useEffect, useState,
-} from 'react';
-import {
-  Code,
-} from '@chakra-ui/react';
-
-import useOffsetHeight from 'src/utils/useOffsetHeight';
+import React, { useRef, useEffect, useState } from "react";
+import { Code } from "@chakra-ui/react";
+import { useOffsetTop } from "src/utils";
 
 interface Props {
   parsedLogs: string;
@@ -32,31 +27,29 @@ interface Props {
   tryNumber: number;
 }
 
-const LogBlock = ({
-  parsedLogs,
-  wrap,
-  tryNumber,
-}: Props) => {
+const LogBlock = ({ parsedLogs, wrap, tryNumber }: Props) => {
   const [autoScroll, setAutoScroll] = useState(true);
+
   const logBoxRef = useRef<HTMLPreElement>(null);
-
-  const maxHeight = useOffsetHeight(logBoxRef, parsedLogs, 500);
-
   const codeBlockBottomDiv = useRef<HTMLDivElement>(null);
+  const offsetTop = useOffsetTop(logBoxRef);
 
   const scrollToBottom = () => {
-    codeBlockBottomDiv.current?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    codeBlockBottomDiv.current?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    });
   };
 
   useEffect(() => {
     // Always scroll to bottom when wrap or tryNumber change
-    scrollToBottom();
-  }, [wrap, tryNumber]);
+    if (offsetTop) scrollToBottom();
+  }, [wrap, tryNumber, offsetTop]);
 
   useEffect(() => {
     // When logs change, only scroll if autoScroll is enabled
-    if (autoScroll) scrollToBottom();
-  }, [parsedLogs, autoScroll]);
+    if (autoScroll && offsetTop) scrollToBottom();
+  }, [parsedLogs, autoScroll, offsetTop]);
 
   const onScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (e.currentTarget) {
@@ -70,13 +63,12 @@ const LogBlock = ({
     <Code
       ref={logBoxRef}
       onScroll={onScroll}
-      height="100%"
-      maxHeight={maxHeight}
+      maxHeight={`calc(100% - ${offsetTop}px)`}
       overflowY="auto"
       p={3}
       pb={0}
       display="block"
-      whiteSpace={wrap ? 'pre-wrap' : 'pre'}
+      whiteSpace={wrap ? "pre-wrap" : "pre"}
       border="1px solid"
       borderRadius={3}
       borderColor="blue.500"

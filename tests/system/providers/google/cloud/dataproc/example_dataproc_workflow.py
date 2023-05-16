@@ -31,7 +31,7 @@ from airflow.providers.google.cloud.operators.dataproc import (
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_workflow"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 REGION = "europe-west1"
 CLUSTER_NAME = f"cluster-dataproc-workflow-{ENV_ID}"
@@ -89,7 +89,7 @@ with models.DAG(
     )
     # [END how_to_cloud_dataproc_instantiate_inline_workflow_template]
 
-    create_workflow_template >> trigger_workflow >> instantiate_inline_workflow_template
+    (create_workflow_template >> trigger_workflow >> instantiate_inline_workflow_template)
 
     from tests.system.utils.watcher import watcher
 

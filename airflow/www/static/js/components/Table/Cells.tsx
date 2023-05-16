@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo } from "react";
 import {
   Flex,
   Code,
@@ -31,27 +31,29 @@ import {
   ModalOverlay,
   ModalBody,
   ModalHeader,
-} from '@chakra-ui/react';
+} from "@chakra-ui/react";
 
-import { Table } from 'src/components/Table';
-import Time from 'src/components/Time';
-import { getMetaValue } from 'src/utils';
-import { useContainerRef } from 'src/context/containerRef';
-import { SimpleStatus } from 'src/dag/StatusBox';
+import { Table } from "src/components/Table";
+import Time from "src/components/Time";
+import { getMetaValue } from "src/utils";
+import { useContainerRef } from "src/context/containerRef";
+import { SimpleStatus } from "src/dag/StatusBox";
 
 interface CellProps {
   cell: {
     value: any;
     row: {
       original: Record<string, any>;
-    }
-  }
+    };
+  };
 }
 
-export const TimeCell = ({ cell: { value } }: CellProps) => <Time dateTime={value} />;
+export const TimeCell = ({ cell: { value } }: CellProps) => (
+  <Time dateTime={value} />
+);
 
 export const DatasetLink = ({ cell: { value } }: CellProps) => {
-  const datasetsUrl = getMetaValue('datasets_url');
+  const datasetsUrl = getMetaValue("datasets_url");
   return (
     <Link
       color="blue.600"
@@ -63,17 +65,17 @@ export const DatasetLink = ({ cell: { value } }: CellProps) => {
 };
 
 export const DagRunLink = ({ cell: { value, row } }: CellProps) => {
-  const dagId = getMetaValue('dag_id');
-  const gridUrl = getMetaValue('grid_url');
-  const stringToReplace = dagId || '__DAG_ID__';
-  const url = `${gridUrl?.replace(stringToReplace, value)}?dag_run_id=${encodeURIComponent(row.original.dagRunId)}`;
+  const dagId = getMetaValue("dag_id");
+  const gridUrl = getMetaValue("grid_url");
+  const stringToReplace = dagId || "__DAG_ID__";
+  const url = `${gridUrl?.replace(
+    stringToReplace,
+    value
+  )}?dag_run_id=${encodeURIComponent(row.original.dagRunId)}`;
   return (
     <Flex alignItems="center">
       <SimpleStatus state={row.original.state} mr={2} />
-      <Link
-        color="blue.600"
-        href={url}
-      >
+      <Link color="blue.600" href={url}>
         {value}
       </Link>
     </Flex>
@@ -87,29 +89,28 @@ export const TriggeredRuns = ({ cell: { value, row } }: CellProps) => {
   const columns = useMemo(
     () => [
       {
-        Header: 'DAG Id',
-        accessor: 'dagId',
+        Header: "DAG Id",
+        accessor: "dagId",
         Cell: DagRunLink,
       },
       {
-        Header: 'Logical Date',
-        accessor: 'logicalDate',
+        Header: "Logical Date",
+        accessor: "logicalDate",
         Cell: TimeCell,
       },
     ],
-    [],
+    []
   );
 
-  const data = useMemo(
-    () => value,
-    [value],
-  );
+  const data = useMemo(() => value, [value]);
 
   if (!value || !value.length) return null;
 
   return (
     <Box>
-      <Text color="blue.600" cursor="pointer" onClick={onToggle}>{value.length}</Text>
+      <Text color="blue.600" cursor="pointer" onClick={onToggle}>
+        {value.length}
+      </Text>
       <Modal
         size="3xl"
         isOpen={isOpen}
@@ -121,21 +122,21 @@ export const TriggeredRuns = ({ cell: { value, row } }: CellProps) => {
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>
-            <Text as="span" color="gray.400">Dag Runs triggered by</Text>
+            <Text as="span" color="gray.400">
+              Dag Runs triggered by
+            </Text>
             <br />
             {row.original.datasetUri}
             <br />
-            <Text as="span" color="gray.400">at</Text>
+            <Text as="span" color="gray.400">
+              at
+            </Text>
             <br />
             <Time dateTime={row.original.timestamp} />
           </ModalHeader>
           <ModalCloseButton />
           <ModalBody>
-            <Table
-              data={data}
-              columns={columns}
-              pageSize={data.length}
-            />
+            <Table data={data} columns={columns} pageSize={data.length} />
           </ModalBody>
         </ModalContent>
       </Modal>
@@ -145,19 +146,26 @@ export const TriggeredRuns = ({ cell: { value, row } }: CellProps) => {
 
 export const TaskInstanceLink = ({ cell: { value, row } }: CellProps) => {
   const { sourceRunId, sourceDagId, sourceMapIndex } = row.original;
-  const gridUrl = getMetaValue('grid_url');
-  const dagId = getMetaValue('dag_id');
-  const stringToReplace = dagId || '__DAG_ID__';
-  const url = `${gridUrl?.replace(stringToReplace, sourceDagId)}?dag_run_id=${encodeURIComponent(sourceRunId)}&task_id=${encodeURIComponent(value)}`;
-  const mapIndex = sourceMapIndex > -1 ? `[${sourceMapIndex}]` : '';
+  const gridUrl = getMetaValue("grid_url");
+  const dagId = getMetaValue("dag_id");
+  const stringToReplace = dagId || "__DAG_ID__";
+  const url = `${gridUrl?.replace(
+    stringToReplace,
+    sourceDagId
+  )}?dag_run_id=${encodeURIComponent(sourceRunId)}&task_id=${encodeURIComponent(
+    value
+  )}`;
+  const mapIndex = sourceMapIndex > -1 ? `[${sourceMapIndex}]` : "";
   return (
     <Box>
-      <Link color="blue.600" href={url}>{`${sourceDagId}.${value}${mapIndex}`}</Link>
+      <Link
+        color="blue.600"
+        href={url}
+      >{`${sourceDagId}.${value}${mapIndex}`}</Link>
       <Text>{sourceRunId}</Text>
     </Box>
   );
 };
 
-export const CodeCell = ({ cell: { value } }: CellProps) => (
-  value ? <Code>{JSON.stringify(value)}</Code> : null
-);
+export const CodeCell = ({ cell: { value } }: CellProps) =>
+  value ? <Code>{JSON.stringify(value)}</Code> : null;

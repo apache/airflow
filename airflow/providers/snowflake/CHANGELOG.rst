@@ -24,6 +24,26 @@
 Changelog
 ---------
 
+4.0.5
+.....
+
+Misc
+~~~~
+
+* ``Update documentation for snowflake provider 4.0 breaking change (#30020)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+
+4.0.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix missing parens for files parameter (#29437)``
+
 4.0.3
 .....
 
@@ -64,6 +84,12 @@ The ``SnowflakeOperator`` is also more standard and derives from common
 However in this case the result returned by ``execute`` method is unchanged (it still returns Dictionaries
 rather than sequences and those dictionaries are pushed to XCom, so your DAGs relying on this behaviour
 should continue working without any change.
+
+UPDATE: One of the unmentioned, breaking changes in the operator in 4.0 line was to switch autocommit to
+False by default. While not very friendly to the users, it was a side effect of unifying the interface
+with other SQL operators and we released it to the users, so switching it back again would cause even more
+confusion. You should manually add autocommit=True to your SnowflakeOperator if you want to continue using
+it and expect autocommit to work, but even better, you should switch to SQLExecuteQueryOperator.
 
 In SnowflakeHook, if both ``extra__snowflake__foo`` and ``foo`` existed in connection extra
 dict, the prefixed version would be used; now, the non-prefixed version will be preferred.

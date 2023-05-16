@@ -75,7 +75,7 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.3.0``
 ``dnspython``       ``>=1.13.0``
-``pymongo``         ``>=3.6.0,<4.0.0``
+``pymongo``         ``>=3.6.0``
 ==================  ==================
 
 .. include:: ../../airflow/providers/mongo/CHANGELOG.rst

@@ -28,6 +28,7 @@ from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskmixin import DAGNode
 from airflow.template.templater import Templater
 from airflow.utils.context import Context
+from airflow.utils.log.secrets_masker import redact
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import skip_locked, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
@@ -563,8 +564,23 @@ class AbstractOperator(Templater, DAGNode):
                     f"{attr_name!r} is configured as a template field "
                     f"but {parent.task_type} does not have this attribute."
                 )
-            if not value:
-                continue
+
+            try:
+                if not value:
+                    continue
+            except Exception:
+                # This may happen if the templated field points to a class which does not support `__bool__`,
+                # such as Pandas DataFrames:
+                # https://github.com/pandas-dev/pandas/blob/9135c3aaf12d26f857fcc787a5b64d521c51e379/pandas/core/generic.py#L1465
+                self.log.info(
+                    "Unable to check if the value of type '%s' is False for task '%s', field '%s'.",
+                    type(value).__name__,
+                    self.task_id,
+                    attr_name,
+                )
+                # We may still want to render custom classes which do not support __bool__
+                pass
+
             try:
                 rendered_content = self.render_template(
                     value,
@@ -573,11 +589,12 @@ class AbstractOperator(Templater, DAGNode):
                     seen_oids,
                 )
             except Exception:
+                value_masked = redact(name=attr_name, value=value)
                 self.log.exception(
                     "Exception rendering Jinja template for task '%s', field '%s'. Template: %r",
                     self.task_id,
                     attr_name,
-                    value,
+                    value_masked,
                 )
                 raise
             else:

@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.listeners import hookimpl
-from airflow.utils.state import State
+from typing import Any
 
-started_component = None
-stopped_component = None
-state = []
+from airflow.listeners import hookimpl
+from airflow.utils.state import TaskInstanceState
+
+started_component: Any = None
+stopped_component: Any = None
+state: list[Any] = []
 
 
 @hookimpl
@@ -39,17 +41,17 @@ def before_stopping(component):
 
 @hookimpl
 def on_task_instance_running(previous_state, task_instance, session):
-    state.append(State.RUNNING)
+    state.append(TaskInstanceState.RUNNING)
 
 
 @hookimpl
 def on_task_instance_success(previous_state, task_instance, session):
-    state.append(State.SUCCESS)
+    state.append(TaskInstanceState.SUCCESS)
 
 
 @hookimpl
 def on_task_instance_failed(previous_state, task_instance, session):
-    state.append(State.FAILED)
+    state.append(TaskInstanceState.FAILED)
 
 
 def clear():

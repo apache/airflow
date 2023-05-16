@@ -17,15 +17,27 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
+import sys
+from asyncio import Future
 
+import kubernetes.client
 import pytest
+from google.cloud.container_v1 import ClusterManagerAsyncClient
 from google.cloud.container_v1.types import Cluster
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
+from airflow.providers.google.cloud.hooks.kubernetes_engine import (
+    GKEAsyncHook,
+    GKEHook,
+    GKEPodAsyncHook,
+)
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+
+if sys.version_info < (3, 8):
+    from asynctest import mock
+else:
+    from unittest import mock
 
 TASK_ID = "test-gke-cluster-operator"
 CLUSTER_NAME = "test-cluster"
@@ -33,9 +45,21 @@ TEST_GCP_PROJECT_ID = "test-project"
 GKE_ZONE = "test-zone"
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GKE_STRING = "airflow.providers.google.cloud.hooks.kubernetes_engine.{}"
+CLUSTER_URL = "https://path.to.cluster"
+SSL_CA_CERT = "test-ssl-ca-cert"
+POD_NAME = "test-pod-name"
+POD_NAMESPACE = "test"
+ASYNC_HOOK_STRING = GKE_STRING.format("GKEAsyncHook")
+GCP_CONN_ID = "test-gcp-conn-id"
+IMPERSONATE_CHAIN = ["impersonate", "this", "test"]
+OPERATION_NAME = "test-operation-name"
 
 
 class TestGKEHookClient:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            GKEHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         self.gke_hook = GKEHook(location=GKE_ZONE)
 
@@ -170,9 +194,9 @@ class TestGKEHookCreate:
         message = "Already Exists"
         self.gke_hook._client.create_cluster.side_effect = AlreadyExists(message=message)
 
-        self.gke_hook.create_cluster(cluster={}, project_id=TEST_GCP_PROJECT_ID)
-        wait_mock.assert_not_called()
-        log_mock.info.assert_any_call("Assuming Success: %s", message)
+        with pytest.raises(AlreadyExists):
+            self.gke_hook.create_cluster(cluster={}, project_id=TEST_GCP_PROJECT_ID)
+            wait_mock.assert_not_called()
 
 
 class TestGKEHookGet:
@@ -277,3 +301,114 @@ class TestGKEHook:
         operation_mock.assert_any_call(running_op.name, project_id=TEST_GCP_PROJECT_ID)
         operation_mock.assert_any_call(pending_op.name, project_id=TEST_GCP_PROJECT_ID)
         assert operation_mock.call_count == 2
+
+
+class TestGKEPodAsyncHook:
+    @staticmethod
+    def make_mock_awaitable(mock_obj, result=None):
+        f = Future()
+        f.set_result(result)
+
+        mock_obj.return_value = f
+
+    @pytest.fixture()
+    def async_hook(self):
+        return GKEPodAsyncHook(
+            cluster_url=CLUSTER_URL,
+            ssl_ca_cert=SSL_CA_CERT,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(GKE_STRING.format("Token"), mock.MagicMock())
+    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
+    @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod"))
+    async def test_get_pod(self, read_namespace_pod_mock, get_conn_mock, async_hook):
+        self.make_mock_awaitable(read_namespace_pod_mock)
+
+        await async_hook.get_pod(name=POD_NAME, namespace=POD_NAMESPACE)
+
+        get_conn_mock.assert_called_once()
+        read_namespace_pod_mock.assert_called_with(
+            name=POD_NAME,
+            namespace=POD_NAMESPACE,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(GKE_STRING.format("Token"), mock.MagicMock())
+    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
+    @mock.patch(GKE_STRING.format("async_client.CoreV1Api.delete_namespaced_pod"))
+    async def test_delete_pod(self, delete_namespaced_pod, get_conn_mock, async_hook):
+        self.make_mock_awaitable(delete_namespaced_pod)
+
+        await async_hook.delete_pod(name=POD_NAME, namespace=POD_NAMESPACE)
+
+        get_conn_mock.assert_called_once()
+        delete_namespaced_pod.assert_called_with(
+            name=POD_NAME,
+            namespace=POD_NAMESPACE,
+            body=kubernetes.client.V1DeleteOptions(),
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(GKE_STRING.format("Token"), mock.MagicMock())
+    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
+    @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod_log"))
+    async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, async_hook, caplog):
+        self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
+
+        await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
+
+        get_conn_mock.assert_called_once()
+        read_namespaced_pod_log.assert_called_with(
+            name=POD_NAME,
+            namespace=POD_NAMESPACE,
+            follow=False,
+            timestamps=True,
+        )
+        assert "Test string #1" in caplog.text
+        assert "Test string #2" in caplog.text
+
+
+@pytest.fixture()
+def async_gke_hook():
+    return GKEAsyncHook(
+        gcp_conn_id=GCP_CONN_ID,
+        location=GKE_ZONE,
+        impersonation_chain=IMPERSONATE_CHAIN,
+    )
+
+
+@pytest.fixture()
+def mock_async_gke_cluster_client():
+    f = Future()
+    f.set_result(None)
+    client = mock.MagicMock(spec=ClusterManagerAsyncClient)
+    client.get_operation.return_value = f
+    return client
+
+
+class TestGKEAsyncHook:
+    @staticmethod
+    def make_get_client_awaitable(mock_obj, result):
+        if sys.version_info < (3, 8):
+            f = Future()
+            f.set_result(result)
+            mock_obj.return_value = f
+        else:
+            mock_obj.return_value = result
+        return mock_obj
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{ASYNC_HOOK_STRING}._get_client")
+    async def test_get_operation(self, mock_get_client, async_gke_hook, mock_async_gke_cluster_client):
+        self.make_get_client_awaitable(mock_get_client, mock_async_gke_cluster_client)
+
+        await async_gke_hook.get_operation(
+            operation_name=OPERATION_NAME,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+        operation_path = f"projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/operations/{OPERATION_NAME}"
+        mock_async_gke_cluster_client.get_operation.assert_called_once_with(
+            name=operation_path,
+        )

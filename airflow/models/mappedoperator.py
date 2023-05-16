@@ -66,6 +66,7 @@ from airflow.utils.helpers import is_container, prevent_duplicates
 from airflow.utils.operator_resources import Resources
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import jinja2  # Slow import.
@@ -111,7 +112,7 @@ def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, valu
 
 
 def ensure_xcomarg_return_value(arg: Any) -> None:
-    from airflow.models.xcom_arg import XCOM_RETURN_KEY, XComArg
+    from airflow.models.xcom_arg import XComArg
 
     if isinstance(arg, XComArg):
         for operator, key in arg.iter_references():
@@ -451,6 +452,10 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("max_active_tis_per_dag")
 
     @property
+    def max_active_tis_per_dagrun(self) -> int | None:
+        return self.partial_kwargs.get("max_active_tis_per_dagrun")
+
+    @property
     def resources(self) -> Resources | None:
         return self.partial_kwargs.get("resources")
 
@@ -687,7 +692,11 @@ class MappedOperator(AbstractOperator):
         unmapped_task = self.unmap(mapped_kwargs)
         context_update_for_unmapped(context, unmapped_task)
 
-        self._do_render_template_fields(
+        # Since the operators that extend `BaseOperator` are not subclasses of
+        # `MappedOperator`, we need to call `_do_render_template_fields` from
+        # the unmapped task in order to call the operator method when we override
+        # it to customize the parsing of nested fields.
+        unmapped_task._do_render_template_fields(
             parent=unmapped_task,
             template_fields=self.template_fields,
             context=context,

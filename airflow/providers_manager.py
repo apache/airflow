@@ -31,6 +31,8 @@ from functools import wraps
 from time import perf_counter
 from typing import TYPE_CHECKING, Any, Callable, MutableMapping, NamedTuple, TypeVar, cast
 
+from packaging.utils import canonicalize_name
+
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.typing_compat import Literal
 from airflow.utils import yaml
@@ -193,6 +195,14 @@ class HookClassProvider(NamedTuple):
 
     hook_class_name: str
     package_name: str
+
+
+class TriggerInfo(NamedTuple):
+    """Trigger class and provider it comes from."""
+
+    trigger_class_name: str
+    package_name: str
+    integration_name: str
 
 
 class HookInfo(NamedTuple):
@@ -385,6 +395,7 @@ class ProvidersManager(LoggingMixin):
         self._logging_class_name_set: set[str] = set()
         self._secrets_backend_class_name_set: set[str] = set()
         self._api_auth_backend_module_names: set[str] = set()
+        self._trigger_info_set: set[TriggerInfo] = set()
         self._provider_schema_validator = _create_provider_info_schema_validator()
         self._customized_form_fields_schema_validator = (
             _create_customized_form_field_behaviours_schema_validator()
@@ -467,8 +478,8 @@ class ProvidersManager(LoggingMixin):
         and verifies only the subset of fields that are needed at runtime.
         """
         for entry_point, dist in entry_points_with_dist("apache_airflow_provider"):
-            package_name = dist.metadata["name"]
-            if self._provider_dict.get(package_name) is not None:
+            package_name = canonicalize_name(dist.metadata["name"])
+            if package_name in self._provider_dict:
                 continue
             log.debug("Loading %s from package %s", entry_point, package_name)
             version = dist.version
@@ -938,6 +949,27 @@ class ProvidersManager(LoggingMixin):
                 for auth_backend_module_name in provider.data["auth-backends"]:
                     if _sanity_check(provider_package, auth_backend_module_name + ".init_app", provider):
                         self._api_auth_backend_module_names.add(auth_backend_module_name)
+
+    @provider_info_cache("triggers")
+    def initialize_providers_triggers(self):
+        """Initialization of providers triggers."""
+        self.initialize_providers_list()
+        for provider_package, provider in self._provider_dict.items():
+            for trigger in provider.data.get("triggers", []):
+                for trigger_class_name in trigger.get("class-names"):
+                    self._trigger_info_set.add(
+                        TriggerInfo(
+                            package_name=provider_package,
+                            trigger_class_name=trigger_class_name,
+                            integration_name=trigger.get("integration-name", ""),
+                        )
+                    )
+
+    @property
+    def trigger(self) -> list[TriggerInfo]:
+        """Returns information about available providers trigger class."""
+        self.initialize_providers_triggers()
+        return sorted(self._trigger_info_set, key=lambda x: x.package_name)
 
     @property
     def providers(self) -> dict[str, ProviderInfo]:

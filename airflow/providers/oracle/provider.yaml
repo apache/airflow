@@ -21,6 +21,7 @@ name: Oracle
 description: |
     `Oracle <https://www.oracle.com/en/database/>`__
 
+suspended: false
 versions:
   - 3.6.0
   - 3.5.1
@@ -42,7 +43,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - apache-airflow-providers-common-sql>=1.3.1
   - oracledb>=1.0.0
 

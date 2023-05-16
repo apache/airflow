@@ -61,14 +61,22 @@ def test_timedelta_trigger_serialization():
     assert -2 < (kwargs["moment"] - expected_moment).total_seconds() < 2
 
 
+@pytest.mark.parametrize(
+    "tz",
+    [
+        pendulum.tz.timezone("UTC"),
+        pendulum.tz.timezone("Europe/Paris"),
+        pendulum.tz.timezone("America/Toronto"),
+    ],
+)
 @pytest.mark.asyncio
-async def test_datetime_trigger_timing():
+async def test_datetime_trigger_timing(tz):
     """
     Tests that the DateTimeTrigger only goes off on or after the appropriate
     time.
     """
-    past_moment = timezone.utcnow() - datetime.timedelta(seconds=60)
-    future_moment = timezone.utcnow() + datetime.timedelta(seconds=60)
+    past_moment = pendulum.instance((timezone.utcnow() - datetime.timedelta(seconds=60)).astimezone(tz))
+    future_moment = pendulum.instance((timezone.utcnow() + datetime.timedelta(seconds=60)).astimezone(tz))
 
     # Create a task that runs the trigger for a short time then cancels it
     trigger = DateTimeTrigger(future_moment)

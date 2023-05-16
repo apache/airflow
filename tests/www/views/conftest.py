@@ -28,6 +28,7 @@ from airflow import settings
 from airflow.models import DagBag
 from airflow.www.app import create_app
 from tests.test_utils.api_connexion_utils import delete_user
+from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 from tests.test_utils.www import client_with_login, client_without_login
 
@@ -62,7 +63,8 @@ def app(examples_dag_bag):
         ]
     )
     def factory():
-        return create_app(testing=True)
+        with conf_vars({("webserver", "auth_rate_limited"): "False"}):
+            return create_app(testing=True)
 
     app = factory()
     app.config["WTF_CSRF_ENABLED"] = False
@@ -110,6 +112,7 @@ def app(examples_dag_bag):
 
 @pytest.fixture()
 def admin_client(app):
+
     return client_with_login(app, username="test_admin", password="test_admin")
 
 

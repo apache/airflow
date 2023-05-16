@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.google.cloud.transfers.adls_to_gcs import ADLSToGCSOperator
@@ -37,7 +36,7 @@ GCS_CONN_ID = "google_cloud_default"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
+class TestAdlsToGoogleCloudStorageOperator:
     def test_init(self):
         """Test AdlsToGoogleCloudStorageOperator instance is properly initialized."""
 
@@ -97,7 +96,6 @@ class TestAdlsToGoogleCloudStorageOperator(unittest.TestCase):
         adls_two_mock_hook.assert_called_once_with(azure_data_lake_conn_id=AZURE_CONN_ID)
         gcs_mock_hook.assert_called_once_with(
             gcp_conn_id=GCS_CONN_ID,
-            delegate_to=None,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 

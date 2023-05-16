@@ -31,13 +31,14 @@ from unittest import mock
 import pytest
 from slugify import slugify
 
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import clear_task_instances, set_current_context
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
     BranchPythonOperator,
+    ExternalPythonOperator,
     PythonOperator,
     PythonVirtualenvOperator,
     ShortCircuitOperator,
@@ -47,7 +48,7 @@ from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.python_virtualenv import prepare_virtualenv
 from airflow.utils.session import create_session
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
@@ -131,10 +132,12 @@ class BasePythonTest:
         task.run(start_date=self.default_date, end_date=self.default_date)
         return task
 
-    def run_as_task(self, fn, **kwargs):
+    def run_as_task(self, fn, return_ti=False, **kwargs):
         """Create TaskInstance and run it."""
         ti = self.create_ti(fn, **kwargs)
         ti.run()
+        if return_ti:
+            return ti
         return ti.task
 
     def render_templates(self, fn, **kwargs):
@@ -276,6 +279,20 @@ class TestPythonOperator(BasePythonTest):
         else:
             assert "Done. Returned value was: test_return_value" not in caplog.messages
             assert "Done. Returned value not shown" in caplog.messages
+
+    def test_python_operator_templates_exts(self):
+        def func():
+            return "test_return_value"
+
+        python_operator = PythonOperator(
+            task_id="python_operator",
+            python_callable=func,
+            dag=self.dag,
+            show_return_value_in_logs=False,
+            templates_exts=["test_ext"],
+        )
+
+        assert python_operator.template_ext == ["test_ext"]
 
 
 class TestBranchOperator(BasePythonTest):
@@ -605,16 +622,141 @@ class TestShortCircuitOperator(BasePythonTest):
 virtualenv_string_args: list[str] = []
 
 
-class TestPythonVirtualenvOperator(BasePythonTest):
+class BaseTestPythonVirtualenvOperator(BasePythonTest):
+    def test_template_fields(self):
+        assert set(PythonOperator.template_fields).issubset(PythonVirtualenvOperator.template_fields)
+
+    def test_fail(self):
+        def f():
+            raise Exception
+
+        with pytest.raises(CalledProcessError):
+            self.run_as_task(f)
+
+    def test_string_args(self):
+        def f():
+            global virtualenv_string_args
+            print(virtualenv_string_args)
+            if virtualenv_string_args[0] != virtualenv_string_args[2]:
+                raise Exception
+
+        self.run_as_task(f, string_args=[1, 2, 1])
+
+    def test_with_args(self):
+        def f(a, b, c=False, d=False):
+            if a == 0 and b == 1 and c and not d:
+                return True
+            else:
+                raise Exception
+
+        self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
+
+    def test_return_none(self):
+        def f():
+            return None
+
+        task = self.run_as_task(f)
+        assert task.execute_callable() is None
+
+    def test_return_false(self):
+        def f():
+            return False
+
+        task = self.run_as_task(f)
+        assert task.execute_callable() is False
+
+    def test_lambda(self):
+        with pytest.raises(AirflowException):
+            PythonVirtualenvOperator(python_callable=lambda x: 4, task_id=self.task_id)
+
+    def test_nonimported_as_arg(self):
+        def f(_):
+            return None
+
+        self.run_as_task(f, op_args=[datetime.utcnow()])
+
+    def test_context(self):
+        def f(templates_dict):
+            return templates_dict["ds"]
+
+        task = self.run_as_task(f, templates_dict={"ds": "{{ ds }}"})
+        assert task.templates_dict == {"ds": self.ds_templated}
+
+    def test_deepcopy(self):
+        """Test that PythonVirtualenvOperator are deep-copyable."""
+
+        def f():
+            return 1
+
+        task = PythonVirtualenvOperator(python_callable=f, task_id="task")
+        copy.deepcopy(task)
+
+    def test_virtualenv_serializable_context_fields(self, create_task_instance):
+        """Ensure all template context fields are listed in the operator.
+
+        This exists mainly so when a field is added to the context, we remember to
+        also add it to PythonVirtualenvOperator.
+        """
+        # These are intentionally NOT serialized into the virtual environment:
+        # * Variables pointing to the task instance itself.
+        # * Variables that are accessor instances.
+        intentionally_excluded_context_keys = [
+            "task_instance",
+            "ti",
+            "var",  # Accessor for Variable; var->json and var->value.
+            "conn",  # Accessor for Connection.
+        ]
+
+        ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
+        context = ti.get_template_context()
+
+        declared_keys = {
+            *PythonVirtualenvOperator.BASE_SERIALIZABLE_CONTEXT_KEYS,
+            *PythonVirtualenvOperator.PENDULUM_SERIALIZABLE_CONTEXT_KEYS,
+            *PythonVirtualenvOperator.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS,
+            *intentionally_excluded_context_keys,
+        }
+        assert set(context) == declared_keys
+
+    @pytest.mark.parametrize(
+        "extra_kwargs, actual_exit_code, expected_state",
+        [
+            (None, 99, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": [100]}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": (100, 101)}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": 100}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": [100, 102]}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": None}, 0, TaskInstanceState.SUCCESS),
+        ],
+    )
+    def test_on_skip_exit_code(self, extra_kwargs, actual_exit_code, expected_state):
+        def f(exit_code):
+            if exit_code != 0:
+                raise SystemExit(exit_code)
+
+        if expected_state == TaskInstanceState.FAILED:
+            with pytest.raises(CalledProcessError):
+                self.run_as_task(
+                    f, op_kwargs={"exit_code": actual_exit_code}, **(extra_kwargs if extra_kwargs else {})
+                )
+        else:
+            ti = self.run_as_task(
+                f,
+                return_ti=True,
+                op_kwargs={"exit_code": actual_exit_code},
+                **(extra_kwargs if extra_kwargs else {}),
+            )
+            assert ti.state == expected_state
+
+
+class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
     opcls = PythonVirtualenvOperator
 
     @staticmethod
     def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
         kwargs["python_version"] = python_version
         return kwargs
-
-    def test_template_fields(self):
-        assert set(PythonOperator.template_fields).issubset(PythonVirtualenvOperator.template_fields)
 
     def test_add_dill(self):
         def f():
@@ -709,13 +851,6 @@ class TestPythonVirtualenvOperator(BasePythonTest):
             system_site_packages=False,
         )
 
-    def test_fail(self):
-        def f():
-            raise Exception
-
-        with pytest.raises(CalledProcessError):
-            self.run_as_task(f)
-
     def test_python_3(self):
         def f():
             import sys
@@ -735,59 +870,16 @@ class TestPythonVirtualenvOperator(BasePythonTest):
 
         self.run_as_task(f, system_site_packages=False, use_dill=False, op_args=[4])
 
-    def test_string_args(self):
-        def f():
-            global virtualenv_string_args
-            print(virtualenv_string_args)
-            if virtualenv_string_args[0] != virtualenv_string_args[2]:
-                raise Exception
-
-        self.run_as_task(f, string_args=[1, 2, 1])
-
-    def test_with_args(self):
-        def f(a, b, c=False, d=False):
-            if a == 0 and b == 1 and c and not d:
-                return True
-            else:
-                raise Exception
-
-        self.run_as_task(f, op_args=[0, 1], op_kwargs={"c": True})
-
-    def test_return_none(self):
-        def f():
-            return None
-
-        task = self.run_as_task(f)
-        assert task.execute_callable() is None
-
-    def test_return_false(self):
-        def f():
-            return False
-
-        task = self.run_as_task(f)
-        assert task.execute_callable() is False
-
-    def test_lambda(self):
-        with pytest.raises(AirflowException):
-            PythonVirtualenvOperator(python_callable=lambda x: 4, task_id=self.task_id)
-
-    def test_nonimported_as_arg(self):
-        def f(_):
-            return None
-
-        self.run_as_task(f, op_args=[datetime.utcnow()])
-
-    def test_context(self):
-        def f(templates_dict):
-            return templates_dict["ds"]
-
-        task = self.run_as_task(f, templates_dict={"ds": "{{ ds }}"})
-        assert task.templates_dict == {"ds": self.ds_templated}
-
     # This tests might take longer than default 60 seconds as it is serializing a lot of
     # context using dill (which is slow apparently).
     @pytest.mark.execution_timeout(120)
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    @pytest.mark.skipif(
+        os.environ.get("PYTEST_PLAIN_ASSERTS") != "true",
+        reason="assertion rewriting breaks this test because dill will try to serialize "
+        "AssertRewritingHook including captured stdout and we need to run "
+        "it with `--assert=plain`pytest option and PYTEST_PLAIN_ASSERTS=true",
+    )
     def test_airflow_context(self):
         def f(
             # basic
@@ -890,41 +982,29 @@ class TestPythonVirtualenvOperator(BasePythonTest):
 
         self.run_as_task(f, use_dill=True, system_site_packages=False, requirements=None)
 
-    def test_deepcopy(self):
-        """Test that PythonVirtualenvOperator are deep-copyable."""
 
+class TestExternalPythonOperator(BaseTestPythonVirtualenvOperator):
+    opcls = ExternalPythonOperator
+
+    @staticmethod
+    def default_kwargs(*, python_version=sys.version_info[0], **kwargs):
+        kwargs["python"] = sys.executable
+        return kwargs
+
+    @mock.patch("pickle.loads")
+    def test_except_value_error(self, loads_mock):
         def f():
             return 1
 
-        task = PythonVirtualenvOperator(python_callable=f, task_id="task")
-        copy.deepcopy(task)
+        task = PythonVirtualenvOperator(
+            python_callable=f,
+            task_id="task",
+            dag=self.dag,
+        )
 
-    def test_virtualenv_serializable_context_fields(self, create_task_instance):
-        """Ensure all template context fields are listed in the operator.
-
-        This exists mainly so when a field is added to the context, we remember to
-        also add it to PythonVirtualenvOperator.
-        """
-        # These are intentionally NOT serialized into the virtual environment:
-        # * Variables pointing to the task instance itself.
-        # * Variables that are accessor instances.
-        intentionally_excluded_context_keys = [
-            "task_instance",
-            "ti",
-            "var",  # Accessor for Variable; var->json and var->value.
-            "conn",  # Accessor for Connection.
-        ]
-
-        ti = create_task_instance(dag_id=self.dag_id, task_id=self.task_id, schedule=None)
-        context = ti.get_template_context()
-
-        declared_keys = {
-            *PythonVirtualenvOperator.BASE_SERIALIZABLE_CONTEXT_KEYS,
-            *PythonVirtualenvOperator.PENDULUM_SERIALIZABLE_CONTEXT_KEYS,
-            *PythonVirtualenvOperator.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS,
-            *intentionally_excluded_context_keys,
-        }
-        assert set(context) == declared_keys
+        loads_mock.side_effect = DeserializingResultError
+        with pytest.raises(DeserializingResultError):
+            task._read_result(path=mock.Mock())
 
 
 class TestCurrentContext:

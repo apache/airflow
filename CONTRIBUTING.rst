@@ -45,9 +45,8 @@ we have a dedicated #newbie-questions Slack channel where you can ask any questi
 you want - it's a safe space where it is expected that people asking questions do not know
 a lot about Airflow (yet!).
 
-If you look for more structured mentoring experience, you can apply to Apache Software Foundation's
-`Official Mentoring Programme <http://community.apache.org/mentoringprogramme.html>`_. Feel free
-to follow it and apply to the programme and follow up with the community.
+To check on how mentoring works for the projects under Apache Software Foundation's
+`Apache Community Development - Mentoring <https://community.apache.org/mentoring/>`_.
 
 Report Bugs
 -----------
@@ -251,7 +250,7 @@ or on macOS with `Homebrew <https://formulae.brew.sh/formula/jq>`_
 Breeze starts with downloading the Airflow CI image from
 the Docker Hub and installing all required dependencies.
 
-This will enter the Docker Docker environment and mount your local sources
+This will enter the Docker environment and mount your local sources
 to make them immediately visible in the environment.
 
 4. Create a local virtualenv, for example:
@@ -409,7 +408,7 @@ these guidelines:
     Sphinx compatible standards.
 
 -   Make sure your code fulfills all the
-    `static code checks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__ we have in our code. The easiest way
+    `static code checks <STATIC_CODE_CHECKS.rst#static-code-checks>`__ we have in our code. The easiest way
     to make sure of that is to use `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__
 
 -   Run tests locally before opening PR.
@@ -610,19 +609,19 @@ all dependencies needed in the CI environment.
 This is the full list of those extras:
 
   .. START EXTRAS HERE
-airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
-apache.druid, apache.flink, apache.hdfs, apache.hive, apache.impala, apache.kylin, apache.livy,
-apache.pig, apache.pinot, apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas,
-atlassian.jira, aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes, common.sql,
-crypto, dask, databricks, datadog, dbt.cloud, deprecated_api, devel, devel_all, devel_ci,
-devel_hadoop, dingding, discord, doc, doc_gen, docker, druid, elasticsearch, exasol, facebook, ftp,
-gcp, gcp_api, github, github_enterprise, google, google_auth, grpc, hashicorp, hdfs, hive, http,
-imap, influxdb, jdbc, jenkins, kerberos, kubernetes, ldap, leveldb, microsoft.azure,
-microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas,
-opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto, qds,
-qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity, slack,
-snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica, virtualenv,
-webhdfs, winrm, yandex, zendesk
+aiobotocore, airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra,
+apache.drill, apache.druid, apache.flink, apache.hdfs, apache.hive, apache.impala, apache.kafka,
+apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop, apache.webhdfs,
+arangodb, asana, async, atlas, atlassian.jira, aws, azure, cassandra, celery, cgroups, cloudant,
+cncf.kubernetes, common.sql, crypto, dask, databricks, datadog, dbt.cloud, deprecated_api, devel,
+devel_all, devel_ci, devel_hadoop, dingding, discord, doc, doc_gen, docker, druid, elasticsearch,
+exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth, grpc,
+hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes, ldap, leveldb,
+microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc,
+openfaas, openlineage, opsgenie, oracle, otel, pagerduty, pandas, papermill, password, pinot,
+plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid,
+sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd, tableau, tabular,
+telegram, trino, vertica, virtualenv, webhdfs, winrm, zendesk
   .. END EXTRAS HERE
 
 Provider packages
@@ -1179,29 +1178,32 @@ commands:
     yarn run dev
 
 
-Follow JavaScript Style Guide
------------------------------
+Follow Style Guide
+------------------
 
-We try to enforce a more consistent style and follow the JS community
+We try to enforce a more consistent style and follow the Javascript/Typescript community
 guidelines.
 
-Once you add or modify any JavaScript code in the project, please make sure it
+Once you add or modify any JS/TS code in the project, please make sure it
 follows the guidelines defined in `Airbnb
 JavaScript Style Guide <https://github.com/airbnb/javascript>`__.
 
 Apache Airflow uses `ESLint <https://eslint.org/>`__ as a tool for identifying and
-reporting on patterns in JavaScript. To use it, run any of the following
-commands:
+reporting issues in JS/TS, and `Prettier <https://prettier.io/>`__ for code formatting.
+Most IDE directly integrate with these tools, you can also manually run them with any of the following commands:
 
 .. code-block:: bash
 
-    # Check JS code in .js, .jsx, and .html files, and report any errors/warnings
+    # Format code in .js, .jsx, .ts, .tsx, .json, .css, .html files
+    yarn format
+
+    # Check JS/TS code in .js, .jsx, .ts, .tsx, .html files and report any errors/warnings
     yarn run lint
 
-    # Check JS code in .js, .jsx, and .html files, report any errors/warnings and fix them if possible
+    # Check JS/TS code in .js, .jsx, .ts, .tsx, .html files and report any errors/warnings and fix them if possible
     yarn run lint:fix
 
-    # Runs tests for all .test.js and .test.jsx files
+    # Run tests for all .test.js, .test.jsx, .test.ts, test.tsx files
     yarn test
 
 React, JSX and Chakra

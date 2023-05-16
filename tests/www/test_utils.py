@@ -23,15 +23,33 @@ from urllib.parse import parse_qs
 
 from bs4 import BeautifulSoup
 
+from airflow.utils import json as utils_json
 from airflow.www import utils
 from airflow.www.utils import wrapped_markdown
 
 
 class TestUtils:
-    def check_generate_pages_html(self, current_page, total_pages, window=7, check_middle=False):
+    def check_generate_pages_html(
+        self,
+        current_page,
+        total_pages,
+        window=7,
+        check_middle=False,
+        sorting_key=None,
+        sorting_direction=None,
+    ):
         extra_links = 4  # first, prev, next, last
         search = "'>\"/><img src=x onerror=alert(1)>"
-        html_str = utils.generate_pages(current_page, total_pages, search=search)
+        if sorting_key and sorting_direction:
+            html_str = utils.generate_pages(
+                current_page,
+                total_pages,
+                search=search,
+                sorting_key=sorting_key,
+                sorting_direction=sorting_direction,
+            )
+        else:
+            html_str = utils.generate_pages(current_page, total_pages, search=search)
 
         assert search not in html_str, "The raw search string shouldn't appear in the output"
         assert "search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E" in html_str
@@ -47,10 +65,27 @@ class TestUtils:
 
         page_items = ulist_items[2:-2]
         mid = int(len(page_items) / 2)
+        all_nodes = []
+        pages = []
+
+        if sorting_key and sorting_direction:
+            last_page = total_pages - 1
+
+            if current_page <= mid or total_pages < window:
+                pages = list(range(0, min(total_pages, window)))
+            elif mid < current_page < last_page - mid:
+                pages = list(range(current_page - mid, current_page + mid + 1))
+            else:
+                pages = list(range(total_pages - window, last_page + 1))
+
+            pages.append(last_page + 1)
+            pages.sort(reverse=True if sorting_direction == "desc" else False)
+
         for i, item in enumerate(page_items):
             a_node = item.a
             href_link = a_node["href"]
             node_text = a_node.string
+            all_nodes.append(node_text)
             if node_text == str(current_page + 1):
                 if check_middle:
                     assert mid == i
@@ -62,6 +97,13 @@ class TestUtils:
                 assert query["page"] == [str(int(node_text) - 1)]
                 assert query["search"] == [search]
 
+        if sorting_key and sorting_direction:
+            if pages[0] == 0:
+                pages = pages[1:]
+                pages = list(map(lambda x: str(x), pages))
+
+            assert pages == all_nodes
+
     def test_generate_pager_current_start(self):
         self.check_generate_pages_html(current_page=0, total_pages=6)
 
@@ -70,6 +112,11 @@ class TestUtils:
 
     def test_generate_pager_current_end(self):
         self.check_generate_pages_html(current_page=38, total_pages=39)
+
+    def test_generate_pager_current_start_with_sorting(self):
+        self.check_generate_pages_html(
+            current_page=0, total_pages=4, sorting_key="dag_id", sorting_direction="asc"
+        )
 
     def test_params_no_values(self):
         """Should return an empty string if no params are passed"""
@@ -179,6 +226,22 @@ class TestAttrRenderer:
     def test_markdown_none(self):
         rendered = self.attr_renderer["doc_md"](None)
         assert rendered is None
+
+    def test_get_dag_run_conf(self):
+        dag_run_conf = {
+            "1": "string",
+            "2": b"bytes",
+            "3": 123,
+            "4": "à".encode("latin"),
+            "5": datetime(2023, 1, 1),
+        }
+        expected_encoded_dag_run_conf = (
+            '{"1": "string", "2": "bytes", "3": 123, "4": "à", "5": "2023-01-01T00:00:00+00:00"}'
+        )
+        encoded_dag_run_conf, conf_is_json = utils.get_dag_run_conf(
+            dag_run_conf, json_encoder=utils_json.WebEncoder
+        )
+        assert expected_encoded_dag_run_conf == encoded_dag_run_conf
 
 
 class TestWrappedMarkdown:

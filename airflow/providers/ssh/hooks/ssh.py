@@ -31,11 +31,13 @@ from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.utils.platform import getuser
+from airflow.utils.types import NOTSET, ArgNotSet
 
 TIMEOUT_DEFAULT = 10
+CMD_TIMEOUT = 10
 
 
 class SSHHook(BaseHook):
@@ -58,6 +60,9 @@ class SSHHook(BaseHook):
         predefined in the connection of `ssh_conn_id`.
     :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
         Use conn_timeout instead.
+    :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
+        Nullable, `None` means no timeout. If provided, it will replace the `cmd_timeout`
+        which was predefined in the connection of `ssh_conn_id`.
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
     :param banner_timeout: timeout to wait for banner from the server in seconds
@@ -107,6 +112,7 @@ class SSHHook(BaseHook):
         port: int | None = None,
         timeout: int | None = None,
         conn_timeout: int | None = None,
+        cmd_timeout: int | ArgNotSet | None = NOTSET,
         keepalive_interval: int = 30,
         banner_timeout: float = 30.0,
         disabled_algorithms: dict | None = None,
@@ -122,6 +128,7 @@ class SSHHook(BaseHook):
         self.port = port
         self.timeout = timeout
         self.conn_timeout = conn_timeout
+        self.cmd_timeout = cmd_timeout
         self.keepalive_interval = keepalive_interval
         self.banner_timeout = banner_timeout
         self.disabled_algorithms = disabled_algorithms
@@ -165,13 +172,19 @@ class SSHHook(BaseHook):
                         "Extra option `timeout` is deprecated."
                         "Please use `conn_timeout` instead."
                         "The old option `timeout` will be removed in a future version.",
-                        DeprecationWarning,
+                        AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
                     self.timeout = int(extra_options["timeout"])
 
                 if "conn_timeout" in extra_options and self.conn_timeout is None:
                     self.conn_timeout = int(extra_options["conn_timeout"])
+
+                if "cmd_timeout" in extra_options and self.cmd_timeout is NOTSET:
+                    if extra_options["cmd_timeout"]:
+                        self.cmd_timeout = int(extra_options["cmd_timeout"])
+                    else:
+                        self.cmd_timeout = None
 
                 if "compress" in extra_options and str(extra_options["compress"]).lower() == "false":
                     self.compress = False
@@ -219,12 +232,15 @@ class SSHHook(BaseHook):
                 "Parameter `timeout` is deprecated."
                 "Please use `conn_timeout` instead."
                 "The old option `timeout` will be removed in a future version.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=1,
             )
 
         if self.conn_timeout is None:
             self.conn_timeout = self.timeout if self.timeout else TIMEOUT_DEFAULT
+
+        if self.cmd_timeout is NOTSET:
+            self.cmd_timeout = CMD_TIMEOUT
 
         if self.pkey and self.key_file:
             raise AirflowException(
@@ -352,7 +368,7 @@ class SSHHook(BaseHook):
             "The contextmanager of SSHHook is deprecated."
             "Please use get_conn() as a contextmanager instead."
             "This method will be removed in Airflow 2.0",
-            category=DeprecationWarning,
+            category=AirflowProviderDeprecationWarning,
         )
         return self
 
@@ -418,7 +434,7 @@ class SSHHook(BaseHook):
             "use get_tunnel() instead. But please note that the"
             "order of the parameters have changed"
             "This method will be removed in Airflow 2.0",
-            category=DeprecationWarning,
+            category=AirflowProviderDeprecationWarning,
         )
 
         return self.get_tunnel(remote_port, remote_host, local_port)
@@ -455,15 +471,24 @@ class SSHHook(BaseHook):
         command: str,
         get_pty: bool,
         environment: dict | None,
-        timeout: int | None,
+        timeout: int | ArgNotSet | None = NOTSET,
     ) -> tuple[int, bytes, bytes]:
         self.log.info("Running command: %s", command)
+
+        cmd_timeout: int | None
+        if not isinstance(timeout, ArgNotSet):
+            cmd_timeout = timeout
+        elif not isinstance(self.cmd_timeout, ArgNotSet):
+            cmd_timeout = self.cmd_timeout
+        else:
+            cmd_timeout = CMD_TIMEOUT
+        del timeout  # Too easy to confuse with "timedout" below.
 
         # set timeout taken as params
         stdin, stdout, stderr = ssh_client.exec_command(
             command=command,
             get_pty=get_pty,
-            timeout=timeout,
+            timeout=cmd_timeout,
             environment=environment,
         )
         # get channels
@@ -486,8 +511,9 @@ class SSHHook(BaseHook):
 
         # read from both stdout and stderr
         while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
-            readq, _, _ = select([channel], [], [], timeout)
-            timedout = len(readq) == 0
+            readq, _, _ = select([channel], [], [], cmd_timeout)
+            if cmd_timeout is not None:
+                timedout = len(readq) == 0
             for recv in readq:
                 if recv.recv_ready():
                     output = stdout.channel.recv(len(recv.in_buffer))

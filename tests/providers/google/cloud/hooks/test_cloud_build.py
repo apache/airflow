@@ -28,7 +28,7 @@ import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, GetBuildRequest
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildAsyncHook, CloudBuildHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
@@ -60,6 +60,10 @@ TRIGGER_ID = "32488e7f-09d6-4fe9-a5fb-4ca1419a6e7a"
 
 
 class TestCloudBuildHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudBuildHook(gcp_conn_id="test", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
@@ -71,9 +75,13 @@ class TestCloudBuildHook:
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildClient")
     def test_cloud_build_service_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=CLIENT_INFO,
+            client_options=None,
+        )
         assert mock_client.return_value == result
-        assert self.hook._client == result
+        assert self.hook._client["global"] == result
 
     @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_cancel_build(self, get_conn):
@@ -94,7 +102,8 @@ class TestCloudBuildHook:
 
         wait_time.return_value = 0
 
-        self.hook.create_build(build=BUILD, project_id=PROJECT_ID)
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+            self.hook.create_build(build=BUILD, project_id=PROJECT_ID)
 
         get_conn.return_value.create_build.assert_called_once_with(
             request={"project_id": PROJECT_ID, "build": BUILD}, retry=DEFAULT, timeout=None, metadata=()
@@ -114,7 +123,8 @@ class TestCloudBuildHook:
         get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
         mock_get_id_from_operation.return_value = BUILD_ID
 
-        self.hook.create_build(build=BUILD, project_id=PROJECT_ID, wait=False)
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+            self.hook.create_build(build=BUILD, project_id=PROJECT_ID, wait=False)
 
         mock_operation = get_conn.return_value.create_build
 
@@ -124,6 +134,29 @@ class TestCloudBuildHook:
 
         get_conn.return_value.get_build.assert_called_once_with(
             request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
+        )
+
+        mock_get_id_from_operation.assert_called_once_with(mock_operation())
+
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation"
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    def test_create_build_without_waiting_for_result(self, get_conn, mock_get_id_from_operation):
+        get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
+        mock_get_id_from_operation.return_value = BUILD_ID
+
+        self.hook.create_build_without_waiting_for_result(
+            build=BUILD, project_id=PROJECT_ID, location=LOCATION
+        )
+
+        mock_operation = get_conn.return_value.create_build
+
+        mock_operation.assert_called_once_with(
+            request={"parent": PARENT, "project_id": PROJECT_ID, "build": BUILD},
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
         )
 
         mock_get_id_from_operation.assert_called_once_with(mock_operation())
@@ -216,7 +249,7 @@ class TestCloudBuildHook:
             request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
-        get_conn.return_value.retry_build.return_value.result.assert_called_once_with()
+        get_conn.return_value.retry_build.return_value.result.assert_called_once_with(timeout=None)
 
         get_conn.return_value.get_build.assert_called_once_with(
             request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
@@ -270,7 +303,7 @@ class TestCloudBuildHook:
             metadata=(),
         )
 
-        get_conn.return_value.run_build_trigger.return_value.result.assert_called_once_with()
+        get_conn.return_value.run_build_trigger.return_value.result.assert_called_once_with(timeout=None)
 
         get_conn.return_value.get_build.assert_called_once_with(
             request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
@@ -318,6 +351,10 @@ class TestCloudBuildHook:
 
 
 class TestAsyncHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudBuildAsyncHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     @pytest.fixture
     def hook(self):
         return CloudBuildAsyncHook(
@@ -325,10 +362,13 @@ class TestAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch.object(CloudBuildAsyncClient, "__init__", lambda self: None)
+    @async_mock.patch.object(
+        CloudBuildAsyncClient, "__init__", lambda self, credentials, client_info, client_options: None
+    )
+    @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook.get_credentials"))
     @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
     async def test_async_cloud_build_service_client_creation_should_execute_successfully(
-        self, mocked_get_build, hook
+        self, mocked_get_build, mock_get_creds, hook
     ):
         mocked_get_build.return_value = Future()
         await hook.get_cloud_build(project_id=PROJECT_ID, id_=BUILD_ID)
@@ -338,6 +378,7 @@ class TestAsyncHook:
                 id=BUILD_ID,
             )
         )
+        mock_get_creds.assert_called_once()
         mocked_get_build.assert_called_once_with(request=request, retry=DEFAULT, timeout=None, metadata=())
 
     @pytest.mark.asyncio

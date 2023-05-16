@@ -55,6 +55,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--builder",
                 "--install-providers-from-sources",
+                "--airflow-constraints-location",
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--python-image",

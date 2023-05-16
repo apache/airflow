@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import copy
-import unittest
 from copy import deepcopy
 from unittest import mock
 
@@ -77,6 +76,7 @@ TEST_FLEX_PARAMETERS = {
     },
 }
 TEST_LOCATION = "custom-location"
+TEST_REGION = "custom-region"
 TEST_PROJECT = "test-project"
 TEST_SQL_JOB_NAME = "test-sql-job-name"
 TEST_DATASET = "test-dataset"
@@ -96,13 +96,12 @@ GROUP BY sales_region;
 """
 TEST_SQL_JOB = {"id": "test-job-id"}
 GCP_CONN_ID = "test_gcp_conn_id"
-DELEGATE_TO = "delegating_to_something"
 IMPERSONATION_CHAIN = ["impersonate", "this"]
 CANCEL_TIMEOUT = 10 * 420
 
 
-class TestDataflowPythonOperator(unittest.TestCase):
-    def setUp(self):
+class TestDataflowPythonOperator:
+    def setup_method(self):
         self.dataflow = DataflowCreatePythonJobOperator(
             task_id=TASK_ID,
             py_file=PY_FILE,
@@ -143,12 +142,11 @@ class TestDataflowPythonOperator(unittest.TestCase):
         job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
         self.dataflow.execute(None)
         beam_hook_mock.assert_called_once_with(runner="DataflowRunner")
-        self.assertTrue(self.dataflow.py_file.startswith("/tmp/dataflow"))
+        assert self.dataflow.py_file.startswith("/tmp/dataflow")
         gcs_provide_file.assert_called_once_with(object_url=PY_FILE)
         mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback=mock.ANY)
         dataflow_hook_mock.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
-            delegate_to=mock.ANY,
             poll_sleep=POLL_SLEEP,
             impersonation_chain=None,
             drain_pipeline=False,
@@ -182,8 +180,8 @@ class TestDataflowPythonOperator(unittest.TestCase):
         provide_gcloud_mock.assert_called_once_with()
 
 
-class TestDataflowJavaOperator(unittest.TestCase):
-    def setUp(self):
+class TestDataflowJavaOperator:
+    def setup_method(self):
         self.dataflow = DataflowCreateJavaJobOperator(
             task_id=TASK_ID,
             jar=JAR_FILE,
@@ -268,7 +266,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
 
         self.dataflow.execute(None)
 
-        self.assertTrue(dataflow_mock.called)
+        assert dataflow_mock.called
         start_java_hook.assert_not_called()
         gcs_provide_file.assert_called_once()
         variables = {
@@ -318,7 +316,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": self.expected_airflow_version},
         }
-        self.assertEqual(expected_variables, is_job_dataflow_running_variables)
+        assert expected_variables == is_job_dataflow_running_variables
         job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
         expected_variables["jobName"] = job_name
         start_java_mock.assert_called_once_with(
@@ -372,7 +370,7 @@ class TestDataflowJavaOperator(unittest.TestCase):
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": self.expected_airflow_version},
         }
-        self.assertEqual(expected_variables, is_job_dataflow_running_variables)
+        assert expected_variables == is_job_dataflow_running_variables
         job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
         expected_variables["jobName"] = job_name
         start_java_mock.assert_called_once_with(
@@ -389,8 +387,8 @@ class TestDataflowJavaOperator(unittest.TestCase):
         )
 
 
-class TestDataflowJavaOperatorWithLocal(unittest.TestCase):
-    def setUp(self):
+class TestDataflowJavaOperatorWithLocal:
+    def setup_method(self):
         self.dataflow = DataflowCreateJavaJobOperator(
             task_id=TASK_ID,
             jar=LOCAL_JAR_FILE,
@@ -434,7 +432,7 @@ class TestDataflowJavaOperatorWithLocal(unittest.TestCase):
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": self.expected_airflow_version},
         }
-        self.assertEqual(expected_variables, is_job_dataflow_running_variables)
+        assert expected_variables == is_job_dataflow_running_variables
         job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
         expected_variables["jobName"] = job_name
         start_java_mock.assert_called_once_with(
@@ -482,7 +480,6 @@ class TestDataflowTemplateOperator:
             environment={"maxWorkers": 2},
             deferrable=True,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
             cancel_timeout=CANCEL_TIMEOUT,
         )
@@ -532,12 +529,47 @@ class TestDataflowTemplateOperator:
             "wait_until_finished": True,
             "deferrable": True,
             "gcp_conn_id": GCP_CONN_ID,
-            "delegate_to": DELEGATE_TO,
             "impersonation_chain": IMPERSONATION_CHAIN,
             "cancel_timeout": CANCEL_TIMEOUT,
         }
         with pytest.raises(ValueError):
             DataflowTemplatedJobStartOperator(**init_kwargs)
+
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook.start_template_dataflow")
+    def test_start_with_custom_region(self, dataflow_mock):
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "template": TEMPLATE,
+            "dataflow_default_options": {
+                "region": TEST_REGION,
+            },
+            "poll_sleep": POLL_SLEEP,
+            "wait_until_finished": True,
+            "cancel_timeout": CANCEL_TIMEOUT,
+        }
+        operator = DataflowTemplatedJobStartOperator(**init_kwargs)
+        operator.execute(None)
+        assert dataflow_mock.called
+        _, kwargs = dataflow_mock.call_args_list[0]
+        assert kwargs["variables"]["region"] == TEST_REGION
+        assert kwargs["location"] is None
+
+    @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook.start_template_dataflow")
+    def test_start_with_location(self, dataflow_mock):
+        init_kwargs = {
+            "task_id": TASK_ID,
+            "template": TEMPLATE,
+            "location": TEST_LOCATION,
+            "poll_sleep": POLL_SLEEP,
+            "wait_until_finished": True,
+            "cancel_timeout": CANCEL_TIMEOUT,
+        }
+        operator = DataflowTemplatedJobStartOperator(**init_kwargs)
+        operator.execute(None)
+        assert dataflow_mock.called
+        _, kwargs = dataflow_mock.call_args_list[0]
+        assert not kwargs["variables"]
+        assert kwargs["location"] == TEST_LOCATION
 
 
 class TestDataflowStartFlexTemplateOperator:
@@ -567,7 +599,6 @@ class TestDataflowStartFlexTemplateOperator:
         sync_operator.execute(mock.MagicMock())
         mock_dataflow.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
-            delegate_to=None,
             drain_pipeline=False,
             cancel_timeout=600,
             wait_until_finished=None,
@@ -615,7 +646,7 @@ class TestDataflowStartFlexTemplateOperator:
         mock_defer_method.assert_called_once()
 
 
-class TestDataflowSqlOperator(unittest.TestCase):
+class TestDataflowSqlOperator:
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_execute(self, mock_hook):
         start_sql = DataflowStartSqlJobOperator(
@@ -630,7 +661,6 @@ class TestDataflowSqlOperator(unittest.TestCase):
         start_sql.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
-            delegate_to=None,
             drain_pipeline=False,
             impersonation_chain=None,
         )
@@ -649,7 +679,7 @@ class TestDataflowSqlOperator(unittest.TestCase):
         )
 
 
-class TestDataflowStopJobOperator(unittest.TestCase):
+class TestDataflowStopJobOperator:
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_exec_job_id(self, dataflow_mock):
         self.dataflow = DataflowStopJobOperator(

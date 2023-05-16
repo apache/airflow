@@ -21,7 +21,6 @@ import datetime
 
 import pytest
 import time_machine
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI, XCom
@@ -227,12 +226,13 @@ class TestBranchDayOfWeekOperator:
                 dag=self.dag,
             )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "_,week_day,fail_msg",
         [
             ("string", "Thsday", "Thsday"),
             ("list", ["Monday", "Thsday"], "Thsday"),
             ("set", {WeekDay.MONDAY, "Thsday"}, "Thsday"),
-        ]
+        ],
     )
     def test_weekday_branch_invalid_weekday_value(self, _, week_day, fail_msg):
         """Check if BranchDayOfWeekOperator raises exception on wrong value of weekday"""

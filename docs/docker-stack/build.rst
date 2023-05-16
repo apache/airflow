@@ -55,6 +55,17 @@ The following example adds ``lxml`` python package from PyPI to the image. When 
 ``pip`` you need to use the ``airflow`` user rather than ``root``. Attempts to install ``pip`` packages
 as ``root`` will fail with an appropriate error message.
 
+.. note::
+   In the example below, we also add apache-airflow package to be installed - in the very same version
+   that the image version you used it from. This is not strictly necessary, but it is a good practice
+   to always install the same version of apache-airflow as the one you are using. This way you can
+   be sure that the version you are using is the same as the one you are extending. In some cases where
+   your new packages have conflicting dependencies, ``pip`` might decide to downgrade or upgrade
+   apache-airflow for you, so adding it explicitly is a good practice - this way if you have conflicting
+   requirements, you will get an error message with conflict information, rather than a surprise
+   downgrade or upgrade of airflow. If you upgrade airflow base image, you should also update the version
+   to match the new version of airflow.
+
 .. exampleinclude:: docker-examples/extending/add-pypi-packages/Dockerfile
     :language: Dockerfile
     :start-after: [START Dockerfile]
@@ -67,10 +78,25 @@ The following example adds few python packages from ``requirements.txt`` from Py
 Note that similarly when adding individual packages, you need to use the ``airflow`` user rather than
 ``root``. Attempts to install ``pip`` packages as ``root`` will fail with an appropriate error message.
 
+.. note::
+   In the example below, we also add apache-airflow package to be installed - in the very same version
+   that the image version you used it from. This is not strictly necessary, but it is a good practice
+   to always install the same version of apache-airflow as the one you are using. This way you can
+   be sure that the version you are using is the same as the one you are extending. In some cases where
+   your new packages have conflicting dependencies, ``pip`` might decide to downgrade or upgrade
+   apache-airflow for you, so adding it explicitly is a good practice - this way if you have conflicting
+   requirements, you will get an error message with conflict information, rather than a surprise
+   downgrade or upgrade of airflow. If you upgrade airflow base image, you should also update the version
+   to match the new version of airflow.
+
+
 .. exampleinclude:: docker-examples/extending/add-requirement-packages/Dockerfile
     :language: Dockerfile
     :start-after: [START Dockerfile]
     :end-before: [END Dockerfile]
+
+.. exampleinclude:: docker-examples/extending/add-requirement-packages/requirements.txt
+    :language: text
 
 
 Embedding DAGs
@@ -385,10 +411,24 @@ The following example adds few python packages from ``requirements.txt`` from Py
 Note that similarly when adding individual packages, you need to use the ``airflow`` user rather than
 ``root``. Attempts to install ``pip`` packages as ``root`` will fail with an appropriate error message.
 
+.. note::
+   In the example below, we also add apache-airflow package to be installed - in the very same version
+   that the image version you used it from. This is not strictly necessary, but it is a good practice
+   to always install the same version of apache-airflow as the one you are using. This way you can
+   be sure that the version you are using is the same as the one you are extending. In some cases where
+   your new packages have conflicting dependencies, ``pip`` might decide to downgrade or upgrade
+   apache-airflow for you, so adding it explicitly is a good practice - this way if you have conflicting
+   requirements, you will get an error message with conflict information, rather than a surprise
+   downgrade or upgrade of airflow. If you upgrade airflow base image, you should also update the version
+   to match the new version of airflow.
+
 .. exampleinclude:: docker-examples/extending/add-requirement-packages/Dockerfile
     :language: Dockerfile
     :start-after: [START Dockerfile]
     :end-before: [END Dockerfile]
+
+.. exampleinclude:: docker-examples/extending/add-requirement-packages/requirements.txt
+    :language: text
 
 
 Example when writable directory is needed
@@ -557,6 +597,18 @@ You can use ``docker-context-files`` for the following purposes:
 
 * you can place ``requirements.txt`` and add any ``pip`` packages you want to install in the
   ``docker-context-file`` folder. Those requirements will be automatically installed during the build.
+
+.. note::
+   In the example below, we also add apache-airflow package to be installed - in the very same version
+   that the image version you used it from. This is not strictly necessary, but it is a good practice
+   to always install the same version of apache-airflow as the one you are using. This way you can
+   be sure that the version you are using is the same as the one you are extending. In some cases where
+   your new packages have conflicting dependencies, ``pip`` might decide to downgrade or upgrade
+   apache-airflow for you, so adding it explicitly is a good practice - this way if you have conflicting
+   requirements, you will get an error message with conflict information, rather than a surprise
+   downgrade or upgrade of airflow. If you upgrade airflow base image, you should also update the version
+   to match the new version of airflow.
+
 
 .. exampleinclude:: docker-examples/customizing/own-requirements.sh
     :language: bash

@@ -89,3 +89,34 @@ def test_ds_format(ds, input_format, output_format, expected):
 def test_datetime_diff_for_humans(dt, since, expected):
     result = macros.datetime_diff_for_humans(dt, since)
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    "input_value, expected",
+    [
+        ('{"field1":"value1", "field2":4, "field3":true}', {"field1": "value1", "field2": 4, "field3": True}),
+        (
+            '{"field1": [ 1, 2, 3, 4, 5 ], "field2" : {"mini1" : 1, "mini2" : "2"}}',
+            {"field1": [1, 2, 3, 4, 5], "field2": {"mini1": 1, "mini2": "2"}},
+        ),
+    ],
+)
+def test_json_loads(input_value, expected):
+    result = macros.json.loads(input_value)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "input_value, expected",
+    [
+        ('{"field1":"value1", "field2":4, "field3":true}', {"field1": "value1", "field2": 4, "field3": True}),
+        ("field1: value1\nfield2: value2", {"field1": "value1", "field2": "value2"}),
+        (
+            'field1: [ 1, 2, 3, 4, 5 ]\nfield2: {"mini1" : 1, "mini2" : "2"}',
+            {"field1": [1, 2, 3, 4, 5], "field2": {"mini1": 1, "mini2": "2"}},
+        ),
+    ],
+)
+def test_yaml_loads(input_value, expected):
+    result = macros.yaml.safe_load(input_value)
+    assert result == expected

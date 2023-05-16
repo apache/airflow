@@ -206,7 +206,7 @@ class GcpBodyFieldValidator(LoggingMixin):
         full_field_path: str,
         regexp: str,
         allow_empty: bool,
-        custom_validation: Callable,
+        custom_validation: Callable | None,
         value,
     ) -> None:
         if value is None and field_type != "union":

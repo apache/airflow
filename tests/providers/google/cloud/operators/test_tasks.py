@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from google.api_core.gapic_v1.method import DEFAULT
@@ -51,7 +50,7 @@ TEST_QUEUE = Queue(name=FULL_QUEUE_PATH)
 TEST_TASK = Task(app_engine_http_request={})
 
 
-class TestCloudTasksQueueCreate(unittest.TestCase):
+class TestCloudTasksQueueCreate:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_create_queue(self, mock_hook):
         mock_hook.return_value.create_queue.return_value = TEST_QUEUE
@@ -75,7 +74,7 @@ class TestCloudTasksQueueCreate(unittest.TestCase):
         )
 
 
-class TestCloudTasksQueueUpdate(unittest.TestCase):
+class TestCloudTasksQueueUpdate:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_update_queue(self, mock_hook):
         mock_hook.return_value.update_queue.return_value = TEST_QUEUE
@@ -100,7 +99,7 @@ class TestCloudTasksQueueUpdate(unittest.TestCase):
         )
 
 
-class TestCloudTasksQueueGet(unittest.TestCase):
+class TestCloudTasksQueueGet:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_get_queue(self, mock_hook):
         mock_hook.return_value.get_queue.return_value = TEST_QUEUE
@@ -123,7 +122,7 @@ class TestCloudTasksQueueGet(unittest.TestCase):
         )
 
 
-class TestCloudTasksQueuesList(unittest.TestCase):
+class TestCloudTasksQueuesList:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_list_queues(self, mock_hook):
         mock_hook.return_value.list_queues.return_value = [TEST_QUEUE]
@@ -147,7 +146,7 @@ class TestCloudTasksQueuesList(unittest.TestCase):
         )
 
 
-class TestCloudTasksQueueDelete(unittest.TestCase):
+class TestCloudTasksQueueDelete:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_delete_queue(self, mock_hook):
         mock_hook.return_value.delete_queue.return_value = None
@@ -169,7 +168,7 @@ class TestCloudTasksQueueDelete(unittest.TestCase):
         )
 
 
-class TestCloudTasksQueuePurge(unittest.TestCase):
+class TestCloudTasksQueuePurge:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_delete_queue(self, mock_hook):
         mock_hook.return_value.purge_queue.return_value = TEST_QUEUE
@@ -192,7 +191,7 @@ class TestCloudTasksQueuePurge(unittest.TestCase):
         )
 
 
-class TestCloudTasksQueuePause(unittest.TestCase):
+class TestCloudTasksQueuePause:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_pause_queue(self, mock_hook):
         mock_hook.return_value.pause_queue.return_value = TEST_QUEUE
@@ -215,7 +214,7 @@ class TestCloudTasksQueuePause(unittest.TestCase):
         )
 
 
-class TestCloudTasksQueueResume(unittest.TestCase):
+class TestCloudTasksQueueResume:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_resume_queue(self, mock_hook):
         mock_hook.return_value.resume_queue.return_value = TEST_QUEUE
@@ -238,7 +237,7 @@ class TestCloudTasksQueueResume(unittest.TestCase):
         )
 
 
-class TestCloudTasksTaskCreate(unittest.TestCase):
+class TestCloudTasksTaskCreate:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_create_task(self, mock_hook):
         mock_hook.return_value.create_task.return_value = TEST_TASK
@@ -272,7 +271,7 @@ class TestCloudTasksTaskCreate(unittest.TestCase):
         )
 
 
-class TestCloudTasksTaskGet(unittest.TestCase):
+class TestCloudTasksTaskGet:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_get_task(self, mock_hook):
         mock_hook.return_value.get_task.return_value = TEST_TASK
@@ -305,7 +304,7 @@ class TestCloudTasksTaskGet(unittest.TestCase):
         )
 
 
-class TestCloudTasksTasksList(unittest.TestCase):
+class TestCloudTasksTasksList:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_list_tasks(self, mock_hook):
         mock_hook.return_value.list_tasks.return_value = [TEST_TASK]
@@ -343,7 +342,7 @@ class TestCloudTasksTasksList(unittest.TestCase):
         )
 
 
-class TestCloudTasksTaskDelete(unittest.TestCase):
+class TestCloudTasksTaskDelete:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_delete_task(self, mock_hook):
         mock_hook.return_value.delete_task.return_value = None
@@ -368,7 +367,7 @@ class TestCloudTasksTaskDelete(unittest.TestCase):
         )
 
 
-class TestCloudTasksTaskRun(unittest.TestCase):
+class TestCloudTasksTaskRun:
     @mock.patch("airflow.providers.google.cloud.operators.tasks.CloudTasksHook")
     def test_run_task(self, mock_hook):
         mock_hook.return_value.run_task.return_value = TEST_TASK

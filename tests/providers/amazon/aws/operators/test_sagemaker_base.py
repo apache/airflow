@@ -16,11 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from typing import Any
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
-from airflow import DAG
+import pytest
+from botocore.exceptions import ClientError
+
+from airflow import DAG, AirflowException
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerBaseOperator,
@@ -35,6 +39,8 @@ EXPECTED_INTEGER_FIELDS: list[list[Any]] = []
 
 
 class TestSageMakerBaseOperator:
+    ERROR_WHEN_RESOURCE_NOT_FOUND = ClientError({"Error": {"Code": "ValidationException"}}, "op")
+
     def setup_method(self):
         self.sagemaker = SageMakerBaseOperator(task_id="test_sagemaker_operator", config=CONFIG)
         self.sagemaker.aws_conn_id = "aws_default"
@@ -46,8 +52,32 @@ class TestSageMakerBaseOperator:
 
     def test_default_integer_fields(self):
         self.sagemaker.preprocess_config()
-
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
+
+    def test_job_exists(self):
+        exists = self.sagemaker._check_if_job_exists("the name", lambda _: {})
+        assert exists
+
+    def test_job_does_not_exists(self):
+        def raiser(_):
+            raise self.ERROR_WHEN_RESOURCE_NOT_FOUND
+
+        exists = self.sagemaker._check_if_job_exists("the name", raiser)
+        assert not exists
+
+    def test_job_renamed(self):
+        describe_mock = MagicMock()
+        # scenario : name exists, new proposed name exists as well, second proposal is ok
+        describe_mock.side_effect = [None, None, self.ERROR_WHEN_RESOURCE_NOT_FOUND]
+
+        name = self.sagemaker._get_unique_job_name("test", False, describe_mock)
+
+        assert describe_mock.call_count == 3
+        assert re.match("test-[0-9]+$", name)
+
+    def test_job_not_unique_with_fail(self):
+        with pytest.raises(AirflowException):
+            self.sagemaker._get_unique_job_name("test", True, lambda _: None)
 
 
 class TestSageMakerExperimentOperator:

@@ -32,7 +32,7 @@ from typing import Any, Callable, Generator, Sequence, TypeVar, cast
 from google.cloud.dataflow_v1beta3 import GetJobRequest, Job, JobState, JobsV1Beta3AsyncClient, JobView
 from googleapiclient.discovery import build
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -516,26 +516,26 @@ class DataflowHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         poll_sleep: int = 10,
         impersonation_chain: str | Sequence[str] | None = None,
         drain_pipeline: bool = False,
         cancel_timeout: int | None = 5 * 60,
         wait_until_finished: bool | None = None,
+        **kwargs,
     ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         self.poll_sleep = poll_sleep
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
         self.job_id: str | None = None
         self.beam_hook = BeamHook(BeamRunnerType.DataflowRunner)
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
 
@@ -579,7 +579,7 @@ class DataflowHook(GoogleBaseHook):
             to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done`
             to wait for the required pipeline state.
             """,
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
 
@@ -679,7 +679,7 @@ class DataflowHook(GoogleBaseHook):
         if on_new_job_id_callback:
             warnings.warn(
                 "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
             on_new_job_id_callback(job.get("id"))
@@ -770,7 +770,7 @@ class DataflowHook(GoogleBaseHook):
         if on_new_job_id_callback:
             warnings.warn(
                 "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
             on_new_job_id_callback(job.get("id"))
@@ -844,7 +844,7 @@ class DataflowHook(GoogleBaseHook):
             to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done`
             to wait for the required pipeline state.
             """,
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
 
@@ -910,7 +910,7 @@ class DataflowHook(GoogleBaseHook):
             warnings.warn(
                 "The variables parameter has been deprecated. You should pass location using "
                 "the location parameter.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=4,
             )
         jobs_controller = _DataflowJobsController(
@@ -1039,7 +1039,7 @@ class DataflowHook(GoogleBaseHook):
         if on_new_job_id_callback:
             warnings.warn(
                 "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
             on_new_job_id_callback(cast(str, job.get("id")))
@@ -1188,6 +1188,14 @@ class AsyncDataflowHook(GoogleBaseAsyncHook):
     """Async hook class for dataflow service."""
 
     sync_hook_class = DataflowHook
+
+    def __init__(self, **kwargs):
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
+        super().__init__(**kwargs)
 
     async def initialize_client(self, client_class):
         """

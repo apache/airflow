@@ -96,7 +96,7 @@ def _fetch_logs_from_service(url, log_relative_path):
     return response
 
 
-_parse_timestamp = conf.getimport("core", "interleave_timestamp_parser", fallback=None)
+_parse_timestamp = conf.getimport("logging", "interleave_timestamp_parser", fallback=None)
 
 if not _parse_timestamp:
 
@@ -266,7 +266,7 @@ class FileTaskHandler(logging.Handler):
         return False
 
     @cached_property
-    def _executor_get_task_log(self) -> Callable[[TaskInstance], tuple[list[str], list[str]]]:
+    def _executor_get_task_log(self) -> Callable[[TaskInstance, int], tuple[list[str], list[str]]]:
         """This cached property avoids loading executor repeatedly."""
         executor = ExecutorLoader.get_default_executor()
         return executor.get_task_log
@@ -303,7 +303,6 @@ class FileTaskHandler(logging.Handler):
         worker_log_rel_path = self._render_filename(ti, try_number)
         messages_list: list[str] = []
         remote_logs: list[str] = []
-        running_logs: list[str] = []
         local_logs: list[str] = []
         executor_messages: list[str] = []
         executor_logs: list[str] = []
@@ -312,23 +311,29 @@ class FileTaskHandler(logging.Handler):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
         if ti.state == TaskInstanceState.RUNNING:
-            response = self._executor_get_task_log(ti)
+            response = self._executor_get_task_log(ti, try_number)
             if response:
                 executor_messages, executor_logs = response
             if executor_messages:
-                messages_list.extend(messages_list)
-        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not executor_messages:
-            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
-            messages_list.extend(served_messages)
+                messages_list.extend(executor_messages)
         if not (remote_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
+        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not executor_messages:
+            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            messages_list.extend(served_messages)
+        elif ti.state not in State.unfinished and not (local_logs or remote_logs):
+            # ordinarily we don't check served logs, with the assumption that users set up
+            # remote logging or shared drive for logs for persistence, but that's not always true
+            # so even if task is done, if no local logs or remote logs are found, we'll check the worker
+            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            messages_list.extend(served_messages)
+
         logs = "\n".join(
             _interleave_logs(
                 *local_logs,
-                *running_logs,
                 *remote_logs,
                 *(executor_logs or []),
                 *served_logs,
@@ -340,7 +345,8 @@ class FileTaskHandler(logging.Handler):
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
             logs = logs[previous_chars:]  # Cut off previously passed log test as new tail
-        return messages + logs, {"end_of_log": end_of_log, "log_pos": log_pos}
+        out_message = logs if "log_pos" in (metadata or {}) else messages + logs
+        return out_message, {"end_of_log": end_of_log, "log_pos": log_pos}
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
@@ -413,7 +419,7 @@ class FileTaskHandler(logging.Handler):
 
     def _prepare_log_folder(self, directory: Path):
         """
-        Prepare the log folder and ensure its mode is 777.
+        Prepare the log folder and ensure its mode is as configured.
 
         To handle log writing when tasks are impersonated, the log files need to
         be writable by the user that runs the Airflow command and the user
@@ -429,24 +435,39 @@ class FileTaskHandler(logging.Handler):
         via the UI (or vice versa) results in a permission error as the task
         tries to write to a log file created by the other user.
 
-        Create the log file and give it group writable permissions
-        TODO(aoen): Make log dirs and logs globally readable for now since the SubDag
-        operator is not compatible with impersonation (e.g. if a Celery executor is used
-        for a SubDag operator and the SubDag operator has a different owner than the
-        parent DAG)
+        We leave it up to the user to manage their permissions by exposing configuration for both
+        new folders and new log files. Default is to make new log folders and files group-writeable
+        to handle most common impersonation use cases. The requirement in this case will be to make
+        sure that the same group is set as default group for both - impersonated user and main airflow
+        user.
         """
-        mode = 0o777
-        directory.mkdir(mode=mode, parents=True, exist_ok=True)
-        if directory.stat().st_mode != mode:
-            directory.chmod(mode)
+        new_folder_permissions = int(
+            conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
+        )
+        directory.mkdir(mode=new_folder_permissions, parents=True, exist_ok=True)
+        if directory.stat().st_mode % 0o1000 != new_folder_permissions % 0o1000:
+            print(f"Changing {directory} permission to {new_folder_permissions}")
+            try:
+                directory.chmod(new_folder_permissions)
+            except PermissionError as e:
+                # In some circumstances (depends on user and filesystem) we might not be able to
+                # change the permission for the folder (when the folder was created by another user
+                # before or when the filesystem does not allow to change permission). We should not
+                # fail in this case but rather ignore it.
+                print(f"Failed to change {directory} permission to {new_folder_permissions}: {e}")
+                pass
 
     def _init_file(self, ti):
         """
-        Create log directory and give it correct permissions.
+        Create log directory and give it permissions that are configured. See above _prepare_log_folder
+        method for more detailed explanation.
 
         :param ti: task instance object
         :return: relative log path of the given task instance
         """
+        new_file_permissions = int(
+            conf.get("logging", "file_task_handler_new_file_permissions", fallback="0o664"), 8
+        )
         local_relative_path = self._render_filename(ti, ti.try_number)
         full_path = os.path.join(self.local_base, local_relative_path)
         if ti.is_trigger_log_context is True:
@@ -457,11 +478,10 @@ class FileTaskHandler(logging.Handler):
 
         if not os.path.exists(full_path):
             open(full_path, "a").close()
-            # TODO: Investigate using 444 instead of 666.
             try:
-                os.chmod(full_path, 0o666)
-            except OSError:
-                logging.warning("OSError while change ownership of the log file")
+                os.chmod(full_path, new_file_permissions)
+            except OSError as e:
+                logging.warning("OSError while changing ownership of the log file. ", e)
 
         return full_path
 

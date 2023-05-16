@@ -31,7 +31,7 @@ from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 
-AWS_CONN = "amazon_default"
+AWS_CONN = "aws_default"
 
 DB_INSTANCE_NAME = "my-db-instance"
 DB_CLUSTER_NAME = "my-db-cluster"
@@ -122,7 +122,7 @@ class TestRdsSnapshotExistenceSensor:
     @classmethod
     def setup_class(cls):
         cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
-        cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
+        cls.hook = RdsHook()
 
     @classmethod
     def teardown_class(cls):
@@ -216,7 +216,7 @@ class TestRdsDbSensor:
     @classmethod
     def setup_class(cls):
         cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
-        cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
+        cls.hook = RdsHook()
 
     @classmethod
     def teardown_class(cls):

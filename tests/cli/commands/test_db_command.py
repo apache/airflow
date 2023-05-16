@@ -285,7 +285,7 @@ class TestCLIDBClean:
         coerced to tz-aware with default timezone
         """
         timestamp = "2021-01-01 00:00:00"
-        with patch("airflow.utils.timezone.TIMEZONE", pendulum.timezone(timezone)):
+        with patch("airflow.settings.TIMEZONE", pendulum.timezone(timezone)):
             args = self.parser.parse_args(["db", "clean", "--clean-before-timestamp", f"{timestamp}", "-y"])
             db_command.cleanup_tables(args)
         run_cleanup_mock.assert_called_once_with(
@@ -304,7 +304,7 @@ class TestCLIDBClean:
         When tz included in the string then default timezone should not be used.
         """
         timestamp = "2021-01-01 00:00:00+03:00"
-        with patch("airflow.utils.timezone.TIMEZONE", pendulum.timezone(timezone)):
+        with patch("airflow.settings.TIMEZONE", pendulum.timezone(timezone)):
             args = self.parser.parse_args(["db", "clean", "--clean-before-timestamp", f"{timestamp}", "-y"])
             db_command.cleanup_tables(args)
 
@@ -463,7 +463,7 @@ class TestCLIDBClean:
         db_command.export_archived(args)
 
         export_archived_mock.assert_called_once_with(
-            export_format="csv", output_path="path", table_names=None, drop_archives=False
+            export_format="csv", output_path="path", table_names=None, drop_archives=False, needs_confirm=True
         )
 
     @pytest.mark.parametrize(
@@ -485,7 +485,11 @@ class TestCLIDBClean:
         )
         db_command.export_archived(args)
         export_archived_mock.assert_called_once_with(
-            export_format="csv", output_path="path", table_names=expected, drop_archives=False
+            export_format="csv",
+            output_path="path",
+            table_names=expected,
+            drop_archives=False,
+            needs_confirm=True,
         )
 
     @pytest.mark.parametrize("extra_args, expected", [(["--drop-archives"], True), ([], False)])
@@ -505,7 +509,11 @@ class TestCLIDBClean:
         )
         db_command.export_archived(args)
         export_archived_mock.assert_called_once_with(
-            export_format="csv", output_path="path", table_names=None, drop_archives=expected
+            export_format="csv",
+            output_path="path",
+            table_names=None,
+            drop_archives=expected,
+            needs_confirm=True,
         )
 
     @pytest.mark.parametrize(

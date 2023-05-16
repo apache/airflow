@@ -58,7 +58,7 @@ KNN_IMAGES_BY_REGION = {
 }
 
 # For an example of how to obtain the following train and test data, please see
-# https://github.com/apache/airflow/blob/main/airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+# https://github.com/apache/airflow/blob/main/tests/system/providers/amazon/aws/example_sagemaker.py
 TRAIN_DATA = "0,4.9,2.5,4.5,1.7\n1,7.0,3.2,4.7,1.4\n0,7.3,2.9,6.3,1.8\n2,5.1,3.5,1.4,0.2\n"
 SAMPLE_TEST_DATA = "6.4,3.2,4.5,1.5"
 
@@ -86,6 +86,11 @@ def delete_endpoint_config(endpoint_config_job_name):
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_endpoint(endpoint_name):
     boto3.client("sagemaker").delete_endpoint(EndpointName=endpoint_name)
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def archive_logs(log_group_name):
+    boto3.client("logs").put_retention_policy(logGroupName=log_group_name, retentionInDays=1)
 
 
 @task
@@ -263,14 +268,6 @@ with DAG(
         ]
     )
 
-    forced_log_cleanup = prune_logs(
-        [
-            # Format: ('log group name', 'log stream prefix')
-            (f"/aws/sagemaker/Endpoints/{test_setup['endpoint_name']}", None)
-        ],
-        force_delete=True,
-    )
-
     chain(
         # TEST SETUP
         test_context,
@@ -290,7 +287,7 @@ with DAG(
         delete_model,
         delete_bucket,
         log_cleanup,
-        forced_log_cleanup,
+        archive_logs(f"/aws/sagemaker/Endpoints/{test_setup['endpoint_name']}"),
     )
 
     from tests.system.utils.watcher import watcher

@@ -57,7 +57,7 @@ As an example, let's say you want to set ``priorityClassName`` on your workers:
     apiVersion: v1
     kind: Pod
     metadata:
-      name: dummy-name
+      name: placeholder-name
       labels:
         tier: airflow
         component: worker

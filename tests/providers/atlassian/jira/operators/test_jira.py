@@ -53,6 +53,13 @@ class TestJiraOperator:
             )
         )
 
+    def test_operator_init_with_optional_args(self):
+        jira_operator = JiraOperator(task_id="jira_list_issue_types", jira_method="issue_types")
+
+        assert jira_operator.jira_method_args == {}
+        assert jira_operator.result_processor is None
+        assert jira_operator.get_jira_resource_method is None
+
     @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
     def test_issue_search(self, jira_mock):
         jql_str = "issuekey=TEST-1226"
