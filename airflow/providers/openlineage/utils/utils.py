@@ -367,7 +367,7 @@ class OpenLineageRedactor(SecretsMasker):
                 return super()._redact(item, name, depth, max_depth)
         except Exception as e:
             log.warning(
-                "Unable to redact %s" "Error was: %s: %s",
+                "Unable to redact %s. Error was: %s: %s",
                 repr(item),
                 type(e).__name__,
                 str(e),

@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.1.0
+.....
+
+Latest change: 2023-05-03
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+=================================================================================================  ===========  ======================================================================
+
 4.0.1
 .....
 
-Latest change: 2023-03-22
+Latest change: 2023-04-02
 
 =================================================================================================  ===========  =====================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================
+`55dbf1ff1f <https://github.com/apache/airflow/commit/55dbf1ff1fb0b22714f695a66f6108b3249d1199>`_  2023-04-02   ``Prepare docs for April 2023 wave of Providers (#30378)``
 `5d1f201bb0 <https://github.com/apache/airflow/commit/5d1f201bb0411d7060fd4fe49807fd49495f973e>`_  2023-03-22   ``Only restrict spark binary passed via extra (#30213)``
 `d9dea5ce17 <https://github.com/apache/airflow/commit/d9dea5ce17f0c5859dc705bba8e6ef22e5659955>`_  2023-03-22   ``Validate host and schema for Spark JDBC Hook (#30223)``
 `b3259877fa <https://github.com/apache/airflow/commit/b3259877fac7330d2b65ca7f96fcfc27243582d6>`_  2023-03-15   ``Add spark3-submit to list of allowed spark-binary values (#30068)``
