@@ -16,9 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Setup.py for the Airflow project."""
-# This file can be modified if you want to make sure the CI build is using "upgrade to newer dependencies"
-# Which is useful when you want to check if the dependencies are still compatible with the latest versions
-# And they seem to break some unrelated tests in main. You can modify this number = 00001 to trigger it.
+# To make sure the CI build is using "upgrade to newer dependencies", which is useful when you want to check
+# if the dependencies are still compatible with the latest versions as they seem to break some unrelated
+# tests in main, you can modify this file. The modification can be simply modifying this particular comment.
+# e.g. you can modify the following number "00001" to something else to trigger it.
 from __future__ import annotations
 
 import glob
