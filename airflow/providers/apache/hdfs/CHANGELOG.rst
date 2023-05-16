@@ -24,6 +24,24 @@
 Changelog
 ---------
 
+4.0.0
+-----
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The original HDFS Hook and sensor has been removed. It used the old HDFS snakebite-py3 library that had no
+update in years and the protobuf they are using reached end of life.
+
+The 3.* version of the provider is still available and can be used if you need to use the old hooks and
+sensors.
+
+The ``HDFSHook``, ``HDFSSensor``, ``HdfsRegexSensor``, ``HdfsRegexSensor`` that have been removed from
+this provider and they are not available any more. If you want to continue using them,
+you can use 3.* version of the provider, but the recommendation is to switch to the new
+``WebHDFSHook`` and ``WebHDFSSensor`` that use the ``WebHDFS`` API.
+
+
 3.2.1
 .....
 

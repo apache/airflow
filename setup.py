@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Setup.py for the Airflow project."""
+# This file can be modified if you want to make sure the CI build is using "upgrade to newer dependencies"
+# Which is useful when you want to check if the dependencies are still compatible with the latest versions
+# And they seem to break some unrelated tests in main. You can modify this number = 00001 to trigger it.
 from __future__ import annotations
 
 import glob
@@ -639,8 +642,7 @@ devel_all = get_unique_dependency_list(
 )
 
 # Those are packages excluded for "all" dependencies
-PACKAGES_EXCLUDED_FOR_ALL = []
-PACKAGES_EXCLUDED_FOR_ALL.extend(["snakebite"])
+PACKAGES_EXCLUDED_FOR_ALL: list[str] = []
 
 
 def is_package_excluded(package: str, exclusion_list: list[str]) -> bool:

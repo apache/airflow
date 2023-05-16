@@ -34,6 +34,7 @@ from airflow.exceptions import AirflowException, AirflowNotFoundException, Airfl
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.models import Connection
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.utils import yaml
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
@@ -47,7 +48,7 @@ def _load_body_to_dict(body: str) -> dict:
     return body_dict
 
 
-class KubernetesHook(BaseHook):
+class KubernetesHook(BaseHook, PodOperatorHookProtocol):
     """
     Creates Kubernetes API connection.
 
@@ -439,6 +440,7 @@ class KubernetesHook(BaseHook):
         )
 
     def get_pod(self, name: str, namespace: str) -> V1Pod:
+        """Read pod object from kubernetes API."""
         return self.core_v1_client.read_namespaced_pod(
             name=name,
             namespace=namespace,
