@@ -27,35 +27,33 @@ redis using the RedisKeySensor.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # [START import_module]
 from airflow import DAG
-
 from airflow.providers.redis.operators.redis_publish import RedisPublishOperator
-from airflow.providers.redis.sensors.redis_pub_sub import RedisPubSubSensor
 from airflow.providers.redis.sensors.redis_key import RedisKeySensor
+from airflow.providers.redis.sensors.redis_pub_sub import RedisPubSubSensor
 
 # [END import_module]
 # [START instantiate_dag]
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 
 default_args = {
-    'start_date': datetime(2023, 5, 15),
+    "start_date": datetime(2023, 5, 15),
     "max_active_runs": 1,
 }
 
 with DAG(
-    dag_id='redis_example',
+    dag_id="redis_example",
     default_args=default_args,
 ) as dag:
-
     # [START RedisPublishOperator_DAG]
     publish_task = RedisPublishOperator(
-        task_id='publish_task',
-        redis_conn_id='redis_default',
-        channel='your_channel',
-        message='Start processing',
+        task_id="publish_task",
+        redis_conn_id="redis_default",
+        channel="your_channel",
+        message="Start processing",
         dag=dag,
     )
 
@@ -63,9 +61,9 @@ with DAG(
 
     # [START RedisPubSubSensor_DAG]
     pubsub_sensor_task = RedisPubSubSensor(
-        task_id='pubsub_sensor_task',
-        redis_conn_id='redis_default',
-        channels='your_channel',
+        task_id="pubsub_sensor_task",
+        redis_conn_id="redis_default",
+        channels="your_channel",
         dag=dag,
         timeout=600,
         poke_interval=30,
@@ -74,9 +72,9 @@ with DAG(
 
     # [START RedisKeySensor_DAG]
     key_sensor_task = RedisKeySensor(
-        task_id='key_sensor_task',
-        redis_conn_id='redis_default',
-        key='your_key',
+        task_id="key_sensor_task",
+        redis_conn_id="redis_default",
+        key="your_key",
         dag=dag,
         timeout=600,
         poke_interval=30,

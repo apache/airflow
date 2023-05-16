@@ -35,11 +35,6 @@ versions:
 
 dependencies:
   - apache-airflow>=2.4.0
-  # Upgrading redis package >= 4 doesn't require code changes
-  # Changes in Redis 4 only brings into impact when we are directly importing redis.client
-  # to execute the commands, which we are not doing.
-  # The issue with unquoting URLS with `urllib.parse.unquote` is also not applicable
-  # to airflow, because we are not using the from_url function
   - redis>=3.2.0
 
 integrations:
