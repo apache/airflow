@@ -83,6 +83,7 @@ class DefaultExtractor(BaseExtractor):
         return []
 
     def extract(self) -> OperatorLineage | None:
+        # OpenLineage methods are optional - if there's no method, return None
         try:
             return self._get_openlineage_facets(self.operator.get_openlineage_facets_on_start)  # type: ignore
         except AttributeError:
@@ -100,7 +101,15 @@ class DefaultExtractor(BaseExtractor):
 
     def _get_openlineage_facets(self, get_facets_method, *args) -> OperatorLineage | None:
         try:
-            facets = get_facets_method(*args)
+            facets: OperatorLineage = get_facets_method(*args)
+            # "rewrite" OperatorLineage to safeguard against different version of the same class
+            # that was existing in openlineage-airflow package outside of Airflow repo
+            return OperatorLineage(
+                inputs=facets.inputs,
+                outputs=facets.outputs,
+                run_facets=facets.run_facets,
+                job_facets=facets.job_facets,
+            )
         except ImportError:
             self.log.exception(
                 "OpenLineage provider method failed to import OpenLineage integration. "
@@ -108,11 +117,4 @@ class DefaultExtractor(BaseExtractor):
             )
         except Exception:
             self.log.exception("OpenLineage provider method failed to extract data from provider. ")
-        else:
-            return OperatorLineage(
-                inputs=facets.inputs,
-                outputs=facets.outputs,
-                run_facets=facets.run_facets,
-                job_facets=facets.job_facets,
-            )
         return None
