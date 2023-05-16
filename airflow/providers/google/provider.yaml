@@ -937,6 +937,9 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.postgres_to_gcs
   - source-integration-name: Google BigQuery
+    target-integration-name: Common SQL
+    python-module: airflow.providers.google.cloud.transfers.bigquery_to_sql
+  - source-integration-name: Google BigQuery
     target-integration-name: MySQL
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/bigquery_to_mysql.rst
     python-module: airflow.providers.google.cloud.transfers.bigquery_to_mysql
@@ -944,6 +947,10 @@ transfers:
     target-integration-name: Microsoft SQL Server (MSSQL)
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/bigquery_to_mssql.rst
     python-module: airflow.providers.google.cloud.transfers.bigquery_to_mssql
+  - source-integration-name: Google BigQuery
+    target-integration-name: PostgreSQL
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/bigquery_to_postgres.rst
+    python-module: airflow.providers.google.cloud.transfers.bigquery_to_postgres
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Google BigQuery
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/gcs_to_bigquery.rst
