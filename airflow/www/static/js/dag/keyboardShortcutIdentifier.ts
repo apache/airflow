@@ -49,7 +49,7 @@ const keyboardShortcutIdentifier: KeyboardShortcutIdentifier = {
     primaryKey: "shiftKey",
     secondaryKey: ["F", "f"],
     detail:
-      "Opens Mark as Failed modal for the selected successfull task instance",
+      "Opens Mark as Failed modal for the selected successful task instance",
   },
   viewNotes: {
     primaryKey: "shiftKey",
