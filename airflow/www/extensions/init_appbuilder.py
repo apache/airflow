@@ -572,12 +572,14 @@ class AirflowAppBuilder:
 
     def security_converge(self, dry=False) -> dict:
         """
+        Migrates all permissions to the new names on all the Roles.
+
         This method is useful when you use:
+
         - `class_permission_name`
         - `previous_class_permission_name`
         - `method_permission_name`
         - `previous_method_permission_name`
-        Migrates all permissions to the new names on all the Roles.
 
         :param dry: If True will not change DB
         :return: Dict with all computed necessary operations
