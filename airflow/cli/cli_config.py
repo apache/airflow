@@ -459,15 +459,15 @@ ARG_DB_TABLES = Arg(
     ("-t", "--tables"),
     help=lazy_object_proxy.Proxy(
         lambda: f"Table names to perform maintenance on (use comma-separated list).\n"
-                f"Options: {import_string('airflow.cli.commands.db_command.all_tables')}"
+        f"Options: {import_string('airflow.cli.commands.db_command.all_tables')}"
     ),
     type=string_list_type,
 )
 ARG_DB_CLEANUP_TIMESTAMP = Arg(
     ("--clean-before-timestamp",),
     help="The date or timestamp before which data should be purged.\n"
-         "If no timezone info is supplied then dates are assumed to be in airflow default timezone.\n"
-         "Example: '2022-01-01 00:00:00+01:00'",
+    "If no timezone info is supplied then dates are assumed to be in airflow default timezone.\n"
+    "Example: '2022-01-01 00:00:00+01:00'",
     type=parsedate,
     required=True,
 )
@@ -507,7 +507,7 @@ ARG_POOL_IMPORT = Arg(
     ("file",),
     metavar="FILEPATH",
     help="Import pools from JSON file. Example format::\n"
-         + textwrap.indent(
+    + textwrap.indent(
         textwrap.dedent(
             """
             {
@@ -570,16 +570,16 @@ ARG_IGNORE_DEPENDENCIES = Arg(
 ARG_IGNORE_DEPENDS_ON_PAST = Arg(
     ("-I", "--ignore-depends-on-past"),
     help="Deprecated -- use `--depends-on-past ignore` instead. "
-         "Ignore depends_on_past dependencies (but respect upstream dependencies)",
+    "Ignore depends_on_past dependencies (but respect upstream dependencies)",
     action="store_true",
 )
 ARG_DEPENDS_ON_PAST = Arg(
     ("-d", "--depends-on-past"),
     help="Determine how Airflow should deal with past dependencies. The default action is `check`, Airflow "
-         "will check if the the past dependencies are met for the tasks having `depends_on_past=True` before run "
-         "them, if `ignore` is provided, the past dependencies will be ignored, if `wait` is provided and "
-         "`depends_on_past=True`, Airflow will wait the past dependencies until they are met before running or "
-         "skipping the task",
+    "will check if the the past dependencies are met for the tasks having `depends_on_past=True` before run "
+    "them, if `ignore` is provided, the past dependencies will be ignored, if `wait` is provided and "
+    "`depends_on_past=True`, Airflow will wait the past dependencies until they are met before running or "
+    "skipping the task",
     choices={"check", "ignore", "wait"},
     default="check",
 )
@@ -636,7 +636,7 @@ ARG_DB_FROM_REVISION = Arg(
 ARG_DB_SQL_ONLY = Arg(
     ("-s", "--show-sql-only"),
     help="Don't actually run migrations; just print out sql scripts for offline migration. "
-         "Required if using either `--from-revision` or `--from-version`.",
+    "Required if using either `--from-revision` or `--from-version`.",
     action="store_true",
     default=False,
 )
@@ -925,7 +925,7 @@ ARG_PASSWORD = Arg(
 ARG_USE_RANDOM_PASSWORD = Arg(
     ("--use-random-password",),
     help="Do not prompt for password. Use random string instead."
-         " Required to create a user without --password ",
+    " Required to create a user without --password ",
     default=False,
     action="store_true",
 )
@@ -933,7 +933,7 @@ ARG_USER_IMPORT = Arg(
     ("import",),
     metavar="FILEPATH",
     help="Import users from JSON file. Example format::\n"
-         + textwrap.indent(
+    + textwrap.indent(
         textwrap.dedent(
             """
             [
@@ -1034,7 +1034,7 @@ ARG_JOB_HOSTNAME_CALLABLE_FILTER = Arg(
     ("--local",),
     action="store_true",
     help="If passed, this command will only show jobs from the local host "
-         "(those with a hostname matching what `hostname_callable` returns).",
+    "(those with a hostname matching what `hostname_callable` returns).",
 )
 
 ARG_JOB_LIMIT = Arg(
@@ -1980,7 +1980,7 @@ KUBERNETES_COMMANDS = (
     ActionCommand(
         name="generate-dag-yaml",
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
-             "launching into a cluster",
+        "launching into a cluster",
         func=lazy_load_command("airflow.cli.commands.kubernetes_command.generate_pod_yaml"),
         args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
     ),
