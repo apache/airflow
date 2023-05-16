@@ -280,8 +280,8 @@ ARG_NO_BACKFILL = Arg(
 ARG_STATE = Arg(
     ("--state",),
     help="Only list the dag runs corresponding to the state",
-    metavar="(table, json, yaml, plain)",
-    choices=("table", "json", "yaml", "plain"),
+    metavar="(running, queued, success, failed)",
+    choices=("running", "queued", "success", "failed"),
 )
 
 # list_jobs
