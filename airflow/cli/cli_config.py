@@ -277,9 +277,12 @@ ARG_DAG_ID_REQ_FLAG = Arg(
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
 )
-ARG_STATE = Arg(("--state",), help="Only list the dag runs corresponding to the state",
-                metavar="(table, json, yaml, plain)",
-                choices=("table", "json", "yaml", "plain"))
+ARG_STATE = Arg(
+    ("--state",),
+    help="Only list the dag runs corresponding to the state",
+    metavar="(table, json, yaml, plain)",
+    choices=("table", "json", "yaml", "plain"),
+)
 
 # list_jobs
 ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
