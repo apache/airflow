@@ -172,7 +172,10 @@ class BaseXCom(Base, LoggingMixin):
         execution_date: datetime.datetime,
         session: Session = NEW_SESSION,
     ) -> None:
-        """:sphinx-autoapi-skip:."""
+        """Store an XCom value.
+        
+        :sphinx-autoapi-skip:
+        """
 
     @classmethod
     @provide_session
