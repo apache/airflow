@@ -29,12 +29,11 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Collection, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, func, not_, or_, text
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import load_only, selectinload
-from sqlalchemy.orm.session import Session, make_transient
+from sqlalchemy.orm import Query, Session, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -1097,7 +1096,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         return num_queued_tis
 
     @retry_db_transaction
-    def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session):
+    def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session) -> Query:
         """Get Next DagRuns to Examine with retries."""
         return DagRun.next_dagruns_to_examine(state, session)
 
@@ -1278,7 +1277,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     DatasetDagRunQueue.target_dag_id == dag_run.dag_id
                 ).delete()
 
-    def _should_update_dag_next_dagruns(self, dag, dag_model: DagModel, total_active_runs: int) -> bool:
+    def _should_update_dag_next_dagruns(self, dag: DAG, dag_model: DagModel, total_active_runs: int) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
         if total_active_runs >= dag.max_active_runs:
             self.log.info(
@@ -1293,7 +1292,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
-        dag_runs = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session)
+        dag_runs: Collection[DagRun] = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session)
 
         active_runs_of_dags = Counter(
             DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),
@@ -1338,15 +1337,15 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 dag_run.notify_dagrun_state_changed()
 
     @retry_db_transaction
-    def _schedule_all_dag_runs(self, guard, dag_runs, session):
+    def _schedule_all_dag_runs(
+        self,
+        guard: CommitProhibitorGuard,
+        dag_runs: Iterable[DagRun],
+        session: Session,
+    ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
         """Makes scheduling decisions for all `dag_runs`"""
-        callback_tuples = []
-        for dag_run in dag_runs:
-            callback_to_run = self._schedule_dag_run(dag_run, session)
-            callback_tuples.append((dag_run, callback_to_run))
-
+        callback_tuples = [(run, self._schedule_dag_run(run, session=session)) for run in dag_runs]
         guard.commit()
-
         return callback_tuples
 
     def _schedule_dag_run(
@@ -1690,7 +1689,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
 
     @staticmethod
-    def _generate_zombie_message_details(ti: TI):
+    def _generate_zombie_message_details(ti: TI) -> dict[str, Any]:
         zombie_message_details = {
             "DAG Id": ti.dag_id,
             "Task Id": ti.task_id,
