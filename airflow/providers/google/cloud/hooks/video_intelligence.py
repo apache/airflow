@@ -66,7 +66,7 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
             gcp_conn_id=gcp_conn_id,
             impersonation_chain=impersonation_chain,
         )
-        self._conn = None
+        self._conn: VideoIntelligenceServiceClient | None = None
 
     def get_conn(self) -> VideoIntelligenceServiceClient:
         """Returns Gcp Video Intelligence Service client"""
@@ -82,7 +82,7 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
         input_uri: str | None = None,
         input_content: bytes | None = None,
         features: Sequence[Feature] | None = None,
-        video_context: dict | VideoContext = None,
+        video_context: dict | VideoContext | None = None,
         output_uri: str | None = None,
         location: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,

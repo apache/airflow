@@ -587,7 +587,9 @@ class MLEngineAsyncHook(GoogleBaseAsyncHook):
         self._check_fileds(project_id=project_id, job_id=job_id)
         async with ClientSession() as session:
             try:
-                job = await self.get_job(project_id=project_id, job_id=job_id, session=session)
+                job = await self.get_job(
+                    project_id=project_id, job_id=job_id, session=session  #  type: ignore
+                )
                 job = await job.json(content_type=None)
                 self.log.info("Retrieving json_response: %s", job)
 

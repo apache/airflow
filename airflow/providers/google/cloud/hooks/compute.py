@@ -143,7 +143,7 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        self._wait_for_operation_to_complete(operation_name=operation.name, project_id=self.project_id)
+        self._wait_for_operation_to_complete(operation_name=operation.name, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance_template(
@@ -196,7 +196,7 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        self._wait_for_operation_to_complete(operation_name=operation.name, project_id=self.project_id)
+        self._wait_for_operation_to_complete(operation_name=operation.name, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance_template(

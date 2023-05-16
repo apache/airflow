@@ -107,6 +107,13 @@ class CloudTextToSpeechHook(GoogleBaseHook):
             https://googleapis.github.io/google-cloud-python/latest/texttospeech/gapic/v1/types.html#google.cloud.texttospeech_v1.types.SynthesizeSpeechResponse
         """
         client = self.get_conn()
+
+        if isinstance(input_data, dict):
+            input_data = SynthesisInput(input_data)
+        if isinstance(voice, dict):
+            voice = VoiceSelectionParams(voice)
+        if isinstance(audio_config, dict):
+            audio_config = AudioConfig(audio_config)
         self.log.info("Synthesizing input: %s", input_data)
 
         return client.synthesize_speech(

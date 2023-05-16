@@ -32,7 +32,7 @@ from google.cloud.vision_v1 import (
     ProductSet,
     ReferenceImage,
 )
-from google.protobuf import field_mask_pb2 as FieldMask
+from google.protobuf import field_mask_pb2
 from google.protobuf.json_format import MessageToDict
 
 from airflow.compat.functools import cached_property
@@ -119,6 +119,7 @@ class CloudVisionHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
+    _client: ProductSearchClient | None
     product_name_determiner = NameDeterminer("Product", "product_id", ProductSearchClient.product_path)
     product_set_name_determiner = NameDeterminer(
         "ProductSet", "productset_id", ProductSearchClient.product_set_path
@@ -169,7 +170,7 @@ class CloudVisionHook(GoogleBaseHook):
     def create_product_set(
         self,
         location: str,
-        product_set: dict | ProductSet,
+        product_set: ProductSet | None,
         project_id: str = PROVIDE_PROJECT_ID,
         product_set_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -230,7 +231,7 @@ class CloudVisionHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
         product_set_id: str | None = None,
-        update_mask: dict | FieldMask = None,
+        update_mask: dict | field_mask_pb2.FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -240,12 +241,19 @@ class CloudVisionHook(GoogleBaseHook):
         :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductSetOperator`
         """
         client = self.get_conn()
+
         product_set = self.product_set_name_determiner.get_entity_with_name(
             product_set, product_set_id, location, project_id
         )
+        if isinstance(product_set, dict):
+            product_set = ProductSet(product_set)
         self.log.info("Updating ProductSet: %s", product_set.name)
         response = client.update_product_set(
-            product_set=product_set, update_mask=update_mask, retry=retry, timeout=timeout, metadata=metadata
+            product_set=product_set,
+            update_mask=update_mask,  # type: ignore
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
         self.log.info("ProductSet updated: %s", response.name if response else "")
         self.log.debug("ProductSet updated:\n%s", response)
@@ -289,6 +297,9 @@ class CloudVisionHook(GoogleBaseHook):
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}"
         self.log.info("Creating a new Product under the parent: %s", parent)
+
+        if isinstance(product, dict):
+            product = Product(product)
         response = client.create_product(
             parent=parent,
             product=product,
@@ -336,7 +347,7 @@ class CloudVisionHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = None,
         product_id: str | None = None,
-        update_mask: dict[str, FieldMask] | None = None,
+        update_mask: dict | field_mask_pb2.FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -346,10 +357,17 @@ class CloudVisionHook(GoogleBaseHook):
         :class:`~airflow.providers.google.cloud.operators.vision.CloudVisionUpdateProductOperator`
         """
         client = self.get_conn()
+
         product = self.product_name_determiner.get_entity_with_name(product, product_id, location, project_id)
+        if isinstance(product, dict):
+            product = Product(product)
         self.log.info("Updating ProductSet: %s", product.name)
         response = client.update_product(
-            product=product, update_mask=update_mask, retry=retry, timeout=timeout, metadata=metadata
+            product=product,
+            update_mask=update_mask,  # type: ignore
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
         self.log.info("Product updated: %s", response.name if response else "")
         self.log.debug("Product updated:\n%s", response)
@@ -395,6 +413,8 @@ class CloudVisionHook(GoogleBaseHook):
         self.log.info("Creating ReferenceImage")
         parent = ProductSearchClient.product_path(project=project_id, location=location, product=product_id)
 
+        if isinstance(reference_image, dict):
+            reference_image = ReferenceImage(reference_image)
         response = client.create_reference_image(
             parent=parent,
             reference_image=reference_image,
@@ -452,7 +472,7 @@ class CloudVisionHook(GoogleBaseHook):
         product_set_id: str,
         product_id: str,
         project_id: str,
-        location: str | None = None,
+        location: str,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -480,7 +500,7 @@ class CloudVisionHook(GoogleBaseHook):
         product_set_id: str,
         product_id: str,
         project_id: str,
-        location: str | None = None,
+        location: str,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -537,6 +557,7 @@ class CloudVisionHook(GoogleBaseHook):
 
         self.log.info("Annotating images")
 
+        requests = list(map(AnnotateImageRequest, requests))
         response = client.batch_annotate_images(requests=requests, retry=retry, timeout=timeout)
 
         self.log.info("Images annotated")

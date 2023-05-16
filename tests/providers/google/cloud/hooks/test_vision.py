@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.vision_v1 import (
+    AnnotateImageRequest,
     AnnotateImageResponse,
     EntityAnnotation,
     Feature,
@@ -58,11 +59,11 @@ ANNOTATE_IMAGE_REQUEST = {
 BATCH_ANNOTATE_IMAGE_REQUEST = [
     {
         "image": {"source": {"image_uri": "gs://bucket-name/object-name"}},
-        "features": [{"type": Feature.Type.LOGO_DETECTION}],
+        "features": [{"type_": Feature.Type.LOGO_DETECTION}],
     },
     {
         "image": {"source": {"image_uri": "gs://bucket-name/object-name"}},
-        "features": [{"type": Feature.Type.LOGO_DETECTION}],
+        "features": [{"type_": Feature.Type.LOGO_DETECTION}],
     },
 ]
 REFERENCE_IMAGE_NAME_TEST = (
@@ -471,7 +472,9 @@ class TestGcpVisionHook:
         # Then
         # Product ID was provided explicitly in the method call above, should be returned from the method
         batch_annotate_images_method.assert_called_once_with(
-            requests=BATCH_ANNOTATE_IMAGE_REQUEST, retry=DEFAULT, timeout=None
+            requests=list(map(AnnotateImageRequest, BATCH_ANNOTATE_IMAGE_REQUEST)),
+            retry=DEFAULT,
+            timeout=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn")
