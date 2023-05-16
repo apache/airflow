@@ -491,7 +491,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         )
 
     @cached_property
-    def hook(self) -> GKEPodHook:  # type: ignore[override]
+    def hook(self) -> GKEPodHook:
         if self._cluster_url is None or self._ssl_ca_cert is None:
             raise AttributeError(
                 "Cluster url and ssl_ca_cert should be defined before using self.hook method. "

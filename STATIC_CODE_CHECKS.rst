@@ -466,11 +466,20 @@ Run all checks for all files:
 
     breeze static-checks --all-files
 
-Run all checks for last commit :
+Run all checks for last commit:
 
 .. code-block:: bash
 
      breeze static-checks --last-commit
+
+Run all checks for all changes in my branch since branched from main:
+
+.. code-block:: bash
+
+     breeze static-checks -t mypy-core --only-my-changes
+
+More examples can be found in `Breeze documentation <BREEZE.rst#running-static-checks>`_
+
 
 Debugging pre-commit check scripts requiring image
 --------------------------------------------------

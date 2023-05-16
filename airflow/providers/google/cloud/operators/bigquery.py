@@ -819,6 +819,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         Defaults to 4 seconds.
     :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists
         (default: False).
+    :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
     """
 
     template_fields: Sequence[str] = (
@@ -845,6 +846,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         deferrable: bool = False,
         poll_interval: float = 4.0,
         as_dict: bool = False,
+        use_legacy_sql: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -860,6 +862,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.as_dict = as_dict
+        self.use_legacy_sql = use_legacy_sql
 
     def _submit_job(
         self,
@@ -867,7 +870,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         job_id: str,
     ) -> BigQueryJob:
         get_query = self.generate_query()
-        configuration = {"query": {"query": get_query}}
+        configuration = {"query": {"query": get_query, "useLegacySql": self.use_legacy_sql}}
         """Submit a new job and get the job id for polling the status using Triggerer."""
         return hook.insert_job(
             configuration=configuration,
@@ -887,18 +890,23 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             query += self.selected_fields
         else:
             query += "*"
-        query += f" from {self.dataset_id}.{self.table_id} limit {self.max_results}"
+        query += f" from `{self.project_id}.{self.dataset_id}.{self.table_id}` limit {self.max_results}"
         return query
 
     def execute(self, context: Context):
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+            use_legacy_sql=self.use_legacy_sql,
         )
 
         if not self.deferrable:
             self.log.info(
-                "Fetching Data from %s.%s max results: %s", self.dataset_id, self.table_id, self.max_results
+                "Fetching Data from %s.%s.%s max results: %s",
+                self.project_id,
+                self.dataset_id,
+                self.table_id,
+                self.max_results,
             )
             if not self.selected_fields:
                 schema: dict[str, list] = hook.get_schema(

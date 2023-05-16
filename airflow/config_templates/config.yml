@@ -1221,7 +1221,14 @@ openlineage:
       example: '{"type": "http", "url": "http://localhost:5000"}'
       default: ''
       version_added: ~
-
+    disable_source_code:
+      description: |
+        If disabled, OpenLineage events do not contain source code of particular
+        operators, like PythonOperator.
+      default: ~
+      example: ~
+      type: boolean
+      version_added: ~
 atlas:
   description: ~
   options:
@@ -2287,7 +2294,8 @@ scheduler:
       description: |
         If the last scheduler heartbeat happened more than scheduler_health_check_threshold
         ago (in seconds), scheduler is considered unhealthy.
-        This is used by the health check in the "/health" endpoint
+        This is used by the health check in the "/health" endpoint and in `airflow jobs check` CLI
+        for SchedulerJob.
       version_added: 1.10.2
       type: string
       example: ~

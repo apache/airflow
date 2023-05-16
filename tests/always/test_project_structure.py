@@ -430,6 +430,23 @@ class TestCncfProviderProjectStructure(ExampleCoverageTest):
     }
 
 
+class TestSlackProviderProjectStructure(ExampleCoverageTest):
+    PROVIDER = "slack"
+    CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
+    BASE_CLASSES = {
+        "airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator",
+    }
+    MISSING_EXAMPLES_FOR_CLASSES = {
+        "airflow.providers.slack.operators.slack.SlackAPIOperator",
+        "airflow.providers.slack.operators.slack.SlackAPIPostOperator",
+        "airflow.providers.slack.operators.slack_webhook.SlackWebhookOperator",
+        "airflow.providers.slack.transfers.sql_to_slack.SqlToSlackApiFileOperator",
+    }
+    DEPRECATED_CLASSES = {
+        "airflow.providers.slack.notifications.slack_notifier.py.",
+    }
+
+
 class TestDockerProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "docker"
 

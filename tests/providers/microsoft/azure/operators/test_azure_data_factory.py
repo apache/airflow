@@ -312,8 +312,57 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
             "logical_date": execution_date,
         }
 
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator"
+        ".defer"
+    )
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",
+        return_value=AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+    )
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline")
-    def test_azure_data_factory_run_pipeline_operator_async(self, mock_run_pipeline):
+    def test_azure_data_factory_run_pipeline_operator_async_succeeded_before_deferred(
+        self, mock_run_pipeline, mock_get_status, mock_defer
+    ):
+        class CreateRunResponse:
+            pass
+
+        CreateRunResponse.run_id = AZ_PIPELINE_RUN_ID
+        mock_run_pipeline.return_value = CreateRunResponse
+
+        self.OPERATOR.execute(context=self.create_context(self.OPERATOR))
+        assert not mock_defer.called
+
+    @pytest.mark.parametrize("status", AzureDataFactoryPipelineRunStatus.FAILURE_STATES)
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator"
+        ".defer"
+    )
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",
+    )
+    @mock.patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline")
+    def test_azure_data_factory_run_pipeline_operator_async_error_before_deferred(
+        self, mock_run_pipeline, mock_get_status, mock_defer, status
+    ):
+        mock_get_status.return_value = status
+
+        class CreateRunResponse:
+            pass
+
+        CreateRunResponse.run_id = AZ_PIPELINE_RUN_ID
+        mock_run_pipeline.return_value = CreateRunResponse
+
+        with pytest.raises(AzureDataFactoryPipelineRunException):
+            self.OPERATOR.execute(context=self.create_context(self.OPERATOR))
+        assert not mock_defer.called
+
+    @pytest.mark.parametrize("status", AzureDataFactoryPipelineRunStatus.INTERMEDIATE_STATES)
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",
+    )
+    @mock.patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline")
+    def test_azure_data_factory_run_pipeline_operator_async(self, mock_run_pipeline, mock_get_status, status):
         """Assert that AzureDataFactoryRunPipelineOperatorAsync deferred"""
 
         class CreateRunResponse:
