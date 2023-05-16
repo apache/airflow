@@ -19,38 +19,16 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
-
-from airflow.models import Connection
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.slack.hooks.slack import SlackHook
-from airflow.providers.slack.notifications.slack_notifier import SlackNotifier, send_slack_notification
-
-SLACK_API_DEFAULT_CONN_ID = SlackHook.default_conn_name
-
-
-@pytest.fixture(scope="module", autouse=True)
-def slack_api_connections():
-    """Create tests connections."""
-    connections = [
-        Connection(
-            conn_id=SLACK_API_DEFAULT_CONN_ID,
-            conn_type="slack",
-            password="xoxb-1234567890123-09876543210987-AbCdEfGhIjKlMnOpQrStUvWx",
-        ),
-    ]
-
-    conn_uris = {f"AIRFLOW_CONN_{c.conn_id.upper()}": c.get_uri() for c in connections}
-
-    with mock.patch.dict("os.environ", values=conn_uris):
-        yield
+from airflow.providers.slack.notifications.slack import SlackNotifier, send_slack_notification
 
 
 class TestSlackNotifier:
-    @mock.patch("airflow.providers.slack.notifications.slack_notifier.SlackHook")
-    def test_slack_notifier(self, mock_slack_hook, slack_api_connections, dag_maker):
+    @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
+    def test_slack_notifier(self, mock_slack_hook, dag_maker):
         with dag_maker("test_slack_notifier") as dag:
             EmptyOperator(task_id="task1")
+
         notifier = send_slack_notification(text="test")
         notifier(context={"dag": dag})
         mock_slack_hook.return_value.call.assert_called_once_with(
@@ -66,10 +44,11 @@ class TestSlackNotifier:
             },
         )
 
-    @mock.patch("airflow.providers.slack.notifications.slack_notifier.SlackHook")
-    def test_slack_notifier_with_notifier_class(self, mock_slack_hook, slack_api_connections, dag_maker):
+    @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
+    def test_slack_notifier_with_notifier_class(self, mock_slack_hook, dag_maker):
         with dag_maker("test_slack_notifier") as dag:
             EmptyOperator(task_id="task1")
+
         notifier = SlackNotifier(text="test")
         notifier(context={"dag": dag})
         mock_slack_hook.return_value.call.assert_called_once_with(
@@ -85,8 +64,8 @@ class TestSlackNotifier:
             },
         )
 
-    @mock.patch("airflow.providers.slack.notifications.slack_notifier.SlackHook")
-    def test_slack_notifier_templated(self, mock_slack_hook, slack_api_connections, dag_maker):
+    @mock.patch("airflow.providers.slack.notifications.slack.SlackHook")
+    def test_slack_notifier_templated(self, mock_slack_hook, dag_maker):
         with dag_maker("test_slack_notifier") as dag:
             EmptyOperator(task_id="task1")
 

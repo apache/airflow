@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 4.2.0
   - 4.1.0
   - 4.0.1
   - 4.0.0
@@ -104,6 +105,7 @@ sensors:
   - integration-name: Databricks
     python-modules:
       - airflow.providers.databricks.sensors.databricks_sql
+      - airflow.providers.databricks.sensors.databricks_partition
 
 connection-types:
   - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook

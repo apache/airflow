@@ -23,8 +23,6 @@ The Apache HDFS connection type enables connection to Apache HDFS.
 Default Connection IDs
 ----------------------
 
-HDFS Hook uses parameter ``hdfs_conn_id`` for Connection IDs and the value of the parameter
-as ``hdfs_default`` by default.
 Web HDFS Hook uses parameter ``webhdfs_conn_id`` for Connection IDs and the value of the
 parameter as ``webhdfs_default`` by default.
 
@@ -40,12 +38,7 @@ Login
     Effective user for HDFS operations (non-Kerberized).
 
 Extra (optional, connection parameters)
-    Specify the extra parameters (as json dictionary) that can be used in HDFS connection. The following
-    parameters out of the standard python parameters are supported:
-
-    * ``autoconfig`` - Default value is bool: False. Use snakebite's automatically configured client. This HDFSHook implementation requires snakebite.
-    * ``hdfs_namenode_principal`` - Specifies the Kerberos principal to use for HDFS.
-
+    Specify the extra parameters (as json dictionary) that can be used in Web HDFS connection.
     The following extra parameters can be used to configure SSL for Web HDFS Hook:
 
     * ``use_ssl`` - If SSL should be used. By default is set to `false`.

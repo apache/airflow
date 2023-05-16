@@ -646,7 +646,7 @@ jobs:
           persist-credentials: false
       - name: "Static checks: basic checks only"
         run: >
-          breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
+          breeze static-checks --show-diff-on-failure --color always --initialize-environment
           --commit-ref "${{ github.sha }}"
         env:
           VERBOSE: "false"
@@ -1159,7 +1159,10 @@ jobs:
       BACKEND_VERSION: "${{matrix.mssql-version}}"
       JOB_ID: "mssql-${{matrix.mssql-version}}-${{matrix.python-version}}"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.runs-on == 'self-hosted'
+    if: >
+      needs.build-info.outputs.run-tests == 'true' &&
+      (needs.build-info.outputs.runs-on == 'self-hosted' ||
+      needs.build-info.outputs.full-tests-needed == 'true')
     steps:
       - name: Cleanup repo
         shell: bash

@@ -22,6 +22,7 @@ import textwrap
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.databricks.sensors.databricks_partition import DatabricksPartitionSensor
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 
 # [Env variable to be used from the OS]
@@ -66,11 +67,26 @@ with DAG(
     )
     # [END howto_sensor_databricks_sql]
 
-    # This DAG contains only one task, so the below pattern (task1) is not necessary and does not
-    # affect the execution of the single DAG task which would run regardless of its presence.
-    # It is present here as a pattern to be expanded for users.
-    # For example, (task1 >> task 2 >> task3)
-    (sql_sensor)
+    # [START howto_sensor_databricks_partition]
+    # Example of using the Databricks Partition Sensor to check the presence
+    # of the specified partition(s) in a table.
+    partition_sensor = DatabricksPartitionSensor(
+        databricks_conn_id=connection_id,
+        sql_warehouse_name=sql_warehouse_name,
+        catalog="hive_metastore",
+        task_id="partition_sensor_task",
+        table_name="sample_table_2",
+        schema="temp",
+        partitions={"date": "2023-01-03", "name": ["abc", "def"]},
+        partition_operator="=",
+        timeout=60 * 2,
+    )
+    # [END howto_sensor_databricks_partition]
+
+    # Task dependency between the SQL sensor and the partition sensor.
+    # If the first task(sql_sensor) succeeds, the second task(partition_sensor)
+    # runs, else all the subsequent DAG tasks and the DAG are marked as failed.
+    (sql_sensor >> partition_sensor)
 
     from tests.system.utils.watcher import watcher
 

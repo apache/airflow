@@ -120,3 +120,38 @@ class TestValidJson:
             self._validate(
                 message="Invalid JSON: {}",
             )
+
+
+class TestValidKey:
+    def setup_method(self):
+        self.form_field_mock = mock.MagicMock(data="valid_key")
+        self.form_field_mock.gettext.side_effect = lambda msg: msg
+        self.form_mock = mock.MagicMock(spec_set=dict)
+
+    def _validate(self):
+        validator = validators.ValidKey()
+
+        return validator(self.form_mock, self.form_field_mock)
+
+    def test_form_field_is_none(self):
+        self.form_field_mock.data = None
+
+        assert self._validate() is None
+
+    def test_validation_pass(self):
+        assert self._validate() is None
+
+    def test_validation_fails_with_trailing_whitespace(self):
+        self.form_field_mock.data = "invalid key  "
+
+        with pytest.raises(validators.ValidationError):
+            self._validate()
+
+    def test_validation_fails_with_too_many_characters(self):
+        self.form_field_mock.data = "".join("x" for _ in range(1000))
+
+        with pytest.raises(
+            validators.ValidationError,
+            match=r"The key has to be less than [0-9]+ characters",
+        ):
+            self._validate()
