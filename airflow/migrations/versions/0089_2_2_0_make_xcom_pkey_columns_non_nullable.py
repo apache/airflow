@@ -43,7 +43,9 @@ def upgrade():
         bop.alter_column("key", type_=StringID(length=512), nullable=False)
         bop.alter_column("execution_date", type_=TIMESTAMP, nullable=False)
         if conn.dialect.name == "mssql":
-            bop.create_primary_key("pk_xcom", ["dag_id", "task_id", "key", "execution_date"])
+            bop.create_primary_key(
+                constraint_name="pk_xcom", columns=["dag_id", "task_id", "key", "execution_date"]
+            )
 
 
 def downgrade():
