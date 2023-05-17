@@ -39,11 +39,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
-
-try:
-    from airflow.utils.hashlib_wrapper import md5
-except ModuleNotFoundError:
-    from hashlib import md5
+from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
 

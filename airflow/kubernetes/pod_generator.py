@@ -45,11 +45,7 @@ from airflow.exceptions import (
 from airflow.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
 from airflow.utils import yaml
-
-try:
-    from airflow.utils.hashlib_wrapper import md5
-except ModuleNotFoundError:
-    from hashlib import md5
+from airflow.utils.hashlib_wrapper import md5
 from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)

@@ -30,10 +30,7 @@ import uuid
 
 from kubernetes.client import models as k8s
 
-try:
-    from airflow.utils.hashlib_wrapper import md5
-except ModuleNotFoundError:
-    from hashlib import md5
+from airflow.utils.hashlib_wrapper import md5
 
 MAX_POD_ID_LEN = 253
 
