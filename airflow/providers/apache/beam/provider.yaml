@@ -43,7 +43,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.4.0
-  - apache-beam>=2.33.0
+  - apache-beam>=2.47.0
 
 integrations:
   - integration-name: Apache Beam

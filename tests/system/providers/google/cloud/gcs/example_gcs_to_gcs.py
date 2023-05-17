@@ -43,7 +43,7 @@ DAG_ID = "gcs_to_gcs"
 
 BUCKET_NAME_SRC = f"bucket_{DAG_ID}_{ENV_ID}"
 BUCKET_NAME_DST = f"bucket_dst_{DAG_ID}_{ENV_ID}"
-RANDOM_FILE_NAME = OBJECT_1 = OBJECT_2 = "random.bin"
+RANDOM_FILE_NAME = OBJECT_1 = OBJECT_2 = "/tmp/random.bin"
 
 
 with models.DAG(

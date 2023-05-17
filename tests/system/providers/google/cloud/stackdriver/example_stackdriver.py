@@ -112,15 +112,15 @@ TEST_ALERT_POLICY_2 = {
 TEST_NOTIFICATION_CHANNEL_1 = {
     "display_name": CHANNEL_1_NAME,
     "enabled": True,
-    "labels": {"auth_token": "top-secret", "channel_name": "#channel"},
-    "type_": "slack",
+    "labels": {"topic": f"projects/{PROJECT_ID}/topics/notificationTopic"},
+    "type": "pubsub",
 }
 
 TEST_NOTIFICATION_CHANNEL_2 = {
     "display_name": CHANNEL_2_NAME,
     "enabled": False,
-    "labels": {"auth_token": "top-secret", "channel_name": "#channel"},
-    "type_": "slack",
+    "labels": {"topic": f"projects/{PROJECT_ID}/topics/notificationTopic2"},
+    "type": "pubsub",
 }
 
 with models.DAG(
@@ -139,7 +139,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_stackdriver_enable_notification_channel]
     enable_notification_channel = StackdriverEnableNotificationChannelsOperator(
-        task_id="enable-notification-channel", filter_='type="slack"'
+        task_id="enable-notification-channel", filter_='type="pubsub"'
     )
     # [END howto_operator_gcp_stackdriver_enable_notification_channel]
 
@@ -151,7 +151,7 @@ with models.DAG(
 
     # [START howto_operator_gcp_stackdriver_list_notification_channel]
     list_notification_channel = StackdriverListNotificationChannelsOperator(
-        task_id="list-notification-channel", filter_='type="slack"'
+        task_id="list-notification-channel", filter_='type="pubsub"'
     )
     # [END howto_operator_gcp_stackdriver_list_notification_channel]
 

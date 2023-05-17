@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest import mock
 from uuid import UUID
 
+import httplib2
 import pytest
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT
@@ -432,7 +433,9 @@ class TestPubSubHook:
     @pytest.mark.parametrize(
         "exception",
         [
-            pytest.param(HttpError(resp={"status": "404"}, content=EMPTY_CONTENT), id="http-error-404"),
+            pytest.param(
+                HttpError(resp=httplib2.Response({"status": 404}), content=EMPTY_CONTENT), id="http-error-404"
+            ),
             pytest.param(GoogleAPICallError("API Call Error"), id="google-api-call-error"),
         ],
     )
@@ -514,7 +517,9 @@ class TestPubSubHook:
     @pytest.mark.parametrize(
         "exception",
         [
-            pytest.param(HttpError(resp={"status": "404"}, content=EMPTY_CONTENT), id="http-error-404"),
+            pytest.param(
+                HttpError(resp=httplib2.Response({"status": 404}), content=EMPTY_CONTENT), id="http-error-404"
+            ),
             pytest.param(GoogleAPICallError("API Call Error"), id="google-api-call-error"),
         ],
     )
