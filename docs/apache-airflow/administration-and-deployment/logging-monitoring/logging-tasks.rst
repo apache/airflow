@@ -114,7 +114,7 @@ the example below.
 
     [skipping the remaining outputs for brevity]
 
-The output of ``airflow info`` is huge so we only keep those that are relevant to logging configuration.
+The output of `airflow info` above is truncated to only display the section that pertains to the logging configuration.
 You can also run ``airflow config list`` to check that the logging configuration options have valid values.
 
 .. _write-logs-advanced:
