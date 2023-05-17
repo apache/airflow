@@ -37,6 +37,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.cli import ColorMode
 from airflow.utils.module_loading import import_string
+from airflow.utils.state import DagRunState
 from airflow.utils.timezone import parse as parsedate
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
