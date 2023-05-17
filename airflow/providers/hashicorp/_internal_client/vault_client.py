@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
+import pkg_resources
+
 
 import hvac
 from hvac.api.auth_methods import Kubernetes
@@ -27,6 +29,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 DEFAULT_KUBERNETES_JWT_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 DEFAULT_KV_ENGINE_VERSION = 2
 
+HVAC_VERSION = pkg_resources.get_distribution(hvac.__name__).version
 
 VALID_KV_VERSIONS: list[int] = [1, 2]
 VALID_AUTH_TYPES: list[str] = [
@@ -354,9 +357,14 @@ class _VaultClient(LoggingMixin):
                     raise VaultError("Secret version can only be used with version 2 of the KV engine")
                 response = self.client.secrets.kv.v1.read_secret(path=secret_path, mount_point=mount_point)
             else:
-                response = self.client.secrets.kv.v2.read_secret_version(
-                    path=secret_path, mount_point=mount_point, version=secret_version, raise_on_deleted_version=True
-                )
+                if HVAC_VERSION >= "1.1.0":
+                    response = self.client.secrets.kv.v2.read_secret_version(
+                        path=secret_path, mount_point=mount_point, version=secret_version, raise_on_deleted_version=True
+                    )
+                else:
+                    response = self.client.secrets.kv.v2.read_secret_version(
+                        path=secret_path, mount_point=mount_point, version=secret_version
+                    )                    
         except InvalidPath:
             self.log.debug("Secret not found %s with mount point %s", secret_path, mount_point)
             return None
@@ -403,9 +411,14 @@ class _VaultClient(LoggingMixin):
         mount_point = None
         try:
             mount_point, secret_path = self._parse_secret_path(secret_path)
-            return self.client.secrets.kv.v2.read_secret_version(
-                path=secret_path, mount_point=mount_point, version=secret_version, raise_on_deleted_version=True
-            )
+            if HVAC_VERSION >= "1.1.0":
+                return self.client.secrets.kv.v2.read_secret_version(
+                    path=secret_path, mount_point=mount_point, version=secret_version, raise_on_deleted_version=True
+                )
+            else:
+                return self.client.secrets.kv.v2.read_secret_version(
+                    path=secret_path, mount_point=mount_point, version=secret_version
+                )
         except InvalidPath:
             self.log.debug(
                 "Secret not found %s with mount point %s and version %s",
