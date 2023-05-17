@@ -21,25 +21,11 @@ import axios, { AxiosResponse } from "axios";
 import { useQuery } from "react-query";
 
 import { getMetaValue } from "src/utils";
-import useDag from "./useDag";
+import type { API } from "src/types";
 
-export default function useDagCode() {
-  const { data: dagData } = useDag();
+const dagApiUrl = getMetaValue("dag_api");
 
-  return useQuery(
-    ["dagSourceQuery"],
-    () => {
-      const fileToken = dagData?.fileToken || "";
-      const dagSourceApiUrl = getMetaValue("dag_source_api").replace(
-        "_FILE_TOKEN_",
-        fileToken
-      );
-      return axios.get<AxiosResponse, string>(dagSourceApiUrl, {
-        headers: { Accept: "text/plain" },
-      });
-    },
-    {
-      enabled: !!dagData?.fileToken,
-    }
-  );
-}
+const useDag = () =>
+  useQuery(["dagQuery"], () => axios.get<AxiosResponse, API.DAG>(dagApiUrl));
+
+export default useDag;

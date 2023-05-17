@@ -22,20 +22,30 @@ import { Box, Heading, Spinner, Alert, AlertIcon } from "@chakra-ui/react";
 import { useOffsetTop } from "src/utils";
 import Time from "src/components/Time";
 
-import { useDagCode } from "src/api";
+import { useDag, useDagCode } from "src/api";
 import CodeBlock from "./CodeBlock";
 
 const DagCode = () => {
   const dagCodeRef = useRef<HTMLDivElement>(null);
   const offsetTop = useOffsetTop(dagCodeRef);
-  const { lastParsedTime, codeSource = "", isLoading, error } = useDagCode();
+  const { data: dagData, isLoading: isLoadingDag, error: dagError } = useDag();
+  const {
+    data: codeSource = "",
+    isLoading: isLoadingCode,
+    error: codeError,
+  } = useDagCode();
+
+  const isLoading = isLoadingCode || isLoadingDag;
+  const error = codeError || dagError;
 
   return (
     <Box ref={dagCodeRef} height={`calc(100% - ${offsetTop}px)`}>
-      <Heading as="h4" size="md" paddingBottom="10px" fontSize="14px">
-        Parsed at: <Time dateTime={lastParsedTime} />
-      </Heading>
-      {error && (
+      {dagData?.lastParsedTime && (
+        <Heading as="h4" size="md" paddingBottom="10px" fontSize="14px">
+          Parsed at: <Time dateTime={dagData.lastParsedTime} />
+        </Heading>
+      )}
+      {!!error && (
         <Alert status="error" marginBottom="10px">
           <AlertIcon />
           An error occurred while fetching the dag source code.
@@ -45,7 +55,7 @@ const DagCode = () => {
         <Spinner size="xl" color="blue.500" thickness="4px" speed="0.65s" />
       )}
 
-      {!isLoading && !error && <CodeBlock code={codeSource} />}
+      {codeSource && <CodeBlock code={codeSource} />}
     </Box>
   );
 };

@@ -40,6 +40,7 @@ import useSetDagRunNote from "./useSetDagRunNote";
 import useSetTaskInstanceNote from "./useSetTaskInstanceNote";
 import useUpstreamDatasetEvents from "./useUpstreamDatasetEvents";
 import useTaskInstance from "./useTaskInstance";
+import useDag from "./useDag";
 import useDagCode from "./useDagCode";
 
 axios.interceptors.response.use((res: AxiosResponse) =>
@@ -69,5 +70,6 @@ export {
   useSetTaskInstanceNote,
   useTaskInstance,
   useUpstreamDatasetEvents,
+  useDag,
   useDagCode,
 };
