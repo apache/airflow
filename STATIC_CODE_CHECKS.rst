@@ -133,7 +133,7 @@ require Breeze Docker image to be built locally.
   execution in order to speed MyPy checks up (sometimes by order of magnitude). While in most cases MyPy
   will handle refreshing the cache when and if needed, there are some cases when it won't (cache invalidation
   is the hard problem in computer science). This might happen for example when we upgrade MyPY. In such
-  cases you might need to manually remove the cache volume by running ``breeze stop --cleanup-mypy-cache``.
+  cases you might need to manually remove the cache volume by running ``breeze down --cleanup-mypy-cache``.
 
   .. BEGIN AUTO-GENERATED STATIC CHECK LIST
 
