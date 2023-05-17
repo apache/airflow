@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.0
+.....
+
+Latest change: 2023-05-03
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+=================================================================================================  ===========  ======================================================================
+
 3.6.0
 .....
 
-Latest change: 2023-03-21
+Latest change: 2023-04-02
 
 =================================================================================================  ===========  ==========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================
+`55dbf1ff1f <https://github.com/apache/airflow/commit/55dbf1ff1fb0b22714f695a66f6108b3249d1199>`_  2023-04-02   ``Prepare docs for April 2023 wave of Providers (#30378)``
 `fe727f985b <https://github.com/apache/airflow/commit/fe727f985b1053b838433b817458517c0c0f2480>`_  2023-03-21   ``SSHOperator - Restore ability to override SSHHook cmd_timeout (#30190)``
 =================================================================================================  ===========  ==========================================================================
 

@@ -56,6 +56,7 @@ from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLaunchFailedException,
     PodManager,
+    PodOperatorHookProtocol,
     PodPhase,
     get_container_termination_message,
 )
@@ -463,7 +464,7 @@ class KubernetesPodOperator(BaseOperator):
         return PodManager(kube_client=self.client)
 
     @cached_property
-    def hook(self) -> KubernetesHook:
+    def hook(self) -> PodOperatorHookProtocol:
         hook = KubernetesHook(
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
@@ -527,7 +528,7 @@ class KubernetesPodOperator(BaseOperator):
         """Retrieves xcom value and kills xcom sidecar container"""
         result = self.pod_manager.extract_xcom(pod)
         if isinstance(result, str) and result.rstrip() == "__airflow_xcom_result_empty__":
-            self.log.info("Result file is empty.")
+            self.log.info("xcom result file is empty.")
             return None
         else:
             self.log.info("xcom result: \n%s", result)
@@ -547,6 +548,11 @@ class KubernetesPodOperator(BaseOperator):
                 pod_request_obj=self.pod_request_obj,
                 context=context,
             )
+            # push to xcom now so that if there is an error we still have the values
+            ti = context["ti"]
+            ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
+            ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
+
             # get remote pod for use in cleanup methods
             self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
             self.await_pod_start(pod=self.pod)
@@ -572,9 +578,6 @@ class KubernetesPodOperator(BaseOperator):
                 pod=self.pod or self.pod_request_obj,
                 remote_pod=self.remote_pod,
             )
-        ti = context["ti"]
-        ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
-        ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
         if self.do_xcom_push:
             return result
 

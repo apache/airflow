@@ -56,6 +56,7 @@ Content
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
+
 .. toctree::
     :maxdepth: 1
     :caption: Commits
@@ -66,10 +67,10 @@ Content
 Package apache-airflow-providers-apache-kafka
 ------------------------------------------------------
 
-`Apache Kafka <https://kafka.apache.org/>`__
+`Apache Kafka  <https://kafka.apache.org/>`__
 
 
-Release: 1.0.0
+Release: 1.1.0
 
 Provider package
 ----------------
@@ -81,15 +82,17 @@ Installation
 ------------
 
 You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported via ``pip install apache-airflow-providers-apache-kafka``.
+for the minimum Airflow version supported) via
+``pip install apache-airflow-providers-apache-kafka``
 
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
 ===================  ==================
 PIP package          Version required
 ===================  ==================
-``apache-airflow``   ``>=2.3.0``
+``apache-airflow``   ``>=2.4.0``
 ``asgiref``
 ``confluent-kafka``  ``>=1.8.2``
 ===================  ==================

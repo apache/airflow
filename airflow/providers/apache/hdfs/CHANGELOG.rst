@@ -24,6 +24,41 @@
 Changelog
 ---------
 
+4.0.0
+-----
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The original HDFS Hook and sensor has been removed. It used the old HDFS snakebite-py3 library that had no
+update in years and the protobuf they are using reached end of life.
+
+The 3.* version of the provider is still available and can be used if you need to use the old hooks and
+sensors.
+
+The ``HDFSHook``, ``HDFSSensor``, ``HdfsRegexSensor``, ``HdfsRegexSensor`` that have been removed from
+this provider and they are not available any more. If you want to continue using them,
+you can use 3.* version of the provider, but the recommendation is to switch to the new
+``WebHDFSHook`` and ``WebHDFSSensor`` that use the ``WebHDFS`` API.
+
+
+* ``Remove snakebite-py3 based HDFS hooks and sensors (#31262)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Add mechanism to suspend providers (#30422)``
+
 3.2.1
 .....
 
@@ -35,8 +70,9 @@ Bug Fixes
 3.2.0
 .....
 
-This release of provider is only available for Airflow 2.3+ as explained in the
-`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Misc
 ~~~~

@@ -28,14 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.2.0
+.....
+
+Latest change: 2023-05-03
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`43916c5034 <https://github.com/apache/airflow/commit/43916c50341d937d9976b2065e40e1611e918663>`_  2023-05-01   ``Optimize deferred execution mode in DbtCloudJobRunSensor (#30968)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+`9409446097 <https://github.com/apache/airflow/commit/940944609751e2584b191aa776b6221aa78703d3>`_  2023-04-24   ``Add cli cmd to list the provider trigger info (#30822)``
+`c585ad51c5 <https://github.com/apache/airflow/commit/c585ad51c522c6e9f3bbbf7ae6e0132e25a3a378>`_  2023-04-22   ``Upgrade ruff to 0.0.262 (#30809)``
+=================================================================================================  ===========  ======================================================================
+
 3.1.1
 .....
 
-Latest change: 2023-04-04
+Latest change: 2023-04-21
 
 =================================================================================================  ===========  ==========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================
+`e46ce78b66 <https://github.com/apache/airflow/commit/e46ce78b66953146c04de5da00cab6299787adad>`_  2023-04-21   ``Prepare docs for adhoc release of providers (#30787)``
 `d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
 `6663ec5b2e <https://github.com/apache/airflow/commit/6663ec5b2e5341df7506bb31c3169115c1584280>`_  2023-04-03   ``Merge DbtCloudJobRunAsyncSensor logic to DbtCloudJobRunSensor (#30227)``
 `a3d59c8c75 <https://github.com/apache/airflow/commit/a3d59c8c759582c27f5a234ffd4c33a9daeb22a9>`_  2023-03-09   ``Move typing imports behind TYPE_CHECKING in DbtCloudHook (#29989)``

@@ -234,7 +234,7 @@ def setup_queue_listener():
         return None
 
 
-class TriggererJobRunner(BaseJobRunner, LoggingMixin):
+class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
     """
     TriggererJobRunner continuously runs active triggers in asyncio, watching
     for them to fire off their events and then dispatching that information

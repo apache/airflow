@@ -133,7 +133,7 @@ require Breeze Docker image to be built locally.
   execution in order to speed MyPy checks up (sometimes by order of magnitude). While in most cases MyPy
   will handle refreshing the cache when and if needed, there are some cases when it won't (cache invalidation
   is the hard problem in computer science). This might happen for example when we upgrade MyPY. In such
-  cases you might need to manually remove the cache volume by running ``breeze stop --cleanup-mypy-cache``.
+  cases you might need to manually remove the cache volume by running ``breeze down --cleanup-mypy-cache``.
 
   .. BEGIN AUTO-GENERATED STATIC CHECK LIST
 
@@ -466,11 +466,20 @@ Run all checks for all files:
 
     breeze static-checks --all-files
 
-Run all checks for last commit :
+Run all checks for last commit:
 
 .. code-block:: bash
 
      breeze static-checks --last-commit
+
+Run all checks for all changes in my branch since branched from main:
+
+.. code-block:: bash
+
+     breeze static-checks -t mypy-core --only-my-changes
+
+More examples can be found in `Breeze documentation <BREEZE.rst#running-static-checks>`_
+
 
 Debugging pre-commit check scripts requiring image
 --------------------------------------------------
