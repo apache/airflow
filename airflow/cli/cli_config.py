@@ -277,11 +277,12 @@ ARG_DAG_ID_REQ_FLAG = Arg(
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
 )
+dagrun_states = tuple(state.value for state in DagRunState)
 ARG_STATE = Arg(
     ("--state",),
     help="Only list the dag runs corresponding to the state",
-    metavar="(running, queued, success, failed)",
-    choices=("running", "queued", "success", "failed"),
+    metavar=str(dagrun_states),
+    choices=dagrun_states,
 )
 
 # list_jobs
