@@ -40,7 +40,10 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-from airflow.utils.hashlib_wrapper import md5
+try:
+    from airflow.utils.hashlib_wrapper import md5
+except ModuleNotFoundError:
+    from hashlib import md5
 
 
 class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):

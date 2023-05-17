@@ -34,7 +34,11 @@ from airflow.models.dagrun import DagRun
 from airflow.serialization.serialized_objects import DagDependency, SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
 from airflow.utils import timezone
-from airflow.utils.hashlib_wrapper import md5
+
+try:
+    from airflow.utils.hashlib_wrapper import md5
+except ModuleNotFoundError:
+    from hashlib import md5
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 

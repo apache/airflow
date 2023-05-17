@@ -61,7 +61,11 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
-from airflow.utils.hashlib_wrapper import md5
+
+try:
+    from airflow.utils.hashlib_wrapper import md5
+except ModuleNotFoundError:
+    from hashlib import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 

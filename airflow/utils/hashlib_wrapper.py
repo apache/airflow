@@ -19,19 +19,21 @@ from __future__ import annotations
 
 import hashlib
 
+from _typeshed import ReadableBuffer
+
 from airflow import PY39
 from airflow.configuration import conf
 
 
-def md5(data: bytes = b""):
+def md5(__string: ReadableBuffer = b"") -> hashlib._Hash:
     """
     Safely allows calling the hashlib.md5 function with the "usedforsecurity" disabled
     when specified in the configuration.
-    :param data: The data to hash.
-        Default to empty str.
+    :param string: The data to hash.
+        Default to empty str byte.
     :return: The hashed value.
     :rtype: _Hash
     """
     if PY39 and conf.getboolean("security", "disable_md5_for_security"):
-        return hashlib.md5(data, usedforsecurity=False)  # type: ignore
-    return hashlib.md5(data)
+        return hashlib.md5(__string, usedforsecurity=False)  # type: ignore
+    return hashlib.md5(__string)

@@ -38,7 +38,11 @@ from airflow.operators.python import PythonOperator
 from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor, ExternalTaskSensorLink
 from airflow.sensors.time_sensor import TimeSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
-from airflow.utils.hashlib_wrapper import md5
+
+try:
+    from airflow.utils.hashlib_wrapper import md5
+except ModuleNotFoundError:
+    from hashlib import md5
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
