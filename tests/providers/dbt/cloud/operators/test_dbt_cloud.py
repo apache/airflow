@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, Connection
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.operators.dbt import (
@@ -28,6 +29,7 @@ from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudListJobsOperator,
     DbtCloudRunJobOperator,
 )
+from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
@@ -94,6 +96,83 @@ class TestDbtCloudRunJobOperator:
             "schema_override": "another_schema",
             "additional_run_config": {"threads_override": 8},
         }
+
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_status",
+        return_value=DbtCloudJobRunStatus.SUCCESS.value,
+    )
+    @patch("airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobOperator.defer")
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_connection")
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.trigger_job_run")
+    def test_execute_succeeded_before_getting_deferred(
+        self, mock_trigger_job_run, mock_dbt_hook, mock_defer, mock_job_run_status
+    ):
+        dbt_op = DbtCloudRunJobOperator(
+            dbt_cloud_conn_id=ACCOUNT_ID_CONN,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            check_interval=1,
+            timeout=3,
+            dag=self.dag,
+            deferrable=True,
+        )
+        dbt_op.execute(MagicMock())
+        assert not mock_defer.called
+
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_status",
+        return_value=DbtCloudJobRunStatus.ERROR.value,
+    )
+    @patch("airflow.providers.dbt.cloud.operators.dbt.DbtCloudRunJobOperator.defer")
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_connection")
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.trigger_job_run")
+    def test_execute_failed_before_getting_deferred(
+        self, mock_trigger_job_run, mock_dbt_hook, mock_defer, mock_job_run_status
+    ):
+        dbt_op = DbtCloudRunJobOperator(
+            dbt_cloud_conn_id=ACCOUNT_ID_CONN,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            check_interval=1,
+            timeout=3,
+            dag=self.dag,
+            deferrable=True,
+        )
+        with pytest.raises(DbtCloudJobRunException):
+            dbt_op.execute(MagicMock())
+        assert not mock_defer.called
+
+    @pytest.mark.parametrize(
+        "status",
+        (
+            DbtCloudJobRunStatus.QUEUED.value,
+            DbtCloudJobRunStatus.STARTING.value,
+            DbtCloudJobRunStatus.RUNNING.value,
+        ),
+    )
+    @patch(
+        "airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_status",
+    )
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_connection")
+    @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.trigger_job_run")
+    def test_dbt_run_job_op_async(self, mock_trigger_job_run, mock_dbt_hook, mock_job_run_status, status):
+        """
+        Asserts that a task is deferred and an DbtCloudRunJobTrigger will be fired
+        when the DbtCloudRunJobOperator has deferrable param set to True
+        """
+        mock_job_run_status.return_value = status
+        dbt_op = DbtCloudRunJobOperator(
+            dbt_cloud_conn_id=ACCOUNT_ID_CONN,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            check_interval=1,
+            timeout=3,
+            dag=self.dag,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            dbt_op.execute(MagicMock())
+        assert isinstance(exc.value.trigger, DbtCloudRunJobTrigger), "Trigger is not a DbtCloudRunJobTrigger"
 
     @patch.object(DbtCloudHook, "trigger_job_run", return_value=MagicMock(**DEFAULT_ACCOUNT_JOB_RUN_RESPONSE))
     @pytest.mark.parametrize(

@@ -853,6 +853,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
                     region_name=self.region_name,
                     aws_access_key_id=credentials.access_key,
                     aws_secret_access_key=credentials.secret_key,
+                    aws_session_token=credentials.token,
                 )
 
             # Technically if waiter_name is in custom_waiters then self.waiter_path must
