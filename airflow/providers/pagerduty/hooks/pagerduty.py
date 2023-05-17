@@ -164,6 +164,6 @@ class PagerdutyHook(BaseHook):
         try:
             session = pdpyras.APISession(self.token)
             session.list_all("services", params={"query": "some_non_existing_service"})
-        except Exception as e:
-            return False, str(e)
+        except Exception:
+            return False, "connection test failed, invalid token"
         return True, "connection tested successfully"
