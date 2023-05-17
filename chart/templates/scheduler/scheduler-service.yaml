@@ -25,6 +25,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: {{ .Release.Name }}-scheduler
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: scheduler

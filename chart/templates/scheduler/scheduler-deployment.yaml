@@ -42,6 +42,7 @@ kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
 metadata:
   name: {{ .Release.Name }}-scheduler
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: scheduler

@@ -32,6 +32,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: {{ .Release.Name }}-dag-processor
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: dag-processor

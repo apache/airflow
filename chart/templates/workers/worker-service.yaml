@@ -25,6 +25,7 @@ kind: Service
 apiVersion: v1
 metadata:
   name: {{ .Release.Name }}-worker
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: worker

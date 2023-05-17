@@ -31,6 +31,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: {{ .Release.Name }}-statsd
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: statsd

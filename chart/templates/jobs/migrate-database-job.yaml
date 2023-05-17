@@ -30,6 +30,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ .Release.Name }}-run-airflow-migrations
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: run-airflow-migrations

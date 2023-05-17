@@ -30,6 +30,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: {{ .Release.Name }}-create-user
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: create-user-job

@@ -32,6 +32,7 @@ kind: Deployment
 apiVersion: apps/v1
 metadata:
   name: {{ .Release.Name }}-flower
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: flower

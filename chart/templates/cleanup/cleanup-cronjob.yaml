@@ -34,6 +34,7 @@ apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
   name: {{ .Release.Name }}-cleanup
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: airflow-cleanup-pods
