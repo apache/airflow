@@ -2834,7 +2834,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        tables = [TaskFail, XCom, RenderedTaskInstanceFields]
+        tables = [TaskFail, TaskInstanceNote, TaskReschedule, XCom, RenderedTaskInstanceFields]
         for table in tables:
             session.execute(
                 delete(table).where(
