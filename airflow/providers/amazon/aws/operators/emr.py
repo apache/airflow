@@ -58,6 +58,11 @@ class EmrAddStepsOperator(BaseOperator):
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
     """
 
+    EXCEPTION_MSG: str = (
+        "At least one of job_flow_id or job_flow_name must be specified. "
+        "Priority is in the order of job_flow_id -> job_flow_name."
+    )
+
     template_fields: Sequence[str] = (
         "job_flow_id",
         "job_flow_name",
@@ -88,10 +93,7 @@ class EmrAddStepsOperator(BaseOperator):
         **kwargs,
     ):
         if (job_flow_id is None) and (job_flow_name is None):
-            raise AirflowException(
-                 "At least one of job_flow_id or job_flow_name must be specified. "
-                "Priority is in the order of job_flow_id -> job_flow_name."
-            )
+            raise AirflowException(EmrAddStepsOperator.EXCEPTION_MSG)
 
         super().__init__(**kwargs)
 

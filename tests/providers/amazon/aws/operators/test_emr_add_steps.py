@@ -87,11 +87,7 @@ class TestEmrAddStepsOperator:
         ],
     )
     def test_validate_mutually_exclusive_args(self, job_flow_id, job_flow_name):
-        error_message = (
-            "Exactly job_flow_id or job_flow_name must be existed. "
-            "Priority is in the order of job_flow_id -> job_flow_name."
-        )
-        with pytest.raises(AirflowException, match=error_message):
+        with pytest.raises(AirflowException, match=EmrAddStepsOperator.EXCEPTION_MSG):
             EmrAddStepsOperator(
                 task_id="test_validate_mutually_exclusive_args",
                 job_flow_id=job_flow_id,
