@@ -62,7 +62,6 @@ class PagerdutyNotifier(BaseNotifier):
     :param integration_key: PagerDuty Events API token
     :param pagerduty_events_conn_id: connection that has PagerDuty integration key in the Pagerduty
      API token field
-    :return: PagerDuty Events API v2 response.
     """
 
     template_fields = (
