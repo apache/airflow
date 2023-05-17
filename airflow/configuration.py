@@ -1466,7 +1466,7 @@ def initialize_config() -> AirflowConfigParser:
 
     Called for you automatically as part of the Airflow boot process.
     """
-    global FERNET_KEY, AIRFLOW_HOME
+    global FERNET_KEY, AIRFLOW_HOME, WEBSERVER_CONFIG
 
     default_config = _parameterized_config_from_template("default_airflow.cfg")
 
@@ -1531,9 +1531,7 @@ def initialize_config() -> AirflowConfigParser:
         if local_conf.getboolean("core", "unit_test_mode"):
             local_conf.load_test_config()
 
-    global WEBSERVER_CONFIG
     WEBSERVER_CONFIG = local_conf.get("webserver", "config_file")
-
     if not os.path.isfile(WEBSERVER_CONFIG):
         import shutil
 

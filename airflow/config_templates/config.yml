@@ -1267,7 +1267,7 @@ webserver:
     config_file:
       description: |
         Path of webserver config file used for configuring the webserver parameters
-      version_added: 2.6.0
+      version_added: 2.7.0
       type: string
       example: ~
       default: "{AIRFLOW_HOME}/webserver_config.py"
