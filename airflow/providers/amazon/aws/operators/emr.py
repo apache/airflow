@@ -27,7 +27,7 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
 from airflow.providers.amazon.aws.utils.waiter import waiter
-from airflow.utils.helpers import exactly_one, prune_dict
+from airflow.utils.helpers import prune_dict
 from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
