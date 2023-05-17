@@ -25,6 +25,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Release.Name }}-statsd
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: config

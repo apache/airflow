@@ -26,6 +26,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: {{ .Release.Name }}-webserver-policy
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: airflow-webserver-policy

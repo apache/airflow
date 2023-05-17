@@ -24,6 +24,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ template "airflow_config" . }}
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     component: config

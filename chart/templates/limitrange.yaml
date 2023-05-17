@@ -25,6 +25,7 @@ apiVersion: v1
 kind: LimitRange
 metadata:
   name: {{ .Release.Name }}-limit-range
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: resources
     component: limitrange

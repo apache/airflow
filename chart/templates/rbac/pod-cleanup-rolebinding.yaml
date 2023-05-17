@@ -25,6 +25,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: {{ .Release.Name }}-cleanup-rolebinding
+  namespace: {{ .Release.Namespace | quote }}
   labels:
     tier: airflow
     release: {{ .Release.Name }}
@@ -40,5 +41,5 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: {{ include "cleanup.serviceAccountName" . }}
-    namespace: "{{ .Release.Namespace }}"
+    namespace: {{ .Release.Namespace | quote }}
 {{- end }}
