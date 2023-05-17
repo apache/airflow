@@ -23,6 +23,56 @@
 Changelog
 ---------
 
+10.1.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to DataprocInstantiateInlineWorkflowTemplateOperator (#30878)``
+* ``Add deferrable mode to 'GCSObjectUpdateSensor' (#30579)``
+* ``Add protocol to define methods relied upon by KubernetesPodOperator (#31298)``
+* ``Add BigQueryToPostgresOperator (#30658)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'DataflowTemplatedJobStartOperator' fix overwriting of location with default value, when a region is provided. (#31082)``
+* ``Poke once before defer for GCSObjectsWithPrefixExistenceSensor (#30939)``
+* ``Add deferrable mode to 'GCSObjectsWithPrefixExistenceSensor' (#30618)``
+* ``allow multiple prefixes in gcs delete/list hooks and operators (#30815)``
+* ``Fix removed delegate_to parameter in deferrable GCS sensor (#30810)``
+
+
+Misc
+~~~~
+
+* ``Add 'use_legacy_sql' param to 'BigQueryGetDataOperator' (#31190)``
+* ``Add 'as_dict' param to 'BigQueryGetDataOperator' (#30887)``
+* ``Add flag apply_gcs_prefix to S3ToGCSOperator (b/245077385) (#31127)``
+* ``Add 'priority' parameter to BigQueryHook (#30655)``
+* ``Bump minimum Airflow version in providers (#30917)``
+* ``implement gcs_schema_object for BigQueryCreateExternalTableOperator (#30961)``
+* ``Optimize deferred execution mode (#30946)``
+* ``Optimize deferrable mode execution (#30920)``
+* ``Optimize deferrable mode in 'GCSObjectExistenceSensor' (#30901)``
+* ``'CreateBatchPredictionJobOperator' Add batch_size param for Vertex AI BatchPredictionJob objects (#31118)``
+* ``GKEPodHook needs to have all methods KPO calls (#31266)``
+* ``Add CloudBuild build id log (#30516)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move TaskInstanceKey to a separate file (#31033)``
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``Small refactors in ClusterGenerator of dataproc (#30714)``
+   * ``Upgrade ruff to 0.0.262 (#30809)``
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Add cli cmd to list the provider trigger info (#30822)``
+
 10.0.0
 ......
 
@@ -299,8 +349,9 @@ Bug Fixes
 8.5.0
 .....
 
-This release of provider is only available for Airflow 2.3+ as explained in the
-`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Misc
 ~~~~
@@ -538,8 +589,9 @@ Bug Fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Features
 ~~~~~~~~

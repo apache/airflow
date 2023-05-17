@@ -1,8 +1,0 @@
-Clarifications of the external Health Check mechanism and using ``Job`` classes.
-
-In the past SchedulerJob and other ``*Job`` classes are known to have been used to perform
-external health checks for Airflow components. Those are, however, Airflow DB ORM related classes.
-The DB models and database structure of Airflow are considered as internal implementation detail, following
-`public interface <https://airflow.apache.org/docs/apache-airflow/stable/public-airflow-interface.html>`_).
-Therefore, they should not be used for external health checks. Instead, you should use the
-``airflow jobs check`` CLI command (introduced in Airflow 2.1) for that purpose.

@@ -19,11 +19,13 @@ from __future__ import annotations
 import functools
 import logging
 from inspect import signature
-from typing import Any
+from typing import Callable, TypeVar, overload
 
 from sqlalchemy.exc import DBAPIError, OperationalError
 
 from airflow.configuration import conf
+
+F = TypeVar("F", bound=Callable)
 
 MAX_DB_RETRIES = conf.getint("database", "max_db_retries", fallback=3)
 
@@ -46,13 +48,23 @@ def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: logging.Logge
     return tenacity.Retrying(**retry_kwargs)
 
 
-def retry_db_transaction(_func: Any = None, retries: int = MAX_DB_RETRIES, **retry_kwargs):
-    """
-    Decorator to retry Class Methods and Functions in case of ``OperationalError`` from DB.
+@overload
+def retry_db_transaction(*, retries: int = MAX_DB_RETRIES) -> Callable[[F], F]:
+    ...
+
+
+@overload
+def retry_db_transaction(_func: F) -> F:
+    ...
+
+
+def retry_db_transaction(_func: Callable | None = None, *, retries: int = MAX_DB_RETRIES, **retry_kwargs):
+    """Decorator to retry functions in case of ``OperationalError`` from DB.
+
     It should not be used with ``@provide_session``.
     """
 
-    def retry_decorator(func):
+    def retry_decorator(func: Callable) -> Callable:
         # Get Positional argument for 'session'
         func_params = signature(func).parameters
         try:

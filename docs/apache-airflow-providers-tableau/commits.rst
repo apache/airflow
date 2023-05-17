@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.2.0
+.....
+
+Latest change: 2023-05-03
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+=================================================================================================  ===========  ======================================================================
+
 4.1.0
 .....
 
-Latest change: 2023-02-03
+Latest change: 2023-02-08
 
 =================================================================================================  ===========  ===================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================
+`ce6ae2457e <https://github.com/apache/airflow/commit/ce6ae2457ef3d9f44f0086b58026909170bbf22a>`_  2023-02-08   ``Prepare docs for Feb 2023 wave of Providers (#29379)``
 `67b92d7b53 <https://github.com/apache/airflow/commit/67b92d7b53b2c15b3c9656787f64ff71599d7cb2>`_  2023-02-03   ``Add TableauOperator.template_fields = find, match_with (#29360)``
 =================================================================================================  ===========  ===================================================================
 
