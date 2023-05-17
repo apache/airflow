@@ -24,7 +24,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, initialize_config
+from airflow.configuration import initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.utils.task_group import TaskGroup
 from airflow.www import views
@@ -63,18 +63,16 @@ def test_configuration_expose_config(admin_client):
     check_content_in_response(["Airflow Configuration"], resp)
 
 
-def test_webserver_configuration_config_file(admin_client, tmp_path):
-    config_file = tmp_path / "my_custom_webserver_config.py"
-    os.environ["AIRFLOW__WEBSERVER__CONFIG_FILE"] = str(config_file)
+@mock.patch("airflow.configuration.WEBSERVER_CONFIG")
+def test_webserver_configuration_config_file(mock_webserver_config_global, admin_client, tmp_path):
+    import airflow.configuration
 
-    conf = initialize_config()
-    conf.validate()
-
-    assert WEBSERVER_CONFIG == os.path.join(AIRFLOW_HOME, "webserver_config.py")
+    config_file = str(tmp_path / "my_custom_webserver_config.py")
+    with mock.patch.dict(os.environ, {"AIRFLOW__WEBSERVER__CONFIG_FILE": config_file}):
+        initialize_config()
+        assert airflow.configuration.WEBSERVER_CONFIG == config_file
 
     assert os.path.isfile(config_file)
-
-    os.unsetenv("AIRFLOW__WEBSERVER__CONFIG_FILE")
 
 
 def test_redoc_should_render_template(capture_templates, admin_client):
