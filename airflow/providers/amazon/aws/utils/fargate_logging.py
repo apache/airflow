@@ -18,6 +18,12 @@ from __future__ import annotations
 
 import subprocess
 import tempfile
+from functools import wraps
+from inspect import signature
+from typing import Callable, cast
+
+from airflow.exceptions import AirflowException
+from airflow.utils.types import NOTSET
 
 NAMESPACE_TEMPLATE = """
 kind: Namespace
@@ -76,13 +82,24 @@ def enable_fargate_logging(
     log_retention_days: int = 60,
     auto_create_group: bool = True,
 ) -> subprocess.CompletedProcess:
+    """
+    Creates the required ConfigMap and pushes it to the kubernetes cluster.
+    See: https://docs.aws.amazon.com/eks/latest/userguide/fargate-logging.html
 
+    :param region: Which AWS region the kubernetes cluster exists in.
+    :param log_group_name: Amazon Cloudwatch log group to send the logs to.
+    :param log_stream_prefix: Amazon Cloudwatch log stream prefix.
+    :param log_retention_days: Retention policy to use for the logs.
+    :param auto_create_group: If True, creates the log group if it does not already exist. Defaults to True.
+
+    :return: Returns the CompletedProcess object from the subprocess execution.
+    """
     with tempfile.NamedTemporaryFile(mode="w") as namespace:
         namespace.write(NAMESPACE_TEMPLATE)
         namespace.flush()
 
         result = subprocess.run(
-            ["kubectl", "apply", "-f", namespace],
+            ["kubectl", "apply", "-f", namespace.name],
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -110,3 +127,37 @@ def enable_fargate_logging(
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
         )
+
+
+def resolve_wait_for_completion(func: Callable) -> Callable:
+    """
+    If Fargate profile logging is enabled, it must be done after the create_fargate_profile
+    has completed.  This wrapper sets a valid value for wait_for_completion or raises an
+    exception if no valid combination can be reached.
+    """
+    function_signature = signature(func)
+
+    @wraps(func)
+    def wrapper(*args, **kwargs) -> Callable:
+        bound_args = function_signature.bind(*args, **kwargs)
+
+        if "fargate_logging_config" in bound_args.arguments:
+            wait = bound_args.arguments.get("wait_for_completion", NOTSET)
+
+            if wait is True:
+                # We have to wait and the user asked us to wait; no action required.
+                pass
+            if wait is False:
+                raise AirflowException(
+                    "A Fargate profile logging configuration has been provided but "
+                    "wait_for_completion is set to False. Can not meet both expectations."
+                )
+            if wait is NOTSET:
+                bound_args.arguments["wait_for_completion"] = True
+        elif "wait_for_completion" not in bound_args.arguments:
+            # For back compat, default wait_for_completion to False if it is not forced due to logging
+            bound_args.arguments["wait_for_completion"] = False
+
+        return func(*bound_args.args, **bound_args.kwargs)
+
+    return cast(Callable, wrapper)

@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 from botocore.waiter import Waiter
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -33,7 +34,9 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksDeleteNodegroupOperator,
     EksPodOperator,
 )
+from airflow.providers.amazon.aws.utils import fargate_logging
 from airflow.typing_compat import TypedDict
+from airflow.utils.types import NOTSET
 from tests.providers.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,
     POD_EXECUTION_ROLE_ARN,
@@ -84,6 +87,7 @@ class CreateFargateProfileParams(TypedDict):
     pod_execution_role_arn: str
     selectors: list[Any]
     fargate_profile_name: str
+    wait_for_completion: bool
 
 
 class CreateNodegroupParams(TypedDict):
@@ -565,3 +569,61 @@ class TestEksPodOperator:
         )
         assert mock_k8s_pod_operator_execute.return_value == op_return_value
         assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file
+
+
+class TestResolveWaitForCompletion:
+    def setup_method(self) -> None:
+        self.create_fargate_profile_params = CreateFargateProfileParams(  # type: ignore
+            cluster_name=CLUSTER_NAME,
+            pod_execution_role_arn=POD_EXECUTION_ROLE_ARN[1],
+            selectors=SELECTORS[1],
+            fargate_profile_name=FARGATE_PROFILE_NAME,
+        )
+
+        self.fargate_logging_params: dict[str, str] = {
+            "log_group_name": "log_group_name",
+            "log_stream_prefix": "log_stream_prefix",
+        }
+
+    @pytest.mark.parametrize(
+        "use_logging,wait_for_completion",
+        [
+            pytest.param(False, NOTSET, id="logging_off_wait_notset"),
+            pytest.param(False, False, id="logging_off_wait_false"),
+            pytest.param(False, True, id="logging_off_wait_true"),
+            pytest.param(True, NOTSET, id="logging_on_wait_notset"),
+            # "logging_on_wait_false" is expected to throw an exception, tested separately
+            # pytest.param(True, False, id="logging_on_wait_false"),
+            pytest.param(True, True, id="logging_on_wait_true"),
+        ],
+    )
+    @mock.patch.object(Waiter, "wait")
+    @mock.patch.object(EksHook, "create_fargate_profile")
+    @mock.patch.object(fargate_logging, "enable_fargate_logging")
+    def test_resolve_wait_for_completion(self, mock_logger, _, mock_waiter, use_logging, wait_for_completion):
+        # Sadly, NOTSET is not falsy or this could be a little more simplified
+        expected_waiter_call_count = 1 if (use_logging or wait_for_completion is True) else 0
+
+        if isinstance(wait_for_completion, bool):
+            self.create_fargate_profile_params["wait_for_completion"] = wait_for_completion
+
+        params: dict = self.create_fargate_profile_params
+        if use_logging:
+            params["fargate_logging_config"] = self.fargate_logging_params
+
+        operator = EksCreateFargateProfileOperator(task_id=TASK_ID, **params)
+        operator.execute({})
+
+        assert mock_waiter.call_count == expected_waiter_call_count
+
+    def test_resolve_wait_for_completion_logging_on_wait_false_raises_exception(self):
+        with pytest.raises(
+            AirflowException,
+            match="logging configuration has been provided but wait_for_completion is set to False",
+        ):
+            EksCreateFargateProfileOperator(
+                task_id=TASK_ID,
+                fargate_logging_config=self.fargate_logging_params,
+                wait_for_completion=False,
+                **self.create_fargate_profile_params,
+            )
