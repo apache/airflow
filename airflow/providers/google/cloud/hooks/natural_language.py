@@ -23,7 +23,7 @@ from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
-from google.cloud.language_v1 import LanguageServiceClient, enums
+from google.cloud.language_v1 import EncodingType, LanguageServiceClient
 from google.cloud.language_v1.types import (
     AnalyzeEntitiesResponse,
     AnalyzeEntitySentimentResponse,
@@ -72,7 +72,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._conn = None
+        self._conn: LanguageServiceClient | None = None
 
     def get_conn(self) -> LanguageServiceClient:
         """
@@ -88,7 +88,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     def analyze_entities(
         self,
         document: dict | Document,
-        encoding_type: enums.EncodingType | None = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -108,6 +108,8 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
+        if isinstance(document, dict):
+            document = Document(document)
         return client.analyze_entities(
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
@@ -116,7 +118,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     def analyze_entity_sentiment(
         self,
         document: dict | Document,
-        encoding_type: enums.EncodingType | None = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -136,6 +138,8 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
+        if isinstance(document, dict):
+            document = Document(document)
         return client.analyze_entity_sentiment(
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
@@ -144,7 +148,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     def analyze_sentiment(
         self,
         document: dict | Document,
-        encoding_type: enums.EncodingType | None = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -163,6 +167,8 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
+        if isinstance(document, dict):
+            document = Document(document)
         return client.analyze_sentiment(
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
@@ -171,7 +177,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     def analyze_syntax(
         self,
         document: dict | Document,
-        encoding_type: enums.EncodingType | None = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -191,6 +197,8 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
+        if isinstance(document, dict):
+            document = Document(document)
         return client.analyze_syntax(
             document=document, encoding_type=encoding_type, retry=retry, timeout=timeout, metadata=metadata
         )
@@ -200,7 +208,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         self,
         document: dict | Document,
         features: dict | AnnotateTextRequest.Features,
-        encoding_type: enums.EncodingType = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -221,6 +229,11 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         client = self.get_conn()
+
+        if isinstance(document, dict):
+            document = Document(document)
+        if isinstance(features, dict):
+            features = AnnotateTextRequest.Features(features)
 
         return client.annotate_text(
             document=document,
@@ -252,4 +265,6 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         """
         client = self.get_conn()
 
+        if isinstance(document, dict):
+            document = Document(document)
         return client.classify_text(document=document, retry=retry, timeout=timeout, metadata=metadata)

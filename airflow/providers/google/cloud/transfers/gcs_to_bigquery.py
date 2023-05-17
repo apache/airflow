@@ -32,6 +32,7 @@ from google.cloud.bigquery import (
     LoadJob,
     QueryJob,
     SchemaField,
+    UnknownJob,
 )
 from google.cloud.bigquery.table import EncryptionConfiguration, Table, TableReference
 
@@ -317,7 +318,7 @@ class GCSToBigQueryOperator(BaseOperator):
         )
 
     @staticmethod
-    def _handle_job_error(job: BigQueryJob) -> None:
+    def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
         if job.error_result:
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
@@ -386,7 +387,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
             try:
                 self.log.info("Executing: %s", self.configuration)
-                job = self._submit_job(self.hook, job_id)
+                job: BigQueryJob | UnknownJob = self._submit_job(self.hook, job_id)
             except Conflict:
                 # If the job already exists retrieve it
                 job = self.hook.get_job(

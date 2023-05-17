@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
-from google.cloud.bigquery import DEFAULT_RETRY, ExtractJob
+from google.cloud.bigquery import DEFAULT_RETRY, UnknownJob
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
@@ -148,7 +148,7 @@ class BigQueryToGCSOperator(BaseOperator):
         self.deferrable = deferrable
 
     @staticmethod
-    def _handle_job_error(job: ExtractJob) -> None:
+    def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
         if job.error_result:
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
@@ -227,7 +227,9 @@ class BigQueryToGCSOperator(BaseOperator):
 
         try:
             self.log.info("Executing: %s", configuration)
-            job: ExtractJob = self._submit_job(hook=hook, job_id=job_id, configuration=configuration)
+            job: BigQueryJob | UnknownJob = self._submit_job(
+                hook=hook, job_id=job_id, configuration=configuration
+            )
         except Conflict:
             # If the job already exists retrieve it
             job = hook.get_job(
