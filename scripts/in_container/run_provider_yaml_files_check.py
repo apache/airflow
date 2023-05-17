@@ -38,6 +38,15 @@ from tabulate import tabulate
 
 from airflow.cli.commands.info_command import Architecture
 
+# Those are deprecated modules that contain removed Hooks/Sensors/Operators that we left in the code
+# so that users can get a very specific error message when they try to use them.
+
+EXCLUDED_MODULES = [
+    "airflow.providers.apache.hdfs.sensors.hdfs",
+    "airflow.providers.apache.hdfs.hooks.hdfs",
+]
+
+
 try:
     from yaml import CSafeLoader as SafeLoader
 except ImportError:
@@ -228,8 +237,9 @@ def check_correctness_of_list_of_sensors_operators_hook_modules(yaml_files: dict
         expected_modules, provider_package, resource_data = parse_module_data(
             provider_data, resource_type, yaml_file_path
         )
-
+        expected_modules = {module for module in expected_modules if module not in EXCLUDED_MODULES}
         current_modules = {str(i) for r in resource_data for i in r.get("python-modules", [])}
+
         check_if_objects_exist_and_belong_to_package(
             current_modules, provider_package, yaml_file_path, resource_type, ObjectType.MODULE
         )
@@ -268,8 +278,9 @@ def check_completeness_of_list_of_transfers(yaml_files: dict[str, dict]):
         expected_modules, provider_package, resource_data = parse_module_data(
             provider_data, resource_type, yaml_file_path
         )
-
+        expected_modules = {module for module in expected_modules if module not in EXCLUDED_MODULES}
         current_modules = {r.get("python-module") for r in resource_data}
+
         check_if_objects_exist_and_belong_to_package(
             current_modules, provider_package, yaml_file_path, resource_type, ObjectType.MODULE
         )
@@ -440,6 +451,7 @@ def check_unique_provider_name(yaml_files: dict[str, dict]):
 
 
 def check_providers_are_mentioned_in_issue_template(yaml_files: dict[str, dict]):
+    print("Checking providers are mentioned in issue template")
     prefix_len = len("apache-airflow-providers-")
     short_provider_names = [d["package-name"][prefix_len:] for d in yaml_files.values()]
     # exclude deprecated provider that shouldn't be in issue template

@@ -28,14 +28,31 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.0
+.....
+
+Latest change: 2023-05-09
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`41cb63764d <https://github.com/apache/airflow/commit/41cb63764d053d5fc620b9456e2f050c4bf32e73>`_  2023-05-09   ``Fix deprecated import in Oracle example (#31166)``
+`edebfe3f2f <https://github.com/apache/airflow/commit/edebfe3f2f2c7fc2b6b345c6bc5f3a82e7d47639>`_  2023-05-09   ``Add docs for Oracle operators (#30979)``
+`0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+=================================================================================================  ===========  ======================================================================
+
 3.6.0
 .....
 
-Latest change: 2022-12-13
+Latest change: 2023-01-02
 
 =================================================================================================  ===========  ==============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================
+`5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
 `43530f5529 <https://github.com/apache/airflow/commit/43530f55296060d2a43164a67b58a652917b8db3>`_  2022-12-13   ``XCOM push ORA error code in OracleStoredProcedure (#27319)``
 =================================================================================================  ===========  ==============================================================
 

@@ -556,7 +556,7 @@ database:
         See https://docs.sqlalchemy.org/en/14/core/engines.html#sqlalchemy.create_engine.params.connect_args
       version_added: 2.3.0
       type: string
-      example: ~
+      example: '{"timeout": 30}'
       default: ~
     load_default_connections:
       description: |
@@ -2294,7 +2294,8 @@ scheduler:
       description: |
         If the last scheduler heartbeat happened more than scheduler_health_check_threshold
         ago (in seconds), scheduler is considered unhealthy.
-        This is used by the health check in the "/health" endpoint
+        This is used by the health check in the "/health" endpoint and in `airflow jobs check` CLI
+        for SchedulerJob.
       version_added: 1.10.2
       type: string
       example: ~

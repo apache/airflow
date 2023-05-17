@@ -134,7 +134,7 @@ with DAG(
         dynamodb_table_name=table_name,
         file_size=1000,
         s3_bucket_name=bucket_name,
-        export_time=datetime.now(),
+        export_time=datetime.utcnow() - datetime.timedelta(days=7),
         s3_key_prefix=f"{S3_KEY_PREFIX}-3-",
     )
     # [END howto_transfer_dynamodb_to_s3_in_some_point_in_time]
