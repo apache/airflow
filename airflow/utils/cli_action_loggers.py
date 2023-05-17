@@ -29,6 +29,7 @@ from typing import Callable
 def register_pre_exec_callback(action_logger):
     """
     Registers more action_logger function callback for pre-execution.
+
     This function callback is expected to be called with keyword args.
     For more about the arguments that is being passed to the callback,
     refer to airflow.utils.cli.action_logging().
@@ -43,6 +44,7 @@ def register_pre_exec_callback(action_logger):
 def register_post_exec_callback(action_logger):
     """
     Registers more action_logger function callback for post-execution.
+
     This function callback is expected to be called with keyword args.
     For more about the arguments that is being passed to the callback,
     refer to airflow.utils.cli.action_logging().

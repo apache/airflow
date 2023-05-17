@@ -27,7 +27,7 @@ class TimezoneAware(logging.Formatter):
     utc offset is the matter, without it, time conversion could be wrong.
     With this Formatter, `%(asctime)s` will be formatted containing utc offset. (ISO 8601).
 
-    e.g. 2022-06-12T13:00:00.123+0000.
+    e.g. 2022-06-12T13:00:00.123+0000
     """
 
     default_time_format = "%Y-%m-%dT%H:%M:%S"

@@ -175,7 +175,7 @@ class AirflowAppBuilder:
         Will initialize the Flask app, supporting the app factory pattern.
 
         :param app:
-        :param session: The SQLAlchemy session.
+        :param session: The SQLAlchemy session
         """
         app.config.setdefault("APP_NAME", "F.A.B.")
         app.config.setdefault("APP_THEME", "")
