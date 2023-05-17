@@ -134,7 +134,11 @@ class KubernetesPodTrigger(BaseTrigger):
 
                 if container_state == ContainerState.TERMINATED:
                     if pod_status not in PodPhase.terminal_states:
-                        self.log.info("Pod %s is still running. Sleeping for %s seconds.", self.poll_interval)
+                        self.log.info(
+                            "Pod %s is still running. Sleeping for %s seconds.",
+                            self.pod_name,
+                            self.poll_interval,
+                        )
                         await asyncio.sleep(self.poll_interval)
                     else:
                         yield TriggerEvent(

@@ -100,7 +100,8 @@ class TestKubernetesPodTrigger:
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}._get_async_hook")
     async def test_run_loop_return_success_event(self, mock_hook, mock_method, trigger):
-        mock_hook.return_value.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
+        pod_mock = mock.MagicMock(**{"status.phase": "Succeeded"})
+        mock_hook.return_value.get_pod.return_value = self._mock_pod_result(pod_mock)
         mock_method.return_value = ContainerState.TERMINATED
 
         expected_event = TriggerEvent(
