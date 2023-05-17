@@ -314,7 +314,7 @@ def check_trigger_classes(yaml_files: dict[str, dict]):
         trigger_classes = {
             name
             for trigger_class in provider_data.get(resource_type, {})
-            for name in names in trigger_class["class-names"]
+            for name in trigger_class["class-names"]
         }
         if trigger_classes:
             check_if_objects_exist_and_belong_to_package(
