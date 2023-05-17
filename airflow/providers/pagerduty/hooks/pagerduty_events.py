@@ -157,5 +157,5 @@ class PagerdutyEventsHook(BaseHook):
             session = pdpyras.EventsAPISession(self.integration_key)
             session.resolve("some_dedup_key_that_dont_exist")
         except Exception:
-            return False, "connection test failed, invalid routing key."
+            return False, "connection test failed, invalid routing key"
         return True, "connection tested successfully"
