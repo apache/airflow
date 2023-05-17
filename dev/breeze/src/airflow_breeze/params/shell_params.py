@@ -217,7 +217,7 @@ class ShellParams:
             add_mssql_compose_file(compose_file_list)
 
         if self.executor == "CeleryExecutor":
-            compose_file_list.append(DOCKER_COMPOSE_DIR / "executor-celery.yml")
+            compose_file_list.append(DOCKER_COMPOSE_DIR / "integration-celery.yml")
 
         compose_file_list.append(DOCKER_COMPOSE_DIR / "base.yml")
         compose_file_list.extend(backend_files)
