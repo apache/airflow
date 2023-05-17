@@ -130,10 +130,13 @@ class Job(Base, LoggingMixin):
         :param grace_multiplier: multiplier of heartrate to require heart beat
             within
         """
+        if self.job_type == "SchedulerJob":
+            health_check_threshold: int = conf.getint("scheduler", "scheduler_health_check_threshold")
+        else:
+            health_check_threshold: int = self.heartrate * grace_multiplier
         return (
             self.state == State.RUNNING
-            and (timezone.utcnow() - self.latest_heartbeat).total_seconds()
-            < self.heartrate * grace_multiplier
+            and (timezone.utcnow() - self.latest_heartbeat).total_seconds() < health_check_threshold
         )
 
     @provide_session

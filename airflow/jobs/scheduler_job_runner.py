@@ -29,12 +29,11 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Collection, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, func, not_, or_, text
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import load_only, selectinload
-from sqlalchemy.orm.session import Session, make_transient
+from sqlalchemy.orm import Query, Session, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -119,7 +118,7 @@ def _is_parent_process() -> bool:
     return multiprocessing.current_process().name == "MainProcess"
 
 
-class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
+class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
     """
     SchedulerJobRunner runs for a specific time interval and schedules jobs that are ready to run.
 
@@ -156,14 +155,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         log: logging.Logger | None = None,
         processor_poll_interval: float | None = None,
     ):
-        super().__init__()
-        if job.job_type and job.job_type != self.job_type:
-            raise Exception(
-                f"The job is already assigned a different job_type: {job.job_type}."
-                f"This is a bug and should be reported."
-            )
-        self.job = job
-        self.job.job_type = self.job_type
+        super().__init__(job)
         self.subdir = subdir
         self.num_runs = num_runs
         # In specific tests, we want to stop the parse loop after the _files_ have been parsed a certain
@@ -270,27 +262,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.job.executor.debug_dump()
         self.log.info("-" * 80)
-
-    def is_alive(self, grace_multiplier: float | None = None) -> bool:
-        """
-        Whether the SchedulerJob is alive.
-
-        We define alive as in a state of running and a heartbeat within the
-        threshold defined in the ``scheduler_health_check_threshold`` config
-        setting.
-
-        ``grace_multiplier`` is accepted for compatibility with the parent class.
-
-        """
-        if grace_multiplier is not None:
-            # Accept the same behaviour as superclass
-            return self.job.is_alive(grace_multiplier=grace_multiplier)
-        scheduler_health_check_threshold: int = conf.getint("scheduler", "scheduler_health_check_threshold")
-        return (
-            self.job.state == State.RUNNING
-            and (timezone.utcnow() - self.job.latest_heartbeat).total_seconds()
-            < scheduler_health_check_threshold
-        )
 
     def __get_concurrency_maps(self, states: Iterable[TaskInstanceState], session: Session) -> ConcurrencyMap:
         """
@@ -704,14 +675,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # We create map (dag_id, task_id, execution_date) -> in-memory try_number
             ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
 
-            self.log.info(
-                "Executor reports execution of %s.%s run_id=%s exited with status %s for try_number %s",
-                ti_key.dag_id,
-                ti_key.task_id,
-                ti_key.run_id,
-                state,
-                ti_key.try_number,
-            )
+            self.log.info("Received executor event with state %s for task instance %s", state, ti_key)
             if state in (State.FAILED, State.SUCCESS, State.QUEUED):
                 tis_with_right_state.append(ti_key)
 
@@ -1132,7 +1096,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return num_queued_tis
 
     @retry_db_transaction
-    def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session):
+    def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session) -> Query:
         """Get Next DagRuns to Examine with retries."""
         return DagRun.next_dagruns_to_examine(state, session)
 
@@ -1313,7 +1277,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     DatasetDagRunQueue.target_dag_id == dag_run.dag_id
                 ).delete()
 
-    def _should_update_dag_next_dagruns(self, dag, dag_model: DagModel, total_active_runs: int) -> bool:
+    def _should_update_dag_next_dagruns(self, dag: DAG, dag_model: DagModel, total_active_runs: int) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
         if total_active_runs >= dag.max_active_runs:
             self.log.info(
@@ -1328,7 +1292,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
-        dag_runs = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session)
+        dag_runs: Collection[DagRun] = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session)
 
         active_runs_of_dags = Counter(
             DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),
@@ -1373,15 +1337,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run.notify_dagrun_state_changed()
 
     @retry_db_transaction
-    def _schedule_all_dag_runs(self, guard, dag_runs, session):
+    def _schedule_all_dag_runs(
+        self,
+        guard: CommitProhibitorGuard,
+        dag_runs: Iterable[DagRun],
+        session: Session,
+    ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
         """Makes scheduling decisions for all `dag_runs`"""
-        callback_tuples = []
-        for dag_run in dag_runs:
-            callback_to_run = self._schedule_dag_run(dag_run, session)
-            callback_tuples.append((dag_run, callback_to_run))
-
+        callback_tuples = [(run, self._schedule_dag_run(run, session=session)) for run in dag_runs]
         guard.commit()
-
         return callback_tuples
 
     def _schedule_dag_run(
@@ -1725,7 +1689,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             Stats.incr("zombies_killed", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
 
     @staticmethod
-    def _generate_zombie_message_details(ti: TI):
+    def _generate_zombie_message_details(ti: TI) -> dict[str, Any]:
         zombie_message_details = {
             "DAG Id": ti.dag_id,
             "Task Id": ti.task_id,

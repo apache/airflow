@@ -60,7 +60,7 @@ Package apache-airflow-providers-tabular
 `Tabular <https://tabular.io/>`__
 
 
-Release: 1.1.0
+Release: 1.2.0
 
 Provider package
 ----------------
@@ -78,10 +78,11 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.3.0``
+``apache-airflow``  ``>=2.4.0``
 ==================  ==================
 
 .. include:: ../../airflow/providers/tabular/CHANGELOG.rst
