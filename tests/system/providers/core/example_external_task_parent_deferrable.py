@@ -19,7 +19,7 @@ from __future__ import annotations
 from airflow import DAG
 from airflow.operators.dummy import DummyOperator
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
-from airflow.sensors.external_task import ExternalTaskAsyncSensor
+from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.utils.timezone import datetime
 
 with DAG(
@@ -32,10 +32,11 @@ with DAG(
     start = DummyOperator(task_id="start")
 
     # [START howto_external_task_async_sensor]
-    external_task_sensor = ExternalTaskAsyncSensor(
+    external_task_sensor = ExternalTaskSensor(
         task_id="parent_task_sensor",
         external_task_id="child_task",
         external_dag_id="child_dag",
+        deferrable=True,
     )
     # [END howto_external_task_async_sensor]
 
