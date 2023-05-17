@@ -12,3 +12,10 @@ rich
 rich_click
 semver
 tabulate
+pytest
+time_machine
+itsdangerous
+cryptography
+botocore
+boto3
+urllib3
