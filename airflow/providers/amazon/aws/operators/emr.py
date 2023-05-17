@@ -89,7 +89,7 @@ class EmrAddStepsOperator(BaseOperator):
     ):
         if (job_flow_id is None) and (job_flow_name is None):
             raise AirflowException(
-                "Exactly job_flow_id or job_flow_name must be existed. "
+                 "At least one of job_flow_id or job_flow_name must be specified. "
                 "Priority is in the order of job_flow_id -> job_flow_name."
             )
 
