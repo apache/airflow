@@ -477,7 +477,7 @@ class GCSHook(GoogleBaseHook):
         :param timeout: Request timeout in seconds.
         :param num_max_attempts: Number of attempts to try to upload the file.
         :param metadata: The metadata to be uploaded with the file.
-        :param cache_control: Cache-Control metadata field
+        :param cache_control: Cache-Control metadata field.
         """
 
         def _call_with_retry(f: Callable[[], None]) -> None:
