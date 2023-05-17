@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-16T17:42:23Z
+# This constraints file was automatically generated on 2023-05-17T09:47:25Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -72,9 +72,9 @@ astroid==2.15.5
 async-timeout==4.0.2
 asynctest==0.13.0
 atlasclient==1.0.0
-atlassian-python-api==3.36.0
+atlassian-python-api==3.37.0
 attrs==23.1.0
-aws-sam-translator==1.66.0
+aws-sam-translator==1.67.0
 aws-xray-sdk==2.12.0
 azure-batch==13.0.0
 azure-common==1.1.28
@@ -291,7 +291,7 @@ kubernetes==23.6.0
 kylinpy==2.8.4
 lazy-object-proxy==1.9.0
 ldap3==2.9.1
-limits==3.4.0
+limits==3.5.0
 linkify-it-py==2.0.2
 locket==1.0.0
 lockfile==0.12.2
