@@ -87,9 +87,14 @@ class EmrAddStepsOperator(BaseOperator):
         execution_role_arn: str | None = None,
         **kwargs,
     ):
-        if not exactly_one(job_flow_id is None, job_flow_name is None):
-            raise AirflowException("Exactly one of job_flow_id or job_flow_name must be specified.")
+        if (job_flow_id is None) and (job_flow_name is None):
+            raise AirflowException(
+                "Exactly job_flow_id or job_flow_name must be existed. "
+                "Priority is in the order of job_flow_id -> job_flow_name."
+            )
+
         super().__init__(**kwargs)
+
         cluster_states = cluster_states or []
         steps = steps or []
         self.aws_conn_id = aws_conn_id
