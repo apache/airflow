@@ -2671,9 +2671,9 @@ kubernetes_executor:
       type: string
       example: '{ "total": 3, "backoff_factor": 0.5 }'
       default: ""
-    detailed_executor_logs:
+    logs_task_metadata:
       description: |
-        Flag to have more details in kubernetes executor pod logs
+        Flag to control the information added to kubernetes executor logs for better traceability
       version_added: 2.7.0
       type: boolean
       example: ~
