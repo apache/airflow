@@ -16,6 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Setup.py for the Airflow project."""
+# To make sure the CI build is using "upgrade to newer dependencies", which is useful when you want to check
+# if the dependencies are still compatible with the latest versions as they seem to break some unrelated
+# tests in main, you can modify this file. The modification can be simply modifying this particular comment.
+# e.g. you can modify the following number "00001" to something else to trigger it.
 from __future__ import annotations
 
 import glob
@@ -241,10 +245,9 @@ dask = [
     # Supporting it in the future
     "cloudpickle>=1.4.1",
     # Dask and distributed in version 2023.5.0 break our tests for Python > 3.7
-    # The upper limit can be removed when https://github.com/dask/dask/issues/10279 is fixed
-    # Dask in version 2022.10.1 removed `bokeh` support and we should avoid installing it
-    "dask>=2.9.0,!=2022.10.1,<2023.5.0",
-    "distributed>=2.11.1,<2023.5.0",
+    # See https://github.com/dask/dask/issues/10279
+    "dask>=2.9.0,!=2022.10.1,!=2023.5.0",
+    "distributed>=2.11.1,!=2023.5.0",
 ]
 deprecated_api = [
     "requests>=2.26.0",

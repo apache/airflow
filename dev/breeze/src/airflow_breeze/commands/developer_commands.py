@@ -546,7 +546,7 @@ def compile_www_assets(dev: bool):
     sys.exit(0)
 
 
-@main.command(name="stop", help="Stop running breeze environment.")
+@main.command(name="down", help="Stop running breeze environment.")
 @click.option(
     "-p",
     "--preserve-volumes",
@@ -561,7 +561,7 @@ def compile_www_assets(dev: bool):
 )
 @option_verbose
 @option_dry_run
-def stop(preserve_volumes: bool, cleanup_mypy_cache: bool):
+def down(preserve_volumes: bool, cleanup_mypy_cache: bool):
     perform_environment_checks()
     command_to_execute = [*DOCKER_COMPOSE_COMMAND, "down", "--remove-orphans"]
     if not preserve_volumes:

@@ -293,11 +293,11 @@ Setting up Breeze
   root@b76fcb399bb6:/opt/airflow# exit
 
 6. You can stop the environment (which means deleting the databases and database servers running in the
-   background) via ``breeze stop`` command.
+   background) via ``breeze down`` command.
 
 .. code-block:: bash
 
-  $ breeze stop
+  $ breeze down
 
 
 Using Breeze
@@ -409,7 +409,7 @@ Using Breeze
 
   root@f3619b74c59a:/opt/airflow# stop_airflow
   root@f3619b74c59a:/opt/airflow# exit
-  $ breeze stop
+  $ breeze down
 
 5. Knowing more about Breeze
 

@@ -28,6 +28,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.0
+.....
+
+Latest change: 2023-05-03
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+=================================================================================================  ===========  ======================================================================
+
 3.6.0
 .....
 
@@ -36,6 +49,7 @@ Latest change: 2023-04-21
 =================================================================================================  ===========  =====================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================================================
+`e46ce78b66 <https://github.com/apache/airflow/commit/e46ce78b66953146c04de5da00cab6299787adad>`_  2023-04-21   ``Prepare docs for adhoc release of providers (#30787)``
 `afdc95435b <https://github.com/apache/airflow/commit/afdc95435b9814d06f5d517ea6950442d3e4019a>`_  2023-04-21   ``Add multiple exit code handling in skip logic for 'DockerOperator' and 'KubernetesPodOperator' (#30769)``
 `99a3bf2318 <https://github.com/apache/airflow/commit/99a3bf23182374699f437cfd8ed3b74af3dafba7>`_  2023-04-19   ``Deprecate 'skip_exit_code' in 'DockerOperator' and 'KubernetesPodOperator' (#30733)``
 `c1a685f752 <https://github.com/apache/airflow/commit/c1a685f752703eeb01f9369612af8c88c24cca09>`_  2023-04-14   ``In 'DockerOperator', adding an attribute 'tls_verify' to choose whether to validate certificate (#30309) (#30310)``

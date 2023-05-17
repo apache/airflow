@@ -56,6 +56,7 @@ from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLaunchFailedException,
     PodManager,
+    PodOperatorHookProtocol,
     PodPhase,
     get_container_termination_message,
 )
@@ -463,7 +464,7 @@ class KubernetesPodOperator(BaseOperator):
         return PodManager(kube_client=self.client)
 
     @cached_property
-    def hook(self) -> KubernetesHook:
+    def hook(self) -> PodOperatorHookProtocol:
         hook = KubernetesHook(
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,

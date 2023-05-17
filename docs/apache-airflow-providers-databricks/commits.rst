@@ -28,14 +28,36 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.2.0
+.....
+
+Latest change: 2023-05-13
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`fdc7a31aeb <https://github.com/apache/airflow/commit/fdc7a31aeb3d9f64579ee6ad83107b021eb2cade>`_  2023-05-13   ``Add 'DatabricksPartitionSensor' (#30980)``
+`edd7133a13 <https://github.com/apache/airflow/commit/edd7133a1336c9553d77ba13c83bc7f48d4c63f0>`_  2023-05-09   ``Add conditional output processing in SQL operators (#31136)``
+`3df0be0f6f <https://github.com/apache/airflow/commit/3df0be0f6fe9786a5fcb85151fb83167649ee163>`_  2023-05-08   ``Add cancel all runs functionality to Databricks hook (#31038)``
+`ac46902154 <https://github.com/apache/airflow/commit/ac46902154c060246dec942f921f7670015e6031>`_  2023-05-04   ``Move TaskInstanceKey to a separate file (#31033)``
+`0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+`9409446097 <https://github.com/apache/airflow/commit/940944609751e2584b191aa776b6221aa78703d3>`_  2023-04-24   ``Add cli cmd to list the provider trigger info (#30822)``
+`ecb9a9ea78 <https://github.com/apache/airflow/commit/ecb9a9ea78203bd1ce2f2d645d554409651ba8c1>`_  2023-04-23   ``Add retry param in databrics async operator (#30744)``
+`9bebf85e24 <https://github.com/apache/airflow/commit/9bebf85e24e352f9194da2f98e2bc66a5e6b972e>`_  2023-04-22   ``Add repair job functionality to databricks hook (#30786)``
+`7d02277ae1 <https://github.com/apache/airflow/commit/7d02277ae13b7d1e6cea9e6c8ff0d411100daf77>`_  2023-04-22   ``Deprecate databricks async operator (#30761)``
+=================================================================================================  ===========  ======================================================================
+
 4.1.0
 .....
 
-Latest change: 2023-04-14
+Latest change: 2023-04-21
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`e46ce78b66 <https://github.com/apache/airflow/commit/e46ce78b66953146c04de5da00cab6299787adad>`_  2023-04-21   ``Prepare docs for adhoc release of providers (#30787)``
 `37cf0506b5 <https://github.com/apache/airflow/commit/37cf0506b50931a68aeed7b9fb602e824adca9d6>`_  2023-04-14   ``Add delete inactive run functionality to databricks provider (#30646)``
 `1e311cf036 <https://github.com/apache/airflow/commit/1e311cf036b04d010f296aff1fbf612f22397893>`_  2023-04-11   ``Databricks SQL sensor (#30477)``
 `d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
