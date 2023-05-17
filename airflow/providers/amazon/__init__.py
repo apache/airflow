@@ -30,7 +30,7 @@ import airflow
 
 __all__ = ["version"]
 
-version = "8.0.0"
+version = "8.1.0"
 
 if packaging.version.parse(airflow.version.version) < packaging.version.parse("2.4.0"):
     raise RuntimeError(
