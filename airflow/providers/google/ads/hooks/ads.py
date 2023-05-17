@@ -23,9 +23,9 @@ from typing import IO, Any
 
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
-from google.ads.googleads.v12.services.services.customer_service import CustomerServiceClient
-from google.ads.googleads.v12.services.services.google_ads_service import GoogleAdsServiceClient
-from google.ads.googleads.v12.services.types.google_ads_service import GoogleAdsRow
+from google.ads.googleads.v13.services.services.customer_service import CustomerServiceClient
+from google.ads.googleads.v13.services.services.google_ads_service import GoogleAdsServiceClient
+from google.ads.googleads.v13.services.types.google_ads_service import GoogleAdsRow
 from google.api_core.page_iterator import GRPCIterator
 from google.auth.exceptions import GoogleAuthError
 
