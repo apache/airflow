@@ -311,12 +311,14 @@ def check_trigger_classes(yaml_files: dict[str, dict]):
     resource_type = "triggers"
     for yaml_file_path, provider_data in yaml_files.items():
         provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
-        trigger_classes = []
-        for trigger_class in provider_data.get(resource_type, {}):
-            trigger_classes.extend(trigger_class["class-names"])
+        trigger_classes = {
+            name
+            for trigger_class in provider_data.get(resource_type, {})
+            for name in names in trigger_class["class-names"]
+        }
         if trigger_classes:
             check_if_objects_exist_and_belong_to_package(
-                set(trigger_classes), provider_package, yaml_file_path, resource_type, ObjectType.CLASS
+                trigger_classes, provider_package, yaml_file_path, resource_type, ObjectType.CLASS
             )
 
 
