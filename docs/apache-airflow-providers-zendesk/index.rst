@@ -77,6 +77,7 @@ Requirements
 ------------
 
 The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 ==================  ==================
 PIP package         Version required
 ==================  ==================
