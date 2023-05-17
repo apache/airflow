@@ -18,7 +18,7 @@
  */
 
 import React, { useRef } from "react";
-import { Box, Heading } from "@chakra-ui/react";
+import { Box, Heading, Spinner, Alert, AlertIcon } from "@chakra-ui/react";
 import { useOffsetTop } from "src/utils";
 import Time from "src/components/Time";
 
@@ -28,14 +28,24 @@ import CodeBlock from "./CodeBlock";
 const DagCode = () => {
   const dagCodeRef = useRef<HTMLDivElement>(null);
   const offsetTop = useOffsetTop(dagCodeRef);
-  const { lastParsedTime, codeSource = "" } = useDagCode();
+  const { lastParsedTime, codeSource = "", isLoading, error } = useDagCode();
 
   return (
     <Box ref={dagCodeRef} height={`calc(100% - ${offsetTop}px)`}>
       <Heading as="h4" size="md" paddingBottom="10px" fontSize="14px">
         Parsed at: <Time dateTime={lastParsedTime} />
       </Heading>
-      <CodeBlock code={codeSource} />
+      {error && (
+        <Alert status="error" marginBottom="10px">
+          <AlertIcon />
+          An error occurred while fetching the dag source code.
+        </Alert>
+      )}
+      {isLoading && (
+        <Spinner size="xl" color="blue.500" thickness="4px" speed="0.65s" />
+      )}
+
+      {!isLoading && !error && <CodeBlock code={codeSource} />}
     </Box>
   );
 };

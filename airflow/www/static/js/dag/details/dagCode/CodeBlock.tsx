@@ -20,7 +20,7 @@
 import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import { Box, Button } from "@chakra-ui/react";
 
 SyntaxHighlighter.registerLanguage("python", python);
@@ -29,18 +29,16 @@ interface Props {
   code: string;
 }
 export default function CodeBlock({ code }: Props) {
-  const dagCodeRef = useRef(null);
   const [codeWrap, setCodeWrap] = useState(false);
   const toggleCodeWrap = () => setCodeWrap(!codeWrap);
 
   return (
     <Box
-      ref={dagCodeRef}
-      overflow="scroll"
       height="calc(100% - 10px)"
       borderWidth={2}
       borderColor="gray:100"
       position="relative"
+      margin="0px"
       fontSize="13.5px"
     >
       <Button
@@ -50,7 +48,7 @@ export default function CodeBlock({ code }: Props) {
         aria-label="Toggle Wrap"
         position="absolute"
         top="15px"
-        right="15px"
+        right="30px"
         fontSize="13.5px"
         onClick={toggleCodeWrap}
       >
@@ -60,6 +58,11 @@ export default function CodeBlock({ code }: Props) {
         language="python"
         style={oneLight}
         showLineNumbers
+        customStyle={{
+          height: "100%",
+          overflow: "scroll",
+          margin: "0px",
+        }}
         wrapLongLines={codeWrap}
       >
         {code}

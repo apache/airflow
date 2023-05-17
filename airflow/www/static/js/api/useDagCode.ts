@@ -19,22 +19,23 @@
 
 import axios, { AxiosResponse } from "axios";
 import { useQuery } from "react-query";
-import { useRef, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { getMetaValue } from "src/utils";
 import type { API } from "src/types";
-import useErrorToast from "../utils/useErrorToast";
 
 interface DagCodeData {
   lastParsedTime?: string;
   codeSource?: string;
+  error?: Error;
+  isLoading: boolean;
 }
 
 export default function useDagCode() {
-  const errorToast = useErrorToast();
   const [data, setData] = useState<DagCodeData>({
     lastParsedTime: "N/A",
     codeSource: "",
+    isLoading: true,
   });
 
   const dagQuery = useQuery(
@@ -45,8 +46,9 @@ export default function useDagCode() {
     },
     {
       onError: (error: Error) => {
-        errorToast({
+        setData({
           error,
+          isLoading: false,
         });
       },
     }
@@ -65,26 +67,22 @@ export default function useDagCode() {
       });
     },
     {
-      enabled: false,
+      enabled: !!dagQuery.data?.fileToken,
       onError: (error: Error) => {
-        errorToast({
+        setData({
           error,
+          isLoading: false,
         });
       },
     }
   );
-  const dagSourceQueryRef = useRef(dagSourceQuery);
-  useEffect(() => {
-    if (dagQuery.isSuccess) {
-      dagSourceQueryRef.current.refetch();
-    }
-  }, [dagQuery.isSuccess, dagSourceQueryRef]);
 
   useEffect(() => {
     if (dagQuery.isSuccess && dagSourceQuery.isSuccess) {
       setData({
         lastParsedTime: dagQuery.data?.lastParsedTime || "N/A",
         codeSource: dagSourceQuery.data || "",
+        isLoading: false,
       });
     }
   }, [
