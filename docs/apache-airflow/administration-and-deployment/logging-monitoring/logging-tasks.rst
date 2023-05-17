@@ -102,14 +102,127 @@ the example below.
 
     $ airflow info
     ...
-    airflow on PATH: [True]
+    Apache Airflow
+    version                | 2.7.0.dev0
+    executor               | LocalExecutor
+    task_logging_handler   | airflow.utils.log.file_task_handler.FileTaskHandler
+    sql_alchemy_conn       | postgresql+psycopg2://postgres:airflow@postgres/airflow
+    dags_folder            | /files/dags
+    plugins_folder         | /root/airflow/plugins
+    base_log_folder        | /root/airflow/logs
+    remote_base_log_folder |
 
-    Executor: [SequentialExecutor]
-    Task Logging Handlers: [StackdriverTaskHandler]
-    SQL Alchemy Conn: [sqlite://///root/airflow/airflow.db]
-    DAGs Folder: [/root/airflow/dags]
-    Plugins Folder: [/root/airflow/plugins]
-    Base Log Folder: [/root/airflow/logs]
+
+    System info
+    OS              | Linux
+    architecture    | arm
+    uname           | uname_result(system='Linux', node='01b78939a27f', release='5.15.49-linuxkit', version='#1 SMP PREEMPT Tue Sep 13 07:51:32 UTC 2022', machine='aarch64', processor='')
+    locale          | ('en_US', 'UTF-8')
+    python_version  | 3.8.16 (default, May  3 2023, 09:25:10)  [GCC 10.2.1 20210110]
+    python_location | /usr/local/bin/python
+
+
+    Tools info
+    git             | git version 2.30.2
+    ssh             | OpenSSH_8.4p1 Debian-5+deb11u1, OpenSSL 1.1.1n  15 Mar 2022
+    kubectl         | NOT AVAILABLE
+    gcloud          | NOT AVAILABLE
+    cloud_sql_proxy | NOT AVAILABLE
+    mysql           | mysql  Ver 15.1 Distrib 10.5.19-MariaDB, for debian-linux-gnu (aarch64) using  EditLine wrapper
+    sqlite3         | 3.34.1 2021-01-20 14:10:07 10e20c0b43500cfb9bbc0eaa061c57514f715d87238f4d835880cd846b9ealt1
+    psql            | psql (PostgreSQL) 15.2 (Debian 15.2-1.pgdg110+1)
+
+
+    Paths info
+    airflow_home    | /root/airflow
+    system_path     | /files/bin/:/opt/airflow/scripts/in_container/bin/:/root/.local/bin:/usr/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    python_path     | /usr/local/bin:/usr/local/lib/python38.zip:/usr/local/lib/python3.8:/usr/local/lib/python3.8/lib-dynload:/usr/local/lib/python3.8/site-packages:/opt/airflow:/files/dags:/root/airflow/config:
+                    | /root/airflow/plugins
+    airflow_on_path | True
+
+
+    Providers info
+    apache-airflow-providers-airbyte          | 3.3.0
+    apache-airflow-providers-alibaba          | 2.4.0
+    apache-airflow-providers-amazon           | 8.1.0
+    apache-airflow-providers-apache-beam      | 5.1.0
+    apache-airflow-providers-apache-cassandra | 3.2.0
+    apache-airflow-providers-apache-drill     | 2.4.0
+    apache-airflow-providers-apache-druid     | 3.4.0
+    apache-airflow-providers-apache-flink     | 1.1.0
+    apache-airflow-providers-apache-hdfs      | 4.0.0
+    apache-airflow-providers-apache-hive      | 6.1.0
+    apache-airflow-providers-apache-impala    | 1.1.0
+    apache-airflow-providers-apache-kafka     | 1.1.0
+    apache-airflow-providers-apache-kylin     | 3.2.0
+    apache-airflow-providers-apache-livy      | 3.5.0
+    apache-airflow-providers-apache-pig       | 4.1.0
+    apache-airflow-providers-apache-pinot     | 4.1.0
+    apache-airflow-providers-apache-spark     | 4.1.0
+    apache-airflow-providers-apache-sqoop     | 3.2.0
+    apache-airflow-providers-arangodb         | 2.2.0
+    apache-airflow-providers-asana            | 2.2.0
+    apache-airflow-providers-atlassian-jira   | 2.1.0
+    apache-airflow-providers-celery           | 3.2.0
+    apache-airflow-providers-cloudant         | 3.2.0
+    apache-airflow-providers-cncf-kubernetes  | 6.2.0
+    apache-airflow-providers-common-sql       | 1.5.0
+    apache-airflow-providers-databricks       | 4.2.0
+    apache-airflow-providers-datadog          | 3.3.0
+    apache-airflow-providers-dbt-cloud        | 3.2.0
+    apache-airflow-providers-dingding         | 3.2.0
+    apache-airflow-providers-discord          | 3.2.0
+    apache-airflow-providers-docker           | 3.7.0
+    apache-airflow-providers-elasticsearch    | 4.5.0
+    apache-airflow-providers-exasol           | 4.2.0
+    apache-airflow-providers-facebook         | 3.2.0
+    apache-airflow-providers-ftp              | 3.4.0
+    apache-airflow-providers-github           | 2.3.0
+    apache-airflow-providers-google           | 10.1.0
+    apache-airflow-providers-grpc             | 3.2.0
+    apache-airflow-providers-hashicorp        | 3.4.0
+    apache-airflow-providers-http             | 4.4.0
+    apache-airflow-providers-imap             | 3.2.0
+    apache-airflow-providers-influxdb         | 2.2.0
+    apache-airflow-providers-jdbc             | 3.4.0
+    apache-airflow-providers-jenkins          | 3.3.0
+    apache-airflow-providers-microsoft-azure  | 6.1.0
+    apache-airflow-providers-microsoft-mssql  | 3.4.0
+    apache-airflow-providers-microsoft-psrp   | 2.3.0
+    apache-airflow-providers-microsoft-winrm  | 3.2.0
+    apache-airflow-providers-mongo            | 3.2.0
+    apache-airflow-providers-mysql            | 5.1.0
+    apache-airflow-providers-neo4j            | 3.3.0
+    apache-airflow-providers-odbc             | 3.3.0
+    apache-airflow-providers-openfaas         | 3.2.0
+    apache-airflow-providers-openlineage      | 1.0.0
+    apache-airflow-providers-opsgenie         | 5.1.0
+    apache-airflow-providers-oracle           | 3.7.0
+    apache-airflow-providers-pagerduty        | 3.2.0
+    apache-airflow-providers-papermill        | 3.2.0
+    apache-airflow-providers-plexus           | 3.2.0
+    apache-airflow-providers-postgres         | 5.5.0
+    apache-airflow-providers-presto           | 5.1.0
+    apache-airflow-providers-qubole           | 3.4.0
+    apache-airflow-providers-redis            | 3.2.0
+    apache-airflow-providers-salesforce       | 5.4.0
+    apache-airflow-providers-samba            | 4.2.0
+    apache-airflow-providers-segment          | 3.2.0
+    apache-airflow-providers-sendgrid         | 3.2.0
+    apache-airflow-providers-sftp             | 4.3.0
+    apache-airflow-providers-singularity      | 3.2.0
+    apache-airflow-providers-slack            | 7.3.0
+    apache-airflow-providers-smtp             | 1.1.0
+    apache-airflow-providers-snowflake        | 4.1.0
+    apache-airflow-providers-sqlite           | 3.4.0
+    apache-airflow-providers-ssh              | 3.7.0
+    apache-airflow-providers-tableau          | 4.2.0
+    apache-airflow-providers-tabular          | 1.2.0
+    apache-airflow-providers-telegram         | 4.1.0
+    apache-airflow-providers-trino            | 5.1.0
+    apache-airflow-providers-vertica          | 3.4.0
+    apache-airflow-providers-yandex           | 3.3.0
+    apache-airflow-providers-zendesk          | 4.3.0
 
 You can also run ``airflow config list`` to check that the logging configuration options have valid values.
 
