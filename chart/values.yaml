@@ -28,12 +28,12 @@ nameOverride: ""
 # Use standard naming for all resources using airflow.fullname template
 # Consider removing this later and default it to true
 # to make this chart follow standard naming conventions using the fullname template.
-# For now this is an opt-in switch for backwards compatiblity to leverage the standard naming convention
+# For now this is an opt-in switch for backwards compatibility to leverage the standard naming convention
 # and being able to use fully fullnameOverride and nameOverride in all resources
-# For new installations - it is recommended to set it to True to follow standard naming conventions in all resources
-# For existing installations, this will rename and redeploy your resources with the new names. Be aware that this will
-# recreate your deployment/statefulsets along with their persistent volume claims and data storage migration may be
-# needed to keep your old data
+# For new installations - it is recommended to set it to True to follow standard naming conventions
+# For existing installations, this will rename and redeploy your resources with the new names. Be aware that
+# this will recreate your deployment/statefulsets along with their persistent volume claims and data storage
+# migration may be needed to keep your old data
 useStandardNaming: false
 
 # Max number of old replicasets to retain. Can be overridden by each deployment's revisionHistoryLimit

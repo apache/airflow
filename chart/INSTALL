@@ -19,7 +19,7 @@ helm install airflow -n airflow .
 # It is not enabled by default as this may cause unexpected behaviours on existing installations
 helm install airflow -n airflow . --set useStandardNaming=true
 
-# For existing installations, you can use standard naming convetions by adding useStandardNaming=true.
+# For existing installations, you can use standard naming conventions by adding useStandardNaming=true.
 # All your resources will be recreated with a new name and helm will delete previous resources.
 
 helm upgrade airflow -n airflow . --set useStandardNaming=true

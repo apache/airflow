@@ -121,9 +121,7 @@ class TestBaseChartTest:
     def test_basic_deployments_with_standard_naming(self):
         k8s_objects = render_chart(
             "test-basic",
-            {
-                "useStandardNaming": True
-            },
+            {"useStandardNaming": True},
         )
         list_of_kind_names_tuples = {
             (k8s_object["kind"], k8s_object["metadata"]["name"]) for k8s_object in k8s_objects
