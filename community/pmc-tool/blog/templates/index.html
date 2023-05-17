@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+{% load static %}
+<html>
+
+<head>
+    <title>GitHub Pull Requests</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'css/style.css' %}">
+</head>
+
+<body>
+    <h1>GitHub Pull Requests</h1>
+    <form method="POST" action="{% url 'get_pulls' %}">
+        {% csrf_token %}
+        <label for="username">Username:</label>
+        <input type="text" id="username" name="username" required>
+        <label for="repository">Repository:</label>
+        <input type="text" id="repository" name="repository" required>
+        <label for="days">Number of Days:</label>
+        <input type="number" id="days" name="days" min="1" required>
+        <label for="data_type">Data Type:</label>
+        <select id="data_type" name="data_type">
+            <option value="pulls">Pull Requests</option>
+            <option value="issues">Issues</option>
+            <input type="submit" value="Get Pull Requests or Issues">
+        </select>
+    </form>
+</body>
+
+</html>

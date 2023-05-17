@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+{% load static %}
+<html>
+
+<head>
+    <title>GitHub Pull Requests</title>
+    <link rel="stylesheet" type="text/css" href="{% static 'css/style.css' %}">
+</head>
+
+<body>
+    <h1>GitHub Pull Requests</h1>
+    <h2>Results for {{ username }}/{{ repository }}</h2>
+    <h3>Results:</h3>
+    {% if data_type == 'pulls' %}
+    <table>
+        <tr>
+            <th>Author</th>
+            <th>Number of Pull Requests</th>
+        </tr>
+        {% for author, count in authors_count.items %}
+        <tr>
+            <td>{{ author }}</td>
+            <td>{{ count }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% elif data_type == 'issues' %}
+    <table>
+        <tr>
+            <th>Author</th>
+            <th>Number of Issues</th>
+        </tr>
+        {% for author, count in authors_count.items %}
+        <tr>
+            <td>{{ author }}</td>
+            <td>{{ count }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    <p>Total Authors: {{ total_authors }}</p>
+    {% if data_type == 'pulls' %}
+    <p>Total Pull Requests: {{ total_count }}</p>
+    {% elif data_type == 'issues' %}
+    <p>Total Issues: {{ total_count }}</p>
+    {% endif %}
+</body>
+
+</html>
