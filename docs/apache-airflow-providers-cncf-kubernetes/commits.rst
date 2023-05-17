@@ -28,14 +28,61 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.1.0
+.....
+
+Latest change: 2023-04-21
+
+=================================================================================================  ===========  ===========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================================================
+`ebe2f2f626 <https://github.com/apache/airflow/commit/ebe2f2f626ffee4b9d0f038fe5b89c322125a49b>`_  2023-04-21   ``Remove skip_exit_code from KubernetesPodOperator (#30788)``
+`afdc95435b <https://github.com/apache/airflow/commit/afdc95435b9814d06f5d517ea6950442d3e4019a>`_  2023-04-21   ``Add multiple exit code handling in skip logic for 'DockerOperator' and 'KubernetesPodOperator' (#30769)``
+`99a3bf2318 <https://github.com/apache/airflow/commit/99a3bf23182374699f437cfd8ed3b74af3dafba7>`_  2023-04-19   ``Deprecate 'skip_exit_code' in 'DockerOperator' and 'KubernetesPodOperator' (#30733)``
+`f511653e5a <https://github.com/apache/airflow/commit/f511653e5a06bdd87cf4f55e3a1e0986e09e36fc>`_  2023-04-15   ``Skip KubernetesPodOperator task when it returns a provided exit code (#29000)``
+=================================================================================================  ===========  ===========================================================================================================
+
+6.0.0
+.....
+
+Latest change: 2023-04-09
+
+=================================================================================================  ===========  ================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================
+`874ea9588e <https://github.com/apache/airflow/commit/874ea9588e3ce7869759440302e53bb6a730a11e>`_  2023-04-09   ``Prepare docs for ad hoc release of Providers (#30545)``
+`85b9135722 <https://github.com/apache/airflow/commit/85b9135722c330dfe1a15e50f5f77f3d58109a52>`_  2023-04-08   ``Use default connection id for KubernetesPodOperator (#28848)``
+`dc4dd9178c <https://github.com/apache/airflow/commit/dc4dd9178cfab46640c02561be63afd1da55fd52>`_  2023-04-05   ``Allow to set limits for XCOM container (#28125)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+=================================================================================================  ===========  ================================================================
+
+5.3.0
+.....
+
+Latest change: 2023-04-02
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`55dbf1ff1f <https://github.com/apache/airflow/commit/55dbf1ff1fb0b22714f695a66f6108b3249d1199>`_  2023-04-02   ``Prepare docs for April 2023 wave of Providers (#30378)``
+`df49ad179b <https://github.com/apache/airflow/commit/df49ad179bddcdb098b3eccbf9bb6361cfbafc36>`_  2023-03-24   ``Ensure setup/teardown work on a previously decorated function (#30216)``
+`b8ab594130 <https://github.com/apache/airflow/commit/b8ab594130a1525fcf30c31a917a7dfdaef9dccf>`_  2023-03-15   ``Remove "boilerplate" from all taskflow decorators (#30118)``
+`9a4f674852 <https://github.com/apache/airflow/commit/9a4f6748521c9c3b66d96598036be08fd94ccf89>`_  2023-03-14   ``enhance spark_k8s_operator (#29977)``
+`c3867781e0 <https://github.com/apache/airflow/commit/c3867781e09b7e0e0d19c0991865a2453194d9a8>`_  2023-03-08   ``adding trigger info to provider yaml (#29950)``
+`1e81a98cc6 <https://github.com/apache/airflow/commit/1e81a98cc69344a35c50b00e2d25a6d48a9bded2>`_  2023-03-07   ``Fix KubernetesPodOperator xcom push when 'get_logs=False' (#29052)``
+`971039454a <https://github.com/apache/airflow/commit/971039454a3684d0ea7261dfe91f34ac4b62af72>`_  2023-03-04   ``Align cncf provider file names with AIP-21 (#29905)``
+`6d2face107 <https://github.com/apache/airflow/commit/6d2face107f24b7e7dce4b98ae3def1178e1fc4c>`_  2023-03-04   ``Fixed hanged KubernetesPodOperator (#28336)``
+=================================================================================================  ===========  ==========================================================================
+
 5.2.2
 .....
 
-Latest change: 2023-02-28
+Latest change: 2023-03-03
 
 =================================================================================================  ===========  ===================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================================
+`fcd3c0149f <https://github.com/apache/airflow/commit/fcd3c0149f17b364dfb94c0523d23e3145976bbe>`_  2023-03-03   ``Prepare docs for 03/2023 wave of Providers (#29878)``
 `1e536eb43d <https://github.com/apache/airflow/commit/1e536eb43de4408612bf7bb7d9d2114470c6f43a>`_  2023-02-28   ``'KubernetesPodOperator._render_nested_template_fields' improved by changing the conditionals for a map (#29760)``
 `dba390e323 <https://github.com/apache/airflow/commit/dba390e32330675e1b94442c8001ea980754c189>`_  2023-02-22   ``Fix and augment 'check-for-inclusive-language' CI check (#29549)``
 =================================================================================================  ===========  ===================================================================================================================

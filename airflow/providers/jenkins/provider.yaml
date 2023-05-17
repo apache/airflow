@@ -21,7 +21,9 @@ name: Jenkins
 description: |
     `Jenkins <https://jenkins.io/>`__
 
+suspended: false
 versions:
+  - 3.2.1
   - 3.2.0
   - 3.1.0
   - 3.0.0
@@ -39,7 +41,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - python-jenkins>=1.0.0
 
 integrations:

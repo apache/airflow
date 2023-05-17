@@ -209,8 +209,8 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
 # NOTE! IN Airflow 2.4.+ dependencies for providers are maintained in `provider.yaml` files for each
 # provider separately. Before, the provider dependencies were kept here. THEY ARE NOT HERE ANYMORE.
 #
-# 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
-# If you change this mark you should also change ./scripts/ci/check_order_setup.py
+# 'Start dependencies group' and 'End dependencies group' are marks for ./scripts/ci/check_order_setup.py
+# If you change these marks you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 async_packages = [
     "eventlet>=0.33.3",
@@ -240,9 +240,11 @@ dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
     "cloudpickle>=1.4.1",
+    # Dask and distributed in version 2023.5.0 break our tests for Python > 3.7
+    # The upper limit can be removed when https://github.com/dask/dask/issues/10279 is fixed
     # Dask in version 2022.10.1 removed `bokeh` support and we should avoid installing it
-    "dask>=2.9.0,!=2022.10.1",
-    "distributed>=2.11.1",
+    "dask>=2.9.0,!=2022.10.1,<2023.5.0",
+    "distributed>=2.11.1,<2023.5.0",
 ]
 deprecated_api = [
     "requests>=2.26.0",
@@ -276,7 +278,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.0",
+    "flask-appbuilder[oauth]==4.3.1",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -301,9 +303,7 @@ ldap = [
 ]
 leveldb = ["plyvel"]
 otel = ["opentelemetry-api==1.15.0", "opentelemetry-exporter-otlp", "opentelemetry-exporter-prometheus"]
-pandas = [
-    "pandas>=0.17.1",
-]
+pandas = ["pandas>=0.17.1", "pyarrow>=9.0.0"]
 password = [
     "bcrypt>=2.0.0",
     "flask-bcrypt>=0.7.1",
@@ -334,7 +334,7 @@ mypy_dependencies = [
     # TODO: upgrade to newer versions of MyPy continuously as they are released
     # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
     # when you upgrade it here !!!!
-    "mypy==1.0.0",
+    "mypy==1.2.0",
     "types-boto",
     "types-certifi",
     "types-croniter",
@@ -371,6 +371,7 @@ devel_only = [
     "ipdb",
     "jira",
     "jsondiff",
+    "jsonpath_ng>=1.5.3",
     "mongomock",
     "moto[cloudformation, glue]>=4.0",
     "paramiko",
@@ -383,6 +384,7 @@ devel_only = [
     "pytest-capture-warnings",
     "pytest-cov",
     "pytest-instafail",
+    "pytest-mock",
     "pytest-rerunfailures",
     "pytest-timeouts",
     "pytest-xdist",
@@ -412,6 +414,8 @@ aiobotocore = [
 
 
 def get_provider_dependencies(provider_name: str) -> list[str]:
+    if provider_name not in PROVIDER_DEPENDENCIES:
+        return []
     return PROVIDER_DEPENDENCIES[provider_name][DEPS]
 
 
@@ -546,7 +550,7 @@ def add_extras_for_all_deprecated_aliases() -> None:
     for alias, extra in EXTRAS_DEPRECATED_ALIASES.items():
         dependencies = EXTRAS_DEPENDENCIES.get(extra) if extra != "" else []
         if dependencies is None:
-            raise Exception(f"The extra {extra} is missing for deprecated alias {alias}")
+            continue
         EXTRAS_DEPENDENCIES[alias] = dependencies
 
 
@@ -601,6 +605,8 @@ ALL_DB_PROVIDERS = [
 def get_all_db_dependencies() -> list[str]:
     _all_db_reqs: set[str] = set()
     for provider in ALL_DB_PROVIDERS:
+        if provider not in PROVIDER_DEPENDENCIES:
+            continue
         for req in PROVIDER_DEPENDENCIES[provider][DEPS]:
             _all_db_reqs.add(req)
     return list(_all_db_reqs)
@@ -811,7 +817,7 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
     elif extra == "apache.hive":
         # We moved the hive macros to the hive provider, and they are available in hive provider only as of
         # 5.1.0 version only, so we have to make sure minimum version is used
-        EXTRAS_DEPENDENCIES[extra] = ["apache-airflow-providers-hive>=5.1.0"]
+        EXTRAS_DEPENDENCIES[extra] = ["apache-airflow-providers-apache-hive>=5.1.0"]
     else:
         EXTRAS_DEPENDENCIES[extra] = [
             get_provider_package_name_from_package_id(package_name) for package_name in providers

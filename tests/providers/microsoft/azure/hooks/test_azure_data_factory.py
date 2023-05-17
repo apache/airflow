@@ -811,7 +811,7 @@ class TestAzureDataFactoryAsyncHook:
             extra=json.dumps({"extra__azure_data_factory__factory_name": DATAFACTORY_NAME})
         )
         mock_get_connection.return_value = mock_connection
-        mock_conn.return_value.__aenter__.return_value.pipeline_runs.get.return_value = mock_pipeline_run
+        mock_conn.return_value.pipeline_runs.get.return_value = mock_pipeline_run
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
         with pytest.raises(AirflowException):
             await hook.get_pipeline_run(RUN_ID, None, DATAFACTORY_NAME)
@@ -820,9 +820,7 @@ class TestAzureDataFactoryAsyncHook:
     @async_mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
     async def test_get_pipeline_run_exception(self, mock_conn):
         """Test get_pipeline_run function with exception"""
-        mock_conn.return_value.__aenter__.return_value.pipeline_runs.get.side_effect = Exception(
-            "Test exception"
-        )
+        mock_conn.return_value.pipeline_runs.get.side_effect = Exception("Test exception")
         hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
         with pytest.raises(AirflowException):
             await hook.get_pipeline_run(RUN_ID, RESOURCE_GROUP_NAME, DATAFACTORY_NAME)

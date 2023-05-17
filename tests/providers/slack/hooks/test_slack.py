@@ -29,7 +29,7 @@ from slack_sdk.errors import SlackApiError
 from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, RateLimitErrorRetryHandler
 from slack_sdk.web.slack_response import SlackResponse
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException
+from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
 from airflow.providers.slack.hooks.slack import SlackHook
 from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
@@ -82,14 +82,14 @@ class TestSlackHook:
             "Provide token as hook argument deprecated by security reason and will be removed "
             r"in a future releases. Please specify token in `Slack API` connection\."
         )
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID, token="foo-bar")
 
     def test_token_property_deprecated(self):
         """Test deprecation warning if access to ``SlackHook.token`` property."""
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
         warning_message = r"`SlackHook.token` property deprecated and will be removed in a future releases\."
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             assert hook.token == MOCK_SLACK_API_TOKEN
 
     def test_optional_conn_id_deprecated(self):

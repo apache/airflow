@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-=========================================
-Amazon Amazon Elastic Compute Cloud (EC2)
-=========================================
+==================================
+Amazon Elastic Compute Cloud (EC2)
+==================================
 
 `Amazon Elastic Compute Cloud (Amazon EC2) <https://aws.amazon.com/ec2/>`__ is a web service that provides resizable
 computing capacity—literally, servers in Amazon's data centers—that you use to build and host your software systems.
@@ -25,7 +25,7 @@ computing capacity—literally, servers in Amazon's data centers—that you use 
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
 ---------

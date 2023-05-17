@@ -21,12 +21,13 @@ name: Apache Flink
 description: |
     `Apache Flink <https://flink.apache.org/>`__
 
+suspended: false
 versions:
   - 1.0.1
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - cryptography>=2.0.0
   - apache-airflow-providers-cncf-kubernetes>=5.1.0
 

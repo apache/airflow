@@ -16,8 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
+import shlex
 import subprocess
+import sys
 from pprint import pprint
 from shutil import copyfile
 from time import monotonic, sleep
@@ -55,7 +58,7 @@ def wait_for_container(container_id: str, timeout: int = 300):
         .decode()
         .strip()
     )
-    print(f"Waiting for container: {container_name} [{container_id}]")
+    print(f"Waiting for container: {container_name} [{container_id}] for {timeout} more seconds.")
     waiting_done = False
     start_time = monotonic()
     while not waiting_done:
@@ -78,7 +81,11 @@ def wait_for_container(container_id: str, timeout: int = 300):
                 .decode()
                 .strip()
             )
-            print(f"{container_name}: container_state={container_state}, health_status={health_status}")
+            current_time = monotonic()
+            print(
+                f"{container_name}: container_state={container_state}, health_status={health_status}. "
+                f"Waiting for {int(timeout - (current_time - start_time))} more seconds"
+            )
 
             if health_status == "healthy" or health_status == "no-check":
                 waiting_done = True
@@ -108,7 +115,6 @@ def test_trigger_dag_and_wait_for_result(tmp_path_factory, monkeypatch):
     tmp_dir = tmp_path_factory.mktemp("airflow-quick-start")
     monkeypatch.chdir(tmp_dir)
     monkeypatch.setenv("AIRFLOW_IMAGE_NAME", docker_image)
-    monkeypatch.setenv("COMPOSE_PROJECT_NAME", "quick-start")
 
     compose_file_path = (
         SOURCE_ROOT / "docs" / "apache-airflow" / "howto" / "docker-compose" / "docker-compose.yaml"
@@ -124,19 +130,33 @@ def test_trigger_dag_and_wait_for_result(tmp_path_factory, monkeypatch):
     print(" .env file content ".center(72, "="))
     print(dot_env_file.read_text())
 
-    run_command(["docker-compose", "config"])
-    run_command(["docker-compose", "down", "--volumes", "--remove-orphans"])
+    # check if docker-compose is available
+    compose_command = ["docker-compose"]
+    success = run_command([*compose_command, "version"], check=False)
+    if not success:
+        compose_command = ["docker", "compose"]
+        success = run_command([*compose_command, "version"], check=False)
+        if not success:
+            print("ERROR: Neither `docker compose` nor `docker-compose` is available")
+            sys.exit(1)
+    compose_command.extend(["--project-name", "quick-start"])
+    run_command([*compose_command, "config"])
+    run_command([*compose_command, "down", "--volumes", "--remove-orphans"])
     try:
-        run_command(["docker-compose", "up", "-d"])
+        run_command([*compose_command, "up", "-d"])
         # The --wait condition was released in docker-compose v2.1.1, but we want to support
         # docker-compose v1 yet.
         # See:
         # https://github.com/docker/compose/releases/tag/v2.1.1
         # https://github.com/docker/compose/pull/8777
+        wait_for_containers_timeout = int(os.getenv("WAIT_FOR_CONTAINERS_TIMEOUT", "300"))
+        # the time to wait is total, not per container
+        start_time = monotonic()
         for container_id in (
-            subprocess.check_output(["docker-compose", "ps", "-q"]).decode().strip().splitlines()
+            subprocess.check_output([*compose_command, "ps", "-q"]).decode().strip().splitlines()
         ):
-            wait_for_container(container_id)
+            current_time = monotonic()
+            wait_for_container(container_id, wait_for_containers_timeout - int(current_time - start_time))
         api_request("PATCH", path=f"dags/{DAG_ID}", json={"is_paused": False})
         api_request("POST", path=f"dags/{DAG_ID}/dagRuns", json={"dag_run_id": DAG_RUN_ID})
         try:
@@ -154,9 +174,26 @@ def test_trigger_dag_and_wait_for_result(tmp_path_factory, monkeypatch):
     except Exception:
         print(f"Current working directory: {os.getcwd()}")
         run_command(["docker", "version"])
-        run_command(["docker-compose", "version"])
+        run_command([*compose_command, "version"])
         run_command(["docker", "ps"])
-        run_command(["docker-compose", "logs"])
+        run_command([*compose_command, "logs"])
+
+        ps_output = run_command([*compose_command, "ps", "--format", "json"], return_output=True)
+        container_names = [container["Name"] for container in json.loads(ps_output)]
+        for container in container_names:
+            print(f"Health check for {container}")
+            result = run_command(
+                ["docker", "inspect", "--format", "{{json .State}}", container], return_output=True
+            )
+            pprint(json.loads(result))
+
         raise
     finally:
-        run_command(["docker-compose", "down", "--volumes"])
+        if not os.environ.get("SKIP_DOCKER_COMPOSE_DELETION"):
+            run_command([*compose_command, "down", "--volumes"])
+            print("Docker compose instance deleted")
+        else:
+            print("Skipping docker-compose deletion")
+            print()
+            print("You can run inspect your docker-compose by running commands starting with:")
+            print(" ".join([shlex.quote(arg) for arg in compose_command]))

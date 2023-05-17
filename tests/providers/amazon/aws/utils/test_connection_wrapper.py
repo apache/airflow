@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 from botocore.config import Config
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper, _ConnectionMetadata
 
@@ -119,7 +120,7 @@ class TestAwsConnectionWrapper:
             r".* has connection type 's3', which has been replaced by connection type 'aws'\. "
             r"Please update your connection to have `conn_type='aws'`."
         )
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             wrap_conn = AwsConnectionWrapper(conn=mock_connection_factory(conn_type=conn_type))
             assert wrap_conn.conn_type == conn_type
 
@@ -170,7 +171,9 @@ class TestAwsConnectionWrapper:
         }
         mock_conn = mock_connection_factory(login=None, password=None, extra=mock_conn_extra)
 
-        with pytest.warns(DeprecationWarning, match=r"'session_kwargs' in extra config is deprecated"):
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=r"'session_kwargs' in extra config is deprecated"
+        ):
             wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         assert wrap_conn.aws_access_key_id == aws_access_key_id
         assert wrap_conn.aws_secret_access_key == aws_secret_access_key
@@ -268,7 +271,7 @@ class TestAwsConnectionWrapper:
             r"'session_kwargs' in extra config is deprecated and will be removed in a future releases. "
             r"Please specify arguments passed to boto3 Session directly in .* extra."
         )
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         session_kwargs = wrap_conn.session_kwargs
         assert session_kwargs == expected
@@ -376,7 +379,7 @@ class TestAwsConnectionWrapper:
                 "aws_iam_role": aws_iam_role,
             }
         )
-        with pytest.warns(DeprecationWarning, match="Please set 'role_arn' in .* extra"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="Please set 'role_arn' in .* extra"):
             wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         assert wrap_conn.role_arn == expected
 
@@ -445,7 +448,7 @@ class TestAwsConnectionWrapper:
         mock_conn = mock_connection_factory(extra=mock_conn_extra)
 
         warning_message = "Please set 'ExternalId' in 'assume_role_kwargs' in .* extra."
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         assert "ExternalId" in wrap_conn.assume_role_kwargs
         assert wrap_conn.assume_role_kwargs["ExternalId"] == mock_external_id_in_extra
@@ -501,7 +504,7 @@ class TestAwsConnectionWrapper:
             f"Host {mock_conn.host} specified in the connection is not used."
             " Please, set it on extra['endpoint_url'] instead"
         )
-        with pytest.warns(DeprecationWarning) as record:
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
             AwsConnectionWrapper(conn=mock_conn)
 
             assert str(record[0].message) == expected_deprecation_message

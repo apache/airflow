@@ -35,7 +35,7 @@ from datetime import datetime, timedelta
 from importlib import import_module
 from multiprocessing.connection import Connection as MultiprocessingConnection
 from pathlib import Path
-from typing import Any, NamedTuple, cast
+from typing import Any, Callable, NamedTuple, cast
 
 from setproctitle import setproctitle
 from sqlalchemy.orm import Session
@@ -62,6 +62,7 @@ from airflow.utils.process_utils import (
     reap_process_group,
     set_new_process_group,
 )
+from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
 
@@ -390,9 +391,8 @@ class DagFileProcessorManager(LoggingMixin):
         self._pickle_dags = pickle_dags
         self._dag_ids = dag_ids
         self._async_mode = async_mode
-        self._parsing_start_time: int | None = None
+        self._parsing_start_time: float | None = None
         self._dag_directory = dag_directory
-
         # Set the signal conn in to non-blocking mode, so that attempting to
         # send when the buffer is full errors, rather than hangs for-ever
         # attempting to send (this is to avoid deadlocks!)
@@ -456,6 +456,7 @@ class DagFileProcessorManager(LoggingMixin):
             if self._direct_scheduler_conn is not None
             else {}
         )
+        self.heartbeat: Callable[[], None] = lambda: None
 
     def register_exit_signals(self):
         """Register signals that stop child processes."""
@@ -572,6 +573,7 @@ class DagFileProcessorManager(LoggingMixin):
         while True:
             loop_start_time = time.monotonic()
             ready = multiprocessing.connection.wait(self.waitables.keys(), timeout=poll_time)
+            self.heartbeat()
             if self._direct_scheduler_conn is not None and self._direct_scheduler_conn in ready:
                 agent_signal = self._direct_scheduler_conn.recv()
 
@@ -687,6 +689,10 @@ class DagFileProcessorManager(LoggingMixin):
 
     @provide_session
     def _fetch_callbacks(self, max_callbacks: int, session: Session = NEW_SESSION):
+        self._fetch_callbacks_with_retries(max_callbacks, session)
+
+    @retry_db_transaction
+    def _fetch_callbacks_with_retries(self, max_callbacks: int, session: Session):
         """Fetches callbacks from database and add them to the internal queue for execution."""
         self.log.debug("Fetching callbacks from the database.")
         with prohibit_commit(session) as guard:
@@ -785,7 +791,7 @@ class DagFileProcessorManager(LoggingMixin):
                 alive_dag_filelocs=dag_filelocs,
                 processor_subdir=self.get_dag_directory(),
             )
-            DagModel.deactivate_deleted_dags(self._file_paths)
+            DagModel.deactivate_deleted_dags(dag_filelocs)
 
             from airflow.models.dagcode import DagCode
 
@@ -1129,7 +1135,7 @@ class DagFileProcessorManager(LoggingMixin):
                     self._file_stats.pop(file_path, None)
                     file_paths_to_stop_watching.add(file_path)
                     continue
-                file_modified_time = timezone.make_aware(datetime.fromtimestamp(files_with_mtime[file_path]))
+                file_modified_time = datetime.fromtimestamp(files_with_mtime[file_path], tz=timezone.utc)
             else:
                 file_paths.append(file_path)
                 file_modified_time = None

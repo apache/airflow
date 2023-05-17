@@ -28,6 +28,8 @@ from collections import OrderedDict
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Iterable, Mapping
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+
 try:
     import pandas
 except ImportError as e:
@@ -99,12 +101,13 @@ class HiveCliHook(BaseHook):
         mapred_queue_priority: str | None = None,
         mapred_job_name: str | None = None,
         hive_cli_params: str = "",
+        auth: str | None = None,
     ) -> None:
         super().__init__()
         conn = self.get_connection(hive_cli_conn_id)
         self.hive_cli_params: str = hive_cli_params
         self.use_beeline: bool = conn.extra_dejson.get("use_beeline", False)
-        self.auth = conn.extra_dejson.get("auth", "noSasl")
+        self.auth = auth
         self.conn = conn
         self.run_as = run_as
         self.sub_process: Any = None
@@ -528,7 +531,7 @@ class HiveMetastoreHook(BaseHook):
         if "authMechanism" in conn.extra_dejson:
             warnings.warn(
                 "The 'authMechanism' option is deprecated. Please use 'auth_mechanism'.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             conn.extra_dejson["auth_mechanism"] = conn.extra_dejson["authMechanism"]
@@ -843,7 +846,7 @@ class HiveServer2Hook(DbApiHook):
         if "authMechanism" in db.extra_dejson:
             warnings.warn(
                 "The 'authMechanism' option is deprecated. Please use 'auth_mechanism'.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             db.extra_dejson["auth_mechanism"] = db.extra_dejson["authMechanism"]

@@ -65,6 +65,7 @@ class MySqlToHiveOperator(BaseOperator):
     :param mysql_conn_id: source mysql connection
     :param hive_cli_conn_id: Reference to the
         :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
+    :param hive_auth: optional authentication option passed for the Hive connection
     :param tblproperties: TBLPROPERTIES of the hive table being created
     """
 
@@ -87,6 +88,7 @@ class MySqlToHiveOperator(BaseOperator):
         escapechar: str | None = None,
         mysql_conn_id: str = "mysql_default",
         hive_cli_conn_id: str = "hive_cli_default",
+        hive_auth: str | None = None,
         tblproperties: dict | None = None,
         **kwargs,
     ) -> None:
@@ -104,6 +106,7 @@ class MySqlToHiveOperator(BaseOperator):
         self.hive_cli_conn_id = hive_cli_conn_id
         self.partition = partition or {}
         self.tblproperties = tblproperties
+        self.hive_auth = hive_auth
 
     @classmethod
     def type_map(cls, mysql_type: int) -> str:
@@ -126,7 +129,7 @@ class MySqlToHiveOperator(BaseOperator):
         return type_map.get(mysql_type, "STRING")
 
     def execute(self, context: Context):
-        hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
+        hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id, auth=self.hive_auth)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 
         self.log.info("Dumping MySQL query results to local file")

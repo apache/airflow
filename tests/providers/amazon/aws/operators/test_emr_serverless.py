@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import MagicMock, PropertyMock
 from uuid import UUID
 
 import pytest
@@ -26,6 +27,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessCreateApplicationOperator,
     EmrServerlessDeleteApplicationOperator,
     EmrServerlessStartJobOperator,
+    EmrServerlessStopApplicationOperator,
 )
 
 task_id = "test_emr_serverless_task_id"
@@ -571,6 +573,32 @@ class TestEmrServerlessStartJobOperator:
             name=custom_name,
         )
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
+    def test_cancel_job_run(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        mock_conn.get_job_run.return_value = {"jobRun": {"state": "RUNNING"}}
+
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            client_request_token=client_request_token,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+            wait_for_completion=False,
+        )
+
+        id = operator.execute(None)
+        operator.on_kill()
+        mock_conn.cancel_job_run.assert_called_once_with(
+            applicationId=application_id,
+            jobRunId=id,
+        )
+
 
 class TestEmrServerlessDeleteOperator:
     @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
@@ -606,14 +634,13 @@ class TestEmrServerlessDeleteOperator:
 
         operator.execute(None)
 
-        assert operator.wait_for_completion is False
         mock_waiter.assert_called_once()
         mock_conn.stop_application.assert_called_once()
         mock_conn.delete_application.assert_called_once_with(applicationId=application_id_delete_operator)
 
     @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
-    def test_delete_application_failed_deleteion(self, mock_conn, mock_waiter):
+    def test_delete_application_failed_deletion(self, mock_conn, mock_waiter):
         mock_waiter.return_value = True
         mock_conn.stop_application.return_value = {}
         mock_conn.delete_application.return_value = {"ResponseMetadata": {"HTTPStatusCode": 400}}
@@ -626,7 +653,43 @@ class TestEmrServerlessDeleteOperator:
 
         assert "Application deletion failed:" in str(ex_message.value)
 
-        assert operator.wait_for_completion is True
         mock_waiter.assert_called_once()
         mock_conn.stop_application.assert_called_once()
         mock_conn.delete_application.assert_called_once_with(applicationId=application_id_delete_operator)
+
+
+class TestEmrServerlessStopOperator:
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
+    def test_stop(self, mock_conn: MagicMock, mock_waiter: MagicMock):
+        operator = EmrServerlessStopApplicationOperator(task_id=task_id, application_id="test")
+
+        operator.execute(None)
+
+        mock_waiter.assert_called_once()
+        mock_conn.stop_application.assert_called_once()
+
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
+    def test_stop_no_wait(self, mock_conn: MagicMock, mock_waiter: MagicMock):
+        operator = EmrServerlessStopApplicationOperator(
+            task_id=task_id, application_id="test", wait_for_completion=False
+        )
+
+        operator.execute(None)
+
+        mock_waiter.assert_not_called()
+        mock_conn.stop_application.assert_called_once()
+
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
+    @mock.patch.object(EmrServerlessStopApplicationOperator, "hook", new_callable=PropertyMock)
+    def test_force_stop(self, mock_hook: MagicMock, mock_waiter: MagicMock):
+        operator = EmrServerlessStopApplicationOperator(
+            task_id=task_id, application_id="test", force_stop=True
+        )
+
+        operator.execute(None)
+
+        mock_hook().cancel_running_jobs.assert_called_once()
+        mock_hook().conn.stop_application.assert_called_once()
+        mock_waiter.assert_called_once()

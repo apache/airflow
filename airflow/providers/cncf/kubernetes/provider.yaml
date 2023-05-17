@@ -21,7 +21,11 @@ name: Kubernetes
 description: |
     `Kubernetes <https://kubernetes.io/>`__
 
+suspended: false
 versions:
+  - 6.1.0
+  - 6.0.0
+  - 5.3.0
   - 5.2.2
   - 5.2.1
   - 5.2.0
@@ -54,7 +58,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - asgiref>=3.5.2
   - cryptography>=2.0.0
   # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
@@ -104,8 +108,8 @@ hooks:
 
 triggers:
   - integration-name: Kubernetes
-    python-modules:
-      - airflow.providers.cncf.kubernetes.triggers.pod
+    class-names:
+      - airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger
 
 
 connection-types:

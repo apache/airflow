@@ -24,6 +24,18 @@
 Changelog
 ---------
 
+3.3.2
+.....
+
+Misc
+~~~~
+
+* ``Use connection URI in SqliteHook (#28721)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+
 3.3.1
 .....
 

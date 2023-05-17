@@ -21,7 +21,9 @@ name: Presto
 description: |
     `Presto <https://prestodb.github.io/>`__
 
+suspended: false
 versions:
+  - 5.0.0
   - 4.2.2
   - 4.2.1
   - 4.2.0
@@ -42,7 +44,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - apache-airflow-providers-common-sql>=1.3.1
   - presto-python-client>=0.8.2
   - pandas>=0.17.1

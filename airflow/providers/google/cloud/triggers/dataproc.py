@@ -38,7 +38,6 @@ class DataprocBaseTrigger(BaseTrigger):
         region: str,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         polling_interval_seconds: int = 30,
     ):
@@ -48,13 +47,11 @@ class DataprocBaseTrigger(BaseTrigger):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.polling_interval_seconds = polling_interval_seconds
-        self.delegate_to = delegate_to
 
     def get_async_hook(self):
         return DataprocAsyncHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
-            delegate_to=self.delegate_to,
         )
 
 
@@ -77,10 +74,9 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
     :param polling_interval_seconds: polling period in seconds to check for the status
     """
 
-    def __init__(self, job_id: str, delegate_to: str | None = None, **kwargs):
+    def __init__(self, job_id: str, **kwargs):
         self.job_id = job_id
-        self.delegate_to = delegate_to
-        super().__init__(delegate_to=self.delegate_to, **kwargs)
+        super().__init__(**kwargs)
 
     def serialize(self):
         return (
@@ -90,7 +86,6 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
                 "project_id": self.project_id,
                 "region": self.region,
                 "gcp_conn_id": self.gcp_conn_id,
-                "delegate_to": self.delegate_to,
                 "impersonation_chain": self.impersonation_chain,
                 "polling_interval_seconds": self.polling_interval_seconds,
             },
@@ -148,7 +143,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         while True:
             cluster = await self.get_async_hook().get_cluster(
                 project_id=self.project_id, region=self.region, cluster_name=self.cluster_name
@@ -266,7 +261,7 @@ class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """Wait until cluster is deleted completely"""
         while self.end_time > time.time():
             try:
@@ -295,27 +290,24 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
     Implementation leverages asynchronous transport.
     """
 
-    def __init__(self, template_name: str, name: str, **kwargs: Any):
+    def __init__(self, name: str, **kwargs: Any):
         super().__init__(**kwargs)
-        self.template_name = template_name
         self.name = name
 
     def serialize(self):
         return (
             "airflow.providers.google.cloud.triggers.dataproc.DataprocWorkflowTrigger",
             {
-                "template_name": self.template_name,
                 "name": self.name,
                 "project_id": self.project_id,
                 "region": self.region,
                 "gcp_conn_id": self.gcp_conn_id,
-                "delegate_to": self.delegate_to,
                 "impersonation_chain": self.impersonation_chain,
                 "polling_interval_seconds": self.polling_interval_seconds,
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = self.get_async_hook()
         while True:
             try:

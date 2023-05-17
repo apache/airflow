@@ -29,7 +29,6 @@ from tests.providers.google.cloud.utils.compat import AsyncMock, async_mock
 TEST_GCP_REGION = "global"
 TEST_GCP_PROJECT = "test-project"
 TEST_GCP_CONN_ID = "test-gcp-conn-id"
-TEST_DELEGATE_TO = "test-delegate-to"
 TEST_ENVIRONMENT_ID = "testenvname"
 TEST_ENVIRONMENT = {
     "name": TEST_ENVIRONMENT_ID,
@@ -60,6 +59,10 @@ def mock_init(*args, **kwargs):
 
 
 class TestCloudComposerHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudComposerHook(gcp_conn_id="test", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = CloudComposerHook(gcp_conn_id="test")
@@ -196,6 +199,10 @@ class TestCloudComposerHook:
 
 
 class TestCloudComposerAsyncHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudComposerAsyncHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self, method):
         with async_mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = CloudComposerAsyncHook(gcp_conn_id="test")
