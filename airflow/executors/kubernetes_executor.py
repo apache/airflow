@@ -73,13 +73,15 @@ if TYPE_CHECKING:
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
+if sys.version_info >= (3, 9):
+    from functools import cache
 else:
-    from cached_property import cached_property
+    from functools import lru_cache
+
+    cache = lru_cache(maxsize=None)
 
 
-@cached_property
+@cache
 def get_logs_task_metadata() -> bool:
     return conf.getboolean("kubernetes_executor", "logs_task_metadata", fallback=False)
 
