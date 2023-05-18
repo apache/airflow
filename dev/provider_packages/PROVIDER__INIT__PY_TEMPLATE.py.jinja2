@@ -50,7 +50,12 @@ __all__ = ["version"]
 
 version = "{{ RELEASE }}{{ VERSION_SUFFIX }}"
 
-if packaging.version.parse(airflow.version.version) < packaging.version.parse("{{ MIN_AIRFLOW_VERSION }}"):
+try:
+    airflow_version = airflow.__version__
+except ImportError:
+    airflow_version = airflow.version.version
+
+if packaging.version.parse(airflow_version) < packaging.version.parse("{{ MIN_AIRFLOW_VERSION }}"):
     raise RuntimeError(
         f"The package `{{ PACKAGE_PIP_NAME }}:{version}` requires Apache Airflow {{ MIN_AIRFLOW_VERSION }}+"
     )
