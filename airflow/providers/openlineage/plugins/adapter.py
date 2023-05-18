@@ -24,7 +24,7 @@ import requests.exceptions
 import yaml
 
 from airflow.configuration import conf
-from airflow.providers.openlineage import version as OPENLINEAGE_PROVIDER_VERSION
+from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
 from airflow.utils.log.logging_mixin import LoggingMixin

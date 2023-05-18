@@ -28,11 +28,11 @@ import packaging.version
 
 import airflow
 
-__all__ = ["version"]
+__all__ = ["__version__"]
 
-version = "3.3.0"
+__version__ = "3.3.0"
 
 if packaging.version.parse(airflow.version.version) < packaging.version.parse("2.4.0"):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-yandex:{version}` requires Apache Airflow 2.4.0+"
+        f"The package `apache-airflow-providers-yandex:{__version__}` requires Apache Airflow 2.4.0+"
     )
