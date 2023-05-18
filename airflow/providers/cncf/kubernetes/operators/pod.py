@@ -227,7 +227,7 @@ class KubernetesPodOperator(BaseOperator):
         container name to use.
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
-    :param istio_enabled: Whether Istio is enabled in k8s cluster. False by default.
+    :param istio_enabled: Whether istio is enabled in k8s cluster. False by default.
     """
 
     # This field can be overloaded at the instance level via base_container_name

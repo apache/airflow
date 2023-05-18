@@ -772,6 +772,7 @@ isfile
 ish
 isn
 isort
+istio
 iterable
 iterables
 iteratively
