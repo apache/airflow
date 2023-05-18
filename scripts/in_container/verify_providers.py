@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 import importlib
+import logging
 import os
 import pkgutil
+import platform
 import re
 import subprocess
 import sys
@@ -34,6 +36,7 @@ from warnings import WarningMessage
 from rich.console import Console
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.secrets import BaseSecretsBackend
 
 console = Console(width=400, color_system="standard")
 
@@ -220,7 +223,7 @@ def import_all_classes(
     provider_ids: list[str] | None = None,
     print_imports: bool = False,
     print_skips: bool = False,
-) -> tuple[list[str], list[WarningMessage]]:
+) -> tuple[list[str], list[WarningMessage], list[str]]:
     """
     Imports all classes in providers packages. This method loads and imports
     all the classes found in providers, so that we can find all the subclasses
@@ -232,12 +235,14 @@ def import_all_classes(
     :param provider_ids - provider ids that should be loaded.
     :param print_imports - if imported class should also be printed in output
     :param print_skips - if skipped classes should also be printed in output
-    :return: tuple of list of all imported classes and all warnings generated
+    :return: tuple of list of all imported classes and all warnings and all classes
+        with potential recursion side effects
     """
     console.print()
     console.print(f"Walking all package with prefixes in {walkable_paths_and_prefixes}")
     console.print()
     imported_classes = []
+    classes_with_potential_circular_import = []
     tracebacks: list[tuple[str, str]] = []
     printed_packages: set[str] = set()
 
@@ -275,12 +280,23 @@ def import_all_classes(
             try:
                 with warnings.catch_warnings(record=True) as w:
                     warnings.filterwarnings("always", category=DeprecationWarning)
-                    _module = importlib.import_module(modinfo.name)
-                    for attribute_name in dir(_module):
-                        class_name = modinfo.name + "." + attribute_name
-                        attribute = getattr(_module, attribute_name)
-                        if isclass(attribute):
-                            imported_classes.append(class_name)
+                    try:
+                        _module = importlib.import_module(modinfo.name)
+                        for attribute_name in dir(_module):
+                            class_name = modinfo.name + "." + attribute_name
+                            attribute = getattr(_module, attribute_name)
+                            if isclass(attribute):
+                                imported_classes.append(class_name)
+                            if isclass(attribute) and (
+                                issubclass(attribute, logging.Handler)
+                                or issubclass(attribute, BaseSecretsBackend)
+                            ):
+                                classes_with_potential_circular_import.append(class_name)
+                    except OSError as e:
+                        if "geos_c" in str(e) and platform.machine() in ("aarch64", "arm64"):
+                            # we ignore the missing geos_c library on Apple Silicon
+                            continue
+                        raise
                 if w:
                     all_warnings.extend(w)
             except AirflowOptionalProviderFeatureException:
@@ -310,7 +326,7 @@ def import_all_classes(
             console.print("[red]----------------------------------------[/]")
         sys.exit(1)
     else:
-        return imported_classes, all_warnings
+        return imported_classes, all_warnings, classes_with_potential_circular_import
 
 
 def is_imported_from_same_module(the_class: str, imported_name: str) -> bool:
@@ -774,14 +790,18 @@ def add_all_namespaced_packages(
             walkable_paths_and_prefixes[str(candidate_path)] = provider_prefix + subpackage + "."
 
 
-def verify_provider_classes():
+def verify_provider_classes() -> tuple[list[str], list[str]]:
+    """Verifies all provider classes.
+
+    :return: Tuple: list of all classes and list of all classes that have potential recursion side effects
+    """
     provider_ids = get_all_providers()
     walkable_paths_and_prefixes: dict[str, str] = {}
     provider_prefix = "airflow.providers."
     for provider_path in get_providers_paths():
         walkable_paths_and_prefixes[provider_path] = provider_prefix
         add_all_namespaced_packages(walkable_paths_and_prefixes, provider_path, provider_prefix)
-    imported_classes, warns = import_all_classes(
+    imported_classes, warns, classes_with_potential_circular_import = import_all_classes(
         walkable_paths_and_prefixes=walkable_paths_and_prefixes,
         provider_ids=provider_ids,
         print_imports=True,
@@ -816,6 +836,7 @@ def verify_provider_classes():
     )
     console.print(f"Imported {len(imported_classes)} classes.")
     console.print()
+    return imported_classes, classes_with_potential_circular_import
 
 
 def run_provider_discovery():
@@ -847,7 +868,50 @@ def run_provider_discovery():
         subprocess.run(["airflow", "providers", "triggers"], check=True)
 
 
+AIRFLOW_LOCAL_SETTINGS_PATH = Path("/opt/airflow") / "airflow_local_settings.py"
+
+
 if __name__ == "__main__":
     sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT))
-    verify_provider_classes()
+    all_imported_classes, all_classes_with_potential_for_circular_import = verify_provider_classes()
+    try:
+        AIRFLOW_LOCAL_SETTINGS_PATH.write_text(
+            "\n".join(
+                [
+                    "from {} import {}".format(*class_name.rsplit(".", 1))
+                    for class_name in all_classes_with_potential_for_circular_import
+                ]
+            )
+        )
+        console.print(
+            "[bright_blue]Importing all provider classes with potential for circular imports"
+            " via airflow_local_settings.py:\n\n"
+        )
+        console.print(AIRFLOW_LOCAL_SETTINGS_PATH.read_text())
+        console.print("\n")
+        proc = subprocess.run([sys.executable, "-c", "import airflow"], check=False)
+        if proc.returncode != 0:
+            console.print(
+                "[red] Importing all provider classes with potential for recursion  "
+                "via airflow_local_settings.py failed!\n\n"
+            )
+            console.print(
+                "\n[bright_blue]If you see AttributeError or ImportError, it might mean that there is "
+                "a circular import from a provider that should be solved\n"
+            )
+            console.print(
+                "\nThe reason for the circular imports might be that if Airflow is configured "
+                "to use some of the provider's logging/secret backends in settings\n"
+                "the extensions might attempt to import airflow configuration, "
+                "version or settings packages.\n"
+                "Accessing those packages will trigger attribute/import errors, because "
+                "they are not fully imported at this time.\n"
+            )
+            console.print(
+                "\n[info]Look at the stack trace above and see where `airflow` core classes have failed to be"
+                "imported from and fix it so that the class does not do it.\n"
+            )
+            sys.exit(proc.returncode)
+    finally:
+        AIRFLOW_LOCAL_SETTINGS_PATH.unlink()
     run_provider_discovery()
