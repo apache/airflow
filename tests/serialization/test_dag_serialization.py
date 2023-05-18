@@ -1349,8 +1349,8 @@ class TestStringifiedDAGs:
         self.assert_taskgroup_children(
             serialized_dag.task_group, dag.task_group, {"setup", "teardown", "group1"}
         )
-        self.assert_taskis_setup_teardown(serialized_dag.task_group.children["setup"], is_setup=True)
-        self.assert_taskis_setup_teardown(serialized_dag.task_group.children["teardown"], is_teardown=True)
+        self.assert_task_is_setup_teardown(serialized_dag.task_group.children["setup"], is_setup=True)
+        self.assert_task_is_setup_teardown(serialized_dag.task_group.children["teardown"], is_teardown=True)
 
         se_first_group = serialized_dag.task_group.children["group1"]
         dag_first_group = dag.task_group.children["group1"]
@@ -1359,9 +1359,9 @@ class TestStringifiedDAGs:
             dag_first_group,
             {"group1.setup1", "group1.task1", "group1.group2", "group1.teardown1"},
         )
-        self.assert_taskis_setup_teardown(se_first_group.children["group1.setup1"], is_setup=True)
-        self.assert_taskis_setup_teardown(se_first_group.children["group1.task1"])
-        self.assert_taskis_setup_teardown(se_first_group.children["group1.teardown1"], is_teardown=True)
+        self.assert_task_is_setup_teardown(se_first_group.children["group1.setup1"], is_setup=True)
+        self.assert_task_is_setup_teardown(se_first_group.children["group1.task1"])
+        self.assert_task_is_setup_teardown(se_first_group.children["group1.teardown1"], is_teardown=True)
 
         se_second_group = se_first_group.children["group1.group2"]
         dag_second_group = dag_first_group.children["group1.group2"]
@@ -1370,9 +1370,9 @@ class TestStringifiedDAGs:
             dag_second_group,
             {"group1.group2.setup2", "group1.group2.task2", "group1.group2.teardown2"},
         )
-        self.assert_taskis_setup_teardown(se_second_group.children["group1.group2.setup2"], is_setup=True)
-        self.assert_taskis_setup_teardown(se_second_group.children["group1.group2.task2"])
-        self.assert_taskis_setup_teardown(
+        self.assert_task_is_setup_teardown(se_second_group.children["group1.group2.setup2"], is_setup=True)
+        self.assert_task_is_setup_teardown(se_second_group.children["group1.group2.task2"])
+        self.assert_task_is_setup_teardown(
             se_second_group.children["group1.group2.teardown2"], is_teardown=True
         )
 
