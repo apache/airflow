@@ -31,6 +31,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryDeleteDatasetOperator,
     BigQueryInsertJobOperator,
 )
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.trino_to_gcs import TrinoToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -41,7 +42,7 @@ GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCS_BUCKET = f"bucket_{DAG_ID}_{ENV_ID}"
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 
-SOURCE_MULTIPLE_TYPES = "memory.default.test_multiple_types"
+SOURCE_SCHEMA_COLUMNS = "memory.information_schema.columns"
 SOURCE_CUSTOMER_TABLE = "tpch.sf1.customer"
 
 
@@ -68,22 +69,26 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
+    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=GCS_BUCKET)
+
+    delete_bucket = GCSDeleteBucketOperator(task_id="delete_bucket", bucket_name=GCS_BUCKET)
+
     # [START howto_operator_trino_to_gcs_basic]
     trino_to_gcs_basic = TrinoToGCSOperator(
         task_id="trino_to_gcs_basic",
-        sql=f"select * from {SOURCE_MULTIPLE_TYPES}",
+        sql=f"select * from {SOURCE_SCHEMA_COLUMNS}",
         bucket=GCS_BUCKET,
-        filename=f"{safe_name(SOURCE_MULTIPLE_TYPES)}.{{}}.json",
+        filename=f"{safe_name(SOURCE_SCHEMA_COLUMNS)}.{{}}.json",
     )
     # [END howto_operator_trino_to_gcs_basic]
 
     # [START howto_operator_trino_to_gcs_multiple_types]
     trino_to_gcs_multiple_types = TrinoToGCSOperator(
         task_id="trino_to_gcs_multiple_types",
-        sql=f"select * from {SOURCE_MULTIPLE_TYPES}",
+        sql=f"select * from {SOURCE_SCHEMA_COLUMNS}",
         bucket=GCS_BUCKET,
-        filename=f"{safe_name(SOURCE_MULTIPLE_TYPES)}.{{}}.json",
-        schema_filename=f"{safe_name(SOURCE_MULTIPLE_TYPES)}-schema.json",
+        filename=f"{safe_name(SOURCE_SCHEMA_COLUMNS)}.{{}}.json",
+        schema_filename=f"{safe_name(SOURCE_SCHEMA_COLUMNS)}-schema.json",
         gzip=False,
     )
     # [END howto_operator_trino_to_gcs_multiple_types]
@@ -96,22 +101,28 @@ with models.DAG(
             "tableReference": {
                 "projectId": GCP_PROJECT_ID,
                 "datasetId": DATASET_NAME,
-                "tableId": f"{safe_name(SOURCE_MULTIPLE_TYPES)}",
+                "tableId": f"{safe_name(SOURCE_SCHEMA_COLUMNS)}",
             },
             "schema": {
                 "fields": [
-                    {"name": "name", "type": "STRING"},
-                    {"name": "post_abbr", "type": "STRING"},
-                ]
+                    {"name": "table_catalog", "type": "STRING"},
+                    {"name": "table_schema", "type": "STRING"},
+                    {"name": "table_name", "type": "STRING"},
+                    {"name": "column_name", "type": "STRING"},
+                    {"name": "ordinal_position", "type": "INT64"},
+                    {"name": "column_default", "type": "STRING"},
+                    {"name": "is_nullable", "type": "STRING"},
+                    {"name": "data_type", "type": "STRING"},
+                ],
             },
             "externalDataConfiguration": {
                 "sourceFormat": "NEWLINE_DELIMITED_JSON",
                 "compression": "NONE",
-                "csvOptions": {"skipLeadingRows": 1},
+                "sourceUris": [f"gs://{GCS_BUCKET}/{safe_name(SOURCE_SCHEMA_COLUMNS)}.*.json"],
             },
         },
-        source_objects=[f"{safe_name(SOURCE_MULTIPLE_TYPES)}.*.json"],
-        schema_object=f"{safe_name(SOURCE_MULTIPLE_TYPES)}-schema.json",
+        source_objects=[f"{safe_name(SOURCE_SCHEMA_COLUMNS)}.*.json"],
+        schema_object=f"{safe_name(SOURCE_SCHEMA_COLUMNS)}-schema.json",
     )
     # [END howto_operator_create_external_table_multiple_types]
 
@@ -120,7 +131,7 @@ with models.DAG(
         configuration={
             "query": {
                 "query": f"SELECT COUNT(*) FROM `{GCP_PROJECT_ID}.{DATASET_NAME}."
-                f"{safe_name(SOURCE_MULTIPLE_TYPES)}`",
+                f"{safe_name(SOURCE_SCHEMA_COLUMNS)}`",
                 "useLegacySql": False,
             }
         },
@@ -149,14 +160,20 @@ with models.DAG(
             },
             "schema": {
                 "fields": [
+                    {"name": "custkey", "type": "INT64"},
                     {"name": "name", "type": "STRING"},
-                    {"name": "post_abbr", "type": "STRING"},
+                    {"name": "address", "type": "STRING"},
+                    {"name": "nationkey", "type": "INT64"},
+                    {"name": "phone", "type": "STRING"},
+                    {"name": "acctbal", "type": "FLOAT64"},
+                    {"name": "mktsegment", "type": "STRING"},
+                    {"name": "comment", "type": "STRING"},
                 ]
             },
             "externalDataConfiguration": {
                 "sourceFormat": "NEWLINE_DELIMITED_JSON",
                 "compression": "NONE",
-                "csvOptions": {"skipLeadingRows": 1},
+                "sourceUris": [f"gs://{GCS_BUCKET}/{safe_name(SOURCE_CUSTOMER_TABLE)}.*.json"],
             },
         },
         source_objects=[f"{safe_name(SOURCE_CUSTOMER_TABLE)}.*.json"],
@@ -179,17 +196,17 @@ with models.DAG(
     # [START howto_operator_trino_to_gcs_csv]
     trino_to_gcs_csv = TrinoToGCSOperator(
         task_id="trino_to_gcs_csv",
-        sql=f"select * from {SOURCE_MULTIPLE_TYPES}",
+        sql=f"select * from {SOURCE_SCHEMA_COLUMNS}",
         bucket=GCS_BUCKET,
-        filename=f"{safe_name(SOURCE_MULTIPLE_TYPES)}.{{}}.csv",
-        schema_filename=f"{safe_name(SOURCE_MULTIPLE_TYPES)}-schema.json",
+        filename=f"{safe_name(SOURCE_SCHEMA_COLUMNS)}.{{}}.csv",
+        schema_filename=f"{safe_name(SOURCE_SCHEMA_COLUMNS)}-schema.json",
         export_format="csv",
     )
     # [END howto_operator_trino_to_gcs_csv]
 
     (
         # TEST SETUP
-        create_dataset
+        [create_dataset, create_bucket]
         # TEST BODY
         >> trino_to_gcs_basic
         >> trino_to_gcs_multiple_types
@@ -200,7 +217,7 @@ with models.DAG(
         >> read_data_from_gcs_multiple_types
         >> read_data_from_gcs_many_chunks
         # TEST TEARDOWN
-        >> delete_dataset
+        >> [delete_dataset, delete_bucket]
     )
 
     from tests.system.utils.watcher import watcher

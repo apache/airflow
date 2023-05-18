@@ -114,7 +114,9 @@ TEST_IMPORT_CONFIG = [
             "gs://google-cloud-aiplatform/schema/dataset/ioformat/image_bounding_box_io_format_1.0.0.yaml"
         ),
         "gcs_source": {
-            "uris": ["gs://ucaip-test-us-central1/dataset/salads_oid_ml_use_public_unassigned.jsonl"]
+            "uris": [
+                "gs://system-tests-resources/vertex-ai/dataset/salads_oid_ml_use_public_unassigned.jsonl"
+            ]
         },
     },
 ]
