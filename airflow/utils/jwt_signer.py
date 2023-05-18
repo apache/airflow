@@ -50,6 +50,7 @@ class JWTSigner:
     def generate_signed_token(self, extra_payload: dict[str, Any]) -> str:
         """
         Generate JWT with extra payload added.
+
         :param extra_payload: extra payload that is added to the signed token
         :return: signed token
         """

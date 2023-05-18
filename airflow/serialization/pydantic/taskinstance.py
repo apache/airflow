@@ -25,7 +25,7 @@ from airflow.utils.xcom import XCOM_RETURN_KEY
 
 
 class TaskInstancePydantic(BaseModelPydantic):
-    """Serializable representation of the TaskInstance ORM SqlAlchemyModel used by internal API"""
+    """Serializable representation of the TaskInstance ORM SqlAlchemyModel used by internal API."""
 
     task_id: str
     dag_id: str
@@ -58,7 +58,7 @@ class TaskInstancePydantic(BaseModelPydantic):
     run_as_user: Optional[str]
 
     class Config:
-        """Make sure it deals automatically with ORM classes of SQL Alchemy"""
+        """Make sure it deals automatically with ORM classes of SQL Alchemy."""
 
         orm_mode = True
 

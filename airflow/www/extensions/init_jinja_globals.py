@@ -28,7 +28,7 @@ from airflow.utils.platform import get_airflow_git_version
 
 
 def init_jinja_globals(app):
-    """Add extra globals variable to Jinja context"""
+    """Add extra globals variable to Jinja context."""
     server_timezone = conf.get("core", "default_timezone")
     if server_timezone == "system":
         server_timezone = pendulum.local_timezone().name
