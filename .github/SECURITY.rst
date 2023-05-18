@@ -61,7 +61,7 @@ The security issues in Airflow are handled by the Airflow Security Team. The tea
 of selected PMC members that are interested in looking at, discussing about and fixing the
 security issues, but it can also include committers and non-committer contributors that are
 not PMC members yet and have been approved by the PMC members in a vote. You can request to
-be added to the team by sending a message to private@airflow.apache.org, however, the team
+be added to the team by sending a message to private@airflow.apache.org. However, the team
 should be small and focused on solving security issues, so the requests will be evaluated
 on-case-by-case and the team size will be kept relatively small, limited to only actively
 security-focused contributors.
@@ -89,10 +89,11 @@ There are certain expectations from the members of the security team:
 
 * In case of critical security issues, the members of the security team might iterate on a fix in a
   private repository and only open the PR in the public repository once the fix is ready to be released,
-  with the intent of minimising the time between the fix being available and the fix being released. In this
+  with the intent of minimizing the time between the fix being available and the fix being released. In this
   case the PR might be sent to review and comment to the PMC members on private list, in order to request
-  an expedited voting on the release. The voting for such release might be done on the private list and
-  should be made public at the devlist as soon as the release is ready to be announced.
+  an expedited voting on the release. The voting for such release might be done on the
+  ``private@airflow.apache.org`` mailing list and should be made public at the ``dev@apache.airflow.org``
+  mailing list as soon as the release is ready to be announced.
 
 * The security team members working on the fix might be mentioned as remediation developers in the CVE
   including their job affiliation if they want to.
@@ -112,7 +113,7 @@ release ``MINOR`` version, the development continues in the ``main`` branch wher
 bugfixes) cherry-picked to the latest released ``MINOR`` line of Apache Airflow. At the moment, when we
 release a new ``MINOR`` version, we stop releasing ``PATCHLEVEL`` releases for the previous ``MINOR`` version.
 
-For example, when we released  ``2.6.0`` version on April 30th, 2023, until we release ``2.7.0`` version,
+For example, when we released  ``2.6.0`` version on April 30, 2023, until we release ``2.7.0`` version,
 all the security patches will be cherry-picked and released in ``2.6.*`` versions only. There will be no
 ``2.5.*`` versions  released after ``2.6.0`` has been released.
 

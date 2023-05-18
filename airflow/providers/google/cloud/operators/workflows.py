@@ -664,7 +664,11 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
             project_id=self.project_id or hook.project_id,
         )
 
-        return [Execution.to_dict(e) for e in execution_iter if e.start_time > self.start_date_filter]
+        return [
+            Execution.to_dict(e)
+            for e in execution_iter
+            if e.start_time.ToDatetime(tzinfo=pytz.UTC) > self.start_date_filter
+        ]
 
 
 class WorkflowsGetExecutionOperator(GoogleCloudBaseOperator):

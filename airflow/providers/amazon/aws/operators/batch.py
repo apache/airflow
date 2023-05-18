@@ -314,7 +314,7 @@ class BatchOperator(BaseOperator):
             if len(awslogs) > 1:
                 # there can be several log streams on multi-node jobs
                 self.log.warning(
-                    "out of all those logs, we can only link to one in the UI. " "Using the first one."
+                    "out of all those logs, we can only link to one in the UI. Using the first one."
                 )
 
             CloudWatchEventsLink.persist(

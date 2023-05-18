@@ -43,7 +43,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Session, declared_attr, joinedload, relationship, synonym
+from sqlalchemy.orm import Query, Session, declared_attr, joinedload, relationship, synonym
 from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
@@ -300,7 +300,7 @@ class DagRun(Base, LoggingMixin):
         state: DagRunState,
         session: Session,
         max_number: int | None = None,
-    ) -> list[DagRun]:
+    ) -> Query:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
 
