@@ -32,8 +32,10 @@ import type { HistoricalMetricsData } from "src/types";
 import type { PieSeriesOption } from "echarts";
 
 const formatData = (
-  data: HistoricalMetricsData[keyof HistoricalMetricsData]
+  data: HistoricalMetricsData[keyof HistoricalMetricsData] | undefined
 ): [number, PieSeriesOption["data"]] => {
+  if (data === undefined) return [0, []];
+
   let sum = 0;
   const formattedData: PieSeriesOption["data"] = [];
   Object.entries(data).forEach(([k, v]) => {
@@ -48,7 +50,7 @@ const formatData = (
 
 interface Props extends BoxProps {
   title: string;
-  data: HistoricalMetricsData[keyof HistoricalMetricsData];
+  data?: HistoricalMetricsData[keyof HistoricalMetricsData];
   colorPalette?: string[];
 }
 

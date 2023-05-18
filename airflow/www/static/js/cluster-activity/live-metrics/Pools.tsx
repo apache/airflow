@@ -24,12 +24,13 @@ import {
   Card,
   CardBody,
   CardHeader,
+  Center,
   Heading,
-  Spinner,
 } from "@chakra-ui/react";
 import { usePools } from "src/api";
 import ReactECharts, { ReactEChartsProps } from "src/components/ReactECharts";
 import type { API } from "src/types";
+import LoadingWrapper from "src/components/LoadingWrapper";
 
 const formatData = (
   data?: API.PoolCollection
@@ -43,7 +44,7 @@ const formatData = (
   ]) || [];
 
 const Pools = (props: BoxProps) => {
-  const { data, isSuccess } = usePools();
+  const { data, isError } = usePools();
 
   const option: ReactEChartsProps["option"] = {
     dataset: {
@@ -111,9 +112,9 @@ const Pools = (props: BoxProps) => {
   };
 
   return (
-    <Box {...props}>
-      {isSuccess ? (
-        <Card>
+    <Center {...props}>
+      <LoadingWrapper hasData={!!data} isError={isError}>
+        <Card w="100%">
           <CardHeader textAlign="center" p={3}>
             <Heading size="md">Pools Slots</Heading>
           </CardHeader>
@@ -123,10 +124,8 @@ const Pools = (props: BoxProps) => {
             </Box>
           </CardBody>
         </Card>
-      ) : (
-        <Spinner color="blue.500" speed="1s" mr="4px" size="xl" />
-      )}
-    </Box>
+      </LoadingWrapper>
+    </Center>
   );
 };
 

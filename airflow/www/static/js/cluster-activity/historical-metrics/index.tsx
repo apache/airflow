@@ -18,25 +18,19 @@
  */
 
 import React from "react";
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  Flex,
-  Heading,
-  Spinner,
-} from "@chakra-ui/react";
+import { Card, CardBody, CardHeader, Flex, Heading } from "@chakra-ui/react";
 import InfoTooltip from "src/components/InfoTooltip";
 import FilterBar from "src/cluster-activity/nav/FilterBar";
 import useFilters from "src/cluster-activity/useFilters";
 import { useHistoricalMetricsData } from "src/api";
 import PieChart from "src/cluster-activity/historical-metrics/PieChart";
+import LoadingWrapper from "src/components/LoadingWrapper";
 
 const HistoricalMetrics = () => {
   const {
     filters: { startDate, endDate },
   } = useFilters();
-  const { data } = useHistoricalMetricsData(startDate, endDate);
+  const { data, isError } = useHistoricalMetricsData(startDate, endDate);
   return (
     <Flex w="100%">
       <Card w="100%">
@@ -51,48 +45,48 @@ const HistoricalMetrics = () => {
         </CardHeader>
         <CardBody>
           <FilterBar />
-          {data ? (
-            <Flex flexWrap="wrap">
-              <PieChart
-                title="Dag Run States"
-                data={data.dagRunStates}
-                width="33%"
-                minW="300px"
-                minH="350px"
-                px={1}
-                colorPalette={[
-                  stateColors.failed,
-                  stateColors.queued,
-                  stateColors.running,
-                  stateColors.success,
-                ]}
-              />
-              <PieChart
-                title="Dag Run Types"
-                data={data.dagRunTypes}
-                width="33%"
-                minW="300px"
-                minH="350px"
-                px={1}
-                colorPalette={[
-                  stateColors.deferred,
-                  stateColors.queued,
-                  stateColors.success,
-                  stateColors.scheduled,
-                ]}
-              />
-              <PieChart
-                title="Task Instance States"
-                data={data.taskInstanceStates}
-                width="33%"
-                minW="300px"
-                minH="350px"
-                px={1}
-              />
-            </Flex>
-          ) : (
-            <Spinner color="blue.500" speed="1s" mr="4px" size="xl" />
-          )}
+          <Flex justifyContent="center" minH="200px" alignItems="center">
+            <LoadingWrapper hasData={!!data} isError={isError}>
+              <Flex flexWrap="wrap" width="100%">
+                <PieChart
+                  title="Dag Run States"
+                  data={data?.dagRunStates}
+                  width="33%"
+                  minW="300px"
+                  minH="350px"
+                  px={2}
+                  colorPalette={[
+                    stateColors.failed,
+                    stateColors.queued,
+                    stateColors.running,
+                    stateColors.success,
+                  ]}
+                />
+                <PieChart
+                  title="Dag Run Types"
+                  data={data?.dagRunTypes}
+                  width="33%"
+                  minW="300px"
+                  minH="350px"
+                  px={2}
+                  colorPalette={[
+                    stateColors.deferred,
+                    stateColors.queued,
+                    stateColors.success,
+                    stateColors.scheduled,
+                  ]}
+                />
+                <PieChart
+                  title="Task Instance States"
+                  data={data?.taskInstanceStates}
+                  width="33%"
+                  minW="300px"
+                  minH="350px"
+                  px={2}
+                />
+              </Flex>
+            </LoadingWrapper>
+          </Flex>
         </CardBody>
       </Card>
     </Flex>

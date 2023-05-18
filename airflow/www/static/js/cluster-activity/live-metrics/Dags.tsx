@@ -19,29 +19,32 @@
 
 import React from "react";
 import {
-  Box,
   BoxProps,
   Card,
   CardBody,
   CardHeader,
+  Center,
   Flex,
   Heading,
-  Spinner,
   Text,
 } from "@chakra-ui/react";
 import { useDags } from "src/api";
+import LoadingWrapper from "src/components/LoadingWrapper";
 
 const Dags = (props: BoxProps) => {
-  const { data: dataOnlyUnpaused, isSuccess: isSuccessUnpaused } = useDags({
+  const { data: dataOnlyUnpaused, isError: isErrorUnpaused } = useDags({
     paused: false,
   });
 
-  const { data, isSuccess } = useDags({});
+  const { data, isError } = useDags({});
 
   return (
-    <Box {...props}>
-      {isSuccess && isSuccessUnpaused ? (
-        <Card>
+    <Center {...props}>
+      <LoadingWrapper
+        hasData={!!data && !!dataOnlyUnpaused}
+        isError={isError || isErrorUnpaused}
+      >
+        <Card w="100%">
           <CardHeader textAlign="center" p={3}>
             <Heading size="md">DAGs</Heading>
           </CardHeader>
@@ -52,21 +55,19 @@ const Dags = (props: BoxProps) => {
               </Text>
               <Flex justifyContent="center" mt={2}>
                 <Heading as="b" size="xl">
-                  {dataOnlyUnpaused.totalEntries}
+                  {dataOnlyUnpaused?.totalEntries}
                 </Heading>
               </Flex>
             </Flex>
             <Flex justifyContent="end" textAlign="right">
               <Text size="md" color="gray.500">
-                on a total of <Text as="b">{data.totalEntries}</Text> DAGs
+                on a total of <Text as="b">{data?.totalEntries}</Text> DAGs
               </Text>
             </Flex>
           </CardBody>
         </Card>
-      ) : (
-        <Spinner color="blue.500" speed="1s" mr="4px" size="xl" />
-      )}
-    </Box>
+      </LoadingWrapper>
+    </Center>
   );
 };
 

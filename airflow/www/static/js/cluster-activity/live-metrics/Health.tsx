@@ -20,20 +20,20 @@
 import React from "react";
 import {
   Badge,
-  Box,
   BoxProps,
   Card,
   CardBody,
   CardHeader,
+  Center,
   Flex,
   Heading,
-  Spinner,
   Stack,
   Text,
 } from "@chakra-ui/react";
 import { useHealth } from "src/api";
 import type { API } from "src/types";
 import Time from "src/components/Time";
+import LoadingWrapper from "src/components/LoadingWrapper";
 
 const StatusRow = ({ status }: { status?: API.HealthStatus }) => (
   <Stack direction="row">
@@ -50,12 +50,12 @@ const StatusRow = ({ status }: { status?: API.HealthStatus }) => (
 );
 
 const Health = (props: BoxProps) => {
-  const { data, isSuccess } = useHealth();
+  const { data, isError } = useHealth();
 
   return (
-    <Box {...props}>
-      {isSuccess ? (
-        <Card>
+    <Center {...props}>
+      <LoadingWrapper hasData={!!data} isError={isError}>
+        <Card w="100%">
           <CardHeader textAlign="center" p={3}>
             <Heading size="md">Health</Heading>
           </CardHeader>
@@ -91,10 +91,8 @@ const Health = (props: BoxProps) => {
             </Flex>
           </CardBody>
         </Card>
-      ) : (
-        <Spinner color="blue.500" speed="1s" mr="4px" size="xl" />
-      )}
-    </Box>
+      </LoadingWrapper>
+    </Center>
   );
 };
 

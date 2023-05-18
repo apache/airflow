@@ -24,10 +24,10 @@ import {
   Card,
   CardBody,
   CardHeader,
+  Center,
   Flex,
   Heading,
   Link,
-  Spinner,
   Table,
   Tbody,
   Td,
@@ -38,9 +38,10 @@ import {
 } from "@chakra-ui/react";
 import { useDagRuns } from "src/api";
 import { formatDuration, getDuration } from "src/datetime_utils";
+import LoadingWrapper from "src/components/LoadingWrapper";
 
 const DagRuns = (props: BoxProps) => {
-  const { data, isSuccess } = useDagRuns({
+  const { data, isError } = useDagRuns({
     dagId: "~",
     state: ["running"],
     orderBy: "start_date",
@@ -48,9 +49,9 @@ const DagRuns = (props: BoxProps) => {
   });
 
   return (
-    <Box {...props}>
-      {isSuccess ? (
-        <Card>
+    <Center {...props}>
+      <LoadingWrapper hasData={!!data} isError={isError}>
+        <Card w="100%">
           <CardHeader textAlign="center" p={3}>
             <Heading size="md">Dag Runs</Heading>
           </CardHeader>
@@ -111,16 +112,14 @@ const DagRuns = (props: BoxProps) => {
             </Flex>
             <Flex justifyContent="end" textAlign="right">
               <Text size="md" color="gray.500">
-                on a total of <Text as="b">{data.totalEntries}</Text> running
+                on a total of <Text as="b">{data?.totalEntries}</Text> running
                 Dag Runs
               </Text>
             </Flex>
           </CardBody>
         </Card>
-      ) : (
-        <Spinner color="blue.500" speed="1s" mr="4px" size="xl" />
-      )}
-    </Box>
+      </LoadingWrapper>
+    </Center>
   );
 };
 

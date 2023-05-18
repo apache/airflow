@@ -38,13 +38,20 @@ const LiveMetrics = () => (
         </Flex>
       </CardHeader>
       <CardBody>
-        <Flex flexWrap="wrap">
-          <Flex direction="column" width="25%" minW="300px" px={1}>
+        <Flex flexWrap="wrap" alignItems="center">
+          <Flex
+            direction="column"
+            w="25%"
+            minW="300px"
+            minH="200px"
+            px={2}
+            justifyContent="space-around"
+          >
             <Dags />
             <DagRuns />
           </Flex>
-          <Pools width="50%" minW="300px" px={1} />
-          <Health width="25%" minW="300px" px={1} />
+          <Pools width="50%" minW="300px" px={2} />
+          <Health width="25%" minW="300px" px={2} />
         </Flex>
       </CardBody>
     </Card>
