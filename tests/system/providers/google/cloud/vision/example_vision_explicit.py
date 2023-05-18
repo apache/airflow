@@ -107,7 +107,7 @@ with models.DAG(
     copy_single_file = GCSToGCSOperator(
         task_id="copy_single_gcs_file",
         source_bucket=BUCKET_NAME_SRC,
-        source_object=PATH_SRC,
+        source_object=[PATH_SRC],
         destination_bucket=BUCKET_NAME,
         destination_object=FILE_NAME,
     )
@@ -257,6 +257,8 @@ with models.DAG(
     )
 
     chain(
+        create_bucket,
+        copy_single_file,
         product_set_create_2,
         product_set_get_2,
         product_set_update_2,

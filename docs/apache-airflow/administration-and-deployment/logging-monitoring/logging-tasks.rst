@@ -102,15 +102,19 @@ the example below.
 
     $ airflow info
     ...
-    airflow on PATH: [True]
+    Apache Airflow
+    version                | 2.7.0.dev0
+    executor               | LocalExecutor
+    task_logging_handler   | airflow.utils.log.file_task_handler.FileTaskHandler
+    sql_alchemy_conn       | postgresql+psycopg2://postgres:airflow@postgres/airflow
+    dags_folder            | /files/dags
+    plugins_folder         | /root/airflow/plugins
+    base_log_folder        | /root/airflow/logs
+    remote_base_log_folder |
 
-    Executor: [SequentialExecutor]
-    Task Logging Handlers: [StackdriverTaskHandler]
-    SQL Alchemy Conn: [sqlite://///root/airflow/airflow.db]
-    DAGs Folder: [/root/airflow/dags]
-    Plugins Folder: [/root/airflow/plugins]
-    Base Log Folder: [/root/airflow/logs]
+    [skipping the remaining outputs for brevity]
 
+The output of ``airflow info`` above is truncated to only display the section that pertains to the logging configuration.
 You can also run ``airflow config list`` to check that the logging configuration options have valid values.
 
 .. _write-logs-advanced:

@@ -70,7 +70,7 @@ class TestDynamodbToS3:
         ]
         table = MagicMock()
         table.return_value.scan.side_effect = responses
-        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
+        mock_aws_dynamodb_hook.return_value.conn.Table = table
 
         s3_client = MagicMock()
         s3_client.return_value.upload_file = self.mock_upload_file
@@ -99,7 +99,7 @@ class TestDynamodbToS3:
         ]
         table = MagicMock()
         table.return_value.scan.side_effect = responses
-        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
+        mock_aws_dynamodb_hook.return_value.conn.Table = table
 
         s3_client = MagicMock()
         s3_client.return_value.upload_file = self.mock_upload_file
@@ -198,7 +198,7 @@ class TestDynamodbToS3:
         ]
         table = MagicMock()
         table.return_value.scan.side_effect = responses
-        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
+        mock_aws_dynamodb_hook.return_value.conn.Table = table
 
         s3_client = MagicMock()
         s3_client.return_value.upload_file = self.mock_upload_file
@@ -234,7 +234,7 @@ class TestDynamodbToS3:
         ]
         table = MagicMock()
         table.return_value.scan.side_effect = responses
-        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
+        mock_aws_dynamodb_hook.return_value.conn.Table = table
 
         s3_client = MagicMock()
         s3_client.return_value.upload_file = self.mock_upload_file
@@ -272,7 +272,7 @@ class TestDynamodbToS3:
         ]
         table = MagicMock()
         table.return_value.scan.side_effect = responses
-        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
+        mock_aws_dynamodb_hook.return_value.conn.Table = table
 
         s3_client = MagicMock()
         s3_client.return_value.upload_file = self.mock_upload_file
@@ -356,4 +356,4 @@ class TestDynamodbToS3:
                 s3_bucket_name="airflow-bucket",
                 file_size=4000,
                 export_time=datetime(year=3000, month=1, day=1),
-            )
+            ).execute(context={})

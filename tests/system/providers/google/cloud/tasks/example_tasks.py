@@ -18,6 +18,9 @@
 """
 Example Airflow DAG that creates and deletes Queues and creates, gets, lists,
 runs and deletes Tasks in the Google Cloud Tasks service in the Google Cloud.
+
+Required setup:
+- GCP_APP_ENGINE_LOCATION: GCP Project's App Engine location `gcloud app describe | grep locationId`.
 """
 from __future__ import annotations
 
@@ -48,7 +51,7 @@ DAG_ID = "cloud_tasks_tasks"
 timestamp = timestamp_pb2.Timestamp()
 timestamp.FromDatetime(datetime.now() + timedelta(hours=12))
 
-LOCATION = "europe-west2"
+LOCATION = os.environ.get("GCP_APP_ENGINE_LOCATION", "europe-west2")
 # queue cannot use recent names even if queue was removed
 QUEUE_ID = f"queue-{ENV_ID}-{DAG_ID.replace('_', '-')}"
 TASK_NAME = "task-to-run"
@@ -127,6 +130,7 @@ with models.DAG(
         location=LOCATION,
         queue_name=QUEUE_ID + "{{ task_instance.xcom_pull(task_ids='random_string') }}",
         task_name=TASK_NAME + "{{ task_instance.xcom_pull(task_ids='random_string') }}",
+        retry=Retry(maximum=10.0),
         task_id="run_task",
     )
     # [END run_task]
