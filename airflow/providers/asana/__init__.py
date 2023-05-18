@@ -35,7 +35,9 @@ version = "2.2.0"
 try:
     airflow_version = airflow.__version__
 except Exception:
-    airflow_version = airflow.version.version
+    from importlib.metadata import version
+
+    version("airflow")
 
 if packaging.version.parse(airflow_version) < packaging.version.parse("2.4.0"):
     raise RuntimeError(

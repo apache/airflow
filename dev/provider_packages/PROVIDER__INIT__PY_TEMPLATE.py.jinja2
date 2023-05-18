@@ -53,7 +53,9 @@ version = "{{ RELEASE }}{{ VERSION_SUFFIX }}"
 try:
     airflow_version = airflow.__version__
 except Exception:
-    airflow_version = airflow.version.version
+    from importlib.metadata import version
+
+    version("airflow")
 
 if packaging.version.parse(airflow_version) < packaging.version.parse("{{ MIN_AIRFLOW_VERSION }}"):
     raise RuntimeError(
