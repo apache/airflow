@@ -523,5 +523,5 @@ class FileTaskHandler(logging.Handler):
         return messages, logs
 
     def _read_remote_logs(self, ti, try_number, metadata=None):
-        """Implement in subclasses to read from the remote service"""
+        """Implement in subclasses to read from the remote service."""
         raise NotImplementedError

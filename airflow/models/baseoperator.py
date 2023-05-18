@@ -1043,7 +1043,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def __lt__(self, other):
         """
         Called for [Inlet] > [Operator] or [Operator] < [Inlet], so that if other is
-        an attr annotated object it is set as an inlet to this operator
+        an attr annotated object it is set as an inlet to this operator.
         """
         if not isinstance(other, Iterable):
             other = [other]
@@ -1069,19 +1069,25 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             self.set_xcomargs_dependencies()
 
     def add_inlets(self, inlets: Iterable[Any]):
-        """Sets inlets to this operator"""
+        """Sets inlets to this operator."""
         self.inlets.extend(inlets)
 
     def add_outlets(self, outlets: Iterable[Any]):
-        """Defines the outlets of this operator"""
+        """Defines the outlets of this operator."""
         self.outlets.extend(outlets)
 
     def get_inlet_defs(self):
-        """:meta private:"""
+        """Gets inlet definitions on this task.
+
+        :meta private:
+        """
         return self.inlets
 
     def get_outlet_defs(self):
-        """:meta private:"""
+        """Gets outlet definitions on this task.
+
+        :meta private:
+        """
         return self.outlets
 
     def get_dag(self) -> DAG | None:
@@ -1089,7 +1095,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @property  # type: ignore[override]
     def dag(self) -> DAG:  # type: ignore[override]
-        """Returns the Operator's DAG if set, otherwise raises an error"""
+        """Returns the Operator's DAG if set, otherwise raises an error."""
         if self._dag:
             return self._dag
         else:
@@ -1141,7 +1147,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def prepare_for_execution(self) -> BaseOperator:
         """
         Lock task for execution to disable custom action in __setattr__ and
-        returns a copy of the task
+        returns a copy of the task.
         """
         other = copy.copy(self)
         other._lock_for_execution = True
@@ -1407,12 +1413,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @property
     def task_type(self) -> str:
-        """@property: type of the task"""
+        """@property: type of the task."""
         return self.__class__.__name__
 
     @property
     def operator_name(self) -> str:
-        """@property: use a more friendly display name for the operator, if set"""
+        """@property: use a more friendly display name for the operator, if set."""
         try:
             return self.custom_operator_name  # type: ignore
         except AttributeError:
@@ -1430,7 +1436,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @property
     def output(self) -> XComArg:
-        """Returns reference to XCom pushed by current operator"""
+        """Returns reference to XCom pushed by current operator."""
         from airflow.models.xcom_arg import XComArg
 
         return XComArg(operator=self)
@@ -1543,7 +1549,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     @property
     def inherits_from_empty_operator(self):
-        """Used to determine if an Operator is inherited from EmptyOperator"""
+        """Used to determine if an Operator is inherited from EmptyOperator."""
         # This looks like `isinstance(self, EmptyOperator) would work, but this also
         # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
         # of its subclasses (which don't inherit from anything but BaseOperator).
@@ -1567,7 +1573,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
-        """:meta private:"""
+        """Get the "normal" operator from the current operator.
+
+        Since a BaseOperator is not mapped to begin with, this simply returns
+        the original operator.
+
+        :meta private:
+        """
         return self
 
 

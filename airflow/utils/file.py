@@ -40,7 +40,7 @@ log = logging.getLogger(__name__)
 
 
 class _IgnoreRule(Protocol):
-    """Interface for ignore rules for structural subtyping"""
+    """Interface for ignore rules for structural subtyping."""
 
     @staticmethod
     def compile(pattern: str, base_dir: Path, definition_file: Path) -> _IgnoreRule | None:
@@ -51,18 +51,18 @@ class _IgnoreRule(Protocol):
 
     @staticmethod
     def match(path: Path, rules: list[_IgnoreRule]) -> bool:
-        """Match a candidate absolute path against a list of rules"""
+        """Match a candidate absolute path against a list of rules."""
 
 
 class _RegexpIgnoreRule(NamedTuple):
-    """Typed namedtuple with utility functions for regexp ignore rules"""
+    """Typed namedtuple with utility functions for regexp ignore rules."""
 
     pattern: Pattern
     base_dir: Path
 
     @staticmethod
     def compile(pattern: str, base_dir: Path, definition_file: Path) -> _IgnoreRule | None:
-        """Build an ignore rule from the supplied regexp pattern and log a useful warning if it is invalid"""
+        """Build an ignore rule from the supplied regexp pattern and log a useful warning if it is invalid."""
         try:
             return _RegexpIgnoreRule(re.compile(pattern), base_dir)
         except re.error as e:
@@ -71,7 +71,7 @@ class _RegexpIgnoreRule(NamedTuple):
 
     @staticmethod
     def match(path: Path, rules: list[_IgnoreRule]) -> bool:
-        """Match a list of ignore rules against the supplied path"""
+        """Match a list of ignore rules against the supplied path."""
         for rule in rules:
             if not isinstance(rule, _RegexpIgnoreRule):
                 raise ValueError(f"_RegexpIgnoreRule cannot match rules of type: {type(rule)}")
@@ -81,7 +81,7 @@ class _RegexpIgnoreRule(NamedTuple):
 
 
 class _GlobIgnoreRule(NamedTuple):
-    """Typed namedtuple with utility functions for glob ignore rules"""
+    """Typed namedtuple with utility functions for glob ignore rules."""
 
     pattern: Pattern
     raw_pattern: str
@@ -90,7 +90,7 @@ class _GlobIgnoreRule(NamedTuple):
 
     @staticmethod
     def compile(pattern: str, _, definition_file: Path) -> _IgnoreRule | None:
-        """Build an ignore rule from the supplied glob pattern and log a useful warning if it is invalid"""
+        """Build an ignore rule from the supplied glob pattern and log a useful warning if it is invalid."""
         relative_to: Path | None = None
         if pattern.strip() == "/":
             # "/" doesn't match anything in gitignore
@@ -107,7 +107,7 @@ class _GlobIgnoreRule(NamedTuple):
 
     @staticmethod
     def match(path: Path, rules: list[_IgnoreRule]) -> bool:
-        """Match a list of ignore rules against the supplied path"""
+        """Match a list of ignore rules against the supplied path."""
         matched = False
         for r in rules:
             if not isinstance(r, _GlobIgnoreRule):
@@ -123,7 +123,7 @@ class _GlobIgnoreRule(NamedTuple):
 
 
 def TemporaryDirectory(*args, **kwargs):
-    """This function is deprecated. Please use `tempfile.TemporaryDirectory`"""
+    """This function is deprecated. Please use `tempfile.TemporaryDirectory`."""
     import warnings
     from tempfile import TemporaryDirectory as TmpDir
 
@@ -265,6 +265,7 @@ def find_path_from_directory(
 ) -> Generator[str, None, None]:
     """
     Recursively search the base path and return the list of file paths that should not be ignored.
+
     :param base_dir_path: the base path to be searched
     :param ignore_file_name: the file name in which specifies the patterns of files/dirs to be ignored
     :param ignore_file_syntax: the syntax of patterns in the ignore file: regexp or glob

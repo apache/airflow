@@ -519,7 +519,7 @@ class DagFileProcessorManager(LoggingMixin):
     ):
         """
         Detects DAGs which are no longer present in files.
-        Deactivate them and remove them in the serialized_dag table
+        Deactivate them and remove them in the serialized_dag table.
         """
         to_deactivate = set()
         query = session.query(DagModel.dag_id, DagModel.fileloc, DagModel.last_parsed_time).filter(
@@ -891,7 +891,7 @@ class DagFileProcessorManager(LoggingMixin):
     def get_pid(self, file_path) -> int | None:
         """
         Retrieve the PID of the process processing the given file or None if the file is not being processed.
-        :param file_path: the path to the file that's being processed
+        :param file_path: the path to the file that's being processed.
         """
         if file_path in self._processors:
             return self._processors[file_path].pid
@@ -950,7 +950,7 @@ class DagFileProcessorManager(LoggingMixin):
         Retrieve the last start time for processing a specific path.
         :param file_path: the path to the file that's being processed
         :return: the start time of the process that's processing the
-            specified file or None if the file is not currently being processed
+            specified file or None if the file is not currently being processed.
         """
         if file_path in self._processors:
             return self._processors[file_path].start_time
@@ -959,7 +959,7 @@ class DagFileProcessorManager(LoggingMixin):
     def get_run_count(self, file_path) -> int:
         """
         The number of times the given file has been parsed.
-        :param file_path: the path to the file that's being processed
+        :param file_path: the path to the file that's being processed.
         """
         stat = self._file_stats.get(file_path)
         return stat.run_count if stat else 0
@@ -1233,7 +1233,7 @@ class DagFileProcessorManager(LoggingMixin):
             self._processors.pop(proc)
 
     def _add_paths_to_queue(self, file_paths_to_enqueue: list[str], add_at_front: bool):
-        """Adds stuff to the back or front of the file queue, unless it's already present"""
+        """Adds stuff to the back or front of the file queue, unless it's already present."""
         new_file_paths = list(p for p in file_paths_to_enqueue if p not in self._file_path_queue)
         if add_at_front:
             self._file_path_queue.extendleft(new_file_paths)
