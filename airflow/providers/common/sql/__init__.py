@@ -26,9 +26,9 @@ from __future__ import annotations
 
 import packaging.version
 
-__all__ = ["version"]
+__all__ = ["__version__"]
 
-version = "1.5.0"
+__version__ = "1.5.0"
 
 try:
     from airflow import __version__ as airflow_version
@@ -37,5 +37,5 @@ except ImportError:
 
 if packaging.version.parse(airflow_version) < packaging.version.parse("2.4.0"):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-common-sql:{version}` requires Apache Airflow 2.4.0+"
+        f"The package `apache-airflow-providers-common-sql:{__version__}` requires Apache Airflow 2.4.0+"  # NOQA: E501
     )
