@@ -1334,6 +1334,13 @@ hive:
 webserver:
   description: ~
   options:
+    config_file:
+      description: |
+        Path of webserver config file used for configuring the webserver parameters
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "{AIRFLOW_HOME}/webserver_config.py"
     base_url:
       description: |
         The base url of your website as airflow cannot guess what domain or
