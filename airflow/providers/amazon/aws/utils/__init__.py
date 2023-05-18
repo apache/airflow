@@ -74,7 +74,7 @@ def retry_with_backoff(retries=5, backoff_in_seconds=1):
 
                     method_name = f"{func.__module__}.{func.__qualname__}"
                     log.warning(
-                        "The method %s failed. Retrying with exponential backoff. Retry %s. " "Exception %s.",
+                        "The method %s failed. Retrying with exponential backoff. Retry %s. Exception %s.",
                         method_name,
                         retries,
                         e,
