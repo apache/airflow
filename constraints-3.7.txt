@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-18T07:23:35Z
+# This constraints file was automatically generated on 2023-05-18T18:44:55Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -418,9 +418,9 @@ oauthlib==3.2.2
 objsize==0.6.1
 openapi-schema-validator==0.4.4
 openapi-spec-validator==0.5.6
-openlineage-integration-common==0.25.0
-openlineage-python==0.25.0
-openlineage_sql==0.25.0
+openlineage-integration-common==0.26.0
+openlineage-python==0.26.0
+openlineage_sql==0.26.0
 openpyxl==3.1.2
 opentelemetry-api==1.15.0
 opentelemetry-exporter-otlp-proto-grpc==1.15.0
