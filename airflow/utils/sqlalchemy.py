@@ -51,7 +51,6 @@ class UtcDateTime(TypeDecorator):
     """
     Almost equivalent to :class:`~sqlalchemy.types.TIMESTAMP` with
     ``timezone=True`` option, but it differs from that by:
-
     - Never silently take naive :class:`~datetime.datetime`, instead it
       always raise :exc:`ValueError` unless time zone aware value.
     - :class:`~datetime.datetime` value's :attr:`~datetime.datetime.tzinfo`
@@ -59,8 +58,7 @@ class UtcDateTime(TypeDecorator):
     - Unlike SQLAlchemy's built-in :class:`~sqlalchemy.types.TIMESTAMP`,
       it never return naive :class:`~datetime.datetime`, but time zone
       aware value, even with SQLite or MySQL.
-    - Always returns TIMESTAMP in UTC
-
+    - Always returns TIMESTAMP in UTC.
     """
 
     impl = TIMESTAMP(timezone=True)
@@ -120,7 +118,7 @@ class ExtendedJSON(TypeDecorator):
     cache_ok = True
 
     def db_supports_json(self):
-        """Checks if the database supports JSON (i.e. is NOT MSSQL)"""
+        """Checks if the database supports JSON (i.e. is NOT MSSQL)."""
         return not conf.get("database", "sql_alchemy_conn").startswith("mssql")
 
     def load_dialect_impl(self, dialect) -> TypeEngine:
@@ -401,7 +399,7 @@ def nulls_first(col, session: Session) -> dict[str, Any]:
     """
     Adds a nullsfirst construct to the column ordering. Currently only Postgres supports it.
     In MySQL & Sqlite NULL values are considered lower than any non-NULL value, therefore, NULL values
-    appear first when the order is ASC (ascending)
+    appear first when the order is ASC (ascending).
     """
     if session.bind.dialect.name == "postgresql":
         return nullsfirst(col)
@@ -431,7 +429,7 @@ def with_row_locks(query, session: Session, **kwargs):
 
 
 class CommitProhibitorGuard:
-    """Context manager class that powers prohibit_commit"""
+    """Context manager class that powers prohibit_commit."""
 
     expected_commit = False
 
@@ -484,7 +482,7 @@ def prohibit_commit(session):
 
 
 def is_lock_not_available_error(error: OperationalError):
-    """Check if the Error is about not being able to acquire lock"""
+    """Check if the Error is about not being able to acquire lock."""
     # DB specific error codes:
     # Postgres: 55P03
     # MySQL: 3572, 'Statement aborted because lock(s) could not be acquired immediately and NOWAIT

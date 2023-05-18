@@ -43,7 +43,7 @@ from airflow.utils.net import get_hostname
 def get_components(principal) -> list[str] | None:
     """
     Returns components retrieved from the kerberos principal.
-    -> (short name, instance (FQDN), realm)
+    -> (short name, instance (FQDN), realm).
 
     ``principal`` .
     """

@@ -1542,7 +1542,7 @@ Here is the typical session that you need to do to run system tests:
 
 .. code-block:: bash
 
-   breeze stop
+   breeze down
    breeze --python 3.7 --db-reset --forward-credentials
 
 This will:
@@ -1598,7 +1598,7 @@ Breeze session. They are usually expensive to run.
 
 .. code-block:: bash
 
-    breeze stop
+    breeze down
     breeze --python 3.7 --db-reset --forward-credentials
 
 2. Run create action in helper (to create slowly created resources):

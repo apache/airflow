@@ -45,7 +45,7 @@ def date_range(
     """
     Get a set of dates as a list based on a start, end and delta, delta
     can be something that can be added to `datetime.datetime`
-    or a cron expression as a `str`
+    or a cron expression as a `str`.
 
     .. code-block:: pycon
         >>> from airflow.utils.dates import date_range
@@ -140,7 +140,7 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
     """
     Returns the datetime of the form start_date + i * delta
     which is closest to dt for any non-negative integer i.
-    Note that delta may be a datetime.timedelta or a dateutil.relativedelta
+    Note that delta may be a datetime.timedelta or a dateutil.relativedelta.
 
     .. code-block:: pycon
 
@@ -223,7 +223,7 @@ def infer_time_unit(time_seconds_arr):
     """
     Determine the most appropriate time unit for an array of time durations
     specified in seconds.
-    e.g. 5400 seconds => 'minutes', 36000 seconds => 'hours'
+    e.g. 5400 seconds => 'minutes', 36000 seconds => 'hours'.
     """
     if len(time_seconds_arr) == 0:
         return "hours"

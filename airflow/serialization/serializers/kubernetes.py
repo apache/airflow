@@ -49,7 +49,7 @@ def serialize(o: object) -> tuple[U, str, int, bool]:
         def safe_get_name(pod):
             """
             We're running this in an except block, so we don't want it to
-            fail under any circumstances, e.g. by accessing an attribute that isn't there
+            fail under any circumstances, e.g. by accessing an attribute that isn't there.
             """
             try:
                 return pod.metadata.name

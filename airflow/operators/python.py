@@ -54,7 +54,7 @@ def task(python_callable: Callable | None = None, multiple_outputs: bool | None 
     """
     Deprecated function.
     Calls @task.python and allows users to turn a python function into
-    an Airflow task. Please use the following instead:
+    an Airflow task. Please use the following instead.
 
     from airflow.decorators import task
 

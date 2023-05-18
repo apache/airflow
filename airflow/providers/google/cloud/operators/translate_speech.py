@@ -151,7 +151,7 @@ class CloudTranslateSpeechOperator(GoogleCloudBaseOperator):
         )
 
         recognize_result = speech_to_text_hook.recognize_speech(config=self.config, audio=self.audio)
-        recognize_dict = MessageToDict(recognize_result)
+        recognize_dict = MessageToDict(recognize_result._pb)
 
         self.log.info("Recognition operation finished")
 
