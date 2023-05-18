@@ -86,7 +86,7 @@ class TestEmrAddStepsOperator:
             pytest.param(None, None, id="both-none"),
         ],
     )
-    def test_validate_mutually_exclusive_args(self, job_flow_id, job_flow_name):
+    def test_validate_both_none_args(self, job_flow_id, job_flow_name):
         with pytest.raises(AirflowException, match=EmrAddStepsOperator.EXCEPTION_MSG):
             EmrAddStepsOperator(
                 task_id="test_validate_mutually_exclusive_args",
