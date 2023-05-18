@@ -32,7 +32,7 @@ __all__ = ["version"]
 
 version = "3.2.0"
 
-if packaging.version.parse(airflow.version.version) < packaging.version.parse("2.4.0"):
+if packaging.version.parse(airflow.__version__) < packaging.version.parse("2.4.0"):
     raise RuntimeError(
         f"The package `apache-airflow-providers-redis:{version}` requires Apache Airflow 2.4.0+"
     )
