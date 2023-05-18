@@ -819,7 +819,11 @@ if PACKAGE_NAME == "apache-airflow":
 
 
 def skip_util_classes(app, what, name, obj, skip, options):
-    if (what == "data" and "STATICA_HACK" in name) or ":sphinx-autoapi-skip:" in obj.docstring:
+    if what == "data" and "STATICA_HACK" in name:
+        skip = True
+    elif ":sphinx-autoapi-skip:" in obj.docstring:
+        skip = True
+    elif ":meta private:" in obj.docstring:
         skip = True
     return skip
 
