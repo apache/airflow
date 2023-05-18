@@ -174,6 +174,12 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         we needed to store them with the prefix ``extra__kubernetes__``. This method
         handles the backcompat, i.e. if the extra dict contains prefixed fields.
         """
+        if field_name in ("xcom_sidecar_container_image", "xcom_sidecar_container_resources"):
+            warnings.warn(
+                f"Extra field {field_name} is deprecated and support will be removed in a future release.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
         if field_name.startswith("extra__"):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the 'extra__kubernetes__' prefix "
@@ -386,10 +392,21 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     def get_xcom_sidecar_container_image(self):
         """Returns the xcom sidecar image that defined in the connection"""
+        warnings.warn(
+            "Method 'get_xcom_sidecar_container_image' is deprecated and will be removed.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
         return self._get_field("xcom_sidecar_container_image")
 
     def get_xcom_sidecar_container_resources(self):
         """Returns the xcom sidecar resources that defined in the connection"""
+        warnings.warn(
+            "Method 'get_xcom_sidecar_container_resources' is deprecated and will be removed.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         field = self._get_field("xcom_sidecar_container_resources")
         if not field:
             return None
