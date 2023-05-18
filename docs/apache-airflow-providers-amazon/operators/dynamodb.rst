@@ -44,9 +44,9 @@ to wait for the presence of a matching DynamoDB item's attribute/value pair.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dynamodb.py
     :language: python
-    :start-after: [START howto_sensor_dynamodb]
+    :start-after: [START howto_sensor_dynamodb_value]
     :dedent: 4
-    :end-before: [END howto_sensor_dynamodb]
+    :end-before: [END howto_sensor_dynamodb_value]
 
 
 Reference
