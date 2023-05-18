@@ -227,6 +227,7 @@ class KubernetesPodOperator(BaseOperator):
         container name to use.
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
+    :param istio_enabled: Whether Istio is enabled in k8s cluster. False by default.
     """
 
     # This field can be overloaded at the instance level via base_container_name
@@ -303,6 +304,7 @@ class KubernetesPodOperator(BaseOperator):
         base_container_name: str | None = None,
         deferrable: bool = False,
         poll_interval: float = 2,
+        istio_enabled: bool = False,
         **kwargs,
     ) -> None:
         # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
@@ -384,6 +386,7 @@ class KubernetesPodOperator(BaseOperator):
         self.poll_interval = poll_interval
         self.remote_pod: k8s.V1Pod | None = None
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
+        self.istio_enabled = istio_enabled
 
     @cached_property
     def _incluster_namespace(self):
@@ -461,7 +464,7 @@ class KubernetesPodOperator(BaseOperator):
 
     @cached_property
     def pod_manager(self) -> PodManager:
-        return PodManager(kube_client=self.client)
+        return PodManager(kube_client=self.client, istio_enabled=self.istio_enabled)
 
     @cached_property
     def hook(self) -> PodOperatorHookProtocol:
@@ -687,13 +690,20 @@ class KubernetesPodOperator(BaseOperator):
             remote_pod=remote_pod,
         )
 
-    def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
+    def time_to_clean_up(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod) -> bool:
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, "status") else None
+        if self.istio_enabled:
+            return pod_phase != PodPhase.SUCCEEDED and not self.pod_manager.container_is_succeeded(
+                pod=pod, container_name="base"
+            )
+        else:
+            return pod_phase != PodPhase.SUCCEEDED
 
-        if pod_phase != PodPhase.SUCCEEDED or not self.is_delete_operator_pod:
+    def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
+        if (self.time_to_clean_up(pod=pod, remote_pod=remote_pod)) or (not self.is_delete_operator_pod):
             self.patch_already_checked(remote_pod, reraise=False)
 
-        if pod_phase != PodPhase.SUCCEEDED:
+        if self.time_to_clean_up(pod=pod, remote_pod=remote_pod):
             if self.log_events_on_failure:
                 self._read_pod_events(pod, reraise=False)
 
