@@ -885,7 +885,7 @@ logging:
         With this option AirFlow will create new handlers
         and send low level logs like INFO and WARNING to stdout,
         while sending higher severity logs to stderr.
-      version_added: 2.5.4
+      version_added: 2.7.0
       type: boolean
       example: ~
       default: "False"
