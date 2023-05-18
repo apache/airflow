@@ -102,7 +102,7 @@ def upgrade():
         if "id" in xcom_columns:
             if conn.dialect.name == "mssql":
                 constraint_dict = get_table_constraints(conn, "xcom")
-                drop_column_constraints(bop, "id", constraint_dict)
+                drop_column_constraints(operator=bop, column_name="id", constraint_dict=constraint_dict)
             bop.drop_column("id")
             bop.drop_index("idx_xcom_dag_task_date")
             # mssql doesn't allow primary keys with nullable columns
