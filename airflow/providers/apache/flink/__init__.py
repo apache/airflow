@@ -34,7 +34,7 @@ version = "1.1.0"
 
 try:
     airflow_version = airflow.__version__
-except ImportError:
+except Exception:
     airflow_version = airflow.version.version
 
 if packaging.version.parse(airflow_version) < packaging.version.parse("2.4.0"):

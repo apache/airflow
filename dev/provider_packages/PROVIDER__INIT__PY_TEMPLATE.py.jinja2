@@ -52,7 +52,7 @@ version = "{{ RELEASE }}{{ VERSION_SUFFIX }}"
 
 try:
     airflow_version = airflow.__version__
-except ImportError:
+except Exception:
     airflow_version = airflow.version.version
 
 if packaging.version.parse(airflow_version) < packaging.version.parse("{{ MIN_AIRFLOW_VERSION }}"):
