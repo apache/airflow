@@ -32,12 +32,7 @@ __all__ = ["version"]
 
 version = "3.3.0"
 
-try:
-    airflow_version = airflow.__version__
-except ImportError:
-    airflow_version = airflow.version.version
-
-if packaging.version.parse(airflow_version) < packaging.version.parse("2.4.0"):
+if packaging.version.parse(airflow.version.version) < packaging.version.parse("2.4.0"):
     raise RuntimeError(
         f"The package `apache-airflow-providers-yandex:{version}` requires Apache Airflow 2.4.0+"
     )
