@@ -165,10 +165,7 @@ def container_is_completed(pod: V1Pod, container_name: str) -> bool:
     Examines V1Pod ``pod`` to determine whether ``container_name`` is completed.
     If that container is present and completed, returns True.  Returns False otherwise.
     """
-    container_statuses = pod.status.container_statuses if pod and pod.status else None
-    if not container_statuses:
-        return False
-    container_status = next(iter([x for x in container_statuses if x.name == container_name]), None)
+    container_status = get_container_status(pod, container_name)
     if not container_status:
         return False
     return container_status.state.terminated is not None
@@ -181,10 +178,8 @@ def container_is_succeeded(pod: V1Pod, container_name: str) -> bool:
     """
     if not container_is_completed(pod, container_name):
         return False
-    container_statuses = pod.status.container_statuses if pod and pod.status else None
-    if not container_statuses:
-        return False
-    container_status = next(iter([x for x in container_statuses if x.name == container_name]), None)
+
+    container_status = get_container_status(pod, container_name)
     if not container_status:
         return False
     return container_status.state.terminated.exit_code == 0
@@ -297,6 +292,7 @@ class PodManager(LoggingMixin):
     def __init__(
         self,
         kube_client: client.CoreV1Api,
+        istio_enabled: bool = False,
     ):
         """
         Creates the launcher.
@@ -306,6 +302,7 @@ class PodManager(LoggingMixin):
         super().__init__()
         self._client = kube_client
         self._watch = watch.Watch()
+        self._istio_enabled = istio_enabled
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
         """Runs POD asynchronously."""
@@ -549,6 +546,13 @@ class PodManager(LoggingMixin):
             remote_pod = self.read_pod(pod)
             if remote_pod.status.phase in PodPhase.terminal_states:
                 break
+
+            if (
+                self._istio_enabled
+                and remote_pod.status.phase == PodPhase.RUNNING
+                and self.container_is_completed(remote_pod, "base")
+            ):
+                break
             self.log.info("Pod %s has phase %s", pod.metadata.name, remote_pod.status.phase)
             time.sleep(2)
         return remote_pod
@@ -586,6 +590,16 @@ class PodManager(LoggingMixin):
         """Reads pod and checks if container is terminated."""
         remote_pod = self.read_pod(pod)
         return container_is_terminated(pod=remote_pod, container_name=container_name)
+
+    def container_is_completed(self, pod: V1Pod, container_name: str) -> bool:
+        """Reads pod and checks if container is completed"""
+        remote_pod = self.read_pod(pod)
+        return container_is_completed(pod=remote_pod, container_name=container_name)
+
+    def container_is_succeeded(self, pod: V1Pod, container_name: str) -> bool:
+        """Reads pod and checks if container is succeeded"""
+        remote_pod = self.read_pod(pod)
+        return container_is_succeeded(pod=remote_pod, container_name=container_name)
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod_logs(
