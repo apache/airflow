@@ -282,7 +282,7 @@ dagrun_states = tuple(state.value for state in DagRunState)
 ARG_STATE = Arg(
     ("--state",),
     help="Only list the dag runs corresponding to the state",
-    metavar=f'({", ".join(dagrun_states)})',
+    metavar=", ".join(dagrun_states),
     choices=dagrun_states,
 )
 
