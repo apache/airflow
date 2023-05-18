@@ -185,7 +185,7 @@ def test_kubernetes_with_marked_as_setup(
 
     assert len(dag.task_group.children) == 1
     setup_task = dag.task_group.children["f"]
-    assert setup_task._is_setup
+    assert setup_task.is_setup
 
 
 def test_kubernetes_with_marked_as_teardown(
@@ -207,7 +207,7 @@ def test_kubernetes_with_marked_as_teardown(
 
     assert len(dag.task_group.children) == 1
     teardown_task = dag.task_group.children["f"]
-    assert teardown_task._is_teardown
+    assert teardown_task.is_teardown
 
 
 def test_kubernetes_with_mini_scheduler(
