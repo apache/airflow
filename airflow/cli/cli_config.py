@@ -282,7 +282,7 @@ dagrun_states = tuple(state.value for state in DagRunState)
 ARG_STATE = Arg(
     ("--state",),
     help="Only list the dag runs corresponding to the state",
-    metavar=str(dagrun_states),
+    metavar=f'({", ".join(dagrun_states)})',
     choices=dagrun_states,
 )
 
@@ -593,6 +593,7 @@ ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
 ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
 ARG_MAP_INDEX = Arg(("--map-index",), type=int, default=-1, help="Mapped task index")
 
+
 # database
 ARG_MIGRATION_TIMEOUT = Arg(
     ("-t", "--migration-wait-timeout"),
@@ -707,6 +708,7 @@ ARG_ACCESS_LOGFORMAT = Arg(
     default=conf.get("webserver", "ACCESS_LOGFORMAT"),
     help="The access log format for gunicorn logs",
 )
+
 
 # internal-api
 ARG_INTERNAL_API_PORT = Arg(
