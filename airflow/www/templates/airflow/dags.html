@@ -149,17 +149,21 @@
                 title="Show only paused DAGs">Paused <span class="badge">{{ "{:,}".format(status_count_paused) }}</span></a>
             </div>
           </div>
-          <div class="col-sm-2 col-md-2 text-justify">
+          <div class="col-sm-3 col-md-3 text-center">
             <div class="form-group btn-group">
               <a
                 href="{{ url_for('Airflow.index', status='running', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
                 class="btn {{ 'btn-primary' if status_filter == 'running' else 'btn-default' }}"
-                title="Show only currently running DAG runs">Running <span class="badge">{{ "{:,}".format(status_count_running) }}</span></a>
+                title="Show currently running DAG runs">Running <span class="badge">{{ "{:,}".format(status_count_running) }}</span></a>
+              <a
+                href="{{ url_for('Airflow.index', status='failed', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+                class="btn {{ 'btn-primary' if status_filter == 'failed' else 'btn-default' }}"
+                title="Show DAGs with failed latest DAG run">Failed <span class="badge">{{ "{:,}".format(status_count_failed) }}</span></a>
             </div>
           </div>
         </div>
       </div>
-      <div class="col-sm-2 col-md-2">
+      <div class="col-sm-6 col-md-2">
         <form id="tags_form" style="width: 100%; text-align: left;">
           <div class="form-group search-input" style="width:100%;">
             <select multiple name="tags" id="tags_filter" class="select2-drop-mask" style="width: 100%;">
@@ -175,7 +179,7 @@
           </div>
         </form>
       </div>
-      <div class="col-sm-2 col-md-2 col-md-offset-1 no-x-padding">
+      <div class="col-sm-6 col-md-2 col-md-offset-1 no-x-padding">
         <form id="search_form">
           <div class="form-group search-input" style="width: 100%;">
             <label for="dag_query" class="sr-only">Search DAGs</label>
@@ -190,7 +194,7 @@
           </div>
         </form>
       </div>
-      <div class="refresh-actions col-sm-2 col-md-2 no-x-padding">
+      <div class="refresh-actions col-sm-3 col-md-2 no-x-padding">
         {{ loading_dots(id='loading-dots', classes='refresh-loading') }}
         <label class="switch-label">
           <input class="switch-input" id="auto_refresh" type="checkbox">

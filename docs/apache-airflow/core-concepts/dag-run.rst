@@ -40,6 +40,10 @@ There are two possible terminal states for the DAG Run:
     Be careful if some of your tasks have defined some specific :ref:`trigger rule <concepts:trigger-rules>`.
     These can lead to some unexpected behavior, e.g. if you have a leaf task with trigger rule `"all_done"`, it will be executed regardless of the states of the rest of the tasks and if it will succeed, then the whole DAG Run will also be marked as ``success``, even if something failed in the middle.
 
+*Added in Airflow 2.7*
+
+DAGs that have a currently running DAG run can be shown on the UI dashboard in the "Running" tab. Similarly, DAGs whose latest DAG run is marked as failed can be found on the "Failed" tab.
+
 Cron Presets
 ''''''''''''
 
