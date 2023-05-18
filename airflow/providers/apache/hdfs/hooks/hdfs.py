@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,98 +14,38 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for HDFS operations"""
 from __future__ import annotations
 
-from typing import Any
-
-from airflow.configuration import conf
-from airflow.exceptions import AirflowException
+from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 
-try:
-    from snakebite.client import AutoConfigClient, Client, HAClient, Namenode
-
-    snakebite_loaded = True
-except ImportError:
-    snakebite_loaded = False
+_EXCEPTION_MESSAGE = """The old HDFS Hooks have been removed in 4.0.0 version of the apache.hdfs provider.
+Please convert your DAGs to use the WebHdfsHook or downgrade the provider to below 4.*
+if you want to continue using it.
+If you want to use earlier provider you can downgrade to latest released 3.* version
+using `pip install apache-airflow-providers-hdfs==3.2.1` (no constraints)
+"""
 
 
 class HDFSHookException(AirflowException):
-    """Exception specific for HDFS"""
+    """
+    This Exception has been removed and is not functional. Please convert your DAGs to use the
+    WebHdfsHook or downgrade the provider to below 4.* if you want to continue using it.
+    If you want to use earlier provider you can downgrade to latest released 3.* version
+    using `pip install apache-airflow-providers-hdfs==3.2.1` (no constraints).
+    """
+
+    def __init__(self, *args, **kwargs):
+        raise Exception(_EXCEPTION_MESSAGE)
 
 
 class HDFSHook(BaseHook):
     """
-    Interact with HDFS. This class is a wrapper around the snakebite library.
-
-    :param hdfs_conn_id: Connection id to fetch connection info
-    :param proxy_user: effective user for HDFS operations
-    :param autoconfig: use snakebite's automatically configured client
+    This Hook has been removed and is not functional. Please convert your DAGs to use the
+    WebHdfsHook or downgrade the provider to below 4.*. if you want to continue using it.
+    If you want to use earlier provider you can downgrade to latest released 3.* version
+    using `pip install apache-airflow-providers-hdfs==3.2.1` (no constraints).
     """
 
-    conn_name_attr = "hdfs_conn_id"
-    default_conn_name = "hdfs_default"
-    conn_type = "hdfs"
-    hook_name = "HDFS"
-
-    def __init__(
-        self,
-        hdfs_conn_id: str | set[str] = "hdfs_default",
-        proxy_user: str | None = None,
-        autoconfig: bool = False,
-    ):
-        super().__init__()
-        if not snakebite_loaded:
-            raise ImportError(
-                "This HDFSHook implementation requires snakebite, but "
-                "snakebite is not compatible with Python 3 "
-                "(as of August 2015). Please help by submitting a PR!"
-            )
-        self.hdfs_conn_id = {hdfs_conn_id} if isinstance(hdfs_conn_id, str) else hdfs_conn_id
-        self.proxy_user = proxy_user
-        self.autoconfig = autoconfig
-
-    def get_conn(self) -> Any:
-        """Returns a snakebite HDFSClient object."""
-        # When using HAClient, proxy_user must be the same, so is ok to always
-        # take the first.
-        effective_user = self.proxy_user
-        autoconfig = self.autoconfig
-        use_sasl = conf.get("core", "security") == "kerberos"
-
-        try:
-            connections = [self.get_connection(i) for i in self.hdfs_conn_id]
-
-            if not effective_user:
-                effective_user = connections[0].login
-            if not autoconfig:
-                autoconfig = connections[0].extra_dejson.get("autoconfig", False)
-            hdfs_namenode_principal = connections[0].extra_dejson.get("hdfs_namenode_principal")
-        except AirflowException:
-            if not autoconfig:
-                raise
-
-        if autoconfig:
-            # will read config info from $HADOOP_HOME conf files
-            client = AutoConfigClient(effective_user=effective_user, use_sasl=use_sasl)
-        elif len(connections) == 1:
-            client = Client(
-                connections[0].host,
-                connections[0].port,
-                effective_user=effective_user,
-                use_sasl=use_sasl,
-                hdfs_namenode_principal=hdfs_namenode_principal,
-            )
-        elif len(connections) > 1:
-            name_node = [Namenode(conn.host, conn.port) for conn in connections]
-            client = HAClient(
-                name_node,
-                effective_user=effective_user,
-                use_sasl=use_sasl,
-                hdfs_namenode_principal=hdfs_namenode_principal,
-            )
-        else:
-            raise HDFSHookException("conn_id doesn't exist in the repository and autoconfig is not specified")
-
-        return client
+    def __init__(self, *args, **kwargs):
+        raise Exception(_EXCEPTION_MESSAGE)
