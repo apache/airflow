@@ -125,12 +125,12 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     @property
     def roots(self) -> list[DAGNode]:
-        """Required by TaskMixin"""
+        """Required by TaskMixin."""
         return [op for op, _ in self.iter_references()]
 
     @property
     def leaves(self) -> list[DAGNode]:
-        """Required by TaskMixin"""
+        """Required by TaskMixin."""
         return [op for op, _ in self.iter_references()]
 
     def set_upstream(
@@ -206,7 +206,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         raise NotImplementedError()
 
     def __enter__(self):
-        if not self.operator._is_setup and not self.operator._is_teardown:
+        if not self.operator.is_setup and not self.operator.is_teardown:
             raise AirflowException("Only setup/teardown tasks can be used as context managers.")
         SetupTeardownContext.push_setup_teardown_task(self.operator)
         return self
@@ -243,7 +243,7 @@ class PlainXComArg(XComArg):
         return self.operator == other.operator and self.key == other.key
 
     def __getitem__(self, item: str) -> XComArg:
-        """Implements xcomresult['some_result_key']"""
+        """Implements xcomresult['some_result_key']."""
         if not isinstance(item, str):
             raise ValueError(f"XComArg only supports str lookup, received {type(item).__name__}")
         return PlainXComArg(operator=self.operator, key=item)
@@ -269,7 +269,7 @@ class PlainXComArg(XComArg):
 
     def __str__(self) -> str:
         """
-        Backward compatibility for old-style jinja used in Airflow Operators
+        Backward compatibility for old-style jinja used in Airflow Operators.
 
         **Example**: to use XComArg at BashOperator::
 

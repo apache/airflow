@@ -23,7 +23,7 @@ from typing import Any
 
 import pdpyras
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
 
@@ -140,7 +140,7 @@ class PagerdutyHook(BaseHook):
         warnings.warn(
             "This method will be deprecated. Please use the "
             "`airflow.providers.pagerduty.hooks.PagerdutyEventsHook` to interact with the Events API",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
 
@@ -159,3 +159,11 @@ class PagerdutyHook(BaseHook):
             images=images,
             links=links,
         )
+
+    def test_connection(self):
+        try:
+            session = pdpyras.APISession(self.token)
+            session.list_all("services", params={"query": "some_non_existing_service"})
+        except Exception:
+            return False, "connection test failed, invalid token"
+        return True, "connection tested successfully"

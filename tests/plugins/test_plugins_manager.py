@@ -22,6 +22,7 @@ import logging
 import os
 import sys
 import tempfile
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -30,6 +31,7 @@ from airflow.hooks.base import BaseHook
 from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from airflow.www import app as application
+from setup import AIRFLOW_SOURCES_ROOT
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
@@ -134,6 +136,11 @@ class TestPluginsRBAC:
         # Blueprint should be present in the app
         assert "test_plugin" in self.app.blueprints
         assert self.app.blueprints["test_plugin"].name == bp.name
+
+    def test_app_static_folder(self):
+
+        # Blueprint static folder should be properly set
+        assert AIRFLOW_SOURCES_ROOT / "airflow" / "www" / "static" == Path(self.app.static_folder).resolve()
 
 
 def test_flaskappbuilder_nomenu_views():

@@ -44,8 +44,9 @@ def provider_get(args):
                 output=args.output,
             )
         else:
-            print(f"Provider: {args.provider_name}")
-            print(f"Version: {provider_version}")
+            AirflowConsole().print_as(
+                data=[{"Provider": args.provider_name, "Version": provider_version}], output=args.output
+            )
     else:
         raise SystemExit(f"No such provider installed: {args.provider_name}")
 

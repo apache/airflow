@@ -80,6 +80,8 @@ REVISION_HEADS_MAP = {
     "2.5.1": "290244fb8b83",
     "2.5.2": "290244fb8b83",
     "2.5.3": "290244fb8b83",
+    "2.6.0": "98ae134e6fff",
+    "2.6.1": "98ae134e6fff",
 }
 
 
@@ -761,6 +763,7 @@ def _get_current_revision(session):
 def check_migrations(timeout):
     """
     Function to wait for all airflow migrations to complete.
+
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
@@ -803,7 +806,7 @@ def _configured_alembic_environment() -> Generator[EnvironmentContext, None, Non
 
 
 def check_and_run_migrations():
-    """Check and run migrations if necessary. Only use in a tty"""
+    """Check and run migrations if necessary. Only use in a tty."""
     with _configured_alembic_environment() as env:
         context = env.get_context()
         source_heads = set(env.script.get_heads())
@@ -937,7 +940,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
 
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     """
-    Check unique conn_id in connection table
+    Check unique conn_id in connection table.
 
     :param session:  session of the sqlalchemy
     """
@@ -960,7 +963,7 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
 
 def check_username_duplicates(session: Session) -> Iterable[str]:
     """
-    Check unique username in User & RegisterUser table
+    Check unique username in User & RegisterUser table.
 
     :param session:  session of the sqlalchemy
     :rtype: str
@@ -1078,7 +1081,7 @@ def check_table_for_duplicates(
 
 def check_conn_type_null(session: Session) -> Iterable[str]:
     """
-    Check nullable conn_type column in Connection table
+    Check nullable conn_type column in Connection table.
 
     :param session:  session of the sqlalchemy
     """
@@ -1450,7 +1453,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
 
 @provide_session
 def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
-    """:session: session of the sqlalchemy"""
+    """:session: session of the sqlalchemy."""
     check_functions: tuple[Callable[..., Iterable[str]], ...] = (
         check_conn_id_duplicates,
         check_conn_type_null,
@@ -1616,7 +1619,7 @@ def upgradedb(
 
 @provide_session
 def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
-    """Clear out the database"""
+    """Clear out the database."""
     if not settings.engine:
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
     log.info("Dropping tables that exist")

@@ -146,7 +146,7 @@ class BaseSecurityManager:
     @staticmethod
     def oauth_tokengetter(token=None):
         """Authentication (OAuth) token getter function.
-        Override to implement your own token getter method
+        Override to implement your own token getter method.
         """
         return _oauth_tokengetter(token)
 
@@ -296,7 +296,7 @@ class BaseSecurityManager:
 
     def create_login_manager(self, app) -> LoginManager:
         """
-        Override to implement your custom login manager instance
+        Override to implement your custom login manager instance.
 
         :param app: Flask app
         """
@@ -308,7 +308,7 @@ class BaseSecurityManager:
 
     def create_jwt_manager(self, app) -> JWTManager:
         """
-        Override to implement your custom JWT manager instance
+        Override to implement your custom JWT manager instance.
 
         :param app: Flask app
         """
@@ -351,22 +351,22 @@ class BaseSecurityManager:
 
     @property
     def get_url_for_registeruser(self):
-        """Gets the URL for Register User"""
+        """Gets the URL for Register User."""
         return url_for(f"{self.registeruser_view.endpoint}.{self.registeruser_view.default_view}")
 
     @property
     def get_user_datamodel(self):
-        """Gets the User data model"""
+        """Gets the User data model."""
         return self.user_view.datamodel
 
     @property
     def get_register_user_datamodel(self):
-        """Gets the Register User data model"""
+        """Gets the Register User data model."""
         return self.registerusermodelview.datamodel
 
     @property
     def builtin_roles(self):
-        """Get the builtin roles"""
+        """Get the builtin roles."""
         return self._builtin_roles
 
     @property
@@ -375,42 +375,42 @@ class BaseSecurityManager:
 
     @property
     def auth_type(self):
-        """Get the auth type"""
+        """Get the auth type."""
         return self.appbuilder.get_app.config["AUTH_TYPE"]
 
     @property
     def auth_username_ci(self):
-        """Gets the auth username for CI"""
+        """Gets the auth username for CI."""
         return self.appbuilder.get_app.config.get("AUTH_USERNAME_CI", True)
 
     @property
     def auth_role_admin(self):
-        """Gets the admin role"""
+        """Gets the admin role."""
         return self.appbuilder.get_app.config["AUTH_ROLE_ADMIN"]
 
     @property
     def auth_role_public(self):
-        """Gets the public role"""
+        """Gets the public role."""
         return self.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
 
     @property
     def auth_ldap_server(self):
-        """Gets the LDAP server object"""
+        """Gets the LDAP server object."""
         return self.appbuilder.get_app.config["AUTH_LDAP_SERVER"]
 
     @property
     def auth_ldap_use_tls(self):
-        """Should LDAP use TLS"""
+        """Should LDAP use TLS."""
         return self.appbuilder.get_app.config["AUTH_LDAP_USE_TLS"]
 
     @property
     def auth_user_registration(self):
-        """Will user self registration be allowed"""
+        """Will user self registration be allowed."""
         return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION"]
 
     @property
     def auth_user_registration_role(self):
-        """The default user self registration role"""
+        """The default user self registration role."""
         return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE"]
 
     @property
@@ -520,12 +520,12 @@ class BaseSecurityManager:
 
     @property
     def openid_providers(self):
-        """Openid providers"""
+        """Openid providers."""
         return self.appbuilder.get_app.config["OPENID_PROVIDERS"]
 
     @property
     def oauth_providers(self):
-        """Oauth providers"""
+        """Oauth providers."""
         return self.appbuilder.get_app.config["OAUTH_PROVIDERS"]
 
     @property
@@ -538,7 +538,7 @@ class BaseSecurityManager:
 
     @property
     def current_user(self):
-        """Current user object"""
+        """Current user object."""
         if current_user.is_authenticated:
             return g.user
         elif current_user_jwt:
@@ -586,16 +586,15 @@ class BaseSecurityManager:
 
     def get_oauth_token_secret_name(self, provider):
         """
-        Returns the token_secret name for the oauth provider
-        if none is configured defaults to oauth_secret
-        this is configured using OAUTH_PROVIDERS and token_secret
+        Returns the token_secret name for the oauth provider if none is configured defaults to oauth_secret.
+        This is configured using OAUTH_PROVIDERS and token_secret.
         """
         for _provider in self.oauth_providers:
             if _provider["name"] == provider:
                 return _provider.get("token_secret", "oauth_token_secret")
 
     def set_oauth_session(self, provider, oauth_response):
-        """Set the current session with OAuth user secrets"""
+        """Set the current session with OAuth user secrets."""
         # Get this provider key names for token_key and token_secret
         token_key = self.appbuilder.sm.get_oauth_token_key_name(provider)
         token_secret = self.appbuilder.sm.get_oauth_token_secret_name(provider)
@@ -609,7 +608,7 @@ class BaseSecurityManager:
     def get_oauth_user_info(self, provider, resp):
         """
         Since there are different OAuth API's with different ways to
-        retrieve user info
+        retrieve user info.
         """
         # for GITHUB
         if provider == "github" or provider == "githublocal":
@@ -893,14 +892,14 @@ class BaseSecurityManager:
     def _rotate_session_id(self):
         """
         Upon successful authentication when using the database session backend,
-        we need to rotate the session id
+        we need to rotate the session id.
         """
         if conf.get("webserver", "SESSION_BACKEND") == "database":
             session.sid = str(uuid4())
 
     def auth_user_db(self, username, password):
         """
-        Method for authenticating user, auth db style
+        Method for authenticating user, auth db style.
 
         :param username:
             The username or registered email address
@@ -1238,7 +1237,7 @@ class BaseSecurityManager:
 
     def auth_user_oid(self, email):
         """
-        Openid user Authentication
+        Openid user Authentication.
 
         :param email: user's email to authenticate
         """
@@ -1253,7 +1252,7 @@ class BaseSecurityManager:
 
     def auth_user_remote_user(self, username):
         """
-        REMOTE_USER user Authentication
+        REMOTE_USER user Authentication.
 
         :param username: user's username for remote auth
         """
@@ -1370,7 +1369,7 @@ class BaseSecurityManager:
             return None
 
     def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
-        """Checks permission on builtin role"""
+        """Checks permission on builtin role."""
         perms = self.builtin_roles.get(role.name, [])
         for (_resource_name, _action_name) in perms:
             if re.match(_resource_name, resource_name) and re.match(_action_name, action_name):
@@ -1381,9 +1380,9 @@ class BaseSecurityManager:
         self, user: User | None, action_name: str, resource_names: list[str] | None = None
     ) -> set[str]:
         """
-        Return a set of resource names with a certain action name
-        that a user has access to. Mainly used to fetch all menu permissions
-        on a single db call, will also check public permissions and builtin roles
+        Return a set of resource names with a certain action name that a user has access to.
+        Mainly used to fetch all menu permissions on a single db call, will also check public permissions
+        and builtin roles.
         """
         if not resource_names:
             resource_names = []
@@ -1444,7 +1443,7 @@ class BaseSecurityManager:
 
     def add_permissions_view(self, base_action_names, resource_name):  # Keep name for compatibility with FAB.
         """
-        Adds an action on a resource to the backend
+        Adds an action on a resource to the backend.
 
         :param base_action_names:
             list of permissions from view (all exposed methods):
@@ -1490,7 +1489,7 @@ class BaseSecurityManager:
 
     def add_permissions_menu(self, resource_name):
         """
-        Adds menu_access to resource on permission_resource
+        Adds menu_access to resource on permission_resource.
 
         :param resource_name:
             The resource name
@@ -1505,7 +1504,7 @@ class BaseSecurityManager:
 
     def security_cleanup(self, baseviews, menus):
         """
-        Will cleanup all unused permissions from the database
+        Will cleanup all unused permissions from the database.
 
         :param baseviews: A list of BaseViews class
         :param menus: Menu class
@@ -1529,47 +1528,47 @@ class BaseSecurityManager:
                 self.delete_resource(resource.name)
 
     def find_register_user(self, registration_hash):
-        """Generic function to return user registration"""
+        """Generic function to return user registration."""
         raise NotImplementedError
 
     def add_register_user(self, username, first_name, last_name, email, password="", hashed_password=""):
-        """Generic function to add user registration"""
+        """Generic function to add user registration."""
         raise NotImplementedError
 
     def del_register_user(self, register_user):
-        """Generic function to delete user registration"""
+        """Generic function to delete user registration."""
         raise NotImplementedError
 
     def get_user_by_id(self, pk):
-        """Generic function to return user by it's id (pk)"""
+        """Generic function to return user by it's id (pk)."""
         raise NotImplementedError
 
     def find_user(self, username=None, email=None):
-        """Generic function find a user by it's username or email"""
+        """Generic function find a user by it's username or email."""
         raise NotImplementedError
 
     def get_all_users(self):
-        """Generic function that returns all existing users"""
+        """Generic function that returns all existing users."""
         raise NotImplementedError
 
     def get_role_permissions_from_db(self, role_id: int) -> list[Permission]:
-        """Get all DB permissions from a role id"""
+        """Get all DB permissions from a role id."""
         raise NotImplementedError
 
     def add_user(self, username, first_name, last_name, email, role, password=""):
-        """Generic function to create user"""
+        """Generic function to create user."""
         raise NotImplementedError
 
     def update_user(self, user):
         """
-        Generic function to update user
+        Generic function to update user.
 
         :param user: User model to update to database
         """
         raise NotImplementedError
 
     def count_users(self):
-        """Generic function to count the existing users"""
+        """Generic function to count the existing users."""
         raise NotImplementedError
 
     def find_role(self, name):
@@ -1585,7 +1584,7 @@ class BaseSecurityManager:
         raise NotImplementedError
 
     def get_public_role(self):
-        """Returns all permissions from public role"""
+        """Returns all permissions from public role."""
         raise NotImplementedError
 
     def get_action(self, name: str) -> Action:
@@ -1603,12 +1602,12 @@ class BaseSecurityManager:
     def permission_exists_in_one_or_more_roles(
         self, resource_name: str, action_name: str, role_ids: list[int]
     ) -> bool:
-        """Finds and returns permission views for a group of roles"""
+        """Finds and returns permission views for a group of roles."""
         raise NotImplementedError
 
     def create_action(self, name):
         """
-        Adds a permission to the backend, model permission
+        Adds a permission to the backend, model permission.
 
         :param name:
             name of the permission: 'can_add','can_edit' etc...
@@ -1656,7 +1655,7 @@ class BaseSecurityManager:
 
     def delete_resource(self, name):
         """
-        Deletes a Resource from the backend
+        Deletes a Resource from the backend.
 
         :param name:
             name of the Resource
@@ -1732,7 +1731,7 @@ class BaseSecurityManager:
         raise NotImplementedError
 
     def load_user(self, user_id):
-        """Load user by ID"""
+        """Load user by ID."""
         return self.get_user_by_id(int(user_id))
 
     def load_user_jwt(self, _jwt_header, jwt_data):
@@ -1744,5 +1743,5 @@ class BaseSecurityManager:
 
     @staticmethod
     def before_request():
-        """Hook runs before request"""
+        """Hook runs before request."""
         g.user = current_user

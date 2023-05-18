@@ -285,7 +285,7 @@ def check_remote_ghcr_io_commands():
             get_console().print(
                 "\n[error]We are extremely sorry but you've hit the rare case that the "
                 "credentials you got from GitHub Actions to run are expired, and we cannot do much.[/]"
-                "\n¯\_(ツ)_/¯\n\n"
+                "\n¯\\_(ツ)_/¯\n\n"
                 "[warning]You have the following options now:\n\n"
                 "  * Close and reopen the Pull Request of yours\n"
                 "  * Rebase or amend your commit and push your branch again\n"
@@ -598,7 +598,6 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "AIRFLOW_CONSTRAINTS_REFERENCE", "constraints-source-providers")
     set_value_to_default_if_not_set(env, "AIRFLOW_EXTRAS", "")
     set_value_to_default_if_not_set(env, "AIRFLOW_ENABLE_AIP_44", "true")
-    set_value_to_default_if_not_set(env, "AIRFLOW_ENABLE_AIP_52", "true")
     set_value_to_default_if_not_set(env, "ANSWER", answer if answer is not None else "")
     set_value_to_default_if_not_set(env, "BASE_BRANCH", "main")
     set_value_to_default_if_not_set(env, "BREEZE", "true")
@@ -623,6 +622,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "INSTALL_PROVIDERS_FROM_SOURCES", "true")
     set_value_to_default_if_not_set(env, "LOAD_DEFAULT_CONNECTIONS", "false")
     set_value_to_default_if_not_set(env, "LOAD_EXAMPLES", "false")
+    set_value_to_default_if_not_set(env, "ONLY_MIN_VERSION_UPDATE", "false")
     set_value_to_default_if_not_set(env, "PACKAGE_FORMAT", ALLOWED_PACKAGE_FORMATS[0])
     set_value_to_default_if_not_set(env, "PYTHONDONTWRITEBYTECODE", "true")
     set_value_to_default_if_not_set(env, "REMOVE_ARM_PACKAGES", "false")
@@ -670,6 +670,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "MSSQL_VERSION": "mssql_version",
     "MYSQL_VERSION": "mysql_version",
     "NUM_RUNS": "num_runs",
+    "ONLY_MIN_VERSION_UPDATE": "only_min_version_update",
     "PACKAGE_FORMAT": "package_format",
     "POSTGRES_VERSION": "postgres_version",
     "PYTHON_MAJOR_MINOR_VERSION": "python",

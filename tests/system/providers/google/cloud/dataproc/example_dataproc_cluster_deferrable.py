@@ -32,10 +32,10 @@ from airflow.providers.google.cloud.operators.dataproc import (
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "dataproc_update"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "")
+DAG_ID = "dataproc_cluster_def"
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-CLUSTER_NAME = f"cluster-dataproc-update-{ENV_ID}"
+CLUSTER_NAME = f"cluster-dataproc-def-{ENV_ID}"
 REGION = "europe-west1"
 ZONE = "europe-west1-b"
 

@@ -67,7 +67,7 @@ class BashSensor(BaseSensorOperator):
     def poke(self, context: Context):
         """Execute the bash command in a temporary directory."""
         bash_command = self.bash_command
-        self.log.info("Tmp dir root location: \n %s", gettempdir())
+        self.log.info("Tmp dir root location: %s", gettempdir())
         with TemporaryDirectory(prefix="airflowtmp") as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f:
                 f.write(bytes(bash_command, "utf_8"))

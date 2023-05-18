@@ -34,7 +34,7 @@ from slugify import slugify
 from urllib3.exceptions import HTTPError
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
@@ -56,6 +56,7 @@ from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLaunchFailedException,
     PodManager,
+    PodOperatorHookProtocol,
     PodPhase,
     get_container_termination_message,
 )
@@ -197,6 +198,9 @@ class KubernetesPodOperator(BaseOperator):
     :param security_context: security options the pod should run with (PodSecurityContext).
     :param container_security_context: security options the container should run with.
     :param dnspolicy: dnspolicy for the pod.
+    :param dns_config: dns configuration (ip addresses, searches, options) for the pod.
+    :param hostname: hostname for the pod.
+    :param subdomain: subdomain for the pod.
     :param schedulername: Specify a schedulername for the pod
     :param full_pod_spec: The complete podSpec
     :param init_containers: init container for the launched Pod
@@ -282,6 +286,9 @@ class KubernetesPodOperator(BaseOperator):
         security_context: dict | None = None,
         container_security_context: dict | None = None,
         dnspolicy: str | None = None,
+        dns_config: k8s.V1PodDNSConfig | None = None,
+        hostname: str | None = None,
+        subdomain: str | None = None,
         schedulername: str | None = None,
         full_pod_spec: k8s.V1Pod | None = None,
         init_containers: list[k8s.V1Container] | None = None,
@@ -351,6 +358,9 @@ class KubernetesPodOperator(BaseOperator):
         self.security_context = security_context or {}
         self.container_security_context = container_security_context
         self.dnspolicy = dnspolicy
+        self.dns_config = dns_config
+        self.hostname = hostname
+        self.subdomain = subdomain
         self.schedulername = schedulername
         self.full_pod_spec = full_pod_spec
         self.init_containers = init_containers or []
@@ -454,7 +464,7 @@ class KubernetesPodOperator(BaseOperator):
         return PodManager(kube_client=self.client)
 
     @cached_property
-    def hook(self) -> KubernetesHook:
+    def hook(self) -> PodOperatorHookProtocol:
         hook = KubernetesHook(
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
@@ -464,7 +474,11 @@ class KubernetesPodOperator(BaseOperator):
         return hook
 
     def get_hook(self):
-        warnings.warn("get_hook is deprecated. Please use hook instead.", DeprecationWarning, stacklevel=2)
+        warnings.warn(
+            "get_hook is deprecated. Please use hook instead.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         return self.hook
 
     @cached_property
@@ -514,7 +528,7 @@ class KubernetesPodOperator(BaseOperator):
         """Retrieves xcom value and kills xcom sidecar container"""
         result = self.pod_manager.extract_xcom(pod)
         if isinstance(result, str) and result.rstrip() == "__airflow_xcom_result_empty__":
-            self.log.info("Result file is empty.")
+            self.log.info("xcom result file is empty.")
             return None
         else:
             self.log.info("xcom result: \n%s", result)
@@ -534,6 +548,11 @@ class KubernetesPodOperator(BaseOperator):
                 pod_request_obj=self.pod_request_obj,
                 context=context,
             )
+            # push to xcom now so that if there is an error we still have the values
+            ti = context["ti"]
+            ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
+            ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
+
             # get remote pod for use in cleanup methods
             self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
             self.await_pod_start(pod=self.pod)
@@ -559,9 +578,6 @@ class KubernetesPodOperator(BaseOperator):
                 pod=self.pod or self.pod_request_obj,
                 remote_pod=self.remote_pod,
             )
-        ti = context["ti"]
-        ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
-        ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
         if self.do_xcom_push:
             return result
 
@@ -577,7 +593,7 @@ class KubernetesPodOperator(BaseOperator):
         """Converts passed config_file to dict format."""
         warnings.warn(
             "This method is deprecated and will be removed in a future version.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         config_file = self.config_file if self.config_file else os.environ.get(KUBE_CONFIG_ENV_VAR)
@@ -812,8 +828,11 @@ class KubernetesPodOperator(BaseOperator):
                 image_pull_secrets=self.image_pull_secrets,
                 service_account_name=self.service_account_name,
                 host_network=self.hostnetwork,
+                hostname=self.hostname,
+                subdomain=self.subdomain,
                 security_context=self.security_context,
                 dns_policy=self.dnspolicy,
+                dns_config=self.dns_config,
                 scheduler_name=self.schedulername,
                 restart_policy="Never",
                 priority_class_name=self.priority_class_name,

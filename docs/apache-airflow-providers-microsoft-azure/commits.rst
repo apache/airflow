@@ -28,6 +28,24 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.1.0
+.....
+
+Latest change: 2023-05-11
+
+=================================================================================================  ===========  =========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================================
+`ec2f0f12db <https://github.com/apache/airflow/commit/ec2f0f12db1a5e1d595203f9a0ec0cac6862250c>`_  2023-05-11   ``Optimize deferred execution for AzureDataFactoryRunPipelineOperator (#31214)``
+`ac46902154 <https://github.com/apache/airflow/commit/ac46902154c060246dec942f921f7670015e6031>`_  2023-05-04   ``Move TaskInstanceKey to a separate file (#31033)``
+`0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`607068f4f0 <https://github.com/apache/airflow/commit/607068f4f0d259b638743db5b101660da1b43d11>`_  2023-05-01   ``Optimize deferrable execution mode 'AzureDataFactoryPipelineRunStatusSensor' (#30983)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+`c585ad51c5 <https://github.com/apache/airflow/commit/c585ad51c522c6e9f3bbbf7ae6e0132e25a3a378>`_  2023-04-22   ``Upgrade ruff to 0.0.262 (#30809)``
+`0cea23a43f <https://github.com/apache/airflow/commit/0cea23a43fb891ebb9e2fc0ae36f45c122a4a96c>`_  2023-04-22   ``Add deferrable mode to 'WasbPrefixSensor' (#30252)``
+=================================================================================================  ===========  =========================================================================================
+
 6.0.0
 .....
 
@@ -36,6 +54,7 @@ Latest change: 2023-04-21
 =================================================================================================  ===========  ============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================
+`e46ce78b66 <https://github.com/apache/airflow/commit/e46ce78b66953146c04de5da00cab6299787adad>`_  2023-04-21   ``Prepare docs for adhoc release of providers (#30787)``
 `fbc1382514 <https://github.com/apache/airflow/commit/fbc13825140cc6cc6b3d4b27db6d329692a1c451>`_  2023-04-21   ``remove delegate_to from GCP operators and hooks (#30748)``
 `6b5db07e0d <https://github.com/apache/airflow/commit/6b5db07e0dc8bdf482de5864018cd50c8770472b>`_  2023-04-17   ``Merge WasbBlobAsyncSensor to WasbBlobSensor (#30488)``
 =================================================================================================  ===========  ============================================================

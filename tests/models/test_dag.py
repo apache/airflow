@@ -43,7 +43,7 @@ import airflow
 from airflow import models, settings
 from airflow.configuration import conf
 from airflow.datasets import Dataset
-from airflow.decorators import task as task_decorator
+from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
     AirflowException,
     DuplicateTaskIdFound,
@@ -3203,6 +3203,41 @@ def test_set_task_group_state(run_id, execution_date, session, dag_maker):
         ("test_set_task_group_state", "section_1.task_1", dagrun.run_id, 1, -1),
         ("test_set_task_group_state", "section_1.task_3", dagrun.run_id, 1, -1),
     }
+
+
+def test_dag_teardowns_property_lists_all_teardown_tasks(dag_maker):
+    @setup
+    def setup_task():
+        return 1
+
+    @teardown
+    def teardown_task():
+        return 1
+
+    @teardown
+    def teardown_task2():
+        return 1
+
+    @teardown
+    def teardown_task3():
+        return 1
+
+    @task_decorator
+    def mytask():
+        return 1
+
+    with dag_maker() as dag:
+        t1 = setup_task()
+        t2 = teardown_task()
+        t3 = teardown_task2()
+        t4 = teardown_task3()
+        with t1 >> t2:
+            with t3:
+                with t4:
+                    mytask()
+
+    assert {t.task_id for t in dag.teardowns} == {"teardown_task", "teardown_task2", "teardown_task3"}
+    assert {t.task_id for t in dag.tasks_upstream_of_teardowns} == {"setup_task", "mytask"}
 
 
 @pytest.mark.parametrize(
