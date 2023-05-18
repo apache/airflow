@@ -164,6 +164,7 @@ def reap_process_group(
 def execute_in_subprocess(cmd: list[str], cwd: str | None = None) -> None:
     """
     Execute a process and stream output to logger.
+
     :param cmd: command and arguments to run
     :param cwd: Current working directory passed to the Popen constructor
     """
@@ -327,7 +328,7 @@ def set_new_process_group() -> None:
     Try to set current process to a new process group.
     That makes it easy to kill all sub-process of this at the OS-level,
     rather than having to iterate the child processes.
-    If current process spawn by system call ``exec()`` than keep current process group
+    If current process spawn by system call ``exec()`` than keep current process group.
     """
     if os.getpid() == os.getsid(0):
         # If PID = SID than process a session leader, and it is not possible to change process group

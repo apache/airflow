@@ -18,19 +18,19 @@
 """This module contains Google BigQuery to MSSQL operator."""
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
-from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_data
+from airflow.providers.google.cloud.transfers.bigquery_to_sql import BigQueryToSqlBaseOperator
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class BigQueryToMsSqlOperator(BaseOperator):
+class BigQueryToMsSqlOperator(BigQueryToSqlBaseOperator):
     """
     Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
     and insert that data into a MSSQL table.
@@ -39,86 +39,62 @@ class BigQueryToMsSqlOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BigQueryToMsSqlOperator`
 
-    .. note::
-        If you pass fields to ``selected_fields`` which are in different order than the
-        order of columns already in
-        BQ table, the data will still be in the order of BQ table.
-        For example if the BQ table has 3 columns as
-        ``[A,B,C]`` and you pass 'B,A' in the ``selected_fields``
-        the data would still be of the form ``'A,B'`` and passed through this form
-        to MSSQL
-
-    **Example**: ::
-
-       transfer_data = BigQueryToMsSqlOperator(
-            task_id='task_id',
-            source_project_dataset_table='my-project.mydataset.mytable',
-            mssql_table='dest_table_name',
-            replace=True,
-        )
-
     :param source_project_dataset_table: A dotted ``<project>.<dataset>.<table>``:
         the big query table of origin
-    :param selected_fields: List of fields to return (comma-separated). If
-        unspecified, all fields are returned.
-    :param gcp_conn_id: reference to a specific Google Cloud hook.
+    :param mssql_table: target MsSQL table. It is deprecated: use target_table_name instead. (templated)
+    :param target_table_name: target MsSQL table. It takes precedence over mssql_table. (templated)
     :param mssql_conn_id: reference to a specific mssql hook
-    :param database: name of database which overwrite defined one in connection
-    :param replace: Whether to replace instead of insert
-    :param batch_size: The number of rows to take in each batch
-    :param location: The location used for the operation.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
     """
 
-    template_fields: Sequence[str] = ("source_project_dataset_table", "mssql_table", "impersonation_chain")
+    template_fields: Sequence[str] = tuple(BigQueryToSqlBaseOperator.template_fields) + (
+        "source_project_dataset_table",
+    )
     operator_extra_links = (BigQueryTableLink(),)
 
     def __init__(
         self,
         *,
         source_project_dataset_table: str,
-        mssql_table: str,
-        selected_fields: list[str] | str | None = None,
-        gcp_conn_id: str = "google_cloud_default",
+        mssql_table: str | None = None,
+        target_table_name: str | None = None,
         mssql_conn_id: str = "mssql_default",
-        database: str | None = None,
-        replace: bool = False,
-        batch_size: int = 1000,
-        location: str | None = None,
-        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
-        self.selected_fields = selected_fields
-        self.gcp_conn_id = gcp_conn_id
-        self.mssql_conn_id = mssql_conn_id
-        self.database = database
-        self.mssql_table = mssql_table
-        self.replace = replace
-        self.batch_size = batch_size
-        self.location = location
-        self.impersonation_chain = impersonation_chain
+        if mssql_table is not None:
+            warnings.warn(
+                # fmt: off
+                "The `mssql_table` parameter has been deprecated. "
+                "Use `target_table_name` instead.",
+                # fmt: on
+                AirflowProviderDeprecationWarning,
+            )
+
+            if target_table_name is not None:
+                raise ValueError(
+                    f"Cannot set both arguments: mssql_table={mssql_table!r} and "
+                    f"target_table_name={target_table_name!r}."
+                )
+
+            target_table_name = mssql_table
+
         try:
-            _, self.dataset_id, self.table_id = source_project_dataset_table.split(".")
+            _, dataset_id, table_id = source_project_dataset_table.split(".")
         except ValueError:
             raise ValueError(
                 f"Could not parse {source_project_dataset_table} as <project>.<dataset>.<table>"
             ) from None
+        super().__init__(
+            target_table_name=target_table_name,
+            dataset_table=f"{dataset_id}.{table_id}",
+            **kwargs,
+        )
+        self.mssql_conn_id = mssql_conn_id
         self.source_project_dataset_table = source_project_dataset_table
 
-    def execute(self, context: Context) -> None:
-        big_query_hook = BigQueryHook(
-            gcp_conn_id=self.gcp_conn_id,
-            location=self.location,
-            impersonation_chain=self.impersonation_chain,
-        )
+    def get_sql_hook(self) -> MsSqlHook:
+        return MsSqlHook(schema=self.database, mysql_conn_id=self.mssql_conn_id)
+
+    def persist_links(self, context: Context) -> None:
         project_id, dataset_id, table_id = self.source_project_dataset_table.split(".")
         BigQueryTableLink.persist(
             context=context,
@@ -127,18 +103,3 @@ class BigQueryToMsSqlOperator(BaseOperator):
             project_id=project_id,
             table_id=table_id,
         )
-        mssql_hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id, schema=self.database)
-        for rows in bigquery_get_data(
-            self.log,
-            self.dataset_id,
-            self.table_id,
-            big_query_hook,
-            self.batch_size,
-            self.selected_fields,
-        ):
-            mssql_hook.insert_rows(
-                table=self.mssql_table,
-                rows=rows,
-                target_fields=self.selected_fields,
-                replace=self.replace,
-            )

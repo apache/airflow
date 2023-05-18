@@ -34,7 +34,8 @@ class PagerdutyEventsHook(BaseHook):
      (i.e. Integration key) as the password/Pagerduty API token. If both supplied, the token will be used.
 
     :param integration_key: PagerDuty Events API token
-    :param pagerduty_conn_id: connection that has PagerDuty integration key in the Pagerduty API token field
+    :param pagerduty_events_conn_id: connection that has PagerDuty integration key in the Pagerduty
+     API token field
     """
 
     conn_name_attr = "pagerduty_events_conn_id"
@@ -150,3 +151,11 @@ class PagerdutyEventsHook(BaseHook):
         resp = session.post("/v2/enqueue", json=data)
         resp.raise_for_status()
         return resp.json()
+
+    def test_connection(self):
+        try:
+            session = pdpyras.EventsAPISession(self.integration_key)
+            session.resolve("some_dedup_key_that_dont_exist")
+        except Exception:
+            return False, "connection test failed, invalid routing key"
+        return True, "connection tested successfully"

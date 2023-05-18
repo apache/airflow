@@ -2348,3 +2348,29 @@ class TestBigQueryAsyncHookMethods(_BigQueryBaseAsyncTestClass):
         assert isinstance(result[0][0], int)
         assert isinstance(result[0][1], float)
         assert isinstance(result[0][2], str)
+
+    def test_get_records_as_dict(self):
+        query_result = {
+            "kind": "bigquery#getQueryResultsResponse",
+            "etag": "test_etag",
+            "schema": {
+                "fields": [
+                    {"name": "f0_", "type": "INTEGER", "mode": "NULLABLE"},
+                    {"name": "f1_", "type": "FLOAT", "mode": "NULLABLE"},
+                    {"name": "f2_", "type": "STRING", "mode": "NULLABLE"},
+                ]
+            },
+            "jobReference": {
+                "projectId": "test_airflow-providers",
+                "jobId": "test_jobid",
+                "location": "US",
+            },
+            "totalRows": "1",
+            "rows": [{"f": [{"v": "22"}, {"v": "3.14"}, {"v": "PI"}]}],
+            "totalBytesProcessed": "0",
+            "jobComplete": True,
+            "cacheHit": False,
+        }
+        hook = BigQueryAsyncHook()
+        result = hook.get_records(query_result, as_dict=True)
+        assert result == [{"f0_": 22, "f1_": 3.14, "f2_": "PI"}]

@@ -90,6 +90,20 @@ def group_for_testing():
 @option_python
 @option_image_tag_for_running
 @option_image_name
+@click.option(
+    "--skip-docker-compose-deletion",
+    help="Skip deletion of docker-compose instance after the test",
+    envvar="SKIP_DOCKER_COMPOSE_DELETION",
+    is_flag=True,
+)
+@click.option(
+    "--wait-for-containers-timeout",
+    help="Timeout in seconds to wait for all containers to start",
+    envvar="WAIT_FOR_CONTAINERS_TIMEOUT",
+    show_default=True,
+    type=IntRange(0, 600),
+    default=300,
+)
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -98,10 +112,13 @@ def docker_compose_tests(
     python: str,
     image_name: str,
     image_tag: str | None,
+    skip_docker_compose_deletion: bool,
+    wait_for_containers_timeout: int,
     github_repository: str,
     extra_pytest_args: tuple,
 ):
     """Run docker-compose tests."""
+    perform_environment_checks()
     if image_name is None:
         build_params = BuildProdParams(
             python=python, image_tag=image_tag, github_repository=github_repository
@@ -111,6 +128,8 @@ def docker_compose_tests(
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
         extra_pytest_args=extra_pytest_args,
+        skip_docker_compose_deletion=skip_docker_compose_deletion,
+        wait_for_containers_timeout=wait_for_containers_timeout,
     )
     sys.exit(return_code)
 

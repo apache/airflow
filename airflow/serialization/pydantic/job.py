@@ -29,7 +29,7 @@ def check_runner_initialized(job_runner: Optional[BaseJobRunner], job_type: str)
 
 
 class JobPydantic(BaseModelPydantic):
-    """Serializable representation of the Job ORM SqlAlchemyModel used by internal API"""
+    """Serializable representation of the Job ORM SqlAlchemyModel used by internal API."""
 
     id: Optional[int]
     dag_id: Optional[str]
@@ -47,6 +47,6 @@ class JobPydantic(BaseModelPydantic):
     max_tis_per_query: Optional[int]
 
     class Config:
-        """Make sure it deals automatically with ORM classes of SQL Alchemy"""
+        """Make sure it deals automatically with ORM classes of SQL Alchemy."""
 
         orm_mode = True
