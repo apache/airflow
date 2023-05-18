@@ -87,19 +87,20 @@ class SmtpNotifier(BaseNotifier):
 
     def notify(self, context):
         """Send a alert to a pagerduty event v2 API"""
-        self.hook.send_email_smtp(
-            smtp_conn_id=self.smtp_conn_id,
-            mail_from=self.mail_from,
-            to=self.to,
-            subject=self.subject,
-            html_content=self.html_content,
-            files=self.files,
-            cc=self.cc,
-            bcc=self.bcc,
-            mime_subtype=self.mime_subtype,
-            mime_charset=self.mime_charset,
-            custom_headers=self.custom_headers,
-        )
+        with self.hook as smtp:
+            smtp.send_email_smtp(
+                smtp_conn_id=self.smtp_conn_id,
+                mail_from=self.mail_from,
+                to=self.to,
+                subject=self.subject,
+                html_content=self.html_content,
+                files=self.files,
+                cc=self.cc,
+                bcc=self.bcc,
+                mime_subtype=self.mime_subtype,
+                mime_charset=self.mime_charset,
+                custom_headers=self.custom_headers,
+            )
 
 
 send_smtp_notification = SmtpNotifier
