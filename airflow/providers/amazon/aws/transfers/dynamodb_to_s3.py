@@ -97,9 +97,14 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
     template_fields: Sequence[str] = (
         *AwsToAwsBaseOperator.template_fields,
-        "s3_bucket_name",
-        "s3_key_prefix",
         "dynamodb_table_name",
+        "s3_bucket_name",
+        "file_size",
+        "dynamodb_scan_kwargs",
+        "s3_key_prefix",
+        "process_func",
+        "export_time",
+        "export_format",
     )
 
     template_fields_renderers = {
@@ -129,9 +134,6 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         self.export_time = export_time
         self.export_format = export_format
 
-        if self.export_time and self.export_time > datetime.now():
-            raise ValueError("The export_time parameter cannot be a future time.")
-
     @cached_property
     def hook(self):
         """Create DynamoDBHook"""
@@ -148,6 +150,9 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         Export data from start of epoc till `export_time`. Table export will be a snapshot of the table's
          state at this point in time.
         """
+        if self.export_time and self.export_time > datetime.now(self.export_time.tzinfo):
+            raise ValueError("The export_time parameter cannot be a future time.")
+
         client = self.hook.conn.meta.client
         table_description = client.describe_table(TableName=self.dynamodb_table_name)
         response = client.export_table_to_point_in_time(
@@ -163,7 +168,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
     def _export_entire_data(self):
         """Export all data from the table."""
-        table = self.hook.get_conn().Table(self.dynamodb_table_name)
+        table = self.hook.conn.Table(self.dynamodb_table_name)
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
         err = None
         f: IO[Any]
