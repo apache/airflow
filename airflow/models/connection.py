@@ -21,7 +21,7 @@ import json
 import logging
 import warnings
 from json import JSONDecodeError
-from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
+from urllib.parse import SplitResult, parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
@@ -186,16 +186,46 @@ class Connection(Base, LoggingMixin):
             conn_type = conn_type.replace("-", "_")
         return conn_type
 
+    @staticmethod
+    def split_uri_to_parts(uri):
+        c = uri.count("://")
+        if c < 2:
+            return urlsplit(uri), False
+        idx = uri.rfind("://")
+        # replace :// with :__
+        uri_list = list(uri)
+        uri_list[idx : idx + 3] = ":__"
+        uri = "".join(uri_list)
+        uri = urlsplit(uri)
+        uri = [e for e in uri]
+        # replace back :__ with ://
+        uri[1] = uri[1].replace(":__", "://")
+        uri = SplitResult(uri[0], uri[1], uri[2], uri[3], uri[4])
+        return uri, True
+
     def _parse_from_uri(self, uri: str):
-        uri_parts = urlsplit(uri)
+        uri_parts, specially_parsed = self.split_uri_to_parts(uri)
         conn_type = uri_parts.scheme
         self.conn_type = self._normalize_conn_type(conn_type)
-        self.host = _parse_netloc_to_hostname(uri_parts)
         quoted_schema = uri_parts.path[1:]
         self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
         self.login = unquote(uri_parts.username) if uri_parts.username else uri_parts.username
         self.password = unquote(uri_parts.password) if uri_parts.password else uri_parts.password
-        self.port = uri_parts.port
+        if specially_parsed:
+            uri_parts_str = str(uri_parts.netloc)
+            idx = uri_parts_str.find("://")
+            idx2 = uri_parts_str.find("@")
+            if idx2 != -1:
+                self.host = uri_parts_str[idx2 + 1 :]
+            else:
+                self.host = uri_parts_str
+            if len(str(uri_parts.netloc)[idx + 3 :].split(":")) < 2:
+                self.port = None
+            else:
+                self.port = int(str(uri_parts.netloc)[idx + 3 :].split(":")[1])
+        else:
+            self.port = uri_parts.port
+            self.host = _parse_netloc_to_hostname(uri_parts)
         if uri_parts.query:
             query = dict(parse_qsl(uri_parts.query, keep_blank_values=True))
             if self.EXTRA_KEY in query:
