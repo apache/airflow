@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-18T18:36:57Z
+# This constraints file was automatically generated on 2023-05-18T23:33:13Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -321,7 +321,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
 mypy-boto3-appflow==1.26.125
-mypy-boto3-rds==1.26.132
+mypy-boto3-rds==1.26.136
 mypy-boto3-redshift-data==1.26.109
 mypy-boto3-s3==1.26.127
 mypy-extensions==1.0.0
@@ -462,7 +462,7 @@ rich-click==1.6.1
 rich==13.3.5
 rich_argparse==1.1.0
 rsa==4.9
-ruff==0.0.267
+ruff==0.0.269
 s3transfer==0.6.1
 sarif-om==1.0.4
 sasl==0.3.1
