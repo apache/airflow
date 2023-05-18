@@ -851,9 +851,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.metadata.name = _add_pod_suffix(pod_name=pod.metadata.name)
 
         if not pod.metadata.namespace:
-            # todo: replace with call to `hook.get_namespace` in 6.0, when it doesn't default to `default`.
-            # if namespace not actually defined in hook, we want to check k8s if in cluster
-            hook_namespace = self.hook._get_namespace()
+            hook_namespace = self.hook.get_namespace()
             pod_namespace = self.namespace or hook_namespace or self._incluster_namespace or "default"
             pod.metadata.namespace = pod_namespace
 
@@ -862,11 +860,7 @@ class KubernetesPodOperator(BaseOperator):
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
-            pod = xcom_sidecar.add_xcom_sidecar(
-                pod,
-                sidecar_container_image=self.hook.get_xcom_sidecar_container_image(),
-                sidecar_container_resources=self.hook.get_xcom_sidecar_container_resources(),
-            )
+            pod = xcom_sidecar.add_xcom_sidecar(pod)
 
         labels = self._get_ti_pod_labels(context)
         self.log.info("Building pod %s with labels: %s", pod.metadata.name, labels)
