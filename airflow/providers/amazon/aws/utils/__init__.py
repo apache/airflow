@@ -16,11 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+import random
 import re
+import time
 from datetime import datetime
 from enum import Enum
+from typing import Callable
 
 from airflow.version import version
+
+log = logging.getLogger(__name__)
 
 
 def trim_none_values(obj: dict):
@@ -45,6 +51,42 @@ def datetime_to_epoch_us(date_time: datetime) -> int:
 def get_airflow_version() -> tuple[int, ...]:
     val = re.sub(r"(\d+\.\d+\.\d+).*", lambda x: x.group(1), version)
     return tuple(int(x) for x in val.split("."))
+
+
+def retry_with_backoff(retries=5, backoff_in_seconds=1):
+    """
+    Decorator to retry a function when an exception occurs.
+    Use exponential backoff to spread the retries over time.
+
+    :param retries: the number of retries
+    :param backoff_in_seconds: backoff number in seconds
+    """
+
+    def rwb(func: Callable):
+        def wrapper(*args, **kwargs):
+            x = 0
+            while True:
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if x == retries:
+                        raise
+
+                    method_name = f"{func.__module__}.{func.__qualname__}"
+                    log.warning(
+                        "The method %s failed. Retrying with exponential backoff. Retry %s. " "Exception %s.",
+                        method_name,
+                        retries,
+                        e,
+                    )
+
+                    sleep = backoff_in_seconds * 2**x + random.uniform(0, 1)
+                    time.sleep(sleep)
+                    x += 1
+
+        return wrapper
+
+    return rwb
 
 
 class _StringCompareEnum(Enum):
