@@ -61,7 +61,7 @@ const NotesAccordion = ({
   const canEdit = getMetaValue("can_edit") === "True";
   const [note, setNote] = useState(initialValue ?? "");
   const [editMode, setEditMode] = useState(false);
-  const [accordionIndex, setAccordionIndex] = useState(0);
+  const [accordionIndexes, setAccordionIndexes] = useState<Array<number>>([]);
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const { mutateAsync: apiCallToSetDagRunNote, isLoading: dagRunIsLoading } =
@@ -87,11 +87,13 @@ const NotesAccordion = ({
     setEditMode(false);
   };
 
-  const toggleNotesAccordionIndex = () => {
-    if (accordionIndex) {
-      setAccordionIndex(0);
+  const toggleNotesAccordionIthIndex = (ithIndex: number) => {
+    if (accordionIndexes.includes(ithIndex)) {
+      setAccordionIndexes((prevIndexes) =>
+        prevIndexes.splice(prevIndexes.indexOf(ithIndex, 1))
+      );
     } else {
-      setAccordionIndex(1);
+      setAccordionIndexes((prevIndexes) => [...prevIndexes, ithIndex]);
     }
   };
 
@@ -100,8 +102,9 @@ const NotesAccordion = ({
     keyboardShortcutIdentifier.addOrEditNotes.secondaryKey,
     () => {
       if (canEdit) {
-        if (accordionIndex) {
-          toggleNotesAccordionIndex();
+        // Notes index is 0
+        if (!accordionIndexes.includes(0)) {
+          toggleNotesAccordionIthIndex(0);
         }
         setEditMode(true);
         setTimeout(() => textAreaRef.current?.focus(), 100);
@@ -112,19 +115,28 @@ const NotesAccordion = ({
   useKeysPress(
     keyboardShortcutIdentifier.viewNotes.primaryKey,
     keyboardShortcutIdentifier.viewNotes.secondaryKey,
-    toggleNotesAccordionIndex
+    () => {
+      // toggling notes accordion (index = 0)
+      toggleNotesAccordionIthIndex(0);
+    }
   );
 
   return (
     <>
       <Accordion
         defaultIndex={canEdit ? [0] : []}
-        index={accordionIndex}
+        index={accordionIndexes}
         allowToggle
       >
         <AccordionItem border="0">
           <AccordionButton p={0} pb={2} fontSize="inherit">
-            <Box flex="1" textAlign="left" onClick={toggleNotesAccordionIndex}>
+            <Box
+              flex="1"
+              textAlign="left"
+              onClick={() => {
+                toggleNotesAccordionIthIndex(0);
+              }}
+            >
               <Text as="strong" size="lg">
                 {objectIdentifier} Notes:
               </Text>
