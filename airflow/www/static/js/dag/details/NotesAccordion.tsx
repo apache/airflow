@@ -61,7 +61,9 @@ const NotesAccordion = ({
   const canEdit = getMetaValue("can_edit") === "True";
   const [note, setNote] = useState(initialValue ?? "");
   const [editMode, setEditMode] = useState(false);
-  const [accordionIndexes, setAccordionIndexes] = useState<Array<number>>(canEdit ? [0] : []);
+  const [accordionIndexes, setAccordionIndexes] = useState<Array<number>>(
+    canEdit ? [0] : []
+  );
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   const { mutateAsync: apiCallToSetDagRunNote, isLoading: dagRunIsLoading } =
