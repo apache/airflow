@@ -982,9 +982,12 @@ class Airflow(AirflowBaseView):
     )
     def cluster_activity(self):
         """Cluster Activity view."""
+        state_color_mapping = State.state_color.copy()
+        state_color_mapping["no_status"] = state_color_mapping.pop(None)
         return self.render_template(
             "airflow/cluster_activity.html",
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
+            state_color_mapping=state_color_mapping,
         )
 
     @expose("/next_run_datasets_summary", methods=["POST"])
@@ -3811,7 +3814,7 @@ class Airflow(AirflowBaseView):
         ]
     )
     def historical_metrics_data(self):
-        """Returns dashboard data"""
+        """Returns cluster activity historical metrics"""
         start_date = _safe_parse_datetime(request.args.get("start_date"))
         end_date = _safe_parse_datetime(request.args.get("end_date"))
         with create_session() as session:

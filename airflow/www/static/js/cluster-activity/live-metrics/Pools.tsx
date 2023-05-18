@@ -79,21 +79,33 @@ const Pools = (props: BoxProps) => {
         type: "bar",
         stack: "total",
         barMaxWidth: 10,
+        itemStyle: {
+          color: stateColors.success,
+        },
       },
       {
         type: "bar",
         stack: "total",
         barMaxWidth: 10,
+        itemStyle: {
+          color: stateColors.queued,
+        },
       },
       {
         type: "bar",
         stack: "total",
         barMaxWidth: 10,
+        itemStyle: {
+          color: stateColors.running,
+        },
       },
       {
         type: "bar",
         stack: "total",
         barMaxWidth: 10,
+        itemStyle: {
+          color: stateColors.scheduled,
+        },
       },
     ],
   };

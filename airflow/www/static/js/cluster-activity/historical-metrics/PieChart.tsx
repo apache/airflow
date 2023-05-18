@@ -49,9 +49,10 @@ const formatData = (
 interface Props extends BoxProps {
   title: string;
   data: HistoricalMetricsData[keyof HistoricalMetricsData];
+  colorPalette?: string[];
 }
 
-const PieChart = ({ title, data, ...rest }: Props) => {
+const PieChart = ({ title, data, colorPalette, ...rest }: Props) => {
   const theme = useTheme();
   const [sum, formattedData] = formatData(data);
   const option: ReactEChartsProps["option"] = {
@@ -71,6 +72,7 @@ const PieChart = ({ title, data, ...rest }: Props) => {
       left: "center",
       type: "scroll",
     },
+    color: colorPalette || Object.values(stateColors),
     series: [
       {
         name: title,
