@@ -73,7 +73,7 @@ class GoogleAdsHook(BaseHook):
     :return: list of Google Ads Row object(s)
     """
 
-    default_api_version = "v12"
+    default_api_version = "v13"
 
     def __init__(
         self,
