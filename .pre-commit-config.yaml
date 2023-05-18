@@ -327,9 +327,9 @@ repos:
         pass_filenames: true
         require_serial: true
       - id: check-setup-order
-        name: Check order of dependencies in setup.cfg and setup.py
+        name: Check order of dependencies in pyproject.toml and setup.py
         language: python
-        files: ^setup\.cfg$|^setup\.py$
+        files: ^pyproject\.toml$|^setup\.cfg$|^setup\.py$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
         additional_dependencies: ['rich>=12.4.4']

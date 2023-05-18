@@ -14,17 +14,169 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+[build-system]
+requires = ['setuptools>=67.2', 'gitpython', 'wheel']
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = 'apache-airflow'
+description = 'Programmatically author, schedule and monitor data pipelines'
+authors = [ { name = 'Apache Software Foundation', email = 'dev@airflow.apache.org' } ]
+
+readme = { file = 'README.md', content-type = 'text/markdown' }
+classifiers = [
+    'Development Status :: 5 - Production/Stable',
+    'Environment :: Console',
+    'Environment :: Web Environment',
+    'Intended Audience :: Developers',
+    'Intended Audience :: System Administrators',
+    'License :: OSI Approved :: Apache Software License',
+    'Programming Language :: Python :: 3.7',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Topic :: System :: Monitoring',
+    'Framework :: Apache Airflow',
+]
+
+################################################################################
+# IMPORTANT NOTE!!!!!!!!!!!!!!!
+# IF you are removing dependencies from this list, please make sure that you
+# also increase DEPENDENCIES_EPOCH_NUMBER in the Dockerfile.ci
+################################################################################
+dependencies = [
+    # Pin Alembic since it is critical to keep our migrations run in a
+    # predictable and performant way. It is developed together with SQLAlchemy.
+    # From experience, Alembic is very stable in minor versions.
+    'alembic>=1.6.3,<2.0',
+    'argcomplete >=1.10',
+    'asgiref',
+    'attrs>=22.1.0',
+    'blinker',
+    'cached_property>=1.5.0; python_version<="3.7"',
+    'cattrs>=22.1.0',
+    # Colorlog 6.x merges TTYColoredFormatter into ColoredFormatter, breaking
+    # backwards compatibility with 4.x. Update CustomTTYColoredFormatter to
+    # remove the upper limit.
+    'colorlog>=4.0.2,<5.0',
+    'configupdater>=3.1.1',
+    'connexion[flask]>=2.10.0',
+    'cron-descriptor>=1.2.24',
+    'croniter>=0.3.17',
+    'cryptography>=0.9.3',
+    'deprecated>=1.2.13',
+    'dill>=0.2.2',
+    # Flask 2.3 is scheduled to introduce a number of deprecation removals,
+    # some of them may break our dependencies - notably _app_ctx_stack and
+    # _request_ctx_stack removals. We should remove the limitation after 2.3 is
+    # released and our dependencies are updated to handle it.
+    'flask>=2.2,<2.3',
+    # We are tightly coupled with FAB version because we vendored in part of
+    # FAB code related to security manager. This is done asa  part of the
+    # preparation to remove FAB as a dependency, but we are not ready for it
+    # yet. Every time we update FAB version here, please make sure that you
+    # review the classes and models in airflow/www/fab_security with their
+    # upstream counterparts. In particular, make sure any breaking changes, for
+    # example any new methods, are accounted for.
+    # NOTE: When you change the value here, you also have to update
+    # flask-appbuilder[oauth] in setup.py.
+    'flask-appbuilder==4.3.1',
+    'flask-caching>=1.5.0',
+    'flask-login>=0.6.2',
+    'flask-session>=0.4.0',
+    'flask-wtf>=0.15',
+    'graphviz>=0.12',
+    'gunicorn>=20.1.0',
+    'httpx',
+    # importlib-metadata>=5.0 breaks Celery due to regression.
+    # We can remove the < 5.0.0 limitation when we bump Celery to >=5.3.0.
+    'importlib_metadata>=1.7<5; python_version<"3.9"',
+    'importlib_resources>=5.2; python_version<"3.9"',
+    'itsdangerous>=2.0',
+    'jinja2>=3.0.0',
+    'jsonschema>=4.0.0',
+    'lazy-object-proxy',
+    'linkify-it-py>=2.0.0',
+    'lockfile>=0.12.2',
+    'markdown>=3.0',
+    'markdown-it-py>=2.1.0',
+    'markupsafe>=1.1.1',
+    'marshmallow-oneofschema>=2.0.1',
+    'mdit-py-plugins>=0.3.0',
+    'packaging>=14.0',
+    'pathspec~=0.9.0',
+    'pendulum>=2.0',
+    'pluggy>=1.0',
+    'psutil>=4.2.0',
+    'pydantic>=1.10.0',
+    'pygments>=2.0.1',
+    'pyjwt>=2.0.0',
+    'python-daemon>=3.0.0',
+    'python-dateutil>=2.3',
+    'python-nvd3>=0.15.0',
+    'python-slugify>=5.0',
+    'rfc3339_validator>=0.1.4',
+    'rich>=12.4.4',
+    'rich-argparse>=1.0.0',
+    'setproctitle>=1.1.8',
+    # We use some deprecated features of SQLAlchemy 2.0 and should replace them
+    # before upgrading. See https://sqlalche.me/e/b8d9 for details of deprecated
+    # features. You can set environment variable SQLALCHEMY_WARN_20=1 to show
+    # all deprecation warnings. Support for SQLAlchemy 2.0 is tracked in
+    # https://github.com/apache/airflow/issues/28723.
+    'sqlalchemy>=1.4,<2.0',
+    'sqlalchemy_jsonfield>=1.0',
+    'tabulate>=0.7.5',
+    'tenacity>=6.2.0,!=8.2.0',
+    'termcolor>=1.1.0',
+    'typing-extensions>=4.0.0',
+    'unicodecsv>=0.14.1',
+    'werkzeug>=2.0',
+]
+
+requires-python = '~=3.7'
+
+dynamic = ['license', 'optional-dependencies', 'version']
+
+[project.urls]
+'Homepage' = 'https://airflow.apache.org/'
+'Documentation' = 'https://airflow.apache.org/docs/'
+'Downloads' = 'https://archive.apache.org/dist/airflow/'
+'Bug Tracker' = 'https://github.com/apache/airflow/issues'
+'Source Code' = 'https://github.com/apache/airflow'
+'Slack Chat' = 'https://s.apache.org/airflow-slack'
+'Twitter' = 'https://twitter.com/ApacheAirflow'
+'YouTube' = 'https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/'
+
+[project.scripts]
+airflow = 'airflow.__main__:main'
+
+[tool.setuptools]
+zip-safe = false
+
+[tool.setuptools.packages.find]
+include = ['airflow*']
+
+[tool.setuptools.package-data]
+'airflow' = [
+    'alembic.ini',
+    'customized_form_field_behaviours.schema.json',
+    'git_version',
+    'provider_info.schema.json',
+    'py.typed',
+]
+'airflow.api_connexion.openapi' = ['*.yaml']
+'airflow.generated' = ['provider_dependencies.json']
+'airflow.serialization' = ['*.json']
+'airflow.utils' = ['context.pyi']
+
+[tool.setuptools.dynamic]
+version = { attr = 'airflow.__version__' }
+
+
 [tool.black]
 line-length = 110
 target-version = ['py37', 'py38', 'py39', 'py310']
-# The build system section is needed in order to workaround the side-effect introduced by recent
-# setup tools version. The recent setuptools version update (64.0.0) broke paths of editable installations
-# and we have to pin it to 63.4.3 version
-# The problem is tracked (and this limitation might be removed if it is solved) in:
-# https://github.com/pypa/setuptools/issues/3548
-[build-system]
-requires = ['setuptools==67.2.0']
-build-backend = "setuptools.build_meta"
 
 [tool.ruff]
 typing-modules = ["airflow.typing_compat"]
