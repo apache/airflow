@@ -39,6 +39,7 @@ from airflow.api_connexion.types import APIResponse, UpdateMask
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.security import permissions
+from airflow.utils import helpers
 from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.strings import get_random_string
@@ -157,6 +158,10 @@ def post_connection(*, session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
     conn_id = data["conn_id"]
+    try:
+        helpers.validate_key(conn_id, max_length=200)
+    except Exception as e:
+        raise BadRequest(detail=str(e))
     query = session.query(Connection)
     connection = query.filter_by(conn_id=conn_id).first()
     if not connection:
