@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, NamedTuple, Sequence
+from warnings import warn
 
 from pendulum import DateTime
 
@@ -143,6 +144,18 @@ class Timetable(Protocol):
     (for example, the ContinuousTimetable) there are good reasons for limiting
     the DAGRun parallelism.
     """
+
+    def __getattribute__(self, item):
+        """Handle the deprecation of `can_run` attribute."""
+        if "can_run" == item:
+            warn(
+                f'{item} class variable is deprecated. Use "can_be_scheduled" instead.',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return type.__getattribute__(self, "can_be_scheduled")
+
+        return type.__getattribute__(self, item)
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
