@@ -38,7 +38,7 @@ Example Code:
         start_date=datetime(2023, 1, 1),
         on_failure_callback=[
             send_pagerduty_notification(
-                summary="The task {{ ti.task_id }} failed",
+                summary="The dag {{ dag.dag_id }} failed",
                 severity="critical",
                 source="airflow dag_id: {{dag.dag_id}}",
                 dedup_key="{{dag.dag_id}}-{{ti.task_id}}",
