@@ -334,7 +334,7 @@ class TestKubernetesHook:
         (
             pytest.param(None, None, id="no-conn-id"),
             pytest.param("with_namespace", "mock_namespace", id="conn-with-namespace"),
-            pytest.param("default_kube_config", "default", id="conn-without-namespace"),
+            pytest.param("default_kube_config", None, id="conn-without-namespace"),
         ),
     )
     def test_get_namespace(self, conn_id, expected):
