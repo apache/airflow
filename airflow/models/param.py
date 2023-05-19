@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, ItemsView, Iterable, MutableMap
 from pendulum.parsing import parse_iso8601
 
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
+from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.mixins import ResolveMixin
@@ -331,7 +332,7 @@ class DagParam(ResolveMixin):
 def process_params(
     dag: DAG,
     task: Operator,
-    dag_run: DagRun | None,
+    dag_run: DagRun | DagRunPydantic | None,
     *,
     suppress_exception: bool,
 ) -> dict[str, Any]:

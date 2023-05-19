@@ -846,7 +846,7 @@ class DAG(LoggingMixin):
         # infer from the logical date.
         return self.infer_automated_data_interval(dag_model.next_dagrun)
 
-    def get_run_data_interval(self, run: DagRun) -> DataInterval:
+    def get_run_data_interval(self, run: DagRun | DagRunPydantic) -> DataInterval:
         """Get the data interval of this run.
 
         For compatibility, this method infers the data interval from the DAG's

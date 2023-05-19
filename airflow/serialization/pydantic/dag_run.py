@@ -14,11 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Optional
+from typing import Iterable
 
 from pendulum import DateTime
 from pydantic import BaseModel as BaseModelPydantic
+from sqlalchemy import PickleType
+from sqlalchemy.orm import Session
+
+from airflow import DAG
+from airflow.jobs.scheduler_job_runner import TI
+from airflow.models.dagrun import DagRun, _get_previous_dagrun, _get_previous_scheduled_dagrun
+from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 
 class DagRunPydantic(BaseModelPydantic):
@@ -26,22 +36,58 @@ class DagRunPydantic(BaseModelPydantic):
 
     id: int
     dag_id: str
-    queued_at: Optional[datetime]
+    queued_at: datetime | None
     execution_date: DateTime
-    start_date: Optional[datetime]
-    end_date: Optional[datetime]
+    start_date: datetime | None
+    end_date: datetime | None
     state: str
     run_id: str
-    creating_job_id: Optional[int]
+    creating_job_id: int | None
     external_trigger: bool
     run_type: str
-    data_interval_start: Optional[datetime]
-    data_interval_end: Optional[datetime]
-    last_scheduling_decision: Optional[datetime]
-    dag_hash: Optional[str]
+    conf: PickleType
+    data_interval_start: datetime | None
+    data_interval_end: datetime | None
+    last_scheduling_decision: datetime | None
+    dag_hash: str | None
     updated_at: datetime
+    dag: DAG | None
 
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         orm_mode = True
+
+    @provide_session
+    def get_task_instances(
+        self,
+        state: Iterable[TaskInstanceState | None] | None = None,
+        session: Session = NEW_SESSION,
+    ) -> list[TI]:
+        """
+        Returns the task instances for this dag run
+
+        TODO: make it works for AIP-44
+        """
+        raise NotImplementedError()
+
+    @provide_session
+    def get_previous_scheduled_dagrun(self, session: Session = NEW_SESSION) -> DagRun | None:
+        """
+        The previous, SCHEDULED DagRun, if there is one.
+
+        :param session: SQLAlchemy ORM Session
+        """
+        return _get_previous_scheduled_dagrun(self, session)
+
+    @provide_session
+    def get_previous_dagrun(
+        self, state: DagRunState | None = None, session: Session = NEW_SESSION
+    ) -> DagRun | None:
+        """
+        The previous DagRun, if there is one.
+
+        :param session: SQLAlchemy ORM Session
+        :param state: the dag run state
+        """
+        return _get_previous_dagrun(self, state, session)

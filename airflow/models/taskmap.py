@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Collection
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.utils.sqlalchemy import ExtendedJSON
 
 if TYPE_CHECKING:
@@ -92,7 +93,7 @@ class TaskMap(Base):
         self.keys = keys
 
     @classmethod
-    def from_task_instance_xcom(cls, ti: TaskInstance, value: Collection) -> TaskMap:
+    def from_task_instance_xcom(cls, ti: TaskInstance | TaskInstancePydantic, value: Collection) -> TaskMap:
         if ti.run_id is None:
             raise ValueError("cannot record task map for unrun task instance")
         return cls(

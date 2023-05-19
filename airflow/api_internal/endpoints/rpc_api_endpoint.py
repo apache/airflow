@@ -34,7 +34,7 @@ log = logging.getLogger(__name__)
 def _initialize_map() -> dict[str, Callable]:
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
-    from airflow.models import TaskInstance, Trigger, Variable, XCom
+    from airflow.models import DagRun, TaskInstance, Trigger, Variable, XCom
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagwarning import DagWarning
     from airflow.models.serialized_dag import SerializedDagModel
@@ -56,6 +56,7 @@ def _initialize_map() -> dict[str, Callable]:
         Variable.delete,
         DAG.fetch_callback,
         DAG.fetch_dagrun,
+        DagRun.fetch_task_instances,
         SerializedDagModel.get_serialized_dag,
         TaskInstance.get_task_instance,
         TaskInstance.fetch_handle_failure_context,
