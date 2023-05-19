@@ -814,6 +814,29 @@ class TestBigQueryGetDataOperator:
             location=TEST_DATASET_LOCATION,
         )
 
+    @pytest.mark.parametrize(
+        "project_id,result",
+        [
+            [
+                TEST_GCP_PROJECT_ID,
+                f"select * from `{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}` limit 100",
+            ],
+            [None, f"select * from `{TEST_DATASET}.{TEST_TABLE_ID}` limit 100"],
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
+    def test_generate_query(self, mock_hook, project_id: str, result: str):
+        operator = BigQueryGetDataOperator(
+            gcp_conn_id=GCP_CONN_ID,
+            task_id=TASK_ID,
+            dataset_id=TEST_DATASET,
+            table_id=TEST_TABLE_ID,
+            project_id=project_id,
+            max_results=100,
+            use_legacy_sql=False,
+        )
+        assert operator.generate_query() == result
+
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_get_data_operator_async_with_selected_fields(
         self, mock_hook, create_task_instance_of_operator

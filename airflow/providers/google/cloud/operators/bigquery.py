@@ -802,7 +802,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table_id: The table ID of the requested table. (templated)
     :param project_id: (Optional) The name of the project where the data
-        will be returned from. (templated)
+        will be returned from. If None, it will be derived from the hook's project ID. (templated)
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
     :param selected_fields: List of fields to return (comma-separated). If
@@ -893,7 +893,10 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             query += self.selected_fields
         else:
             query += "*"
-        query += f" from `{self.project_id}.{self.dataset_id}.{self.table_id}` limit {self.max_results}"
+        query += (
+            f" from `{self.project_id + '.' if self.project_id else ''}{self.dataset_id}"
+            f".{self.table_id}` limit {self.max_results}"
+        )
         return query
 
     def execute(self, context: Context):
@@ -906,7 +909,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         if not self.deferrable:
             self.log.info(
                 "Fetching Data from %s.%s.%s max results: %s",
-                self.project_id,
+                self.project_id or hook.project_id,
                 self.dataset_id,
                 self.table_id,
                 self.max_results,
