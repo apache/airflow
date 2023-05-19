@@ -478,7 +478,7 @@ def run_compile_www_assets(
         else:
             # Check if we are not a group leader already (We should not be)
             if os.getpid() != os.getsid(0):
-                # and create a new process group where we aer the leader
+                # and create a new process group where we are the leader
                 os.setpgid(0, 0)
             _run_compile_internally(command_to_execute, dev)
     else:
