@@ -20,11 +20,9 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import secrets
 import string
-import warnings
 from collections.abc import Container
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any, Sequence
@@ -34,7 +32,7 @@ from slugify import slugify
 from urllib3.exceptions import HTTPError
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
@@ -473,14 +471,6 @@ class KubernetesPodOperator(BaseOperator):
         )
         return hook
 
-    def get_hook(self):
-        warnings.warn(
-            "get_hook is deprecated. Please use hook instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        return self.hook
-
     @cached_property
     def client(self) -> CoreV1Api:
         return self.hook.core_v1_client
@@ -588,20 +578,6 @@ class KubernetesPodOperator(BaseOperator):
             context=context,
         )
         self.invoke_defer_method()
-
-    def convert_config_file_to_dict(self):
-        """Converts passed config_file to dict format."""
-        warnings.warn(
-            "This method is deprecated and will be removed in a future version.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        config_file = self.config_file if self.config_file else os.environ.get(KUBE_CONFIG_ENV_VAR)
-        if config_file:
-            with open(config_file) as f:
-                self._config_dict = yaml.safe_load(f)
-        else:
-            self._config_dict = None
 
     def invoke_defer_method(self):
         """Method to easily redefine triggers which are being used in child classes."""
