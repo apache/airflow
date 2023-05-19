@@ -38,7 +38,6 @@ from kubernetes.client.rest import ApiException
 from sqlalchemy.orm import Session
 from urllib3.exceptions import ReadTimeoutError
 
-from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, PodMutationHookException, PodReconciliationError
 from airflow.executors.base_executor import BaseExecutor
@@ -46,8 +45,8 @@ from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.kube_config import KubeConfig
 from airflow.kubernetes.kubernetes_helper_functions import (
+    annotations_for_logging_task_metadata,
     annotations_to_key,
-    annotations_to_str,
     create_pod_id,
 )
 from airflow.kubernetes.pod_generator import PodGenerator
@@ -72,11 +71,6 @@ if TYPE_CHECKING:
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
-
-
-@cache
-def get_logs_task_metadata() -> bool:
-    return conf.getboolean("kubernetes_executor", "logs_task_metadata", fallback=False)
 
 
 class ResourceVersion:
@@ -226,27 +220,16 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         resource_version: str,
         event: Any,
     ) -> None:
-        annotations_string = annotations_to_str(annotations)
+        annotations_string = annotations_for_logging_task_metadata(annotations)
         """Process status response."""
         if status == "Pending":
             if event["type"] == "DELETED":
-                if get_logs_task_metadata():
-                    self.log.info(
-                        "Event: Failed to start pod %s, annotations: %s", pod_name, annotations_string
-                    )
-                else:
-                    self.log.info("Event: Failed to start pod %s", pod_name)
+                self.log.info("Event: Failed to start pod %s, annotations: %s", pod_name, annotations_string)
                 self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
             else:
-                if get_logs_task_metadata():
-                    self.log.debug("Event: %s Pending, annotations: %s", pod_name, annotations_string)
-                else:
-                    self.log.debug("Event: %s Pending", pod_name)
+                self.log.debug("Event: %s Pending, annotations: %s", pod_name, annotations_string)
         elif status == "Failed":
-            if get_logs_task_metadata():
-                self.log.error("Event: %s Failed, annotations: %s", pod_name, annotations_string)
-            else:
-                self.log.error("Event: %s Failed", pod_name)
+            self.log.error("Event: %s Failed, annotations: %s", pod_name, annotations_string)
             self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
         elif status == "Succeeded":
             # We get multiple events once the pod hits a terminal state, and we only want to
@@ -265,30 +248,18 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     pod_name,
                 )
                 return
-            if get_logs_task_metadata():
-                self.log.info("Event: %s Succeeded, annotations: %s", pod_name, annotations_string)
-            else:
-                self.log.info("Event: %s Succeeded", pod_name)
+            self.log.info("Event: %s Succeeded, annotations: %s", pod_name, annotations_string)
             self.watcher_queue.put((pod_name, namespace, None, annotations, resource_version))
         elif status == "Running":
             if event["type"] == "DELETED":
-                if get_logs_task_metadata():
-                    self.log.info(
-                        "Event: Pod %s deleted before it could complete, annotations: %s",
-                        pod_name,
-                        annotations_string,
-                    )
-                else:
-                    self.log.info(
-                        "Event: Pod %s deleted before it could complete",
-                        pod_name,
-                    )
+                self.log.info(
+                    "Event: Pod %s deleted before it could complete, annotations: %s",
+                    pod_name,
+                    annotations_string,
+                )
                 self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
             else:
-                if get_logs_task_metadata():
-                    self.log.info("Event: %s is Running, annotations: %s", pod_name, annotations_string)
-                else:
-                    self.log.info("Event: %s is Running", pod_name)
+                self.log.info("Event: %s is Running, annotations: %s", pod_name, annotations_string)
         else:
             self.log.warning(
                 "Event: Invalid state: %s on pod: %s in namespace %s with annotations: %s with "
@@ -415,19 +386,12 @@ class AirflowKubernetesScheduler(LoggingMixin):
         )
         # Reconcile the pod generated by the Operator and the Pod
         # generated by the .cfg file
-        if get_logs_task_metadata():
-            self.log.info(
-                "Creating kubernetes pod for job is %s, with pod name %s, annotations: %s",
-                key,
-                pod.metadata.name,
-                annotations_to_str(pod.metadata.annotations),
-            )
-        else:
-            self.log.info(
-                "Creating kubernetes pod for job is %s, with pod name %s",
-                key,
-                pod.metadata.name,
-            )
+        self.log.info(
+            "Creating kubernetes pod for job is %s, with pod name %s, annotations: %s",
+            key,
+            pod.metadata.name,
+            annotations_for_logging_task_metadata(pod.metadata.annotations),
+        )
         self.log.debug("Kubernetes running for command %s", command)
         self.log.debug("Kubernetes launching image %s", pod.spec.containers[0].image)
 
@@ -487,19 +451,12 @@ class AirflowKubernetesScheduler(LoggingMixin):
     def process_watcher_task(self, task: KubernetesWatchType) -> None:
         """Process the task by watcher."""
         pod_name, namespace, state, annotations, resource_version = task
-        if get_logs_task_metadata():
-            self.log.debug(
-                "Attempting to finish pod; pod_name: %s; state: %s; annotations: %s",
-                pod_name,
-                state,
-                annotations_to_str(annotations),
-            )
-        else:
-            self.log.debug(
-                "Attempting to finish pod; pod_name: %s; state: %s",
-                pod_name,
-                state,
-            )
+        self.log.debug(
+            "Attempting to finish pod; pod_name: %s; state: %s; annotations: %s",
+            pod_name,
+            state,
+            annotations_for_logging_task_metadata(annotations),
+        )
         key = annotations_to_key(annotations=annotations)
         if key:
             self.log.debug("finishing job %s - %s (%s)", key, state, pod_name)

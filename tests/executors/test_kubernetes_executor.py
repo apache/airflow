@@ -50,7 +50,10 @@ try:
         get_base_pod_from_template,
     )
     from airflow.kubernetes import pod_generator
-    from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key, annotations_to_str
+    from airflow.kubernetes.kubernetes_helper_functions import (
+        annotations_for_logging_task_metadata,
+        annotations_to_key,
+    )
     from airflow.kubernetes.pod_generator import PodGenerator
 except ImportError:
     AirflowKubernetesScheduler = None  # type: ignore
@@ -1171,7 +1174,7 @@ class TestKubernetesExecutor:
         }
         expected = '{"dag_id": "dag", "run_id": "run_id", "task_id": "task", "try_number": "1"}'
 
-        annotations_str = annotations_to_str(annotations_test)
+        annotations_str = annotations_for_logging_task_metadata(annotations_test)
         assert type(annotations_str) == str
         assert annotations_str == expected
 
