@@ -193,6 +193,7 @@ class TestRedshiftCreateClusterSnapshotOperator:
             ClusterIdentifier="test_cluster",
             WaiterConfig={"Delay": 15, "MaxAttempts": 20},
         )
+
     @mock.patch.object(RedshiftHook, "cluster_status")
     @mock.patch.object(RedshiftHook, "create_cluster_snapshot")
     def test_create_cluster_snapshot_deferred(self, mock_create_cluster_snapshot, mock_cluster_status):
