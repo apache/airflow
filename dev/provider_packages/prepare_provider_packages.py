@@ -623,13 +623,15 @@ def strip_leading_zeros(version: str) -> str:
 def get_previous_release_info(
     previous_release_version: str | None, past_releases: list[ReleaseInfo], current_release_version: str
 ) -> str | None:
-    """
-    Find previous release. In case we are re-running current release we assume that last release was
-    the previous one. This is needed so that we can generate list of changes since the previous release.
+    """Find previous release.
+
+    In case we are re-running current release, we assume that last release was
+    the previous one. This is needed so that we can generate list of changes
+    since the previous release.
+
     :param previous_release_version: known last release version
     :param past_releases: list of past releases
     :param current_release_version: release that we are working on currently
-    :return:
     """
     previous_release = None
     if previous_release_version == current_release_version:
@@ -645,8 +647,8 @@ def check_if_release_version_ok(
     past_releases: list[ReleaseInfo],
     current_release_version: str,
 ) -> tuple[str, str | None]:
-    """
-    Check if the release version passed is not later than the last release version
+    """Check if the release version passed is not later than the last release version.
+
     :param past_releases: all past releases (if there are any)
     :param current_release_version: release version to check
     :return: Tuple of current/previous_release (previous might be None if there are no releases)
@@ -668,8 +670,8 @@ def check_if_release_version_ok(
 
 
 def get_cross_provider_dependent_packages(provider_package_id: str) -> list[str]:
-    """
-    Returns cross-provider dependencies for the package.
+    """Returns cross-provider dependencies for the package.
+
     :param provider_package_id: package id
     :return: list of cross-provider dependencies
     """
@@ -677,18 +679,17 @@ def get_cross_provider_dependent_packages(provider_package_id: str) -> list[str]
 
 
 def make_current_directory_safe(verbose: bool):
-    """
-    Makes current directory safe for Git.
+    """Makes current directory safe for Git.
 
-    New git checks if git ownership for the folder is not manipulated with. We are running this command
-    only inside the container where the directory is mounted from "regular" user to "root" user which is
-    used inside the container, so this is quite ok to assume the directory it is used is safe.
+    New git checks if git ownership for the folder is not manipulated with. We
+    are running this command only inside the container where the directory is
+    mounted from "regular" user to "root" user which is used inside the
+    container, so this is quite ok to assume the directory it is used is safe.
 
-    It's also ok to leave it as safe - it is a global option inside the container so it will disappear
-    when we exit.
+    It's also ok to leave it as safe - it is a global option inside the
+    container so it will disappear when we exit.
 
     :param verbose: whether to print commands being executed
-    :return:
     """
     safe_dir_remove_command = ["git", "config", "--global", "--unset-all", "safe.directory"]
     if verbose:
@@ -702,17 +703,17 @@ def make_current_directory_safe(verbose: bool):
 
 
 def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
-    """
-    Make sure that apache remote exist in git. We need to take a log from the apache
-    repository - not locally.
+    """Make sure that apache remote exist in git.
 
-    Also, the local repo might be shallow, so we need to un-shallow it.
+    We need to take a log from the apache repository - not locally. Also, the
+    local repo might be shallow, so we need to un-shallow it.
 
     This will:
     * mark current directory as safe for ownership (it is run in the container)
     * check if the remote exists and add if it does not
     * check if the local repo is shallow, mark it to un-shallow in this case
-    * fetch from the remote including all tags and overriding local tags in case they are set differently
+    * fetch from the remote including all tags and overriding local tags in case
+      they are set differently
 
     :param git_update: If the git remote already exists, should we try to update it
     :param verbose: print verbose messages while fetching
@@ -782,8 +783,10 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
 def get_git_log_command(
     verbose: bool, from_commit: str | None = None, to_commit: str | None = None
 ) -> list[str]:
-    """
-    Get git command to run for the current repo from the current folder (which is the package folder).
+    """Get git command to run for the current repo from the current folder.
+
+    The current directory should always be the package folder.
+
     :param verbose: whether to print verbose info while getting the command
     :param from_commit: if present - base commit from which to start the log from
     :param to_commit: if present - final commit which should be the start of the log
@@ -806,8 +809,8 @@ def get_git_log_command(
 
 
 def get_git_tag_check_command(tag: str) -> list[str]:
-    """
-    Get git command to check if tag exits.
+    """Get git command to check if tag exits.
+
     :param tag: Tag to check
     :return: git command to run
     """
@@ -819,8 +822,8 @@ def get_git_tag_check_command(tag: str) -> list[str]:
 
 
 def get_source_package_path(provider_package_id: str) -> str:
-    """
-    Retrieves source package path from package id.
+    """Retrieves source package path from package id.
+
     :param provider_package_id: id of the package
     :return: path of the providers folder
     """
@@ -828,8 +831,8 @@ def get_source_package_path(provider_package_id: str) -> str:
 
 
 def get_documentation_package_path(provider_package_id: str) -> str:
-    """
-    Retrieves documentation package path from package id.
+    """Retrieves documentation package path from package id.
+
     :param provider_package_id: id of the package
     :return: path of the documentation folder
     """
@@ -839,8 +842,8 @@ def get_documentation_package_path(provider_package_id: str) -> str:
 
 
 def get_generated_package_path(provider_package_id: str) -> str:
-    """
-    Retrieves generated package path from package id.
+    """Retrieves generated package path from package id.
+
     :param provider_package_id: id of the package
     :return: path of the providers folder
     """
@@ -849,8 +852,7 @@ def get_generated_package_path(provider_package_id: str) -> str:
 
 
 def get_additional_package_info(provider_package_path: str) -> str:
-    """
-    Returns additional info for the package.
+    """Returns additional info for the package.
 
     :param provider_package_path: path for the package
     :return: additional information for the path (empty string if missing)
@@ -878,10 +880,10 @@ def get_package_pip_name(provider_package_id: str):
 
 
 def validate_provider_info_with_runtime_schema(provider_info: dict[str, Any]) -> None:
-    """
-    Validates provider info against the runtime schema. This way we check if the provider info in the
-    packages is future-compatible. The Runtime Schema should only change when there is a major version
-    change.
+    """Validates provider info against the runtime schema.
+
+    This way we check if the provider info in the packages is future-compatible.
+    The Runtime Schema should only change when there is a major version change.
 
     :param provider_info: provider info to validate
     """
@@ -900,10 +902,13 @@ def validate_provider_info_with_runtime_schema(provider_info: dict[str, Any]) ->
 
 
 def get_provider_yaml(provider_package_id: str) -> dict[str, Any]:
-    """
-    Retrieves provider info from the provider yaml file. The provider yaml file contains more information
-    than provider_info that is used at runtime. This method converts the full provider yaml file into
-    stripped-down provider info and validates it against deprecated 2.0.0 schema and runtime schema.
+    """Retrieves provider info from the provider YAML file.
+
+    The provider yaml file contains more information than provider_info that is
+    used at runtime. This method converts the full provider yaml file into
+    stripped-down provider info and validates it against deprecated 2.0.0 schema
+    and runtime schema.
+
     :param provider_package_id: package id to retrieve provider.yaml from
     :return: provider_info dictionary
     """
@@ -916,8 +921,8 @@ def get_provider_yaml(provider_package_id: str) -> dict[str, Any]:
 
 
 def get_provider_info_from_provider_yaml(provider_package_id: str) -> dict[str, Any]:
-    """
-    Retrieves provider info from the provider yaml file.
+    """Retrieves provider info from the provider yaml file.
+
     :param provider_package_id: package id to retrieve provider.yaml from
     :return: provider_info dictionary
     """
@@ -942,12 +947,11 @@ def get_all_changes_for_package(
     verbose: bool,
     base_branch: str,
 ) -> tuple[bool, list[list[Change]] | Change | None, str]:
-    """
-    Retrieves all changes for the package.
+    """Retrieves all changes for the package.
+
     :param provider_package_id: provider package id
     :param base_branch: base branch to check changes in apache remote for changes
     :param verbose: whether to print verbose messages
-
     """
     provider_details = get_provider_details(provider_package_id)
     current_version = provider_details.versions[0]
@@ -1171,11 +1175,12 @@ def prepare_readme_file(context):
 
 
 def confirm(message: str, answer: str | None = None) -> bool:
-    """
-    Ask user to confirm (case-insensitive).
+    """Ask user to confirm (case-insensitive).
+
     :param message: message to display
     :param answer: force answer if set
-    :return: True if the answer is any form of y/yes. Exits with 65 exit code if any form of q/quit is chosen.
+    :return: True if the answer is any form of y/yes. Exits with 65 exit code if
+        any form of q/quit is chosen.
     """
     given_answer = answer.lower() if answer is not None else ""
     while given_answer not in ["y", "n", "q", "yes", "no", "quit"]:
@@ -1199,8 +1204,8 @@ class TypeOfChange(Enum):
 
 
 def get_type_of_changes(answer: str | None) -> TypeOfChange:
-    """
-    Ask user to specify type of changes (case-insensitive).
+    """Ask user to specify type of changes (case-insensitive).
+
     :return: Type of change.
     """
     given_answer = ""
@@ -1271,8 +1276,9 @@ def update_release_notes(
     answer: str | None,
     base_branch: str,
 ) -> bool:
-    """
-    Updates generated files (readme, changes and/or setup.cfg/setup.py/manifest.in/provider_info)
+    """Updates generated files.
+
+    This includes the readme, changes, and/or setup.cfg/setup.py/manifest.in/provider_info).
 
     :param provider_package_id: id of the package
     :param version_suffix: version suffix corresponding to the version in the code
@@ -1352,8 +1358,7 @@ def update_setup_files(
     provider_package_id: str,
     version_suffix: str,
 ):
-    """
-    Updates generated setup.cfg/setup.py/manifest.in/provider_info for packages
+    """Updates generated setup.cfg/setup.py/manifest.in/provider_info for packages.
 
     :param provider_package_id: id of the package
     :param version_suffix: version suffix corresponding to the version in the code
@@ -1545,18 +1550,17 @@ def prepare_manifest_in_file(context):
 
 
 def get_all_providers() -> list[str]:
-    """
-    Returns all providers for regular packages.
+    """Returns all providers for regular packages.
+
     :return: list of providers that are considered for provider packages
     """
     return list(ALL_PROVIDERS)
 
 
 def verify_provider_package(provider_package_id: str) -> None:
-    """
-    Verifies if the provider package is good.
+    """Verifies if the provider package is good.
+
     :param provider_package_id: package id to verify
-    :return: None
     """
     if provider_package_id not in get_all_providers():
         console.print(f"[red]Wrong package name: {provider_package_id}[/]")
@@ -1618,10 +1622,9 @@ def update_package_documentation(
     verbose: bool,
     base_branch: str,
 ):
-    """
-    Updates package documentation.
+    """Updates package documentation.
 
-    See `list-providers-packages` subcommand for the possible PACKAGE_ID values
+    See `list-providers-packages` subcommand for the possible PACKAGE_ID values.
     """
     provider_package_id = package_id
     verify_provider_package(provider_package_id)
@@ -1670,10 +1673,9 @@ def tag_exists_for_version(provider_package_id: str, current_tag: str, verbose: 
 def generate_setup_files(
     version_suffix: str, git_update: bool, package_id: str, verbose: bool, skip_tag_check: bool
 ):
-    """
-    Generates setup files for the package.
+    """Generates setup files for the package.
 
-    See `list-providers-packages` subcommand for the possible PACKAGE_ID values
+    See `list-providers-packages` subcommand for the possible PACKAGE_ID values.
     """
     provider_package_id = package_id
     with with_group(f"Generate setup files for '{provider_package_id}'"):
@@ -1740,10 +1742,9 @@ def build_provider_packages(
     verbose: bool,
     skip_tag_check: bool,
 ):
-    """
-    Builds provider package.
+    """Builds provider package.
 
-    See `list-providers-packages` subcommand for the possible PACKAGE_ID values
+    See `list-providers-packages` subcommand for the possible PACKAGE_ID values.
     """
 
     import tempfile
@@ -1792,13 +1793,14 @@ def build_provider_packages(
 
 
 def find_insertion_index_for_version(content: list[str], version: str) -> tuple[int, bool]:
-    """
-    Finds insertion index for the specified version from the .rst changelog content.
+    """Finds insertion index for the specified version from the .rst changelog content.
 
     :param content: changelog split into separate lines
     :param version: version to look for
 
-    :return: Tuple : insertion_index, append (whether to append or insert the changelog)
+    :return: A 2-tuple. The first item indicates the insertion index, while the
+        second is a boolean indicating whether to append (False) or insert (True)
+        to the changelog.
     """
     changelog_found = False
     skip_next_line = False
@@ -1824,10 +1826,11 @@ class ClassifiedChanges(NamedTuple):
 
 
 def get_changes_classified(changes: list[Change]) -> ClassifiedChanges:
-    """
-    Pre-classifies changes based on commit message, it's wildly guessing now,
-    but if we switch to semantic commits, it could be automated. This list is supposed to be manually
-    reviewed and re-classified by release manager anyway.
+    """Pre-classifies changes based on commit message, it's wildly guessing now,
+
+    However, if we switch to semantic commits, it could be automated. This list
+    is supposed to be manually reviewed and re-classified by release manager
+    anyway.
 
     :param changes: list of changes
     :return: list of changes classified semi-automatically to the fix/feature/breaking/other buckets
@@ -1856,8 +1859,8 @@ def update_changelog(package_id: str, base_branch: str, verbose: bool):
 
 
 def _update_changelog(package_id: str, base_branch: str, verbose: bool) -> bool:
-    """
-    Internal update changelog method
+    """Internal update changelog method.
+
     :param package_id: package id
     :param base_branch: base branch to check changes in apache remote for changes
     :param verbose: verbose flag

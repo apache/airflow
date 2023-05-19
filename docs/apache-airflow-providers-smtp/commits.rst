@@ -28,6 +28,18 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.1.0
+.....
+
+Latest change: 2023-05-03
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+=================================================================================================  ===========  ======================================================================
+
 1.0.1
 .....
 
@@ -36,6 +48,7 @@ Latest change: 2023-04-09
 =================================================================================================  ===========  =======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================
+`874ea9588e <https://github.com/apache/airflow/commit/874ea9588e3ce7869759440302e53bb6a730a11e>`_  2023-04-09   ``Prepare docs for ad hoc release of Providers (#30545)``
 `806b0279ac <https://github.com/apache/airflow/commit/806b0279acd5897e2ad6b816764bb25b4bcdf5b0>`_  2023-04-09   ``Accept None for 'EmailOperator.from_email' to load it from smtp connection (#30533)``
 `a15e734785 <https://github.com/apache/airflow/commit/a15e73478521707487e1a6d6f7ef7f213b282023>`_  2023-04-07   ``'EmailOperator': fix wrong assignment of 'from_email' (#30524)``
 `d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``

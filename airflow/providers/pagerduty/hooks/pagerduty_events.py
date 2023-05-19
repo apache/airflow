@@ -194,3 +194,11 @@ class PagerdutyEventsHook(BaseHook):
 
         session = pdpyras.ChangeEventsAPISession(self.integration_key)
         return session.send_change_event(payload=payload, links=links)
+
+    def test_connection(self):
+        try:
+            session = pdpyras.EventsAPISession(self.integration_key)
+            session.resolve("some_dedup_key_that_dont_exist")
+        except Exception:
+            return False, "connection test failed, invalid routing key"
+        return True, "connection tested successfully"

@@ -95,7 +95,7 @@ class Trigger(Base):
     def bulk_fetch(cls, ids: Iterable[int], session: Session = NEW_SESSION) -> dict[int, Trigger]:
         """
         Fetches all the Triggers by ID and returns a dict mapping
-        ID -> Trigger instance
+        ID -> Trigger instance.
         """
         query = (
             session.query(cls)
@@ -112,9 +112,11 @@ class Trigger(Base):
     @internal_api_call
     @provide_session
     def clean_unused(cls, session: Session = NEW_SESSION) -> None:
-        """
-        Deletes all triggers that have no tasks/DAGs dependent on them
-        (triggers have a one-to-many relationship to both)
+        """Deletes all triggers that have no tasks dependent on them.
+
+        Triggers have a one-to-many relationship to task instances, so we need
+        to clean those up first. Afterwards we can drop the triggers not
+        referenced by anyone.
         """
         # Update all task instances with trigger IDs that are not DEFERRED to remove them
         for attempt in run_with_db_retries():
