@@ -3818,7 +3818,7 @@ class Airflow(AirflowBaseView):
         start_date = _safe_parse_datetime(request.args.get("start_date"))
         end_date = _safe_parse_datetime(request.args.get("end_date"))
         with create_session() as session:
-            # Dag Runs
+            # DagRuns
             dag_runs_type = (
                 session.query(DagRun.run_type, func.count(DagRun.run_id))
                 .filter(
