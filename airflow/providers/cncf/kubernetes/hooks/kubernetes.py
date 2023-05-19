@@ -295,7 +295,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         response = api.create_namespaced_custom_object(
             group=group,
             version=version,
-            namespace=namespace or self.get_namespace(),
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             plural=plural,
             body=body_dict,
         )
@@ -319,7 +319,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         response = api.get_namespaced_custom_object(
             group=group,
             version=version,
-            namespace=namespace or self.get_namespace(),
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             plural=plural,
             name=name,
         )
@@ -341,7 +341,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return api.delete_namespaced_custom_object(
             group=group,
             version=version,
-            namespace=namespace or self.get_namespace(),
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             plural=plural,
             name=name,
             **kwargs,
