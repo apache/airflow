@@ -144,6 +144,15 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint("dag_id", "execution_date", name="dag_run_dag_id_execution_date_key"),
         UniqueConstraint("dag_id", "run_id", name="dag_run_dag_id_run_id_key"),
         Index("idx_last_scheduling_decision", last_scheduling_decision),
+        Index(
+            "idx_last_scheduling_decision_queued",
+            # Not possible to add .nulls_first(), because only postgresql can handle Index like that.
+            # Migration script which contains postgres dialect check adds NULLS FIST to index.
+            last_scheduling_decision,
+            execution_date,
+            _state,
+            postgresql_where=text("state='queued'"),
+        ),
         Index("idx_dag_run_dag_id", dag_id),
         Index(
             "idx_dag_run_running_dags",
