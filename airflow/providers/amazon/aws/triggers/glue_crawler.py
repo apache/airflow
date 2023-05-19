@@ -16,6 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
+
+from botocore.exceptions import WaiterError
+
 from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -27,15 +31,14 @@ class GlueCrawlerCompleteTrigger(BaseTrigger):
 
     :param crawler_name: name of the crawler to watch
     :param poll_interval: The amount of time in seconds to wait between attempts.
-    :param max_attempt: The maximum number of attempts to be made.
-    :param conn_id: The Airflow connection used for AWS credentials.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
-    def __init__(self, crawler_name: str, poll_interval: int, conn_id: str):
+    def __init__(self, crawler_name: str, poll_interval: int, aws_conn_id: str):
         super().__init__()
         self.crawler_name = crawler_name
         self.poll_interval = poll_interval
-        self.aws_conn_id = conn_id
+        self.aws_conn_id = aws_conn_id
 
     def serialize(self) -> tuple[str, dict]:
         return (
@@ -53,10 +56,21 @@ class GlueCrawlerCompleteTrigger(BaseTrigger):
 
     async def run(self):
         async with self.hook.async_conn as client:
-            await client.get_waiter("crawler_ready").wait(
-                Name=self.crawler_name,
-                WaiterConfig={
-                    "Delay": self.poll_interval,
-                },
-            )
-        return TriggerEvent({"status": "success", "message": "Crawl Complete"})
+            waiter = self.hook.get_waiter("crawler_ready", deferrable=True, client=client)
+            while True:
+                try:
+                    await waiter.wait(
+                        Name=self.crawler_name,
+                        WaiterConfig={"Delay": self.poll_interval, "MaxAttempts": 1},
+                    )
+                    break  # we reach this point only if the waiter met a success criteria
+                except WaiterError as error:
+                    if "terminal failure" in str(error):
+                        yield TriggerEvent(
+                            {"status": "failure", "message": f"Glue Crawler creation Failed: {error}"}
+                        )
+                        break
+                    self.log.info("Status of cluster snapshot is %s", error.last_response["Crawler"]["State"])
+                    await asyncio.sleep(int(self.poll_interval))
+
+        yield TriggerEvent({"status": "success", "message": "Crawl Complete"})

@@ -59,4 +59,4 @@ class GlueJobCompleteTrigger(BaseTrigger):
     async def run(self):
         hook = GlueJobHook(aws_conn_id=self.aws_conn_id)
         await hook.async_job_completion(self.job_name, self.run_id, self.verbose)
-        return TriggerEvent({"status": "success", "message": "Job done"})
+        yield TriggerEvent({"status": "success", "message": "Job done"})

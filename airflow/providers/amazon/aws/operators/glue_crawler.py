@@ -94,7 +94,7 @@ class GlueCrawlerOperator(BaseOperator):
                 trigger=GlueCrawlerCompleteTrigger(
                     crawler_name=crawler_name,
                     poll_interval=self.poll_interval,
-                    conn_id=self.aws_conn_id,
+                    aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
             )
