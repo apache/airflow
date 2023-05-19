@@ -158,7 +158,7 @@ class SetTaskInstanceStateFormSchema(Schema):
     include_downstream = fields.Boolean(required=True)
     include_future = fields.Boolean(required=True)
     include_past = fields.Boolean(required=True)
-    new_state = TaskInstanceStateField(required=True, validate=validate.OneOf(list(TaskInstanceState))
+    new_state = TaskInstanceStateField(required=True, validate=validate.OneOf([State.SUCCESS, State.FAILED, State.SKIPPED])
 
     @validates_schema
     def validate_form(self, data, **kwargs):
@@ -171,7 +171,7 @@ class SetSingleTaskInstanceStateFormSchema(Schema):
     """Schema for handling the request of updating state of a single task instance."""
 
     dry_run = fields.Boolean(dump_default=True)
-    new_state = TaskInstanceStateField(required=True, validate=validate.OneOf(list(TaskInstanceState))
+    new_state = TaskInstanceStateField(required=True, validate=validate.OneOf([State.SUCCESS, State.FAILED, State.SKIPPED])
 
 
 class TaskInstanceReferenceSchema(Schema):
