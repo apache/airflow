@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 import sys
-from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 
 import pytest
 from botocore.exceptions import WaiterError
 
+from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftCreateClusterSnapshotTrigger,
     RedshiftCreateClusterTrigger,
@@ -116,7 +116,6 @@ class TestRedshiftCreateClusterSnapshotTrigger:
 
         assert response == TriggerEvent({"status": "success", "message": "Cluster Snapshot Created"})
 
-
     @pytest.mark.asyncio
     @async_mock.patch("asyncio.sleep")
     @async_mock.patch.object(RedshiftHook, "async_conn")
@@ -149,7 +148,6 @@ class TestRedshiftCreateClusterSnapshotTrigger:
         assert mock.get_waiter().wait.call_count == 3
         assert response == TriggerEvent({"status": "success", "message": "Cluster Snapshot Created"})
 
-
     @pytest.mark.asyncio
     @async_mock.patch("asyncio.sleep")
     @async_mock.patch.object(RedshiftHook, "async_conn")
@@ -181,9 +179,8 @@ class TestRedshiftCreateClusterSnapshotTrigger:
 
         assert mock.get_waiter().wait.call_count == 2
         assert response == TriggerEvent(
-                {"status": "failure", "message": "Create Cluster Snapshot Cluster Failed - max attempts reached."}
-            )
-    
+            {"status": "failure", "message": "Create Cluster Snapshot Cluster Failed - max attempts reached."}
+        )
 
     @pytest.mark.asyncio
     @async_mock.patch("asyncio.sleep")
@@ -201,13 +198,15 @@ class TestRedshiftCreateClusterSnapshotTrigger:
             reason="test_reason",
             last_response={"Snapshots": [{"Status": "available"}]},
         )
-        
+
         error_failed = WaiterError(
             name="test_name",
             reason="Waiter encountered a terminal failure state:",
             last_response={"Snapshots": [{"Status": "available"}]},
         )
-        mock.get_waiter().wait.side_effect = AsyncMock(side_effect=[error_available, error_available, error_failed])
+        mock.get_waiter().wait.side_effect = AsyncMock(
+            side_effect=[error_available, error_available, error_failed]
+        )
         mock_sleep.return_value = True
 
         redshift_create_cluster_snapshot_trigger = RedshiftCreateClusterSnapshotTrigger(
@@ -221,4 +220,6 @@ class TestRedshiftCreateClusterSnapshotTrigger:
         response = await generator.asend(None)
 
         assert mock.get_waiter().wait.call_count == 3
-        assert response == TriggerEvent({"status": "failure", "message": f"Create Cluster Snapshot Failed: {error_failed}"})
+        assert response == TriggerEvent(
+            {"status": "failure", "message": f"Create Cluster Snapshot Failed: {error_failed}"}
+        )

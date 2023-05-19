@@ -15,9 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-from datetime import timedelta
 
 import time
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException

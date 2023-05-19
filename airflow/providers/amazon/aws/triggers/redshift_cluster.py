@@ -15,15 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-import asyncio
 
+import asyncio
 from typing import Any, AsyncIterator
+
+from botocore.exceptions import WaiterError
 
 from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftAsyncHook, RedshiftHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
-from botocore.exceptions import WaiterError
 
 class RedshiftClusterTrigger(BaseTrigger):
     """AWS Redshift trigger"""
@@ -197,7 +198,9 @@ class RedshiftCreateClusterSnapshotTrigger(BaseTrigger):
                     break
                 except WaiterError as error:
                     if "terminal failure" in str(error):
-                        yield TriggerEvent({"status": "failure", "message": f"Create Cluster Snapshot Failed: {error}"})
+                        yield TriggerEvent(
+                            {"status": "failure", "message": f"Create Cluster Snapshot Failed: {error}"}
+                        )
                         break
                     self.log.info(
                         "Status of cluster snapshot is %s", error.last_response["Snapshots"][0]["Status"]
@@ -205,7 +208,10 @@ class RedshiftCreateClusterSnapshotTrigger(BaseTrigger):
                     await asyncio.sleep(int(self.poll_interval))
         if attempt >= int(self.max_attempts):
             yield TriggerEvent(
-                {"status": "failure", "message": "Create Cluster Snapshot Cluster Failed - max attempts reached."}
+                {
+                    "status": "failure",
+                    "message": "Create Cluster Snapshot Cluster Failed - max attempts reached.",
+                }
             )
         else:
             yield TriggerEvent({"status": "success", "message": "Cluster Snapshot Created"})
