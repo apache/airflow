@@ -20,7 +20,7 @@ from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, B
 
 
 class BatchJobDefinitionLink(BaseAwsLink):
-    """Helper class for constructing AWS Batch Job Definition Link"""
+    """Helper class for constructing AWS Batch Job Definition Link."""
 
     name = "Batch Job Definition"
     key = "batch_job_definition"
@@ -30,7 +30,7 @@ class BatchJobDefinitionLink(BaseAwsLink):
 
 
 class BatchJobDetailsLink(BaseAwsLink):
-    """Helper class for constructing AWS Batch Job Details Link"""
+    """Helper class for constructing AWS Batch Job Details Link."""
 
     name = "Batch Job Details"
     key = "batch_job_details"
@@ -38,7 +38,7 @@ class BatchJobDetailsLink(BaseAwsLink):
 
 
 class BatchJobQueueLink(BaseAwsLink):
-    """Helper class for constructing AWS Batch Job Queue Link"""
+    """Helper class for constructing AWS Batch Job Queue Link."""
 
     name = "Batch Job Queue"
     key = "batch_job_queue"

@@ -157,7 +157,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> EmrServerlessHook:
-        """Create and return an EmrServerlessHook"""
+        """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     @staticmethod
@@ -213,7 +213,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> EmrServerlessHook:
-        """Create and return an EmrServerlessHook"""
+        """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     @staticmethod
@@ -293,7 +293,7 @@ class EmrContainerSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> EmrContainerHook:
-        """Create and return an EmrContainerHook"""
+        """Create and return an EmrContainerHook."""
         return EmrContainerHook(self.aws_conn_id, virtual_cluster_id=self.virtual_cluster_id)
 
 

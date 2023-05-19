@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class GlacierCreateJobOperator(BaseOperator):
     """
-    Initiate an Amazon Glacier inventory-retrieval job
+    Initiate an Amazon Glacier inventory-retrieval job.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -58,7 +58,7 @@ class GlacierCreateJobOperator(BaseOperator):
 
 class GlacierUploadArchiveOperator(BaseOperator):
     """
-    This operator add an archive to an Amazon S3 Glacier vault
+    This operator add an archive to an Amazon S3 Glacier vault.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

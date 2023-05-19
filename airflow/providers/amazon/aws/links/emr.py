@@ -27,7 +27,7 @@ from airflow.utils.helpers import exactly_one
 
 
 class EmrClusterLink(BaseAwsLink):
-    """Helper class for constructing AWS EMR Cluster Link"""
+    """Helper class for constructing AWS EMR Cluster Link."""
 
     name = "EMR Cluster"
     key = "emr_cluster"
@@ -35,7 +35,7 @@ class EmrClusterLink(BaseAwsLink):
 
 
 class EmrLogsLink(BaseAwsLink):
-    """Helper class for constructing AWS EMR Logs Link"""
+    """Helper class for constructing AWS EMR Logs Link."""
 
     name = "EMR Cluster Logs"
     key = "emr_logs"

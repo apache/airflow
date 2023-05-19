@@ -335,7 +335,7 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
 
 class EcsRunTaskOperator(EcsBaseOperator):
     """
-    Execute a task on AWS ECS (Elastic Container Service)
+    Execute a task on AWS ECS (Elastic Container Service).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

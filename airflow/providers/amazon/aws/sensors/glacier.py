@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 
 class JobStatus(Enum):
-    """Glacier jobs description"""
+    """Glacier jobs description."""
 
     IN_PROGRESS = "InProgress"
     SUCCEEDED = "Succeeded"
