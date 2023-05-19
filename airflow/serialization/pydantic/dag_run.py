@@ -42,6 +42,6 @@ class DagRunPydantic(BaseModelPydantic):
     updated_at: datetime
 
     class Config:
-        """Make sure it deals automatically with ORM classes of SQL Alchemy"""
+        """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         orm_mode = True

@@ -419,7 +419,7 @@ class BatchClientHook(AwsBaseHook):
             return None
         if len(all_info) > 1:
             self.log.warning(
-                f"AWS Batch job ({job_id}) has more than one log stream, " f"only returning the first one."
+                f"AWS Batch job ({job_id}) has more than one log stream, only returning the first one."
             )
         return all_info[0]
 

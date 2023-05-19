@@ -22,7 +22,7 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "start-airflow",
         "static-checks",
         "build-docs",
-        "stop",
+        "down",
         "shell",
         "exec",
         "compile-www-assets",
@@ -130,9 +130,9 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze exec": [
         {"name": "Drops in the interactive shell of active airflow container"},
     ],
-    "breeze stop": [
+    "breeze down": [
         {
-            "name": "Stop flags",
+            "name": "Down flags",
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
@@ -158,14 +158,20 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Pre-commit flags",
             "options": [
                 "--type",
-                "--file",
-                "--all-files",
                 "--show-diff-on-failure",
-                "--last-commit",
-                "--commit-ref",
                 "--initialize-environment",
                 "--max-initialization-attempts",
                 "--github-repository",
+            ],
+        },
+        {
+            "name": "Selecting files to run the checks on",
+            "options": [
+                "--file",
+                "--all-files",
+                "--commit-ref",
+                "--last-commit",
+                "--only-my-changes",
             ],
         },
     ],

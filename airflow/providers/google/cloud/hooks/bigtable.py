@@ -263,6 +263,8 @@ class BigtableHook(GoogleBaseHook):
         :param nodes: The desired number of nodes.
         """
         cluster = Cluster(cluster_id, instance)
+        # "reload" is required to set location_id attribute on cluster.
+        cluster.reload()
         cluster.serve_nodes = nodes
         cluster.update()
 

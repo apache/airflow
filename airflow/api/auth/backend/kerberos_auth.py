@@ -96,10 +96,7 @@ def init_app(app):
 
 
 def _unauthorized():
-    """
-    Indicate that authorization is required.
-    :return:
-    """
+    """Indicate that authorization is required."""
     return Response("Unauthorized", 401, {"WWW-Authenticate": "Negotiate"})
 
 

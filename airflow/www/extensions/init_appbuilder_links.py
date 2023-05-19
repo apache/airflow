@@ -21,7 +21,7 @@ from airflow.utils.docs import get_docs_url
 
 
 def init_appbuilder_links(app):
-    """Add links to the navbar"""
+    """Add links to the navbar."""
     appbuilder = app.appbuilder
 
     appbuilder.add_link(name="DAGs", href="Airflow.index")

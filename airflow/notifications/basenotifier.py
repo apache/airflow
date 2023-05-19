@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 
 class BaseNotifier(Templater):
-    """BaseNotifier class for sending notifications"""
+    """BaseNotifier class for sending notifications."""
 
     template_fields: Sequence[str] = ()
     template_ext: Sequence[str] = ()
@@ -41,7 +41,7 @@ class BaseNotifier(Templater):
 
     def _update_context(self, context: Context) -> Context:
         """
-        Add additional context to the context
+        Add additional context to the context.
 
         :param context: The airflow context
         """
@@ -73,7 +73,7 @@ class BaseNotifier(Templater):
     @abstractmethod
     def notify(self, context: Context) -> None:
         """
-        Sends a notification
+        Sends a notification.
 
         :param context: The airflow context
         """
@@ -81,7 +81,7 @@ class BaseNotifier(Templater):
 
     def __call__(self, context: Context) -> None:
         """
-        Send a notification
+        Send a notification.
 
         :param context: The airflow context
         """

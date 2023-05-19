@@ -39,14 +39,14 @@ ROOT_APP_DIR = path.abspath(path.join(path.dirname(__file__), path.pardir, path.
 
 
 def init_flash_views(app):
-    """Init main app view - redirect to FAB"""
+    """Init main app view - redirect to FAB."""
     from airflow.www.blueprints import routes
 
     app.register_blueprint(routes)
 
 
 def init_appbuilder_views(app):
-    """Initialize Web UI views"""
+    """Initialize Web UI views."""
     from airflow.models import import_all_models
 
     import_all_models()
@@ -125,7 +125,7 @@ def init_appbuilder_views(app):
 
 
 def init_plugins(app):
-    """Integrate Flask and FAB with plugins"""
+    """Integrate Flask and FAB with plugins."""
     from airflow import plugins_manager
 
     plugins_manager.initialize_web_ui_plugins()
@@ -154,7 +154,7 @@ def init_plugins(app):
 
 
 def init_error_handlers(app: Flask):
-    """Add custom errors handlers"""
+    """Add custom errors handlers."""
     from airflow.www import views
 
     app.register_error_handler(500, views.show_traceback)
@@ -162,7 +162,7 @@ def init_error_handlers(app: Flask):
 
 
 def set_cors_headers_on_response(response):
-    """Add response headers"""
+    """Add response headers."""
     allow_headers = conf.get("api", "access_control_allow_headers")
     allow_methods = conf.get("api", "access_control_allow_methods")
     allow_origins = conf.get("api", "access_control_allow_origins")
@@ -226,7 +226,7 @@ class _CustomErrorRequestBodyValidator(RequestBodyValidator):
 
 
 def init_api_connexion(app: Flask) -> None:
-    """Initialize Stable API"""
+    """Initialize Stable API."""
     base_path = "/api/v1"
 
     from airflow.www import views
@@ -271,7 +271,7 @@ def init_api_connexion(app: Flask) -> None:
 
 
 def init_api_internal(app: Flask, standalone_api: bool = False) -> None:
-    """Initialize Internal API"""
+    """Initialize Internal API."""
     if not standalone_api and not conf.getboolean("webserver", "run_internal_api", fallback=False):
         return
 
@@ -292,7 +292,7 @@ def init_api_internal(app: Flask, standalone_api: bool = False) -> None:
 
 
 def init_api_experimental(app):
-    """Initialize Experimental API"""
+    """Initialize Experimental API."""
     if not conf.getboolean("api", "enable_experimental_api", fallback=False):
         return
     from airflow.www.api.experimental import endpoints

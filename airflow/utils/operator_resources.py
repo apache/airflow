@@ -153,7 +153,7 @@ class Resources:
 
     @classmethod
     def from_dict(cls, resources_dict: dict):
-        """Create resources from resources dict"""
+        """Create resources from resources dict."""
         cpus = resources_dict["cpus"]["qty"]
         ram = resources_dict["ram"]["qty"]
         disk = resources_dict["disk"]["qty"]
