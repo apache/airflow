@@ -26,6 +26,7 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import Session, reconstructor, synonym
 
 from airflow.configuration import ensure_secrets_loaded
+from airflow.exceptions import AirflowFailException
 from airflow.models.base import ID_LEN, Base
 from airflow.models.crypto import get_fernet
 from airflow.secrets.metastore import MetastoreBackend
