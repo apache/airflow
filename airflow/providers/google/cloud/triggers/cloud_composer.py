@@ -27,7 +27,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class CloudComposerExecutionTrigger(BaseTrigger):
-    """The trigger handles the async communication with the Google Cloud Composer"""
+    """The trigger handles the async communication with the Google Cloud Composer."""
 
     def __init__(
         self,

@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 class ADLSToGCSOperator(ADLSListOperator):
     """
-    Synchronizes an Azure Data Lake Storage path with a GCS bucket
+    Synchronizes an Azure Data Lake Storage path with a GCS bucket.
 
     :param src_adls: The Azure Data Lake path to find the objects (templated)
     :param dest_gcs: The Google Cloud Storage bucket and prefix to

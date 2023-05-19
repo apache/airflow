@@ -116,7 +116,7 @@ class GKEHook(GoogleBaseHook):
     def wait_for_operation(self, operation: Operation, project_id: str | None = None) -> Operation:
         """
         Given an operation, continuously fetches the status from Google Cloud until either
-        completion or an error occurring
+        completion or an error occurring.
 
         :param operation: The Operation to wait for
         :param project_id: Google Cloud project ID
@@ -135,7 +135,7 @@ class GKEHook(GoogleBaseHook):
 
     def get_operation(self, operation_name: str, project_id: str | None = None) -> Operation:
         """
-        Fetches the operation from Google Cloud
+        Fetches the operation from Google Cloud.
 
         :param operation_name: Name of operation to fetch
         :param project_id: Google Cloud project ID
@@ -151,7 +151,7 @@ class GKEHook(GoogleBaseHook):
     @staticmethod
     def _append_label(cluster_proto: Cluster, key: str, val: str) -> Cluster:
         """
-        Append labels to provided Cluster Protobuf
+        Append labels to provided Cluster Protobuf.
 
         Labels must fit the regex ``[a-z]([-a-z0-9]*[a-z0-9])?`` (current
          airflow version string follows semantic versioning spec: x.y.z).
@@ -274,7 +274,7 @@ class GKEHook(GoogleBaseHook):
         timeout: float | None = None,
     ) -> Cluster:
         """
-        Gets details of specified cluster
+        Gets details of specified cluster.
 
         :param name: The name of the cluster to retrieve
         :param project_id: Google Cloud project ID
