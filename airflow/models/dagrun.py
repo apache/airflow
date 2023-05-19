@@ -603,7 +603,7 @@ class DagRun(Base, LoggingMixin):
             teardown_task_ids = [t.task_id for t in dag.teardowns]
             upstream_of_teardowns = [t.task_id for t in dag.tasks_upstream_of_teardowns]
             teardown_tis = [ti for ti in tis if ti.task_id in teardown_task_ids]
-            on_failure_fail_tis = [ti for ti in teardown_tis if getattr(ti.task, "_on_failure_fail_dagrun")]
+            on_failure_fail_tis = [ti for ti in teardown_tis if getattr(ti.task, "on_failure_fail_dagrun")]
             tis_upstream_of_teardowns = [ti for ti in tis if ti.task_id in upstream_of_teardowns]
             leaf_tis = list(set(leaf_tis) - set(teardown_tis))
             leaf_tis.extend(on_failure_fail_tis)
