@@ -162,7 +162,7 @@ class SparkSqlHook(BaseHook):
 
     def run_query(self, cmd: str = "", **kwargs: Any) -> None:
         """
-        Remote Popen (actually execute the Spark-sql query)
+        Remote Popen (actually execute the Spark-sql query).
 
         :param cmd: command to append to the spark-sql command
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
@@ -185,7 +185,7 @@ class SparkSqlHook(BaseHook):
             )
 
     def kill(self) -> None:
-        """Kill Spark job"""
+        """Kill Spark job."""
         if self._sp and self._sp.poll() is None:
             self.log.info("Killing the Spark-Sql job")
             self._sp.kill()
