@@ -49,8 +49,10 @@ const FilterBar = () => {
       px={4}
       py={5}
       justifyContent="space-between"
+      flexWrap="wrap"
+      gap={4}
     >
-      <Flex justifyContent="space-between">
+      <Flex justifyContent="space-between" flexWrap="wrap" gap={4}>
         <Box px={2}>
           <Text fontSize="sm" as="b" position="absolute" mt="-14px" ml={1}>
             Start Date
@@ -74,13 +76,13 @@ const FilterBar = () => {
           />
         </Box>
         <Flex alignItems="center">
-          <Text>
+          <Text whiteSpace="nowrap">
             over the last{" "}
             {formatDuration(getDuration(formattedStartDate, formattedEndDate))}
           </Text>
         </Flex>
       </Flex>
-      <Flex alignItems="end" px={2}>
+      <Flex px={2}>
         <Button
           colorScheme="cyan"
           aria-label="Reset filters"
