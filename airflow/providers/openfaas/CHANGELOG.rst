@@ -24,6 +24,9 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
 .. note::
   This release of provider is only available for Airflow 2.4+ as explained in the
   `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
@@ -37,6 +40,9 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add full automation for min Airflow version for providers (#30994)``
    * ``Add mechanism to suspend providers (#30422)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
 
 3.1.0
 .....
