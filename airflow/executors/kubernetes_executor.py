@@ -26,7 +26,6 @@ from __future__ import annotations
 import json
 import logging
 import multiprocessing
-import sys
 import time
 from collections import defaultdict
 from contextlib import suppress
@@ -39,6 +38,7 @@ from kubernetes.client.rest import ApiException
 from sqlalchemy.orm import Session
 from urllib3.exceptions import ReadTimeoutError
 
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, PodMutationHookException, PodReconciliationError
 from airflow.executors.base_executor import BaseExecutor
@@ -72,13 +72,6 @@ if TYPE_CHECKING:
 
 ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
-
-if sys.version_info >= (3, 9):
-    from functools import cache
-else:
-    from functools import lru_cache
-
-    cache = lru_cache(maxsize=None)
 
 
 @cache
