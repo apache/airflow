@@ -208,8 +208,8 @@ def filter_known_common_deprecated_messages(warn: warnings.WarningMessage) -> bo
 
 
 def get_all_providers() -> list[str]:
-    """
-    Returns all providers for regular packages.
+    """Returns all providers for regular packages.
+
     :return: list of providers that are considered for provider packages
     """
     from setup import ALL_PROVIDERS
@@ -224,13 +224,13 @@ def import_all_classes(
     print_imports: bool = False,
     print_skips: bool = False,
 ) -> tuple[list[str], list[WarningMessage], list[str]]:
-    """
-    Imports all classes in providers packages. This method loads and imports
-    all the classes found in providers, so that we can find all the subclasses
-    of operators/sensors etc.
+    """Imports all classes in providers packages.
 
-    :param walkable_paths_and_prefixes: dict of paths with accompanying prefixes to look the provider
-        packages in
+    This method loads and imports all the classes found in providers, so that we
+    can find all the subclasses of operators/sensors etc.
+
+    :param walkable_paths_and_prefixes: dict of paths with accompanying prefixes
+        to look the provider packages in
     :param prefix: prefix to add
     :param provider_ids - provider ids that should be loaded.
     :param print_imports - if imported class should also be printed in output
@@ -330,8 +330,7 @@ def import_all_classes(
 
 
 def is_imported_from_same_module(the_class: str, imported_name: str) -> bool:
-    """
-    Is the class imported from another module?
+    """Is the class imported from another module?
 
     :param the_class: the class object itself
     :param imported_name: name of the imported class
@@ -341,8 +340,7 @@ def is_imported_from_same_module(the_class: str, imported_name: str) -> bool:
 
 
 def is_example_dag(imported_name: str) -> bool:
-    """
-    Is the class an example_dag class?
+    """Is the class an example_dag class?
 
     :param imported_name: name where the class is imported from
     :return: true if it is an example_dags class
@@ -351,18 +349,17 @@ def is_example_dag(imported_name: str) -> bool:
 
 
 def is_from_the_expected_base_package(the_class: type, expected_package: str) -> bool:
-    """
-    Returns true if the class is from the package expected.
+    """Returns true if the class is from the package expected.
+
     :param the_class: the class object
     :param expected_package: package expected for the class
-    :return:
     """
     return the_class.__module__.startswith(expected_package)
 
 
 def inherits_from(the_class: type, expected_ancestor: type | None = None) -> bool:
-    """
-    Returns true if the class inherits (directly or indirectly) from the class specified.
+    """Returns true if the class inherits (directly or indirectly) from the class specified.
+
     :param the_class: The class to check
     :param expected_ancestor: expected class to inherit from
     :return: true is the class inherits from the class expected
@@ -376,8 +373,8 @@ def inherits_from(the_class: type, expected_ancestor: type | None = None) -> boo
 
 
 def is_class(the_class: type) -> bool:
-    """
-    Returns true if the object passed is a class
+    """Returns true if the object passed is a class.
+
     :param the_class: the class to pass
     :return: true if it is a class
     """
@@ -387,9 +384,8 @@ def is_class(the_class: type) -> bool:
 
 
 def package_name_matches(the_class: type, expected_pattern: str | None = None) -> bool:
-    """
-    In case expected_pattern is set, it checks if the package name matches the pattern.
-    .
+    """In case expected_pattern is set, it checks if the package name matches the pattern.
+
     :param the_class: imported class
     :param expected_pattern: the pattern that should match the package
     :return: true if the expected_pattern is None or the pattern matches the package
@@ -398,8 +394,7 @@ def package_name_matches(the_class: type, expected_pattern: str | None = None) -
 
 
 def convert_classes_to_table(entity_type: EntityType, entities: list[str], full_package_name: str) -> str:
-    """
-    Converts new entities to a Markdown table.
+    """Converts new entities to a Markdown table.
 
     :param entity_type: entity type to convert to markup
     :param entities: list of  entities
@@ -419,14 +414,12 @@ def get_details_about_classes(
     wrong_entities: list[tuple[type, str]],
     full_package_name: str,
 ) -> EntityTypeSummary:
-    """
-    Get details about entities.
+    """Get details about entities.
 
     :param entity_type: type of entity (Operators, Hooks etc.)
     :param entities: set of entities found
     :param wrong_entities: wrong entities found for that type
     :param full_package_name: full package name
-    :return:
     """
     all_entities = list(entities)
     all_entities.sort()
@@ -443,9 +436,7 @@ def get_details_about_classes(
 
 
 def strip_package_from_class(base_package: str, class_name: str) -> str:
-    """
-    Strips base package name from the class (if it starts with the package name).
-    """
+    """Strips base package name from the class (if it starts with the package name)."""
     if class_name.startswith(base_package):
         return class_name[len(base_package) + 1 :]
     else:
@@ -453,8 +444,7 @@ def strip_package_from_class(base_package: str, class_name: str) -> str:
 
 
 def convert_class_name_to_url(base_url: str, class_name) -> str:
-    """
-    Converts the class name to URL that the class can be reached
+    """Converts the class name to URL that the class can be reached.
 
     :param base_url: base URL to use
     :param class_name: name of the class
@@ -464,8 +454,7 @@ def convert_class_name_to_url(base_url: str, class_name) -> str:
 
 
 def get_class_code_link(base_package: str, class_name: str, git_tag: str) -> str:
-    """
-    Provides a Markdown link for the class passed as parameter.
+    """Provides a Markdown link for the class passed as parameter.
 
     :param base_package: base package to strip from most names
     :param class_name: name of the class
@@ -480,8 +469,8 @@ def get_class_code_link(base_package: str, class_name: str, git_tag: str) -> str
 
 
 def print_wrong_naming(entity_type: EntityType, wrong_classes: list[tuple[type, str]]):
-    """
-    Prints wrong entities of a given entity type if there are any
+    """Prints wrong entities of a given entity type if there are any.
+
     :param entity_type: type of the class to print
     :param wrong_classes: list of wrong entities
     """
@@ -501,8 +490,7 @@ def find_all_entities(
     exclude_class_type: type | None = None,
     false_positive_class_names: set[str] | None = None,
 ) -> VerifiedEntities:
-    """
-    Returns set of entities containing all subclasses in package specified.
+    """Returns set of entities containing all subclasses in package specified.
 
     :param imported_classes: entities imported from providers
     :param base_package: base package name where to start looking for the entities
@@ -557,11 +545,12 @@ def find_all_entities(
 def get_package_class_summary(
     full_package_name: str, imported_classes: list[str]
 ) -> dict[EntityType, EntityTypeSummary]:
-    """
-    Gets summary of the package in the form of dictionary containing all types of entities
+    """Gets summary of the package in the form of dictionary containing all types of entities.
+
     :param full_package_name: full package name
     :param imported_classes: entities imported_from providers
-    :return: dictionary of objects usable as context for JINJA2 templates - or None if there are some errors
+    :return: dictionary of objects usable as context for JINJA2 templates, or
+        None if there are some errors
     """
     from airflow.hooks.base import BaseHook
     from airflow.models.baseoperator import BaseOperator
@@ -637,8 +626,8 @@ def get_package_class_summary(
 
 
 def is_camel_case_with_acronyms(s: str):
-    """
-    Checks if the string passed is Camel Case (with capitalised acronyms allowed).
+    """Checks if the string passed is Camel Case (with capitalised acronyms allowed).
+
     :param s: string to check
     :return: true if the name looks cool as Class name.
     """
@@ -648,9 +637,9 @@ def is_camel_case_with_acronyms(s: str):
 def check_if_classes_are_properly_named(
     entity_summary: dict[EntityType, EntityTypeSummary]
 ) -> tuple[int, int]:
-    """
-    Check if all entities in the dictionary are named properly. It prints names at the output
-    and returns the status of class names.
+    """Check if all entities in the dictionary are named properly.
+
+    It prints names at the output and returns the status of class names.
 
     :param entity_summary: dictionary of class names to check, grouped by types.
     :return: Tuple of 2 ints = total number of entities and number of badly named entities
@@ -773,9 +762,10 @@ def get_providers_paths() -> list[str]:
 def add_all_namespaced_packages(
     walkable_paths_and_prefixes: dict[str, str], provider_path: str, provider_prefix: str
 ):
-    """
-    We need to find namespace packages ourselves as "walk_packages" does not support namespaced packages
-    # and PEP420
+    """Find namespace packages.
+
+    This needs to be done manually as ``walk_packages`` does not support
+    namespaced packages and PEP 420.
 
     :param walkable_paths_and_prefixes: pats
     :param provider_path:
