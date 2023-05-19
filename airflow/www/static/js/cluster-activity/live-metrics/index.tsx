@@ -44,14 +44,14 @@ const LiveMetrics = () => (
             w="25%"
             minW="300px"
             minH="200px"
-            px={2}
+            pr={4}
             justifyContent="space-around"
           >
             <Dags />
             <DagRuns />
           </Flex>
-          <Pools width="50%" minW="300px" px={2} />
-          <Health width="25%" minW="300px" px={2} />
+          <Pools width="50%" minW="300px" pr={4} />
+          <Health width="25%" minW="300px" />
         </Flex>
       </CardBody>
     </Card>

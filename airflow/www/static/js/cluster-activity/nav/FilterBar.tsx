@@ -19,11 +19,15 @@
 
 /* global moment */
 
-import { Box, Button, Flex, Input } from "@chakra-ui/react";
+import { Box, Button, Flex, Input, Text } from "@chakra-ui/react";
 import React from "react";
 
 import { useTimezone } from "src/context/timezone";
-import { isoFormatWithoutTZ } from "src/datetime_utils";
+import {
+  isoFormatWithoutTZ,
+  formatDuration,
+  getDuration,
+} from "src/datetime_utils";
 import useFilters from "src/cluster-activity/useFilters";
 
 const FilterBar = () => {
@@ -42,11 +46,15 @@ const FilterBar = () => {
     <Flex
       backgroundColor="blackAlpha.200"
       mb={4}
-      p={4}
+      px={4}
+      py={5}
       justifyContent="space-between"
     >
       <Flex justifyContent="space-between">
         <Box px={2}>
+          <Text fontSize="sm" as="b" position="absolute" mt="-14px" ml={1}>
+            Start Date
+          </Text>
           <Input
             {...inputStyles}
             type="datetime-local"
@@ -55,6 +63,9 @@ const FilterBar = () => {
           />
         </Box>
         <Box px={2}>
+          <Text fontSize="sm" as="b" position="absolute" mt="-14px" ml={1}>
+            End Date
+          </Text>
           <Input
             {...inputStyles}
             type="datetime-local"
@@ -62,8 +73,14 @@ const FilterBar = () => {
             onChange={(e) => onEndDateChange(e.target.value)}
           />
         </Box>
+        <Flex alignItems="center">
+          <Text>
+            over the last{" "}
+            {formatDuration(getDuration(formattedStartDate, formattedEndDate))}
+          </Text>
+        </Flex>
       </Flex>
-      <Box px={2}>
+      <Flex alignItems="end" px={2}>
         <Button
           colorScheme="cyan"
           aria-label="Reset filters"
@@ -74,7 +91,7 @@ const FilterBar = () => {
         >
           Clear Filters
         </Button>
-      </Box>
+      </Flex>
     </Flex>
   );
 };

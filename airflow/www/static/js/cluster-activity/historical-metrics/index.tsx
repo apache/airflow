@@ -51,10 +51,10 @@ const HistoricalMetrics = () => {
                 <PieChart
                   title="Dag Run States"
                   data={data?.dagRunStates}
-                  width="33%"
+                  width="33.33%"
                   minW="300px"
                   minH="350px"
-                  px={2}
+                  pr={4}
                   colorPalette={[
                     stateColors.failed,
                     stateColors.queued,
@@ -65,10 +65,10 @@ const HistoricalMetrics = () => {
                 <PieChart
                   title="Dag Run Types"
                   data={data?.dagRunTypes}
-                  width="33%"
+                  width="33.33%"
                   minW="300px"
                   minH="350px"
-                  px={2}
+                  pr={4}
                   colorPalette={[
                     stateColors.deferred,
                     stateColors.queued,
@@ -79,10 +79,9 @@ const HistoricalMetrics = () => {
                 <PieChart
                   title="Task Instance States"
                   data={data?.taskInstanceStates}
-                  width="33%"
+                  width="33.33%"
                   minW="300px"
                   minH="350px"
-                  px={2}
                 />
               </Flex>
             </LoadingWrapper>
