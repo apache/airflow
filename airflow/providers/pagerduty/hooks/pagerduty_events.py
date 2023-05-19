@@ -151,3 +151,11 @@ class PagerdutyEventsHook(BaseHook):
         resp = session.post("/v2/enqueue", json=data)
         resp.raise_for_status()
         return resp.json()
+
+    def test_connection(self):
+        try:
+            session = pdpyras.EventsAPISession(self.integration_key)
+            session.resolve("some_dedup_key_that_dont_exist")
+        except Exception:
+            return False, "connection test failed, invalid routing key"
+        return True, "connection tested successfully"
