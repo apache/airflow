@@ -26,13 +26,13 @@ from airflow.providers.qubole.operators.qubole import QuboleOperator
 
 
 class _QuboleCheckOperatorMixin:
-    """This is a Mixin for Qubole related check operators"""
+    """This is a Mixin for Qubole related check operators."""
 
     kwargs: dict
     results_parser_callable: Callable | None
 
     def execute(self, context=None) -> None:
-        """Execute a check operation against Qubole"""
+        """Execute a check operation against Qubole."""
         try:
             self._hook_context = context
             super().execute(context=context)  # type: ignore[misc]
@@ -40,7 +40,7 @@ class _QuboleCheckOperatorMixin:
             handle_airflow_exception(e, self.get_hook())
 
     def get_db_hook(self) -> QuboleCheckHook:
-        """Get QuboleCheckHook"""
+        """Get QuboleCheckHook."""
         return self.get_hook()
 
     def get_hook(self) -> QuboleCheckHook:
@@ -177,7 +177,7 @@ class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator,
 
 
 def get_sql_from_qbol_cmd(params) -> str:
-    """Get Qubole sql from Qubole command"""
+    """Get Qubole sql from Qubole command."""
     sql = ""
     if "query" in params:
         sql = params["query"]
@@ -187,7 +187,7 @@ def get_sql_from_qbol_cmd(params) -> str:
 
 
 def handle_airflow_exception(airflow_exception, hook: QuboleCheckHook):
-    """Qubole check handle Airflow exception"""
+    """Qubole check handle Airflow exception."""
     cmd = hook.cmd
     if cmd is not None:
         if cmd.is_success(cmd.status):

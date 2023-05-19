@@ -84,7 +84,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, StringField
@@ -103,7 +103,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
@@ -177,7 +177,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return self.conn_extras.get(prefixed_name) or None
 
     def get_conn(self) -> client.ApiClient:
-        """Returns kubernetes api session for use with requests"""
+        """Returns kubernetes api session for use with requests."""
         in_cluster = self._coalesce_param(self.in_cluster, self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, self._get_field("cluster_context"))
         kubeconfig_path = self._coalesce_param(self.config_file, self._get_field("kube_config_path"))
@@ -253,7 +253,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     @property
     def is_in_cluster(self) -> bool:
-        """Expose whether the hook is configured with ``load_incluster_config`` or not"""
+        """Expose whether the hook is configured with ``load_incluster_config`` or not."""
         if self._is_in_cluster is not None:
             return self._is_in_cluster
         self.api_client  # so we can determine if we are in_cluster or not
@@ -263,7 +263,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     @cached_property
     def api_client(self) -> client.ApiClient:
-        """Cached Kubernetes API client"""
+        """Cached Kubernetes API client."""
         return self.get_conn()
 
     @cached_property
@@ -278,7 +278,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         self, group: str, version: str, plural: str, body: str | dict, namespace: str | None = None
     ):
         """
-        Creates custom resource definition object in Kubernetes
+        Creates custom resource definition object in Kubernetes.
+
         :param group: api group
         :param version: api version
         :param plural: api plural
@@ -307,7 +308,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         self, group: str, version: str, plural: str, name: str, namespace: str | None = None
     ):
         """
-        Get custom resource definition object from Kubernetes
+        Get custom resource definition object from Kubernetes.
 
         :param group: api group
         :param version: api version
@@ -329,7 +330,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         self, group: str, version: str, plural: str, name: str, namespace: str | None = None, **kwargs
     ):
         """
-        Delete custom resource definition object from Kubernetes
+        Delete custom resource definition object from Kubernetes.
 
         :param group: api group
         :param version: api version
@@ -348,7 +349,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         )
 
     def get_namespace(self) -> str | None:
-        """Returns the namespace that defined in the connection"""
+        """Returns the namespace that defined in the connection."""
         if self.conn_id:
             return self._get_field("namespace")
         return None
@@ -412,7 +413,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         **kwargs,
     ):
         """
-        Retrieves a list of Kind pod which belong default kubernetes namespace
+        Retrieves a list of Kind pod which belong default kubernetes namespace.
+
         :param label_selector: A selector to restrict the list of returned objects by their labels
         :param namespace: kubernetes namespace
         :param watch: Watch for changes to the described resources and return them as a stream
@@ -449,7 +451,7 @@ class AsyncKubernetesHook(KubernetesHook):
         self._extras: dict | None = None
 
     async def _load_config(self):
-        """Returns Kubernetes API session for use with requests"""
+        """Returns Kubernetes API session for use with requests."""
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
         kubeconfig_path = self._coalesce_param(self.config_file, await self._get_field("kube_config_path"))

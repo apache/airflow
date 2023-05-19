@@ -33,7 +33,7 @@ ROW_DELIM = "\r\n"
 
 
 def isint(value) -> bool:
-    """Whether Qubole column are integer"""
+    """Whether Qubole column are integer."""
     try:
         int(value)
         return True
@@ -42,7 +42,7 @@ def isint(value) -> bool:
 
 
 def isfloat(value) -> bool:
-    """Whether Qubole column are float"""
+    """Whether Qubole column are float."""
     try:
         float(value)
         return True
@@ -51,7 +51,7 @@ def isfloat(value) -> bool:
 
 
 def isbool(value) -> bool:
-    """Whether Qubole column are boolean"""
+    """Whether Qubole column are boolean."""
     try:
         return value.lower() in ["true", "false"]
     except ValueError:
@@ -59,7 +59,7 @@ def isbool(value) -> bool:
 
 
 def parse_first_row(row_list) -> list[bool | float | int | str]:
-    """Parse Qubole first record list"""
+    """Parse Qubole first record list."""
     record_list = []
     first_row = row_list[0] if row_list else ""
 
@@ -76,7 +76,7 @@ def parse_first_row(row_list) -> list[bool | float | int | str]:
 
 
 class QuboleCheckHook(QuboleHook, DbApiHook):
-    """Qubole check hook"""
+    """Qubole check hook."""
 
     def __init__(self, context, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -100,7 +100,7 @@ class QuboleCheckHook(QuboleHook, DbApiHook):
                     cmd.cancel()
 
     def get_first(self, sql):
-        """Get Qubole query first record list"""
+        """Get Qubole query first record list."""
         self.execute(context=self.context)
         query_result = self.get_query_results()
         row_list = list(filter(None, query_result.split(ROW_DELIM)))
@@ -108,7 +108,7 @@ class QuboleCheckHook(QuboleHook, DbApiHook):
         return record_list
 
     def get_query_results(self) -> str | None:
-        """Get Qubole query result"""
+        """Get Qubole query result."""
         if self.cmd is not None:
             cmd_id = self.cmd.id
             self.log.info("command id: %d", cmd_id)

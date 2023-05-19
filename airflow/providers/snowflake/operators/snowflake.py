@@ -31,7 +31,7 @@ from airflow.providers.common.sql.operators.sql import (
 
 class SnowflakeOperator(SQLExecuteQueryOperator):
     """
-    Executes SQL code in a Snowflake database
+    Executes SQL code in a Snowflake database.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
