@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import pathlib
 import random
 import re
@@ -1165,18 +1166,38 @@ class TestKubernetesExecutor:
     def test_supports_sentry(self):
         assert not KubernetesExecutor.supports_sentry
 
-    def test_annotations_to_str(self):
+    def test_annotations_for_logging_task_metadata(self):
         annotations_test = {
             "dag_id": "dag",
             "run_id": "run_id",
             "task_id": "task",
             "try_number": "1",
         }
-        expected = '{"dag_id": "dag", "run_id": "run_id", "task_id": "task", "try_number": "1"}'
+        with mock.patch.dict(
+            os.environ, {"AIRFLOW__KUBERNETES_EXECUTOR__LOGS_TASK_METADATA": "True"}, clear=True
+        ):
+            expected_annotations = {
+                "dag_id": "dag",
+                "run_id": "run_id",
+                "task_id": "task",
+                "try_number": "1",
+            }
+            annotations_actual = annotations_for_logging_task_metadata(annotations_test)
+            assert annotations_actual == expected_annotations
 
-        annotations_str = annotations_for_logging_task_metadata(annotations_test)
-        assert type(annotations_str) == str
-        assert annotations_str == expected
+    def test_annotations_for_logging_task_metadata_fallback(self):
+        annotations_test = {
+            "dag_id": "dag",
+            "run_id": "run_id",
+            "task_id": "task",
+            "try_number": "1",
+        }
+        with mock.patch.dict(
+            os.environ, {"AIRFLOW__KUBERNETES_EXECUTOR__LOGS_TASK_METADATA": "False"}, clear=True
+        ):
+            expected_annotations = "<omitted>"
+            annotations_actual = annotations_for_logging_task_metadata(annotations_test)
+            assert annotations_actual == expected_annotations
 
 
 class TestKubernetesJobWatcher:

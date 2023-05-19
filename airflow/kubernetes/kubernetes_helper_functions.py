@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 import logging
 import secrets
 import string
@@ -129,9 +128,9 @@ def get_logs_task_metadata() -> bool:
     return conf.getboolean("kubernetes_executor", "logs_task_metadata", fallback=False)
 
 
-def annotations_for_logging_task_metadata(annotation_set: dict[str, str]) -> str:
+def annotations_for_logging_task_metadata(annotation_set):
     if get_logs_task_metadata():
-        annotations_for_logging = json.dumps(annotation_set)
+        annotations_for_logging = annotation_set
     else:
         annotations_for_logging = "<omitted>"
     return annotations_for_logging
