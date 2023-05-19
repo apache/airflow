@@ -20,12 +20,14 @@ from __future__ import annotations
 
 from ssl import CERT_NONE
 from types import TracebackType
+from typing import Any, overload
 from urllib.parse import quote_plus, urlunsplit
 
 import pymongo
 from pymongo import MongoClient, ReplaceOne
 
 from airflow.hooks.base import BaseHook
+from airflow.typing_compat import Literal
 
 
 class MongoHook(BaseHook):
@@ -56,7 +58,7 @@ class MongoHook(BaseHook):
         self.mongo_conn_id = conn_id
         self.connection = self.get_connection(conn_id)
         self.extras = self.connection.extra_dejson.copy()
-        self.client = None
+        self.client: MongoClient | None = None
         self.uri = self._create_uri()
 
     def __enter__(self):
@@ -82,7 +84,12 @@ class MongoHook(BaseHook):
 
         # If we are using SSL disable requiring certs from specific hostname
         if options.get("ssl", False):
-            options.update({"ssl_cert_reqs": CERT_NONE})
+            if pymongo.__version__ >= "4.0.0":
+                # In pymongo 4.0.0+ `tlsAllowInvalidCertificates=True`
+                # replaces `ssl_cert_reqs=CERT_NONE`
+                options.update({"tlsAllowInvalidCertificates": True})
+            else:
+                options.update({"ssl_cert_reqs": CERT_NONE})
 
         self.client = MongoClient(self.uri, **options)
         return self.client
@@ -129,6 +136,30 @@ class MongoHook(BaseHook):
 
         return collection.aggregate(aggregate_query, **kwargs)
 
+    @overload
+    def find(
+        self,
+        mongo_collection: str,
+        query: dict,
+        find_one: Literal[False],
+        mongo_db: str | None = None,
+        projection: list | dict | None = None,
+        **kwargs,
+    ) -> pymongo.cursor.Cursor:
+        ...
+
+    @overload
+    def find(
+        self,
+        mongo_collection: str,
+        query: dict,
+        find_one: Literal[True],
+        mongo_db: str | None = None,
+        projection: list | dict | None = None,
+        **kwargs,
+    ) -> Any | None:
+        ...
+
     def find(
         self,
         mongo_collection: str,
@@ -137,7 +168,7 @@ class MongoHook(BaseHook):
         mongo_db: str | None = None,
         projection: list | dict | None = None,
         **kwargs,
-    ) -> pymongo.cursor.Cursor:
+    ) -> pymongo.cursor.Cursor | Any | None:
         """
         Runs a mongo find query and returns the results
         https://pymongo.readthedocs.io/en/stable/api/pymongo/collection.html#pymongo.collection.Collection.find.

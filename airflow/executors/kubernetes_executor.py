@@ -46,14 +46,14 @@ from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.kube_config import KubeConfig
 from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key, create_pod_id
 from airflow.kubernetes.pod_generator import PodGenerator
-from airflow.models.taskinstance import TaskInstance
 from airflow.utils.event_scheduler import EventScheduler
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin, remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType
+    from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
     # TaskInstance key, command, configuration, pod_template_file
@@ -753,6 +753,7 @@ class KubernetesExecutor(BaseExecutor):
     ) -> None:
         if TYPE_CHECKING:
             assert self.kube_scheduler
+        from airflow.models.taskinstance import TaskInstance
 
         if state == State.RUNNING:
             self.event_buffer[key] = state, None
@@ -794,7 +795,7 @@ class KubernetesExecutor(BaseExecutor):
 
             client = get_kube_client()
 
-            messages.append(f"Trying to get logs (last 100 lines) from worker pod {ti.hostname}")
+            messages.append(f"Attempting to fetch logs from pod {ti.hostname} through kube API")
             selector = PodGenerator.build_selector_for_k8s_executor_pod(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
@@ -820,9 +821,10 @@ class KubernetesExecutor(BaseExecutor):
                 tail_lines=100,
                 _preload_content=False,
             )
-
             for line in res:
-                log.append(line.decode())
+                log.append(remove_escape_codes(line.decode()))
+            if log:
+                messages.append("Found logs through kube API")
         except Exception as e:
             messages.append(f"Reading from k8s pod logs failed: {str(e)}")
         return messages, ["\n".join(log)]

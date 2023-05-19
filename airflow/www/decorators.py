@@ -87,7 +87,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                 if g.user.is_anonymous:
                     user = "anonymous"
                 else:
-                    user = g.user.username
+                    user = f"{g.user.username} ({g.user.get_full_name()})"
 
                 fields_skip_logging = {"csrf_token", "_csrf_token"}
                 extra_fields = [

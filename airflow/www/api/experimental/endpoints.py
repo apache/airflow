@@ -157,9 +157,11 @@ def delete_dag(dag_id):
 def dag_runs(dag_id):
     """
     Returns a list of Dag Runs for a specific DAG ID.
-    :query param state: a query string parameter '?state=queued|running|success...'.
+
+    :query param state: a query string parameter '?state=queued|running|success...'
 
     :param dag_id: String identifier of a DAG
+
     :return: List of DAG runs of a DAG with requested state,
         or all runs if the state is not specified
     """

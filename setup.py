@@ -16,6 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Setup.py for the Airflow project."""
+# To make sure the CI build is using "upgrade to newer dependencies", which is useful when you want to check
+# if the dependencies are still compatible with the latest versions as they seem to break some unrelated
+# tests in main, you can modify this file. The modification can be simply modifying this particular comment.
+# e.g. you can modify the following number "00001" to something else to trigger it.
 from __future__ import annotations
 
 import glob
@@ -240,9 +244,10 @@ dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
     "cloudpickle>=1.4.1",
-    # Dask in version 2022.10.1 removed `bokeh` support and we should avoid installing it
-    "dask>=2.9.0,!=2022.10.1",
-    "distributed>=2.11.1",
+    # Dask and distributed in version 2023.5.0 break our tests for Python > 3.7
+    # See https://github.com/dask/dask/issues/10279
+    "dask>=2.9.0,!=2022.10.1,!=2023.5.0",
+    "distributed>=2.11.1,!=2023.5.0",
 ]
 deprecated_api = [
     "requests>=2.26.0",
@@ -276,7 +281,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.0",
+    "flask-appbuilder[oauth]==4.3.1",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -637,8 +642,7 @@ devel_all = get_unique_dependency_list(
 )
 
 # Those are packages excluded for "all" dependencies
-PACKAGES_EXCLUDED_FOR_ALL = []
-PACKAGES_EXCLUDED_FOR_ALL.extend(["snakebite"])
+PACKAGES_EXCLUDED_FOR_ALL: list[str] = []
 
 
 def is_package_excluded(package: str, exclusion_list: list[str]) -> bool:

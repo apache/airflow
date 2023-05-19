@@ -59,7 +59,6 @@ class UtcDateTime(TypeDecorator):
       it never return naive :class:`~datetime.datetime`, but time zone
       aware value, even with SQLite or MySQL.
     - Always returns TIMESTAMP in UTC.
-
     """
 
     impl = TIMESTAMP(timezone=True)
@@ -397,10 +396,11 @@ def nowait(session: Session) -> dict[str, Any]:
 
 
 def nulls_first(col, session: Session) -> dict[str, Any]:
-    """
-    Adds a nullsfirst construct to the column ordering. Currently only Postgres supports it.
-    In MySQL & Sqlite NULL values are considered lower than any non-NULL value, therefore, NULL values
-    appear first when the order is ASC (ascending).
+    """Specify *NULLS FIRST* to the column ordering.
+
+    This is only done to Postgres, currently the only backend that supports it.
+    Other databases do not need it since NULL values are considered lower than
+    any other values, and appear first when the order is ASC (ascending).
     """
     if session.bind.dialect.name == "postgresql":
         return nullsfirst(col)

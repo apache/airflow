@@ -26,7 +26,6 @@ from pathlib import Path
 
 from airflow import models
 from airflow.models.baseoperator import chain
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceAsyncSensor,
@@ -157,12 +156,9 @@ with models.DAG(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    sleep = BashOperator(task_id="sleep", bash_command="sleep 5")
-
     chain(
         # TEST SETUP
         create_bucket,
-        sleep,
         upload_file,
         # TEST BODY
         [

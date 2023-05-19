@@ -265,6 +265,7 @@ def find_path_from_directory(
 ) -> Generator[str, None, None]:
     """
     Recursively search the base path and return the list of file paths that should not be ignored.
+
     :param base_dir_path: the base path to be searched
     :param ignore_file_name: the file name in which specifies the patterns of files/dirs to be ignored
     :param ignore_file_syntax: the syntax of patterns in the ignore file: regexp or glob.
@@ -387,7 +388,7 @@ def iter_airflow_imports(file_path: str) -> Generator[str, None, None]:
     """Find Airflow modules imported in the given file."""
     try:
         parsed = ast.parse(Path(file_path).read_bytes())
-    except (OSError, SyntaxError, UnicodeDecodeError):
+    except Exception:
         return
     for m in _find_imported_modules(parsed):
         if m.startswith("airflow."):

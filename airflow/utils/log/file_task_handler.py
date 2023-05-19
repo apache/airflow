@@ -315,7 +315,7 @@ class FileTaskHandler(logging.Handler):
             if response:
                 executor_messages, executor_logs = response
             if executor_messages:
-                messages_list.extend(messages_list)
+                messages_list.extend(executor_messages)
         if not (remote_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)

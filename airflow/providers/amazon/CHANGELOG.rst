@@ -24,6 +24,54 @@
 Changelog
 ---------
 
+8.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``DynamoDBToS3Operator - Add a feature to export the table to a point in time. (#31142)``
+* ``Add deferrable param in SageMakerTransformOperator (#31063)``
+* ``Add deferrable param in SageMakerTrainingOperator (#31042)``
+* ``Add deferrable param in SageMakerProcessingOperator (#31062)``
+* ``Add IAM authentication to Amazon Redshift Connection by AWS Connection (#28187)``
+* ``'StepFunctionStartExecutionOperator': get logs in case of failure (#31072)``
+* ``Add on_kill to EMR Serverless Job Operator (#31169)``
+* ``Add Deferrable Mode for EC2StateSensor (#31130)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``bigfix: EMRHook  Loop through paginated response to check for cluster id (#29732)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+* ``Add template field to S3ToRedshiftOperator (#30781)``
+* ``Add extras links to some more EMR Operators and Sensors (#31032)``
+* ``Add retries to S3 delete_bucket (#31192)``
+* ``Add tags param in RedshiftCreateClusterSnapshotOperator (#31006)``
+* ``improve/fix glue job logs printing (#30886)``
+* ``Import aiobotocore only if deferrable is true (#31094)``
+* ``Update return types of 'get_key' methods on 'S3Hook' (#30923)``
+* ``Support 'shareIdentifier' in BatchOperator (#30829)``
+* ``BaseAWS - Override client when resource_type is user to get custom waiters (#30897)``
+* ``Add future-compatible mongo Hook typing (#31289)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move TaskInstanceKey to a separate file (#31033)``
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``DynamoDBToS3Operator - Add feature to export table to a point in time (#30501)``
+   * ``Revert "DynamoDBToS3Operator - Add feature to export table to a point in time (#30501)" (#31139)``
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Bring back detection of implicit single-line string concatenation (#31270)``
+
 8.0.0
 ......
 
@@ -346,8 +394,9 @@ Bug Fixes
 6.1.0
 .....
 
-This release of provider is only available for Airflow 2.3+ as explained in the
-`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Misc
 ~~~~
@@ -586,8 +635,9 @@ Bug Fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Features
 ~~~~~~~~
