@@ -101,7 +101,7 @@ the example below.
 .. code-block:: bash
 
     $ airflow info
-    ...
+
     Apache Airflow
     version                | 2.7.0.dev0
     executor               | LocalExecutor

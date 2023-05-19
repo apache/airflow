@@ -934,6 +934,23 @@ class TestDagFileProcessor:
         )
         processor.start()
 
+    @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
+    @mock.patch.object(DagFileProcessorProcess, "_get_multiprocessing_context")
+    def test_nullbyte_exception_handling_when_preimporting_airflow(self, mock_context, tmpdir):
+        mock_context.return_value.Pipe.return_value = (MagicMock(), MagicMock())
+        dag_filename = os.path.join(tmpdir, "test_dag.py")
+        with open(dag_filename, "wb") as file:
+            file.write(b"hello\x00world")
+
+        processor = DagFileProcessorProcess(
+            file_path=dag_filename,
+            pickle_dags=False,
+            dag_ids=[],
+            dag_directory=[],
+            callback_requests=[],
+        )
+        processor.start()
+
 
 class TestProcessorAgent:
     @pytest.fixture(autouse=True)
