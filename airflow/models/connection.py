@@ -21,7 +21,7 @@ import json
 import logging
 import warnings
 from json import JSONDecodeError
-from urllib.parse import SplitResult, parse_qsl, quote, unquote, urlencode, urlsplit
+from urllib.parse import parse_qsl, quote, unquote, urlencode, urlsplit
 
 from sqlalchemy import Boolean, Column, Integer, String, Text
 from sqlalchemy.orm import declared_attr, reconstructor, synonym
@@ -197,10 +197,7 @@ class Connection(Base, LoggingMixin):
         uri_list[idx : idx + 3] = ":__"
         uri = "".join(uri_list)
         uri = urlsplit(uri)
-        uri = [e for e in uri]
-        # replace back :__ with ://
-        uri[1] = uri[1].replace(":__", "://")
-        uri = SplitResult(uri[0], uri[1], uri[2], uri[3], uri[4])
+        uri = uri._replace(netloc=uri.netloc.replace(":__", "://"))
         return uri, True
 
     def _parse_from_uri(self, uri: str):
