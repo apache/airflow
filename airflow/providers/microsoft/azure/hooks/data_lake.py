@@ -61,7 +61,7 @@ class AzureDataLakeHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -76,7 +76,7 @@ class AzureDataLakeHook(BaseHook):
     @staticmethod
     @_ensure_prefixes(conn_type="azure_data_lake")
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -215,7 +215,7 @@ class AzureDataLakeHook(BaseHook):
 
     def list(self, path: str) -> list:
         """
-        List files in Azure Data Lake Storage
+        List files in Azure Data Lake Storage.
 
         :param path: full path/globstring to use to list files in ADLS
         """
@@ -226,7 +226,7 @@ class AzureDataLakeHook(BaseHook):
 
     def remove(self, path: str, recursive: bool = False, ignore_not_found: bool = True) -> None:
         """
-        Remove files in Azure Data Lake Storage
+        Remove files in Azure Data Lake Storage.
 
         :param path: A directory or file to remove in ADLS
         :param recursive: Whether to loop into directories in the location and remove the files
@@ -245,7 +245,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     """
     This Hook interacts with ADLS gen2 storage account it mainly helps to create and manage
     directories and files in storage accounts that have a hierarchical namespace. Using Adls_v2 connection
-    details create DataLakeServiceClient object
+    details create DataLakeServiceClient object.
 
     Due to Wasb is marked as legacy and and retirement of the (ADLS1) it would be nice to
     implement ADLS gen2 hook for interacting with the storage account.
@@ -264,7 +264,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -280,7 +280,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port"],
             "relabeling": {
@@ -361,7 +361,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
 
     def get_file_system(self, file_system: FileSystemProperties | str) -> FileSystemClient:
         """
-        Get a client to interact with the specified file system
+        Get a client to interact with the specified file system.
 
         :param file_system: This can either be the name of the file system
             or an instance of FileSystemProperties.
@@ -414,7 +414,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
 
     def create_file(self, file_system_name: FileSystemProperties | str, file_name: str) -> DataLakeFileClient:
         """
-        Creates a file under the file system
+        Creates a file under the file system.
 
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param file_name: Name of the file which needs to be created in the file system.
@@ -431,7 +431,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         **kwargs: Any,
     ) -> None:
         """
-        Create a file with data in the file system
+        Create a file with data in the file system.
 
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param file_name: Name of the file to be created with name.
@@ -453,7 +453,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
     ) -> None:
         """
         Create a new file and return the file client to be interacted with and then
-        upload data to a file
+        upload data to a file.
 
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param directory_name: Name of the directory.
@@ -470,7 +470,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         self, file_system_name: FileSystemProperties | str, directory_name: str
     ) -> list[str]:
         """
-        Get the list of files or directories under the specified file system
+        Get the list of files or directories under the specified file system.
 
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param directory_name: Name of the directory.
@@ -503,7 +503,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
 
     def delete_file_system(self, file_system_name: FileSystemProperties | str) -> None:
         """
-        Deletes the file system
+        Deletes the file system.
 
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         """
@@ -518,7 +518,7 @@ class AzureDataLakeStorageV2Hook(BaseHook):
 
     def delete_directory(self, file_system_name: FileSystemProperties | str, directory_name: str) -> None:
         """
-        Deletes specified directory in file system
+        Deletes specified directory in file system.
 
         :param file_system_name: Name of the file system or instance of FileSystemProperties.
         :param directory_name: Name of the directory.

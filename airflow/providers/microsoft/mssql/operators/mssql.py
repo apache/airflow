@@ -26,7 +26,7 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 class MsSqlOperator(SQLExecuteQueryOperator):
     """
-    Executes sql code in a specific Microsoft SQL database
+    Executes sql code in a specific Microsoft SQL database.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
