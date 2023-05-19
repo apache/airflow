@@ -34,7 +34,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, func, not_, or_, text
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import Query, Session, load_only, make_transient, selectinload
+from sqlalchemy.orm import Query, Session, joinedload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
@@ -1375,9 +1375,20 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
         dag_model = DM.get_dagmodel(dag_run.dag_id, session)
+        # Adopt row locking to account for inconsistencies when next_dagrun_create_after = None
+        query = (
+            session.query(DagModel)
+            .filter(DagModel.dag_id == dag_run.dag_id)
+            .options(joinedload(DagModel.parent_dag))
+        )
+        dag_model = with_row_locks(
+            query, of=DagModel, session=session, **skip_locked(session=session)
+        ).one_or_none()
 
-        if not dag or not dag_model:
+        if not dag:
             self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
+            return callback
+        if not dag_model:
             return callback
 
         if (
