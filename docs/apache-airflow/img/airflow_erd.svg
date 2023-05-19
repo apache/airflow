@@ -1225,7 +1225,7 @@
 <g id="edge48" class="edge">
 <title>task_instance&#45;&#45;xcom</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1137.01,-488.65C1161.12,-465.83 1186.07,-443.06 1210,-422 1216.27,-416.48 1222.72,-410.89 1229.27,-405.29"/>
-<text text-anchor="start" x="1219.27" y="-394.09" font-family="Times,serif" font-size="14.00">1</text>
+<text text-anchor="start" x="1198.27" y="-394.09" font-family="Times,serif" font-size="14.00">0..N</text>
 <text text-anchor="start" x="1137.01" y="-477.45" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;xcom -->
@@ -1239,7 +1239,7 @@
 <g id="edge50" class="edge">
 <title>task_instance&#45;&#45;xcom</title>
 <path fill="none" stroke="#7f7f7f" stroke-dasharray="5,2" d="M1137.01,-524.15C1161.12,-501.83 1186.07,-479.06 1210,-458 1216.66,-452.14 1223.53,-446.19 1230.5,-440.21"/>
-<text text-anchor="start" x="1199.5" y="-444.01" font-family="Times,serif" font-size="14.00">0..N</text>
+<text text-anchor="start" x="1220.5" y="-444.01" font-family="Times,serif" font-size="14.00">1</text>
 <text text-anchor="start" x="1137.01" y="-512.95" font-family="Times,serif" font-size="14.00">1</text>
 </g>
 <!-- task_instance&#45;&#45;xcom -->

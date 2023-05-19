@@ -41,11 +41,11 @@ from airflow.utils.net import get_hostname
 
 
 def get_components(principal) -> list[str] | None:
-    """
-    Returns components retrieved from the kerberos principal.
-    -> (short name, instance (FQDN), realm).
+    """Split the kerberos principal string into parts.
 
-    ``principal`` .
+    :return: *None* if the principal is empty. Otherwise split the value into
+        parts. Assuming the principal string is valid, the return value should
+        contain three components: short name, instance (FQDN), and realm.
     """
     if not principal:
         return None

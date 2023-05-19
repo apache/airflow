@@ -39,7 +39,10 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | Revision ID                     | Revises ID        | Airflow Version   | Description                                                  |
 +=================================+===================+===================+==============================================================+
-| ``937cbd173ca1`` (head)         | ``98ae134e6fff``  | ``2.7.0``         | Add index to task_instance table                             |
+| ``14db5484317e`` (head)         | ``937cbd173ca1``  | ``2.7.0``         | Add index on last_scheduling_decision NULLS FIRST,           |
+|                                 |                   |                   | execution_date, state for queued dagrun                      |
++---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
+| ``937cbd173ca1``                | ``98ae134e6fff``  | ``2.7.0``         | Add index to task_instance table                             |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``98ae134e6fff``                | ``6abdffdd4815``  | ``2.6.0``         | Increase length of user identifier columns in ``ab_user``    |
 |                                 |                   |                   | and ``ab_register_user`` tables                              |

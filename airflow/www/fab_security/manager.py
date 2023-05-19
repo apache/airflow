@@ -146,6 +146,7 @@ class BaseSecurityManager:
     @staticmethod
     def oauth_tokengetter(token=None):
         """Authentication (OAuth) token getter function.
+
         Override to implement your own token getter method.
         """
         return _oauth_tokengetter(token)
@@ -585,9 +586,10 @@ class BaseSecurityManager:
                 return _provider.get("token_key", "oauth_token")
 
     def get_oauth_token_secret_name(self, provider):
-        """
-        Returns the token_secret name for the oauth provider if none is configured defaults to oauth_secret.
-        This is configured using OAUTH_PROVIDERS and token_secret.
+        """Gety the ``token_secret`` name for the oauth provider.
+
+        If none is configured, defaults to ``oauth_secret``. This is configured
+        using ``OAUTH_PROVIDERS`` and ``token_secret``.
         """
         for _provider in self.oauth_providers:
             if _provider["name"] == provider:
@@ -606,9 +608,9 @@ class BaseSecurityManager:
         session["oauth_provider"] = provider
 
     def get_oauth_user_info(self, provider, resp):
-        """
-        Since there are different OAuth API's with different ways to
-        retrieve user info.
+        """Get the OAuth user information from different OAuth APIs.
+
+        All providers have different ways to retrieve user info.
         """
         # for GITHUB
         if provider == "github" or provider == "githublocal":
@@ -866,9 +868,10 @@ class BaseSecurityManager:
         self.update_user(user)
 
     def update_user_auth_stat(self, user, success=True):
-        """
-        Update user authentication stats upon successful/unsuccessful
-        authentication attempts.
+        """Update user authentication stats.
+
+        This is done upon successful/unsuccessful authentication attempts.
+
         :param user:
             The identified (but possibly not successfully authenticated) user
             model
@@ -890,9 +893,10 @@ class BaseSecurityManager:
         self.update_user(user)
 
     def _rotate_session_id(self):
-        """
-        Upon successful authentication when using the database session backend,
-        we need to rotate the session id.
+        """Rotate the session ID.
+
+        We need to do this upon successful authentication when using the
+        database session backend.
         """
         if conf.get("webserver", "SESSION_BACKEND") == "database":
             session.sid = str(uuid4())
@@ -1379,10 +1383,10 @@ class BaseSecurityManager:
     def _get_user_permission_resources(
         self, user: User | None, action_name: str, resource_names: list[str] | None = None
     ) -> set[str]:
-        """
-        Return a set of resource names with a certain action name that a user has access to.
-        Mainly used to fetch all menu permissions on a single db call, will also check public permissions
-        and builtin roles.
+        """Get resource names with a certain action name that a user has access to.
+
+        Mainly used to fetch all menu permissions on a single db call, will also
+        check public permissions and builtin roles
         """
         if not resource_names:
             resource_names = []

@@ -324,11 +324,13 @@ def check_if_pidfile_process_is_running(pid_file: str, process_name: str):
 
 
 def set_new_process_group() -> None:
-    """
-    Try to set current process to a new process group.
+    """Try to set current process to a new process group.
+
     That makes it easy to kill all sub-process of this at the OS-level,
     rather than having to iterate the child processes.
-    If current process spawn by system call ``exec()`` than keep current process group.
+
+    If current process was spawned by system call ``exec()``, the current
+    process group is kept.
     """
     if os.getpid() == os.getsid(0):
         # If PID = SID than process a session leader, and it is not possible to change process group
