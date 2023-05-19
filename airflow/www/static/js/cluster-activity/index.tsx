@@ -51,6 +51,8 @@ const ClusterActivity = () => (
   </Flex>
 );
 
+export default ClusterActivity;
+
 if (mainElement) {
   shadowRoot?.appendChild(mainElement);
   const reactRoot = createRoot(mainElement);
