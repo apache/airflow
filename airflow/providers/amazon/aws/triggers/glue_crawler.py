@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import AsyncIterator
 
 from botocore.exceptions import WaiterError
 
@@ -54,7 +55,7 @@ class GlueCrawlerCompleteTrigger(BaseTrigger):
     def hook(self) -> GlueCrawlerHook:
         return GlueCrawlerHook(aws_conn_id=self.aws_conn_id)
 
-    async def run(self):
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         async with self.hook.async_conn as client:
             waiter = self.hook.get_waiter("crawler_ready", deferrable=True, client=client)
             while True:

@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, AsyncIterator
 
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -56,7 +56,7 @@ class GlueJobCompleteTrigger(BaseTrigger):
             },
         )
 
-    async def run(self):
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = GlueJobHook(aws_conn_id=self.aws_conn_id)
         await hook.async_job_completion(self.job_name, self.run_id, self.verbose)
         yield TriggerEvent({"status": "success", "message": "Job done"})
