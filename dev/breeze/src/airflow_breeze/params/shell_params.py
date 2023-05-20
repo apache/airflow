@@ -33,6 +33,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     DEFAULT_ALLOWED_EXECUTORS,
+    DEFAULT_CELERY_BROKER,
     DOCKER_DEFAULT_PLATFORM,
     MOUNT_ALL,
     MOUNT_REMOVE,
@@ -119,6 +120,8 @@ class ShellParams:
     verbose: bool = False
     upgrade_boto: bool = False
     executor: str = DEFAULT_ALLOWED_EXECUTORS
+    celery_broker: str = DEFAULT_CELERY_BROKER
+    celery_flower: bool = False
     only_min_version_update: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:

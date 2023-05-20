@@ -104,6 +104,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--forward-credentials",
                 "--db-reset",
                 "--github-repository",
+                "--executor",
             ],
         },
         {

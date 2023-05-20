@@ -45,6 +45,8 @@ from airflow_breeze.utils.common_options import (
     option_airflow_extras,
     option_answer,
     option_backend,
+    option_celery_broker,
+    option_celery_flower,
     option_db_reset,
     option_dry_run,
     option_executor,
@@ -234,6 +236,8 @@ def shell(
 @option_answer
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
 @option_executor
+@option_celery_broker
+@option_celery_flower
 def start_airflow(
     python: str,
     backend: str,
@@ -259,6 +263,8 @@ def start_airflow(
     extra_args: tuple,
     github_repository: str,
     executor: str,
+    celery_broker: str,
+    celery_flower: bool,
 ):
     """
     Enter breeze environment and starts all Airflow components in the tmux session.
@@ -296,6 +302,8 @@ def start_airflow(
         platform=platform,
         extra_args=extra_args,
         executor=executor,
+        celery_broker=celery_broker,
+        celery_flower=celery_flower,
     )
     sys.exit(result.returncode)
 

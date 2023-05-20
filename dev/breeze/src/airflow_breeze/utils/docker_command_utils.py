@@ -41,6 +41,7 @@ except ImportError:
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
+    ALLOWED_CELERY_BROKERS,
     ALLOWED_PACKAGE_FORMATS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     FLOWER_HOST_PORT,
@@ -684,6 +685,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
     "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",
+    "CELERY_FLOWER": "celery_flower",
 }
 
 DOCKER_VARIABLE_CONSTANTS = {
@@ -694,6 +696,7 @@ DOCKER_VARIABLE_CONSTANTS = {
     "REDIS_HOST_PORT": REDIS_HOST_PORT,
     "SSH_PORT": SSH_PORT,
     "WEBSERVER_HOST_PORT": WEBSERVER_HOST_PORT,
+    "CELERY_BROKER_URLS": "amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0",
 }
 
 
@@ -721,8 +724,19 @@ def get_env_variables_for_docker_commands(params: ShellParams | BuildCiParams) -
         constant_param_value = DOCKER_VARIABLE_CONSTANTS[variable]
         if not env_variables.get(variable):
             env_variables[variable] = str(constant_param_value)
+    prepare_broker_url(params, env_variables)
     update_expected_environment_variables(env_variables)
     return env_variables
+
+
+def prepare_broker_url(params, env_variables):
+    """Prepare broker url for celery executor"""
+    urls = env_variables["CELERY_BROKER_URLS"].split(",")
+    url = {
+        ALLOWED_CELERY_BROKERS[0]: urls[0],
+        ALLOWED_CELERY_BROKERS[1]: urls[1],
+    }[params.celery_broker]
+    env_variables["AIRFLOW__CELERY__BROKER_URL"] = url
 
 
 def perform_environment_checks():

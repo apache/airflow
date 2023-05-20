@@ -74,6 +74,12 @@ if [[ ${INTEGRATION_CELERY} == "true" ]]; then
     tmux send-keys 'airflow celery worker' C-m
 fi
 
+if [[ ${INTEGRATION_CELERY} == "true" && ${CELERY_FLOWER} == "true" ]]; then
+    tmux select-pane -t 3
+    tmux split-window -h
+    tmux send-keys 'airflow celery flower' C-m
+fi
+
 # Attach Session, on the Main window
 tmux select-pane -t 0
 tmux send-keys "/opt/airflow/scripts/in_container/run_tmux_welcome.sh" C-m

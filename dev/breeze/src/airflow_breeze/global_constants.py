@@ -72,6 +72,9 @@ ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
 ALLOWED_CONSTRAINTS_MODES_PROD = ["constraints", "constraints-no-providers", "constraints-source-providers"]
 
+ALLOWED_CELERY_BROKERS = ["rabbitmq", "redis"]
+DEFAULT_CELERY_BROKER = ALLOWED_CELERY_BROKERS[1]
+
 MOUNT_SELECTED = "selected"
 MOUNT_ALL = "all"
 MOUNT_SKIP = "skip"
