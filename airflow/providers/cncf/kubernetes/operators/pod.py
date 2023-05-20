@@ -20,11 +20,9 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import secrets
 import string
-import warnings
 from collections.abc import Container
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any, Sequence
@@ -34,7 +32,7 @@ from slugify import slugify
 from urllib3.exceptions import HTTPError
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
@@ -473,14 +471,6 @@ class KubernetesPodOperator(BaseOperator):
         )
         return hook
 
-    def get_hook(self):
-        warnings.warn(
-            "get_hook is deprecated. Please use hook instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        return self.hook
-
     @cached_property
     def client(self) -> CoreV1Api:
         return self.hook.core_v1_client
@@ -588,20 +578,6 @@ class KubernetesPodOperator(BaseOperator):
             context=context,
         )
         self.invoke_defer_method()
-
-    def convert_config_file_to_dict(self):
-        """Converts passed config_file to dict format."""
-        warnings.warn(
-            "This method is deprecated and will be removed in a future version.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        config_file = self.config_file if self.config_file else os.environ.get(KUBE_CONFIG_ENV_VAR)
-        if config_file:
-            with open(config_file) as f:
-                self._config_dict = yaml.safe_load(f)
-        else:
-            self._config_dict = None
 
     def invoke_defer_method(self):
         """Method to easily redefine triggers which are being used in child classes."""
@@ -851,9 +827,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.metadata.name = _add_pod_suffix(pod_name=pod.metadata.name)
 
         if not pod.metadata.namespace:
-            # todo: replace with call to `hook.get_namespace` in 6.0, when it doesn't default to `default`.
-            # if namespace not actually defined in hook, we want to check k8s if in cluster
-            hook_namespace = self.hook._get_namespace()
+            hook_namespace = self.hook.get_namespace()
             pod_namespace = self.namespace or hook_namespace or self._incluster_namespace or "default"
             pod.metadata.namespace = pod_namespace
 
@@ -862,11 +836,7 @@ class KubernetesPodOperator(BaseOperator):
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
-            pod = xcom_sidecar.add_xcom_sidecar(
-                pod,
-                sidecar_container_image=self.hook.get_xcom_sidecar_container_image(),
-                sidecar_container_resources=self.hook.get_xcom_sidecar_container_resources(),
-            )
+            pod = xcom_sidecar.add_xcom_sidecar(pod)
 
         labels = self._get_ti_pod_labels(context)
         self.log.info("Building pod %s with labels: %s", pod.metadata.name, labels)

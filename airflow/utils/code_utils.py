@@ -23,7 +23,7 @@ from typing import Any
 
 
 def get_python_source(x: Any) -> str | None:
-    """Helper function to get Python source (or not), preventing exceptions"""
+    """Helper function to get Python source (or not), preventing exceptions."""
     if isinstance(x, str):
         return x
 

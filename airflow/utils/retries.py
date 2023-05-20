@@ -31,7 +31,7 @@ MAX_DB_RETRIES = conf.getint("database", "max_db_retries", fallback=3)
 
 
 def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: logging.Logger | None = None, **kwargs):
-    """Return Tenacity Retrying object with project specific default"""
+    """Return Tenacity Retrying object with project specific default."""
     import tenacity
 
     # Default kwargs

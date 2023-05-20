@@ -60,7 +60,7 @@ def _mask_variable_fields(extra_fields):
 
 
 def _mask_connection_fields(extra_fields):
-    """Mask connection fields"""
+    """Mask connection fields."""
     result = []
     for k, v in extra_fields:
         if k == "extra":
@@ -76,7 +76,7 @@ def _mask_connection_fields(extra_fields):
 
 
 def action_logging(func: Callable | None = None, event: str | None = None) -> Callable[[T], T]:
-    """Decorator to log user actions"""
+    """Decorator to log user actions."""
 
     def log_action(f: T) -> T:
         @functools.wraps(f)
@@ -132,7 +132,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
 
 
 def gzipped(f: T) -> T:
-    """Decorator to make a view compressed"""
+    """Decorator to make a view compressed."""
 
     @functools.wraps(f)
     def view_func(*args, **kwargs):

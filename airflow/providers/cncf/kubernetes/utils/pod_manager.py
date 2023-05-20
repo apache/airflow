@@ -93,18 +93,8 @@ class PodOperatorHookProtocol(Protocol):
     def get_pod(self, name: str, namespace: str) -> V1Pod:
         """Read pod object from kubernetes API."""
 
-    def _get_namespace(self) -> str | None:
-        """
-        Returns the namespace that defined in the connection
-
-        TODO: in provider version 6.0, get rid of this method and make it the behavior of get_namespace.
-        """
-
-    def get_xcom_sidecar_container_image(self) -> str | None:
-        """Returns the xcom sidecar image that defined in the connection"""
-
-    def get_xcom_sidecar_container_resources(self) -> str | None:
-        """Returns the xcom sidecar resources that defined in the connection"""
+    def get_namespace(self) -> str | None:
+        """Returns the namespace that defined in the connection"""
 
 
 def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:

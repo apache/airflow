@@ -401,7 +401,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 raise
 
     def patch_pod_executor_done(self, *, pod_name: str, namespace: str):
-        """Add a "done" annotation to ensure we don't continually adopt pods"""
+        """Add a "done" annotation to ensure we don't continually adopt pods."""
         self.log.debug("Patching pod %s in namespace %s to mark it as done", pod_name, namespace)
         try:
             self.kube_client.patch_namespaced_pod(
@@ -1004,7 +1004,7 @@ class KubernetesExecutor(BaseExecutor):
                 break
 
     def end(self) -> None:
-        """Called when the executor shuts down"""
+        """Called when the executor shuts down."""
         if TYPE_CHECKING:
             assert self.task_queue
             assert self.result_queue
