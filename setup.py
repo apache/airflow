@@ -73,10 +73,6 @@ def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
         )
         for key in list(dependencies.keys()):
             if CURRENT_PYTHON_VERSION in dependencies[key]["excluded-python-versions"]:
-                print(
-                    f"Excluding provider {key} because it is not "
-                    f"compatible with Python {CURRENT_PYTHON_VERSION}"
-                )
                 del dependencies[key]
         return dependencies
     except Exception as e:
