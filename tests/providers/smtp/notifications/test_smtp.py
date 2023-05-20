@@ -31,7 +31,7 @@ SMTP_API_DEFAULT_CONN_ID = SmtpHook.default_conn_name
 
 class TestPagerdutyNotifier:
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
-    def test_notifier(self, mock_pagerduty_event_hook, dag_maker):
+    def test_notifier(self, mock_smtphook_hook, dag_maker):
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
         notifier = send_smtp_notification(
@@ -41,12 +41,12 @@ class TestPagerdutyNotifier:
             html_content="body",
         )
         notifier(context={"dag": dag})
-        mock_pagerduty_event_hook.return_value.send_email_smtp.assert_called_once_with(
+        mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             mail_from="test_sender@test.com",
             to="test_reciver@test.com",
             subject="subject",
             html_content="body",
-            smtp_conn_id=None,
+            smtp_conn_id="smtp_default",
             files=None,
             cc=None,
             bcc=None,
@@ -56,7 +56,7 @@ class TestPagerdutyNotifier:
         )
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
-    def test_notifier_with_notifier_class(self, mock_pagerduty_event_hook, dag_maker):
+    def test_notifier_with_notifier_class(self, mock_smtphook_hook, dag_maker):
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
         notifier = SmtpNotifier(
@@ -66,12 +66,12 @@ class TestPagerdutyNotifier:
             html_content="body",
         )
         notifier(context={"dag": dag})
-        mock_pagerduty_event_hook.return_value.send_email_smtp.assert_called_once_with(
+        mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             mail_from="test_sender@test.com",
             to="test_reciver@test.com",
             subject="subject",
             html_content="body",
-            smtp_conn_id=None,
+            smtp_conn_id="smtp_default",
             files=None,
             cc=None,
             bcc=None,
@@ -81,7 +81,7 @@ class TestPagerdutyNotifier:
         )
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
-    def test_notifier_templated(self, mock_pagerduty_event_hook, dag_maker):
+    def test_notifier_templated(self, mock_smtphook_hook, dag_maker):
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
 
@@ -93,12 +93,12 @@ class TestPagerdutyNotifier:
         )
         context = {"dag": dag}
         notifier(context)
-        mock_pagerduty_event_hook.return_value.send_email_smtp.assert_called_once_with(
+        mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
             mail_from="test_sender@test.com test_notifier",
             to="test_reciver@test.com test_notifier",
             subject="subject test_notifier",
             html_content="body test_notifier",
-            smtp_conn_id=None,
+            smtp_conn_id="smtp_default",
             files=None,
             cc=None,
             bcc=None,
