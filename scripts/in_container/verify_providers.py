@@ -21,7 +21,6 @@ import importlib
 import logging
 import os
 import pkgutil
-import platform
 import re
 import subprocess
 import sys
@@ -280,23 +279,17 @@ def import_all_classes(
             try:
                 with warnings.catch_warnings(record=True) as w:
                     warnings.filterwarnings("always", category=DeprecationWarning)
-                    try:
-                        _module = importlib.import_module(modinfo.name)
-                        for attribute_name in dir(_module):
-                            class_name = modinfo.name + "." + attribute_name
-                            attribute = getattr(_module, attribute_name)
-                            if isclass(attribute):
-                                imported_classes.append(class_name)
-                            if isclass(attribute) and (
-                                issubclass(attribute, logging.Handler)
-                                or issubclass(attribute, BaseSecretsBackend)
-                            ):
-                                classes_with_potential_circular_import.append(class_name)
-                    except OSError as e:
-                        if "geos_c" in str(e) and platform.machine() in ("aarch64", "arm64"):
-                            # we ignore the missing geos_c library on Apple Silicon
-                            continue
-                        raise
+                    _module = importlib.import_module(modinfo.name)
+                    for attribute_name in dir(_module):
+                        class_name = modinfo.name + "." + attribute_name
+                        attribute = getattr(_module, attribute_name)
+                        if isclass(attribute):
+                            imported_classes.append(class_name)
+                        if isclass(attribute) and (
+                            issubclass(attribute, logging.Handler)
+                            or issubclass(attribute, BaseSecretsBackend)
+                        ):
+                            classes_with_potential_circular_import.append(class_name)
                 if w:
                     all_warnings.extend(w)
             except AirflowOptionalProviderFeatureException:
