@@ -32,7 +32,7 @@ class DagScheduleDatasetReferencePydantic(BaseModelPydantic):
     updated_at: datetime
 
     class Config:
-        """Make sure it deals automatically with ORM classes of SQL Alchemy."""
+        """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         orm_mode = True
 
@@ -50,7 +50,7 @@ class TaskOutletDatasetReferencePydantic(BaseModelPydantic):
     updated_at = datetime
 
     class Config:
-        """Make sure it deals automatically with ORM classes of SQL Alchemy."""
+        """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         orm_mode = True
 
@@ -69,7 +69,7 @@ class DatasetPydantic(BaseModelPydantic):
     producing_tasks: List[TaskOutletDatasetReferencePydantic]
 
     class Config:
-        """Make sure it deals automatically with ORM classes of SQL Alchemy."""
+        """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         orm_mode = True
 
@@ -87,6 +87,6 @@ class DatasetEventPydantic(BaseModelPydantic):
     dataset: DatasetPydantic
 
     class Config:
-        """Make sure it deals automatically with ORM classes of SQL Alchemy."""
+        """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         orm_mode = True

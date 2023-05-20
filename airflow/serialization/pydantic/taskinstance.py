@@ -58,7 +58,7 @@ class TaskInstancePydantic(BaseModelPydantic):
     run_as_user: Optional[str]
 
     class Config:
-        """Make sure it deals automatically with ORM classes of SQL Alchemy."""
+        """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         orm_mode = True
 

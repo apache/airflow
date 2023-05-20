@@ -97,9 +97,10 @@ def _creator_note(val):
 
 
 class DagRun(Base, LoggingMixin):
-    """
-    DagRun describes an instance of a Dag. It can be created
-    by the scheduler (for regular runs) or by an external trigger.
+    """Invocation instance of a DAG.
+
+    A DAG run can be created by the scheduler (i.e. scheduled runs), or by an
+    external trigger (i.e. manual runs).
     """
 
     __tablename__ = "dag_run"
@@ -143,6 +144,15 @@ class DagRun(Base, LoggingMixin):
         UniqueConstraint("dag_id", "execution_date", name="dag_run_dag_id_execution_date_key"),
         UniqueConstraint("dag_id", "run_id", name="dag_run_dag_id_run_id_key"),
         Index("idx_last_scheduling_decision", last_scheduling_decision),
+        Index(
+            "idx_last_scheduling_decision_queued",
+            # Not possible to add .nulls_first(), because only postgresql can handle Index like that.
+            # Migration script which contains postgres dialect check adds NULLS FIST to index.
+            last_scheduling_decision,
+            execution_date,
+            _state,
+            postgresql_where=text("state='queued'"),
+        ),
         Index("idx_dag_run_dag_id", dag_id),
         Index(
             "idx_dag_run_running_dags",
@@ -603,7 +613,7 @@ class DagRun(Base, LoggingMixin):
             teardown_task_ids = [t.task_id for t in dag.teardowns]
             upstream_of_teardowns = [t.task_id for t in dag.tasks_upstream_of_teardowns]
             teardown_tis = [ti for ti in tis if ti.task_id in teardown_task_ids]
-            on_failure_fail_tis = [ti for ti in teardown_tis if getattr(ti.task, "_on_failure_fail_dagrun")]
+            on_failure_fail_tis = [ti for ti in teardown_tis if getattr(ti.task, "on_failure_fail_dagrun")]
             tis_upstream_of_teardowns = [ti for ti in tis if ti.task_id in upstream_of_teardowns]
             leaf_tis = list(set(leaf_tis) - set(teardown_tis))
             leaf_tis.extend(on_failure_fail_tis)
