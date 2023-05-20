@@ -345,33 +345,33 @@ class TestEksCreateFargateProfileOperator:
         mock_create_fargate_profile.assert_called_with(**convert_keys(parameters))
         mock_waiter.assert_not_called()
 
-        @pytest.mark.parametrize(
-            "create_fargate_profile_kwargs",
-            [
-                pytest.param(None, id="without fargate profile kwargs"),
-                pytest.param(CREATE_FARGATE_PROFILE_KWARGS, id="with fargate profile kwargs"),
-            ],
-        )
-        @mock.patch.object(Waiter, "wait")
-        @mock.patch.object(EksHook, "create_fargate_profile")
-        def test_execute_with_wait_when_fargate_profile_does_not_already_exist(
-            self, mock_create_fargate_profile, mock_waiter, create_fargate_profile_kwargs
-        ):
-            op_kwargs = {**self.create_fargate_profile_params}
-            if create_fargate_profile_kwargs:
-                op_kwargs["create_fargate_profile_kwargs"] = create_fargate_profile_kwargs
-                parameters = {**self.create_fargate_profile_params, **create_fargate_profile_kwargs}
-            else:
-                assert "create_fargate_profile_kwargs" not in op_kwargs
-                parameters = self.create_fargate_profile_params
+    @pytest.mark.parametrize(
+        "create_fargate_profile_kwargs",
+        [
+            pytest.param(None, id="without fargate profile kwargs"),
+            pytest.param(CREATE_FARGATE_PROFILE_KWARGS, id="with fargate profile kwargs"),
+        ],
+    )
+    @mock.patch.object(Waiter, "wait")
+    @mock.patch.object(EksHook, "create_fargate_profile")
+    def test_execute_with_wait_when_fargate_profile_does_not_already_exist(
+        self, mock_create_fargate_profile, mock_waiter, create_fargate_profile_kwargs
+    ):
+        op_kwargs = {**self.create_fargate_profile_params}
+        if create_fargate_profile_kwargs:
+            op_kwargs["create_fargate_profile_kwargs"] = create_fargate_profile_kwargs
+            parameters = {**self.create_fargate_profile_params, **create_fargate_profile_kwargs}
+        else:
+            assert "create_fargate_profile_kwargs" not in op_kwargs
+            parameters = self.create_fargate_profile_params
 
-            operator = EksCreateFargateProfileOperator(task_id=TASK_ID, **op_kwargs, wait_for_completion=True)
-            operator.execute({})
-            mock_create_fargate_profile.assert_called_with(**convert_keys(parameters))
-            mock_waiter.assert_called_with(
-                mock.ANY, clusterName=CLUSTER_NAME, fargateProfileName=FARGATE_PROFILE_NAME
-            )
-            assert_expected_waiter_type(mock_waiter, "FargateProfileActive")
+        operator = EksCreateFargateProfileOperator(task_id=TASK_ID, **op_kwargs, wait_for_completion=True)
+        operator.execute({})
+        mock_create_fargate_profile.assert_called_with(**convert_keys(parameters))
+        mock_waiter.assert_called_with(
+            mock.ANY, clusterName=CLUSTER_NAME, fargateProfileName=FARGATE_PROFILE_NAME
+        )
+        assert_expected_waiter_type(mock_waiter, "FargateProfileActive")
 
 
 class TestEksCreateNodegroupOperator:

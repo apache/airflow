@@ -24,7 +24,6 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.models import Connection
 from airflow.providers.slack.operators.slack import (
     SlackAPIFileOperator,
     SlackAPIOperator,
@@ -32,22 +31,6 @@ from airflow.providers.slack.operators.slack import (
 )
 
 SLACK_API_TEST_CONNECTION_ID = "test_slack_conn_id"
-
-
-@pytest.fixture(scope="module", autouse=True)
-def slack_api_connections():
-    """Create tests connections."""
-    connections = [
-        Connection(
-            conn_id=SLACK_API_TEST_CONNECTION_ID,
-            conn_type="slack",
-            password="xoxb-1234567890123-09876543210987-AbCdEfGhIjKlMnOpQrStUvWx",
-        ),
-    ]
-    conn_uris = {f"AIRFLOW_CONN_{c.conn_id.upper()}": c.get_uri() for c in connections}
-
-    with mock.patch.dict("os.environ", values=conn_uris):
-        yield
 
 
 class TestSlackAPIOperator:

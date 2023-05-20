@@ -45,6 +45,7 @@ from google.cloud.bigquery import (
     LoadJob,
     QueryJob,
     SchemaField,
+    UnknownJob,
 )
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
 from google.cloud.bigquery.table import EncryptionConfiguration, Row, RowIterator, Table, TableReference
@@ -319,7 +320,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         view: dict | None = None,
         materialized_view: dict | None = None,
         encryption_configuration: dict | None = None,
-        retry: Retry | None = DEFAULT_RETRY,
+        retry: Retry = DEFAULT_RETRY,
         location: str | None = None,
         exists_ok: bool = True,
     ) -> Table:
@@ -1062,7 +1063,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         # If iterator is requested, we cannot perform a list() on it to log the number
         # of datasets because we will have started iteration
         if return_iterator:
-            return iterator
+            # The iterator returned by list_datasets() is a HTTPIterator but annotated
+            # as Iterator
+            return iterator  #  type: ignore
 
         datasets_list = list(iterator)
         self.log.info("Datasets List: %s", len(datasets_list))
@@ -1294,9 +1297,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             selected_fields = selected_fields.split(",")
 
         if selected_fields:
-            selected_fields = [SchemaField(n, "") for n in selected_fields]
+            selected_fields_sequence = [SchemaField(n, "") for n in selected_fields]
         else:
-            selected_fields = None
+            selected_fields_sequence = None
 
         table = self._resolve_table_reference(
             table_resource={},
@@ -1307,7 +1310,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         iterator = self.get_client(project_id=project_id, location=location).list_rows(
             table=Table.from_api_repr(table),
-            selected_fields=selected_fields,
+            selected_fields=selected_fields_sequence,
             max_results=max_results,
             page_token=page_token,
             start_index=start_index,
@@ -1503,17 +1506,17 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def get_job(
         self,
-        job_id: str | None = None,
+        job_id: str,
         project_id: str | None = None,
         location: str | None = None,
-    ) -> CopyJob | QueryJob | LoadJob | ExtractJob:
+    ) -> CopyJob | QueryJob | LoadJob | ExtractJob | UnknownJob:
         """
         Retrieves a BigQuery job. For more information see:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
 
         :param job_id: The ID of the job. The ID must contain only letters (a-z, A-Z),
             numbers (0-9), underscores (_), or dashes (-). The maximum length is 1,024
-            characters. If not provided then uuid will be generated.
+            characters.
         :param project_id: Google Cloud Project where the job is running
         :param location: location the job is running
         """
@@ -1570,14 +1573,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "jobReference": {"jobId": job_id, "projectId": project_id, "location": location},
         }
 
-        supported_jobs = {
+        supported_jobs: dict[str, type[CopyJob] | type[QueryJob] | type[LoadJob] | type[ExtractJob]] = {
             LoadJob._JOB_TYPE: LoadJob,
             CopyJob._JOB_TYPE: CopyJob,
             ExtractJob._JOB_TYPE: ExtractJob,
             QueryJob._JOB_TYPE: QueryJob,
         }
 
-        job = None
+        job: type[CopyJob] | type[QueryJob] | type[LoadJob] | type[ExtractJob] | None = None
         for job_type, job_object in supported_jobs.items():
             if job_type in configuration:
                 job = job_object
@@ -1585,15 +1588,15 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         if not job:
             raise AirflowException(f"Unknown job type. Supported types: {supported_jobs.keys()}")
-        job = job.from_api_repr(job_data, client)
-        self.log.info("Inserting job %s", job.job_id)
+        job_api_repr = job.from_api_repr(job_data, client)
+        self.log.info("Inserting job %s", job_api_repr.job_id)
         if nowait:
             # Initiate the job and don't wait for it to complete.
-            job._begin()
+            job_api_repr._begin()
         else:
             # Start the job and wait for it to complete and get the result.
-            job.result(timeout=timeout, retry=retry)
-        return job
+            job_api_repr.result(timeout=timeout, retry=retry)
+        return job_api_repr
 
     def run_with_configuration(self, configuration: dict) -> str:
         """
@@ -2527,7 +2530,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.get_datasets_list(*args, **kwargs)
 
-    def get_dataset(self, *args, **kwargs) -> dict:
+    def get_dataset(self, *args, **kwargs) -> Dataset:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset`
@@ -2671,7 +2674,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.run_copy(*args, **kwargs)
 
-    def run_extract(self, *args, **kwargs) -> str:
+    def run_extract(self, *args, **kwargs) -> str | BigQueryJob:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_extract`
@@ -3125,20 +3128,26 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             job_query_resp = await job_client.query(query_request, cast(Session, session))
             return job_query_resp["jobReference"]["jobId"]
 
-    def get_records(self, query_results: dict[str, Any]) -> list[Any]:
+    def get_records(self, query_results: dict[str, Any], as_dict: bool = False) -> list[Any]:
         """
         Given the output query response from gcloud-aio bigquery, convert the response to records.
 
         :param query_results: the results from a SQL query
+        :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists.
         """
-        buffer = []
+        buffer: list[Any] = []
         if "rows" in query_results and query_results["rows"]:
             rows = query_results["rows"]
             fields = query_results["schema"]["fields"]
             col_types = [field["type"] for field in fields]
             for dict_row in rows:
                 typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
-                buffer.append(typed_row)
+                if not as_dict:
+                    buffer.append(typed_row)
+                else:
+                    fields_names = [field["name"] for field in fields]
+                    typed_row_dict = {k: v for k, v in zip(fields_names, typed_row)}
+                    buffer.append(typed_row_dict)
         return buffer
 
     def value_check(
