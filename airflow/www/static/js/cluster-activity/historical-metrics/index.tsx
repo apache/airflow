@@ -55,12 +55,12 @@ const HistoricalMetrics = () => {
                   minW="300px"
                   minH="350px"
                   pr={4}
-                  colorPalette={[
-                    stateColors.failed,
-                    stateColors.queued,
-                    stateColors.running,
-                    stateColors.success,
-                  ]}
+                  colorPalette={{
+                    failed: stateColors.failed,
+                    queued: stateColors.queued,
+                    running: stateColors.running,
+                    success: stateColors.success,
+                  }}
                 />
                 <PieChart
                   title="Dag Run Types"
@@ -69,12 +69,12 @@ const HistoricalMetrics = () => {
                   minW="300px"
                   minH="350px"
                   pr={4}
-                  colorPalette={[
-                    stateColors.deferred,
-                    stateColors.queued,
-                    stateColors.success,
-                    stateColors.scheduled,
-                  ]}
+                  colorPalette={{
+                    backfill: stateColors.deferred,
+                    datasetTriggered: stateColors.queued,
+                    manual: stateColors.success,
+                    scheduled: stateColors.scheduled,
+                  }}
                 />
                 <PieChart
                   title="Task Instance States"

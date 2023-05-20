@@ -17,6 +17,7 @@
  * under the License.
  */
 
+import type { CamelCase } from "type-fest";
 import type * as API from "./api-generated";
 
 type RunState = "success" | "running" | "queued" | "failed";
@@ -146,13 +147,13 @@ interface KeyboardShortcutIdentifier {
 
 interface HistoricalMetricsData {
   dagRunStates: {
-    [K in RunState]: number;
+    [K in CamelCase<RunState>]: number;
   };
   dagRunTypes: {
-    [K in DagRun["runType"]]: number;
+    [K in CamelCase<DagRun["runType"]>]: number;
   };
   taskInstanceStates: {
-    [K in TaskState extends string ? K : never]: number;
+    [K in TaskState extends string ? CamelCase<K> : never]: number;
   };
 }
 

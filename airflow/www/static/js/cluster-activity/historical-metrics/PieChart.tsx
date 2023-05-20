@@ -29,15 +29,24 @@ import {
 } from "@chakra-ui/react";
 import ReactECharts, { ReactEChartsProps } from "src/components/ReactECharts";
 import type { HistoricalMetricsData } from "src/types";
-import type { PieSeriesOption } from "echarts";
+import { camelCase, mapKeys } from "lodash";
+
+interface SeriesPoint {
+  name: string;
+  value: number;
+}
+
+type SeriesData = Array<SeriesPoint>;
+
+const camelCaseColorPalette = mapKeys(stateColors, (_, k) => camelCase(k));
 
 const formatData = (
   data: HistoricalMetricsData[keyof HistoricalMetricsData] | undefined
-): [number, PieSeriesOption["data"]] => {
+): [number, SeriesData] => {
   if (data === undefined) return [0, []];
 
   let sum = 0;
-  const formattedData: PieSeriesOption["data"] = [];
+  const formattedData: { name: string; value: number }[] = [];
   Object.entries(data).forEach(([k, v]) => {
     sum += v;
     formattedData.push({
@@ -45,16 +54,24 @@ const formatData = (
       value: v,
     });
   });
+  formattedData.sort((a: SeriesPoint, b: SeriesPoint) => b.value - a.value);
   return [sum, formattedData];
 };
 
 interface Props extends BoxProps {
   title: string;
   data?: HistoricalMetricsData[keyof HistoricalMetricsData];
-  colorPalette?: string[];
+  colorPalette?: {
+    [key: string]: string;
+  };
 }
 
-const PieChart = ({ title, data, colorPalette, ...rest }: Props) => {
+const PieChart = ({
+  title,
+  data,
+  colorPalette = camelCaseColorPalette,
+  ...rest
+}: Props) => {
   const theme = useTheme();
   const [sum, formattedData] = formatData(data);
   const option: ReactEChartsProps["option"] = {
@@ -74,7 +91,17 @@ const PieChart = ({ title, data, colorPalette, ...rest }: Props) => {
       left: "center",
       type: "scroll",
     },
-    color: colorPalette || Object.values(stateColors),
+    color: formattedData?.map((d) => {
+      let color = colorPalette[d.name];
+      if (color === undefined) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `The color for ${d.name} is missing from the palette, defaulting to black`
+        );
+        color = "black";
+      }
+      return color;
+    }),
     series: [
       {
         name: title,
