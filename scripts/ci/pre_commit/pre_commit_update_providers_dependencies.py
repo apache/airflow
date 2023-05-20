@@ -45,10 +45,6 @@ sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT))  # make sure setup is imported fro
 warnings: list[str] = []
 errors: list[str] = []
 
-CROSS_PROVIDERS_DEPS = "cross-providers-deps"
-DEPS = "deps"
-SUSPENDED = "suspended"
-
 suspended_paths: list[str] = []
 
 ALL_DEPENDENCIES: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
