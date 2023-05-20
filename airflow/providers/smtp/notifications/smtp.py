@@ -82,11 +82,11 @@ class SmtpNotifier(BaseNotifier):
 
     @cached_property
     def hook(self) -> SmtpHook:
-        """Pagerduty Events Hook"""
+        """Smtp Events Hook"""
         return SmtpHook(smtp_conn_id=self.smtp_conn_id)
 
     def notify(self, context):
-        """Send a alert to a pagerduty event v2 API"""
+        """Send a alert to a smtp event v2 API"""
         with self.hook as smtp:
             smtp.send_email_smtp(
                 smtp_conn_id=self.smtp_conn_id,
