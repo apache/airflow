@@ -86,7 +86,7 @@ class SmtpNotifier(BaseNotifier):
         return SmtpHook(smtp_conn_id=self.smtp_conn_id)
 
     def notify(self, context):
-        """Send a alert to a smtp event v2 API"""
+        """Send a email via smtp server"""
         with self.hook as smtp:
             smtp.send_email_smtp(
                 smtp_conn_id=self.smtp_conn_id,
