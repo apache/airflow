@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.1.0
 .....
 
-Latest change: 2023-05-11
+Latest change: 2023-05-18
 
 =================================================================================================  ===========  =========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================================
+`abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
+`f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `ec2f0f12db <https://github.com/apache/airflow/commit/ec2f0f12db1a5e1d595203f9a0ec0cac6862250c>`_  2023-05-11   ``Optimize deferred execution for AzureDataFactoryRunPipelineOperator (#31214)``
 `ac46902154 <https://github.com/apache/airflow/commit/ac46902154c060246dec942f921f7670015e6031>`_  2023-05-04   ``Move TaskInstanceKey to a separate file (#31033)``
 `0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``

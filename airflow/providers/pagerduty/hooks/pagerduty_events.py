@@ -18,6 +18,7 @@
 """Hook for sending or receiving data from PagerDuty as well as creating PagerDuty incidents."""
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 import pdpyras
@@ -151,6 +152,48 @@ class PagerdutyEventsHook(BaseHook):
         resp = session.post("/v2/enqueue", json=data)
         resp.raise_for_status()
         return resp.json()
+
+    def create_change_event(
+        self,
+        summary: str,
+        source: str = "airflow",
+        custom_details: Any | None = None,
+        timestamp: datetime | None = None,
+        links: list[Any] | None = None,
+    ) -> dict:
+        """
+        Create change event for service integration.
+
+        :param summary: Summary for the event
+        :param source: Specific human-readable unique identifier, such as a
+            hostname, for the system having the problem.
+        :param custom_details: Free-form details from the event. Can be a dictionary or a string.
+            If a dictionary is passed it will show up in PagerDuty as a table.
+        :param timestamp: The time at which the emitting tool detected or generated the event.
+        :param links: List of links to include. Each dictionary in the list accepts the following keys:
+            `href`: URL of the link to be attached.
+            `text`: [Optional] Plain text that describes the purpose of the link, and can be used as the
+            link's text.
+        :return: PagerDuty Change Events API v2 response.
+        """
+        payload = {
+            "summary": summary,
+        }
+        if custom_details is not None:
+            payload["custom_details"] = custom_details
+
+        if timestamp is not None:
+            payload["timestamp"] = timestamp.isoformat()
+
+        if source is not None:
+            payload["source"] = source
+
+        data: dict[str, Any] = {"payload": payload}
+        if links is not None:
+            data["links"] = links
+
+        session = pdpyras.ChangeEventsAPISession(self.integration_key)
+        return session.send_change_event(payload=payload, links=links)
 
     def test_connection(self):
         try:

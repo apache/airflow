@@ -388,7 +388,7 @@ def iter_airflow_imports(file_path: str) -> Generator[str, None, None]:
     """Find Airflow modules imported in the given file."""
     try:
         parsed = ast.parse(Path(file_path).read_bytes())
-    except (OSError, SyntaxError, UnicodeDecodeError):
+    except Exception:
         return
     for m in _find_imported_modules(parsed):
         if m.startswith("airflow."):

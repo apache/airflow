@@ -132,7 +132,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
         poke_interval=15,
-        timeout=60 * 15,
+        timeout=60 * 30,
     )
     # [END howto_sensor_redshift_cluster]
 
@@ -153,7 +153,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
         poke_interval=15,
-        timeout=60 * 15,
+        timeout=60 * 30,
     )
 
     # [START howto_operator_redshift_pause_cluster]
@@ -168,7 +168,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         target_status="paused",
         poke_interval=15,
-        timeout=60 * 15,
+        timeout=60 * 30,
     )
 
     # [START howto_operator_redshift_resume_cluster]
@@ -183,7 +183,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
         poke_interval=15,
-        timeout=60 * 15,
+        timeout=60 * 30,
     )
 
     set_up_connection = create_connection(conn_id_name, cluster_id=redshift_cluster_identifier)
