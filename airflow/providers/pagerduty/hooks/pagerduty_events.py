@@ -18,8 +18,8 @@
 """Hook for sending or receiving data from PagerDuty as well as creating PagerDuty incidents."""
 from __future__ import annotations
 
-from datetime import datetime
 import warnings
+from datetime import datetime
 from typing import Any
 
 import pdpyras
@@ -123,38 +123,20 @@ class PagerdutyEventsHook(BaseHook):
             stacklevel=1,
         )
 
-        payload = {
-            "summary": summary,
-            "severity": severity,
-            "source": source,
-        }
-        if custom_details is not None:
-            payload["custom_details"] = custom_details
-        if component:
-            payload["component"] = component
-        if group:
-            payload["group"] = group
-        if class_type:
-            payload["class"] = class_type
-
-        actions = ("trigger", "acknowledge", "resolve")
-        if action not in actions:
-            raise ValueError(f"Event action must be one of: {', '.join(actions)}")
-        data = {
-            "event_action": action,
-            "payload": payload,
-        }
-        if dedup_key:
-            data["dedup_key"] = dedup_key
-        elif action != "trigger":
-            raise ValueError(
-                f"The dedup_key property is required for event_action={action} events, "
-                f"and it must be a string."
-            )
-        if images is not None:
-            data["images"] = images
-        if links is not None:
-            data["links"] = links
+        data = PagerdutyEventsHook.prepare_event_data(
+            summary=summary,
+            severity=severity,
+            source=source,
+            custom_details=custom_details,
+            component=component,
+            group=group,
+            class_type=class_type,
+            action=action,
+            dedup_key=dedup_key,
+            images=images,
+            links=links,
+            action_key_name="event_action",
+        )
 
         session = pdpyras.EventsAPISession(self.integration_key)
         resp = session.post("/v2/enqueue", json=data)
@@ -197,8 +179,45 @@ class PagerdutyEventsHook(BaseHook):
             HTTPS.
             `href`: [Optional] URL to make the image a clickable link.
             `alt`: [Optional] Alternative text for the image.
+        :param links: List of links to include. Each dictionary in the list accepts the following keys:
+            `href`: URL of the link to be attached.
+            `text`: [Optional] Plain text that describes the purpose of the link, and can be used as the
+            link's text.
         :return: PagerDuty Events API v2 response.
         """
+        data = PagerdutyEventsHook.prepare_event_data(
+            summary=summary,
+            severity=severity,
+            source=source,
+            custom_details=custom_details,
+            component=component,
+            group=group,
+            class_type=class_type,
+            action=action,
+            dedup_key=dedup_key,
+            images=images,
+            links=links,
+        )
+
+        session = pdpyras.EventsAPISession(self.integration_key)
+        return session.send_event(**data)
+
+    @staticmethod
+    def prepare_event_data(
+        summary,
+        severity,
+        source,
+        custom_details,
+        component,
+        group,
+        class_type,
+        action,
+        dedup_key,
+        images,
+        links,
+        action_key_name: str = "action",
+    ) -> dict:
+        """Prepare event data for send_event / post('/v2/enqueue') method."""
         payload = {
             "summary": summary,
             "severity": severity,
@@ -217,22 +236,22 @@ class PagerdutyEventsHook(BaseHook):
         if action not in actions:
             raise ValueError(f"Event action must be one of: {', '.join(actions)}")
         data = {
-            "action": action,
+            action_key_name: action,
             "payload": payload,
         }
         if dedup_key:
             data["dedup_key"] = dedup_key
         elif action != "trigger":
             raise ValueError(
-                f"The dedup_key property is required for action={action} events, and it must be a string."
+                f"The dedup_key property is required for {action_key_name}={action} events,"
+                f" and it must be a string."
             )
         if images is not None:
             data["images"] = images
         if links is not None:
             data["links"] = links
 
-        session = pdpyras.EventsAPISession(self.integration_key)
-        return session.send_event(**data)
+        return data
 
     def create_change_event(
         self,
