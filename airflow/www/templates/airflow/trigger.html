@@ -71,15 +71,18 @@
       </div>
     {% elif "enum" in form_details.schema and form_details.schema.enum %}
       <select class="my_select2 form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" data-placeholder="Select Value"
-        value="{% if form_details.value %}{{ form_details.value }}{% endif %}" onchange="updateJSONconf();"
+        onchange="updateJSONconf();"
         {%- if "integer" in form_details.schema.type or "number" in form_details.schema.type %} valuetype="number"{% endif %}
         {%- if not "null" in form_details.schema.type %} required=""{% endif %}>
         {% for option in form_details.schema.enum -%}
-          {% if form_details.schema.values_display and option|string in form_details.schema.values_display %}
-            <option value="{{ option }}" {% if option == form_details.value %}selected{% endif %}>{{ form_details.schema.values_display[option|string] }}</option>
-          {% else %}
-            <option {% if option == form_details.value %}selected{% endif %}>{{ option }}</option>
-          {% endif %}
+          <option value="{{ option }}"
+          {%- if option == form_details.value %} selected{% endif %}>
+            {%- if form_details.schema.values_display and option|string in form_details.schema.values_display -%}
+              {{ form_details.schema.values_display[option|string] }}
+            {%- else -%}
+              {{ option }}
+            {%- endif -%}
+          </option>
         {% endfor -%}
       </select>
     {% elif form_details.schema and "array" in form_details.schema.type %}
@@ -87,11 +90,14 @@
       <select multiple name="element_{{ form_key }}" id="element_{{ form_key }}" class="select2-drop-mask" valuetype="multiselect"
         onchange="updateJSONconf();"{% if not "null" in form_details.schema.type %} required=""{% endif %}>
         {% for option in form_details.schema.examples -%}
-          {% if form_details.schema.values_display and option|string in form_details.schema.values_display %}
-            <option value="{{ option }}" {% if option in form_details.value %}selected{% endif %}>{{ form_details.schema.values_display[option|string] }}</option>
-          {% else %}
-            <option {% if option in form_details.value %}selected{% endif %}>{{ option }}</option>
-          {% endif %}
+          <option value="{{ option }}"
+          {%- if option in form_details.value %} selected{% endif %}>
+            {%- if form_details.schema.values_display and option|string in form_details.schema.values_display -%}
+              {{ form_details.schema.values_display[option|string] }}
+            {%- else -%}
+              {{ option }}
+            {%- endif -%}
+          </option>
         {% endfor %}
       </select>
       {% else %}
