@@ -27,7 +27,7 @@ from google.cloud.container_v1.types import Cluster
 from kubernetes.client.models import V1Pod
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 
 try:
@@ -444,7 +444,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                     "but in a future release the default will be changed to `True`. "
                     "To ensure pods are not deleted in the future you will need to set "
                     "`is_delete_operator_pod=False` explicitly.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
                 is_delete_operator_pod = False
@@ -454,7 +454,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
             if is_delete_operator_pod is not None:
                 warnings.warn(
                     "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
                 parsed_on_finish_action = (
@@ -469,7 +469,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                         "Currently the default for this parameter is `keep_pod` but in a future release"
                         " the default will be changed to `delete_pod`. To ensure pods are not deleted in"
                         " the future you will need to set `on_finish_action=keep_pod` explicitly.",
-                        DeprecationWarning,
+                        AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
                     parsed_on_finish_action = OnFinishAction.KEEP_POD
@@ -481,7 +481,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 f"You have set parameter use_internal_ip in class {self.__class__.__name__}. "
                 "In current implementation of the operator the parameter is not used and will "
                 "be deleted in future.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -490,7 +490,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 f"You have set parameter regional in class {self.__class__.__name__}. "
                 "In current implementation of the operator the parameter is not used and will "
                 "be deleted in future.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -521,7 +521,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         warnings.warn(
             "The `get_gke_config_file` method is deprecated, "
             "please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=1,
         )
 
@@ -534,7 +534,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         )
 
     @cached_property
-    def hook(self) -> GKEPodHook:  # type: ignore[override]
+    def hook(self) -> GKEPodHook:
         if self._cluster_url is None or self._ssl_ca_cert is None:
             raise AttributeError(
                 "Cluster url and ssl_ca_cert should be defined before using self.hook method. "

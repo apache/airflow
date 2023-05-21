@@ -165,6 +165,7 @@ class TestProviderManager:
             raise AssertionError("There are warnings generated during hook imports. Please fix them")
         assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
 
+    @pytest.mark.execution_timeout(150)
     def test_hook_values(self):
         with pytest.warns(expected_warning=None) as warning_records:
             with self._caplog.at_level(logging.WARNING):
@@ -339,6 +340,11 @@ class TestProviderManager:
         provider_manager = ProvidersManager()
         auth_backend_module_names = list(provider_manager.auth_backend_module_names)
         assert len(auth_backend_module_names) > 0
+
+    def test_trigger(self):
+        provider_manager = ProvidersManager()
+        trigger_class_names = list(provider_manager.trigger)
+        assert len(trigger_class_names) > 10
 
     @patch("airflow.providers_manager.import_string")
     def test_optional_feature_no_warning(self, mock_importlib_import_string):

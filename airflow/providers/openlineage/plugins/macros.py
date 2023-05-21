@@ -19,12 +19,13 @@ from __future__ import annotations
 import os
 import typing
 
+from airflow.configuration import conf
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 
 if typing.TYPE_CHECKING:
     from airflow.models import TaskInstance
 
-_JOB_NAMESPACE = os.getenv("OPENLINEAGE_NAMESPACE", "default")
+_JOB_NAMESPACE = conf.get("openlineage", "namespace", fallback=os.getenv("OPENLINEAGE_NAMESPACE", "default"))
 
 
 def lineage_run_id(task_instance: TaskInstance):

@@ -256,7 +256,6 @@ def verify_dagruns(
     :param state: state of the dag_run to set if commit is True
     :param session: session to use
     :param current_task: current task
-    :return:
     """
     for dag_run in dag_runs:
         dag_run.dag = current_task.subdag

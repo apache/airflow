@@ -27,7 +27,7 @@ from typing import Any, Callable
 
 import paramiko
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
@@ -85,7 +85,7 @@ class SFTPHook(SSHHook):
         if self.ssh_hook is not None:
             warnings.warn(
                 "Parameter `ssh_hook` is deprecated and will be removed in a future version.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             if not isinstance(self.ssh_hook, SSHHook):
@@ -100,7 +100,7 @@ class SFTPHook(SSHHook):
         if ftp_conn_id:
             warnings.warn(
                 "Parameter `ftp_conn_id` is deprecated. Please use `ssh_conn_id` instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             ssh_conn_id = ftp_conn_id

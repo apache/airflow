@@ -177,6 +177,7 @@ class AirflowConfigParser(ConfigParser):
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
         ("celery", "worker_precheck"): ("core", "worker_precheck", "2.0.0"),
+        ("logging", "interleave_timestamp_parser"): ("core", "interleave_timestamp_parser", "2.6.1"),
         ("logging", "base_log_folder"): ("core", "base_log_folder", "2.0.0"),
         ("logging", "remote_logging"): ("core", "remote_logging", "2.0.0"),
         ("logging", "remote_log_conn_id"): ("core", "remote_log_conn_id", "2.0.0"),
@@ -199,8 +200,8 @@ class AirflowConfigParser(ConfigParser):
             "2.0.0",
         ),
         ("logging", "task_log_reader"): ("core", "task_log_reader", "2.0.0"),
-        ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.5.3"),
-        ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.5.3"),
+        ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.6.0"),
+        ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.6.0"),
         ("metrics", "statsd_on"): ("scheduler", "statsd_on", "2.0.0"),
         ("metrics", "statsd_host"): ("scheduler", "statsd_host", "2.0.0"),
         ("metrics", "statsd_port"): ("scheduler", "statsd_port", "2.0.0"),
@@ -1482,7 +1483,7 @@ def initialize_config() -> AirflowConfigParser:
 
     Called for you automatically as part of the Airflow boot process.
     """
-    global FERNET_KEY, AIRFLOW_HOME
+    global FERNET_KEY, AIRFLOW_HOME, WEBSERVER_CONFIG
 
     default_config = _parameterized_config_from_template("default_airflow.cfg")
 
@@ -1547,10 +1548,7 @@ def initialize_config() -> AirflowConfigParser:
         if local_conf.getboolean("core", "unit_test_mode"):
             local_conf.load_test_config()
 
-    # Make it no longer a proxy variable, just set it to an actual string
-    global WEBSERVER_CONFIG
-    WEBSERVER_CONFIG = AIRFLOW_HOME + "/webserver_config.py"
-
+    WEBSERVER_CONFIG = local_conf.get("webserver", "config_file")
     if not os.path.isfile(WEBSERVER_CONFIG):
         import shutil
 
@@ -1785,7 +1783,6 @@ def __getattr__(name):
 AIRFLOW_HOME = get_airflow_home()
 AIRFLOW_CONFIG = get_airflow_config(AIRFLOW_HOME)
 
-
 # Set up dags folder for unit tests
 # this directory won't exist if users install via pip
 _TEST_DAGS_FOLDER = os.path.join(
@@ -1804,7 +1801,6 @@ if os.path.exists(_TEST_PLUGINS_FOLDER):
     TEST_PLUGINS_FOLDER = _TEST_PLUGINS_FOLDER
 else:
     TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, "plugins")
-
 
 TEST_CONFIG_FILE = get_airflow_test_config(AIRFLOW_HOME)
 

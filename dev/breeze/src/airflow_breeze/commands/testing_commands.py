@@ -90,6 +90,20 @@ def group_for_testing():
 @option_python
 @option_image_tag_for_running
 @option_image_name
+@click.option(
+    "--skip-docker-compose-deletion",
+    help="Skip deletion of docker-compose instance after the test",
+    envvar="SKIP_DOCKER_COMPOSE_DELETION",
+    is_flag=True,
+)
+@click.option(
+    "--wait-for-containers-timeout",
+    help="Timeout in seconds to wait for all containers to start",
+    envvar="WAIT_FOR_CONTAINERS_TIMEOUT",
+    show_default=True,
+    type=IntRange(0, 600),
+    default=300,
+)
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -98,10 +112,13 @@ def docker_compose_tests(
     python: str,
     image_name: str,
     image_tag: str | None,
+    skip_docker_compose_deletion: bool,
+    wait_for_containers_timeout: int,
     github_repository: str,
     extra_pytest_args: tuple,
 ):
     """Run docker-compose tests."""
+    perform_environment_checks()
     if image_name is None:
         build_params = BuildProdParams(
             python=python, image_tag=image_tag, github_repository=github_repository
@@ -111,6 +128,8 @@ def docker_compose_tests(
     return_code, info = run_docker_compose_tests(
         image_name=image_name,
         extra_pytest_args=extra_pytest_args,
+        skip_docker_compose_deletion=skip_docker_compose_deletion,
+        wait_for_containers_timeout=wait_for_containers_timeout,
     )
     sys.exit(return_code)
 
@@ -346,6 +365,7 @@ def run_tests_in_parallel(
 )
 @option_verbose
 @option_dry_run
+@option_github_repository
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
 def command_for_tests(
     python: str,
@@ -369,6 +389,7 @@ def command_for_tests(
     upgrade_boto: bool,
     collect_only: bool,
     remove_arm_packages: bool,
+    github_repository: str,
 ):
     docker_filesystem = get_filesystem_type("/var/lib/docker")
     get_console().print(f"Docker filesystem: {docker_filesystem}")
@@ -386,6 +407,7 @@ def command_for_tests(
         upgrade_boto=upgrade_boto,
         collect_only=collect_only,
         remove_arm_packages=remove_arm_packages,
+        github_repository=github_repository,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=exec_shell_params)
     cleanup_python_generated_files()
@@ -430,6 +452,7 @@ def command_for_tests(
 @option_image_tag_for_running
 @option_mount_sources
 @option_integration
+@option_github_repository
 @click.option(
     "--test-timeout",
     help="Test timeout. Set the pytest setup, execution and teardown timeouts to this value",
@@ -454,6 +477,7 @@ def integration_tests(
     mysql_version: str,
     mssql_version: str,
     integration: tuple,
+    github_repository: str,
     test_timeout: int,
     skip_provider_tests: bool,
     db_reset: bool,
@@ -475,6 +499,7 @@ def integration_tests(
         forward_ports=False,
         test_type="Integration",
         skip_provider_tests=skip_provider_tests,
+        github_repository=github_repository,
     )
     cleanup_python_generated_files()
     perform_environment_checks()

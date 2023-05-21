@@ -47,13 +47,14 @@ from airflow.kubernetes.kube_config import KubeConfig
 from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key, create_pod_id
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.utils.event_scheduler import EventScheduler
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin, remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # TaskInstance key, command, configuration, pod_template_file
     KubernetesJobType = Tuple[TaskInstanceKey, CommandType, Any, Optional[str]]
@@ -226,8 +227,24 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             self.log.error("Event: %s Failed", pod_name)
             self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
         elif status == "Succeeded":
+            # We get multiple events once the pod hits a terminal state, and we only want to
+            # send it along to the scheduler once.
+            # If our event type is DELETED, we have the POD_EXECUTOR_DONE_KEY, or the pod has
+            # a deletion timestamp, we've already seen the initial Succeeded event and sent it
+            # along to the scheduler.
+            pod = event["object"]
+            if (
+                event["type"] == "DELETED"
+                or POD_EXECUTOR_DONE_KEY in pod.metadata.labels
+                or pod.metadata.deletion_timestamp
+            ):
+                self.log.info(
+                    "Skipping event for Succeeded pod %s - event for this pod already sent to executor",
+                    pod_name,
+                )
+                return
             self.log.info("Event: %s Succeeded", pod_name)
-            self.watcher_queue.put((pod_name, namespace, State.SUCCESS, annotations, resource_version))
+            self.watcher_queue.put((pod_name, namespace, None, annotations, resource_version))
         elif status == "Running":
             if event["type"] == "DELETED":
                 self.log.info("Event: Pod %s deleted before it could complete", pod_name)
@@ -384,7 +401,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
                 raise
 
     def patch_pod_executor_done(self, *, pod_name: str, namespace: str):
-        """Add a "done" annotation to ensure we don't continually adopt pods"""
+        """Add a "done" annotation to ensure we don't continually adopt pods."""
         self.log.debug("Patching pod %s in namespace %s to mark it as done", pod_name, namespace)
         try:
             self.kube_client.patch_namespaced_pod(
@@ -725,9 +742,18 @@ class KubernetesExecutor(BaseExecutor):
         next_event = self.event_scheduler.run(blocking=False)
         self.log.debug("Next timed event is in %f", next_event)
 
-    def _change_state(self, key: TaskInstanceKey, state: str | None, pod_name: str, namespace: str) -> None:
+    @provide_session
+    def _change_state(
+        self,
+        key: TaskInstanceKey,
+        state: str | None,
+        pod_name: str,
+        namespace: str,
+        session: Session = NEW_SESSION,
+    ) -> None:
         if TYPE_CHECKING:
             assert self.kube_scheduler
+        from airflow.models.taskinstance import TaskInstance
 
         if state == State.RUNNING:
             self.event_buffer[key] = state, None
@@ -745,10 +771,12 @@ class KubernetesExecutor(BaseExecutor):
             self.running.remove(key)
         except KeyError:
             self.log.debug("TI key not in running, not adding to event_buffer: %s", key)
-        else:
-            # We get multiple events once the pod hits a terminal state, and we only want to
-            # do this once, so only do it when we remove the task from running
-            self.event_buffer[key] = state, None
+
+        # If we don't have a TI state, look it up from the db. event_buffer expects the TI state
+        if state is None:
+            state = session.query(TaskInstance.state).filter(TaskInstance.filter_for_tis([key])).scalar()
+
+        self.event_buffer[key] = state, None
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
@@ -767,7 +795,7 @@ class KubernetesExecutor(BaseExecutor):
 
             client = get_kube_client()
 
-            messages.append(f"Trying to get logs (last 100 lines) from worker pod {ti.hostname}")
+            messages.append(f"Attempting to fetch logs from pod {ti.hostname} through kube API")
             selector = PodGenerator.build_selector_for_k8s_executor_pod(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
@@ -793,9 +821,10 @@ class KubernetesExecutor(BaseExecutor):
                 tail_lines=100,
                 _preload_content=False,
             )
-
             for line in res:
-                log.append(line.decode())
+                log.append(remove_escape_codes(line.decode()))
+            if log:
+                messages.append("Found logs through kube API")
         except Exception as e:
             messages.append(f"Reading from k8s pod logs failed: {str(e)}")
         return messages, ["\n".join(log)]
@@ -975,7 +1004,7 @@ class KubernetesExecutor(BaseExecutor):
                 break
 
     def end(self) -> None:
-        """Called when the executor shuts down"""
+        """Called when the executor shuts down."""
         if TYPE_CHECKING:
             assert self.task_queue
             assert self.result_queue

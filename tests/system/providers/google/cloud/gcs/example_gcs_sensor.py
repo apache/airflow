@@ -26,7 +26,6 @@ from pathlib import Path
 
 from airflow import models
 from airflow.models.baseoperator import chain
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceAsyncSensor,
@@ -144,16 +143,22 @@ with models.DAG(
     )
     # [END howto_sensor_object_with_prefix_exists_task]
 
+    # [START howto_sensor_object_with_prefix_exists_task_async]
+    gcs_object_with_prefix_exists_async = GCSObjectsWithPrefixExistenceSensor(
+        bucket=BUCKET_NAME,
+        prefix=FILE_NAME[:5],
+        task_id="gcs_object_with_prefix_exists_task_async",
+        deferrable=True,
+    )
+    # [END howto_sensor_object_with_prefix_exists_task_async]
+
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    sleep = BashOperator(task_id="sleep", bash_command="sleep 5")
-
     chain(
         # TEST SETUP
         create_bucket,
-        sleep,
         upload_file,
         # TEST BODY
         [

@@ -121,10 +121,7 @@ class TestGlueJobOperator:
 
         mock_initialize_job.assert_called_once_with({}, {})
         mock_print_job_logs.assert_called_once_with(
-            job_name=JOB_NAME,
-            run_id=JOB_RUN_ID,
-            job_failed=False,
-            next_token=None,
+            job_name=JOB_NAME, run_id=JOB_RUN_ID, continuation_tokens=mock.ANY
         )
         assert glue.job_name == JOB_NAME
 
