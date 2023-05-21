@@ -193,7 +193,59 @@ INIT_SCRIPT_FILE = ""
 BREEZE_INIT_COMMAND = ""
 DRY_RUN_DOCKER = False
 INSTALL_AIRFLOW_VERSION = ""
-SQLITE_URL = "sqlite:////root/airflow/airflow.db"
+
+
+COMMITTERS = [
+    "BasPH",
+    "Fokko",
+    "KevinYang21",
+    "Taragolis",
+    "XD-DENG",
+    "aijamalnk",
+    "alexvanboxel",
+    "aoen",
+    "artwr",
+    "ashb",
+    "bbovenzi",
+    "bolkedebruin",
+    "criccomini",
+    "dimberman",
+    "dstandish",
+    "eladkal",
+    "ephraimbuddy",
+    "feluelle",
+    "feng-tao",
+    "houqp",
+    "hussein-awala",
+    "jedcunningham",
+    "jgao54",
+    "jghoman",
+    "jhtimmins",
+    "jmcarp",
+    "josh-fell",
+    "kaxil",
+    "leahecole",
+    "malthe",
+    "mik-laj",
+    "milton0825",
+    "mistercrunch",
+    "msumit",
+    "o-nikolas",
+    "pierrejeambrun",
+    "pingzh",
+    "potiuk",
+    "r39132",
+    "ryanahamilton",
+    "ryw",
+    "saguziel",
+    "sekikn",
+    "turbaszek",
+    "uranusjr",
+    "vikramkoka",
+    "xinbinhuang",
+    "yuqian90",
+    "zhongjiajie",
+]
 
 
 def get_airflow_version():
