@@ -18,6 +18,7 @@
 """This module contains Google Kubernetes Engine operators."""
 from __future__ import annotations
 
+import sys
 import warnings
 from typing import TYPE_CHECKING, Sequence
 
@@ -27,6 +28,7 @@ from kubernetes.client.models import V1Pod
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -44,7 +46,6 @@ from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
@@ -397,11 +398,16 @@ class GKEStartPodOperator(KubernetesPodOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param regional: The location param is region name.
+    :param deferrable: Run operator in the deferrable mode.
+    :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
+        If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
+        only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
+        Current default is `keep_pod`, but this will be changed in the next major release of this provider.
     :param is_delete_operator_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True, delete the
         pod; if False, leave the pod. Current default is False, but this will be
         changed in the next major release of this provider.
-    :param deferrable: Run operator in the deferrable mode.
+        Deprecated - use `on_finish_action` instead.
     """
 
     template_fields: Sequence[str] = tuple(
@@ -419,19 +425,62 @@ class GKEStartPodOperator(KubernetesPodOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         regional: bool | None = None,
+        on_finish_action: str | None = None,
         is_delete_operator_pod: bool | None = None,
         **kwargs,
     ) -> None:
-        if is_delete_operator_pod is None:
-            warnings.warn(
-                f"You have not set parameter `is_delete_operator_pod` in class {self.__class__.__name__}. "
-                "Currently the default for this parameter is `False` but in a future release the default "
-                "will be changed to `True`. To ensure pods are not deleted in the future you will need to "
-                "set `is_delete_operator_pod=False` explicitly.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            is_delete_operator_pod = False
+        if sys.version_info < (3, 8):
+            from importlib_metadata import version
+        else:
+            from importlib.metadata import version
+
+        kubernetes_provider_version = version("apache-airflow-providers-cncf-kubernetes")
+        if kubernetes_provider_version < "7.1.0":
+            if on_finish_action is not None:
+                raise AirflowException(
+                    "on_finish_action is not supported in this version of Kubernetes provider,"
+                    " please upgrade to 7.1.0 or higher"
+                )
+            if is_delete_operator_pod is None:
+                warnings.warn(
+                    "You have not set parameter `is_delete_operator_pod` in class "
+                    f"{self.__class__.__name__}. Currently the default for this parameter is `False` "
+                    "but in a future release the default will be changed to `True`. "
+                    "To ensure pods are not deleted in the future you will need to set "
+                    "`is_delete_operator_pod=False` explicitly.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                is_delete_operator_pod = False
+            kwargs["is_delete_operator_pod"] = is_delete_operator_pod
+        else:
+            parsed_on_finish_action: OnFinishAction
+            if is_delete_operator_pod is not None:
+                warnings.warn(
+                    "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                parsed_on_finish_action = (
+                    OnFinishAction.DELETE_POD if is_delete_operator_pod else OnFinishAction.KEEP_POD
+                )
+            else:
+                if on_finish_action is not None:
+                    parsed_on_finish_action = OnFinishAction(on_finish_action)
+                else:
+                    warnings.warn(
+                        f"You have not set parameter `on_finish_action` in class {self.__class__.__name__}. "
+                        "Currently the default for this parameter is `keep_pod` but in a future release"
+                        " the default will be changed to `delete_pod`. To ensure pods are not deleted in"
+                        " the future you will need to set `on_finish_action=keep_pod` explicitly.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                    parsed_on_finish_action = OnFinishAction.KEEP_POD
+
+                is_delete_operator_pod = parsed_on_finish_action == OnFinishAction.DELETE_POD
+            kwargs["on_finish_action"] = parsed_on_finish_action
+            kwargs["is_delete_operator_pod"] = is_delete_operator_pod
 
         if use_internal_ip is not None:
             warnings.warn(
@@ -451,7 +500,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 stacklevel=2,
             )
 
-        super().__init__(is_delete_operator_pod=is_delete_operator_pod, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
         self.cluster_name = cluster_name
