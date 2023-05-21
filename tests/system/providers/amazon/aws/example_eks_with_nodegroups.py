@@ -133,7 +133,7 @@ with DAG(
         labels={"demo": "hello_world"},
         get_logs=True,
         # Delete the pod when it reaches its final state, or the execution is interrupted.
-        is_delete_operator_pod=True,
+        on_finish_action="delete_pod",
     )
     # [END howto_operator_eks_pod_operator]
 

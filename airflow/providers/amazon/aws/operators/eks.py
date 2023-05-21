@@ -17,7 +17,7 @@
 """This module contains Amazon EKS operators."""
 from __future__ import annotations
 
-import sys
+import inspect
 import warnings
 from ast import literal_eval
 from typing import TYPE_CHECKING, Any, List, Sequence, cast
@@ -693,13 +693,9 @@ class EksPodOperator(KubernetesPodOperator):
         is_delete_operator_pod: bool | None = None,
         **kwargs,
     ) -> None:
-        if sys.version_info < (3, 8):
-            from importlib_metadata import version
-        else:
-            from importlib.metadata import version
+        kpo_init_args = inspect.signature(KubernetesPodOperator.__init__).parameters
 
-        kubernetes_provider_version = version("apache-airflow-providers-cncf-kubernetes")
-        if kubernetes_provider_version < "7.1.0":
+        if "on_finish_action" not in kpo_init_args:
             if on_finish_action is not None:
                 raise AirflowException(
                     "on_finish_action is not supported in this version of Kubernetes provider,"

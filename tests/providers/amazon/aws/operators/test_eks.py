@@ -555,7 +555,7 @@ class TestEksPodOperator:
             labels={"demo": "hello_world"},
             get_logs=True,
             # Delete the pod when it reaches its final state, or the execution is interrupted.
-            is_delete_operator_pod=True,
+            on_finish_action="delete_pod",
         )
         op_return_value = op.execute(ti_context)
         mock_k8s_pod_operator_execute.assert_called_once_with(ti_context)

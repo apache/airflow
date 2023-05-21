@@ -598,7 +598,7 @@ class TestKubernetesPodOperator:
         """
         k = KubernetesPodOperator(
             task_id="task",
-            is_delete_operator_pod=True,
+            on_finish_action="delete_pod",
         )
 
         if should_fail:
@@ -999,7 +999,7 @@ class TestKubernetesPodOperator:
         """If we aren't deleting pods and have an exception, mark it so we don't reattach to it"""
         k = KubernetesPodOperator(
             task_id="task",
-            is_delete_operator_pod=False,
+            on_finish_action="keep_pod",
         )
         self.await_pod_mock.side_effect = AirflowException("oops")
         context = create_context(k)
@@ -1161,7 +1161,7 @@ class TestKubernetesPodOperator:
     ):
         """Tests that an AirflowSkipException is raised when the container exits with the skip_on_exit_code"""
         k = KubernetesPodOperator(
-            task_id="task", is_delete_operator_pod=True, **(extra_kwargs if extra_kwargs else {})
+            task_id="task", on_finish_action="delete_pod", **(extra_kwargs if extra_kwargs else {})
         )
 
         base_container = MagicMock()
@@ -1302,7 +1302,7 @@ class TestKubernetesPodOperatorAsync:
             arguments=TEST_ARGS,
             labels=TEST_LABELS,
             name=TEST_NAME,
-            is_delete_operator_pod=False,
+            on_finish_action="keep_pod",
             in_cluster=True,
             get_logs=True,
             deferrable=True,
@@ -1326,7 +1326,7 @@ class TestKubernetesPodOperatorAsync:
             arguments=TEST_ARGS,
             labels=TEST_LABELS,
             name=TEST_NAME,
-            is_delete_operator_pod=False,
+            on_finish_action="keep_pod",
             in_cluster=True,
             get_logs=True,
             deferrable=True,
@@ -1373,7 +1373,7 @@ class TestKubernetesPodOperatorAsync:
             arguments=TEST_ARGS,
             labels=TEST_LABELS,
             name=TEST_NAME,
-            is_delete_operator_pod=False,
+            on_finish_action="keep_pod",
             in_cluster=True,
             get_logs=True,
             deferrable=True,
