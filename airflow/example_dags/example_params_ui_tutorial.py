@@ -65,11 +65,11 @@ with DAG(
         ),
         # If you want to have a selection list box then you can use the enum feature of JSON schema
         "pick_one": Param(
-            "value 1",
+            "value 42",
             type="string",
             title="Select one Value",
             description="You can use JSON schema enum's to generate drop down selection boxes.",
-            enum=[f"value {i}" for i in range(1, 42)],
+            enum=[f"value {i}" for i in range(16, 64)],
         ),
         # Boolean as proper parameter with description
         "bool": Param(
