@@ -71,10 +71,10 @@
       </div>
     {% elif "enum" in form_details.schema and form_details.schema.enum %}
       <select class="my_select2 form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" data-placeholder="Select Value"
-        value="{% if form_details.value %}{{ form_details.value }}{% endif %}" onchange="updateJSONconf();"
+        onchange="updateJSONconf();"
         {%- if not "null" in form_details.schema.type %} required=""{% endif %}>
         {% for option in form_details.schema.enum -%}
-        <option>{{ option }}</option>
+        <option{% if form_details.value == option %} selected="true"{% endif %}>{{ option }}</option>
         {% endfor -%}
       </select>
     {% elif form_details.schema and "array" in form_details.schema.type %}
