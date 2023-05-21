@@ -133,10 +133,7 @@ function initForm() {
           });
           field.on("blur", updateJSONconf);
           objectFields.set(elements[i].name, field);
-        } else if (
-          elements[i].attributes.valuetype &&
-          elements[i].attributes.valuetype.value === "multiselect"
-        ) {
+        } else if (elements[i].nodeName === "SELECT") {
           // Activate select2 multi select boxes
           const elementId = `#${elements[i].name}`;
           $(elementId).select2({
@@ -238,6 +235,8 @@ function setRecentConfig(e) {
         objectFields
           .get(`element_${keys[i]}`)
           .setValue(JSON.stringify(newValue, null, 4));
+      } else if (element.nodeName === "SELECT") {
+        $(`#${element.name}`).select2("val", [newValue]);
       } else {
         element.value = newValue;
       }
