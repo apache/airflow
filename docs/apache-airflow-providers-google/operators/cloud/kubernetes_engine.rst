@@ -136,8 +136,8 @@ Using with Autopilot (serverless) cluster
 
 When running on serverless cluster like GKE Autopilot, the pod startup can sometimes take longer due to cold start.
 During the pod startup, the status is checked in regular short intervals and warning messages are emitted if the pod
-has not yet started. You can increase this interval length via the ``startup_check_interval_seconds`` parameter,
-for example to 60 seconds or more.
+has not yet started. You can increase this interval length via the ``startup_check_interval_seconds`` parameter, with
+recommendation of 60 seconds.
 
 Use of XCom
 '''''''''''
