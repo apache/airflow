@@ -474,9 +474,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                     )
                     parsed_on_finish_action = OnFinishAction.KEEP_POD
 
-                is_delete_operator_pod = parsed_on_finish_action == OnFinishAction.DELETE_POD
             kwargs["on_finish_action"] = parsed_on_finish_action
-            kwargs["is_delete_operator_pod"] = is_delete_operator_pod
 
         if use_internal_ip is not None:
             warnings.warn(

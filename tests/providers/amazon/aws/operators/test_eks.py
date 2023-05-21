@@ -23,6 +23,7 @@ from unittest import mock
 import pytest
 from botocore.waiter import Waiter
 
+from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -33,6 +34,7 @@ from airflow.providers.amazon.aws.operators.eks import (
     EksDeleteNodegroupOperator,
     EksPodOperator,
 )
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 from airflow.typing_compat import TypedDict
 from tests.providers.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,
@@ -565,3 +567,88 @@ class TestEksPodOperator:
         )
         assert mock_k8s_pod_operator_execute.return_value == op_return_value
         assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file
+
+    @pytest.mark.parametrize(
+        "compatible_kpo, kwargs, expected_attributes, compatibility_exception",
+        [
+            (
+                True,
+                {"on_finish_action": "delete_succeeded_pod"},
+                {"on_finish_action": OnFinishAction.DELETE_SUCCEEDED_POD},
+                False,
+            ),
+            (
+                # test that priority for deprecated param
+                True,
+                {"on_finish_action": "keep_pod", "is_delete_operator_pod": True},
+                {"on_finish_action": OnFinishAction.DELETE_POD, "is_delete_operator_pod": True},
+                False,
+            ),
+            (
+                # test default
+                True,
+                {},
+                {"on_finish_action": OnFinishAction.KEEP_POD, "is_delete_operator_pod": False},
+                False,
+            ),
+            (
+                False,
+                {"is_delete_operator_pod": True},
+                {"is_delete_operator_pod": True},
+                False,
+            ),
+            (
+                False,
+                {"is_delete_operator_pod": False},
+                {"is_delete_operator_pod": False},
+                False,
+            ),
+            (
+                # test default
+                False,
+                {},
+                {"is_delete_operator_pod": False},
+                False,
+            ),
+            (
+                # test compatibility exception
+                False,
+                {"on_finish_action": "keep_pod"},
+                None,
+                True,
+            ),
+        ],
+    )
+    def test_on_finish_action_handler(
+        self, compatible_kpo, kwargs, expected_attributes, compatibility_exception
+    ):
+        kpo_init_args_mock = mock.MagicMock(**{"parameters": ["on_finish_action"] if compatible_kpo else []})
+
+        with mock.patch("inspect.signature", return_value=kpo_init_args_mock):
+            if compatibility_exception:
+                exception_msg = "on_finish_action is not supported in this version of Kubernetes provider,"
+                " please upgrade to 7.1.0 or higher"
+                with pytest.raises(AirflowException, match=exception_msg):
+                    EksPodOperator(
+                        task_id="run_pod",
+                        pod_name="run_pod",
+                        cluster_name=CLUSTER_NAME,
+                        image="amazon/aws-cli:latest",
+                        cmds=["sh", "-c", "ls"],
+                        labels={"demo": "hello_world"},
+                        get_logs=True,
+                        **kwargs,
+                    )
+            else:
+                op = EksPodOperator(
+                    task_id="run_pod",
+                    pod_name="run_pod",
+                    cluster_name=CLUSTER_NAME,
+                    image="amazon/aws-cli:latest",
+                    cmds=["sh", "-c", "ls"],
+                    labels={"demo": "hello_world"},
+                    get_logs=True,
+                    **kwargs,
+                )
+                for expected_attr in expected_attributes:
+                    assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
