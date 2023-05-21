@@ -608,7 +608,7 @@ def install_provider_packages(
             package_format=package_format, install_selected_providers=install_selected_providers
         )
         get_console().print(
-            f"[info]Splitting {len(list_of_all_providers)} " f"providers into max {parallelism} chunks"
+            f"[info]Splitting {len(list_of_all_providers)} providers into max {parallelism} chunks"
         )
         provider_chunks = [sorted(list_of_all_providers[i::parallelism]) for i in range(parallelism)]
         # filter out empty ones

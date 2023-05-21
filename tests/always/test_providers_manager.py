@@ -165,6 +165,7 @@ class TestProviderManager:
             raise AssertionError("There are warnings generated during hook imports. Please fix them")
         assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
 
+    @pytest.mark.execution_timeout(150)
     def test_hook_values(self):
         with pytest.warns(expected_warning=None) as warning_records:
             with self._caplog.at_level(logging.WARNING):

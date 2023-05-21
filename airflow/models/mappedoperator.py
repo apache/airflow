@@ -541,7 +541,7 @@ class MappedOperator(AbstractOperator):
 
     @property
     def output(self) -> XComArg:
-        """Returns reference to XCom pushed by current operator"""
+        """Returns reference to XCom pushed by current operator."""
         from airflow.models.xcom_arg import XComArg
 
         return XComArg(operator=self)

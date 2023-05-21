@@ -17,17 +17,18 @@
 """Useful tools for running commands."""
 from __future__ import annotations
 
+import atexit
 import contextlib
 import os
 import re
 import shlex
+import signal
 import stat
 import subprocess
 import sys
 from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
-from threading import Thread
 from typing import Mapping, Union
 
 from rich.markup import escape
@@ -470,7 +471,15 @@ def run_compile_www_assets(
         f"{WWW_ASSET_OUT_DEV_MODE_FILE if dev else WWW_ASSET_OUT_FILE}\n"
     )
     if run_in_background:
-        thread = Thread(daemon=True, target=_run_compile_internally, args=(command_to_execute, dev))
-        thread.start()
+        pid = os.fork()
+        if pid:
+            # Parent process - send signal to process group of the child process
+            atexit.register(os.killpg, pid, signal.SIGTERM)
+        else:
+            # Check if we are not a group leader already (We should not be)
+            if os.getpid() != os.getsid(0):
+                # and create a new process group where we are the leader
+                os.setpgid(0, 0)
+            _run_compile_internally(command_to_execute, dev)
     else:
         return _run_compile_internally(command_to_execute, dev)
