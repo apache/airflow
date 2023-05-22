@@ -872,7 +872,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         hook: BigQueryHook,
         job_id: str,
     ) -> BigQueryJob:
-        get_query = self.generate_query()
+        get_query = self.generate_query(hook=hook)
         configuration = {"query": {"query": get_query, "useLegacySql": self.use_legacy_sql}}
         """Submit a new job and get the job id for polling the status using Triggerer."""
         return hook.insert_job(
@@ -883,10 +883,11 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             nowait=True,
         )
 
-    def generate_query(self) -> str:
+    def generate_query(self, hook: BigQueryHook) -> str:
         """
         Generate a select query if selected fields are given or with *
         for the given dataset and table id
+        :param hook BigQuery Hook
         """
         query = "select "
         if self.selected_fields:
@@ -894,7 +895,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         else:
             query += "*"
         query += (
-            f" from `{self.project_id + '.' if self.project_id else ''}{self.dataset_id}"
+            f" from `{self.project_id or hook.project_id}.{self.dataset_id}"
             f".{self.table_id}` limit {self.max_results}"
         )
         return query
