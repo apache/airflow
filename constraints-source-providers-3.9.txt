@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-22T15:18:57Z
+# This constraints file was automatically generated on 2023-05-22T16:48:57Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -327,7 +327,7 @@ mypy-boto3-s3==1.26.127
 mypy-extensions==1.0.0
 mypy==1.2.0
 mysqlclient==2.1.1
-nbclient==0.7.4
+nbclient==0.8.0
 nbformat==5.8.0
 neo4j==5.8.1
 networkx==3.1
@@ -454,7 +454,7 @@ requests-mock==1.10.0
 requests-ntlm==1.2.0
 requests-oauthlib==1.3.1
 requests-toolbelt==1.0.0
-requests==2.30.0
+requests==2.31.0
 responses==0.23.1
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
@@ -532,7 +532,7 @@ twine==4.0.2
 types-Deprecated==1.2.9.2
 types-Markdown==3.4.2.9
 types-PyMySQL==1.0.19.7
-types-PyYAML==6.0.12.9
+types-PyYAML==6.0.12.10
 types-boto==2.49.18.8
 types-certifi==2021.10.8.3
 types-croniter==1.3.2.9
@@ -567,7 +567,7 @@ webencodings==0.5.1
 websocket-client==1.5.2
 wrapt==1.15.0
 xmltodict==0.13.0
-yamllint==1.31.0
+yamllint==1.32.0
 yarl==1.9.2
 zeep==4.2.1
 zenpy==2.0.25
