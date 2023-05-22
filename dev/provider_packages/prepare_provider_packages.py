@@ -52,7 +52,7 @@ from rich.console import Console
 from rich.syntax import Syntax
 from yaml import safe_load
 
-ALL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
+ALL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10", "3.11"]
 
 MIN_AIRFLOW_VERSION = "2.4.0"
 # In case you have some providers that you want to have different min-airflow version for,
