@@ -68,13 +68,13 @@ CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 #
 def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
     try:
-        dependencies = json.loads(
-            (AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text()
-        )
-        for key in list(dependencies.keys()):
-            if CURRENT_PYTHON_VERSION in dependencies[key]["excluded-python-versions"]:
-                del dependencies[key]
-        return dependencies
+        with AIRFLOW_SOURCES_ROOT.joinpath("generated", "provider_dependencies.json").open() as f:
+            dependencies = json.load(f)
+        return {
+            key: value
+            for key, value in dependencies.items()
+            if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"]
+        }
     except Exception as e:
         print(f"Exception while loading provider dependencies {e}")
         # we can ignore loading dependencies when they are missing - they are only used to generate
@@ -498,10 +498,16 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "virtualenv": virtualenv,
 }
 
-for key in list(CORE_EXTRAS_DEPENDENCIES.keys()):
-    if not CORE_EXTRAS_DEPENDENCIES[key]:
-        print(f"Removing extra {key} as it has been excluded")
-        del CORE_EXTRAS_DEPENDENCIES[key]
+
+def filter_out_excluded_extras() -> Iterable[tuple[str, list[str]]]:
+    for key, value in CORE_EXTRAS_DEPENDENCIES.items():
+        if value:
+            yield key, value
+        else:
+            print(f"Removing extra {key} as it has been excluded")
+
+
+CORE_EXTRAS_DEPENDENCIES = dict(filter_out_excluded_extras())
 
 EXTRAS_DEPENDENCIES: dict[str, list[str]] = deepcopy(CORE_EXTRAS_DEPENDENCIES)
 
