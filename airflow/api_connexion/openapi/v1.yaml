@@ -4247,6 +4247,7 @@ components:
           enum:
             - success
             - failed
+            - skipped
 
     UpdateTaskInstance:
       type: object
@@ -4264,6 +4265,8 @@ components:
           enum:
             - success
             - failed
+            - skipped
+
     SetTaskInstanceNote:
       type: object
       required:
