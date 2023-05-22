@@ -21,7 +21,6 @@ import importlib
 import logging
 import os
 import pkgutil
-import platform
 import re
 import subprocess
 import sys
@@ -53,6 +52,7 @@ class EntityType(Enum):
     Sensors = "Sensors"
     Hooks = "Hooks"
     Secrets = "Secrets"
+    Trigger = "Trigger"
 
 
 class EntityTypeSummary(NamedTuple):
@@ -83,6 +83,7 @@ ENTITY_NAMES = {
     EntityType.Sensors: "Sensors",
     EntityType.Hooks: "Hooks",
     EntityType.Secrets: "Secrets",
+    EntityType.Trigger: "Trigger",
 }
 
 TOTALS: dict[EntityType, int] = {
@@ -91,6 +92,7 @@ TOTALS: dict[EntityType, int] = {
     EntityType.Sensors: 0,
     EntityType.Transfers: 0,
     EntityType.Secrets: 0,
+    EntityType.Trigger: 0,
 }
 
 OPERATORS_PATTERN = r".*Operator$"
@@ -99,6 +101,7 @@ HOOKS_PATTERN = r".*Hook$"
 SECRETS_PATTERN = r".*Backend$"
 TRANSFERS_PATTERN = r".*To[A-Z0-9].*Operator$"
 WRONG_TRANSFERS_PATTERN = r".*Transfer$|.*TransferOperator$"
+TRIGGER_PATTERN = r".*Trigger$"
 
 ALL_PATTERNS = {
     OPERATORS_PATTERN,
@@ -107,6 +110,7 @@ ALL_PATTERNS = {
     SECRETS_PATTERN,
     TRANSFERS_PATTERN,
     WRONG_TRANSFERS_PATTERN,
+    TRIGGER_PATTERN,
 }
 
 EXPECTED_SUFFIXES: dict[EntityType, str] = {
@@ -115,6 +119,7 @@ EXPECTED_SUFFIXES: dict[EntityType, str] = {
     EntityType.Sensors: "Sensor",
     EntityType.Secrets: "Backend",
     EntityType.Transfers: "Operator",
+    EntityType.Trigger: "Trigger",
 }
 
 
@@ -280,23 +285,17 @@ def import_all_classes(
             try:
                 with warnings.catch_warnings(record=True) as w:
                     warnings.filterwarnings("always", category=DeprecationWarning)
-                    try:
-                        _module = importlib.import_module(modinfo.name)
-                        for attribute_name in dir(_module):
-                            class_name = modinfo.name + "." + attribute_name
-                            attribute = getattr(_module, attribute_name)
-                            if isclass(attribute):
-                                imported_classes.append(class_name)
-                            if isclass(attribute) and (
-                                issubclass(attribute, logging.Handler)
-                                or issubclass(attribute, BaseSecretsBackend)
-                            ):
-                                classes_with_potential_circular_import.append(class_name)
-                    except OSError as e:
-                        if "geos_c" in str(e) and platform.machine() in ("aarch64", "arm64"):
-                            # we ignore the missing geos_c library on Apple Silicon
-                            continue
-                        raise
+                    _module = importlib.import_module(modinfo.name)
+                    for attribute_name in dir(_module):
+                        class_name = modinfo.name + "." + attribute_name
+                        attribute = getattr(_module, attribute_name)
+                        if isclass(attribute):
+                            imported_classes.append(class_name)
+                        if isclass(attribute) and (
+                            issubclass(attribute, logging.Handler)
+                            or issubclass(attribute, BaseSecretsBackend)
+                        ):
+                            classes_with_potential_circular_import.append(class_name)
                 if w:
                     all_warnings.extend(w)
             except AirflowOptionalProviderFeatureException:
@@ -556,6 +555,7 @@ def get_package_class_summary(
     from airflow.models.baseoperator import BaseOperator
     from airflow.secrets import BaseSecretsBackend
     from airflow.sensors.base import BaseSensorOperator
+    from airflow.triggers.base import BaseTrigger
 
     all_verified_entities: dict[EntityType, VerifiedEntities] = {
         EntityType.Operators: find_all_entities(
@@ -607,6 +607,14 @@ def get_package_class_summary(
             ancestor_match=BaseOperator,
             expected_class_name_pattern=TRANSFERS_PATTERN,
             unexpected_class_name_patterns=ALL_PATTERNS - {OPERATORS_PATTERN, TRANSFERS_PATTERN},
+        ),
+        EntityType.Trigger: find_all_entities(
+            imported_classes=imported_classes,
+            base_package=full_package_name,
+            sub_package_pattern_match=r".*\.triggers\..*",
+            ancestor_match=BaseTrigger,
+            expected_class_name_pattern=TRIGGER_PATTERN,
+            unexpected_class_name_patterns=ALL_PATTERNS - {TRIGGER_PATTERN},
         ),
     }
     for entity in EntityType:

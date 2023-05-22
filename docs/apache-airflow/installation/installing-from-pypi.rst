@@ -181,6 +181,15 @@ Airflow versions or other providers. Some providers have minimum-required versio
 versions of providers might have conflicting requirements with Airflow or other dependencies you
 might have installed.
 
+It is the best practice to install apache-airflow in the same version as the one that comes from the
+original image. This way you can be sure that ``pip`` will not try to downgrade or upgrade apache
+airflow while installing other requirements, which might happen in case you try to add a dependency
+that conflicts with the version of apache-airflow that you are using:
+
+.. code-block:: bash
+
+    pip install "apache-airflow==|version|" "apache-airflow-providers-google==8.0.0"
+
 
 Installation and upgrade of Airflow core
 ========================================
