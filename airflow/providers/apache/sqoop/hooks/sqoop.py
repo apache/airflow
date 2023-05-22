@@ -223,9 +223,9 @@ class SqoopHook(BaseHook):
         extra_import_options: dict[str, Any] | None = None,
         schema: str | None = None,
     ) -> Any:
-        """
-        Imports table from remote location to target dir. Arguments are
-        copies of direct sqoop command line arguments.
+        """Import table from remote location to target dir.
+
+        Arguments are copies of direct sqoop command line arguments.
 
         :param table: Table to read
         :param schema: Schema name
