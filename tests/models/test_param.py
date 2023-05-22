@@ -123,23 +123,35 @@ class TestParam:
         with pytest.raises(ParamValidationError, match=error_pattern):
             Param("24:00:00", type="string", format="time").resolve()
 
-    def test_string_date_format(self):
+    @pytest.mark.parametrize(
+        "date_string",
+        [
+            "2021-01-01",
+            pytest.param(
+                "20120503",
+                marks=pytest.mark.skipif(not PY311, reason="Improved fromisoformat() in 3.11."),
+            ),
+        ],
+    )
+    def test_string_date_format(self, date_string):
         """Test string date format."""
-        assert Param("2021-01-01", type="string", format="date").resolve() == "2021-01-01"
+        assert Param(date_string, type="string", format="date").resolve() == date_string
 
-        error_pattern = "is not a 'date'"
-        with pytest.raises(ParamValidationError, match=error_pattern):
-            Param("01/01/2021", type="string", format="date").resolve()
-
-        if PY311:
-            # in Python 3.11 `fromisoformat` will not raise an error for this one
-            Param("20120503", type="string", format="date").resolve()
-        else:
-            with pytest.raises(ParamValidationError, match=error_pattern):
-                Param("20120503", type="string", format="date").resolve()
-
-        with pytest.raises(ParamValidationError, match=error_pattern):
-            Param("21 May 1975", type="string", format="date").resolve()
+    @pytest.mark.parametrize(
+        "date_string",
+        [
+            "01/01/2021",
+            "21 May 1975",
+            pytest.param(
+                "20120503",
+                marks=pytest.mark.skipif(PY311, reason="Improved fromisoformat() in 3.11."),
+            ),
+        ],
+    )
+    def test_string_date_format_error(self, date_string):
+        """Test string date format failures."""
+        with pytest.raises(ParamValidationError, match="is not a 'date'"):
+            Param(date_string, type="string", format="date").resolve()
 
     def test_int_param(self):
         p = Param(5)
