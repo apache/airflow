@@ -728,11 +728,12 @@ def get_env_variables_for_docker_commands(params: ShellParams | BuildCiParams) -
 def prepare_broker_url(params, env_variables):
     """Prepare broker url for celery executor"""
     urls = env_variables["CELERY_BROKER_URLS"].split(",")
-    url = {
+    url_map = {
         ALLOWED_CELERY_BROKERS[0]: urls[0],
         ALLOWED_CELERY_BROKERS[1]: urls[1],
-    }[params.celery_broker]
-    env_variables["AIRFLOW__CELERY__BROKER_URL"] = url
+    }
+    if getattr(params, "celery_broker", None) and params.celery_broker in params.celery_broker in url_map:
+        env_variables["AIRFLOW__CELERY__BROKER_URL"] = url_map[params.celery_broker]
 
 
 def perform_environment_checks():
