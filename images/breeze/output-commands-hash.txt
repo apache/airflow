@@ -7,8 +7,8 @@ ci:fix-ownership:fee2c9ec9ef19686792002ae054fecdd
 ci:free-space:47234aa0a60b0efd84972e6e797379f8
 ci:get-workflow-info:01ee34c33ad62fa5dc33e0ac8773223f
 ci:resource-check:1d4fe47dff9fc64ac1648ec4beb2d85c
-ci:selective-check:3a085894f24cb909812fbc8253a21e13
-ci:e51cbc38a202b92b7dc6288f6344c412
+ci:selective-check:8a39978ee69d496dae2533d37a48b137
+ci:2868dbcdd482663e9d6ccd00055b9cac
 ci-image:build:3ffe4dd24ae7090415543e27d8504955
 ci-image:pull:c16c6e57c748bfe9b365b4ffafb18472
 ci-image:verify:aee88f55e8837028d19316356e29b009
