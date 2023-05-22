@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.5.0
 .....
 
-Latest change: 2023-05-12
+Latest change: 2023-05-18
 
-=================================================================================================  ===========  ======================================================================
+=================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ======================================================================
+=================================================================================================  ===========  ======================================================================================
+`abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
+`f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `761c0da723 <https://github.com/apache/airflow/commit/761c0da723799c3c37d9eb2cadaa9c4fa256d13a>`_  2023-05-12   ``Upper-bind elasticearch integration (#31255)``
 `0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
 `eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
@@ -43,7 +46,7 @@ Commit                                                                          
 `d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
 `f9e9d23457 <https://github.com/apache/airflow/commit/f9e9d23457cba5d3e18b5bdb7b65ecc63735b65b>`_  2023-02-11   ``Restore trigger logging (#29482)``
 `60d4bcd1d1 <https://github.com/apache/airflow/commit/60d4bcd1d101bb56955081d14e3e138a0c960c5f>`_  2023-02-10   ``Revert "Enable individual trigger logging (#27758)" (#29472)``
-=================================================================================================  ===========  ======================================================================
+=================================================================================================  ===========  ======================================================================================
 
 4.4.0
 .....

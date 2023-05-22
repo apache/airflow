@@ -373,6 +373,9 @@ class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
     def is_in_cluster(self) -> bool:
         return False
 
+    def get_namespace(self):
+        """Get the namespace configured by the Airflow connection."""
+
     def _get_namespace(self):
         """Implemented for compatibility with KubernetesHook.  Deprecated; do not use."""
 

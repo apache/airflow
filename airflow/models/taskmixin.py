@@ -78,12 +78,12 @@ class DependencyMixin:
         """
 
     def __lshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
-        """Implements Task << Task"""
+        """Implements Task << Task."""
         self.set_upstream(other)
         return other
 
     def __rshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
-        """Implements Task >> Task"""
+        """Implements Task >> Task."""
         self.set_downstream(other)
         return other
 
@@ -99,7 +99,10 @@ class DependencyMixin:
 
 
 class TaskMixin(DependencyMixin):
-    """:meta private:"""
+    """Mixin to provide task-related things.
+
+    :meta private:
+    """
 
     def __init_subclass__(cls) -> None:
         warnings.warn(
@@ -143,7 +146,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
     @property
     def dag_id(self) -> str:
-        """Returns dag id if it has one or an adhoc/meaningless ID"""
+        """Returns dag id if it has one or an adhoc/meaningless ID."""
         if self.dag:
             return self.dag.dag_id
         return "_in_memory_dag_"
@@ -206,7 +209,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             self.dag = dag
 
         def add_only_new(obj, item_set: set[str], item: str) -> None:
-            """Adds only new items to item set"""
+            """Adds only new items to item set."""
             if item in item_set:
                 self.log.warning("Dependency %s, %s already registered for DAG: %s", obj, item, dag.dag_id)
             else:
@@ -245,14 +248,14 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
     @property
     def downstream_list(self) -> Iterable[Operator]:
-        """List of nodes directly downstream"""
+        """List of nodes directly downstream."""
         if not self.dag:
             raise AirflowException(f"Operator {self} has not been assigned to a DAG yet")
         return [self.dag.get_task(tid) for tid in self.downstream_task_ids]
 
     @property
     def upstream_list(self) -> Iterable[Operator]:
-        """List of nodes directly upstream"""
+        """List of nodes directly upstream."""
         if not self.dag:
             raise AirflowException(f"Operator {self} has not been assigned to a DAG yet")
         return [self.dag.get_task(tid) for tid in self.upstream_task_ids]

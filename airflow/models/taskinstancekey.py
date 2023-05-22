@@ -31,18 +31,18 @@ class TaskInstanceKey(NamedTuple):
 
     @property
     def primary(self) -> tuple[str, str, str, int]:
-        """Return task instance primary key part of the key"""
+        """Return task instance primary key part of the key."""
         return self.dag_id, self.task_id, self.run_id, self.map_index
 
     @property
     def reduced(self) -> TaskInstanceKey:
-        """Remake the key by subtracting 1 from try number to match in memory information"""
+        """Remake the key by subtracting 1 from try number to match in memory information."""
         return TaskInstanceKey(
             self.dag_id, self.task_id, self.run_id, max(1, self.try_number - 1), self.map_index
         )
 
     def with_try_number(self, try_number: int) -> TaskInstanceKey:
-        """Returns TaskInstanceKey with provided ``try_number``"""
+        """Returns TaskInstanceKey with provided ``try_number``."""
         return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, try_number, self.map_index)
 
     @property

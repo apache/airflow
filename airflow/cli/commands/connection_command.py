@@ -35,7 +35,7 @@ from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers_manager import ProvidersManager
 from airflow.secrets.local_filesystem import load_connections_dict
-from airflow.utils import cli as cli_utils, yaml
+from airflow.utils import cli as cli_utils, helpers, yaml
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.session import create_session
 
@@ -203,6 +203,12 @@ def connections_add(args):
     has_json = bool(args.conn_json)
     has_type = bool(args.conn_type)
 
+    # Validate connection-id
+    try:
+        helpers.validate_key(args.conn_id, max_length=200)
+    except Exception as e:
+        raise SystemExit(f"Could not create connection. {e}")
+
     if not has_type and not (has_json or has_uri):
         raise SystemExit("Must supply either conn-uri or conn-json if not supplying conn-type")
 
@@ -313,6 +319,12 @@ def _import_helper(file_path: str, overwrite: bool) -> None:
     connections_dict = load_connections_dict(file_path)
     with create_session() as session:
         for conn_id, conn in connections_dict.items():
+            try:
+                helpers.validate_key(conn_id, max_length=200)
+            except Exception as e:
+                print(f"Could not import connection. {e}")
+                continue
+
             existing_conn_id = session.query(Connection.id).filter(Connection.conn_id == conn_id).scalar()
             if existing_conn_id is not None:
                 if not overwrite:

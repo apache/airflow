@@ -80,7 +80,7 @@ PROVIDER_DEPENDENCIES = fill_provider_dependencies()
 
 
 def airflow_test_suite() -> unittest.TestSuite:
-    """Test suite for Airflow tests"""
+    """Test suite for Airflow tests."""
     test_loader = unittest.TestLoader()
     test_suite = test_loader.discover(str(AIRFLOW_SOURCES_ROOT / "tests"), pattern="test_*.py")
     return test_suite
@@ -103,7 +103,7 @@ class CleanCommand(Command):
 
     @staticmethod
     def rm_all_files(files: list[str]) -> None:
-        """Remove all files from the list"""
+        """Remove all files from the list."""
         for file in files:
             try:
                 os.remove(file)
@@ -719,7 +719,7 @@ PREINSTALLED_PROVIDERS = [
 
 def get_provider_package_name_from_package_id(package_id: str) -> str:
     """
-    Builds the name of provider package out of the package id provided/
+    Builds the name of provider package out of the package id provided/.
 
     :param package_id: id of the package (like amazon or microsoft.azure)
     :return: full name of package in PyPI
@@ -734,7 +734,7 @@ def get_excluded_providers() -> list[str]:
 
 
 def get_all_provider_packages() -> str:
-    """Returns all provider packages configured in setup.py"""
+    """Returns all provider packages configured in setup.py."""
     excluded_providers = get_excluded_providers()
     return " ".join(
         get_provider_package_name_from_package_id(package)
@@ -744,7 +744,7 @@ def get_all_provider_packages() -> str:
 
 
 class AirflowDistribution(Distribution):
-    """The setuptools.Distribution subclass with Airflow specific behaviour"""
+    """The setuptools.Distribution subclass with Airflow specific behaviour."""
 
     def __init__(self, attrs=None):
         super().__init__(attrs)

@@ -21,7 +21,7 @@ from __future__ import annotations
 import logging
 import random
 import time
-from typing import Callable, cast
+from typing import Callable
 
 from aiohttp import ClientSession
 from gcloud.aio.auth import AioSession, Token
@@ -187,7 +187,6 @@ class MLEngineHook(GoogleBaseHook):
         hook = self.get_conn()
 
         self._append_label(body)
-
         request = hook.projects().jobs().create(parent=f"projects/{project_id}", body=body)
         job_id = body["jobId"]
         request.execute(num_retries=self.num_retries)
@@ -391,6 +390,7 @@ class MLEngineHook(GoogleBaseHook):
             belongs to. (templated)
         :param project_id: The Google Cloud project name to which MLEngine
             model belongs.
+        :param version_name: A name to use for the version being operated upon. (templated)
         :return: If the version was deleted successfully, returns the operation.
             Otherwise raises an error.
         """
@@ -538,9 +538,10 @@ class MLEngineHook(GoogleBaseHook):
 
 
 class MLEngineAsyncHook(GoogleBaseAsyncHook):
-    """Uses gcloud-aio library to retrieve Job details"""
+    """Class to get asynchronous hook for MLEngine"""
 
     sync_hook_class = MLEngineHook
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
 
     def _check_fileds(
         self,
@@ -553,16 +554,17 @@ class MLEngineAsyncHook(GoogleBaseAsyncHook):
             raise AirflowException("An unique job id is required for Google MLEngine training job.")
 
     async def _get_link(self, url: str, session: Session):
-        s = AioSession(session)
-        t = Token(scopes=["https://www.googleapis.com/auth/cloud-platform"])
-        headers = {
-            "Authorization": f"Bearer {t.get()}",
-            "accept": "application/json",
-            "accept-encoding": "gzip, deflate",
-            "user-agent": "(gzip)",
-            "x-goog-api-client": "gdcl/1.12.11 gl-python/3.8.15",
-        }
-        return await s.get(url=url, headers=headers)
+        async with Token(scopes=self.scopes) as token:
+            session_aio = AioSession(session)
+            headers = {
+                "Authorization": f"Bearer {await token.get()}",
+            }
+            try:
+                job = await session_aio.get(url=url, headers=headers)
+            except AirflowException:
+                pass  # Because the job may not be visible in system yet
+
+        return job
 
     async def get_job(self, job_id: str, session: Session, project_id: str | None = None):
         """Get the specified job resource by job ID and project ID."""
@@ -583,18 +585,17 @@ class MLEngineAsyncHook(GoogleBaseAsyncHook):
         Exception means that Job finished with errors
         """
         self._check_fileds(project_id=project_id, job_id=job_id)
-
-        async with ClientSession() as s:
+        async with ClientSession() as session:
             try:
-                job_response = await self.get_job(
-                    project_id=project_id, job_id=job_id, session=cast(Session, s)
+                job = await self.get_job(
+                    project_id=project_id, job_id=job_id, session=session  #  type: ignore
                 )
-                json_response = await job_response.json()
-                self.log.info("Retrieving json_response: %s", json_response)
+                job = await job.json(content_type=None)
+                self.log.info("Retrieving json_response: %s", job)
 
-                if json_response["state"] in ["SUCCEEDED", "FAILED", "CANCELLED"]:
+                if job["state"] in ["SUCCEEDED", "FAILED", "CANCELLED"]:
                     job_status = "success"
-                elif json_response["state"] in ["PREPARING", "RUNNING"]:
+                elif job["state"] in ["PREPARING", "RUNNING"]:
                     job_status = "pending"
             except OSError:
                 job_status = "pending"
