@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Add onupdate cascade to taskmap
+"""Add ``onupdate`` cascade to ``task_map`` table
 
 Revision ID: c804e5c76e3e
 Revises: 98ae134e6fff

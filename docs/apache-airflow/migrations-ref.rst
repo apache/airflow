@@ -41,7 +41,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +=================================+===================+===================+==============================================================+
 | ``937cbd173ca1`` (head)         | ``c804e5c76e3e``  | ``2.7.0``         | Add index to task_instance table                             |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
-| ``c804e5c76e3e``                | ``98ae134e6fff``  | ``2.6.2``         | Add onupdate cascade to taskmap                              |
+| ``c804e5c76e3e``                | ``98ae134e6fff``  | ``2.6.2``         | Add ``onupdate`` cascade to ``task_map`` table               |
 +---------------------------------+-------------------+-------------------+--------------------------------------------------------------+
 | ``98ae134e6fff``                | ``6abdffdd4815``  | ``2.6.0``         | Increase length of user identifier columns in ``ab_user``    |
 |                                 |                   |                   | and ``ab_register_user`` tables                              |
