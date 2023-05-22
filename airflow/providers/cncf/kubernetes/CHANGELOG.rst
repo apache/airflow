@@ -24,12 +24,22 @@
 Changelog
 ---------
 
-6.2.0
+
+
+7.0.0
 .....
 
 .. note::
   This release of provider is only available for Airflow 2.4+ as explained in the
   `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. note::
+  Return None when namespace is not defined in the Kubernetes connection
+
+* ``Remove deprecated features from KubernetesHook (#31402)``
 
 Features
 ~~~~~~~~
@@ -62,6 +72,10 @@ Misc
    * ``Add full automation for min Airflow version for providers (#30994)``
    * ``Add cli cmd to list the provider trigger info (#30822)``
    * ``Fix pod describing on system test failure (#31191)``
+   * ``Docstring improvements (#31375)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
 
 6.1.0
 .....

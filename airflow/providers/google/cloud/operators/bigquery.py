@@ -27,6 +27,7 @@ import attr
 from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
+from google.cloud.bigquery.table import RowIterator
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -52,6 +53,8 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 )
 
 if TYPE_CHECKING:
+    from google.cloud.bigquery import UnknownJob
+
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
@@ -926,6 +929,10 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 project_id=self.project_id,
             )
 
+            if isinstance(rows, RowIterator):
+                raise TypeError(
+                    "BigQueryHook.list_rows() returns iterator when return_iterator is False (default)"
+                )
             self.log.info("Total extracted rows: %s", len(rows))
 
             if self.as_dict:
@@ -1952,12 +1959,12 @@ class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
         self.log.info("Start getting dataset: %s:%s", self.project_id, self.dataset_id)
 
         dataset = bq_hook.get_dataset(dataset_id=self.dataset_id, project_id=self.project_id)
-        dataset = dataset.to_api_repr()
+        dataset_api_repr = dataset.to_api_repr()
         BigQueryDatasetLink.persist(
             context=context,
             task_instance=self,
-            dataset_id=dataset["datasetReference"]["datasetId"],
-            project_id=dataset["datasetReference"]["projectId"],
+            dataset_id=dataset_api_repr["datasetReference"]["datasetId"],
+            project_id=dataset_api_repr["datasetReference"]["projectId"],
         )
         return dataset
 
@@ -2249,12 +2256,12 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
             fields=fields,
         )
 
-        dataset = dataset.to_api_repr()
+        dataset_api_repr = dataset.to_api_repr()
         BigQueryDatasetLink.persist(
             context=context,
             task_instance=self,
-            dataset_id=dataset["datasetReference"]["datasetId"],
-            project_id=dataset["datasetReference"]["projectId"],
+            dataset_id=dataset_api_repr["datasetReference"]["datasetId"],
+            project_id=dataset_api_repr["datasetReference"]["projectId"],
         )
         return dataset
 
@@ -2622,7 +2629,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
         )
 
     @staticmethod
-    def _handle_job_error(job: BigQueryJob) -> None:
+    def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
         if job.error_result:
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
@@ -2644,7 +2651,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
 
         try:
             self.log.info("Executing: %s'", self.configuration)
-            job = self._submit_job(hook, job_id)
+            job: BigQueryJob | UnknownJob = self._submit_job(hook, job_id)
         except Conflict:
             # If the job already exists retrieve it
             job = hook.get_job(

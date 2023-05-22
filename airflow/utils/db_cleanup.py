@@ -50,7 +50,7 @@ ARCHIVE_TABLE_PREFIX = "_airflow_deleted__"
 @dataclass
 class _TableConfig:
     """
-    Config class for performing cleanup on a table
+    Config class for performing cleanup on a table.
 
     :param table_name: the table
     :param extra_columns: any columns besides recency_column_name that we'll need in queries
