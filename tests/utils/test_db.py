@@ -244,5 +244,6 @@ class TestDb:
             config = _get_alembic_config()
             assert config.config_file_name == "/tmp/alembic.ini"
 
+        # default behaviour
         config = _get_alembic_config()
         assert config.config_file_name == os.path.join(os.path.dirname(airflow.__file__), "alembic.ini")

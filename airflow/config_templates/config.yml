@@ -454,12 +454,12 @@ database:
   options:
     alembic_ini_file_path:
       description: |
-        Optional path to a custom alembic.ini file. If provided, these configurations
+        Path to a custom alembic.ini file. If provided, these configurations
         will be prioritised over the default alembic.ini file.
       version_added: 2.7.0
       type: string
       example: ~
-      default: ~
+      default: "alembic.ini"
     sql_alchemy_conn:
       description: |
         The SqlAlchemy connection string to the metadata database.
