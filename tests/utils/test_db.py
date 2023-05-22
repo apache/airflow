@@ -33,7 +33,6 @@ from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import MetaData
 
-import airflow
 from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
@@ -246,4 +245,6 @@ class TestDb:
 
         # default behaviour
         config = _get_alembic_config()
+        import airflow
+
         assert config.config_file_name == os.path.join(os.path.dirname(airflow.__file__), "alembic.ini")
