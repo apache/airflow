@@ -454,7 +454,7 @@ database:
   options:
     alembic_ini_file_path:
       description: |
-        Path to the ``alembic.ini`` file. You can either provide the file path relative 
+        Path to the ``alembic.ini`` file. You can either provide the file path relative
         to the Airflow home directory or the absolute path if it is located elsewhere.
       version_added: 2.7.0
       type: string
