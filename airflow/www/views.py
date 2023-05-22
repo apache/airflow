@@ -5177,7 +5177,6 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at",
         "start_date",
         "end_date",
-        # Ordering is not supported on association proxies
         # "note", # todo: maybe figure out how to re-enable this
         "external_trigger",
         "conf",
@@ -5532,10 +5531,14 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     ]
 
     order_columns = [
-        item for item in list_columns if item not in [
-            "try_number", "log_url", "external_executor_id", 
-            # Ordering is not supported on association proxies
-            "note", # todo: maybe figure out how to re-enable this
+        item
+        for item in list_columns
+        if item
+        not in [
+            "try_number",
+            "log_url",
+            "external_executor_id",
+            "note",  # todo: maybe figure out how to re-enable this
         ]
     ]
 
