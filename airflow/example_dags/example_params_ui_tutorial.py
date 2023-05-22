@@ -55,7 +55,7 @@ with DAG(
         "most_loved_number": Param(
             42,
             type="integer",
-            title="You favorite number",
+            title="Your favorite number",
             description_html="""Everybody should have a favorite number. Not only math teachers.
             If you can not think of any at the moment please think of the 42 which is very famous because
             of the book
@@ -70,6 +70,62 @@ with DAG(
             title="Select one Value",
             description="You can use JSON schema enum's to generate drop down selection boxes.",
             enum=[f"value {i}" for i in range(16, 64)],
+        ),
+        # You can also label the selected values via values_display attribute
+        "pick_with_label": Param(
+            3,
+            type="number",
+            title="Select one Number",
+            description="With drop down selections you can also have nice display labels for the values.",
+            enum=[*range(1, 10)],
+            values_display={
+                1: "One",
+                2: "Two",
+                3: "Three",
+                4: "Four - is like you take three and get one for free!",
+                5: "Five",
+                6: "Six",
+                7: "Seven",
+                8: "Eight",
+                9: "Nine",
+            },
+        ),
+        # If you want to have a list box with proposals but not enforcing a fixed list
+        # then you can use the examples feature of JSON schema
+        "proposals": Param(
+            "some value",
+            type="string",
+            title="Field with proposals",
+            description="You can use JSON schema examples's to generate drop down selection boxes "
+            "but allow also to enter custom values. Try typing an 'a' and see options.",
+            examples=(
+                "Alpha,Bravo,Charlie,Delta,Echo,Foxtrot,Golf,Hotel,India,Juliett,Kilo,Lima,Mike,November,Oscar,Papa,"
+                "Quebec,Romeo,Sierra,Tango,Uniform,Victor,Whiskey,X-ray,Yankee,Zulu"
+            ).split(","),
+        ),
+        # If you want to select multiple items from a fixed list JSON schema des not allow to use enum
+        # In this case the type "array" is being used together with "examples" as pick list
+        "multi_select": Param(
+            ["two", "three"],
+            "Select from the list of options.",
+            type="array",
+            title="Multi Select",
+            examples=["one", "two", "three", "four", "five"],
+        ),
+        # A multiple options selection can also be combined with values_display
+        "multi_select_with_label": Param(
+            ["2", "3"],
+            "Select from the list of options. See that options can have nicer text and still technical values"
+            "are propagated as values during trigger to the DAG.",
+            type="array",
+            title="Multi Select with Labels",
+            examples=["1", "2", "3", "4", "5"],
+            values_display={
+                "1": "One box of choccolate",
+                "2": "Two bananas",
+                "3": "Three apples",
+                # Note: Value display mapping does not need to be complete.s
+            },
         ),
         # Boolean as proper parameter with description
         "bool": Param(
