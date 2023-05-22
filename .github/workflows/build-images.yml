@@ -237,7 +237,8 @@ jobs:
     if: |
       needs.build-info.outputs.image-build == 'true' &&
       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
-      github.event.pull_request.head.repo.full_name != 'apache/airflow'
+      github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
+      needs.build-info.outputs.runs-on == 'self-hosted`
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
