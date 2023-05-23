@@ -31,11 +31,17 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.1.0
 .....
 
-Latest change: 2023-05-15
+Latest change: 2023-05-19
 
 =================================================================================================  ===========  ====================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================
+`0b4f1c116a <https://github.com/apache/airflow/commit/0b4f1c116a6129d3125b953312ad0cbf4ebab7ce>`_  2023-05-19   ``Fix AWS system test example_dynamodb (#31395)``
+`abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
+`f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`0b3b6704cb <https://github.com/apache/airflow/commit/0b3b6704cb12a3b8f22da79d80b3db85528418b7>`_  2023-05-17   ``Fix AWS system test example_dynamodb_to_s3 (#31362)``
+`e05e3a9db8 <https://github.com/apache/airflow/commit/e05e3a9db8b6d38cfbff63ce008e20185dcf2482>`_  2023-05-16   ``Handle temporary credentials when resource_type is used to get custom waiters (#31333)``
+`d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `0117246db6 <https://github.com/apache/airflow/commit/0117246db65c631a06a4bc9ee24ad9abdecc820e>`_  2023-05-15   ``Add future-compatible mongo Hook typing (#31289)``
 `3193857376 <https://github.com/apache/airflow/commit/3193857376bc2c8cd2eb133017be1e8cbcaa8405>`_  2023-05-13   ``Add Deferrable Mode for EC2StateSensor (#31130)``
 `6b21e4b88c <https://github.com/apache/airflow/commit/6b21e4b88c3d18eb1ba176e6ac53da90a4523880>`_  2023-05-13   ``Bring back detection of implicit single-line string concatenation (#31270)``

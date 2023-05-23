@@ -288,14 +288,14 @@ There are two types of images you can extend your image from:
 
 Naming conventions for the images:
 
-+----------------+------------------+---------------------------------+--------------------------------------+
-| Image          | Python           | Standard image                  | Slim image                           |
-+================+==================+=================================+======================================+
-| Latest default | 3.7              | apache/airflow:latest           | apache/airflow:slim-latest           |
-| Default        | 3.7              | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
-| Latest         | 3.7,3.8,3.9,3.10 | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
-| Specific       | 3.7,3.8,3.9,3.10 | apache/airflow:X.Y.Z-pythonN.M  | apache/airflow:slim-X.Y.Z-pythonN.M  |
-+----------------+------------------+---------------------------------+--------------------------------------+
++----------------+-----------------------+---------------------------------+--------------------------------------+
+| Image          | Python                | Standard image                  | Slim image                           |
++================+=======================+=================================+======================================+
+| Latest default | 3.7                   | apache/airflow:latest           | apache/airflow:slim-latest           |
+| Default        | 3.7                   | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
+| Latest         | 3.7,3.8,3.9,3.10,3.11 | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
+| Specific       | 3.7,3.8,3.9,3.10,3.11 | apache/airflow:X.Y.Z-pythonN.M  | apache/airflow:slim-X.Y.Z-pythonN.M  |
++----------------+-----------------------+---------------------------------+--------------------------------------+
 
 * The "latest" image is always the latest released stable version available.
 
