@@ -31,6 +31,8 @@ class MongoSensor(BaseSensorOperator):
     Checks for the existence of a document which matches the given query in MongoDB.
 
     Example:
+
+    .. code-block:: pycon
     >>> mongo_sensor = MongoSensor(collection="coll",
     ...                            query={"key": "value"},
     ...                            mongo_conn_id="mongo_default",
