@@ -86,15 +86,15 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|            | Main version (dev)           | Stable version (2.6.1)    |
-|------------|------------------------------|---------------------------|
-| Python     | 3.7, 3.8, 3.9, 3.10, 3.11    | 3.7, 3.8, 3.9, 3.10, 3.11 |
-| Platform   | AMD64/ARM64(\*)              | AMD64/ARM64(\*)           |
-| Kubernetes | 1.23, 1.24, 1.25, 1.26, 1.27 | 1.23, 1.24, 1.25, 1.26    |
-| PostgreSQL | 11, 12, 13, 14, 15           | 11, 12, 13, 14, 15        |
-| MySQL      | 5.7, 8                       | 5.7, 8                    |
-| SQLite     | 3.15.0+                      | 3.15.0+                   |
-| MSSQL      | 2017(\*), 2019(\*)           | 2017(\*), 2019(\*)        |
+|            | Main version (dev)           | Stable version (2.6.1) |
+|------------|------------------------------|------------------------|
+| Python     | 3.7, 3.8, 3.9, 3.10, 3.11    | 3.7, 3.8, 3.9, 3.10    |
+| Platform   | AMD64/ARM64(\*)              | AMD64/ARM64(\*)        |
+| Kubernetes | 1.23, 1.24, 1.25, 1.26, 1.27 | 1.23, 1.24, 1.25, 1.26 |
+| PostgreSQL | 11, 12, 13, 14, 15           | 11, 12, 13, 14, 15     |
+| MySQL      | 5.7, 8                       | 5.7, 8                 |
+| SQLite     | 3.15.0+                      | 3.15.0+                |
+| MSSQL      | 2017(\*), 2019(\*)           | 2017(\*), 2019(\*)     |
 
 \* Experimental
 
@@ -152,6 +152,11 @@ While it is possible to install Airflow with tools like [Poetry](https://python-
 [pip-tools](https://pypi.org/project/pip-tools), they do not share the same workflow as
 `pip` - especially when it comes to constraint vs. requirements management.
 Installing via `Poetry` or `pip-tools` is not currently supported.
+
+There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
+Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
+the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
+newer versions of ``bazel`` will handle it.
 
 If you wish to install Airflow using those tools, you should use the constraint files and convert
 them to the appropriate format and workflow that your tool requires.
