@@ -255,9 +255,10 @@ class LivyHook(HttpHook, LoggingMixin):
     def get_batch_logs(self, session_id: int | str, log_start_position, log_batch_size) -> dict:
         """
         Gets the session logs for a specified batch.
+
         :param session_id: identifier of the batch sessions
         :param log_start_position: Position from where to pull the logs
-        :param log_batch_size: Number of lines to pull in one batch.
+        :param log_batch_size: Number of lines to pull in one batch
 
         :return: response body
         """

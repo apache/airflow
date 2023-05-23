@@ -582,7 +582,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _build_spark_driver_kill_command(self) -> list[str]:
         """
         Construct the spark-submit command to kill a driver.
-        :return: full command to kill a driver.
+
+        :return: full command to kill a driver
         """
         # Assume that spark-submit is present in the path to the executing user
         connection_cmd = [self._connection["spark_binary"]]
