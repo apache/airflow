@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-22T23:12:51Z
+# This constraints file was automatically generated on 2023-05-23T06:13:28Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -240,8 +240,8 @@ graphviz==0.20.1
 greenlet==2.0.2
 grpc-google-iam-v1==0.12.6
 grpcio-gcp==0.2.2
-grpcio-status==1.54.2
-grpcio==1.54.2
+grpcio-status==1.55.0
+grpcio==1.55.0
 gssapi==1.8.2
 gunicorn==20.1.0
 h11==0.14.0
@@ -369,7 +369,7 @@ pdpyras==5.0.3
 pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
-pinotdb==0.4.14
+pinotdb==0.5.0
 pipdeptree==2.7.1
 pipx==1.2.0
 pkginfo==1.9.6
@@ -550,7 +550,7 @@ types-tabulate==0.9.0.2
 types-termcolor==1.1.6.2
 types-toml==0.10.8.6
 types-urllib3==1.26.25.13
-typing_extensions==4.5.0
+typing_extensions==4.6.0
 tzlocal==5.0.1
 uc-micro-py==1.0.2
 unicodecsv==0.14.1
