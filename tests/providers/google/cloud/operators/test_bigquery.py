@@ -1312,7 +1312,7 @@ class TestBigQueryInsertJobOperator:
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator.defer")
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_bigquery_insert_job_operator_async_finish_before_deferred(self, mock_hook, mock_defer):
+    def test_bigquery_insert_job_operator_async_finish_before_deferred(self, mock_hook, mock_defer, caplog):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
@@ -1337,6 +1337,7 @@ class TestBigQueryInsertJobOperator:
 
         op.execute(MagicMock())
         assert not mock_defer.called
+        assert "Current state of job" in caplog.text
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_insert_job_operator_async(self, mock_hook, create_task_instance_of_operator):
