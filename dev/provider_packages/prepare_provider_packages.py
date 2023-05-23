@@ -1348,10 +1348,9 @@ def update_min_airflow_version(provider_package_id: str, version_suffix: str):
         context=jinja_context,
         target_path=provider_details.source_provider_package_path,
     )
-    if not jinja_context["PREINSTALLED_PROVIDER"]:
-        replace_min_airflow_version_in_provider_yaml(
-            context=jinja_context, target_path=provider_details.source_provider_package_path
-        )
+    replace_min_airflow_version_in_provider_yaml(
+        context=jinja_context, target_path=provider_details.source_provider_package_path
+    )
 
 
 def update_setup_files(
