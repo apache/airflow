@@ -736,7 +736,11 @@ def _get_alembic_config():
 
     package_dir = os.path.dirname(airflow.__file__)
     directory = os.path.join(package_dir, "migrations")
-    config = Config(os.path.join(package_dir, "alembic.ini"))
+    alembic_file = conf.get("database", "alembic_ini_file_path")
+    if os.path.isabs(alembic_file):
+        config = Config(alembic_file)
+    else:
+        config = Config(os.path.join(package_dir, alembic_file))
     config.set_main_option("script_location", directory.replace("%", "%%"))
     config.set_main_option("sqlalchemy.url", settings.SQL_ALCHEMY_CONN.replace("%", "%%"))
     return config

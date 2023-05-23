@@ -50,11 +50,10 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
+    runs-on: 'ubuntu-20.04'
     env:
       TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
     outputs:
-      runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
       python-versions: "${{ steps.selective-checks.python-versions }}"
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       all-python-versions-list-as-string: >-
@@ -66,6 +65,7 @@ jobs:
       cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+      runs-on: ${{ steps.selective-checks.outputs.runs-on }}
       target-commit-sha: "${{steps.discover-pr-merge-commit.outputs.target-commit-sha ||
           github.event.pull_request.head.sha ||
           github.sha
@@ -237,7 +237,8 @@ jobs:
     if: |
       needs.build-info.outputs.image-build == 'true' &&
       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
-      github.event.pull_request.head.repo.full_name != 'apache/airflow'
+      github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
+      needs.build-info.outputs.runs-on == 'self-hosted'
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}

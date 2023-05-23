@@ -28,14 +28,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-6.2.0
+7.0.0
 .....
 
-Latest change: 2023-05-15
+Latest change: 2023-05-19
 
 =================================================================================================  ===========  ================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================================
+`a1f5a5425e <https://github.com/apache/airflow/commit/a1f5a5425e65c40e9baaf5eb4faeaed01cee3569>`_  2023-05-19   ``Remove deprecated features from KubernetesHook (#31402)``
+`54f1fb0574 <https://github.com/apache/airflow/commit/54f1fb0574a6ecf8f415bbf6da1aaf6f1999bb29>`_  2023-05-19   ``Docstring improvements (#31375)``
+`abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
+`f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `caeca2d143 <https://github.com/apache/airflow/commit/caeca2d143152ef037ccbaae858f1e2fa6763674>`_  2023-05-15   ``Add protocol to define methods relied upon by KubernetesPodOperator (#31298)``
 `774a5a9038 <https://github.com/apache/airflow/commit/774a5a90383ef4da61d7d00967751ee69292166c>`_  2023-05-11   ``Empty xcom result file log message more specific (#31228)``
 `e7cb9ca2c1 <https://github.com/apache/airflow/commit/e7cb9ca2c152e7ba1e8b785d6d2a60ac79edba02>`_  2023-05-11   ``Fix pod describing on system test failure (#31191)``
