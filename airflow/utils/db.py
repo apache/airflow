@@ -49,7 +49,6 @@ if TYPE_CHECKING:
 
     from airflow.models.base import Base
 
-
 log = logging.getLogger(__name__)
 
 REVISION_HEADS_MAP = {
@@ -686,21 +685,28 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
 
 
-def _create_db_from_orm(session):
-    from alembic import command
+def _get_flask_db(sql_database_uri):
     from flask import Flask
     from flask_sqlalchemy import SQLAlchemy
 
-    from airflow.models.base import Base
-    from airflow.www.fab_security.sqla.models import Model
     from airflow.www.session import AirflowDatabaseSessionInterface
 
+    flask_app = Flask(__name__)
+    flask_app.config["SQLALCHEMY_DATABASE_URI"] = sql_database_uri
+    flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    db = SQLAlchemy(flask_app)
+    AirflowDatabaseSessionInterface(app=flask_app, db=db, table="session", key_prefix="")
+    return db
+
+
+def _create_db_from_orm(session):
+    from alembic import command
+
+    from airflow.models.base import Base
+    from airflow.www.fab_security.sqla.models import Model
+
     def _create_flask_session_tbl(sql_database_uri):
-        flask_app = Flask(__name__)
-        flask_app.config["SQLALCHEMY_DATABASE_URI"] = sql_database_uri
-        flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-        db = SQLAlchemy(flask_app)
-        AirflowDatabaseSessionInterface(app=flask_app, db=db, table="session", key_prefix="")
+        db = _get_flask_db(sql_database_uri)
         db.create_all()
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
@@ -1002,17 +1008,18 @@ def reflect_tables(tables: list[Base | str] | None, session):
     This function gets the current state of each table in the set of models provided and returns
     a SqlAlchemy metadata object containing them.
     """
-    import sqlalchemy.schema
+    from airflow.models.base import metadata
 
-    metadata = sqlalchemy.schema.MetaData(session.bind)
-
+    metadata.bind = settings.engine
     if tables is None:
-        metadata.reflect(resolve_fks=False)
+        metadata.reflect(bind=settings.engine, resolve_fks=False)
     else:
         for tbl in tables:
             try:
                 table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
-                metadata.reflect(only=[table_name], extend_existing=True, resolve_fks=False)
+                metadata.reflect(
+                    bind=settings.engine, only=[table_name], extend_existing=True, resolve_fks=False
+                )
             except exc.InvalidRequestError:
                 continue
     return metadata
@@ -1633,8 +1640,9 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     connection = settings.engine.connect()
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-        drop_airflow_models(connection)
-        drop_airflow_moved_tables(session)
+        with connection.begin():
+            drop_airflow_models(connection)
+            drop_airflow_moved_tables(session)
 
     if not skip_init:
         initdb(session=session)
@@ -1701,27 +1709,12 @@ def drop_airflow_models(connection):
     :return: None
     """
     from airflow.models.base import Base
-
-    # Drop connection and chart - those tables have been deleted and in case you
-    # run resetdb on schema with chart or users table will fail
-    chart = Table("chart", Base.metadata)
-    chart.drop(settings.engine, checkfirst=True)
-    user = Table("user", Base.metadata)
-    user.drop(settings.engine, checkfirst=True)
-    users = Table("users", Base.metadata)
-    users.drop(settings.engine, checkfirst=True)
-    dag_stats = Table("dag_stats", Base.metadata)
-    dag_stats.drop(settings.engine, checkfirst=True)
-    session = Table("session", Base.metadata)
-    session.drop(settings.engine, checkfirst=True)
+    from airflow.www.fab_security.sqla.models import Model
 
     Base.metadata.drop_all(connection)
-    # we remove the Tables here so that if resetdb is run metadata does not keep the old tables.
-    Base.metadata.remove(session)
-    Base.metadata.remove(dag_stats)
-    Base.metadata.remove(users)
-    Base.metadata.remove(user)
-    Base.metadata.remove(chart)
+    Model.metadata.drop_all(connection)
+    db = _get_flask_db(connection.engine.url)
+    db.drop_all()
     # alembic adds significant import time, so we import it lazily
     from alembic.migration import MigrationContext
 
@@ -1749,7 +1742,7 @@ def check(session: Session = NEW_SESSION):
 
     :param session: session of the sqlalchemy
     """
-    session.execute("select 1 as is_alive;")
+    session.execute(text("select 1 as is_alive;"))
     log.info("Connection successful.")
 
 
@@ -1780,10 +1773,10 @@ def create_global_lock(
     dialect = conn.dialect
     try:
         if dialect.name == "postgresql":
-            conn.execute(text("SET LOCK_TIMEOUT to :timeout"), timeout=lock_timeout)
-            conn.execute(text("SELECT pg_advisory_lock(:id)"), id=lock.value)
+            conn.execute(text("SET LOCK_TIMEOUT to :timeout"), {"timeout": lock_timeout})
+            conn.execute(text("SELECT pg_advisory_lock(:id)"), {"id": lock.value})
         elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
-            conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), id=str(lock), timeout=lock_timeout)
+            conn.execute(text("SELECT GET_LOCK(:id, :timeout)"), {"id": str(lock), "timeout": lock_timeout})
         elif dialect.name == "mssql":
             # TODO: make locking work for MSSQL
             pass
@@ -1791,12 +1784,12 @@ def create_global_lock(
         yield
     finally:
         if dialect.name == "postgresql":
-            conn.execute("SET LOCK_TIMEOUT TO DEFAULT")
-            (unlocked,) = conn.execute(text("SELECT pg_advisory_unlock(:id)"), id=lock.value).fetchone()
+            conn.execute(text("SET LOCK_TIMEOUT TO DEFAULT"))
+            (unlocked,) = conn.execute(text("SELECT pg_advisory_unlock(:id)"), {"id": lock.value}).fetchone()
             if not unlocked:
                 raise RuntimeError("Error releasing DB lock!")
         elif dialect.name == "mysql" and dialect.server_version_info >= (5, 6):
-            conn.execute(text("select RELEASE_LOCK(:id)"), id=str(lock))
+            conn.execute(text("select RELEASE_LOCK(:id)"), {"id": str(lock)})
         elif dialect.name == "mssql":
             # TODO: make locking work for MSSQL
             pass
