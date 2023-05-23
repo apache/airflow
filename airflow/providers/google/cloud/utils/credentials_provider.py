@@ -140,10 +140,13 @@ def provide_gcp_conn_and_credentials(
     project_id: str | None = None,
 ) -> Generator[None, None, None]:
     """
-    Context manager that provides both:
+    Context manager that provides GPC connection and credentials.
+
+     It provides both:
+
     - Google Cloud credentials for application supporting `Application Default Credentials (ADC)
       strategy`__.
-    - temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT` connection.
+    - temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT` connection
 
     :param key_file_path: Path to file with Google Cloud Service Account .json file.
     :param scopes: OAuth scopes for the connection
