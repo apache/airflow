@@ -137,9 +137,11 @@ class ExasolHook(DbApiHook):
     def get_description(statement: ExaStatement) -> Sequence[Sequence]:
         """
         Copied implementation from DB2-API wrapper.
+
         More info https://github.com/exasol/pyexasol/blob/master/docs/DBAPI_COMPAT.md#db-api-20-wrapper
+
         :param statement: Exasol statement
-        :return: description sequence of t.
+        :return: description sequence of t
         """
         cols = []
         for k, v in statement.columns().items():
