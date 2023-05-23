@@ -1374,7 +1374,6 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         callback: DagCallbackRequest | None = None
 
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-        dag_model = DM.get_dagmodel(dag_run.dag_id, session)
         # Adopt row locking to account for inconsistencies when next_dagrun_create_after = None
         query = (
             session.query(DagModel)
