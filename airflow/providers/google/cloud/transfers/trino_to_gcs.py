@@ -129,7 +129,9 @@ class _TrinoToGCSTrinoCursorAdapter:
     def __next__(self) -> Any:
         """
         Return the next row from the currently executing SQL statement using the same semantics as
-        ``.fetchone()``. A ``StopIteration`` exception is raised when the result set is exhausted.
+        ``.fetchone()``.
+
+        A ``StopIteration`` exception is raised when the result set is exhausted.
         """
         result = self.fetchone()
         if result is None:

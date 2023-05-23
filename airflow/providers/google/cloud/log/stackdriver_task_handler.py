@@ -349,9 +349,10 @@ class StackdriverTaskHandler(logging.Handler):
     def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
         """
         Creates an address for an external log collecting service.
+
         :param task_instance: task instance object
-        :param try_number: task instance try_number to read logs from.
-        :return: URL to the external log collection service.
+        :param try_number: task instance try_number to read logs from
+        :return: URL to the external log collection service
         """
         _, project_id = self._credentials_and_project
 

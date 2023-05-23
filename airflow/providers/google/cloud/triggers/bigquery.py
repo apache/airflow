@@ -542,14 +542,15 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
 
 class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
     """
-    Initialize the BigQuery Table Partition Existence Trigger with needed parameters
+    Initialize the BigQuery Table Partition Existence Trigger with needed parameters.
+
     :param partition_id: The name of the partition to check the existence of.
     :param project_id: Google Cloud Project where the job is running
     :param dataset_id: The dataset ID of the requested table.
     :param table_id: The table ID of the requested table.
     :param gcp_conn_id: Reference to google cloud connection id
     :param hook_params: params for hook
-    :param poll_interval: polling period in seconds to check for the status.
+    :param poll_interval: polling period in seconds to check for the status
     """
 
     def __init__(self, partition_id: str, **kwargs):

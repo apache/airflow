@@ -2513,6 +2513,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
     Executes a BigQuery job. Waits for the job to complete and returns job id.
 
     This operator work in the following way:
+
     - it calculates a unique hash of the job using job's configuration or uuid if ``force_rerun`` is True
     - creates ``job_id`` in form of
         ``[provided_job_id | airflow_{dag_id}_{task_id}_{exec_date}]_{uniqueness_suffix}``
