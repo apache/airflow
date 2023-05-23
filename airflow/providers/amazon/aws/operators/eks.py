@@ -113,7 +113,7 @@ class EksCreateClusterOperator(BaseOperator):
     :param create_fargate_profile_kwargs: Optional parameters to pass to the CreateFargateProfile API
          (templated)
     :param logging_config: Dict containing the S3 information for the log destination. (templated)
-        NOTE:  If logging is enabled, the extra pod_execution_role requires extra permissions.
+        NOTE:  If logging is enabled, the pod_execution_role requires extra permissions.
         See https://docs.aws.amazon.com/eks/latest/userguide/fargate-logging.html
     """
 
@@ -364,7 +364,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
     :param create_fargate_profile_kwargs: Optional parameters to pass to the CreateFargate Profile API
      (templated)
     :param logging_config: Dict containing the S3 information for the log destination. (templated)
-        NOTE:  If logging is enabled, the extra pod_execution_role requires extra permissions.
+        NOTE:  If logging is enabled, the pod_execution_role requires extra permissions.
         See https://docs.aws.amazon.com/eks/latest/userguide/fargate-logging.html
     :param wait_for_completion: If True, waits for operator to complete. (default: False) (templated)
 
