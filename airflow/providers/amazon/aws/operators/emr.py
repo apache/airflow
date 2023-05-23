@@ -122,14 +122,18 @@ class EmrAddStepsOperator(BaseOperator):
             aws_partition=emr_hook.conn_partition,
             job_flow_id=job_flow_id,
         )
-        EmrLogsLink.persist(
-            context=context,
-            operator=self,
-            region_name=emr_hook.conn_region_name,
-            aws_partition=emr_hook.conn_partition,
-            job_flow_id=self.job_flow_id,
-            log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=job_flow_id),
-        )
+        try:
+            EmrLogsLink.persist(
+                context=context,
+                operator=self,
+                region_name=emr_hook.conn_region_name,
+                aws_partition=emr_hook.conn_partition,
+                job_flow_id=self.job_flow_id,
+                log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=job_flow_id),
+            )
+        except KeyError:
+            # There is no logURI in the response, so we can't create a link.
+            pass
 
         self.log.info("Adding steps to %s", job_flow_id)
 
@@ -686,14 +690,18 @@ class EmrCreateJobFlowOperator(BaseOperator):
                 job_flow_id=self._job_flow_id,
             )
             if self._job_flow_id:
-                EmrLogsLink.persist(
-                    context=context,
-                    operator=self,
-                    region_name=self._emr_hook.conn_region_name,
-                    aws_partition=self._emr_hook.conn_partition,
-                    job_flow_id=self._job_flow_id,
-                    log_uri=get_log_uri(emr_client=self._emr_hook.conn, job_flow_id=self._job_flow_id),
-                )
+                try:
+                    EmrLogsLink.persist(
+                        context=context,
+                        operator=self,
+                        region_name=self._emr_hook.conn_region_name,
+                        aws_partition=self._emr_hook.conn_partition,
+                        job_flow_id=self._job_flow_id,
+                        log_uri=get_log_uri(emr_client=self._emr_hook.conn, job_flow_id=self._job_flow_id),
+                    )
+                except KeyError:
+                    # There is no logURI in the response, so we can't create a link.
+                    pass
 
             if self.wait_for_completion:
                 self._emr_hook.get_waiter("job_flow_waiting").wait(
@@ -762,14 +770,18 @@ class EmrModifyClusterOperator(BaseOperator):
             aws_partition=emr_hook.conn_partition,
             job_flow_id=self.cluster_id,
         )
-        EmrLogsLink.persist(
-            context=context,
-            operator=self,
-            region_name=emr_hook.conn_region_name,
-            aws_partition=emr_hook.conn_partition,
-            job_flow_id=self.cluster_id,
-            log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=self.cluster_id),
-        )
+        try:
+            EmrLogsLink.persist(
+                context=context,
+                operator=self,
+                region_name=emr_hook.conn_region_name,
+                aws_partition=emr_hook.conn_partition,
+                job_flow_id=self.cluster_id,
+                log_uri=get_log_uri(emr_client=emr_hook.conn, job_flow_id=self.cluster_id),
+            )
+        except KeyError:
+            # There is no logURI in the response, so we can't create a link.
+            pass
 
         self.log.info("Modifying cluster %s", self.cluster_id)
         response = emr.modify_cluster(
@@ -819,14 +831,18 @@ class EmrTerminateJobFlowOperator(BaseOperator):
             aws_partition=emr_hook.conn_partition,
             job_flow_id=self.job_flow_id,
         )
-        EmrLogsLink.persist(
-            context=context,
-            operator=self,
-            region_name=emr_hook.conn_region_name,
-            aws_partition=emr_hook.conn_partition,
-            job_flow_id=self.job_flow_id,
-            log_uri=get_log_uri(emr_client=emr, job_flow_id=self.job_flow_id),
-        )
+        try:
+            EmrLogsLink.persist(
+                context=context,
+                operator=self,
+                region_name=emr_hook.conn_region_name,
+                aws_partition=emr_hook.conn_partition,
+                job_flow_id=self.job_flow_id,
+                log_uri=get_log_uri(emr_client=emr, job_flow_id=self.job_flow_id),
+            )
+        except KeyError:
+            # There is no logURI in the response, so we can't create a link.
+            pass
 
         self.log.info("Terminating JobFlow %s", self.job_flow_id)
         response = emr.terminate_job_flows(JobFlowIds=[self.job_flow_id])
