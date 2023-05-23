@@ -1173,6 +1173,7 @@ class TestKubernetesExecutor:
             "task_id": "task",
             "try_number": "1",
         }
+        get_logs_task_metadata.cache_clear()
         with conf_vars({("kubernetes", "logs_task_metadata"): "True"}):
             expected_annotations = {
                 "dag_id": "dag",
@@ -1191,6 +1192,7 @@ class TestKubernetesExecutor:
             "task_id": "task",
             "try_number": "1",
         }
+        get_logs_task_metadata.cache_clear()
         with conf_vars({("kubernetes", "logs_task_metadata"): "False"}):
             expected_annotations = "<omitted>"
             annotations_actual = annotations_for_logging_task_metadata(annotations_test)
