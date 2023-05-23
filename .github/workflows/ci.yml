@@ -65,64 +65,7 @@ jobs:
     # to find the list of authors and replace them, so any changes to the
     # formatting of the contains(fromJSON()) structure below will need to be
     # reflected in that workflow too.
-    runs-on: >-
-      ${{ (
-        (
-          github.event_name == 'push' ||
-          github.event_name == 'schedule' ||
-          contains(fromJSON('[
-            "BasPH",
-            "Fokko",
-            "KevinYang21",
-            "Taragolis",
-            "XD-DENG",
-            "aijamalnk",
-            "alexvanboxel",
-            "aoen",
-            "artwr",
-            "ashb",
-            "bbovenzi",
-            "bolkedebruin",
-            "criccomini",
-            "dimberman",
-            "dstandish",
-            "eladkal",
-            "ephraimbuddy",
-            "feluelle",
-            "feng-tao",
-            "houqp",
-            "hussein-awala",
-            "jedcunningham",
-            "jgao54",
-            "jghoman",
-            "jhtimmins",
-            "jmcarp",
-            "josh-fell",
-            "kaxil",
-            "leahecole",
-            "malthe",
-            "mik-laj",
-            "milton0825",
-            "mistercrunch",
-            "msumit",
-            "o-nikolas",
-            "pierrejeambrun",
-            "pingzh",
-            "potiuk",
-            "r39132",
-            "ryanahamilton",
-            "ryw",
-            "saguziel",
-            "sekikn",
-            "turbaszek",
-            "uranusjr",
-            "vikramkoka",
-            "xinbinhuang",
-            "yuqian90",
-            "zhongjiajie"
-          ]'), github.event.pull_request.user.login)
-        ) && github.repository == 'apache/airflow'
-      ) && 'self-hosted' || 'ubuntu-20.04' }}
+    runs-on: "ubuntu-20.04"
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
@@ -171,11 +114,11 @@ jobs:
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
+      runs-on: ${{ steps.selective-checks.outputs.runs-on }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
       build-job-description: ${{ steps.source-run-info.outputs.build-job-description }}
-      runs-on: ${{ steps.source-run-info.outputs.runs-on }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
     steps:
@@ -525,7 +468,7 @@ jobs:
   wait-for-ci-images:
     timeout-minutes: 120
     name: "Wait for CI images"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: "ubuntu-20.04"
     needs: [build-info, build-ci-images]
     if: needs.build-info.outputs.image-build == 'true'
     env:
@@ -548,13 +491,6 @@ jobs:
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      - name: "Tests Pytest collection"
-        run: breeze testing tests --run-in-parallel --collect-only
-        if: needs.build-info.outputs.run-tests == 'true'
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-          BACKEND: sqlite
-          PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()

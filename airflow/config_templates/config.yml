@@ -452,6 +452,14 @@ core:
 database:
   description: ~
   options:
+    alembic_ini_file_path:
+      description: |
+        Path to the ``alembic.ini`` file. You can either provide the file path relative
+        to the Airflow home directory or the absolute path if it is located elsewhere.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "alembic.ini"
     sql_alchemy_conn:
       description: |
         The SqlAlchemy connection string to the metadata database.
