@@ -38,7 +38,8 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies: []
+dependencies:
+  - apache-airflow>=2.4.0
 
 integrations:
   - integration-name: Internet Message Access Protocol (IMAP)

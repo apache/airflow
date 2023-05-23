@@ -30,6 +30,14 @@ Changelog
   This release of provider is only available for Airflow 2.4+ as explained in the
   `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
+.. note::
+  This release changed default Google ads to v13.
+  Since v12 is deprecated by Google and soon to be removed we are not consider this to be a breaking change in Airflow.
+
+.. note::
+  This version of the provider bumped many Google packages.
+  Please review packages change logs
+
 Features
 ~~~~~~~~
 
@@ -63,6 +71,9 @@ Misc
 * ``'CreateBatchPredictionJobOperator' Add batch_size param for Vertex AI BatchPredictionJob objects (#31118)``
 * ``GKEPodHook needs to have all methods KPO calls (#31266)``
 * ``Add CloudBuild build id log (#30516)``
+* ``Switch default Google ads to v13 (#31382)``
+* ``Switch to google ads v13 (#31369)``
+* ``Update SDKs for google provider package (#30067)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -72,6 +83,11 @@ Misc
    * ``Upgrade ruff to 0.0.262 (#30809)``
    * ``Add full automation for min Airflow version for providers (#30994)``
    * ``Add cli cmd to list the provider trigger info (#30822)``
+   * ``Docstring improvements (#31375)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Add get_namespace to GKEPodHook (#31397)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
 
 10.0.0
 ......

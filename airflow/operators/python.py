@@ -51,15 +51,10 @@ from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_scr
 
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
-    """
-    Deprecated function.
-    Calls @task.python and allows users to turn a python function into
-    an Airflow task. Please use the following instead.
+    """Deprecated. Use :func:`airflow.decorators.task` instead.
 
-    from airflow.decorators import task
-
-    @task
-    def my_task()
+    Calls ``@task.python`` and allows users to turn a Python function into
+    an Airflow task.
 
     :param python_callable: A reference to an object that is callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
@@ -69,7 +64,6 @@ def task(python_callable: Callable | None = None, multiple_outputs: bool | None 
     :param multiple_outputs: if set, function return value will be
         unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
-    :return:
     """
     # To maintain backwards compatibility, we import the task object into this file
     # This prevents breakages in dags that use `from airflow.operators.python import task`

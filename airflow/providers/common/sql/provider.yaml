@@ -35,6 +35,7 @@ versions:
   - 1.0.0
 
 dependencies:
+  - apache-airflow>=2.4.0
   - sqlparse>=0.4.2
 
 additional-extras:
