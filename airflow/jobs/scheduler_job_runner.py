@@ -1389,6 +1389,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             self.log.error("Couldn't find DAG %s in DAG bag or database!", dag_run.dag_id)
             return callback
         if not dag_model:
+            self.log.info(
+                "DAG %s scheduling was skipped, "
+                "probably because DAG was None due to skip_locked in with_row_locks",
+                dag_run.dag_id,
+            )
             return callback
 
         if (
