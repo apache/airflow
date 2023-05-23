@@ -43,10 +43,15 @@ from functools import lru_cache
 from re import match
 from typing import Any, Dict, List, TypeVar
 
-from typing_extensions import Literal
+if sys.version_info >= (3, 9):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
 
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
     CURRENT_MSSQL_VERSIONS,
     CURRENT_MYSQL_VERSIONS,
@@ -59,6 +64,8 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     HELM_VERSION,
     KIND_VERSION,
+    RUNS_ON_PUBLIC_RUNNER,
+    RUNS_ON_SELF_HOSTED_RUNNER,
     GithubEvents,
     SelectiveUnitTestTypes,
     all_helm_test_packages,
@@ -295,6 +302,8 @@ class SelectiveChecks:
         commit_ref: str | None = None,
         pr_labels: tuple[str, ...] = (),
         github_event: GithubEvents = GithubEvents.PULL_REQUEST,
+        github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY,
+        github_actor: str = "",
     ):
         self._files = files
         self._default_branch = default_branch
@@ -302,6 +311,8 @@ class SelectiveChecks:
         self._commit_ref = commit_ref
         self._pr_labels = pr_labels
         self._github_event = github_event
+        self._github_repository = github_repository
+        self._github_actor = github_actor
 
     def __important_attributes(self) -> tuple[Any, ...]:
         return tuple(getattr(self, f) for f in self.__HASHABLE_FIELDS)
@@ -618,7 +629,7 @@ class SelectiveChecks:
     @staticmethod
     def _extract_long_provider_tests(current_test_types: set[str]):
         """
-        In case there are Provider tests in the list of test to run (either in the form of
+        In case there are Provider tests in the list of test to run - either in the form of
         Providers or Providers[...] we subtract them from the test type,
         and add them to the list of tests to run individually.
 
@@ -765,3 +776,12 @@ class SelectiveChecks:
         if affected_providers == "ALL_PROVIDERS":
             return _ALL_PROVIDERS_LIST
         return " ".join(sorted(affected_providers))
+
+    @cached_property
+    def runs_on(self) -> str:
+        if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
+            if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
+                return RUNS_ON_SELF_HOSTED_RUNNER
+            if self._github_actor in COMMITTERS:
+                return RUNS_ON_SELF_HOSTED_RUNNER
+        return RUNS_ON_PUBLIC_RUNNER

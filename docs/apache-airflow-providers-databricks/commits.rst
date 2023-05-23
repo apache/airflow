@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.2.0
 .....
 
-Latest change: 2023-05-13
+Latest change: 2023-05-18
 
-=================================================================================================  ===========  ======================================================================
+=================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ======================================================================
+=================================================================================================  ===========  ======================================================================================
+`abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
+`f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `fdc7a31aeb <https://github.com/apache/airflow/commit/fdc7a31aeb3d9f64579ee6ad83107b021eb2cade>`_  2023-05-13   ``Add 'DatabricksPartitionSensor' (#30980)``
 `edd7133a13 <https://github.com/apache/airflow/commit/edd7133a1336c9553d77ba13c83bc7f48d4c63f0>`_  2023-05-09   ``Add conditional output processing in SQL operators (#31136)``
 `3df0be0f6f <https://github.com/apache/airflow/commit/3df0be0f6fe9786a5fcb85151fb83167649ee163>`_  2023-05-08   ``Add cancel all runs functionality to Databricks hook (#31038)``
@@ -47,7 +50,7 @@ Commit                                                                          
 `ecb9a9ea78 <https://github.com/apache/airflow/commit/ecb9a9ea78203bd1ce2f2d645d554409651ba8c1>`_  2023-04-23   ``Add retry param in databrics async operator (#30744)``
 `9bebf85e24 <https://github.com/apache/airflow/commit/9bebf85e24e352f9194da2f98e2bc66a5e6b972e>`_  2023-04-22   ``Add repair job functionality to databricks hook (#30786)``
 `7d02277ae1 <https://github.com/apache/airflow/commit/7d02277ae13b7d1e6cea9e6c8ff0d411100daf77>`_  2023-04-22   ``Deprecate databricks async operator (#30761)``
-=================================================================================================  ===========  ======================================================================
+=================================================================================================  ===========  ======================================================================================
 
 4.1.0
 .....

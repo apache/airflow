@@ -127,7 +127,7 @@ def test_check_docker_compose_version_unknown(mock_get_console, mock_run_command
     check_docker_compose_version()
     expected_run_command_calls = [
         call(
-            ["docker-compose", "--version"],
+            ["docker", "compose", "version"],
             no_output_dump_on_exception=True,
             capture_output=True,
             text=True,
@@ -150,7 +150,7 @@ def test_check_docker_compose_version_low(mock_get_console, mock_run_command):
     mock_run_command.return_value.stdout = "1.28.5"
     check_docker_compose_version()
     mock_run_command.assert_called_with(
-        ["docker-compose", "--version"],
+        ["docker", "compose", "version"],
         no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
@@ -179,7 +179,7 @@ def test_check_docker_compose_version_ok(mock_get_console, mock_run_command):
     mock_run_command.return_value.stdout = "1.29.0"
     check_docker_compose_version()
     mock_run_command.assert_called_with(
-        ["docker-compose", "--version"],
+        ["docker", "compose", "version"],
         no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
@@ -197,7 +197,7 @@ def test_check_docker_compose_version_higher(mock_get_console, mock_run_command)
     mock_run_command.return_value.stdout = "1.29.2"
     check_docker_compose_version()
     mock_run_command.assert_called_with(
-        ["docker-compose", "--version"],
+        ["docker", "compose", "version"],
         no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
