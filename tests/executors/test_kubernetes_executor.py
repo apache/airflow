@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 import pathlib
 import random
 import re
@@ -1173,9 +1172,7 @@ class TestKubernetesExecutor:
             "task_id": "task",
             "try_number": "1",
         }
-        with mock.patch.dict(
-            os.environ, {"AIRFLOW__KUBERNETES_EXECUTOR__LOGS_TASK_METADATA": "True"}, clear=True
-        ):
+        with conf_vars({("kubernetes", "logs_task_metadata"): "True"}):
             expected_annotations = {
                 "dag_id": "dag",
                 "run_id": "run_id",
@@ -1192,9 +1189,7 @@ class TestKubernetesExecutor:
             "task_id": "task",
             "try_number": "1",
         }
-        with mock.patch.dict(
-            os.environ, {"AIRFLOW__KUBERNETES_EXECUTOR__LOGS_TASK_METADATA": "False"}, clear=True
-        ):
+        with conf_vars({("kubernetes", "logs_task_metadata"): "False"}):
             expected_annotations = "<omitted>"
             annotations_actual = annotations_for_logging_task_metadata(annotations_test)
             assert annotations_actual == expected_annotations
