@@ -62,7 +62,7 @@ class DiscordNotifier(BaseNotifier):
         self.username = username
         self.avatar_url = avatar_url
 
-        # If you're havin problem with tts not recognized in __init__
+        # If you're having problems with tts not being recognized in __init__(),
         # you can define that after instantiating the class
         self.tts = tts
 
