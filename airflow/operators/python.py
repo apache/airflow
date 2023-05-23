@@ -236,7 +236,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
     :param ignore_downstream_trigger_rules: If set to True, all downstream tasks from this operator task will
         be skipped. This is the default behavior. If set to False, the direct, downstream task(s) will be
-        skipped but the ``trigger_rule`` defined for a other downstream tasks will be respected.
+        skipped but the ``trigger_rule`` defined for all other downstream tasks will be respected.
     """
 
     def __init__(self, *, ignore_downstream_trigger_rules: bool = True, **kwargs) -> None:
