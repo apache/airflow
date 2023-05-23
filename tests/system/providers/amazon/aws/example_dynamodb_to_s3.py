@@ -19,13 +19,13 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
+import tenacity
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator
-from airflow.providers.amazon.aws.utils import retry_with_backoff
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -48,7 +48,10 @@ S3_KEY_PREFIX = "dynamodb-segmented-file"
 # UpdateContinuousBackups API might need multiple attempts to succeed
 # Sometimes the API returns the error "Backups are being enabled for the table: <...>. Please retry later"
 # Using a retry strategy with exponential backoff to remediate that
-@retry_with_backoff(backoff_in_seconds=5)
+@tenacity.retry(
+    stop=tenacity.stop_after_attempt(5),
+    wait=tenacity.wait_exponential(min=5),
+)
 def enable_point_in_time_recovery(table_name: str):
     boto3.client("dynamodb").update_continuous_backups(
         TableName=table_name,
