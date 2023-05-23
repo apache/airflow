@@ -43,7 +43,6 @@ class SlackAPIOperator(BaseOperator):
     :param api_params: API Method call parameters (https://api.slack.com/methods). Optional
     :param client_args: Slack Hook parameters. Optional. Check airflow.providers.slack.hooks.SlackHook
     """
-
     def __init__(
         self,
         *,
