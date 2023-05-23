@@ -28,7 +28,16 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
-from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.links.emr import (
+    EmrClusterLink,
+    EmrLogsLink,
+    EmrServerlessCloudWatchLogsLink,
+    EmrServerlessDashboardLink,
+    EmrServerlessLogsLink,
+    EmrServerlessS3LogsLink,
+    get_log_uri,
+)
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
     EmrContainerTrigger,
@@ -1166,12 +1175,25 @@ class EmrServerlessStartJobOperator(BaseOperator):
         "execution_role_arn",
         "job_driver",
         "configuration_overrides",
+        "aws_conn_id",
     )
 
     template_fields_renderers = {
         "config": "json",
         "configuration_overrides": "json",
     }
+
+    @property
+    def operator_extra_links(self):
+        op_extra_links = [EmrServerlessDashboardLink()]
+        if "sparkSubmit" in self.job_driver:
+            op_extra_links.extend([EmrServerlessLogsLink()])
+        if self.has_monitoring_enabled("s3MonitoringConfiguration"):
+            op_extra_links.extend([EmrServerlessS3LogsLink()])
+        if self.has_monitoring_enabled("cloudWatchLoggingConfiguration"):
+            op_extra_links.extend([EmrServerlessCloudWatchLogsLink()])
+
+        return tuple(op_extra_links)
 
     def __init__(
         self,
@@ -1234,7 +1256,6 @@ class EmrServerlessStartJobOperator(BaseOperator):
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     def execute(self, context: Context, event: dict[str, Any] | None = None) -> str | None:
-
         app_state = self.hook.conn.get_application(applicationId=self.application_id)["application"]["state"]
         if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
             self.log.info("Application state is %s", app_state)
@@ -1277,6 +1298,9 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
         self.job_id = response["jobRunId"]
         self.log.info("EMR serverless job started: %s", self.job_id)
+
+        self.persist_links(context)
+
         if self.deferrable:
             self.defer(
                 trigger=EmrServerlessStartJobTrigger(
@@ -1289,6 +1313,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 method_name="execute_complete",
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
             )
+
         if self.wait_for_completion:
             waiter = self.hook.get_waiter("serverless_job_completed")
             wait(
@@ -1345,6 +1370,102 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 countdown=self.waiter_delay * self.waiter_max_attempts,
                 check_interval_seconds=self.waiter_delay,
             )
+
+    def has_monitoring_enabled(self, config_key: str) -> bool:
+        """
+        Check if monitoring is enabled for the job.
+
+        This is used to determine what extra links should be shown.
+        """
+        monitoring_config = (self.configuration_overrides or {}).get("monitoringConfiguration")
+        if monitoring_config is None or config_key not in monitoring_config:
+            return False
+
+        # CloudWatch can have an "enabled" flag set to False
+        if config_key == "cloudWatchLoggingConfiguration":
+            return monitoring_config.get(config_key).get("enabled") is True
+
+        return config_key in monitoring_config
+
+    def persist_links(self, context: Context):
+        """Populate the relevant extra links for the EMR Serverless jobs."""
+        # Persist the EMR Serverless Dashboard link (Spark/Tez UI)
+        EmrServerlessDashboardLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            application_id=self.application_id,
+            job_run_id=self.job_id,
+        )
+
+        # If this is a Spark job, persist the EMR Serverless logs link (Driver stdout)
+        if "sparkSubmit" in self.job_driver:
+            EmrServerlessLogsLink.persist(
+                context=context,
+                operator=self,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                application_id=self.application_id,
+                job_run_id=self.job_id,
+            )
+
+        # Add S3 and/or CloudWatch links if either is enabled
+        if self.has_monitoring_enabled("s3MonitoringConfiguration"):
+            log_uri = (
+                (self.configuration_overrides or {})
+                .get("monitoringConfiguration", {})
+                .get("s3MonitoringConfiguration", {})
+                .get("logUri")
+            )
+            bucket, prefix = S3Hook.parse_s3_url(
+                f"{log_uri.rstrip('/')}/applications/{self.application_id}/jobs/{self.job_id}"
+            )
+            EmrServerlessS3LogsLink.persist(
+                context=context,
+                operator=self,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                log_uri=log_uri,
+                application_id=self.application_id,
+                job_run_id=self.job_id,
+            )
+            emrs_s3_url = EmrServerlessS3LogsLink().format_link(
+                aws_domain=EmrServerlessCloudWatchLogsLink.get_aws_domain(self.hook.conn_partition),
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                log_uri=log_uri,
+                application_id=self.application_id,
+                job_run_id=self.job_id,
+            )
+            self.log.info("You can view EMR Serverless Job run S3 logs at: %s", emrs_s3_url)
+
+        if self.has_monitoring_enabled("cloudWatchLoggingConfiguration"):
+            cloudwatch_config = (
+                (self.configuration_overrides or {})
+                .get("monitoringConfiguration", {})
+                .get("cloudWatchLoggingConfiguration", {})
+            )
+            log_group_name = cloudwatch_config.get("logGroupName", "/aws/emr-serverless")
+            log_stream_prefix = cloudwatch_config.get("logStreamNamePrefix", "")
+            log_stream_prefix = f"{log_stream_prefix}/applications/{self.application_id}/jobs/{self.job_id}"
+
+            EmrServerlessCloudWatchLogsLink.persist(
+                context=context,
+                operator=self,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                awslogs_group=log_group_name,
+                stream_prefix=log_stream_prefix,
+            )
+            emrs_cloudwatch_url = EmrServerlessCloudWatchLogsLink().format_link(
+                aws_domain=EmrServerlessCloudWatchLogsLink.get_aws_domain(self.hook.conn_partition),
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                awslogs_group=log_group_name,
+                stream_prefix=log_stream_prefix,
+            )
+            self.log.info("You can view EMR Serverless Job run CloudWatch logs at: %s", emrs_cloudwatch_url)
 
 
 class EmrServerlessStopApplicationOperator(BaseOperator):

@@ -16,19 +16,24 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
-
-from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, BaseAwsLink
-from airflow.utils.helpers import exactly_one
+from typing import Any, TYPE_CHECKING
+from airflow.models import XCom
 
 if TYPE_CHECKING:
     import boto3
 
+    from airflow.models import BaseOperator
+    from airflow.models.taskinstancekey import TaskInstanceKey
+
+from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, BaseAwsLink
+from airflow.utils.helpers import exactly_one
+
 
 class EmrClusterLink(BaseAwsLink):
-    """Helper class for constructing AWS EMR Cluster Link."""
+    """Helper class for constructing Amazon EMR Cluster Link."""
 
     name = "EMR Cluster"
     key = "emr_cluster"
@@ -36,7 +41,7 @@ class EmrClusterLink(BaseAwsLink):
 
 
 class EmrLogsLink(BaseAwsLink):
-    """Helper class for constructing AWS EMR Logs Link."""
+    """Helper class for constructing Amazon EMR Logs Link."""
 
     name = "EMR Cluster Logs"
     key = "emr_logs"
@@ -46,6 +51,16 @@ class EmrLogsLink(BaseAwsLink):
         if not kwargs["log_uri"]:
             return ""
         return super().format_link(**kwargs)
+
+
+def get_serverless_log_uri(*, s3_log_uri: str, application_id: str, job_run_id: str) -> str:
+    """
+    Retrieves the S3 URI to EMR Serverless Job logs.
+
+    Any EMR Serverless job may have a different S3 logging location (or none), which is an S3 URI.
+    The logging location is then {s3_uri}/applications/{application_id}/jobs/{job_run_id}.
+    """
+    return f"{s3_log_uri}/applications/{application_id}/jobs/{job_run_id}"
 
 
 def get_log_uri(
@@ -66,3 +81,100 @@ def get_log_uri(
         return None
     log_uri = S3Hook.parse_s3_url(cluster_info["LogUri"])
     return "/".join(log_uri)
+
+
+class EmrServerlessLogsLink(BaseAwsLink):
+    """Helper class for constructing Amazon EMR Serverless Logs Link."""
+
+    name = "Spark Driver stdout"
+    key = "emr_serverless_logs"
+
+    def get_link(
+        self,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
+    ) -> str:
+        """
+        Link to Amazon Web Services Console.
+
+        :param operator: airflow operator
+        :param ti_key: TaskInstance ID to return link for
+        :return: link to external system
+        """
+        conf = XCom.get_value(key=self.key, ti_key=ti_key)
+        if not conf:
+            return ""
+        conn_id = operator.aws_conn_id
+        hook = EmrServerlessHook(aws_conn_id=conn_id)
+        resp = hook.conn.get_dashboard_for_job_run(
+            applicationId=conf.get("application_id"), jobRunId=conf.get("job_run_id")
+        )
+        o = urlparse(resp["url"])
+        return o._replace(path="/logs/SPARK_DRIVER/stdout.gz").geturl()
+
+
+class EmrServerlessDashboardLink(BaseAwsLink):
+    """Helper class for constructing Amazon EMR Serverless Dashboard Link."""
+
+    name = "EMR Serverless Dashboard"
+    key = "emr_serverless_dashboard"
+
+    def get_link(
+        self,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
+    ) -> str:
+        """
+        Link to Amazon Web Services Console.
+
+        :param operator: airflow operator
+        :param ti_key: TaskInstance ID to return link for
+        :return: link to external system
+        """
+        conf = XCom.get_value(key=self.key, ti_key=ti_key)
+        if not conf:
+            return ""
+        conn_id = operator.aws_conn_id
+        hook = EmrServerlessHook(aws_conn_id=conn_id)
+        # Dashboard cannot be served when job is pending/scheduled
+        resp = hook.conn.get_dashboard_for_job_run(
+            applicationId=conf.get("application_id"), jobRunId=conf.get("job_run_id")
+        )
+        return resp["url"]
+
+
+class EmrServerlessS3LogsLink(BaseAwsLink):
+    """Helper class for constructing Amazon EMR Serverless Logs Link."""
+
+    name = "S3 Logs"
+    key = "emr_serverless_s3_logs"
+    format_str = (
+        BASE_AWS_CONSOLE_LINK
+        + "/s3/buckets/{bucket_name}?region={region_name}&prefix={prefix}/applications/{application_id}/jobs/{job_run_id}/"  # noqa: E501
+    )
+
+    def format_link(self, **kwargs) -> str:
+        bucket, prefix = S3Hook.parse_s3_url(kwargs["log_uri"])
+        kwargs["bucket_name"] = bucket
+        kwargs["prefix"] = prefix.rstrip("/")
+        return super().format_link(**kwargs)
+
+
+class EmrServerlessCloudWatchLogsLink(BaseAwsLink):
+    """Helper class for constructing Amazon EMR Serverless Logs Link."""
+
+    name = "CloudWatch Logs"
+    key = "emr_serverless_cloudwatch_logs"
+    format_str = (
+        BASE_AWS_CONSOLE_LINK
+        + "/cloudwatch/home?region={region_name}#logsV2:log-groups/log-group/{awslogs_group}{stream_prefix}"
+    )
+
+    def format_link(self, **kwargs) -> str:
+        kwargs["awslogs_group"] = quote_plus(kwargs["awslogs_group"])
+        kwargs["stream_prefix"] = quote_plus("?logStreamNameFilter=").replace("%", "$") + quote_plus(
+            kwargs["stream_prefix"]
+        )
+        return super().format_link(**kwargs)
