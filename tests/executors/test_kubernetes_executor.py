@@ -53,6 +53,7 @@ try:
     from airflow.kubernetes.kubernetes_helper_functions import (
         annotations_for_logging_task_metadata,
         annotations_to_key,
+        get_logs_task_metadata,
     )
     from airflow.kubernetes.pod_generator import PodGenerator
 except ImportError:
@@ -1181,6 +1182,7 @@ class TestKubernetesExecutor:
             }
             annotations_actual = annotations_for_logging_task_metadata(annotations_test)
             assert annotations_actual == expected_annotations
+        get_logs_task_metadata.cache_clear()
 
     def test_annotations_for_logging_task_metadata_fallback(self):
         annotations_test = {
@@ -1193,6 +1195,7 @@ class TestKubernetesExecutor:
             expected_annotations = "<omitted>"
             annotations_actual = annotations_for_logging_task_metadata(annotations_test)
             assert annotations_actual == expected_annotations
+        get_logs_task_metadata.cache_clear()
 
 
 class TestKubernetesJobWatcher:
