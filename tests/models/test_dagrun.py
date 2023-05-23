@@ -833,14 +833,14 @@ class TestDagRun:
             session=session,
         )
 
-        runs = DagRun.next_dagruns_to_examine(state, session)
+        runs = DagRun.next_dagruns_to_examine(state, session).all()
 
         assert runs == [dr]
 
         orm_dag.is_paused = True
         session.flush()
 
-        runs = DagRun.next_dagruns_to_examine(state, session)
+        runs = DagRun.next_dagruns_to_examine(state, session).all()
         assert runs == []
 
     @mock.patch.object(Stats, "timing")
