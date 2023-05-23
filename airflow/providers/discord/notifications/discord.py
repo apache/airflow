@@ -68,7 +68,7 @@ class DiscordNotifier(BaseNotifier):
 
     @cached_property
     def hook(self) -> DiscordWebhookHook:
-        """Discord Webhook Hook."""
+        """Discord Webhook Hook"""
         return DiscordWebhookHook(http_conn_id=self.discord_conn_id)
 
     def notify(self, context):
