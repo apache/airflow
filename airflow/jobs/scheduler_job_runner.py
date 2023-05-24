@@ -1389,9 +1389,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             return callback
         if not dag_model:
             self.log.info(
-                "DAG %s scheduling was skipped, "
-                "probably because DAG was None due to skip_locked in with_row_locks",
-                dag_run.dag_id,
+                "DAG %s scheduling was skipped, probably because the DAG record was locked", dag_run.dag_id
             )
             return callback
 
