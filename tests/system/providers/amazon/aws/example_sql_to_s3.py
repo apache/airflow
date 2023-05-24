@@ -87,9 +87,9 @@ def create_connection(conn_id_name: str, cluster_id: str):
 @task
 def setup_security_group(sec_group_name: str, ip_permissions: list[dict]):
     client = boto3.client("ec2")
-    vpc_id = client.describe_vpcs()["Vpcs"][0]["VpcId"]
+    default_vpc = client.describe_vpcs(Filters=[{"Name": "is-default", "Values": ["true"]}])["Vpcs"][0]
     security_group = client.create_security_group(
-        Description="Redshift-system-test", GroupName=sec_group_name, VpcId=vpc_id
+        Description="Redshift-system-test", GroupName=sec_group_name, VpcId=default_vpc["VpcId"]
     )
     client.get_waiter("security_group_exists").wait(
         GroupIds=[security_group["GroupId"]],
