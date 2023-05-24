@@ -439,11 +439,25 @@ class TestBaseOperator:
         work2 = BaseOperator(task_id="work2", dag=dag)
         work3 = BaseOperator(task_id="work3", dag=dag)
         teardown1 = BaseOperator.as_teardown(task_id="teardown1", dag=dag)
+
         setup1 >> work1 >> work2 >> work3
+
+        # there is no teardown downstream of work2, so we assume work2 does not need setup1
         assert work2.get_flat_relative_ids(upstream=True, setup_only=True) == set()
+
         work3 >> teardown1
+
+        # now, work2 has a downstream teardown, but it's not connected directly to setup1
+        # (this is how we signal "this is the teardown for this setup")
+        # so still, we don't regard setup1 as a setup for work2
         assert work2.get_flat_relative_ids(upstream=True, setup_only=True) == set()
+
         setup1 >> teardown1
+
+        # now, we know that teardown1 is the teardown for setup1, and it's downstream of
+        # work2, so we can infer that work2 requires it, so now when we clear work2,
+        # we will get setup1 (because it's a setup for work2) and teardown1 (because
+        # it is a teardown for setup1)
         assert work2.get_flat_relative_ids(upstream=True, setup_only=True) == {"setup1", "teardown1"}
         assert work2.get_flat_relative_ids(upstream=True) == {"setup1", "work1", "teardown1"}
         assert work2.get_flat_relative_ids(upstream=False) == {"work3", "teardown1"}
