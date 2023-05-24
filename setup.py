@@ -19,7 +19,7 @@
 # To make sure the CI build is using "upgrade to newer dependencies", which is useful when you want to check
 # if the dependencies are still compatible with the latest versions as they seem to break some unrelated
 # tests in main, you can modify this file. The modification can be simply modifying this particular comment.
-# e.g. you can modify the following number "00001" to something else to trigger it.
+# e.g. you can modify the following number "00001" to something else to trigger it..
 from __future__ import annotations
 
 import glob
