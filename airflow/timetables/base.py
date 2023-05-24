@@ -123,7 +123,19 @@ class Timetable(Protocol):
     like ``schedule=None`` and ``"@once"`` set it to *False*.
     """
 
-    can_be_scheduled: bool = True
+    _can_be_scheduled: bool = True
+
+    @property
+    def can_be_scheduled(self):
+        if hasattr(self, "can_run"):
+            warn(
+                'can_run class variable is deprecated. Use "can_be_scheduled" instead.',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return self.can_run
+        return self._can_be_scheduled
+
     """Whether this timetable can actually schedule runs in an automated manner.
 
     This defaults to and should generally be *True* (including non periodic
@@ -144,18 +156,6 @@ class Timetable(Protocol):
     (for example, the ContinuousTimetable) there are good reasons for limiting
     the DAGRun parallelism.
     """
-
-    def __getattribute__(self, item):
-        """Handle the deprecation of `can_run` attribute."""
-        if "can_run" == item:
-            warn(
-                f'{item} class variable is deprecated. Use "can_be_scheduled" instead.',
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return type.__getattribute__(self, "can_be_scheduled")
-
-        return type.__getattribute__(self, item)
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
