@@ -33,7 +33,7 @@ concurrency:
 jobs:
   selective-checks:
     name: Selective checks
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     outputs:
       needs-python-scans: ${{ steps.selective-checks.outputs.needs-python-scans }}
       needs-javascript-scans: ${{ steps.selective-checks.outputs.needs-javascript-scans }}
@@ -54,7 +54,7 @@ jobs:
 
   analyze:
     name: Analyze
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs: [selective-checks]
     strategy:
       fail-fast: false

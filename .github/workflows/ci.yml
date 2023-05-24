@@ -65,7 +65,7 @@ jobs:
     # to find the list of authors and replace them, so any changes to the
     # formatting of the contains(fromJSON()) structure below will need to be
     # reflected in that workflow too.
-    runs-on: "ubuntu-20.04"
+    runs-on: "ubuntu-22.04"
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
@@ -468,7 +468,7 @@ jobs:
   wait-for-ci-images:
     timeout-minutes: 120
     name: "Wait for CI images"
-    runs-on: "ubuntu-20.04"
+    runs-on: "ubuntu-22.04"
     needs: [build-info, build-ci-images]
     if: needs.build-info.outputs.image-build == 'true'
     env:
