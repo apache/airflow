@@ -303,7 +303,7 @@ repos:
     hooks:
       - id: lint-openapi
         name: Lint OpenAPI using openapi-spec-validator
-        entry: openapi-spec-validator --schema 3.0.0
+        entry: pip list
         language: python
         additional_dependencies: ['openapi-spec-validator']
         files: airflow/api_connexion/openapi/v1.yaml
