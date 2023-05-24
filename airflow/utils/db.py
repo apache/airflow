@@ -1008,18 +1008,18 @@ def reflect_tables(tables: list[Base | str] | None, session):
     This function gets the current state of each table in the set of models provided and returns
     a SqlAlchemy metadata object containing them.
     """
-    from airflow.models.base import metadata
+    import sqlalchemy.schema
 
-    metadata.bind = settings.engine
+    connectable = settings.engine.connect()
+    metadata = sqlalchemy.schema.MetaData()
+
     if tables is None:
-        metadata.reflect(bind=settings.engine, resolve_fks=False)
+        metadata.reflect(bind=connectable, resolve_fks=False)
     else:
         for tbl in tables:
             try:
                 table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
-                metadata.reflect(
-                    bind=settings.engine, only=[table_name], extend_existing=True, resolve_fks=False
-                )
+                metadata.reflect(bind=connectable, only=[table_name], extend_existing=True, resolve_fks=False)
             except exc.InvalidRequestError:
                 continue
     return metadata
