@@ -27,6 +27,7 @@ import attr
 from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
+from google.cloud.bigquery.table import RowIterator
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -52,6 +53,8 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 )
 
 if TYPE_CHECKING:
+    from google.cloud.bigquery import UnknownJob
+
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
@@ -799,7 +802,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table_id: The table ID of the requested table. (templated)
     :param project_id: (Optional) The name of the project where the data
-        will be returned from. (templated)
+        will be returned from. If None, it will be derived from the hook's project ID. (templated)
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
     :param selected_fields: List of fields to return (comma-separated). If
@@ -819,6 +822,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         Defaults to 4 seconds.
     :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists
         (default: False).
+    :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
     """
 
     template_fields: Sequence[str] = (
@@ -845,6 +849,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         deferrable: bool = False,
         poll_interval: float = 4.0,
         as_dict: bool = False,
+        use_legacy_sql: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -860,14 +865,15 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.as_dict = as_dict
+        self.use_legacy_sql = use_legacy_sql
 
     def _submit_job(
         self,
         hook: BigQueryHook,
         job_id: str,
     ) -> BigQueryJob:
-        get_query = self.generate_query()
-        configuration = {"query": {"query": get_query}}
+        get_query = self.generate_query(hook=hook)
+        configuration = {"query": {"query": get_query, "useLegacySql": self.use_legacy_sql}}
         """Submit a new job and get the job id for polling the status using Triggerer."""
         return hook.insert_job(
             configuration=configuration,
@@ -877,28 +883,37 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             nowait=True,
         )
 
-    def generate_query(self) -> str:
+    def generate_query(self, hook: BigQueryHook) -> str:
         """
         Generate a select query if selected fields are given or with *
         for the given dataset and table id
+        :param hook BigQuery Hook
         """
         query = "select "
         if self.selected_fields:
             query += self.selected_fields
         else:
             query += "*"
-        query += f" from {self.dataset_id}.{self.table_id} limit {self.max_results}"
+        query += (
+            f" from `{self.project_id or hook.project_id}.{self.dataset_id}"
+            f".{self.table_id}` limit {self.max_results}"
+        )
         return query
 
     def execute(self, context: Context):
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+            use_legacy_sql=self.use_legacy_sql,
         )
 
         if not self.deferrable:
             self.log.info(
-                "Fetching Data from %s.%s max results: %s", self.dataset_id, self.table_id, self.max_results
+                "Fetching Data from %s.%s.%s max results: %s",
+                self.project_id or hook.project_id,
+                self.dataset_id,
+                self.table_id,
+                self.max_results,
             )
             if not self.selected_fields:
                 schema: dict[str, list] = hook.get_schema(
@@ -918,6 +933,10 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 project_id=self.project_id,
             )
 
+            if isinstance(rows, RowIterator):
+                raise TypeError(
+                    "BigQueryHook.list_rows() returns iterator when return_iterator is False (default)"
+                )
             self.log.info("Total extracted rows: %s", len(rows))
 
             if self.as_dict:
@@ -1944,12 +1963,12 @@ class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
         self.log.info("Start getting dataset: %s:%s", self.project_id, self.dataset_id)
 
         dataset = bq_hook.get_dataset(dataset_id=self.dataset_id, project_id=self.project_id)
-        dataset = dataset.to_api_repr()
+        dataset_api_repr = dataset.to_api_repr()
         BigQueryDatasetLink.persist(
             context=context,
             task_instance=self,
-            dataset_id=dataset["datasetReference"]["datasetId"],
-            project_id=dataset["datasetReference"]["projectId"],
+            dataset_id=dataset_api_repr["datasetReference"]["datasetId"],
+            project_id=dataset_api_repr["datasetReference"]["projectId"],
         )
         return dataset
 
@@ -2241,12 +2260,12 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
             fields=fields,
         )
 
-        dataset = dataset.to_api_repr()
+        dataset_api_repr = dataset.to_api_repr()
         BigQueryDatasetLink.persist(
             context=context,
             task_instance=self,
-            dataset_id=dataset["datasetReference"]["datasetId"],
-            project_id=dataset["datasetReference"]["projectId"],
+            dataset_id=dataset_api_repr["datasetReference"]["datasetId"],
+            project_id=dataset_api_repr["datasetReference"]["projectId"],
         )
         return dataset
 
@@ -2614,7 +2633,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
         )
 
     @staticmethod
-    def _handle_job_error(job: BigQueryJob) -> None:
+    def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
         if job.error_result:
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
@@ -2636,7 +2655,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
 
         try:
             self.log.info("Executing: %s'", self.configuration)
-            job = self._submit_job(hook, job_id)
+            job: BigQueryJob | UnknownJob = self._submit_job(hook, job_id)
         except Conflict:
             # If the job already exists retrieve it
             job = hook.get_job(

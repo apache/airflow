@@ -64,7 +64,7 @@ def upgrade():
 
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
-        op.drop_index("ti_pool", table_name="task_instance")
+        op.drop_index(index_name="ti_pool", table_name="task_instance")
 
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table("task_instance") as batch_op:
@@ -75,14 +75,16 @@ def upgrade():
         )
 
     if conn.dialect.name == "mssql":
-        op.create_index("ti_pool", "task_instance", ["pool", "state", "priority_weight"])
+        op.create_index(
+            index_name="ti_pool", table_name="task_instance", columns=["pool", "state", "priority_weight"]
+        )
 
 
 def downgrade():
     """Make TaskInstance.pool field nullable."""
     conn = op.get_bind()
     if conn.dialect.name == "mssql":
-        op.drop_index("ti_pool", table_name="task_instance")
+        op.drop_index(index_name="ti_pool", table_name="task_instance")
 
     # use batch_alter_table to support SQLite workaround
     with op.batch_alter_table("task_instance") as batch_op:
@@ -93,7 +95,9 @@ def downgrade():
         )
 
     if conn.dialect.name == "mssql":
-        op.create_index("ti_pool", "task_instance", ["pool", "state", "priority_weight"])
+        op.create_index(
+            index_name="ti_pool", table_name="task_instance", columns=["pool", "state", "priority_weight"]
+        )
 
     with create_session() as session:
         session.query(TaskInstance).filter(TaskInstance.pool == "default_pool").update(
