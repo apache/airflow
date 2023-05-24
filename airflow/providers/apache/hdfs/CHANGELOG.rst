@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+4.1.0
+-----
+
+Features
+~~~~~~~~
+
+* Add ability to read/write task instance logs from HDFS (#31512)
+
 4.0.0
 -----
 
