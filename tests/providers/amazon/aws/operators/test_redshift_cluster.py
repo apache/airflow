@@ -31,7 +31,10 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
 )
-from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger
+from airflow.providers.amazon.aws.triggers.redshift_cluster import (
+    RedshiftClusterTrigger,
+    RedshiftPauseClusterTrigger,
+)
 
 
 class TestRedshiftCreateClusterOperator:
@@ -389,9 +392,10 @@ class TestPauseClusterOperator:
             redshift_operator.execute(None)
         assert mock_conn.pause_cluster.call_count == 10
 
-    def test_pause_cluster_deferrable_mode(self):
+    @mock.patch.object(RedshiftHook, "get_conn")
+    def test_pause_cluster_deferrable_mode(self, mock_get_conn):
         """Test Pause cluster operator with defer when deferrable param is true"""
-
+        mock_get_conn().pause_cluster.return_value = True
         redshift_operator = RedshiftPauseClusterOperator(
             task_id="task_test", cluster_identifier="test_cluster", deferrable=True
         )
@@ -400,8 +404,8 @@ class TestPauseClusterOperator:
             redshift_operator.execute(context=None)
 
         assert isinstance(
-            exc.value.trigger, RedshiftClusterTrigger
-        ), "Trigger is not a RedshiftClusterTrigger"
+            exc.value.trigger, RedshiftPauseClusterTrigger
+        ), "Trigger is not a RedshiftPauseClusterTrigger"
 
     def test_pause_cluster_execute_complete_success(self):
         """Asserts that logging occurs as expected"""

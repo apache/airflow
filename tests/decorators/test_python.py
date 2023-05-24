@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Dict, Tuple
 
 import pytest
 
-from airflow import PY38
+from airflow import PY38, PY311
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException
@@ -121,6 +121,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
                 ...
 
             line = sys._getframe().f_lineno - 6 if PY38 else sys._getframe().f_lineno - 3
+            if PY311:
+                # extra line explaining the error location in Py311
+                line = line - 1
 
         warn = recwarn[0]
         assert warn.filename == __file__

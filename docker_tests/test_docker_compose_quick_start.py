@@ -131,11 +131,11 @@ def test_trigger_dag_and_wait_for_result(tmp_path_factory, monkeypatch):
     print(dot_env_file.read_text())
 
     # check if docker-compose is available
-    compose_command = ["docker-compose"]
+    compose_command = ["docker", "compose"]
     success = run_command([*compose_command, "version"], check=False)
     if not success:
-        compose_command = ["docker", "compose"]
-        success = run_command([*compose_command, "version"], check=False)
+        compose_command = ["docker-compose"]
+        success = run_command([*compose_command, "--version"], check=False)
         if not success:
             print("ERROR: Neither `docker compose` nor `docker-compose` is available")
             sys.exit(1)
@@ -178,14 +178,16 @@ def test_trigger_dag_and_wait_for_result(tmp_path_factory, monkeypatch):
         run_command(["docker", "ps"])
         run_command([*compose_command, "logs"])
 
-        ps_output = run_command([*compose_command, "ps", "--format", "json"], return_output=True)
-        container_names = [container["Name"] for container in json.loads(ps_output)]
-        for container in container_names:
-            print(f"Health check for {container}")
-            result = run_command(
-                ["docker", "inspect", "--format", "{{json .State}}", container], return_output=True
-            )
-            pprint(json.loads(result))
+        if compose_command == ["docker", "compose"]:
+            # JSON output is only available for docker compose v2
+            ps_output = run_command([*compose_command, "ps", "--format", "json"], return_output=True)
+            container_names = [container["Name"] for container in json.loads(ps_output)]
+            for container in container_names:
+                print(f"Health check for {container}")
+                result = run_command(
+                    ["docker", "inspect", "--format", "{{json .State}}", container], return_output=True
+                )
+                pprint(json.loads(result))
 
         raise
     finally:
