@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import time
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
@@ -25,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftClusterTrigger,
     RedshiftCreateClusterTrigger,
+    RedshiftPauseClusterTrigger,
 )
 
 if TYPE_CHECKING:
@@ -510,7 +512,9 @@ class RedshiftPauseClusterOperator(BaseOperator):
 
     :param cluster_identifier: id of the AWS Redshift Cluster
     :param aws_conn_id: aws connection to use
-    :param deferrable: Run operator in the deferrable mode. This mode requires an additional aiobotocore>=
+    :param deferrable: Run operator in the deferrable mode
+    :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
+    :param max_attempts: Maximum number of attempts to poll the cluster
     """
 
     template_fields: Sequence[str] = ("cluster_identifier",)
@@ -524,64 +528,57 @@ class RedshiftPauseClusterOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         deferrable: bool = False,
         poll_interval: int = 10,
+        max_attempts: int = 15,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
         self.aws_conn_id = aws_conn_id
         self.deferrable = deferrable
+        self.max_attempts = max_attempts
         self.poll_interval = poll_interval
-        # These parameters are added to address an issue with the boto3 API where the API
+        # These parameters are used to address an issue with the boto3 API where the API
         # prematurely reports the cluster as available to receive requests. This causes the cluster
         # to reject initial attempts to pause the cluster despite reporting the correct state.
-        self._attempts = 10
+        self._remaining_attempts = 10
         self._attempt_interval = 15
 
     def execute(self, context: Context):
         redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
+        while self._remaining_attempts >= 1:
+            try:
+                redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
+                break
+            except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
+                self._remaining_attempts = self._remaining_attempts - 1
 
+                if self._remaining_attempts > 0:
+                    self.log.error(
+                        "Unable to pause cluster. %d attempts remaining.", self._remaining_attempts
+                    )
+                    time.sleep(self._attempt_interval)
+                else:
+                    raise error
         if self.deferrable:
             self.defer(
-                timeout=self.execution_timeout,
-                trigger=RedshiftClusterTrigger(
-                    task_id=self.task_id,
-                    poll_interval=self.poll_interval,
-                    aws_conn_id=self.aws_conn_id,
+                trigger=RedshiftPauseClusterTrigger(
                     cluster_identifier=self.cluster_identifier,
-                    attempts=self._attempts,
-                    operation_type="pause_cluster",
+                    poll_interval=self.poll_interval,
+                    max_attempts=self.max_attempts,
+                    aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.max_attempts * self.poll_interval + 60),
             )
-        else:
-            while self._attempts >= 1:
-                try:
-                    redshift_hook.get_conn().pause_cluster(ClusterIdentifier=self.cluster_identifier)
-                    return
-                except redshift_hook.get_conn().exceptions.InvalidClusterStateFault as error:
-                    self._attempts = self._attempts - 1
 
-                    if self._attempts > 0:
-                        self.log.error("Unable to pause cluster. %d attempts remaining.", self._attempts)
-                        time.sleep(self._attempt_interval)
-                    else:
-                        raise error
-
-    def execute_complete(self, context: Context, event: Any = None) -> None:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
-        """
-        if event:
-            if "status" in event and event["status"] == "error":
-                msg = f"{event['status']}: {event['message']}"
-                raise AirflowException(msg)
-            elif "status" in event and event["status"] == "success":
-                self.log.info("%s completed successfully.", self.task_id)
-                self.log.info("Paused cluster successfully")
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error pausing cluster: {event}")
         else:
-            raise AirflowException("No event received from trigger")
+            self.log.info("Paused cluster successfully")
+        return
 
 
 class RedshiftDeleteClusterOperator(BaseOperator):
