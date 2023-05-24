@@ -23,6 +23,15 @@
 Changelog
 ---------
 
+10.1.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix accessing a GKE cluster through the private endpoint in 'GKEStartPodOperator' (#31391)``
+* ``Fix 'BigQueryGetDataOperator''s query job bugs in deferrable mode (#31433)``
+
 10.1.0
 ......
 
