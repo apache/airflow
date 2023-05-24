@@ -75,6 +75,7 @@ from airflow_breeze.utils.console import get_console
 
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
+USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 
 
 class FileGroupForCi(Enum):
@@ -782,6 +783,6 @@ class SelectiveChecks:
         if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
             if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
                 return RUNS_ON_SELF_HOSTED_RUNNER
-            if self._github_actor in COMMITTERS:
+            if self._github_actor in COMMITTERS and USE_PUBLIC_RUNNERS_LABEL not in self._pr_labels:
                 return RUNS_ON_SELF_HOSTED_RUNNER
         return RUNS_ON_PUBLIC_RUNNER
