@@ -536,6 +536,7 @@
       "azure-synapse-spark"
     ],
     "cross-providers-deps": [
+      "amazon",
       "google",
       "oracle",
       "sftp"

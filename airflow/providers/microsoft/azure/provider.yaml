@@ -245,6 +245,10 @@ transfers:
     target-integration-name: Microsoft Azure Blob Storage
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/sftp_to_wasb.rst
     python-module: airflow.providers.microsoft.azure.transfers.sftp_to_wasb
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: Microsoft Azure Blob Storage
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/s3_to_azure_blob.rst
+    python-module: airflow.providers.microsoft.azure.transfers.s3_to_azure_blob
 
 
 connection-types:
