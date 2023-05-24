@@ -1010,16 +1010,17 @@ def reflect_tables(tables: list[Base | str] | None, session):
     """
     import sqlalchemy.schema
 
-    connectable = settings.engine.connect()
+    bind = session.bind
     metadata = sqlalchemy.schema.MetaData()
+    metadata.bind = bind
 
     if tables is None:
-        metadata.reflect(bind=connectable, resolve_fks=False)
+        metadata.reflect(bind=bind, resolve_fks=False)
     else:
         for tbl in tables:
             try:
                 table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
-                metadata.reflect(bind=connectable, only=[table_name], extend_existing=True, resolve_fks=False)
+                metadata.reflect(bind=bind, only=[table_name], extend_existing=True, resolve_fks=False)
             except exc.InvalidRequestError:
                 continue
     return metadata
