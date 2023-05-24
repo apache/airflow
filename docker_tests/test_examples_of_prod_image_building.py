@@ -59,7 +59,6 @@ def test_dockerfile_example(dockerfile):
     new_content = re.sub(
         r"FROM apache/airflow:.*", rf"FROM apache/airflow:{latest_released_version}", content
     )
-    new_content = re.sub(r"apache-airflow==\S*", rf"apache-airflow=={latest_released_version}", new_content)
     try:
         run_command(
             ["docker", "build", ".", "--tag", image_name, "-f", "-"],
