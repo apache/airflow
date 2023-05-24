@@ -205,25 +205,18 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             # If this task does not yet have a dag, add it to the same dag as the other task.
             self.dag = dag
 
-        def add_only_new(obj, item_set: set[str], item: str) -> None:
-            """Adds only new items to item set"""
-            if item in item_set:
-                self.log.warning("Dependency %s, %s already registered for DAG: %s", obj, item, dag.dag_id)
-            else:
-                item_set.add(item)
-
         for task in task_list:
             if dag and not task.has_dag():
                 # If the other task does not yet have a dag, add it to the same dag as this task and
                 dag.add_task(task)
             if upstream:
-                add_only_new(task, task.downstream_task_ids, self.node_id)
-                add_only_new(self, self.upstream_task_ids, task.node_id)
+                task.downstream_task_ids.add(self.node_id)
+                self.upstream_task_ids.add(task.node_id)
                 if edge_modifier:
                     edge_modifier.add_edge_info(self.dag, task.node_id, self.node_id)
             else:
-                add_only_new(self, self.downstream_task_ids, task.node_id)
-                add_only_new(task, task.upstream_task_ids, self.node_id)
+                self.downstream_task_ids.add(task.node_id)
+                task.upstream_task_ids.add(self.node_id)
                 if edge_modifier:
                     edge_modifier.add_edge_info(self.dag, self.node_id, task.node_id)
 
