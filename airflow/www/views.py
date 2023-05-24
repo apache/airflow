@@ -109,6 +109,7 @@ from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.airflow_health import get_airflow_health
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
@@ -650,29 +651,11 @@ class Airflow(AirflowBaseView):
     def health(self):
         """
         An endpoint helping check the health status of the Airflow instance,
-        including metadatabase and scheduler.
+        including metadatabase, scheduler and triggerer.
         """
-        payload = {"metadatabase": {"status": "unhealthy"}}
+        airflow_health_status = get_airflow_health()
 
-        latest_scheduler_heartbeat = None
-        scheduler_status = "unhealthy"
-        payload["metadatabase"] = {"status": "healthy"}
-        try:
-            scheduler_job = SchedulerJobRunner.most_recent_job()
-
-            if scheduler_job:
-                latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
-                if scheduler_job.is_alive():
-                    scheduler_status = "healthy"
-        except Exception:
-            payload["metadatabase"]["status"] = "unhealthy"
-
-        payload["scheduler"] = {
-            "status": scheduler_status,
-            "latest_scheduler_heartbeat": latest_scheduler_heartbeat,
-        }
-
-        return flask.json.jsonify(payload)
+        return flask.json.jsonify(airflow_health_status)
 
     @expose("/home")
     @auth.has_access(
