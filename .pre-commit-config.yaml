@@ -318,7 +318,7 @@ repos:
         entry: openapi-spec-validator --schema 3.0.0
         language: python
         additional_dependencies: ['openapi-spec-validator']
-        files: ^airflow/api_connexion/openapi/
+        files: airflow/api_connexion/openapi/v1.yaml
       - id: lint-dockerfile
         name: Lint Dockerfile
         language: python
