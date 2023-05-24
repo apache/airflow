@@ -391,7 +391,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param deferrable: bool = False
+    :param deferrable: Run sensor in deferrable mode
     """
 
     template_fields: Sequence[str] = (

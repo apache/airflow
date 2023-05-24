@@ -364,9 +364,7 @@ class GCSUploadSessionTrigger(GCSPrefixBlobTrigger):
                     hook=hook, bucket_name=self.bucket, prefix=self.prefix
                 )
                 res = self._is_bucket_updated(set(list_blobs))
-                if res["status"] == "success":
-                    yield TriggerEvent(res)
-                elif res["status"] == "error":
+                if res["status"] in ("success", "error"):
                     yield TriggerEvent(res)
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
