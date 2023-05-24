@@ -50,7 +50,7 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    runs-on: 'ubuntu-20.04'
+    runs-on: 'ubuntu-22.04'
     env:
       TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
     outputs:
