@@ -526,7 +526,7 @@ jobs:
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
         env:
-          VERBOSE: "false"
+          VERBOSE: "true"
           SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
           COLUMNS: "250"
           SKIP_GROUP_OUTPUT: "true"
