@@ -25,6 +25,7 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftClusterTrigger,
+    RedshiftCreateClusterSnapshotTrigger,
     RedshiftCreateClusterTrigger,
     RedshiftPauseClusterTrigger,
 )
@@ -306,6 +307,7 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
     :param max_attempt: The maximum number of attempts to be made to check the state
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         The default connection id is ``aws_default``
+    :param deferrable: If True, the operator will run as a deferrable operator.
     """
 
     template_fields: Sequence[str] = (
@@ -324,6 +326,7 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
         poll_interval: int = 15,
         max_attempt: int = 20,
         aws_conn_id: str = "aws_default",
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -334,6 +337,8 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.poll_interval = poll_interval
         self.max_attempt = max_attempt
+        self.deferrable = deferrable
+        self.aws_conn_id = aws_conn_id
         self.redshift_hook = RedshiftHook(aws_conn_id=aws_conn_id)
 
     def execute(self, context: Context) -> Any:
@@ -350,6 +355,19 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
             retention_period=self.retention_period,
             tags=self.tags,
         )
+        if self.deferrable:
+            self.defer(
+                trigger=RedshiftCreateClusterSnapshotTrigger(
+                    cluster_identifier=self.cluster_identifier,
+                    poll_interval=self.poll_interval,
+                    max_attempts=self.max_attempt,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.max_attempt * self.poll_interval + 60),
+            )
 
         if self.wait_for_completion:
             self.redshift_hook.get_conn().get_waiter("snapshot_available").wait(
@@ -359,6 +377,13 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
                     "MaxAttempts": self.max_attempt,
                 },
             )
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error creating snapshot: {event}")
+        else:
+            self.log.info("Cluster snapshot created.")
+        return
 
 
 class RedshiftDeleteClusterSnapshotOperator(BaseOperator):
