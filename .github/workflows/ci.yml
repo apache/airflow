@@ -1431,6 +1431,7 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        id: breeze
       - name: Pull PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
         run: breeze prod-image pull --run-in-parallel --tag-as-latest
         env:
@@ -1440,7 +1441,8 @@ jobs:
         with:
           path: ".build/.k8s-env"
           key: "\
-            k8s-env-${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','setup.cfg',\
+            k8s-env-${{steps.breeze.outputs.host-python-version}}-\
+            ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','setup.cfg',\
             'setup.py','pyproject.toml','generated/provider_dependencies.json') }}"
       - name: Run complete K8S tests ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
         run: breeze k8s run-complete-tests --run-in-parallel --upgrade
