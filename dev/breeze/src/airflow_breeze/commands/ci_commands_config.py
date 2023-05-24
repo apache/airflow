@@ -44,9 +44,16 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--pr-labels",
                 "--default-branch",
                 "--default-constraints-branch",
-                "--github-event-name",
             ],
-        }
+        },
+        {
+            "name": "Github parameters",
+            "options": [
+                "--github-event-name",
+                "--github-repository",
+                "--github-actor",
+            ],
+        },
     ],
     "breeze ci get-workflow-info": [
         {

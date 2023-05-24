@@ -71,7 +71,7 @@ Package apache-airflow-providers-ftp
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
 
-Release: 3.4.0
+Release: 3.4.1
 
 Provider package
 ----------------
@@ -91,14 +91,10 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
 
-This provider package is preinstalled by default when Apache Airflow is installed. You do not need to
-install it separately. You can upgrade and downgrade it independently of Apache Airflow package though.
-
-.. note::
-
-    The minimum Apache Airflow version for this package is 2.4.0 and it will fail
-    import at runtime if the version of Airflow is lower even if there is no requirement specified in
-    the dependencies - this is because the provider is preinstalled and specifying minimum Apache
-    Airflow version would create a dependency cycle, which confuses dependency tools.
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.4.0``
+==================  ==================
 
 .. include:: ../../airflow/providers/ftp/CHANGELOG.rst
