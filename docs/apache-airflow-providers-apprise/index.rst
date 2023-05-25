@@ -24,12 +24,9 @@ Content
 
 .. toctree::
     :maxdepth: 1
-    :caption: References
+    :caption: Guides
 
-    Python API <_api/airflow/providers/apprise/index>
-
-
-.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+    Connection types <connections>
 
 
 .. toctree::
@@ -38,6 +35,13 @@ Content
 
     Detailed list of commits <commits>
 
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Resources
+
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-apprise/>
+    Installing from sources <installing-providers-from-sources>
 
 Package apache-airflow-providers-apprise
 -----------------------------------------
