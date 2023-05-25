@@ -262,7 +262,9 @@ class TestSubDagOperator:
         """
         with create_session() as session:
             with dag_maker("parent.test", default_args=default_args, session=session) as subdag:
-                dummy_task = EmptyOperator(task_id="dummy")
+                dummy_task = EmptyOperator(task_id="dummy1")
+                failed_dummy_task = EmptyOperator(task_id="dummy2")
+                dummy_task >> failed_dummy_task
             sub_dagrun = dag_maker.create_dagrun(
                 run_type=DagRunType.SCHEDULED,
                 execution_date=DEFAULT_DATE,
@@ -270,9 +272,11 @@ class TestSubDagOperator:
                 external_trigger=True,
             )
 
-            (dummy_task_instance,) = sub_dagrun.task_instances
+            (dummy_task_instance, failed_dummy_task_instance) = sub_dagrun.task_instances
             dummy_task_instance.refresh_from_task(dummy_task)
-            dummy_task_instance.state == State.FAILED
+            failed_dummy_task_instance.refresh_from_task(failed_dummy_task)
+            dummy_task_instance.state == State.SUCCESS
+            failed_dummy_task_instance.state == State.FAILED
 
             with dag_maker("parent", default_args=default_args, session=session):
                 subdag_task = SubDagOperator(task_id="test", subdag=subdag, poke_interval=1)
@@ -282,6 +286,7 @@ class TestSubDagOperator:
 
         dummy_task_instance.refresh_from_db()
         assert dummy_task_instance.state == State.NONE
+        assert failed_dummy_task_instance.state == State.NONE
 
         sub_dagrun.refresh_from_db()
         assert sub_dagrun.state == State.RUNNING
