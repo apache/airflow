@@ -159,7 +159,7 @@
         <form id="tags_form">
           <div class="form-group search-input">
             <select multiple name="tags" id="tags_filter" class="select2-drop-mask">
-              {% for tag in tags %}
+              {% for tag in tags.sort() %}
                 <option value="{{ tag.name }}" {% if tag.selected %}selected{% endif %}>{{ tag.name }}</option>
               {% endfor %}
             </select>
