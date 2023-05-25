@@ -51,6 +51,7 @@ def clear_connections():
         session.query(Connection).delete()
 
 
+@pytest.mark.execution_timeout(150)
 def test_create_connection(admin_client, session):
     resp = admin_client.post("/connection/add", data=CONNECTION, follow_redirects=True)
     check_content_in_response("Added Row", resp)

@@ -201,7 +201,7 @@ class FileTaskHandler(logging.Handler):
         triggerer instances.
         """
         full_path = Path(full_path).as_posix()
-        full_path += f".{LogType.TRIGGER}"
+        full_path += f".{LogType.TRIGGER.value}"
         if job_id:
             full_path += f".{job_id}.log"
         return full_path
@@ -523,5 +523,5 @@ class FileTaskHandler(logging.Handler):
         return messages, logs
 
     def _read_remote_logs(self, ti, try_number, metadata=None):
-        """Implement in subclasses to read from the remote service"""
+        """Implement in subclasses to read from the remote service."""
         raise NotImplementedError

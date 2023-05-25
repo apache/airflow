@@ -64,7 +64,7 @@ _builtin_collections = (frozenset, list, set, tuple)  # dict is treated speciall
 
 
 def encode(cls: str, version: int, data: T) -> dict[str, str | int | T]:
-    """Encodes o so it can be understood by the deserializer"""
+    """Encodes o so it can be understood by the deserializer."""
     return {CLASSNAME: cls, VERSION: version, DATA: data}
 
 
@@ -268,7 +268,7 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 
 
 def _convert(old: dict) -> dict:
-    """Converts an old style serialization to new style"""
+    """Converts an old style serialization to new style."""
     if OLD_TYPE in old and OLD_DATA in old:
         return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA][OLD_DATA]}
 

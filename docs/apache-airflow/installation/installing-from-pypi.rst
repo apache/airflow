@@ -26,12 +26,19 @@ Installation tools
 
 Only ``pip`` installation is currently officially supported.
 
-While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
-`pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
-``pip`` - especially when it comes to constraint vs. requirements management.
-Installing via ``Poetry`` or ``pip-tools`` is not currently supported. If you wish to install airflow
-using those tools you should use the constraints and convert them to appropriate
-format and workflow that your tool requires.
+.. note::
+
+  While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+  `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
+  ``pip`` - especially when it comes to constraint vs. requirements management.
+  Installing via ``Poetry`` or ``pip-tools`` is not currently supported. If you wish to install airflow
+  using those tools you should use the constraints and convert them to appropriate
+  format and workflow that your tool requires.
+
+  There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
+  Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
+  the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
+  newer versions of ``bazel`` will handle it.
 
 Typical command to install airflow from PyPI looks like below:
 
@@ -180,6 +187,15 @@ Note, that installing, upgrading, downgrading providers separately is not guaran
 Airflow versions or other providers. Some providers have minimum-required version of Airflow and some
 versions of providers might have conflicting requirements with Airflow or other dependencies you
 might have installed.
+
+It is the best practice to install apache-airflow in the same version as the one that comes from the
+original image. This way you can be sure that ``pip`` will not try to downgrade or upgrade apache
+airflow while installing other requirements, which might happen in case you try to add a dependency
+that conflicts with the version of apache-airflow that you are using:
+
+.. code-block:: bash
+
+    pip install "apache-airflow==|version|" "apache-airflow-providers-google==8.0.0"
 
 
 Installation and upgrade of Airflow core

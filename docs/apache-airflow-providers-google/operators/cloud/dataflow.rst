@@ -212,8 +212,8 @@ Here is an example of running Flex template with
 .. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_template.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_start_template_job]
-    :end-before: [END howto_operator_start_template_job]
+    :start-after: [START howto_operator_start_flex_template_job]
+    :end-before: [END howto_operator_start_flex_template_job]
 
 .. _howto/operator:DataflowStartSqlJobOperator:
 

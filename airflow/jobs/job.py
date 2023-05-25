@@ -269,8 +269,10 @@ def run_job(
     job: Job | JobPydantic, execute_callable: Callable[[], int | None], session: Session = NEW_SESSION
 ) -> int | None:
     """
-    Runs the job. The Job is always an ORM object and setting the state is happening within the
-    same DB session and the session is kept open throughout the whole execution
+    Runs the job.
+
+    The Job is always an ORM object and setting the state is happening within the
+    same DB session and the session is kept open throughout the whole execution.
 
     :meta private:
 
