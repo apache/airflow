@@ -82,11 +82,12 @@ Requirements
 ------------
 
 The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 ==================  ==================
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.4.0``
-``apache-beam``     ``>=2.33.0``
+``apache-beam``     ``>=2.47.0``
 ==================  ==================
 
 Cross provider package dependencies

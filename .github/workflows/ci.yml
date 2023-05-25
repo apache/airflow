@@ -1262,32 +1262,32 @@ jobs:
       - name: "Integration Tests Postgres: cassandra"
         run: |
           breeze testing integration-tests --integration cassandra
-          breeze stop
+          breeze down
         if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: mongo"
         run: |
           breeze testing integration-tests --integration mongo
-          breeze stop
+          breeze down
         if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: pinot"
         run: |
           breeze testing integration-tests --integration pinot
-          breeze stop
+          breeze down
         if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: celery"
         run: |
           breeze testing integration-tests --integration celery
-          breeze stop
+          breeze down
         if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: trino, kerberos"
         run: |
           breeze testing integration-tests --integration trino --integration kerberos
-          breeze stop
+          breeze down
         if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: Kafka"
         run: |
           breeze testing integration-tests --integration kafka
-          breeze stop
+          breeze down
         if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: all-testable"
         run: breeze testing integration-tests --integration all-testable

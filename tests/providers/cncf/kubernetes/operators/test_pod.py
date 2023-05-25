@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import re
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -32,11 +32,9 @@ from airflow.exceptions import AirflowException, AirflowSkipException, TaskDefer
 from airflow.kubernetes.secret import Secret
 from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
-from airflow.providers.cncf.kubernetes.operators.pod import (
-    KubernetesPodOperator,
-    _optionally_suppress,
-)
+from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator, _optionally_suppress
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
+from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
@@ -57,6 +55,14 @@ TEST_ARGS = ["echo", "10", "echo pwd"]
 TEST_LABELS = {"foo": "bar"}
 TEST_NAME = "test-pod"
 TEST_SUCCESS_MESSAGE = "All containers inside pod have started successfully."
+
+
+@contextmanager
+def temp_override_attr(obj, attr, val):
+    orig = getattr(obj, attr)
+    setattr(obj, attr, val)
+    yield
+    setattr(obj, attr, orig)
 
 
 @pytest.fixture(scope="function", autouse=True)
@@ -526,9 +532,18 @@ class TestKubernetesPodOperator:
         )
         mock_find.assert_called_once_with("default", context=context)
 
-    @patch(HOOK_CLASS)
-    def test_xcom_sidecar_container_image_default(self, hook_mock):
-        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
+    def test_xcom_sidecar_container_image_custom(self):
+        image = "private.repo/alpine:3.13"
+        with temp_override_attr(PodDefaults.SIDECAR_CONTAINER, "image", image):
+            k = KubernetesPodOperator(
+                name="test",
+                task_id="task",
+                do_xcom_push=True,
+            )
+            pod = k.build_pod_request_obj(create_context(k))
+        assert pod.spec.containers[1].image == image
+
+    def test_xcom_sidecar_container_image_default(self):
         k = KubernetesPodOperator(
             name="test",
             task_id="task",
@@ -537,20 +552,7 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[1].image == "alpine"
 
-    @patch(HOOK_CLASS)
-    def test_xcom_sidecar_container_image_custom(self, hook_mock):
-        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = "private.repo/alpine:3.13"
-        k = KubernetesPodOperator(
-            name="test",
-            task_id="task",
-            do_xcom_push=True,
-        )
-        pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].image == "private.repo/alpine:3.13"
-
-    @patch(HOOK_CLASS)
-    def test_xcom_sidecar_container_resources_default(self, hook_mock):
-        hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
+    def test_xcom_sidecar_container_resources_default(self):
         k = KubernetesPodOperator(
             name="test",
             task_id="task",
@@ -564,22 +566,19 @@ class TestKubernetesPodOperator:
             },
         )
 
-    @patch(HOOK_CLASS)
-    def test_xcom_sidecar_container_resources_custom(self, hook_mock):
-        hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = {
+    def test_xcom_sidecar_container_resources_custom(self):
+        resources = {
             "requests": {"cpu": "1m", "memory": "10Mi"},
             "limits": {"cpu": "10m", "memory": "50Mi"},
         }
-        k = KubernetesPodOperator(
-            name="test",
-            task_id="task",
-            do_xcom_push=True,
-        )
-        pod = k.build_pod_request_obj(create_context(k))
-        assert pod.spec.containers[1].resources == {
-            "requests": {"cpu": "1m", "memory": "10Mi"},
-            "limits": {"cpu": "10m", "memory": "50Mi"},
-        }
+        with temp_override_attr(PodDefaults.SIDECAR_CONTAINER, "resources", resources):
+            k = KubernetesPodOperator(
+                name="test",
+                task_id="task",
+                do_xcom_push=True,
+            )
+            pod = k.build_pod_request_obj(create_context(k))
+            assert pod.spec.containers[1].resources == resources
 
     def test_image_pull_policy_correctly_set(self):
         k = KubernetesPodOperator(
@@ -1422,9 +1421,7 @@ class TestKubernetesPodOperatorAsync:
         else:
             mocked_extract.assert_not_called()
 
-    @patch(HOOK_CLASS)
-    def test_async_xcom_sidecar_container_image_default_should_execute_successfully(self, hook_mock):
-        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
+    def test_async_xcom_sidecar_container_image_default_should_execute_successfully(self):
         k = KubernetesPodOperator(
             name=TEST_NAME,
             task_id="task",
@@ -1434,9 +1431,7 @@ class TestKubernetesPodOperatorAsync:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[1].image == "alpine"
 
-    @patch(HOOK_CLASS)
-    def test_async_xcom_sidecar_container_resources_default_should_execute_successfully(self, hook_mock):
-        hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
+    def test_async_xcom_sidecar_container_resources_default_should_execute_successfully(self):
         k = KubernetesPodOperator(
             name=TEST_NAME,
             task_id="task",

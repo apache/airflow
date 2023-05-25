@@ -28,8 +28,9 @@ import warnings
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from functools import lru_cache, partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
 from sqlalchemy import and_, func, not_, or_, text
 from sqlalchemy.exc import OperationalError
@@ -88,7 +89,7 @@ DM = DagModel
 @dataclass
 class ConcurrencyMap:
     """
-    Dataclass to represent concurrency maps
+    Dataclass to represent concurrency maps.
 
     It contains a map from (dag_id, task_id) to # of task instances, a map from (dag_id, task_id)
     to # of task instances in the given state list and a map from (dag_id, run_id, task_id)
@@ -1052,8 +1053,13 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
 
         # Send the callbacks after we commit to ensure the context is up to date when it gets run
+        # cache saves time during scheduling of many dag_runs for same dag
+        cached_get_dag: Callable[[str], DAG | None] = lru_cache()(
+            partial(self.dagbag.get_dag, session=session)
+        )
         for dag_run, callback_to_run in callback_tuples:
-            dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+            dag = cached_get_dag(dag_run.dag_id)
+
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                 continue
@@ -1122,7 +1128,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """
         Unconditionally create a DAG run for the given DAG, and update the dag_model's fields to control
-        if/when the next DAGRun should be created
+        if/when the next DAGRun should be created.
         """
         # Bulk Fetch DagRuns with dag_id and execution_date same
         # as DagModel.dag_id and DagModel.next_dagrun
@@ -1317,8 +1323,14 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     tags={"dag_id": dag.dag_id},
                 )
 
+        # cache saves time during scheduling of many dag_runs for same dag
+        cached_get_dag: Callable[[str], DAG | None] = lru_cache()(
+            partial(self.dagbag.get_dag, session=session)
+        )
+
         for dag_run in dag_runs:
-            dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+            dag = dag_run.dag = cached_get_dag(dag_run.dag_id)
+
             if not dag:
                 self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
                 continue
@@ -1343,7 +1355,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         dag_runs: Iterable[DagRun],
         session: Session,
     ) -> list[tuple[DagRun, DagCallbackRequest | None]]:
-        """Makes scheduling decisions for all `dag_runs`"""
+        """Makes scheduling decisions for all `dag_runs`."""
         callback_tuples = [(run, self._schedule_dag_run(run, session=session)) for run in dag_runs]
         guard.commit()
         return callback_tuples
@@ -1739,7 +1751,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
     def _orphan_unreferenced_datasets(self, session: Session = NEW_SESSION) -> None:
         """
         Detects datasets that are no longer referenced in any DAG schedule parameters or task outlets and
-        sets the dataset is_orphaned flag to True
+        sets the dataset is_orphaned flag to True.
         """
         orphaned_dataset_query = (
             session.query(DatasetModel)

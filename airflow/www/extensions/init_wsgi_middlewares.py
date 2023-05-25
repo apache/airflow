@@ -36,7 +36,7 @@ def _root_app(env: WSGIEnvironment, resp: StartResponse) -> Iterable[bytes]:
 
 
 def init_wsgi_middleware(flask_app: Flask) -> None:
-    """Handle X-Forwarded-* headers and base_url support"""
+    """Handle X-Forwarded-* headers and base_url support."""
     # Apply DispatcherMiddleware
     base_url = urlsplit(conf.get("webserver", "base_url"))[2]
     if not base_url or base_url == "/":

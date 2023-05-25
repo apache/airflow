@@ -24,5 +24,5 @@ routes = Blueprint("routes", __name__)
 
 @routes.route("/")
 def index():
-    """Main Airflow page"""
+    """Main Airflow page."""
     return redirect(url_for("Airflow.index"))

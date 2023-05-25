@@ -172,10 +172,7 @@ class TestCliUtil:
 
 @contextmanager
 def fail_action_logger_callback():
-    """
-    Adding failing callback and revert it back when closed.
-    :return:
-    """
+    """Adding failing callback and revert it back when closed."""
     tmp = cli_action_loggers.__pre_exec_callbacks[:]
 
     def fail_callback(**_):
