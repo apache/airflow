@@ -58,3 +58,46 @@ An example usage of the SnowflakeOperator is as follows:
 
   Parameters that can be passed onto the operator will be given priority over the parameters already given
   in the Airflow connection metadata (such as ``schema``, ``role``, ``database`` and so forth).
+
+
+SnowflakeSqlApiOperator
+=======================
+
+Use the :class:`SnowflakeSqlApiHook <airflow.providers.snowflake.operators.snowflake>` to execute
+SQL commands in a `Snowflake <https://docs.snowflake.com/en/>`__ database.
+
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
+
+Use the ``snowflake_conn_id`` argument to connect to your Snowflake instance where
+the connection metadata is structured as follows:
+
+.. list-table:: Snowflake Airflow Connection Metadata
+   :widths: 25 25
+   :header-rows: 1
+
+   * - Parameter
+     - Input
+   * - Login: string
+     - Snowflake user name
+   * - Password: string
+     - Password for Snowflake user
+   * - Schema: string
+     - Set schema to execute SQL operations on by default
+   * - Extra: dictionary
+     - ``warehouse``, ``account``, ``database``, ``region``, ``role``, ``authenticator``
+
+An example usage of the SnowflakeSqlApiHook is as follows:
+
+.. exampleinclude:: /../../tests/system/providers/snowflake/example_snowflake.py
+    :language: python
+    :start-after: [START howto_snowflake_sql_api_operator]
+    :end-before: [END howto_snowflake_sql_api_operator]
+    :dedent: 4
+
+
+.. note::
+
+  Parameters that can be passed onto the operator will be given priority over the parameters already given
+  in the Airflow connection metadata (such as ``schema``, ``role``, ``database`` and so forth).

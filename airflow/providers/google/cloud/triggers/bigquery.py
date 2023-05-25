@@ -187,6 +187,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                 "project_id": self.project_id,
                 "table_id": self.table_id,
                 "poll_interval": self.poll_interval,
+                "as_dict": self.as_dict,
             },
         )
 
