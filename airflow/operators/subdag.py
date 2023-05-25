@@ -130,7 +130,7 @@ class SubDagOperator(BaseSensorOperator):
     def _reset_dag_run_and_task_instances(self, dag_run: DagRun, execution_date: datetime) -> None:
         """Set task instance states to allow for execution.
 
-        The state of the DAG run will be set to RUNNING, and failed task
+        The state of the DAG run will be set to RUNNING, and all task
         instances to ``None`` for scheduler to pick up.
 
         :param dag_run: DAG run to reset.
@@ -139,14 +139,13 @@ class SubDagOperator(BaseSensorOperator):
         with create_session() as session:
             dag_run.state = State.RUNNING
             session.merge(dag_run)
-            failed_task_instances = (
+            sub_dag_task_instances = (
                 session.query(TaskInstance)
                 .filter(TaskInstance.dag_id == self.subdag.dag_id)
                 .filter(TaskInstance.execution_date == execution_date)
-                .filter(TaskInstance.state.in_([State.FAILED, State.UPSTREAM_FAILED]))
             )
 
-            for task_instance in failed_task_instances:
+            for task_instance in sub_dag_task_instances:
                 task_instance.state = State.NONE
                 session.merge(task_instance)
             session.commit()
