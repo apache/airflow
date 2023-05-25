@@ -27,7 +27,9 @@ from datetime import datetime
 
 import pendulum
 import rich_click as click
+import github
 from github import Github
+from github.Requester import Requester
 from github.PullRequest import PullRequest
 from rich.console import Console
 
@@ -144,7 +146,10 @@ class PrStat:
             repo = self.g.get_repo("apache/airflow")
             issue_reactions = 0
             for num in self.issue_nums:
-                issue = repo.get_issue(number=num)
+                try:
+                    issue = repo.get_issue(num)
+                except github.GithubException as e:
+                    continue 
                 for reaction in issue.get_reactions():
                     self._users.add(reaction.user.login)
                     issue_reactions += 1
@@ -161,12 +166,15 @@ class PrStat:
             issue_comments = 0
             len_issue_comments = 0
             for num in issues:
-                issue = repo.get_issue(number=num)
+                try:
+                    issue = repo.get_issue(num)
+                except github.GithubException as e:
+                    continue 
                 for issue_comment in issue.get_comments():
                     issue_comments += 1
                     self._users.add(issue_comment.user.login)
                     if issue_comment.body is not None:
-                        len_issue_comments += len(issue_comment.body)
+                        len_issue_comments += len(issue_comment.body)  
             self.len_issue_comments = len_issue_comments
             self.num_issue_comments = issue_comments
             return issue_comments
