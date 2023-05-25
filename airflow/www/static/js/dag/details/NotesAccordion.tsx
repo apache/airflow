@@ -37,9 +37,8 @@ import { getMetaValue } from "src/utils";
 import { useSetDagRunNote, useSetTaskInstanceNote } from "src/api";
 import { MdEdit } from "react-icons/md";
 import ReactMarkdown from "src/components/ReactMarkdown";
-import useKeysPress from "src/utils/useKeysPress";
+import { useKeysPress, isInputInFocus } from "src/utils/useKeysPress";
 import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
-import type { IsInputInFocus } from "src/types";
 
 interface Props {
   dagId: string;
@@ -48,8 +47,6 @@ interface Props {
   mapIndex?: number;
   initialValue?: string | null;
 }
-
-const isInputIFocus: IsInputInFocus = "isInputInFocus";
 
 const NotesAccordion = ({
   dagId,
@@ -146,10 +143,10 @@ const NotesAccordion = ({
                     }}
                     data-testid="notes-input"
                     onFocus={() => {
-                      localStorage.setItem(isInputIFocus, "true");
+                      localStorage.setItem(isInputInFocus, "true");
                     }}
                     onBlur={() => {
-                      localStorage.setItem(isInputIFocus, "false");
+                      localStorage.setItem(isInputInFocus, "false");
                     }}
                   />
                 </Box>

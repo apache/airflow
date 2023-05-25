@@ -29,7 +29,7 @@ import {
 } from "@chakra-ui/react";
 import { MdArrowDropDown } from "react-icons/md";
 import { getMetaValue } from "src/utils";
-import useKeysPress from "src/utils/useKeysPress";
+import { useKeysPress } from "src/utils/useKeysPress";
 import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
 import { useClearRun, useQueueRun } from "src/api";
 

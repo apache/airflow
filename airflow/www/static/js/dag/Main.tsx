@@ -27,7 +27,7 @@ import { useGridData } from "src/api";
 import { hoverDelay } from "src/utils";
 
 import ShortcutCheatSheet from "src/components/ShortcutCheatSheet";
-import useKeysPress from "src/utils/useKeysPress";
+import { useKeysPress } from "src/utils/useKeysPress";
 import Details from "./details";
 import Grid from "./grid";
 import FilterBar from "./nav/FilterBar";

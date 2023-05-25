@@ -37,7 +37,7 @@ import { MdArrowDropDown } from "react-icons/md";
 import { capitalize } from "lodash";
 
 import { getMetaValue } from "src/utils";
-import useKeysPress from "src/utils/useKeysPress";
+import { useKeysPress } from "src/utils/useKeysPress";
 import type { TaskState } from "src/types";
 import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
 import {

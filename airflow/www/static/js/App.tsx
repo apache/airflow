@@ -32,7 +32,7 @@ import theme from "./theme";
 import { ContainerRefProvider, useContainerRef } from "./context/containerRef";
 import { TimezoneProvider } from "./context/timezone";
 import { AutoRefreshProvider } from "./context/autorefresh";
-import type { IsInputInFocus } from "./types";
+import { isInputInFocus } from "./utils/useKeysPress";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,8 +55,6 @@ const queryClient = new QueryClient({
 interface AppProps extends PropsWithChildren {
   cache: EmotionCache;
 }
-
-const isInputInFocus: IsInputInFocus = "isInputInFocus";
 
 // Chakra needs to access the containerRef provider so our tooltips pick up the correct styles
 const ChakraApp = ({ children }: PropsWithChildren) => {

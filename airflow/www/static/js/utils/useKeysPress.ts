@@ -20,9 +20,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { debounce } from "lodash";
 
-import type { IsInputInFocus, KeyboardShortcutKeys } from "src/types";
+import type { KeyboardShortcutKeys } from "src/types";
 
-const isInputInFocus: IsInputInFocus = "isInputInFocus";
+const isInputInFocus = "isInputInFocus";
 
 const useKeysPress = (
   keyboardShortcutKeys: KeyboardShortcutKeys,
@@ -66,4 +66,4 @@ const useKeysPress = (
   }, [handleKeyPress, node]);
 };
 
-export default useKeysPress;
+export { useKeysPress, isInputInFocus };

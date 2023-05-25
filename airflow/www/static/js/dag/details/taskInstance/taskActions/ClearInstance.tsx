@@ -30,7 +30,7 @@ import {
 } from "@chakra-ui/react";
 
 import { getMetaValue } from "src/utils";
-import useKeysPress from "src/utils/useKeysPress";
+import { useKeysPress } from "src/utils/useKeysPress";
 import { useClearTask } from "src/api";
 import useClearTaskDryRun from "src/api/useClearTaskDryRun";
 import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";

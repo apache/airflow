@@ -134,8 +134,6 @@ type MinimalTaskInstance = Pick<TaskInstance, "taskId" | "mapIndex" | "runId">;
 
 type PrimaryShortcutKey = "ctrlKey" | "shiftKey" | "altKey" | "metaKey";
 
-type IsInputInFocus = "isInputInFocus";
-
 interface KeyboardShortcutKeys {
   primaryKey: PrimaryShortcutKey;
   secondaryKey: Array<string>;
@@ -159,8 +157,6 @@ export type {
   Task,
   TaskInstance,
   TaskState,
-  PrimaryShortcutKey,
-  IsInputInFocus,
   KeyboardShortcutKeys,
   KeyboardShortcutIdentifier,
 };
