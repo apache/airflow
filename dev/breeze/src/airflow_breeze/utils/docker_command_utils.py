@@ -262,11 +262,11 @@ Please upgrade to at least {MIN_DOCKER_VERSION}[/]
 
 
 def check_remote_ghcr_io_commands():
-    """
-    Checks if you have permissions to pull an empty image from ghcr.io. Unfortunately, GitHub packages
-    treat expired login as "no-access" even on public repos. We need to detect that situation and suggest
-    user to log-out or if they are in CI environment to re-push their PR/close or reopen the PR.
-    :return:
+    """Checks if you have permissions to pull an empty image from ghcr.io.
+
+    Unfortunately, GitHub packages treat expired login as "no-access" even on
+    public repos. We need to detect that situation and suggest user to log-out
+    or if they are in CI environment to re-push their PR/close or reopen the PR.
     """
     response = run_command(
         ["docker", "pull", "ghcr.io/apache/airflow-hello-world"],
@@ -285,7 +285,7 @@ def check_remote_ghcr_io_commands():
             get_console().print(
                 "\n[error]We are extremely sorry but you've hit the rare case that the "
                 "credentials you got from GitHub Actions to run are expired, and we cannot do much.[/]"
-                "\n¯\_(ツ)_/¯\n\n"
+                "\n¯\\_(ツ)_/¯\n\n"
                 "[warning]You have the following options now:\n\n"
                 "  * Close and reopen the Pull Request of yours\n"
                 "  * Rebase or amend your commit and push your branch again\n"
@@ -301,19 +301,19 @@ def check_remote_ghcr_io_commands():
             sys.exit(1)
 
 
-DOCKER_COMPOSE_COMMAND = ["docker-compose"]
+DOCKER_COMPOSE_COMMAND = ["docker", "compose"]
 
 
 def check_docker_compose_version():
-    """
-    Checks if the docker compose version is as expected, including some specific modifications done by
-    some vendors such as Microsoft. They might have modified version of docker-compose/docker in their
-    cloud. In case docker compose version is wrong we continue but print warning for the user.
+    """Checks if the docker compose version is as expected.
 
-
+    This includes specific modifications done by some vendors such as Microsoft.
+    They might have modified version of docker-compose/docker in their cloud. In
+    the case the docker compose version is wrong, we continue but print a
+    warning for the user.
     """
     version_pattern = re.compile(r"(\d+)\.(\d+)\.(\d+)")
-    docker_compose_version_command = ["docker-compose", "--version"]
+    docker_compose_version_command = ["docker", "compose", "version"]
     try:
         docker_compose_version_result = run_command(
             docker_compose_version_command,
@@ -322,8 +322,8 @@ def check_docker_compose_version():
             text=True,
             dry_run_override=False,
         )
-    except FileNotFoundError:
-        docker_compose_version_command = ["docker", "compose", "version"]
+    except Exception:
+        docker_compose_version_command = ["docker-compose", "--version"]
         docker_compose_version_result = run_command(
             docker_compose_version_command,
             no_output_dump_on_exception=True,
@@ -332,7 +332,7 @@ def check_docker_compose_version():
             dry_run_override=False,
         )
         DOCKER_COMPOSE_COMMAND.clear()
-        DOCKER_COMPOSE_COMMAND.extend(["docker", "compose"])
+        DOCKER_COMPOSE_COMMAND.append("docker-compose")
     if docker_compose_version_result.returncode == 0:
         docker_compose_version = docker_compose_version_result.stdout
         version_extracted = version_pattern.search(docker_compose_version)
@@ -363,10 +363,7 @@ Make sure docker-compose you install is first on the PATH variable of yours.
 
 
 def check_docker_context():
-    """
-    Checks whether Docker is using the expected context
-
-    """
+    """Checks whether Docker is using the expected context."""
     expected_docker_context = "default"
     response = run_command(
         ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
@@ -576,12 +573,11 @@ def make_sure_builder_configured(params: CommonBuildParams):
 
 
 def set_value_to_default_if_not_set(env: dict[str, str], name: str, default: str):
-    """
-    Set value of name parameter to default (indexed by name) if not set.
+    """Set value of name parameter to default (indexed by name) if not set.
+
     :param env: dictionary where to set the parameter
     :param name: name of parameter
     :param default: default value
-    :return:
     """
     if env.get(name) is None:
         env[name] = os.environ.get(name, default)

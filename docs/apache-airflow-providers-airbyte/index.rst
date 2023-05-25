@@ -64,7 +64,7 @@ Package apache-airflow-providers-airbyte
 `Airbyte <https://airbyte.io/>`__
 
 
-Release: 3.2.2
+Release: 3.3.0
 
 Provider package
 ----------------
@@ -116,7 +116,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-airbyte 3.2.2 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.2.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.2.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.2.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-airbyte 3.2.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.2.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.2.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.2.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-airbyte 3.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-airbyte-3.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-airbyte 3.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_airbyte-3.3.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/airbyte/CHANGELOG.rst

@@ -116,7 +116,7 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info("Creating model.")
+        self.log.info("Creating model %s...", self.model["display_name"])
         operation = hook.create_model(
             model=self.model,
             location=self.location,
@@ -128,9 +128,10 @@ class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
         project_id = self.project_id or hook.project_id
         if project_id:
             AutoMLModelTrainLink.persist(context=context, task_instance=self, project_id=project_id)
-        result = Model.to_dict(operation.result())
+        operation_result = hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        result = Model.to_dict(operation_result)
         model_id = hook.extract_object_id(result)
-        self.log.info("Model created: %s", model_id)
+        self.log.info("Model is created, model_id: %s", model_id)
 
         self.xcom_push(context, key="model_id", value=model_id)
         if project_id:
@@ -332,8 +333,9 @@ class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = BatchPredictResult.to_dict(operation.result())
-        self.log.info("Batch prediction ready.")
+        operation_result = hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        result = BatchPredictResult.to_dict(operation_result)
+        self.log.info("Batch prediction is ready.")
         project_id = self.project_id or hook.project_id
         if project_id:
             AutoMLModelPredictLink.persist(
@@ -412,7 +414,7 @@ class AutoMLCreateDatasetOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info("Creating dataset")
+        self.log.info("Creating dataset %s...", self.dataset)
         result = hook.create_dataset(
             dataset=self.dataset,
             location=self.location,
@@ -508,7 +510,7 @@ class AutoMLImportDataOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info("Importing dataset")
+        self.log.info("Importing data to dataset...")
         operation = hook.import_data(
             dataset_id=self.dataset_id,
             input_config=self.input_config,
@@ -518,8 +520,8 @@ class AutoMLImportDataOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        operation.result()
-        self.log.info("Import completed")
+        hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        self.log.info("Import is completed")
         project_id = self.project_id or hook.project_id
         if project_id:
             AutoMLDatasetLink.persist(
@@ -887,7 +889,8 @@ class AutoMLDeleteModelOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        operation.result()
+        hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        self.log.info("Deletion is completed")
 
 
 class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
@@ -976,8 +979,8 @@ class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        operation.result()
-        self.log.info("Model deployed.")
+        hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        self.log.info("Model was deployed successfully.")
 
 
 class AutoMLTablesListTableSpecsOperator(GoogleCloudBaseOperator):

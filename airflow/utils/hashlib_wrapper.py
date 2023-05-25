@@ -25,6 +25,7 @@ from airflow import PY39
 def md5(data: bytes, *, usedforsecurity: bool | None = None):
     """
     Safely allows calling the hashlib.md5 function with the "usedforsecurity" param.
+
     :param data: The data to hash.
     :param usedforsecurity: The value to pass to the md5 function's "usedforsecurity" param.
         Defaults to None.
