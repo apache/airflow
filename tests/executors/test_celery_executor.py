@@ -70,7 +70,7 @@ def _prepare_app(broker_url=None, execute=None):
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
     test_execute = test_app.task(execute)
-    patch_app = mock.patch("airflow.executors.celery_executor_utils.app", test_app)
+    patch_app = mock.patch("airflow.executors.celery_executor.app", test_app)
     patch_execute = mock.patch("airflow.executors.celery_executor_utils.execute_command", test_execute)
 
     backend = test_app.backend

@@ -68,7 +68,7 @@ def _prepare_app(broker_url=None, execute=None):
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
     test_execute = test_app.task(execute)
-    patch_app = mock.patch("airflow.executors.celery_executor_utils.app", test_app)
+    patch_app = mock.patch("airflow.executors.celery_executor.app", test_app)
     patch_execute = mock.patch("airflow.executors.celery_executor_utils.execute_command", test_execute)
 
     backend = test_app.backend
@@ -267,7 +267,7 @@ class TestBulkStateFetcher:
     def test_should_support_kv_backend(self, mock_mget, caplog):
         caplog.set_level(logging.DEBUG, logger=self.bulk_state_fetcher_logger)
         with _prepare_app():
-            mock_backend = BaseKeyValueStoreBackend(app=celery_executor_utils.app)
+            mock_backend = BaseKeyValueStoreBackend(app=celery_executor.app)
             with mock.patch("airflow.executors.celery_executor_utils.Celery.backend", mock_backend):
                 caplog.clear()
                 fetcher = celery_executor_utils.BulkStateFetcher()
@@ -290,7 +290,7 @@ class TestBulkStateFetcher:
     def test_should_support_db_backend(self, mock_session, caplog):
         caplog.set_level(logging.DEBUG, logger=self.bulk_state_fetcher_logger)
         with _prepare_app():
-            mock_backend = DatabaseBackend(app=celery_executor_utils.app, url="sqlite3://")
+            mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
             with mock.patch("airflow.executors.celery_executor_utils.Celery.backend", mock_backend):
                 caplog.clear()
                 mock_session = mock_backend.ResultSession.return_value
