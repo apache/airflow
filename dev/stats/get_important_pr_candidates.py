@@ -307,15 +307,15 @@ class PrStat:
             if self.protm_score > 0:
                 return (
                     "[magenta]##Tagged PR## [/]"
-                    f"Score: {self.score:.2f}: PR{self.pull_request.number}"\
-                         "by @{self.pull_request.user.login}: "
+                    f"Score: {self.score:.2f}: PR{self.pull_request.number}"
+                    f"by @{self.pull_request.user.login}: "
                     f'"{self.pull_request.title}". '
                     f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
                 )
             else:
                 return (
-                    f"Score: {self.score:.2f}: PR{self.pull_request.number}"\
-                          "by @{self.pull_request.user.login}: "
+                    f"Score: {self.score:.2f}: PR{self.pull_request.number}"
+                    f"by @{self.pull_request.user.login}: "
                     f'"{self.pull_request.title}". '
                     f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
                 )
