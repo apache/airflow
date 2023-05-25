@@ -160,7 +160,7 @@ class AbstractOperator(Templater, DAGNode):
         if not dag:
             return set()
 
-        relatives = set()
+        relatives: set[str] = set()
 
         task_ids_to_trace = self.get_direct_relative_ids(upstream)
         while task_ids_to_trace:
