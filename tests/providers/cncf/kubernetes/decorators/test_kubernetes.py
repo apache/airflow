@@ -31,8 +31,6 @@ KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.pod"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 
-XCOM_IMAGE = "XCOM_IMAGE"
-
 
 @pytest.fixture(autouse=True)
 def mock_create_pod() -> mock.Mock:
@@ -127,12 +125,6 @@ def test_kubernetes_with_input_output(
     dr = dag_maker.create_dagrun()
     (ti,) = dr.task_instances
 
-    mock_hook.return_value.get_xcom_sidecar_container_image.return_value = XCOM_IMAGE
-    mock_hook.return_value.get_xcom_sidecar_container_resources.return_value = {
-        "requests": {"cpu": "1m", "memory": "10Mi"},
-        "limits": {"cpu": "1m", "memory": "50Mi"},
-    }
-
     dag.get_task("my_task_id").execute(context=ti.get_template_context(session=session))
 
     mock_hook.assert_called_once_with(
@@ -142,8 +134,6 @@ def test_kubernetes_with_input_output(
         config_file="/tmp/fake_file",
     )
     assert mock_create_pod.call_count == 1
-    assert mock_hook.return_value.get_xcom_sidecar_container_image.call_count == 1
-    assert mock_hook.return_value.get_xcom_sidecar_container_resources.call_count == 1
 
     containers = mock_create_pod.call_args[1]["pod"].spec.containers
 
@@ -162,7 +152,7 @@ def test_kubernetes_with_input_output(
     assert decoded_input == {"args": ("arg1", "arg2"), "kwargs": {"kwarg1": "kwarg1"}}
 
     # Second container is xcom image
-    assert containers[1].image == XCOM_IMAGE
+    assert containers[1].image == "alpine"
     assert containers[1].volume_mounts[0].mount_path == "/airflow/xcom"
 
 

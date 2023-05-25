@@ -66,6 +66,7 @@ KUB_OPERATOR_EXEC = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.
 TEMP_FILE = "tempfile.NamedTemporaryFile"
 GKE_OP_PATH = "airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator"
 CLUSTER_URL = "https://test-host"
+CLUSTER_PRIVATE_URL = "https://test-private-host"
 SSL_CA_CERT = "TEST_SSL_CA_CERT_CONTENT"
 
 
@@ -292,6 +293,31 @@ class TestGKEPodOperator:
         self.gke_op.execute(context=mock.MagicMock())
 
         fetch_cluster_info_mock.assert_called_once()
+
+    @pytest.mark.parametrize("use_internal_ip", [True, False])
+    @mock.patch(f"{GKE_HOOK_PATH}.get_cluster")
+    def test_cluster_info(self, get_cluster_mock, use_internal_ip):
+        get_cluster_mock.return_value = mock.MagicMock(
+            **{
+                "endpoint": "test-host",
+                "private_cluster_config.private_endpoint": "test-private-host",
+                "master_auth.cluster_ca_certificate": SSL_CA_CERT,
+            }
+        )
+        gke_op = GKEStartPodOperator(
+            project_id=TEST_GCP_PROJECT_ID,
+            location=PROJECT_LOCATION,
+            cluster_name=CLUSTER_NAME,
+            task_id=PROJECT_TASK_ID,
+            name=TASK_NAME,
+            namespace=NAMESPACE,
+            image=IMAGE,
+            use_internal_ip=use_internal_ip,
+        )
+        cluster_url, ssl_ca_cert = gke_op.fetch_cluster_info()
+
+        assert cluster_url == CLUSTER_PRIVATE_URL if use_internal_ip else CLUSTER_URL
+        assert ssl_ca_cert == SSL_CA_CERT
 
 
 class TestGKEPodOperatorAsync:

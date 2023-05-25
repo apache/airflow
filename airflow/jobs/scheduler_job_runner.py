@@ -639,7 +639,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         There are three steps:
         1. Pick TIs by priority with the constraint that they are in the expected states
-        and that we do exceed max_active_runs or pool limits.
+        and that we do not exceed max_active_runs or pool limits.
         2. Change the state for the TIs above atomically.
         3. Enqueue the TIs in the executor.
 
@@ -1298,7 +1298,8 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
-        dag_runs: Collection[DagRun] = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session)
+        # added all() to save runtime, otherwise query is executed more than once
+        dag_runs: Collection[DagRun] = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session).all()
 
         active_runs_of_dags = Counter(
             DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import inspect
 import io
+import os
 import re
 from contextlib import redirect_stdout
 from unittest import mock
@@ -36,6 +37,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import (
+    _get_alembic_config,
     check_migrations,
     compare_server_default,
     compare_type,
@@ -233,3 +235,16 @@ class TestDb:
             mock_init.assert_not_called()
         else:
             mock_init.assert_called_once_with(session=session_mock)
+
+    def test_alembic_configuration(self):
+        with mock.patch.dict(
+            os.environ, {"AIRFLOW__DATABASE__ALEMBIC_INI_FILE_PATH": "/tmp/alembic.ini"}, clear=True
+        ):
+            config = _get_alembic_config()
+            assert config.config_file_name == "/tmp/alembic.ini"
+
+        # default behaviour
+        config = _get_alembic_config()
+        import airflow
+
+        assert config.config_file_name == os.path.join(os.path.dirname(airflow.__file__), "alembic.ini")

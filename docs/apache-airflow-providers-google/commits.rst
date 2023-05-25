@@ -35,14 +35,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.1.1
+......
+
+Latest change: 2023-05-23
+
+=================================================================================================  ===========  ==============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================
+`c082aec089 <https://github.com/apache/airflow/commit/c082aec089405ed0399cfee548011b0520be0011>`_  2023-05-23   ``Fix accessing a GKE cluster through the private endpoint in 'GKEStartPodOperator' (#31391)``
+`0d6e626b05 <https://github.com/apache/airflow/commit/0d6e626b050a860462224ad64dc5e9831fe8624d>`_  2023-05-22   ``Fix 'BigQueryGetDataOperator''s query job bugs in deferrable mode (#31433)``
+=================================================================================================  ===========  ==============================================================================================
+
 10.1.0
 ......
 
-Latest change: 2023-05-16
+Latest change: 2023-05-19
 
 =================================================================================================  ===========  ===========================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================================================
+`45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
+`54f1fb0574 <https://github.com/apache/airflow/commit/54f1fb0574a6ecf8f415bbf6da1aaf6f1999bb29>`_  2023-05-19   ``Docstring improvements (#31375)``
+`cfe759dc59 <https://github.com/apache/airflow/commit/cfe759dc59bfc3390e7ba07184f0de9eb725122d>`_  2023-05-19   ``Switch default Google ads to v13 (#31382)``
+`abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
+`db8cbf6ab5 <https://github.com/apache/airflow/commit/db8cbf6ab5e144f58555e0c30361d8d6ec31ef21>`_  2023-05-18   ``Add get_namespace to GKEPodHook (#31397)``
+`f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`d677a263be <https://github.com/apache/airflow/commit/d677a263be0a55fcbbb905f7f47b67bf0f77f59d>`_  2023-05-18   ``Switch to google ads v13 (#31369)``
+`28d1bf8dfc <https://github.com/apache/airflow/commit/28d1bf8dfc03787cc2b4373bbaa27527bdd91846>`_  2023-05-18   ``Update SDKs for google provider package (#30067)``
+`d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `cf1e26b046 <https://github.com/apache/airflow/commit/cf1e26b04669ad2b232618fee623e6bc7797a13a>`_  2023-05-16   ``Add BigQueryToPostgresOperator (#30658)``
 `d9f70dffd1 <https://github.com/apache/airflow/commit/d9f70dffd1813fa6356d8981167eca6d5f317bb1>`_  2023-05-16   ``Add CloudBuild build id log (#30516)``
 `caeca2d143 <https://github.com/apache/airflow/commit/caeca2d143152ef037ccbaae858f1e2fa6763674>`_  2023-05-15   ``Add protocol to define methods relied upon by KubernetesPodOperator (#31298)``

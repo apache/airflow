@@ -130,27 +130,35 @@
 {% block content %}
   <h2>{{ page_title }}</h2>
   <div id="main_content">
-    <div class="row dags-table-header">
-      <div class="col-sm-4 col-md-4 no-x-padding">
-        <div class="form-group btn-group">
-          <a
-            href="{{ url_for('Airflow.index', status='all', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
-            class="btn {{ 'btn-primary' if status_filter == 'all' else 'btn-default' }}"
-            title="Show active and paused DAGs">All <span class="badge">{{ "{:,}".format(status_count_all) }}</span></a>
-          <a
-            href="{{ url_for('Airflow.index', status='active', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
-            class="btn {{ 'btn-primary' if status_filter == 'active' else 'btn-default' }}"
-            title="Show only active DAGs">Active <span class="badge">{{ "{:,}".format(status_count_active) }}</span></a>
-          <a
-            href="{{ url_for('Airflow.index', status='paused', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
-            class="btn {{ 'btn-primary' if status_filter == 'paused' else 'btn-default' }}"
-            title="Show only paused DAGs">Paused <span class="badge">{{ "{:,}".format(status_count_paused) }}</span></a>
-        </div>
+    <div class="dags-table-header">
+      <div class="form-group btn-group">
+        <a
+          href="{{ url_for('Airflow.index', status='all', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          class="btn {{ 'btn-primary' if status_filter == 'all' else 'btn-default' }}"
+          title="Show active and paused DAGs">All <span class="badge">{{ "{:,}".format(status_count_all) }}</span></a>
+        <a
+          href="{{ url_for('Airflow.index', status='active', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          class="btn {{ 'btn-primary' if status_filter == 'active' else 'btn-default' }}"
+          title="Show only active DAGs">Active <span class="badge">{{ "{:,}".format(status_count_active) }}</span></a>
+        <a
+          href="{{ url_for('Airflow.index', status='paused', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          class="btn {{ 'btn-primary' if status_filter == 'paused' else 'btn-default' }}"
+          title="Show only paused DAGs">Paused <span class="badge">{{ "{:,}".format(status_count_paused) }}</span></a>
       </div>
-      <div class="col-sm-2 col-md-2">
-        <form id="tags_form" style="width: 100%; text-align: left;">
-          <div class="form-group search-input" style="width:100%;">
-            <select multiple name="tags" id="tags_filter" class="select2-drop-mask" style="width: 100%;">
+      <div class="form-group btn-group p-2">
+        <a
+          href="{{ url_for('Airflow.index', status='running', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          class="btn {{ 'btn-primary' if status_filter == 'running' else 'btn-default' }}"
+          title="Show currently running DAG runs">Running <span class="badge">{{ "{:,}".format(status_count_running) }}</span></a>
+        <a
+          href="{{ url_for('Airflow.index', status='failed', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          class="btn {{ 'btn-primary' if status_filter == 'failed' else 'btn-default' }}"
+          title="Show DAGs with failed latest DAG run">Failed <span class="badge">{{ "{:,}".format(status_count_failed) }}</span></a>
+      </div>
+      <div style="min-width: 200px; padding: 0 10px;">
+        <form id="tags_form">
+          <div class="form-group search-input">
+            <select multiple name="tags" id="tags_filter" class="select2-drop-mask">
               {% for tag in tags %}
                 <option value="{{ tag.name }}" {% if tag.selected %}selected{% endif %}>{{ tag.name }}</option>
               {% endfor %}
@@ -163,13 +171,13 @@
           </div>
         </form>
       </div>
-      <div class="col-sm-2 col-md-2 col-md-offset-1 no-x-padding">
+      <div style="min-width: 300px; padding: 0 10px;">
         <form id="search_form">
-          <div class="form-group search-input" style="width: 100%;">
+          <div class="form-group search-input">
             <label for="dag_query" class="sr-only">Search DAGs</label>
             <input type="search" id="dag_query" class="typeahead form-control search-input__input"
-                   data-provide="typeahead" style="width:100%;" value="{{ search_query }}" autocomplete="off"
-                   placeholder="Search DAGs">
+                    data-provide="typeahead" value="{{ search_query }}" autocomplete="off"
+                    placeholder="Search DAGs">
             {% if search_query %}
               <button type="reset" aria-label="Clear DAG Search Term"
                       class="btn btn-default btn-sm material-icons search-input__clear-btn">cancel
@@ -178,7 +186,7 @@
           </div>
         </form>
       </div>
-      <div class="refresh-actions col-sm-2 col-md-2 no-x-padding">
+      <div class="refresh-actions">
         {{ loading_dots(id='loading-dots', classes='refresh-loading') }}
         <label class="switch-label">
           <input class="switch-input" id="auto_refresh" type="checkbox">
