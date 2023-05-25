@@ -131,6 +131,7 @@ class TestProvideGcpConnAndCredentials:
 class TestGetGcpCredentialsAndProjectId:
     test_scopes = _DEFAULT_SCOPES
     test_key_file = "KEY_PATH.json"
+    test_credential_config_file = "CREDS_CONFIG_FILE.json"
     test_project_id = "project_id"
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
@@ -141,7 +142,7 @@ class TestGetGcpCredentialsAndProjectId:
         mock_auth_default.assert_called_once_with(scopes=None)
         assert ("CREDENTIALS", "PROJECT_ID") == result
         assert (
-            "Getting connection using `google.auth.default()` since no key file is defined for hook."
+            "Getting connection using `google.auth.default()` since no explicit credentials are provided."
         ) in caplog.messages
 
     @mock.patch("google.auth.default")
@@ -267,6 +268,18 @@ class TestGetGcpCredentialsAndProjectId:
         mock_from_service_account_info.assert_called_once_with(service_account, scopes=None)
         assert (mock_from_service_account_info.return_value, self.test_project_id) == result
         assert "Getting connection using JSON Dict" in caplog.messages
+
+    @mock.patch("google.auth.load_credentials_from_file", return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_using_credential_config_file(self, mock_load_credentials_from_file, caplog):
+        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
+            caplog.clear()
+            result = get_credentials_and_project_id(credential_config_file=self.test_credential_config_file)
+        mock_load_credentials_from_file.assert_called_once_with(self.test_credential_config_file, scopes=None)
+        assert mock_load_credentials_from_file.return_value == result
+        assert (
+            "Getting connection using credential configuration file: `CREDS_CONFIG_FILE.json`"
+            in caplog.messages
+        )
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     @mock.patch("google.oauth2.service_account.Credentials.from_service_account_info")
