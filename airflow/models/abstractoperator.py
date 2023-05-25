@@ -155,7 +155,13 @@ class AbstractOperator(Templater, DAGNode):
         return self.downstream_task_ids
 
     def get_flat_relative_ids(self, upstream: bool = False) -> set[str]:
-        """Get a flat set of relative IDs, upstream or downstream."""
+        """
+        Get a flat set of relative IDs, upstream or downstream.
+
+        Will recurse each relative found in the direction specified.
+
+        :param upstream: Whether to look for upstream or downstream relatives.
+        """
         dag = self.get_dag()
         if not dag:
             return set()
