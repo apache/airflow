@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 try:
     from airflow.utils.hashlib_wrapper import md5
 except ModuleNotFoundError:
-    # Remove when Airflow providers min Airlfow version is "2.7.0"
+    # Remove when Airflow providers min Airflow version is "2.7.0"
     from hashlib import md5
 
 

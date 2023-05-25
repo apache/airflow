@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 import hashlib
+from typing import TYPE_CHECKING
 
-from _typeshed import ReadableBuffer
+if TYPE_CHECKING:
+    from _typeshed import ReadableBuffer
 
 from airflow import PY39
 from airflow.configuration import conf
