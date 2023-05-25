@@ -31,11 +31,10 @@ import Grid from "./grid";
 import FilterBar from "./nav/FilterBar";
 import LegendRow from "./nav/LegendRow";
 import useToggleGroups from "./useToggleGroups";
-import useSelection from "./useSelection";
 
 const detailsPanelKey = "hideDetailsPanel";
 const minPanelWidth = 300;
-const collapsedWidth = "28px";
+const collapsedWidth = "1px";
 
 const gridWidthKey = "grid-width";
 const saveWidth = debounce(
@@ -68,7 +67,6 @@ const Main = () => {
   const gridRef = useRef<HTMLDivElement>(null);
   const isPanelOpen = localStorage.getItem(detailsPanelKey) !== "true";
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
-  const { clearSelection } = useSelection();
   const [hoveredTaskState, setHoveredTaskState] = useState<
     string | null | undefined
   >();
@@ -91,8 +89,10 @@ const Main = () => {
     if (!isOpen) {
       localStorage.setItem(detailsPanelKey, "false");
     } else {
-      clearSelection();
       localStorage.setItem(detailsPanelKey, "true");
+      if (isGridCollapsed) {
+        setIsGridCollapsed(!isGridCollapsed);
+      }
     }
     onToggle();
   };
@@ -179,29 +179,29 @@ const Main = () => {
                 setIsGridCollapsed={onToggleGridCollapse}
               />
             </Box>
+            {isOpen && !isGridCollapsed && (
+              <Box
+                width={2}
+                cursor="ew-resize"
+                bg="gray.200"
+                ref={resizeRef}
+                zIndex={1}
+              />
+            )}
             {isOpen && (
-              <>
-                <Box
-                  width={2}
-                  cursor="ew-resize"
-                  bg="gray.200"
-                  ref={resizeRef}
-                  zIndex={1}
+              <Box
+                flex={1}
+                minWidth={minPanelWidth}
+                zIndex={1}
+                bg="white"
+                height="100%"
+              >
+                <Details
+                  openGroupIds={openGroupIds}
+                  onToggleGroups={onToggleGroups}
+                  hoveredTaskState={hoveredTaskState}
                 />
-                <Box
-                  flex={1}
-                  minWidth={minPanelWidth}
-                  zIndex={1}
-                  bg="white"
-                  height="100%"
-                >
-                  <Details
-                    openGroupIds={openGroupIds}
-                    onToggleGroups={onToggleGroups}
-                    hoveredTaskState={hoveredTaskState}
-                  />
-                </Box>
-              </>
+              </Box>
             )}
           </>
         )}
