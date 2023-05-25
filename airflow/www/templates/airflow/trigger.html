@@ -72,12 +72,35 @@
     {% elif "enum" in form_details.schema and form_details.schema.enum %}
       <select class="my_select2 form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" data-placeholder="Select Value"
         onchange="updateJSONconf();"
+        {%- if "integer" in form_details.schema.type or "number" in form_details.schema.type %} valuetype="number"{% endif %}
         {%- if not "null" in form_details.schema.type %} required=""{% endif %}>
         {% for option in form_details.schema.enum -%}
-        <option{% if form_details.value == option %} selected="true"{% endif %}>{{ option }}</option>
+          <option value="{{ option }}"
+          {%- if option == form_details.value %} selected{% endif %}>
+            {%- if form_details.schema.values_display and option|string in form_details.schema.values_display -%}
+              {{ form_details.schema.values_display[option|string] }}
+            {%- else -%}
+              {{ option }}
+            {%- endif -%}
+          </option>
         {% endfor -%}
       </select>
     {% elif form_details.schema and "array" in form_details.schema.type %}
+      {% if "examples" in form_details.schema and form_details.schema.examples %}
+      <select multiple name="element_{{ form_key }}" id="element_{{ form_key }}" class="select2-drop-mask" valuetype="multiselect"
+        onchange="updateJSONconf();"{% if not "null" in form_details.schema.type %} required=""{% endif %}>
+        {% for option in form_details.schema.examples -%}
+          <option value="{{ option }}"
+          {%- if option in form_details.value %} selected{% endif %}>
+            {%- if form_details.schema.values_display and option|string in form_details.schema.values_display -%}
+              {{ form_details.schema.values_display[option|string] }}
+            {%- else -%}
+              {{ option }}
+            {%- endif -%}
+          </option>
+        {% endfor %}
+      </select>
+      {% else %}
       <textarea class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" valuetype="array" rows="6"
         {%- if not "null" in form_details.schema.type %} required=""{% endif -%}>
         {%- if form_details.value is sequence %}
@@ -86,23 +109,33 @@
           {%- endfor -%}
         {% endif -%}
       </textarea>
+      {% endif %}
     {% elif form_details.schema and "object" in form_details.schema.type %}
       <textarea class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" valuetype="object" rows="6"
         {%- if not "null" in form_details.schema.type %} required=""{% endif -%}>
         {{- form_details.value | tojson() -}}
       </textarea>
     {% elif form_details.schema and ("integer" in form_details.schema.type or "number" in form_details.schema.type) %}
-      <input class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" placeholder="" valuetype="number" type="number"
+      <input class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" valuetype="number" type="number"
         value="{% if form_details.value %}{{ form_details.value }}{% endif %}"
         {%- if form_details.schema.minimum %} min="{{ form_details.schema.minimum }}"{% endif %}
         {%- if form_details.schema.maximum %} max="{{ form_details.schema.maximum }}"{% endif %}
         {%- if form_details.schema.type and not "null" in form_details.schema.type %} required=""{% endif %} />
     {% else %}
-      <input class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" placeholder="" type="text"
+      <input class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}"
+        type="{% if "examples" in form_details.schema and form_details.schema.examples %}search{% else %}text{% endif %}"
         value="{% if form_details.value %}{{ form_details.value }}{% endif %}"
         {%- if form_details.schema and form_details.schema.minLength %} minlength="{{ form_details.schema.minLength }}"{% endif %}
         {%- if form_details.schema and form_details.schema.maxLength %} maxlength="{{ form_details.schema.maxLength }}"{% endif %}
+        {%- if "examples" in form_details.schema and form_details.schema.examples %} list="list_{{ form_key }}" placeholder="Start typing to see proposal values."{% endif %}
         {%- if form_details.schema and form_details.schema.type and not "null" in form_details.schema.type %} required=""{% endif %} />
+      {% if "examples" in form_details.schema and form_details.schema.examples %}
+        <datalist id="list_{{ form_key }}">
+          {% for option in form_details.schema.examples -%}
+          <option>{{ option }}</option>
+          {% endfor -%}
+        </datalist>
+      {% endif %}
     {% endif %}
     {% if form_details.description -%}
       <span class="help-block">{{ form_details.description }}</span>
