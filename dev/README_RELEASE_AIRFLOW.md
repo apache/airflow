@@ -53,7 +53,6 @@
   - [Update `main` with the latest release details](#update-main-with-the-latest-release-details)
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
-  - [Update EndOfLife data](#update-endoflife-data)
   - [API clients](#api-clients)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -671,7 +670,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.7 3.8 3.9 3.10
+for PYTHON in 3.7 3.8 3.9 3.10 3.11
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
@@ -881,10 +880,6 @@ File `airflow/config_templates/config.yml` contains documentation on all configu
 
 - Update `airflow/config_templates/config.yml` with the details, and commit it.
 
-## Update EndOfLife data
-
-- Make a PR [EndOfLife](https://github.com/endoflife-date/endoflife.date) with release date, latest version and updated
-changelog link.
 
 ## API clients
 
