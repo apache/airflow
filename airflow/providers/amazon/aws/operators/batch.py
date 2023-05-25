@@ -81,7 +81,7 @@ class BatchOperator(BaseOperator):
     :param tags: collection of tags to apply to the AWS Batch job submission
         if None, no tags are submitted
     :param deferrable: Run operator in the deferrable mode.
-    :param poll_interval: (Deferrable mode only) Time in second to wait between polling.
+    :param poll_interval: (Deferrable mode only) Time in seconds to wait between polling.
 
     .. note::
         Any custom waiters must return a waiter for these calls:
