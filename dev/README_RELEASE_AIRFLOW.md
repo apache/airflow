@@ -670,7 +670,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.7 3.8 3.9 3.10
+for PYTHON in 3.7 3.8 3.9 3.10 3.11
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
@@ -794,7 +794,8 @@ Create a new release on GitHub with the release notes and assets from the releas
 
 ## Close the milestone
 
-Close the milestone on GitHub. Create the next one if it hasn't been already (it probably has been).
+Before closing the milestone on Github, make sure that all PR marked for it are either part of the release (was cherry picked) or
+postponed to the next release, then close the milestone. Create the next one if it hasn't been already (it probably has been).
 Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
 make sure to update the last updated timestamp as well.
 
