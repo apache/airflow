@@ -39,13 +39,13 @@ with models.DAG(
     schedule="@once",
     catchup=False,
     default_args=DEFAULT_ARGS,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
 
     # [START howto_operator_start_go_direct_runner_pipeline_local_file]
     start_go_pipeline_local_direct_runner = BeamRunGoPipelineOperator(
         task_id="start_go_pipeline_local_direct_runner",
-        go_file='files/apache_beam/examples/wordcount.go',
+        go_file="files/apache_beam/examples/wordcount.go",
     )
     # [END howto_operator_start_go_direct_runner_pipeline_local_file]
 
@@ -63,32 +63,32 @@ with models.DAG(
         runner="DataflowRunner",
         go_file=GCS_GO,
         pipeline_options={
-            'tempLocation': GCS_TMP,
-            'stagingLocation': GCS_STAGING,
-            'output': GCS_OUTPUT,
-            'WorkerHarnessContainerImage': "apache/beam_go_sdk:latest",
+            "tempLocation": GCS_TMP,
+            "stagingLocation": GCS_STAGING,
+            "output": GCS_OUTPUT,
+            "WorkerHarnessContainerImage": "apache/beam_go_sdk:latest",
         },
         dataflow_config=DataflowConfiguration(
-            job_name='{{task.task_id}}', project_id=GCP_PROJECT_ID, location="us-central1"
+            job_name="{{task.task_id}}", project_id=GCP_PROJECT_ID, location="us-central1"
         ),
     )
     # [END howto_operator_start_go_dataflow_runner_pipeline_gcs_file]
 
     start_go_pipeline_local_spark_runner = BeamRunGoPipelineOperator(
         task_id="start_go_pipeline_local_spark_runner",
-        go_file='/files/apache_beam/examples/wordcount.go',
+        go_file="/files/apache_beam/examples/wordcount.go",
         runner="SparkRunner",
         pipeline_options={
-            'endpoint': '/your/spark/endpoint',
+            "endpoint": "/your/spark/endpoint",
         },
     )
 
     start_go_pipeline_local_flink_runner = BeamRunGoPipelineOperator(
         task_id="start_go_pipeline_local_flink_runner",
-        go_file='/files/apache_beam/examples/wordcount.go',
+        go_file="/files/apache_beam/examples/wordcount.go",
         runner="FlinkRunner",
         pipeline_options={
-            'output': '/tmp/start_go_pipeline_local_flink_runner',
+            "output": "/tmp/start_go_pipeline_local_flink_runner",
         },
     )
 

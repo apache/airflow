@@ -40,7 +40,7 @@ class TestDagrunRunningDep:
         Task instances whose run_id is not a backfill run_id should pass this dep.
         """
         dagrun = DagRun()
-        dagrun.run_type = 'custom_type'
+        dagrun.run_type = "custom_type"
         ti = Mock(get_dagrun=Mock(return_value=dagrun))
         assert DagRunNotBackfillDep().is_met(ti=ti)
 

@@ -56,9 +56,6 @@ class SFTPToGCSOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param sftp_conn_id: The sftp connection id. The name or identifier for
         establishing a connection to the SFTP server.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param mime_type: The mime-type string
     :param gzip: Allows for file to be compressed and uploaded as gzip
     :param move_object: When move object is True, the object is moved instead
@@ -89,7 +86,6 @@ class SFTPToGCSOperator(BaseOperator):
         destination_path: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         sftp_conn_id: str = "ssh_default",
-        delegate_to: str | None = None,
         mime_type: str = "application/octet-stream",
         gzip: bool = False,
         move_object: bool = False,
@@ -103,7 +99,6 @@ class SFTPToGCSOperator(BaseOperator):
         self.destination_bucket = self._set_bucket_name(destination_bucket)
         self.gcp_conn_id = gcp_conn_id
         self.mime_type = mime_type
-        self.delegate_to = delegate_to
         self.gzip = gzip
         self.sftp_conn_id = sftp_conn_id
         self.move_object = move_object
@@ -112,7 +107,6 @@ class SFTPToGCSOperator(BaseOperator):
     def execute(self, context: Context):
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 

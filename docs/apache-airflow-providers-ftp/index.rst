@@ -31,10 +31,29 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Operators
+
+    Operators <operators/index>
+
+.. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/ftp/index>
+
+.. toctree::
+    :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/providers-ftp/|version|/tests/system/providers/ftp/example_ftp.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-ftp/>
     Installing from sources <installing-providers-from-sources>
+
+.. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/ftp/index>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -52,7 +71,7 @@ Package apache-airflow-providers-ftp
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
 
-Release: 3.1.0
+Release: 3.4.1
 
 Provider package
 ----------------
@@ -66,5 +85,16 @@ Installation
 You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-ftp``
+
+Requirements
+------------
+
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.4.0``
+==================  ==================
 
 .. include:: ../../airflow/providers/ftp/CHANGELOG.rst

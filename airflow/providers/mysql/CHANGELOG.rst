@@ -15,10 +15,6 @@
     specific language governing permissions and limitations
     under the License.
 
-The version of MySQL server has to be 5.6.4+. The exact version upper bound depends
-on the version of ``mysqlclient`` package. For example, ``mysqlclient`` 1.3.12 can only be
-used with MySQL server 5.6.4 through 5.7.
-
 .. NOTE TO CONTRIBUTORS:
    Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
@@ -26,6 +22,113 @@ used with MySQL server 5.6.4 through 5.7.
 
 Changelog
 ---------
+
+5.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  If you are using mysql-connector-python please note that starting this release it is an extra option.
+  The library will not be installed by default.
+
+* ``Remove mysql-connector-python (#30487)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+
+4.0.2
+.....
+
+Misc
+~~~~
+
+* ``Use MariaDB client binaries in arm64 image for support MySQL backend (#29519)``
+
+4.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed MyPy errors introduced by new mysql-connector-python (#28995)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Remove conn.close() ignores (#29005)" (#29010)``
+   * ``Remove conn.close() ignores (#29005)``
+
+4.0.0
+.....
+
+Breaking Changes
+~~~~~~~~~~~~~~~~
+
+You can no longer pass "local_infile" as extra in the connection. You should pass it instead as
+hook's "local_infile" parameter when you create the MySqlHook (either directly or via hook_params).
+
+* ``Move local_infile option from extra to hook parameter (#28811)``
+
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow SSL mode in MySQL provider (#27717)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
+
+3.3.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+Features
+~~~~~~~~
+
+* ``Add SQLExecuteQueryOperator (#25717)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
 
 3.2.1
 .....
@@ -74,8 +177,9 @@ Bug Fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):

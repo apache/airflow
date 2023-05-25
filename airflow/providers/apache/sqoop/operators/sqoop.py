@@ -82,48 +82,49 @@ class SqoopOperator(BaseOperator):
     :param extra_export_options: Extra export options to pass as dict.
         If a key doesn't have a value, just pass an empty string to it.
         Don't include prefix of -- for sqoop options.
+    :param libjars: Optional Comma separated jar files to include in the classpath.
     """
 
     template_fields: Sequence[str] = (
-        'conn_id',
-        'cmd_type',
-        'table',
-        'query',
-        'target_dir',
-        'file_type',
-        'columns',
-        'split_by',
-        'where',
-        'export_dir',
-        'input_null_string',
-        'input_null_non_string',
-        'staging_table',
-        'enclosed_by',
-        'escaped_by',
-        'input_fields_terminated_by',
-        'input_lines_terminated_by',
-        'input_optionally_enclosed_by',
-        'properties',
-        'extra_import_options',
-        'driver',
-        'extra_export_options',
-        'hcatalog_database',
-        'hcatalog_table',
-        'schema',
+        "conn_id",
+        "cmd_type",
+        "table",
+        "query",
+        "target_dir",
+        "file_type",
+        "columns",
+        "split_by",
+        "where",
+        "export_dir",
+        "input_null_string",
+        "input_null_non_string",
+        "staging_table",
+        "enclosed_by",
+        "escaped_by",
+        "input_fields_terminated_by",
+        "input_lines_terminated_by",
+        "input_optionally_enclosed_by",
+        "properties",
+        "extra_import_options",
+        "driver",
+        "extra_export_options",
+        "hcatalog_database",
+        "hcatalog_table",
+        "schema",
     )
-    template_fields_renderers = {'query': 'sql'}
-    ui_color = '#7D8CA4'
+    template_fields_renderers = {"query": "sql"}
+    ui_color = "#7D8CA4"
 
     def __init__(
         self,
         *,
-        conn_id: str = 'sqoop_default',
-        cmd_type: str = 'import',
+        conn_id: str = "sqoop_default",
+        cmd_type: str = "import",
         table: str | None = None,
         query: str | None = None,
         target_dir: str | None = None,
         append: bool = False,
-        file_type: str = 'text',
+        file_type: str = "text",
         columns: str | None = None,
         num_mappers: int | None = None,
         split_by: str | None = None,
@@ -150,6 +151,7 @@ class SqoopOperator(BaseOperator):
         extra_import_options: dict[str, Any] | None = None,
         extra_export_options: dict[str, Any] | None = None,
         schema: str | None = None,
+        libjars: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -187,13 +189,14 @@ class SqoopOperator(BaseOperator):
         self.extra_export_options = extra_export_options or {}
         self.hook: SqoopHook | None = None
         self.schema = schema
+        self.libjars = libjars
 
     def execute(self, context: Context) -> None:
         """Execute sqoop job"""
         if self.hook is None:
             self.hook = self._get_hook()
 
-        if self.cmd_type == 'export':
+        if self.cmd_type == "export":
             self.hook.export_table(
                 table=self.table,  # type: ignore
                 export_dir=self.export_dir,
@@ -211,15 +214,15 @@ class SqoopOperator(BaseOperator):
                 extra_export_options=self.extra_export_options,
                 schema=self.schema,
             )
-        elif self.cmd_type == 'import':
+        elif self.cmd_type == "import":
             # add create hcatalog table to extra import options if option passed
             # if new params are added to constructor can pass them in here
             # so don't modify sqoop_hook for each param
             if self.create_hcatalog_table:
-                self.extra_import_options['create-hcatalog-table'] = ''
+                self.extra_import_options["create-hcatalog-table"] = ""
 
             if self.table and self.query:
-                raise AirflowException('Cannot specify query and table together. Need to specify either or.')
+                raise AirflowException("Cannot specify query and table together. Need to specify either or.")
 
             if self.table:
                 self.hook.import_table(
@@ -254,7 +257,7 @@ class SqoopOperator(BaseOperator):
     def on_kill(self) -> None:
         if self.hook is None:
             self.hook = self._get_hook()
-        self.log.info('Sending SIGTERM signal to bash process group')
+        self.log.info("Sending SIGTERM signal to bash process group")
         os.killpg(os.getpgid(self.hook.sub_process_pid), signal.SIGTERM)
 
     def _get_hook(self) -> SqoopHook:
@@ -265,4 +268,5 @@ class SqoopOperator(BaseOperator):
             hcatalog_database=self.hcatalog_database,
             hcatalog_table=self.hcatalog_table,
             properties=self.properties,
+            libjars=self.libjars,
         )

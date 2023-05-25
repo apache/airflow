@@ -21,17 +21,16 @@ import pendulum
 import pytest
 
 from airflow.decorators import dag, task_group
-from airflow.decorators.task_group import _MappedArgument
-from airflow.models.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput
+from airflow.models.expandinput import DictOfListsExpandInput, ListOfDictsExpandInput, MappedArgument
 from airflow.utils.task_group import MappedTaskGroup
 
 
 def test_task_group_with_overridden_kwargs():
     @task_group(
         default_args={
-            'params': {
-                'x': 5,
-                'y': 5,
+            "params": {
+                "x": 5,
+                "y": 5,
             },
         },
         add_suffix_on_collision=True,
@@ -40,22 +39,22 @@ def test_task_group_with_overridden_kwargs():
         ...
 
     tg_with_overridden_kwargs = simple_tg.override(
-        group_id='custom_group_id',
+        group_id="custom_group_id",
         default_args={
-            'params': {
-                'x': 10,
+            "params": {
+                "x": 10,
             },
         },
     )
 
     assert tg_with_overridden_kwargs.tg_kwargs == {
-        'group_id': 'custom_group_id',
-        'default_args': {
-            'params': {
-                'x': 10,
+        "group_id": "custom_group_id",
+        "default_args": {
+            "params": {
+                "x": 10,
             },
         },
-        'add_suffix_on_collision': True,
+        "add_suffix_on_collision": True,
     }
 
 
@@ -150,7 +149,7 @@ def test_expand_create_mapped():
     assert isinstance(tg, MappedTaskGroup)
     assert tg._expand_input == DictOfListsExpandInput({"b": ["x", "y"]})
 
-    assert saved == {"a": 1, "b": _MappedArgument(input=tg._expand_input, key="b")}
+    assert saved == {"a": 1, "b": MappedArgument(input=tg._expand_input, key="b")}
 
 
 def test_expand_kwargs_no_wildcard():
@@ -186,4 +185,4 @@ def test_expand_kwargs_create_mapped():
     assert isinstance(tg, MappedTaskGroup)
     assert tg._expand_input == ListOfDictsExpandInput([{"b": "x"}, {"b": None}])
 
-    assert saved == {"a": 1, "b": _MappedArgument(input=tg._expand_input, key="b")}
+    assert saved == {"a": 1, "b": MappedArgument(input=tg._expand_input, key="b")}

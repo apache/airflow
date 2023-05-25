@@ -39,13 +39,13 @@ class Neo4jOperator(BaseOperator):
     :param neo4j_conn_id: Reference to :ref:`Neo4j connection id <howto/connection:neo4j>`.
     """
 
-    template_fields: Sequence[str] = ('sql',)
+    template_fields: Sequence[str] = ("sql",)
 
     def __init__(
         self,
         *,
         sql: str,
-        neo4j_conn_id: str = 'neo4j_default',
+        neo4j_conn_id: str = "neo4j_default",
         parameters: Iterable | Mapping | None = None,
         **kwargs,
     ) -> None:
@@ -55,6 +55,6 @@ class Neo4jOperator(BaseOperator):
         self.parameters = parameters
 
     def execute(self, context: Context) -> None:
-        self.log.info('Executing: %s', self.sql)
+        self.log.info("Executing: %s", self.sql)
         hook = Neo4jHook(conn_id=self.neo4j_conn_id)
         hook.run(self.sql)

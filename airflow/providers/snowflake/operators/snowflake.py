@@ -17,37 +17,28 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Callable, Iterable, Mapping, Sequence, SupportsAbs
+import time
+import warnings
+from datetime import timedelta
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence, SupportsAbs
 
-from airflow.models import BaseOperator
-from airflow.providers.common.sql.hooks.sql import fetch_all_handler
+from airflow import AirflowException
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
+    SQLExecuteQueryOperator,
     SQLIntervalCheckOperator,
     SQLValueCheckOperator,
 )
-from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.providers.snowflake.hooks.snowflake_sql_api import (
+    SnowflakeSqlApiHook,
+)
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
-def get_db_hook(self) -> SnowflakeHook:
-    """
-    Create and return SnowflakeHook.
-
-    :return: a SnowflakeHook instance.
-    :rtype: SnowflakeHook
-    """
-    return SnowflakeHook(
-        snowflake_conn_id=self.snowflake_conn_id,
-        warehouse=self.warehouse,
-        database=self.database,
-        role=self.role,
-        schema=self.schema,
-        authenticator=self.authenticator,
-        session_parameters=self.session_parameters,
-    )
-
-
-class SnowflakeOperator(BaseOperator):
+class SnowflakeOperator(SQLExecuteQueryOperator):
     """
     Executes SQL code in a Snowflake database
 
@@ -60,8 +51,6 @@ class SnowflakeOperator(BaseOperator):
     :param sql: the SQL code to be executed as a single string, or
         a list of str (sql statements), or a reference to a template file.
         Template references are recognized by str ending in '.sql'
-    :param autocommit: if True, each command is automatically committed.
-        (default value: True)
     :param parameters: (optional) the parameters to render the SQL query with.
     :param warehouse: name of warehouse (will overwrite any warehouse
         defined in the connection's extra JSON)
@@ -80,60 +69,67 @@ class SnowflakeOperator(BaseOperator):
         through native Okta.
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
-    :param handler: A Python callable that will act on cursor result.
-        By default, it will use ``fetchall``
+    :return Returns list of dictionaries in { 'column': 'value', 'column2': 'value2' } form.
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    ui_color = '#ededed'
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
+    ui_color = "#ededed"
 
     def __init__(
         self,
         *,
-        sql: str | Iterable[str],
-        snowflake_conn_id: str = 'snowflake_default',
-        parameters: Iterable | Mapping | None = None,
-        autocommit: bool = True,
-        do_xcom_push: bool = True,
+        snowflake_conn_id: str = "snowflake_default",
         warehouse: str | None = None,
         database: str | None = None,
         role: str | None = None,
         schema: str | None = None,
         authenticator: str | None = None,
         session_parameters: dict | None = None,
-        handler: Callable | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
-        self.snowflake_conn_id = snowflake_conn_id
-        self.sql = sql
-        self.autocommit = autocommit
-        self.do_xcom_push = do_xcom_push
-        self.parameters = parameters
-        self.warehouse = warehouse
-        self.database = database
-        self.role = role
-        self.schema = schema
-        self.authenticator = authenticator
-        self.session_parameters = session_parameters
-        self.query_ids: list[str] = []
-        self.handler = handler
+        if any([warehouse, database, role, schema, authenticator, session_parameters]):
+            hook_params = kwargs.pop("hook_params", {})
+            kwargs["hook_params"] = {
+                "warehouse": warehouse,
+                "database": database,
+                "role": role,
+                "schema": schema,
+                "authenticator": authenticator,
+                "session_parameters": session_parameters,
+                **hook_params,
+            }
+        super().__init__(conn_id=snowflake_conn_id, **kwargs)
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
+            Also, you can provide `hook_params={'warehouse': <warehouse>, 'database': <database>,
+            'role': <role>, 'schema': <schema>, 'authenticator': <authenticator>,
+            'session_parameters': <session_parameters>}`.""",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
 
-    def get_db_hook(self) -> SnowflakeHook:
-        return get_db_hook(self)
-
-    def execute(self, context: Any):
-        """Run query on snowflake"""
-        self.log.info('Executing: %s', self.sql)
-        hook = self.get_db_hook()
-        handler = self.handler or fetch_all_handler
-        execution_info = hook.run(self.sql, self.autocommit, self.parameters, handler)
-        self.query_ids = hook.query_ids
-
-        if self.do_xcom_push:
-            return execution_info
+    def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
+        validated_descriptions: list[Sequence[Sequence]] = []
+        for idx, description in enumerate(descriptions):
+            if not description:
+                raise RuntimeError(
+                    f"The query did not return descriptions of the cursor for query number {idx}. "
+                    "Cannot return values in a form of dictionary for that query."
+                )
+            validated_descriptions.append(description)
+        returned_results = []
+        for result_id, result_list in enumerate(results):
+            current_processed_result = []
+            for row in result_list:
+                dict_result: dict[Any, Any] = {}
+                for idx, description in enumerate(validated_descriptions[result_id]):
+                    dict_result[description[0]] = row[idx]
+                current_processed_result.append(dict_result)
+            returned_results.append(current_processed_result)
+        return returned_results
 
 
 class SnowflakeCheckOperator(SQLCheckOperator):
@@ -191,15 +187,15 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         the time you connect to Snowflake
     """
 
-    template_fields: Sequence[str] = ('sql',)
-    template_ext: Sequence[str] = ('.sql',)
-    ui_color = '#ededed'
+    template_fields: Sequence[str] = ("sql",)
+    template_ext: Sequence[str] = (".sql",)
+    ui_color = "#ededed"
 
     def __init__(
         self,
         *,
         sql: str,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
@@ -211,7 +207,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(sql=sql, **kwargs)
+        super().__init__(sql=sql, parameters=parameters, conn_id=snowflake_conn_id, **kwargs)
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
         self.autocommit = autocommit
@@ -224,9 +220,6 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         self.authenticator = authenticator
         self.session_parameters = session_parameters
         self.query_ids: list[str] = []
-
-    def get_db_hook(self) -> SnowflakeHook:
-        return get_db_hook(self)
 
 
 class SnowflakeValueCheckOperator(SQLValueCheckOperator):
@@ -268,7 +261,7 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         sql: str,
         pass_value: Any,
         tolerance: Any = None,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
@@ -280,7 +273,9 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(sql=sql, pass_value=pass_value, tolerance=tolerance, **kwargs)
+        super().__init__(
+            sql=sql, pass_value=pass_value, tolerance=tolerance, conn_id=snowflake_conn_id, **kwargs
+        )
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
         self.autocommit = autocommit
@@ -293,9 +288,6 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         self.authenticator = authenticator
         self.session_parameters = session_parameters
         self.query_ids: list[str] = []
-
-    def get_db_hook(self) -> SnowflakeHook:
-        return get_db_hook(self)
 
 
 class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
@@ -343,9 +335,9 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         *,
         table: str,
         metrics_thresholds: dict,
-        date_filter_column: str = 'ds',
+        date_filter_column: str = "ds",
         days_back: SupportsAbs[int] = -7,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         parameters: Iterable | Mapping | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
@@ -362,6 +354,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
             metrics_thresholds=metrics_thresholds,
             date_filter_column=date_filter_column,
             days_back=days_back,
+            conn_id=snowflake_conn_id,
             **kwargs,
         )
         self.snowflake_conn_id = snowflake_conn_id
@@ -376,5 +369,158 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         self.session_parameters = session_parameters
         self.query_ids: list[str] = []
 
-    def get_db_hook(self) -> SnowflakeHook:
-        return get_db_hook(self)
+
+class SnowflakeSqlApiOperator(SnowflakeOperator):
+    """
+    Implemented Snowflake SQL API Operator to support multiple SQL statements sequentially,
+    which is the behavior of the SnowflakeOperator, the Snowflake SQL API allows submitting
+    multiple SQL statements in a single request. It make post request to submit SQL
+    statements for execution, poll to check the status of the execution of a statement. Fetch query results
+    concurrently.
+    This Operator currently uses key pair authentication, so you need to provide private key raw content or
+    private key file path in the snowflake connection along with other details
+
+    .. seealso::
+
+        `Snowflake SQL API key pair Authentication <https://docs.snowflake.com/en/developer-guide/sql-api/authenticating.html#label-sql-api-authenticating-key-pair>`_
+
+    Where can this operator fit in?
+         - To execute multiple SQL statements in a single request
+         - To execute the SQL statement asynchronously and to execute standard queries and most DDL and DML statements
+         - To develop custom applications and integrations that perform queries
+         - To create provision users and roles, create table, etc.
+
+    The following commands are not supported:
+        - The PUT command (in Snowflake SQL)
+        - The GET command (in Snowflake SQL)
+        - The CALL command with stored procedures that return a table(stored procedures with the RETURNS TABLE clause).
+
+    .. seealso::
+
+        - `Snowflake SQL API <https://docs.snowflake.com/en/developer-guide/sql-api/intro.html#introduction-to-the-sql-api>`_
+        - `API Reference <https://docs.snowflake.com/en/developer-guide/sql-api/reference.html#snowflake-sql-api-reference>`_
+        - `Limitation on snowflake SQL API <https://docs.snowflake.com/en/developer-guide/sql-api/intro.html#limitations-of-the-sql-api>`_
+
+    :param snowflake_conn_id: Reference to Snowflake connection id
+    :param sql: the sql code to be executed. (templated)
+    :param autocommit: if True, each command is automatically committed.
+        (default value: True)
+    :param parameters: (optional) the parameters to render the SQL query with.
+    :param warehouse: name of warehouse (will overwrite any warehouse
+        defined in the connection's extra JSON)
+    :param database: name of database (will overwrite database defined
+        in connection)
+    :param schema: name of schema (will overwrite schema defined in
+        connection)
+    :param role: name of role (will overwrite any role defined in
+        connection's extra JSON)
+    :param authenticator: authenticator for Snowflake.
+        'snowflake' (default) to use the internal Snowflake authenticator
+        'externalbrowser' to authenticate using your web browser and
+        Okta, ADFS or any other SAML 2.0-compliant identify provider
+        (IdP) that has been defined for your account
+        'https://<your_okta_account_name>.okta.com' to authenticate
+        through native Okta.
+    :param session_parameters: You can set session-level parameters at
+        the time you connect to Snowflake
+    :param poll_interval: the interval in seconds to poll the query
+    :param statement_count: Number of SQL statement to be executed
+    :param token_life_time: lifetime of the JWT Token
+    :param token_renewal_delta: Renewal time of the JWT Token
+    :param bindings: (Optional) Values of bind variables in the SQL statement.
+            When executing the statement, Snowflake replaces placeholders (? and :name) in
+            the statement with these specified values.
+    """  # noqa
+
+    LIFETIME = timedelta(minutes=59)  # The tokens will have a 59 minutes lifetime
+    RENEWAL_DELTA = timedelta(minutes=54)  # Tokens will be renewed after 54 minutes
+
+    def __init__(
+        self,
+        *,
+        snowflake_conn_id: str = "snowflake_default",
+        warehouse: str | None = None,
+        database: str | None = None,
+        role: str | None = None,
+        schema: str | None = None,
+        authenticator: str | None = None,
+        session_parameters: dict[str, Any] | None = None,
+        poll_interval: int = 5,
+        statement_count: int = 0,
+        token_life_time: timedelta = LIFETIME,
+        token_renewal_delta: timedelta = RENEWAL_DELTA,
+        bindings: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.snowflake_conn_id = snowflake_conn_id
+        self.poll_interval = poll_interval
+        self.statement_count = statement_count
+        self.token_life_time = token_life_time
+        self.token_renewal_delta = token_renewal_delta
+        self.bindings = bindings
+        self.execute_async = False
+        if self.__class__.__base__.__name__ != "SnowflakeOperator":
+            # It's better to do str check of the parent class name because currently SnowflakeOperator
+            # is deprecated and in future OSS SnowflakeOperator may be removed
+            if any(
+                [warehouse, database, role, schema, authenticator, session_parameters]
+            ):  # pragma: no cover
+                hook_params = kwargs.pop("hook_params", {})  # pragma: no cover
+                kwargs["hook_params"] = {
+                    "warehouse": warehouse,
+                    "database": database,
+                    "role": role,
+                    "schema": schema,
+                    "authenticator": authenticator,
+                    "session_parameters": session_parameters,
+                    **hook_params,
+                }
+            super().__init__(conn_id=snowflake_conn_id, **kwargs)  # pragma: no cover
+        else:
+            super().__init__(**kwargs)
+
+    def execute(self, context: Context) -> None:
+        """
+        Make a POST API request to snowflake by using SnowflakeSQL and execute the query to get the ids.
+        By deferring the SnowflakeSqlApiTrigger class passed along with query ids.
+        """
+        self.log.info("Executing: %s", self.sql)
+        self._hook = SnowflakeSqlApiHook(
+            snowflake_conn_id=self.snowflake_conn_id,
+            token_life_time=self.token_life_time,
+            token_renewal_delta=self.token_renewal_delta,
+        )
+        self.query_ids = self._hook.execute_query(
+            self.sql, statement_count=self.statement_count, bindings=self.bindings  # type: ignore[arg-type]
+        )
+        self.log.info("List of query ids %s", self.query_ids)
+
+        if self.do_xcom_push:
+            context["ti"].xcom_push(key="query_ids", value=self.query_ids)
+
+        statement_status = self.poll_on_queries()
+        if statement_status["error"]:
+            raise AirflowException(statement_status["error"])
+        self._hook.check_query_output(self.query_ids)
+
+    def poll_on_queries(self):
+        """Poll on requested queries"""
+        queries_in_progress = set(self.query_ids)
+        statement_success_status = {}
+        statement_error_status = {}
+        for query_id in self.query_ids:
+            if not len(queries_in_progress):
+                break
+            self.log.info("checking : %s", query_id)
+            try:
+                statement_status = self._hook.get_sql_api_query_status(query_id)
+            except Exception as e:
+                raise ValueError({"status": "error", "message": str(e)})
+            if statement_status.get("status") == "error":
+                queries_in_progress.remove(query_id)
+                statement_error_status[query_id] = statement_status
+            if statement_status.get("status") == "success":
+                statement_success_status[query_id] = statement_status
+                queries_in_progress.remove(query_id)
+            time.sleep(self.poll_interval)
+        return {"success": statement_success_status, "error": statement_error_status}

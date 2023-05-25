@@ -18,7 +18,6 @@
 """This module contains Google Dataproc Metastore operators."""
 from __future__ import annotations
 
-from datetime import datetime
 from time import sleep
 from typing import TYPE_CHECKING, Sequence
 
@@ -34,10 +33,11 @@ from airflow import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import StorageLink
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -82,20 +82,11 @@ class DataprocMetastoreLink(BaseOperatorLink):
 
     def get_link(
         self,
-        operator,
-        dttm: datetime | None = None,
-        ti_key: TaskInstanceKey | None = None,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
     ) -> str:
-        if ti_key is not None:
-            conf = XCom.get_value(key=self.key, ti_key=ti_key)
-        else:
-            assert dttm
-            conf = XCom.get_one(
-                dag_id=operator.dag.dag_id,
-                task_id=operator.task_id,
-                execution_date=dttm,
-                key=self.key,
-            )
+        conf = XCom.get_value(key=self.key, ti_key=ti_key)
         return (
             conf["url"].format(
                 region=conf["region"],
@@ -136,20 +127,11 @@ class DataprocMetastoreDetailedLink(BaseOperatorLink):
 
     def get_link(
         self,
-        operator,
-        dttm: datetime | None = None,
-        ti_key: TaskInstanceKey | None = None,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
     ) -> str:
-        if ti_key is not None:
-            conf = XCom.get_value(key=self.key, ti_key=ti_key)
-        else:
-            assert dttm
-            conf = XCom.get_one(
-                dag_id=operator.dag.dag_id,
-                task_id=operator.task_id,
-                execution_date=dttm,
-                key=DataprocMetastoreDetailedLink.key,
-            )
+        conf = XCom.get_value(key=self.key, ti_key=ti_key)
         return (
             conf["url"].format(
                 region=conf["region"],
@@ -162,7 +144,7 @@ class DataprocMetastoreDetailedLink(BaseOperatorLink):
         )
 
 
-class DataprocMetastoreCreateBackupOperator(BaseOperator):
+class DataprocMetastoreCreateBackupOperator(GoogleCloudBaseOperator):
     """
     Creates a new backup in a given project and location.
 
@@ -202,11 +184,11 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'backup',
-        'impersonation_chain',
+        "project_id",
+        "backup",
+        "impersonation_chain",
     )
-    template_fields_renderers = {'backup': 'json'}
+    template_fields_renderers = {"backup": "json"}
     operator_extra_links = (DataprocMetastoreDetailedLink(),)
 
     def __init__(
@@ -259,7 +241,7 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
             backup = hook.wait_for_operation(self.timeout, operation)
             self.log.info("Backup %s created successfully", self.backup_id)
         except HttpError as err:
-            if err.resp.status not in (409, '409'):
+            if err.resp.status not in (409, "409"):
                 raise
             self.log.info("Backup %s already exists", self.backup_id)
             backup = hook.get_backup(
@@ -277,7 +259,7 @@ class DataprocMetastoreCreateBackupOperator(BaseOperator):
         return Backup.to_dict(backup)
 
 
-class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
+class DataprocMetastoreCreateMetadataImportOperator(GoogleCloudBaseOperator):
     """
     Creates a new MetadataImport in a given project and location.
 
@@ -317,11 +299,11 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'metadata_import',
-        'impersonation_chain',
+        "project_id",
+        "metadata_import",
+        "impersonation_chain",
     )
-    template_fields_renderers = {'metadata_import': 'json'}
+    template_fields_renderers = {"metadata_import": "json"}
     operator_extra_links = (DataprocMetastoreDetailedLink(),)
 
     def __init__(
@@ -330,7 +312,7 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
         project_id: str,
         region: str,
         service_id: str,
-        metadata_import: MetadataImport,
+        metadata_import: dict | MetadataImport,
         metadata_import_id: str,
         request_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -378,7 +360,7 @@ class DataprocMetastoreCreateMetadataImportOperator(BaseOperator):
         return MetadataImport.to_dict(metadata_import)
 
 
-class DataprocMetastoreCreateServiceOperator(BaseOperator):
+class DataprocMetastoreCreateServiceOperator(GoogleCloudBaseOperator):
     """
     Creates a metastore service in a project and location.
 
@@ -412,11 +394,11 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'service',
-        'impersonation_chain',
+        "project_id",
+        "service",
+        "impersonation_chain",
     )
-    template_fields_renderers = {'service': 'json'}
+    template_fields_renderers = {"service": "json"}
     operator_extra_links = (DataprocMetastoreLink(),)
 
     def __init__(
@@ -465,7 +447,7 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
             service = hook.wait_for_operation(self.timeout, operation)
             self.log.info("Service %s created successfully", self.service_id)
         except HttpError as err:
-            if err.resp.status not in (409, '409'):
+            if err.resp.status not in (409, "409"):
                 raise
             self.log.info("Instance %s already exists", self.service_id)
             service = hook.get_service(
@@ -480,7 +462,7 @@ class DataprocMetastoreCreateServiceOperator(BaseOperator):
         return Service.to_dict(service)
 
 
-class DataprocMetastoreDeleteBackupOperator(BaseOperator):
+class DataprocMetastoreDeleteBackupOperator(GoogleCloudBaseOperator):
     """
     Deletes a single backup.
 
@@ -515,8 +497,8 @@ class DataprocMetastoreDeleteBackupOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'impersonation_chain',
+        "project_id",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -565,7 +547,7 @@ class DataprocMetastoreDeleteBackupOperator(BaseOperator):
         self.log.info("Backup %s deleted successfully", self.project_id)
 
 
-class DataprocMetastoreDeleteServiceOperator(BaseOperator):
+class DataprocMetastoreDeleteServiceOperator(GoogleCloudBaseOperator):
     """
     Deletes a single service.
 
@@ -579,8 +561,8 @@ class DataprocMetastoreDeleteServiceOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'impersonation_chain',
+        "project_id",
+        "impersonation_chain",
     )
 
     def __init__(
@@ -623,7 +605,7 @@ class DataprocMetastoreDeleteServiceOperator(BaseOperator):
         self.log.info("Service %s deleted successfully", self.project_id)
 
 
-class DataprocMetastoreExportMetadataOperator(BaseOperator):
+class DataprocMetastoreExportMetadataOperator(GoogleCloudBaseOperator):
     """
     Exports metadata from a service.
 
@@ -655,8 +637,8 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'impersonation_chain',
+        "project_id",
+        "impersonation_chain",
     )
     operator_extra_links = (DataprocMetastoreLink(), StorageLink())
 
@@ -741,7 +723,7 @@ class DataprocMetastoreExportMetadataOperator(BaseOperator):
                 )
 
 
-class DataprocMetastoreGetServiceOperator(BaseOperator):
+class DataprocMetastoreGetServiceOperator(GoogleCloudBaseOperator):
     """
     Gets the details of a single service.
 
@@ -769,8 +751,8 @@ class DataprocMetastoreGetServiceOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'impersonation_chain',
+        "project_id",
+        "impersonation_chain",
     )
     operator_extra_links = (DataprocMetastoreLink(),)
 
@@ -814,7 +796,7 @@ class DataprocMetastoreGetServiceOperator(BaseOperator):
         return Service.to_dict(result)
 
 
-class DataprocMetastoreListBackupsOperator(BaseOperator):
+class DataprocMetastoreListBackupsOperator(GoogleCloudBaseOperator):
     """
     Lists backups in a service.
 
@@ -842,8 +824,8 @@ class DataprocMetastoreListBackupsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'impersonation_chain',
+        "project_id",
+        "impersonation_chain",
     )
     operator_extra_links = (DataprocMetastoreLink(),)
 
@@ -899,7 +881,7 @@ class DataprocMetastoreListBackupsOperator(BaseOperator):
         return [Backup.to_dict(backup) for backup in backups]
 
 
-class DataprocMetastoreRestoreServiceOperator(BaseOperator):
+class DataprocMetastoreRestoreServiceOperator(GoogleCloudBaseOperator):
     """
     Restores a service from a backup.
 
@@ -939,8 +921,8 @@ class DataprocMetastoreRestoreServiceOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'impersonation_chain',
+        "project_id",
+        "impersonation_chain",
     )
     operator_extra_links = (DataprocMetastoreLink(),)
 
@@ -1027,7 +1009,7 @@ class DataprocMetastoreRestoreServiceOperator(BaseOperator):
                 raise AirflowException("Restoring service FAILED")
 
 
-class DataprocMetastoreUpdateServiceOperator(BaseOperator):
+class DataprocMetastoreUpdateServiceOperator(GoogleCloudBaseOperator):
     """
     Updates the parameters of a single service.
 
@@ -1069,8 +1051,8 @@ class DataprocMetastoreUpdateServiceOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'impersonation_chain',
+        "project_id",
+        "impersonation_chain",
     )
     operator_extra_links = (DataprocMetastoreLink(),)
 

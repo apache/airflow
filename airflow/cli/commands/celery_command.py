@@ -15,15 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Celery command"""
+"""Celery command."""
 from __future__ import annotations
 
+import logging
+import sys
+from contextlib import contextmanager
 from multiprocessing import Process
 
 import daemon
 import psutil
 import sqlalchemy.exc
 from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
+from celery.app.defaults import DEFAULT_TASK_LOG_FMT
+from celery.signals import after_setup_logger
 from daemon.pidfile import TimeoutPIDLockFile
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
@@ -39,10 +44,10 @@ WORKER_PROCESS_NAME = "worker"
 
 @cli_utils.action_cli
 def flower(args):
-    """Starts Flower, Celery monitoring tool"""
+    """Starts Flower, Celery monitoring tool."""
     options = [
         "flower",
-        conf.get('celery', 'BROKER_URL'),
+        conf.get("celery", "BROKER_URL"),
         f"--address={args.hostname}",
         f"--port={args.port}",
     ]
@@ -83,27 +88,48 @@ def flower(args):
         celery_app.start(options)
 
 
-def _serve_logs(skip_serve_logs: bool = False) -> Process | None:
-    """Starts serve_logs sub-process"""
+@contextmanager
+def _serve_logs(skip_serve_logs: bool = False):
+    """Starts serve_logs sub-process."""
+    sub_proc = None
     if skip_serve_logs is False:
         sub_proc = Process(target=serve_logs)
         sub_proc.start()
-        return sub_proc
-    return None
+    yield
+    if sub_proc:
+        sub_proc.terminate()
 
 
-def _run_worker(options, skip_serve_logs):
-    sub_proc = _serve_logs(skip_serve_logs)
-    try:
-        celery_app.worker_main(options)
-    finally:
-        if sub_proc:
-            sub_proc.terminate()
+@after_setup_logger.connect()
+def logger_setup_handler(logger, **kwargs):
+    """Reconfigure the logger:
+    * remove any previously configured handlers
+    * logs of severity error, and above goes to stderr,
+    * logs of severity lower than error goes to stdout.
+    """
+    if conf.getboolean("logging", "celery_stdout_stderr_separation", fallback=False):
+        celery_formatter = logging.Formatter(DEFAULT_TASK_LOG_FMT)
+
+        class NoErrorOrAboveFilter(logging.Filter):
+            """Allow only logs with level *lower* than ERROR to be reported."""
+
+            def filter(self, record):
+                return record.levelno < logging.ERROR
+
+        below_error_handler = logging.StreamHandler(sys.stdout)
+        below_error_handler.addFilter(NoErrorOrAboveFilter())
+        below_error_handler.setFormatter(celery_formatter)
+
+        from_error_handler = logging.StreamHandler(sys.stderr)
+        from_error_handler.setLevel(logging.ERROR)
+        from_error_handler.setFormatter(celery_formatter)
+
+        logger.handlers[:] = [below_error_handler, from_error_handler]
 
 
 @cli_utils.action_cli
 def worker(args):
-    """Starts Airflow Celery worker"""
+    """Starts Airflow Celery worker."""
     # Disable connection pool so that celery worker does not hold an unnecessary db connection
     settings.reconfigure_orm(disable_connection_pool=True)
     if not settings.validate_session():
@@ -124,7 +150,7 @@ def worker(args):
         log=args.log_file,
     )
 
-    if hasattr(celery_app.backend, 'ResultSession'):
+    if hasattr(celery_app.backend, "ResultSession"):
         # Pre-create the database tables now, otherwise SQLA via Celery has a
         # race condition where one of the subprocesses can die with "Table
         # already exists" error, because SQLA checks for which tables exist,
@@ -141,31 +167,31 @@ def worker(args):
             pass
 
     # backwards-compatible: https://github.com/apache/airflow/pull/21506#pullrequestreview-879893763
-    celery_log_level = conf.get('logging', 'CELERY_LOGGING_LEVEL')
+    celery_log_level = conf.get("logging", "CELERY_LOGGING_LEVEL")
     if not celery_log_level:
-        celery_log_level = conf.get('logging', 'LOGGING_LEVEL')
+        celery_log_level = conf.get("logging", "LOGGING_LEVEL")
     # Setup Celery worker
     options = [
-        'worker',
-        '-O',
-        'fair',
-        '--queues',
+        "worker",
+        "-O",
+        "fair",
+        "--queues",
         args.queues,
-        '--concurrency',
+        "--concurrency",
         args.concurrency,
-        '--hostname',
+        "--hostname",
         args.celery_hostname,
-        '--loglevel',
+        "--loglevel",
         celery_log_level,
-        '--pidfile',
+        "--pidfile",
         pid_file_path,
     ]
     if autoscale:
-        options.extend(['--autoscale', autoscale])
+        options.extend(["--autoscale", autoscale])
     if args.without_mingle:
-        options.append('--without-mingle')
+        options.append("--without-mingle")
     if args.without_gossip:
-        options.append('--without-gossip')
+        options.append("--without-gossip")
 
     if conf.has_option("celery", "pool"):
         pool = conf.get("celery", "pool")
@@ -175,37 +201,39 @@ def worker(args):
         # https://eventlet.net/doc/patching.html#monkey-patch
         # Otherwise task instances hang on the workers and are never
         # executed.
-        maybe_patch_concurrency(['-P', pool])
+        maybe_patch_concurrency(["-P", pool])
 
     if args.daemon:
         # Run Celery worker as daemon
         handle = setup_logging(log_file)
 
-        with open(stdout, 'a') as stdout_handle, open(stderr, 'a') as stderr_handle:
+        with open(stdout, "a") as stdout_handle, open(stderr, "a") as stderr_handle:
             if args.umask:
                 umask = args.umask
             else:
-                umask = conf.get('celery', 'worker_umask', fallback=settings.DAEMON_UMASK)
+                umask = conf.get("celery", "worker_umask", fallback=settings.DAEMON_UMASK)
 
             stdout_handle.truncate(0)
             stderr_handle.truncate(0)
 
-            ctx = daemon.DaemonContext(
+            daemon_context = daemon.DaemonContext(
                 files_preserve=[handle],
                 umask=int(umask, 8),
                 stdout=stdout_handle,
                 stderr=stderr_handle,
             )
-            with ctx:
-                _run_worker(options=options, skip_serve_logs=skip_serve_logs)
+            with daemon_context, _serve_logs(skip_serve_logs):
+                celery_app.worker_main(options)
+
     else:
         # Run Celery worker in the same process
-        _run_worker(options=options, skip_serve_logs=skip_serve_logs)
+        with _serve_logs(skip_serve_logs):
+            celery_app.worker_main(options)
 
 
 @cli_utils.action_cli
 def stop_worker(args):
-    """Sends SIGTERM to Celery worker"""
+    """Sends SIGTERM to Celery worker."""
     # Read PID from file
     if args.pid:
         pid_file_path = args.pid

@@ -18,24 +18,38 @@ from __future__ import annotations
 
 from airflow.api_connexion.schemas.health_schema import health_schema
 from airflow.api_connexion.types import APIResponse
-from airflow.jobs.scheduler_job import SchedulerJob
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 
 HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
 
 
 def get_health() -> APIResponse:
-    """Return the health of the airflow scheduler and metadatabase"""
+    """Return the health of the airflow scheduler and metadatabase."""
     metadatabase_status = HEALTHY
     latest_scheduler_heartbeat = None
+    latest_triggerer_heartbeat = None
     scheduler_status = UNHEALTHY
+    triggerer_status: str | None = UNHEALTHY
     try:
-        scheduler_job = SchedulerJob.most_recent_job()
+        scheduler_job = SchedulerJobRunner.most_recent_job()
 
         if scheduler_job:
             latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
             if scheduler_job.is_alive():
                 scheduler_status = HEALTHY
+    except Exception:
+        metadatabase_status = UNHEALTHY
+    try:
+        triggerer_job = TriggererJobRunner.most_recent_job()
+
+        if triggerer_job:
+            latest_triggerer_heartbeat = triggerer_job.latest_heartbeat.isoformat()
+            if triggerer_job.is_alive():
+                triggerer_status = HEALTHY
+        else:
+            triggerer_status = None
     except Exception:
         metadatabase_status = UNHEALTHY
 
@@ -44,6 +58,10 @@ def get_health() -> APIResponse:
         "scheduler": {
             "status": scheduler_status,
             "latest_scheduler_heartbeat": latest_scheduler_heartbeat,
+        },
+        "triggerer": {
+            "status": triggerer_status,
+            "latest_triggerer_heartbeat": latest_triggerer_heartbeat,
         },
     }
 

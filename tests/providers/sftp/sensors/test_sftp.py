@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime
+from unittest import mock
 from unittest.mock import patch
 
 import pytest
@@ -28,101 +28,174 @@ from pendulum import datetime as pendulum_datetime, timezone
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 
 
-class TestSFTPSensor(unittest.TestCase):
-    @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
+class TestSFTPSensor:
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_present(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.return_value = '19700101000000'
-        sftp_sensor = SFTPSensor(task_id='unit_test', path='/path/to/file/1970-01-01.txt')
-        context = {'ds': '1970-01-01'}
+        sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
+        sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")
+        context = {"ds": "1970-01-01"}
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/1970-01-01.txt')
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
         assert output
 
-    @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_absent(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.side_effect = OSError(SFTP_NO_SUCH_FILE, 'File missing')
-        sftp_sensor = SFTPSensor(task_id='unit_test', path='/path/to/file/1970-01-01.txt')
-        context = {'ds': '1970-01-01'}
+        sftp_hook_mock.return_value.get_mod_time.side_effect = OSError(SFTP_NO_SUCH_FILE, "File missing")
+        sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")
+        context = {"ds": "1970-01-01"}
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/1970-01-01.txt')
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
         assert not output
 
-    @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_sftp_failure(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.side_effect = OSError(SFTP_FAILURE, 'SFTP failure')
-        sftp_sensor = SFTPSensor(task_id='unit_test', path='/path/to/file/1970-01-01.txt')
-        context = {'ds': '1970-01-01'}
+        sftp_hook_mock.return_value.get_mod_time.side_effect = OSError(SFTP_FAILURE, "SFTP failure")
+        sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")
+        context = {"ds": "1970-01-01"}
         with pytest.raises(OSError):
             sftp_sensor.poke(context)
-            sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/1970-01-01.txt')
+            sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
 
     def test_hook_not_created_during_init(self):
-        sftp_sensor = SFTPSensor(task_id='unit_test', path='/path/to/file/1970-01-01.txt')
+        sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/1970-01-01.txt")
         assert sftp_sensor.hook is None
 
-    @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_new_enough(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.return_value = '19700101000000'
+        sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
         tz = timezone("America/Toronto")
         sftp_sensor = SFTPSensor(
-            task_id='unit_test',
-            path='/path/to/file/1970-01-01.txt',
+            task_id="unit_test",
+            path="/path/to/file/1970-01-01.txt",
             newer_than=tz.convert(datetime(1960, 1, 2)),
         )
-        context = {'ds': '1970-01-00'}
+        context = {"ds": "1970-01-00"}
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/1970-01-01.txt')
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
         assert output
 
-    @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_not_new_enough(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.return_value = '19700101000000'
+        sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
         tz = timezone("Europe/Paris")
         sftp_sensor = SFTPSensor(
-            task_id='unit_test',
-            path='/path/to/file/1970-01-01.txt',
+            task_id="unit_test",
+            path="/path/to/file/1970-01-01.txt",
             newer_than=tz.convert(pendulum_datetime(2020, 1, 2)),
         )
-        context = {'ds': '1970-01-00'}
+        context = {"ds": "1970-01-00"}
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/1970-01-01.txt')
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
         assert not output
 
-    @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_naive_datetime(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.return_value = '19700101000000'
+        sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
         sftp_sensor = SFTPSensor(
-            task_id='unit_test', path='/path/to/file/1970-01-01.txt', newer_than=datetime(2020, 1, 2)
+            task_id="unit_test", path="/path/to/file/1970-01-01.txt", newer_than=datetime(2020, 1, 2)
         )
-        context = {'ds': '1970-01-00'}
+        context = {"ds": "1970-01-00"}
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/1970-01-01.txt')
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/1970-01-01.txt")
         assert not output
 
-    @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
-    def test_file_with_pattern_parameter_call(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.return_value = '19700101000000'
-        sftp_sensor = SFTPSensor(task_id='unit_test', path='/path/to/file/', file_pattern="*.txt")
-        context = {'ds': '1970-01-01'}
-        output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_file_by_pattern.assert_called_once_with('/path/to/file/', '*.txt')
-        assert output
-
-    @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_present_with_pattern(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.return_value = '19700101000000'
-        sftp_hook_mock.return_value.get_file_by_pattern.return_value = '/path/to/file/text_file.txt'
-        sftp_sensor = SFTPSensor(task_id='unit_test', path='/path/to/file/', file_pattern="*.txt")
-        context = {'ds': '1970-01-01'}
+        sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
+        sftp_hook_mock.return_value.get_files_by_pattern.return_value = ["text_file.txt"]
+        sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/", file_pattern="*.txt")
+        context = {"ds": "1970-01-01"}
         output = sftp_sensor.poke(context)
-        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with('/path/to/file/text_file.txt')
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/text_file.txt")
         assert output
 
-    @patch('airflow.providers.sftp.sensors.sftp.SFTPHook')
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
     def test_file_not_present_with_pattern(self, sftp_hook_mock):
-        sftp_hook_mock.return_value.get_mod_time.return_value = '19700101000000'
-        sftp_hook_mock.return_value.get_file_by_pattern.return_value = ""
-        sftp_sensor = SFTPSensor(task_id='unit_test', path='/path/to/file/', file_pattern="*.txt")
-        context = {'ds': '1970-01-01'}
+        sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
+        sftp_hook_mock.return_value.get_files_by_pattern.return_value = []
+        sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/", file_pattern="*.txt")
+        context = {"ds": "1970-01-01"}
         output = sftp_sensor.poke(context)
+        assert not output
+
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
+    def test_multiple_file_present_with_pattern(self, sftp_hook_mock):
+        sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
+        sftp_hook_mock.return_value.get_files_by_pattern.return_value = [
+            "text_file.txt",
+            "another_text_file.txt",
+        ]
+        sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/", file_pattern="*.txt")
+        context = {"ds": "1970-01-01"}
+        output = sftp_sensor.poke(context)
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/text_file.txt")
+        assert output
+
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
+    def test_multiple_files_present_with_pattern(self, sftp_hook_mock):
+        sftp_hook_mock.return_value.get_mod_time.return_value = "19700101000000"
+        sftp_hook_mock.return_value.get_files_by_pattern.return_value = [
+            "text_file.txt",
+            "another_text_file.txt",
+        ]
+        sftp_sensor = SFTPSensor(task_id="unit_test", path="/path/to/file/", file_pattern="*.txt")
+        context = {"ds": "1970-01-01"}
+        output = sftp_sensor.poke(context)
+        sftp_hook_mock.return_value.get_mod_time.assert_called_once_with("/path/to/file/text_file.txt")
+        assert output
+
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
+    def test_multiple_files_present_with_pattern_and_newer_than(self, sftp_hook_mock):
+        sftp_hook_mock.return_value.get_files_by_pattern.return_value = [
+            "text_file1.txt",
+            "text_file2.txt",
+            "text_file3.txt",
+        ]
+        sftp_hook_mock.return_value.get_mod_time.side_effect = [
+            "19500101000000",
+            "19700101000000",
+            "19800101000000",
+        ]
+        tz = timezone("America/Toronto")
+        sftp_sensor = SFTPSensor(
+            task_id="unit_test",
+            path="/path/to/file/",
+            file_pattern="*.txt",
+            newer_than=tz.convert(datetime(1960, 1, 2)),
+        )
+        context = {"ds": "1970-01-00"}
+        output = sftp_sensor.poke(context)
+        sftp_hook_mock.return_value.get_mod_time.assert_has_calls(
+            [mock.call("/path/to/file/text_file1.txt"), mock.call("/path/to/file/text_file2.txt")]
+        )
+        assert output
+
+    @patch("airflow.providers.sftp.sensors.sftp.SFTPHook")
+    def test_multiple_old_files_present_with_pattern_and_newer_than(self, sftp_hook_mock):
+        sftp_hook_mock.return_value.get_files_by_pattern.return_value = [
+            "text_file1.txt",
+            "text_file2.txt",
+            "text_file3.txt",
+        ]
+        sftp_hook_mock.return_value.get_mod_time.side_effect = [
+            "19500101000000",
+            "19510101000000",
+            "19520101000000",
+        ]
+        tz = timezone("America/Toronto")
+        sftp_sensor = SFTPSensor(
+            task_id="unit_test",
+            path="/path/to/file/",
+            file_pattern="*.txt",
+            newer_than=tz.convert(datetime(1960, 1, 2)),
+        )
+        context = {"ds": "1970-01-00"}
+        output = sftp_sensor.poke(context)
+        sftp_hook_mock.return_value.get_mod_time.assert_has_calls(
+            [
+                mock.call("/path/to/file/text_file1.txt"),
+                mock.call("/path/to/file/text_file2.txt"),
+                mock.call("/path/to/file/text_file3.txt"),
+            ]
+        )
         assert not output

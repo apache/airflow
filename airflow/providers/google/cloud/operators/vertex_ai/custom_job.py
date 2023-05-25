@@ -27,19 +27,19 @@ from google.cloud.aiplatform.models import Model
 from google.cloud.aiplatform_v1.types.dataset import Dataset
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIModelLink,
     VertexAITrainingLink,
     VertexAITrainingPipelinesLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CustomTrainingJobBaseOperator(BaseOperator):
+class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
     """The base class for operators that launch Custom jobs on VertexAI."""
 
     def __init__(
@@ -92,7 +92,6 @@ class CustomTrainingJobBaseOperator(BaseOperator):
         tensorboard: str | None = None,
         sync=True,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -119,7 +118,7 @@ class CustomTrainingJobBaseOperator(BaseOperator):
         self.staging_bucket = staging_bucket
         # END Custom
         # START Run param
-        self.dataset = Dataset(name=dataset_id) if dataset_id else None
+        self.dataset_id = dataset_id
         self.annotation_schema_uri = annotation_schema_uri
         self.model_display_name = model_display_name
         self.model_labels = model_labels
@@ -147,7 +146,6 @@ class CustomTrainingJobBaseOperator(BaseOperator):
         self.sync = sync
         # END Run param
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
 
@@ -397,9 +395,6 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             will be executed in concurrent Future and any downstream object will
             be immediately returned and synced when the Future has completed.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -410,11 +405,12 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = [
-        'region',
-        'command',
-        'impersonation_chain',
-    ]
+    template_fields = (
+        "region",
+        "command",
+        "dataset_id",
+        "impersonation_chain",
+    )
     operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
@@ -429,10 +425,9 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
     def execute(self, context: Context):
         self.hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model, training_id = self.hook.create_custom_container_training_job(
+        model, training_id, custom_job_id = self.hook.create_custom_container_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -454,7 +449,7 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             model_encryption_spec_key_name=self.model_encryption_spec_key_name,
             staging_bucket=self.staging_bucket,
             # RUN
-            dataset=self.dataset,
+            dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
             annotation_schema_uri=self.annotation_schema_uri,
             model_display_name=self.model_display_name,
             model_labels=self.model_labels,
@@ -488,6 +483,8 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
         else:
             result = model  # type: ignore
+        self.xcom_push(context, key="training_id", value=training_id)
+        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
@@ -746,9 +743,6 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             will be executed in concurrent Future and any downstream object will
             be immediately returned and synced when the Future has completed.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -759,10 +753,11 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = [
-        'region',
-        'impersonation_chain',
-    ]
+    template_fields = (
+        "region",
+        "dataset_id",
+        "impersonation_chain",
+    )
     operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
@@ -779,10 +774,9 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
     def execute(self, context: Context):
         self.hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model, training_id = self.hook.create_custom_python_package_training_job(
+        model, training_id, custom_job_id = self.hook.create_custom_python_package_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -805,7 +799,7 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             model_encryption_spec_key_name=self.model_encryption_spec_key_name,
             staging_bucket=self.staging_bucket,
             # RUN
-            dataset=self.dataset,
+            dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
             annotation_schema_uri=self.annotation_schema_uri,
             model_display_name=self.model_display_name,
             model_labels=self.model_labels,
@@ -839,6 +833,8 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
         else:
             result = model  # type: ignore
+        self.xcom_push(context, key="training_id", value=training_id)
+        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
@@ -1097,9 +1093,6 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             will be executed in concurrent Future and any downstream object will
             be immediately returned and synced when the Future has completed.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1110,12 +1103,13 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = [
-        'region',
-        'script_path',
-        'requirements',
-        'impersonation_chain',
-    ]
+    template_fields = (
+        "region",
+        "script_path",
+        "requirements",
+        "dataset_id",
+        "impersonation_chain",
+    )
     operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
 
     def __init__(
@@ -1132,10 +1126,9 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
     def execute(self, context: Context):
         self.hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        model, training_id = self.hook.create_custom_training_job(
+        model, training_id, custom_job_id = self.hook.create_custom_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
@@ -1158,7 +1151,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             model_encryption_spec_key_name=self.model_encryption_spec_key_name,
             staging_bucket=self.staging_bucket,
             # RUN
-            dataset=self.dataset,
+            dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
             annotation_schema_uri=self.annotation_schema_uri,
             model_display_name=self.model_display_name,
             model_labels=self.model_labels,
@@ -1192,6 +1185,8 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
         else:
             result = model  # type: ignore
+        self.xcom_push(context, key="training_id", value=training_id)
+        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
@@ -1204,7 +1199,7 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             self.hook.cancel_job()
 
 
-class DeleteCustomTrainingJobOperator(BaseOperator):
+class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
     """Deletes a CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob.
 
     :param training_pipeline_id: Required. The name of the TrainingPipeline resource to be deleted.
@@ -1215,9 +1210,6 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1228,7 +1220,7 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("region", "project_id", "impersonation_chain")
+    template_fields = ("training_pipeline", "custom_job", "region", "project_id", "impersonation_chain")
 
     def __init__(
         self,
@@ -1241,7 +1233,6 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -1254,13 +1245,11 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         try:
@@ -1293,7 +1282,7 @@ class DeleteCustomTrainingJobOperator(BaseOperator):
             self.log.info("The Custom Job ID %s does not exist.", self.custom_job)
 
 
-class ListCustomTrainingJobOperator(BaseOperator):
+class ListCustomTrainingJobOperator(GoogleCloudBaseOperator):
     """Lists CustomTrainingJob, CustomPythonTrainingJob, or CustomContainerTrainingJob in a Location.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
@@ -1324,9 +1313,6 @@ class ListCustomTrainingJobOperator(BaseOperator):
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1359,7 +1345,6 @@ class ListCustomTrainingJobOperator(BaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -1374,13 +1359,11 @@ class ListCustomTrainingJobOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         results = hook.list_training_pipelines(

@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 class SecurityManager(BaseSecurityManager):
     """
     Responsible for authentication, registering security views,
-    role and permission auto management
+    role and permission auto management.
 
     If you want to change anything just inherit and override, then
     pass your own security manager to AppBuilder.
@@ -60,9 +60,9 @@ class SecurityManager(BaseSecurityManager):
 
     def __init__(self, appbuilder):
         """
-        Class constructor
-        param appbuilder:
-            F.A.B AppBuilder main object
+        Class constructor.
+
+        :param appbuilder: F.A.B AppBuilder main object
         """
         super().__init__(appbuilder)
         user_datamodel = SQLAInterface(self.user_model)
@@ -142,7 +142,7 @@ class SecurityManager(BaseSecurityManager):
 
     def del_register_user(self, register_user):
         """
-        Deletes registration object from database
+        Deletes registration object from database.
 
         :param register_user: RegisterUser object to delete
         """
@@ -156,7 +156,7 @@ class SecurityManager(BaseSecurityManager):
             return False
 
     def find_user(self, username=None, email=None):
-        """Finds user by username or email"""
+        """Finds user by username or email."""
         if username:
             try:
                 if self.auth_username_ci:
@@ -168,7 +168,7 @@ class SecurityManager(BaseSecurityManager):
                 else:
                     return (
                         self.get_session.query(self.user_model)
-                        .filter(self.user_model.username == username)
+                        .filter(func.lower(self.user_model.username) == func.lower(username))
                         .one_or_none()
                     )
             except MultipleResultsFound:
@@ -194,7 +194,7 @@ class SecurityManager(BaseSecurityManager):
         password="",
         hashed_password="",
     ):
-        """Generic function to create user"""
+        """Generic function to create user."""
         try:
             user = self.user_model()
             user.first_name = first_name
@@ -230,9 +230,9 @@ class SecurityManager(BaseSecurityManager):
             return False
 
     def get_user_by_id(self, pk):
-        return self.get_session.query(self.user_model).get(pk)
+        return self.get_session.get(self.user_model, pk)
 
-    def add_role(self, name: str) -> Role | None:
+    def add_role(self, name: str) -> Role:
         role = self.find_role(name)
         if role is None:
             try:
@@ -248,7 +248,7 @@ class SecurityManager(BaseSecurityManager):
         return role
 
     def update_role(self, role_id, name: str) -> Role | None:
-        role = self.get_session.query(self.role_model).get(role_id)
+        role = self.get_session.get(self.role_model, role_id)
         if not role:
             return None
         try:
@@ -277,7 +277,6 @@ class SecurityManager(BaseSecurityManager):
 
         :param name: name
         :return: Action record, if it exists
-        :rtype: Action
         """
         return self.get_session.query(self.action_model).filter_by(name=name).one_or_none()
 
@@ -286,7 +285,7 @@ class SecurityManager(BaseSecurityManager):
     ) -> bool:
         """
             Method to efficiently check if a certain permission exists
-            on a list of role id's. This is used by `has_access`
+            on a list of role id's. This is used by `has_access`.
 
         :param resource_name: The view's name to check if exists on one of the roles
         :param action_name: The permission name to check if exists
@@ -315,7 +314,7 @@ class SecurityManager(BaseSecurityManager):
         return self.appbuilder.get_session.query(q).scalar()
 
     def filter_roles_by_perm_with_action(self, action_name: str, role_ids: list[int]):
-        """Find roles with permission"""
+        """Find roles with permission."""
         return (
             self.appbuilder.get_session.query(self.permission_model)
             .join(
@@ -333,7 +332,7 @@ class SecurityManager(BaseSecurityManager):
 
     def create_action(self, name):
         """
-        Adds an action to the backend, model action
+        Adds an action to the backend, model action.
 
         :param name:
             name of the action: 'can_add','can_edit' etc...
@@ -357,7 +356,6 @@ class SecurityManager(BaseSecurityManager):
 
         :param name: Name of action to delete (e.g. can_read).
         :return: Whether or not delete was successful.
-        :rtype: bool
         """
         action = self.get_action(name)
         if not action:
@@ -386,7 +384,6 @@ class SecurityManager(BaseSecurityManager):
 
         :param name: Name of resource
         :return: Resource record
-        :rtype: Resource
         """
         return self.get_session.query(self.resource_model).filter_by(name=name).one_or_none()
 
@@ -395,7 +392,6 @@ class SecurityManager(BaseSecurityManager):
         Gets all existing resource records.
 
         :return: List of all resources
-        :rtype: List[Resource]
         """
         return self.get_session.query(self.resource_model).all()
 
@@ -405,7 +401,6 @@ class SecurityManager(BaseSecurityManager):
 
         :param name: The name of the resource to create created.
         :return: The FAB resource created.
-        :rtype: Resource
         """
         resource = self.get_resource(name)
         if resource is None:
@@ -422,7 +417,7 @@ class SecurityManager(BaseSecurityManager):
 
     def delete_resource(self, name: str) -> bool:
         """
-        Deletes a Resource from the backend
+        Deletes a Resource from the backend.
 
         :param name:
             name of the resource
@@ -454,14 +449,17 @@ class SecurityManager(BaseSecurityManager):
     ----------------------
     """
 
-    def get_permission(self, action_name: str, resource_name: str) -> Permission | None:
+    def get_permission(
+        self,
+        action_name: str,
+        resource_name: str,
+    ) -> Permission | None:
         """
         Gets a permission made with the given action->resource pair, if the permission already exists.
 
         :param action_name: Name of action
         :param resource_name: Name of resource
         :return: The existing permission
-        :rtype: Permission
         """
         action = self.get_action(action_name)
         resource = self.get_resource(resource_name)
@@ -479,13 +477,12 @@ class SecurityManager(BaseSecurityManager):
 
         :param resource: Object representing a single resource.
         :return: Action objects representing resource->action pair
-        :rtype: Permission
         """
         return self.get_session.query(self.permission_model).filter_by(resource_id=resource.id).all()
 
     def create_permission(self, action_name, resource_name) -> Permission | None:
         """
-        Adds a permission on a resource to the backend
+        Adds a permission on a resource to the backend.
 
         :param action_name:
             name of the action to add: 'can_add','can_edit' etc...
@@ -519,7 +516,6 @@ class SecurityManager(BaseSecurityManager):
         :param action_name: Name of existing action
         :param resource_name: Name of existing resource
         :return: None
-        :rtype: None
         """
         if not (action_name and resource_name):
             return
@@ -550,14 +546,13 @@ class SecurityManager(BaseSecurityManager):
                 return True
         return False
 
-    def add_permission_to_role(self, role: Role, permission: Permission) -> None:
+    def add_permission_to_role(self, role: Role, permission: Permission | None) -> None:
         """
         Add an existing permission pair to a role.
 
         :param role: The role about to get a new permission.
         :param permission: The permission pair to add to a role.
         :return: None
-        :rtype: None
         """
         if permission and permission not in role.permissions:
             try:

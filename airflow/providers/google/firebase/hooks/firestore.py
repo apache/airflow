@@ -19,7 +19,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Optional, Sequence
+from typing import Sequence
 
 from googleapiclient.discovery import build, build_from_document
 
@@ -39,9 +39,6 @@ class CloudFirestoreHook(GoogleBaseHook):
 
     :param api_version: API version used (for example v1 or v1beta1).
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -52,18 +49,16 @@ class CloudFirestoreHook(GoogleBaseHook):
         account from the list granting this role to the originating account.
     """
 
-    _conn = None  # type: Optional[Any]
+    _conn: build | None = None
 
     def __init__(
         self,
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
@@ -120,7 +115,6 @@ class CloudFirestoreHook(GoogleBaseHook):
 
         :param operation_name: The name of the operation.
         :return: The response returned by the operation.
-        :rtype: dict
         :exception: AirflowException in case error is returned.
         """
         service = self.get_conn()

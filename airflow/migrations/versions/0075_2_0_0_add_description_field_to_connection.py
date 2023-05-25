@@ -28,28 +28,28 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '61ec73d9401f'
-down_revision = '2c6edca13270'
+revision = "61ec73d9401f"
+down_revision = "2c6edca13270"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.0'
+airflow_version = "2.0.0"
 
 
 def upgrade():
     """Apply Add description field to ``connection`` table"""
     conn = op.get_bind()
 
-    with op.batch_alter_table('connection') as batch_op:
+    with op.batch_alter_table("connection") as batch_op:
         if conn.dialect.name == "mysql":
             # Handles case where on mysql with utf8mb4 this would exceed the size of row
             # We have to set text type in this migration even if originally it was string
             # This is permanently fixed in the follow-up migration 64a7d6477aae
-            batch_op.add_column(sa.Column('description', sa.Text(length=5000), nullable=True))
+            batch_op.add_column(sa.Column("description", sa.Text(length=5000), nullable=True))
         else:
-            batch_op.add_column(sa.Column('description', sa.String(length=5000), nullable=True))
+            batch_op.add_column(sa.Column("description", sa.String(length=5000), nullable=True))
 
 
 def downgrade():
     """Unapply Add description field to ``connection`` table"""
-    with op.batch_alter_table('connection', schema=None) as batch_op:
-        batch_op.drop_column('description')
+    with op.batch_alter_table("connection", schema=None) as batch_op:
+        batch_op.drop_column("description")

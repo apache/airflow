@@ -22,6 +22,7 @@ import warnings
 from typing import Any, Sequence
 
 from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.utils.log.secrets_masker import mask_secret
@@ -112,23 +113,23 @@ class SlackAPIPostOperator(SlackAPIOperator):
         - see https://api.slack.com/reference/block-kit/blocks.
     """
 
-    template_fields: Sequence[str] = ('username', 'text', 'attachments', 'blocks', 'channel')
-    ui_color = '#FFBA40'
+    template_fields: Sequence[str] = ("username", "text", "attachments", "blocks", "channel")
+    ui_color = "#FFBA40"
 
     def __init__(
         self,
-        channel: str = '#general',
-        username: str = 'Airflow',
-        text: str = 'No message has been set.\n'
-        'Here is a cat video instead\n'
-        'https://www.youtube.com/watch?v=J---aiyznGQ',
-        icon_url: str = 'https://raw.githubusercontent.com/apache/'
-        'airflow/main/airflow/www/static/pin_100.png',
+        channel: str = "#general",
+        username: str = "Airflow",
+        text: str = "No message has been set.\n"
+        "Here is a cat video instead\n"
+        "https://www.youtube.com/watch?v=J---aiyznGQ",
+        icon_url: str = "https://raw.githubusercontent.com/apache/"
+        "airflow/main/airflow/www/static/pin_100.png",
         attachments: list | None = None,
         blocks: list | None = None,
         **kwargs,
     ) -> None:
-        self.method = 'chat.postMessage'
+        self.method = "chat.postMessage"
         self.channel = channel
         self.username = username
         self.text = text
@@ -139,12 +140,12 @@ class SlackAPIPostOperator(SlackAPIOperator):
 
     def construct_api_call_params(self) -> Any:
         self.api_params = {
-            'channel': self.channel,
-            'username': self.username,
-            'text': self.text,
-            'icon_url': self.icon_url,
-            'attachments': json.dumps(self.attachments),
-            'blocks': json.dumps(self.blocks),
+            "channel": self.channel,
+            "username": self.username,
+            "text": self.text,
+            "icon_url": self.icon_url,
+            "attachments": json.dumps(self.attachments),
+            "blocks": json.dumps(self.blocks),
         }
 
 
@@ -187,14 +188,14 @@ class SlackAPIFileOperator(SlackAPIOperator):
     """
 
     template_fields: Sequence[str] = (
-        'channels',
-        'initial_comment',
-        'filename',
-        'filetype',
-        'content',
-        'title',
+        "channels",
+        "initial_comment",
+        "filename",
+        "filetype",
+        "content",
+        "title",
     )
-    ui_color = '#44BEDF'
+    ui_color = "#44BEDF"
 
     def __init__(
         self,
@@ -211,7 +212,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
             warnings.warn(
                 "Argument `channel` is deprecated and will removed in a future releases. "
                 "Please use `channels` instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             if channels:

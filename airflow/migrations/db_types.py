@@ -72,7 +72,7 @@ def __getattr__(name):
             module = globals()
 
             # Lookup the type based on the dialect specific type, or fallback to the generic type
-            type_ = module.get(f'_{dialect}_{name}', None) or module.get(f'_sa_{name}')
+            type_ = module.get(f"_{dialect}_{name}", None) or module.get(f"_sa_{name}")
             val = module[name] = type_()
             return val
 

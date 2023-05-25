@@ -57,7 +57,7 @@ class AzureServiceBusCreateQueueOperator(BaseOperator):
         max_delivery_count: int = 10,
         dead_lettering_on_message_expiration: bool = True,
         enable_batched_operations: bool = True,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -106,7 +106,7 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
         queue_name: str,
         message: str | list[str],
         batch: bool = False,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -149,7 +149,7 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
         self,
         *,
         queue_name: str,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         max_message_count: int = 10,
         max_wait_time: float = 5,
         **kwargs,
@@ -194,7 +194,7 @@ class AzureServiceBusDeleteQueueOperator(BaseOperator):
         self,
         *,
         queue_name: str,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -260,7 +260,7 @@ class AzureServiceBusTopicCreateOperator(BaseOperator):
         self,
         *,
         topic_name: str,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         default_message_time_to_live: datetime.timedelta | str | None = None,
         max_size_in_megabytes: int | None = None,
         requires_duplicate_detection: bool | None = None,
@@ -378,7 +378,7 @@ class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
         *,
         topic_name: str,
         subscription_name: str,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         lock_duration: datetime.timedelta | str | None = None,
         requires_session: bool | None = None,
         default_message_time_to_live: datetime.timedelta | str | None = None,
@@ -469,7 +469,7 @@ class AzureServiceBusUpdateSubscriptionOperator(BaseOperator):
         max_delivery_count: int | None = None,
         dead_lettering_on_message_expiration: bool | None = None,
         enable_batched_operations: bool | None = None,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -529,7 +529,7 @@ class ASBReceiveSubscriptionMessageOperator(BaseOperator):
         subscription_name: str,
         max_message_count: int | None = 1,
         max_wait_time: float | None = 5,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -575,7 +575,7 @@ class AzureServiceBusSubscriptionDeleteOperator(BaseOperator):
         *,
         topic_name: str,
         subscription_name: str,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -612,7 +612,7 @@ class AzureServiceBusTopicDeleteOperator(BaseOperator):
         self,
         *,
         topic_name: str,
-        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        azure_service_bus_conn_id: str = "azure_service_bus_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

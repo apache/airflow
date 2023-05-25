@@ -21,7 +21,10 @@ name: OpenFaaS
 description: |
     `OpenFaaS <https://www.openfaas.com/>`__
 
+suspended: false
 versions:
+  - 3.2.0
+  - 3.1.0
   - 3.0.0
   - 2.0.3
   - 2.0.2
@@ -32,7 +35,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.2.0
+  - apache-airflow>=2.4.0
 
 integrations:
   - integration-name: OpenFaaS

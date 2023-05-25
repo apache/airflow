@@ -28,18 +28,18 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '5e7d17757c7a'
-down_revision = '8504051e801b'
+revision = "5e7d17757c7a"
+down_revision = "8504051e801b"
 branch_labels = None
 depends_on = None
-airflow_version = '1.7.1.3'
+airflow_version = "1.7.1.3"
 
 
 def upgrade():
     """Add pid column to task_instance table."""
-    op.add_column('task_instance', sa.Column('pid', sa.Integer))
+    op.add_column("task_instance", sa.Column("pid", sa.Integer))
 
 
 def downgrade():
     """Drop pid column from task_instance table."""
-    op.drop_column('task_instance', 'pid')
+    op.drop_column("task_instance", "pid")

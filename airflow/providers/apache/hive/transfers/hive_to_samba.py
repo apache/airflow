@@ -42,27 +42,27 @@ class HiveToSambaOperator(BaseOperator):
         :ref: `Hive Server2 thrift service connection id <howto/connection:hiveserver2>`.
     """
 
-    template_fields: Sequence[str] = ('hql', 'destination_filepath')
+    template_fields: Sequence[str] = ("hql", "destination_filepath")
     template_ext: Sequence[str] = (
-        '.hql',
-        '.sql',
+        ".hql",
+        ".sql",
     )
-    template_fields_renderers = {'hql': 'hql'}
+    template_fields_renderers = {"hql": "hql"}
 
     def __init__(
         self,
         *,
         hql: str,
         destination_filepath: str,
-        samba_conn_id: str = 'samba_default',
-        hiveserver2_conn_id: str = 'hiveserver2_default',
+        samba_conn_id: str = "samba_default",
+        hiveserver2_conn_id: str = "hiveserver2_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.hiveserver2_conn_id = hiveserver2_conn_id
         self.samba_conn_id = samba_conn_id
         self.destination_filepath = destination_filepath
-        self.hql = hql.strip().rstrip(';')
+        self.hql = hql.strip().rstrip(";")
 
     def execute(self, context: Context):
         with NamedTemporaryFile() as tmp_file:

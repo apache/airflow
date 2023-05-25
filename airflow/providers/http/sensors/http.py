@@ -76,14 +76,14 @@ class HttpSensor(BaseSensorOperator):
         ``socket.TCP_KEEPINTVL``)
     """
 
-    template_fields: Sequence[str] = ('endpoint', 'request_params', 'headers')
+    template_fields: Sequence[str] = ("endpoint", "request_params", "headers")
 
     def __init__(
         self,
         *,
         endpoint: str,
-        http_conn_id: str = 'http_default',
-        method: str = 'GET',
+        http_conn_id: str = "http_default",
+        method: str = "GET",
         request_params: dict[str, Any] | None = None,
         headers: dict[str, Any] | None = None,
         response_check: Callable[..., bool] | None = None,
@@ -119,7 +119,7 @@ class HttpSensor(BaseSensorOperator):
             tcp_keep_alive_interval=self.tcp_keep_alive_interval,
         )
 
-        self.log.info('Poking: %s', self.endpoint)
+        self.log.info("Poking: %s", self.endpoint)
         try:
             response = hook.run(
                 self.endpoint,

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
+from copy import deepcopy
 from unittest import mock
 
 import pytest
@@ -29,7 +29,7 @@ from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOp
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
 
 
-class TestS3ToRedshiftTransfer(unittest.TestCase):
+class TestS3ToRedshiftTransfer:
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
     @mock.patch("boto3.session.Session")
@@ -63,17 +63,17 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             dag=None,
         )
         op.execute(None)
-        copy_query = '''
+        copy_query = """
                         COPY schema.table
                         FROM 's3://bucket/key'
                         credentials
                         'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
                         ;
-                     '''
+                     """
         assert mock_run.call_count == 1
         assert access_key in copy_query
         assert secret_key in copy_query
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
+        assert_equal_ignore_multiple_spaces(mock_run.call_args[0][0], copy_query)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
@@ -110,17 +110,17 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             dag=None,
         )
         op.execute(None)
-        copy_query = '''
+        copy_query = """
                         COPY schema.table (column_1, column_2)
                         FROM 's3://bucket/key'
                         credentials
                         'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
                         ;
-                     '''
+                     """
         assert mock_run.call_count == 1
         assert access_key in copy_query
         assert secret_key in copy_query
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_query)
+        assert_equal_ignore_multiple_spaces(mock_run.call_args[0][0], copy_query)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
@@ -149,28 +149,28 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             s3_bucket=s3_bucket,
             s3_key=s3_key,
             copy_options=copy_options,
-            method='REPLACE',
+            method="REPLACE",
             redshift_conn_id="redshift_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
             dag=None,
         )
         op.execute(None)
-        copy_statement = '''
+        copy_statement = """
                         COPY schema.table
                         FROM 's3://bucket/key'
                         credentials
                         'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
                         ;
-                     '''
-        delete_statement = f'DELETE FROM {schema}.{table};'
+                     """
+        delete_statement = f"DELETE FROM {schema}.{table};"
         transaction = f"""
                     BEGIN;
                     {delete_statement}
                     {copy_statement}
                     COMMIT
                     """
-        assert_equal_ignore_multiple_spaces(self, "\n".join(mock_run.call_args[0][0]), transaction)
+        assert_equal_ignore_multiple_spaces("\n".join(mock_run.call_args[0][0]), transaction)
 
         assert mock_run.call_count == 1
 
@@ -201,8 +201,8 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             s3_bucket=s3_bucket,
             s3_key=s3_key,
             copy_options=copy_options,
-            method='UPSERT',
-            upsert_keys=['id'],
+            method="UPSERT",
+            upsert_keys=["id"],
             redshift_conn_id="redshift_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
@@ -210,13 +210,13 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
         )
         op.execute(None)
 
-        copy_statement = f'''
+        copy_statement = f"""
                         COPY #{table}
                         FROM 's3://bucket/key'
                         credentials
                         'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
                         ;
-                     '''
+                     """
         transaction = f"""
                     CREATE TABLE #{table} (LIKE {schema}.{table});
                     {copy_statement}
@@ -225,7 +225,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
                     INSERT INTO {schema}.{table} SELECT * FROM #{table};
                     COMMIT
                     """
-        assert_equal_ignore_multiple_spaces(self, "\n".join(mock_run.call_args[0][0]), transaction)
+        assert_equal_ignore_multiple_spaces("\n".join(mock_run.call_args[0][0]), transaction)
 
         assert mock_run.call_count == 1
 
@@ -263,18 +263,18 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             dag=None,
         )
         op.execute(None)
-        copy_statement = '''
+        copy_statement = """
                             COPY schema.table
                             FROM 's3://bucket/key'
                             credentials
                             'aws_access_key_id=ASIA_aws_access_key_id;aws_secret_access_key=aws_secret_access_key;token=aws_secret_token'
                             ;
-                         '''
+                         """
         assert access_key in copy_statement
         assert secret_key in copy_statement
         assert token in copy_statement
         assert mock_run.call_count == 1
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_statement)
+        assert_equal_ignore_multiple_spaces(mock_run.call_args[0][0], copy_statement)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
@@ -312,27 +312,28 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
             dag=None,
         )
         op.execute(None)
-        copy_statement = '''
+        copy_statement = """
                             COPY schema.table
                             FROM 's3://bucket/key'
                             credentials
                             'aws_iam_role=arn:aws:iam::112233445566:role/myRole'
                             ;
-                         '''
+                         """
 
-        assert extra['role_arn'] in copy_statement
+        assert extra["role_arn"] in copy_statement
         assert mock_run.call_count == 1
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], copy_statement)
+        assert_equal_ignore_multiple_spaces(mock_run.call_args[0][0], copy_statement)
 
     def test_template_fields_overrides(self):
         assert S3ToRedshiftOperator.template_fields == (
-            's3_bucket',
-            's3_key',
-            'schema',
-            'table',
-            'column_list',
-            'copy_options',
-            'redshift_conn_id',
+            "s3_bucket",
+            "s3_key",
+            "schema",
+            "table",
+            "column_list",
+            "copy_options",
+            "redshift_conn_id",
+            "method",
         )
 
     def test_execute_unavailable_method(self):
@@ -348,4 +349,102 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
                 method="unavailable_method",
                 task_id="task_id",
                 dag=None,
+            ).execute({})
+
+    @pytest.mark.parametrize("param", ["sql", "parameters"])
+    def test_invalid_param_in_redshift_data_api_kwargs(self, param):
+        """
+        Test passing invalid param in RS Data API kwargs raises an error
+        """
+        with pytest.raises(AirflowException):
+            S3ToRedshiftOperator(
+                schema="schema",
+                table="table",
+                s3_bucket="bucket",
+                s3_key="key",
+                task_id="task_id",
+                dag=None,
+                redshift_data_api_kwargs={param: "param"},
             )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.models.connection.Connection")
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_using_redshift_data_api(self, mock_rs, mock_run, mock_session, mock_connection, mock_hook):
+        """
+        Using the Redshift Data API instead of the SQL-based connection
+        """
+        access_key = "aws_access_key_id"
+        secret_key = "aws_secret_access_key"
+        mock_session.return_value = Session(access_key, secret_key)
+        mock_session.return_value.access_key = access_key
+        mock_session.return_value.secret_key = secret_key
+        mock_session.return_value.token = None
+
+        mock_connection.return_value = Connection()
+        mock_hook.return_value = Connection()
+        mock_rs.execute_statement.return_value = {"Id": "STATEMENT_ID"}
+        mock_rs.describe_statement.return_value = {"Status": "FINISHED"}
+
+        schema = "schema"
+        table = "table"
+        s3_bucket = "bucket"
+        s3_key = "key"
+        copy_options = ""
+
+        # RS Data API params
+        database = "database"
+        cluster_identifier = "cluster_identifier"
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+
+        op = S3ToRedshiftOperator(
+            schema=schema,
+            table=table,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            copy_options=copy_options,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            dag=None,
+            redshift_data_api_kwargs=dict(
+                database=database,
+                cluster_identifier=cluster_identifier,
+                db_user=db_user,
+                secret_arn=secret_arn,
+                statement_name=statement_name,
+            ),
+        )
+        op.execute(None)
+        copy_query = """
+                        COPY schema.table
+                        FROM 's3://bucket/key'
+                        credentials
+                        'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
+                        ;
+                     """
+        mock_run.assert_not_called()
+        assert access_key in copy_query
+        assert secret_key in copy_query
+
+        mock_rs.execute_statement.assert_called_once()
+        # test with all args besides sql
+        _call = deepcopy(mock_rs.execute_statement.call_args[1])
+        _call.pop("Sql")
+        assert _call == dict(
+            Database=database,
+            ClusterIdentifier=cluster_identifier,
+            DbUser=db_user,
+            SecretArn=secret_arn,
+            StatementName=statement_name,
+            WithEvent=False,
+        )
+        mock_rs.describe_statement.assert_called_once_with(
+            Id="STATEMENT_ID",
+        )
+        # test sql arg
+        assert_equal_ignore_multiple_spaces(mock_rs.execute_statement.call_args[1]["Sql"], copy_query)

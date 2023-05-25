@@ -36,8 +36,10 @@ if [[ -d "${AIRFLOW_BREEZE_CONFIG_DIR}" && \
     echo
     echo "${COLOR_BLUE}Sourcing environment variables from ${VARIABLES_ENV_FILE} in ${AIRFLOW_BREEZE_CONFIG_DIR}${COLOR_RESET}"
     echo
+    set -o allexport
      # shellcheck disable=1090
     source "${VARIABLES_ENV_FILE}"
+    set +o allexport
     popd >/dev/null 2>&1 || exit 1
 fi
 

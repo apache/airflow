@@ -60,5 +60,5 @@ def process_breeze_readme():
     breeze_readme.write_text("".join(result_lines))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     process_breeze_readme()

@@ -17,70 +17,120 @@
 # under the License.
 from __future__ import annotations
 
-import decimal
 import json
+from dataclasses import dataclass
 from datetime import date, datetime
+from typing import ClassVar
 
 import numpy as np
 import pendulum
 import pytest
 
+from airflow.datasets import Dataset
 from airflow.utils import json as utils_json
 
 
-class TestAirflowJsonEncoder:
+class Z:
+    __version__: ClassVar[int] = 1
+
+    def __init__(self, x):
+        self.x = x
+
+    def serialize(self) -> dict:
+        return dict({"x": self.x})
+
+    @staticmethod
+    def deserialize(data: dict, version: int):
+        if version != 1:
+            raise TypeError("version != 1")
+        return Z(data["x"])
+
+    def __eq__(self, other):
+        return self.x == other.x
+
+
+@dataclass
+class U:
+    __version__: ClassVar[int] = 2
+    x: int
+
+
+class TestWebEncoder:
     def test_encode_datetime(self):
-        obj = datetime.strptime('2017-05-21 00:00:00', '%Y-%m-%d %H:%M:%S')
-        assert json.dumps(obj, cls=utils_json.AirflowJsonEncoder) == '"2017-05-21T00:00:00+00:00"'
+        obj = datetime.strptime("2017-05-21 00:00:00", "%Y-%m-%d %H:%M:%S")
+        assert json.dumps(obj, cls=utils_json.WebEncoder) == '"2017-05-21T00:00:00+00:00"'
 
     def test_encode_pendulum(self):
-        obj = pendulum.datetime(2017, 5, 21, tz='Asia/Kolkata')
-        assert json.dumps(obj, cls=utils_json.AirflowJsonEncoder) == '"2017-05-21T00:00:00+05:30"'
+        obj = pendulum.datetime(2017, 5, 21, tz="Asia/Kolkata")
+        assert json.dumps(obj, cls=utils_json.WebEncoder) == '"2017-05-21T00:00:00+05:30"'
 
     def test_encode_date(self):
-        assert json.dumps(date(2017, 5, 21), cls=utils_json.AirflowJsonEncoder) == '"2017-05-21"'
-
-    @pytest.mark.parametrize(
-        "expr, expected",
-        [("1", "1"), ("52e4", "520000"), ("2e0", "2"), ("12e-2", "0.12"), ("12.34", "12.34")],
-    )
-    def test_encode_decimal(self, expr, expected):
-        assert json.dumps(decimal.Decimal(expr), cls=utils_json.AirflowJsonEncoder) == expected
+        assert json.dumps(date(2017, 5, 21), cls=utils_json.WebEncoder) == '"2017-05-21"'
 
     def test_encode_numpy_int(self):
-        assert json.dumps(np.int32(5), cls=utils_json.AirflowJsonEncoder) == '5'
+        assert json.dumps(np.int32(5), cls=utils_json.WebEncoder) == "5"
 
     def test_encode_numpy_bool(self):
-        assert json.dumps(np.bool_(True), cls=utils_json.AirflowJsonEncoder) == 'true'
+        assert json.dumps(np.bool_(True), cls=utils_json.WebEncoder) == "true"
 
     def test_encode_numpy_float(self):
-        assert json.dumps(np.float16(3.76953125), cls=utils_json.AirflowJsonEncoder) == '3.76953125'
+        assert json.dumps(np.float16(3.76953125), cls=utils_json.WebEncoder) == "3.76953125"
 
-    def test_encode_k8s_v1pod(self):
-        from kubernetes.client import models as k8s
 
-        pod = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(
-                name="foo",
-                namespace="bar",
-            ),
-            spec=k8s.V1PodSpec(
-                containers=[
-                    k8s.V1Container(
-                        name="foo",
-                        image="bar",
-                    )
-                ]
-            ),
-        )
-        assert json.loads(json.dumps(pod, cls=utils_json.AirflowJsonEncoder)) == {
-            "metadata": {"name": "foo", "namespace": "bar"},
-            "spec": {"containers": [{"image": "bar", "name": "foo"}]},
-        }
-
+class TestXComEncoder:
     def test_encode_raises(self):
         with pytest.raises(TypeError, match="^.*is not JSON serializable$"):
             json.dumps(
                 Exception,
-                cls=utils_json.AirflowJsonEncoder,
+                cls=utils_json.XComEncoder,
             )
+
+    def test_encode_xcom_dataset(self):
+        dataset = Dataset("mytest://dataset")
+        s = json.dumps(dataset, cls=utils_json.XComEncoder)
+        obj = json.loads(s, cls=utils_json.XComDecoder)
+        assert dataset.uri == obj.uri
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            ({"foo": 1, "bar": 2},),
+            ({"foo": 1, "bar": 2, "baz": Z(1)},),
+            (
+                {"foo": 1, "bar": 2},
+                {"foo": 1, "bar": 2, "baz": Z(1)},
+            ),
+            ({"d1": {"d2": 3}},),
+            ({"d1": {"d2": Z(1)}},),
+            ({"d1": {"d2": {"d3": 4}}},),
+            ({"d1": {"d2": {"d3": Z(1)}}},),
+        ],
+    )
+    def test_encode_xcom_with_nested_dict(self, data):
+        i = json.dumps(data, cls=utils_json.XComEncoder)
+        e = json.loads(i, cls=utils_json.XComDecoder)
+        assert data == e
+
+    def test_orm_deserialize(self):
+        x = 14
+        u = U(x=x)
+        s = json.dumps(u, cls=utils_json.XComEncoder)
+        o = json.loads(s, cls=utils_json.XComDecoder, object_hook=utils_json.XComDecoder.orm_object_hook)
+        assert o == f"{U.__module__}.{U.__qualname__}@version={U.__version__}(x={x})"
+
+    def test_collections(self):
+        i = [1, 2]
+        e = json.loads(json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder)
+        assert i == e
+
+        i = ("a", "b", "a", "c")
+        e = json.loads(json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder)
+        assert i == e
+
+        i = {2, 3}
+        e = json.loads(json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder)
+        assert i == e
+
+        i = frozenset({6, 7})
+        e = json.loads(json.dumps(i, cls=utils_json.XComEncoder), cls=utils_json.XComDecoder)
+        assert i == e

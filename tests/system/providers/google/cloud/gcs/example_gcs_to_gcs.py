@@ -43,12 +43,12 @@ DAG_ID = "gcs_to_gcs"
 
 BUCKET_NAME_SRC = f"bucket_{DAG_ID}_{ENV_ID}"
 BUCKET_NAME_DST = f"bucket_dst_{DAG_ID}_{ENV_ID}"
-RANDOM_FILE_NAME = OBJECT_1 = OBJECT_2 = "random.bin"
+RANDOM_FILE_NAME = OBJECT_1 = OBJECT_2 = "/tmp/random.bin"
 
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["gcs", "example"],
@@ -169,7 +169,7 @@ with models.DAG(
         source_object="data/",
         destination_bucket=BUCKET_NAME_DST,
         destination_object="backup/",
-        delimiter='.txt',
+        delimiter=".txt",
     )
     # [END howto_operator_gcs_to_gcs_delimiter]
 
@@ -213,6 +213,7 @@ with models.DAG(
 
     chain(
         # TEST SETUP
+        generate_random_file,
         [create_bucket_src, create_bucket_dst],
         [upload_file_src, upload_file_src_sub],
         [upload_file_dst, upload_file_dst_sub],

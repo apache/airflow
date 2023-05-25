@@ -43,7 +43,7 @@ def _provider_mapper(provider: ProviderInfo) -> Provider:
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_PROVIDER)])
 def get_providers() -> APIResponse:
-    """Get providers"""
+    """Get providers."""
     providers = [_provider_mapper(d) for d in ProvidersManager().providers.values()]
     total_entries = len(providers)
     return provider_collection_schema.dump(

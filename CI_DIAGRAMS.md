@@ -42,9 +42,15 @@ sequenceDiagram
     and
         Note over Tests: OpenAPI client gen
     and
-        Note over Tests: Test UI
+        Note over Tests: React WWW tests
     and
         Note over Tests: Test examples<br>PROD image building
+    and
+        Note over Tests: Test git clone on Windows
+    and
+        opt
+            Note over Tests: Run basic <br>static checks
+        end
     end
     Build Images ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
     loop Wait for CI images
@@ -56,29 +62,52 @@ sequenceDiagram
         Note over Build Images: Build PROD Images<br>[COMMIT_SHA]
     and
         opt
+            GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
             Note over Tests: Run static checks
         end
     and
         opt
-            Note over Tests: Run basic <br>static checks
-        end
-    and
-        opt
+            GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
             Note over Tests: Build docs
         end
     and
         opt
-            Note over Tests: Tests
+            GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+            Note over Tests: Test Pytest collection<br>[COMMIT_SHA]
+            par
+                opt
+                    GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+                    Note over Tests: Unit Tests<br>Python/DB matrix
+                end
+            and
+                opt
+                     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+                     Note over Tests: Integration Tests
+                end
+            and
+                opt
+                     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+                     Note over Tests: Quarantined Tests
+                end
+            end
         end
     and
         opt
-            Note over Tests: Test provider <br>packages build
+             GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+             Note over Tests: Test provider <br>packages build
         end
     and
         opt
-            Note over Tests: Helm tests
+             GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+             Note over Tests: Test airflow <br>packages build
+        end
+    and
+        opt
+             GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+             Note over Tests: Helm tests
         end
     end
+    Note over Tests: Summarize Warnings
     Build Images ->> GitHub Registry: Push PROD Images<br>[COMMIT_SHA]
     deactivate Build Images
     loop Wait for PROD images
@@ -87,16 +116,20 @@ sequenceDiagram
     Note over Tests: Verify PROD Image<br>[COMMIT_SHA]
     par
         opt
-            Note over Tests: Run Kubernetes<br>tests
+            GitHub Registry ->> Tests: Pull PROD Images<br>[COMMIT_SHA]
+            Note over Tests: Run Kubernetes <br>tests
         end
     and
         opt
-            Note over Tests: Run Kubernetes<br>upgrade tests
+            GitHub Registry ->> Tests: Pull PROD Images<br>[COMMIT_SHA]
+            Note over Tests: Run docker-compose <br>tests
         end
     end
     opt
+        GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
         Note over Tests: Generate constraints
     end
+    Note over Tests: Build ARM CI images
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
     deactivate Tests
@@ -127,6 +160,12 @@ sequenceDiagram
         Note over Tests: Test UI
     and
         Note over Tests: Test examples<br>PROD image building
+    and
+        Note over Tests: Test git clone on Windows
+    and
+        opt
+            Note over Tests: Run basic <br>static checks
+        end
     end
     Tests ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
@@ -135,44 +174,71 @@ sequenceDiagram
         Note over Tests: Build PROD Images<br>[COMMIT_SHA]
     and
         opt
+            GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
             Note over Tests: Run static checks
         end
     and
         opt
-            Note over Tests: Run basic <br>static checks
-        end
-    and
-        opt
+            GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
             Note over Tests: Build docs
         end
     and
         opt
-            Note over Tests: Tests
+            GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+            Note over Tests: Test Pytest collection<br>[COMMIT_SHA]
+            par
+                opt
+                    GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+                    Note over Tests: Unit Tests<br>Python/DB matrix
+                end
+            and
+                opt
+                     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+                     Note over Tests: Integration Tests
+                end
+            and
+                opt
+                     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+                     Note over Tests: Quarantined Tests
+                end
+            end
         end
     and
         opt
-            Note over Tests: Test provider <br>packages build
+             GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+             Note over Tests: Test provider <br>packages build
         end
     and
         opt
-            Note over Tests: Helm tests
+             GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+             Note over Tests: Test airflow <br>packages build
+        end
+    and
+        opt
+             GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+             Note over Tests: Helm tests
         end
     end
+    Note over Tests: Summarize Warnings
     Tests ->> GitHub Registry: Push PROD Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull PROD Image<br>[COMIT_SHA]
     Note over Tests: Verify PROD Image<br>[COMMIT_SHA]
     par
         opt
+            GitHub Registry ->> Tests: Pull PROD Images<br>[COMMIT_SHA]
             Note over Tests: Run Kubernetes <br>tests
         end
     and
         opt
-            Note over Tests: Run Kubernetes <br>upgrade tests
+            GitHub Registry ->> Tests: Pull PROD Images<br>[COMMIT_SHA]
+            Note over Tests: Run docker-compose <br>tests
         end
     end
     opt
+        GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
         Note over Tests: Generate constraints
     end
+    Note over Tests: Build ARM CI images
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
     deactivate Tests
@@ -191,15 +257,17 @@ sequenceDiagram
     par
         Note over Tests: Build CI Images<br>[COMMIT_SHA]<br>Always upgrade deps
     and
+        Note over Tests: Check that image builds quickly
+    and
+        Note over Tests: Push early cache and images
+    and
         Note over Tests: OpenAPI client gen
     and
-        Note over Tests: Test UI
+        Note over Tests: React WWW tests
     and
         Note over Tests: Test examples<br>PROD image building
     and
-        Note over Tests: Build CI Images<br>Use original constraints
-        Tests ->> GitHub Registry: Push CI Image Early cache + latest
-        Note over Tests: Test 'breeze' image build quickly
+        Note over Tests: Test git clone on Windows
     end
     Tests ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
@@ -207,52 +275,58 @@ sequenceDiagram
     par
         Note over Tests: Build PROD Images<br>[COMMIT_SHA]
     and
-        opt
-            Note over Tests: Run static checks
+        GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+        Note over Tests: Run static checks
+    and
+        GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+        Note over Tests: Build docs
+    and
+        GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+        Note over Tests: Test Pytest collection<br>[COMMIT_SHA]
+        par
+            GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+            Note over Tests: Unit Tests<br>Python/DB matrix
+        and
+            GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+            Note over Tests: Integration Tests
+        and
+           GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+           Note over Tests: Quarantined Tests
         end
     and
         opt
-            Note over Tests: Run basic <br>static checks
+           GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+           Note over Tests: Test provider <br>packages build
         end
     and
-        opt
-            Note over Tests: Build docs
-        end
+        GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+        Note over Tests: Test airflow <br>packages build
     and
         opt
-            Note over Tests: Tests
-        end
-    and
-        opt
-            Note over Tests: Test provider <br>packages build
-        end
-    and
-        opt
-            Note over Tests: Helm tests
+             GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+             Note over Tests: Helm tests
         end
     end
+    Note over Tests: Summarize Warnings
     Tests ->> GitHub Registry: Push PROD Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull PROD Image<br>[COMMIT_SHA]
     Note over Tests: Verify PROD Image<br>[COMMIT_SHA]
     par
-        opt
-            Note over Tests: Run Kubernetes <br>tests
-        end
+        GitHub Registry ->> Tests: Pull PROD Image<br>[COMMIT_SHA]
+        Note over Tests: Run Kubernetes <br>tests
     and
-        opt
-            Note over Tests: Run Kubernetes <br>upgrade tests
-        end
+        GitHub Registry ->> Tests: Pull PROD Image<br>[COMMIT_SHA]
+        Note over Tests: Run docker-compose <br>tests
     end
+    GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
     Note over Tests: Generate constraints
-    opt In merge run?
-        Tests ->> Airflow Repo: Push constraints if changed
-    end
-    opt In merge run?
-        Note over Tests: Build CI Images<br>[latest]<br>Use latest constraints
-        Tests ->> GitHub Registry: Push CI Image<br>[latest]
-        Note over Tests: Build PROD Images<br>[latest]<br>Use latest constraints
-        Tests ->> GitHub Registry: Push PROD Image<br>[latest]
-    end
+    Tests ->> Airflow Repo: Push constraints if changed
+    Note over Tests: Build CI Images<br>[latest]<br>Use latest constraints
+    Tests ->> GitHub Registry: Push CI Image<br>[latest]
+    Note over Tests: Build PROD Images<br>[latest]<br>Use latest constraints
+    Tests ->> GitHub Registry: Push PROD Image<br>[latest]
+    Note over Tests: Build ARM CI images
+    Tests ->> GitHub Registry: Push ARM CI Image cache
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
     deactivate Tests
@@ -274,13 +348,11 @@ sequenceDiagram
     and
         Note over Tests: OpenAPI client gen
     and
-        Note over Tests: Test UI
+        Note over Tests: React WWW tests
     and
         Note over Tests: Test examples<br>PROD image building
     and
         Note over Tests: Build CI Images<br>Use original constraints
-        Tests ->> GitHub Registry: Push CI Image Early cache + latest
-        Note over Tests: Test 'breeze' image build quickly
     end
     Tests ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
@@ -289,48 +361,54 @@ sequenceDiagram
         GitHub Registry ->> Tests: Pull PROD Images<br>[latest]
         Note over Tests: Build PROD Images<br>[COMMIT_SHA]
     and
-        opt
-            Note over Tests: Run static checks
+        GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+        Note over Tests: Run static checks
+    and
+        GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+        Note over Tests: Build docs
+    and
+        GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+        Note over Tests: Test Pytest collection<br>[COMMIT_SHA]
+        par
+            GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+            Note over Tests: Unit Tests<br>Python/DB matrix
+        and
+            GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+            Note over Tests: Integration Tests
+        and
+           GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+           Note over Tests: Quarantined Tests
         end
     and
-        opt
-            Note over Tests: Run basic <br>static checks
-        end
+        GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+        Note over Tests: Test provider <br>packages build
     and
-        opt
-            Note over Tests: Build docs
-        end
+        GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+        Note over Tests: Test airflow <br>packages build
     and
-        opt
-            Note over Tests: Tests
-        end
-    and
-        opt
-            Note over Tests: Test provider <br>packages build
-        end
-    and
-        opt
-            Note over Tests: Helm tests
-        end
+        GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+        Note over Tests: Helm tests
     end
+    Note over Tests: Summarize Warnings
     Tests ->> GitHub Registry: Push PROD Images<br>[COMMIT_SHA]
     GitHub Registry ->> Tests: Pull PROD Image<br>[COMMIT_SHA]
     Note over Tests: Verify PROD Image<br>[COMMIT_SHA]
     par
-        opt
-            Note over Tests: Run Kubernetes <br>tests
-        end
+        GitHub Registry ->> Tests: Pull PROD Image<br>[COMMIT_SHA]
+        Note over Tests: Run Kubernetes <br>tests
     and
-        opt
-            Note over Tests: Run Kubernetes <br>upgrade tests
-        end
+        GitHub Registry ->> Tests: Pull PROD Image<br>[COMMIT_SHA]
+        Note over Tests: Run docker-compose <br>tests
     end
+    GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
     Note over Tests: Generate constraints
     Tests ->> Airflow Repo: Push constraints if changed
     Note over Tests: Build CI Images<br>[latest]<br>Use latest constraints
     Tests ->> GitHub Registry: Push CI Image cache + latest
     Note over Tests: Build PROD Images<br>[latest]<br>Use latest constraints
     Tests ->> GitHub Registry: Push PROD Image cache + latest
+    Note over Tests: Build ARM CI images
+    Tests ->> GitHub Registry: Push ARM CI Image cache
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
     deactivate Tests

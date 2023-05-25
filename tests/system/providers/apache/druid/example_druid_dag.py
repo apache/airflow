@@ -34,10 +34,10 @@ with DAG(
     schedule=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_operator_druid_submit]
-    submit_job = DruidOperator(task_id='spark_submit_job', json_index_file='json_index.json')
+    submit_job = DruidOperator(task_id="spark_submit_job", json_index_file="json_index.json")
     # Example content of json_index.json:
     JSON_INDEX_STR = """
         {

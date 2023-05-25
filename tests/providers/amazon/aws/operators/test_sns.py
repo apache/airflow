@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.amazon.aws.operators.sns import SnsPublishOperator
@@ -30,7 +29,7 @@ SUBJECT = "Subject to send"
 MESSAGE_ATTRIBUTES = {"test-attribute": "Attribute to send"}
 
 
-class TestSnsPublishOperator(unittest.TestCase):
+class TestSnsPublishOperator:
     def test_init(self):
         # Given / When
         operator = SnsPublishOperator(
@@ -50,10 +49,10 @@ class TestSnsPublishOperator(unittest.TestCase):
         assert SUBJECT == operator.subject
         assert MESSAGE_ATTRIBUTES == operator.message_attributes
 
-    @mock.patch('airflow.providers.amazon.aws.operators.sns.SnsHook')
+    @mock.patch("airflow.providers.amazon.aws.operators.sns.SnsHook")
     def test_execute(self, mock_hook):
         # Given
-        hook_response = {'MessageId': 'foobar'}
+        hook_response = {"MessageId": "foobar"}
 
         hook_instance = mock_hook.return_value
         hook_instance.publish_to_target.return_value = hook_response

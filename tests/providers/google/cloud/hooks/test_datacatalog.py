@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 from copy import deepcopy
 from typing import Sequence
-from unittest import TestCase, mock
+from unittest import mock
 
 import pytest
 from google.api_core.gapic_v1.method import _MethodDefault
@@ -35,7 +35,6 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 )
 
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
-TEST_DELEGATE_TO: str = "test-delegate-to"
 TEST_LOCATION: str = "europe-west-3b"
 TEST_ENTRY_ID: str = "test-entry-id"
 TEST_ENTRY: dict = {}
@@ -82,10 +81,12 @@ TEST_PROJECT_ID_2 = "example-project-2"
 TEST_CREDENTIALS = mock.MagicMock()
 
 
-class TestCloudDataCatalog(TestCase):
-    def setUp(
-        self,
-    ) -> None:
+class TestCloudDataCatalog:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudDataCatalogHook(gcp_conn_id="test", delegate_to="delegate_to")
+
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -163,10 +164,8 @@ class TestCloudDataCatalog(TestCase):
         )
 
 
-class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
-    def setUp(
-        self,
-    ) -> None:
+class TestCloudDataCatalogWithDefaultProjectIdHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -694,10 +693,8 @@ class TestCloudDataCatalogWithDefaultProjectIdHook(TestCase):
         )
 
 
-class TestCloudDataCatalogWithoutDefaultProjectIdHook(TestCase):
-    def setUp(
-        self,
-    ) -> None:
+class TestCloudDataCatalogWithoutDefaultProjectIdHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
@@ -1232,10 +1229,8 @@ TEST_MESSAGE = re.escape(
 )
 
 
-class TestCloudDataCatalogMissingProjectIdHook(TestCase):
-    def setUp(
-        self,
-    ) -> None:
+class TestCloudDataCatalogMissingProjectIdHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.datacatalog.CloudDataCatalogHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,

@@ -25,31 +25,32 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 def _get_message_attribute(o):
     if isinstance(o, bytes):
-        return {'DataType': 'Binary', 'BinaryValue': o}
+        return {"DataType": "Binary", "BinaryValue": o}
     if isinstance(o, str):
-        return {'DataType': 'String', 'StringValue': o}
+        return {"DataType": "String", "StringValue": o}
     if isinstance(o, (int, float)):
-        return {'DataType': 'Number', 'StringValue': str(o)}
-    if hasattr(o, '__iter__'):
-        return {'DataType': 'String.Array', 'StringValue': json.dumps(o)}
+        return {"DataType": "Number", "StringValue": str(o)}
+    if hasattr(o, "__iter__"):
+        return {"DataType": "String.Array", "StringValue": json.dumps(o)}
     raise TypeError(
-        f'Values in MessageAttributes must be one of bytes, str, int, float, or iterable; got {type(o)}'
+        f"Values in MessageAttributes must be one of bytes, str, int, float, or iterable; got {type(o)}"
     )
 
 
 class SnsHook(AwsBaseHook):
     """
     Interact with Amazon Simple Notification Service.
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("sns") <SNS.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(client_type='sns', *args, **kwargs)
+        super().__init__(client_type="sns", *args, **kwargs)
 
     def publish_to_target(
         self,
@@ -59,7 +60,10 @@ class SnsHook(AwsBaseHook):
         message_attributes: dict | None = None,
     ):
         """
-        Publish a message to a topic or an endpoint.
+        Publish a message to a SNS topic or an endpoint.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SNS.Client.publish`
 
         :param target_arn: either a TopicArn or an EndpointArn
         :param message: the default message you want to send
@@ -75,16 +79,16 @@ class SnsHook(AwsBaseHook):
 
         """
         publish_kwargs: dict[str, str | dict] = {
-            'TargetArn': target_arn,
-            'MessageStructure': 'json',
-            'Message': json.dumps({'default': message}),
+            "TargetArn": target_arn,
+            "MessageStructure": "json",
+            "Message": json.dumps({"default": message}),
         }
 
         # Construct args this way because boto3 distinguishes from missing args and those set to None
         if subject:
-            publish_kwargs['Subject'] = subject
+            publish_kwargs["Subject"] = subject
         if message_attributes:
-            publish_kwargs['MessageAttributes'] = {
+            publish_kwargs["MessageAttributes"] = {
                 key: _get_message_attribute(val) for key, val in message_attributes.items()
             }
 

@@ -25,9 +25,9 @@ from airflow.operators.bash import BashOperator
 DEFAULT_DATE = datetime(2016, 1, 1)
 
 args = {
-    'owner': 'airflow',
-    'start_date': DEFAULT_DATE,
+    "owner": "airflow",
+    "start_date": DEFAULT_DATE,
 }
 
-dag = DAG(dag_id='test_heartbeat_failed_fast', default_args=args)
-task = BashOperator(task_id='test_heartbeat_failed_fast_op', bash_command='sleep 7', dag=dag)
+dag = DAG(dag_id="test_heartbeat_failed_fast", default_args=args)
+task = BashOperator(task_id="test_heartbeat_failed_fast_op", bash_command="sleep 7", dag=dag)

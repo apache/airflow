@@ -36,7 +36,7 @@ def get_theme() -> Theme:
     try:
         from airflow_breeze.utils.cache import read_from_cache_file
 
-        if read_from_cache_file('suppress_colour') is not None:
+        if read_from_cache_file("suppress_colour") is not None:
             return Theme(
                 {
                     "success": "bold italic",
@@ -81,6 +81,10 @@ class Output(NamedTuple):
     def file(self) -> TextIO:
         return open(self.file_name, "a+t")
 
+    @property
+    def escaped_title(self) -> str:
+        return self.title.replace("[", "\\[")
+
 
 @lru_cache(maxsize=None)
 def get_console(output: Output | None = None) -> Console:
@@ -105,3 +109,7 @@ def get_stderr_console(output: Output | None = None) -> Console:
         theme=get_theme(),
         record=True if recording_file else False,
     )
+
+
+def console_print(*message) -> None:
+    return get_console().print(*message)

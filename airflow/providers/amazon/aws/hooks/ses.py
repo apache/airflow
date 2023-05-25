@@ -26,16 +26,17 @@ from airflow.utils.email import build_mime_message
 class SesHook(AwsBaseHook):
     """
     Interact with Amazon Simple Email Service.
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("ses") <SES.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self, *args, **kwargs) -> None:
-        kwargs['client_type'] = 'ses'
+        kwargs["client_type"] = "ses"
         super().__init__(*args, **kwargs)
 
     def send_email(
@@ -47,14 +48,17 @@ class SesHook(AwsBaseHook):
         files: list[str] | None = None,
         cc: str | Iterable[str] | None = None,
         bcc: str | Iterable[str] | None = None,
-        mime_subtype: str = 'mixed',
-        mime_charset: str = 'utf-8',
+        mime_subtype: str = "mixed",
+        mime_charset: str = "utf-8",
         reply_to: str | None = None,
         return_path: str | None = None,
         custom_headers: dict[str, Any] | None = None,
     ) -> dict:
         """
         Send email using Amazon Simple Email Service
+
+        .. seealso::
+            - :external+boto3:py:meth:`SES.Client.send_raw_email`
 
         :param mail_from: Email address to set as email's from
         :param to: List of email addresses to set as email's to
@@ -77,9 +81,9 @@ class SesHook(AwsBaseHook):
 
         custom_headers = custom_headers or {}
         if reply_to:
-            custom_headers['Reply-To'] = reply_to
+            custom_headers["Reply-To"] = reply_to
         if return_path:
-            custom_headers['Return-Path'] = return_path
+            custom_headers["Return-Path"] = return_path
 
         message, recipients = build_mime_message(
             mail_from=mail_from,
@@ -95,5 +99,5 @@ class SesHook(AwsBaseHook):
         )
 
         return ses_client.send_raw_email(
-            Source=mail_from, Destinations=recipients, RawMessage={'Data': message.as_string()}
+            Source=mail_from, Destinations=recipients, RawMessage={"Data": message.as_string()}
         )

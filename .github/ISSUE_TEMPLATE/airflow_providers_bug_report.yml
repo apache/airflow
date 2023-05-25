@@ -1,7 +1,7 @@
 ---
 name: Airflow Providers Bug report
 description: Problems and issues with code in Apache Airflow Providers
-labels: ["kind:bug", "area:providers"]
+labels: ["kind:bug", "area:providers", "needs-triage"]
 body:
   - type: markdown
     attributes:
@@ -30,8 +30,11 @@ body:
         - apache-cassandra
         - apache-drill
         - apache-druid
+        - apache-flink
         - apache-hdfs
         - apache-hive
+        - apache-impala
+        - apache-kafka
         - apache-kylin
         - apache-livy
         - apache-pig
@@ -64,6 +67,7 @@ body:
         - influxdb
         - jdbc
         - jenkins
+        - apache-kafka
         - microsoft-azure
         - microsoft-mssql
         - microsoft-psrp
@@ -73,6 +77,7 @@ body:
         - neo4j
         - odbc
         - openfaas
+        - openlineage
         - opsgenie
         - oracle
         - pagerduty
@@ -89,6 +94,7 @@ body:
         - sftp
         - singularity
         - slack
+        - smtp
         - snowflake
         - sqlite
         - ssh
@@ -135,8 +141,9 @@ body:
         - "Other Docker-based deployment"
         - "Virtualenv installation"
         - "Astronomer"
-        - "Composer"
-        - "MWAA"
+        - "Google Cloud Composer"
+        - "Amazon (AWS) MWAA"
+        - "Microsoft ADF Managed Airflow"
         - "Other"
     validations:
       required: true
@@ -173,6 +180,8 @@ body:
         as minimally and precisely as possible. Keep in mind we do not have access to your cluster or
         DAGs. Remember that non-reproducible issues will be closed! Opening a discussion is
         recommended as a first step.
+    validations:
+      required: true
   - type: textarea
     attributes:
       label: Anything else
@@ -189,7 +198,7 @@ body:
         This is absolutely not required, but we are happy to guide you in the contribution process
         especially if you already have a good understanding of how to implement the fix.
         Airflow is a community-managed project and we love to bring new contributors in.
-        Find us in #airflow-how-to-pr on Slack!
+        Find us in #development-first-pr-support on Slack!
       options:
         - label: Yes I am willing to submit a PR!
   - type: checkboxes

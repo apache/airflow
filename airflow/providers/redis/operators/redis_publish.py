@@ -35,9 +35,9 @@ class RedisPublishOperator(BaseOperator):
     :param redis_conn_id: redis connection to use
     """
 
-    template_fields: Sequence[str] = ('channel', 'message')
+    template_fields: Sequence[str] = ("channel", "message")
 
-    def __init__(self, *, channel: str, message: str, redis_conn_id: str = 'redis_default', **kwargs) -> None:
+    def __init__(self, *, channel: str, message: str, redis_conn_id: str = "redis_default", **kwargs) -> None:
 
         super().__init__(**kwargs)
         self.redis_conn_id = redis_conn_id
@@ -52,8 +52,8 @@ class RedisPublishOperator(BaseOperator):
         """
         redis_hook = RedisHook(redis_conn_id=self.redis_conn_id)
 
-        self.log.info('Sending message %s to Redis on channel %s', self.message, self.channel)
+        self.log.info("Sending message %s to Redis on channel %s", self.message, self.channel)
 
         result = redis_hook.get_conn().publish(channel=self.channel, message=self.message)
 
-        self.log.info('Result of publishing %s', result)
+        self.log.info("Result of publishing %s", result)

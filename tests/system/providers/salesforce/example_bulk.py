@@ -38,10 +38,10 @@ with DAG(
         operation="insert",
         object_name="Account",
         payload=[
-            {'Id': '000000000000000AAA', 'Name': 'account1'},
-            {'Name': 'account2'},
+            {"Id": "000000000000000AAA", "Name": "account1"},
+            {"Name": "account2"},
         ],
-        external_id_field='Id',
+        external_id_field="Id",
         batch_size=10000,
         use_serial=False,
     )
@@ -53,8 +53,8 @@ with DAG(
         operation="update",
         object_name="Account",
         payload=[
-            {'Id': '000000000000000AAA', 'Name': 'account1'},
-            {'Id': '000000000000000BBB', 'Name': 'account2'},
+            {"Id": "000000000000000AAA", "Name": "account1"},
+            {"Id": "000000000000000BBB", "Name": "account2"},
         ],
         batch_size=10000,
         use_serial=False,
@@ -67,10 +67,10 @@ with DAG(
         operation="upsert",
         object_name="Account",
         payload=[
-            {'Id': '000000000000000AAA', 'Name': 'account1'},
-            {'Name': 'account2'},
+            {"Id": "000000000000000AAA", "Name": "account1"},
+            {"Name": "account2"},
         ],
-        external_id_field='Id',
+        external_id_field="Id",
         batch_size=10000,
         use_serial=False,
     )
@@ -82,8 +82,8 @@ with DAG(
         operation="delete",
         object_name="Account",
         payload=[
-            {'Id': '000000000000000AAA'},
-            {'Id': '000000000000000BBB'},
+            {"Id": "000000000000000AAA"},
+            {"Id": "000000000000000BBB"},
         ],
         batch_size=10000,
         use_serial=False,

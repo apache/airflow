@@ -22,10 +22,13 @@ together when the DAG is displayed graphically.
 from __future__ import annotations
 
 import copy
+import functools
+import operator
 import re
 import weakref
-from typing import TYPE_CHECKING, Any, Generator, Sequence
+from typing import TYPE_CHECKING, Any, Generator, Iterator, Sequence
 
+from airflow.compat.functools import cache
 from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowException,
@@ -37,9 +40,13 @@ from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from airflow.models.abstractoperator import AbstractOperator
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.expandinput import ExpandInput
+    from airflow.models.operator import Operator
     from airflow.utils.edgemodifier import EdgeModifier
 
 
@@ -130,6 +137,7 @@ class TaskGroup(DAGNode):
         self._check_for_group_id_collisions(add_suffix_on_collision)
 
         self.children: dict[str, DAGNode] = {}
+
         if parent_group:
             parent_group.add(self)
 
@@ -157,16 +165,16 @@ class TaskGroup(DAGNode):
         if self._group_id in self.used_group_ids:
             if not add_suffix_on_collision:
                 raise DuplicateTaskIdFound(f"group_id '{self._group_id}' has already been added to the DAG")
-            base = re.split(r'__\d+$', self._group_id)[0]
+            base = re.split(r"__\d+$", self._group_id)[0]
             suffixes = sorted(
-                int(re.split(r'^.+__', used_group_id)[1])
+                int(re.split(r"^.+__", used_group_id)[1])
                 for used_group_id in self.used_group_ids
-                if used_group_id is not None and re.match(rf'^{base}__\d+$', used_group_id)
+                if used_group_id is not None and re.match(rf"^{base}__\d+$", used_group_id)
             )
             if not suffixes:
-                self._group_id += '__1'
+                self._group_id += "__1"
             else:
-                self._group_id = f'{base}__{suffixes[-1] + 1}'
+                self._group_id = f"{base}__{suffixes[-1] + 1}"
 
     @classmethod
     def create_root(cls, dag: DAG) -> TaskGroup:
@@ -179,7 +187,7 @@ class TaskGroup(DAGNode):
 
     @property
     def is_root(self) -> bool:
-        """Returns True if this TaskGroup is the root TaskGroup. Otherwise False"""
+        """Returns True if this TaskGroup is the root TaskGroup. Otherwise False."""
         return not self.group_id
 
     @property
@@ -209,7 +217,7 @@ class TaskGroup(DAGNode):
         key = task.node_id
 
         if key in self.children:
-            node_type = "Task" if hasattr(task, 'task_id') else "Task Group"
+            node_type = "Task" if hasattr(task, "task_id") else "Task Group"
             raise DuplicateTaskIdFound(f"{node_type} id '{key}' has already been added to the DAG")
 
         if isinstance(task, TaskGroup):
@@ -236,7 +244,8 @@ class TaskGroup(DAGNode):
     @property
     def group_id(self) -> str | None:
         """group_id of this TaskGroup."""
-        if self.task_group and self.task_group.prefix_group_id and self.task_group.group_id:
+        if self.task_group and self.task_group.prefix_group_id and self.task_group._group_id:
+            # defer to parent whether it adds a prefix
             return self.task_group.child_id(self._group_id)
 
         return self._group_id
@@ -246,7 +255,9 @@ class TaskGroup(DAGNode):
         """group_id excluding parent's group_id used as the node label in UI."""
         return self._group_id
 
-    def update_relative(self, other: DependencyMixin, upstream=True) -> None:
+    def update_relative(
+        self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
+    ) -> None:
         """
         Overrides TaskMixin.update_relative.
 
@@ -257,8 +268,12 @@ class TaskGroup(DAGNode):
             # Handles setting relationship between a TaskGroup and another TaskGroup
             if upstream:
                 parent, child = (self, other)
+                if edge_modifier:
+                    edge_modifier.add_edge_info(self.dag, other.downstream_join_id, self.upstream_join_id)
             else:
                 parent, child = (other, self)
+                if edge_modifier:
+                    edge_modifier.add_edge_info(self.dag, self.downstream_join_id, other.upstream_join_id)
 
             parent.upstream_group_ids.add(child.group_id)
             child.downstream_group_ids.add(parent.group_id)
@@ -271,10 +286,18 @@ class TaskGroup(DAGNode):
                         f"or operators; received {task.__class__.__name__}"
                     )
 
+                # Do not set a relationship between a TaskGroup and a Label's roots
+                if self == task:
+                    continue
+
                 if upstream:
                     self.upstream_task_ids.add(task.node_id)
+                    if edge_modifier:
+                        edge_modifier.add_edge_info(self.dag, task.node_id, self.upstream_join_id)
                 else:
                     self.downstream_task_ids.add(task.node_id)
+                    if edge_modifier:
+                        edge_modifier.add_edge_info(self.dag, self.downstream_join_id, task.node_id)
 
     def _set_relatives(
         self,
@@ -290,7 +313,7 @@ class TaskGroup(DAGNode):
             task_or_task_list = [task_or_task_list]
 
         for task_like in task_or_task_list:
-            self.update_relative(task_like, upstream)
+            self.update_relative(task_like, upstream, edge_modifier=edge_modifier)
 
         if upstream:
             for task in self.get_roots():
@@ -315,12 +338,12 @@ class TaskGroup(DAGNode):
 
     @property
     def roots(self) -> list[BaseOperator]:
-        """Required by TaskMixin"""
+        """Required by TaskMixin."""
         return list(self.get_roots())
 
     @property
     def leaves(self) -> list[BaseOperator]:
-        """Required by TaskMixin"""
+        """Required by TaskMixin."""
         return list(self.get_leaves())
 
     def get_roots(self) -> Generator[BaseOperator, None, None]:
@@ -335,7 +358,7 @@ class TaskGroup(DAGNode):
     def get_leaves(self) -> Generator[BaseOperator, None, None]:
         """
         Returns a generator of tasks that are leaf tasks, i.e. those with no downstream
-        dependencies within the TaskGroup
+        dependencies within the TaskGroup.
         """
         for task in self:
             if not any(self.has_task(child) for child in task.get_direct_relatives(upstream=False)):
@@ -346,15 +369,17 @@ class TaskGroup(DAGNode):
         Prefix label with group_id if prefix_group_id is True. Otherwise return the label
         as-is.
         """
-        if self.prefix_group_id and self.group_id:
-            return f"{self.group_id}.{label}"
+        if self.prefix_group_id:
+            group_id = self.group_id
+            if group_id:
+                return f"{group_id}.{label}"
 
         return label
 
     @property
     def upstream_join_id(self) -> str:
         """
-        If this TaskGroup has immediate upstream TaskGroups or tasks, a dummy node called
+        If this TaskGroup has immediate upstream TaskGroups or tasks, a proxy node called
         upstream_join_id will be created in Graph view to join the outgoing edges from this
         TaskGroup to reduce the total number of edges needed to be displayed.
         """
@@ -363,14 +388,14 @@ class TaskGroup(DAGNode):
     @property
     def downstream_join_id(self) -> str:
         """
-        If this TaskGroup has immediate downstream TaskGroups or tasks, a dummy node called
+        If this TaskGroup has immediate downstream TaskGroups or tasks, a proxy node called
         downstream_join_id will be created in Graph view to join the outgoing edges from this
         TaskGroup to reduce the total number of edges needed to be displayed.
         """
         return f"{self.group_id}.downstream_join_id"
 
     def get_task_group_dict(self) -> dict[str, TaskGroup]:
-        """Returns a flat dictionary of group_id: TaskGroup"""
+        """Returns a flat dictionary of group_id: TaskGroup."""
         task_group_map = {}
 
         def build_map(task_group):
@@ -386,14 +411,14 @@ class TaskGroup(DAGNode):
         return task_group_map
 
     def get_child_by_label(self, label: str) -> DAGNode:
-        """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)"""
+        """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)."""
         return self.children[self.child_id(label)]
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Required by DAGNode."""
-        from airflow.serialization.serialized_objects import SerializedTaskGroup
+        from airflow.serialization.serialized_objects import TaskGroupSerialization
 
-        return DagAttributeTypes.TASK_GROUP, SerializedTaskGroup.serialize_task_group(self)
+        return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
 
     def topological_sort(self, _include_subdag_tasks: bool = False):
         """
@@ -454,6 +479,39 @@ class TaskGroup(DAGNode):
 
         return graph_sorted
 
+    def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
+        """Return mapped task groups in the hierarchy.
+
+        Groups are returned from the closest to the outmost. If *self* is a
+        mapped task group, it is returned first.
+
+        :meta private:
+        """
+        group: TaskGroup | None = self
+        while group is not None:
+            if isinstance(group, MappedTaskGroup):
+                yield group
+            group = group.task_group
+
+    def iter_tasks(self) -> Iterator[AbstractOperator]:
+        """Returns an iterator of the child tasks."""
+        from airflow.models.abstractoperator import AbstractOperator
+
+        groups_to_visit = [self]
+
+        while groups_to_visit:
+            visiting = groups_to_visit.pop(0)
+
+            for child in visiting.children.values():
+                if isinstance(child, AbstractOperator):
+                    yield child
+                elif isinstance(child, TaskGroup):
+                    groups_to_visit.append(child)
+                else:
+                    raise ValueError(
+                        f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}"
+                    )
+
 
 class MappedTaskGroup(TaskGroup):
     """A mapped task group.
@@ -468,6 +526,57 @@ class MappedTaskGroup(TaskGroup):
     def __init__(self, *, expand_input: ExpandInput, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._expand_input = expand_input
+        for op, _ in expand_input.iter_references():
+            self.set_upstream(op)
+
+    def iter_mapped_dependencies(self) -> Iterator[Operator]:
+        """Upstream dependencies that provide XComs used by this mapped task group."""
+        from airflow.models.xcom_arg import XComArg
+
+        for op, _ in XComArg.iter_xcom_references(self._expand_input):
+            yield op
+
+    @cache
+    def get_parse_time_mapped_ti_count(self) -> int:
+        """Number of instances a task in this group should be mapped to, when a DAG run is created.
+
+        This only considers literal mapped arguments, and would return *None*
+        when any non-literal values are used for mapping.
+
+        If this group is inside mapped task groups, all the nested counts are
+        multiplied and accounted.
+
+        :meta private:
+
+        :raise NotFullyPopulated: If any non-literal mapped arguments are encountered.
+        :return: The total number of mapped instances each task should have.
+        """
+        return functools.reduce(
+            operator.mul,
+            (g._expand_input.get_parse_time_mapped_ti_count() for g in self.iter_mapped_task_groups()),
+        )
+
+    def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
+        """Number of instances a task in this group should be mapped to at run time.
+
+        This considers both literal and non-literal mapped arguments, and the
+        result is therefore available when all depended tasks have finished. The
+        return value should be identical to ``parse_time_mapped_ti_count`` if
+        all mapped arguments are literal.
+
+        If this group is inside mapped task groups, all the nested counts are
+        multiplied and accounted.
+
+        :meta private:
+
+        :raise NotFullyPopulated: If upstream tasks are not all complete yet.
+        :return: Total number of mapped TIs this task should have.
+        """
+        groups = self.iter_mapped_task_groups()
+        return functools.reduce(
+            operator.mul,
+            (g._expand_input.get_total_map_length(run_id, session=session) for g in groups),
+        )
 
 
 class TaskGroupContext:
@@ -516,16 +625,17 @@ def task_group_to_dict(task_item_or_group):
 
     if isinstance(task_item_or_group, AbstractOperator):
         return {
-            'id': task_item_or_group.task_id,
-            'value': {
-                'label': task_item_or_group.label,
-                'labelStyle': f"fill:{task_item_or_group.ui_fgcolor};",
-                'style': f"fill:{task_item_or_group.ui_color};",
-                'rx': 5,
-                'ry': 5,
+            "id": task_item_or_group.task_id,
+            "value": {
+                "label": task_item_or_group.label,
+                "labelStyle": f"fill:{task_item_or_group.ui_fgcolor};",
+                "style": f"fill:{task_item_or_group.ui_color};",
+                "rx": 5,
+                "ry": 5,
             },
         }
     task_group = task_item_or_group
+    is_mapped = isinstance(task_group, MappedTaskGroup)
     children = [
         task_group_to_dict(child) for child in sorted(task_group.children.values(), key=lambda t: t.label)
     ]
@@ -533,12 +643,12 @@ def task_group_to_dict(task_item_or_group):
     if task_group.upstream_group_ids or task_group.upstream_task_ids:
         children.append(
             {
-                'id': task_group.upstream_join_id,
-                'value': {
-                    'label': '',
-                    'labelStyle': f"fill:{task_group.ui_fgcolor};",
-                    'style': f"fill:{task_group.ui_color};",
-                    'shape': 'circle',
+                "id": task_group.upstream_join_id,
+                "value": {
+                    "label": "",
+                    "labelStyle": f"fill:{task_group.ui_fgcolor};",
+                    "style": f"fill:{task_group.ui_color};",
+                    "shape": "circle",
                 },
             }
         )
@@ -547,26 +657,27 @@ def task_group_to_dict(task_item_or_group):
         # This is the join node used to reduce the number of edges between two TaskGroup.
         children.append(
             {
-                'id': task_group.downstream_join_id,
-                'value': {
-                    'label': '',
-                    'labelStyle': f"fill:{task_group.ui_fgcolor};",
-                    'style': f"fill:{task_group.ui_color};",
-                    'shape': 'circle',
+                "id": task_group.downstream_join_id,
+                "value": {
+                    "label": "",
+                    "labelStyle": f"fill:{task_group.ui_fgcolor};",
+                    "style": f"fill:{task_group.ui_color};",
+                    "shape": "circle",
                 },
             }
         )
 
     return {
         "id": task_group.group_id,
-        'value': {
-            'label': task_group.label,
-            'labelStyle': f"fill:{task_group.ui_fgcolor};",
-            'style': f"fill:{task_group.ui_color}",
-            'rx': 5,
-            'ry': 5,
-            'clusterLabelPos': 'top',
-            'tooltip': task_group.tooltip,
+        "value": {
+            "label": task_group.label,
+            "labelStyle": f"fill:{task_group.ui_fgcolor};",
+            "style": f"fill:{task_group.ui_color}",
+            "rx": 5,
+            "ry": 5,
+            "clusterLabelPos": "top",
+            "tooltip": task_group.tooltip,
+            "isMapped": is_mapped,
         },
-        'children': children,
+        "children": children,
     }

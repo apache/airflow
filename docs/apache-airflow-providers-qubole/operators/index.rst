@@ -29,4 +29,4 @@ Qubole Operators
 
 .. note::
     You can learn how to use Google Cloud integrations by analyzing the
-    `source code <https://github.com/apache/airflow/tree/providers-qubole/3.0.0/tests/system/providers/qubole/>`_ of the particular example DAGs.
+    `source code <https://github.com/apache/airflow/tree/providers-qubole/|version|/tests/system/providers/qubole/>`_ of the particular example DAGs.

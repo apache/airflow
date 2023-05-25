@@ -20,11 +20,11 @@ import datetime
 
 from airflow import DAG
 
-with DAG(dag_id='test_mapped_taskflow', start_date=datetime.datetime(2022, 1, 1)) as dag:
+with DAG(dag_id="test_mapped_taskflow", start_date=datetime.datetime(2022, 1, 1)) as dag:
 
     @dag.task
     def make_list():
-        return [1, 2, {'a': 'b'}]
+        return [1, 2, {"a": "b"}]
 
     @dag.task
     def consumer(value):

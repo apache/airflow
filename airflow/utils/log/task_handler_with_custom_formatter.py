@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Custom logging formatter for Airflow"""
+"""Custom logging formatter for Airflow."""
 from __future__ import annotations
 
 import logging
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 
 class TaskHandlerWithCustomFormatter(logging.StreamHandler):
-    """Custom implementation of StreamHandler, a class which writes logging records for Airflow"""
+    """Custom implementation of StreamHandler, a class which writes logging records for Airflow."""
 
     prefix_jinja_template: Template | None = None
 
@@ -43,7 +43,7 @@ class TaskHandlerWithCustomFormatter(logging.StreamHandler):
         """
         if ti.raw or self.formatter is None:
             return
-        prefix = conf.get('logging', 'task_log_prefix_template')
+        prefix = conf.get("logging", "task_log_prefix_template")
 
         if prefix:
             _, self.prefix_jinja_template = parse_template_string(prefix)

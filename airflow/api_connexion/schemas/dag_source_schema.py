@@ -20,7 +20,7 @@ from marshmallow import Schema, fields
 
 
 class DagSourceSchema(Schema):
-    """Dag Source schema"""
+    """Dag Source schema."""
 
     content = fields.String(dump_only=True)
 

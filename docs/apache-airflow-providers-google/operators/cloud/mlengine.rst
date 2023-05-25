@@ -40,11 +40,19 @@ This creates a virtual machine that can run code specified in the trainer file, 
 contains the main application code. A job can be initiated with the
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineStartTrainingJobOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_training]
     :end-before: [END howto_operator_gcp_mlengine_training]
+
+Also for all this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine_async.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcp_mlengine_training_async]
+    :end-before: [END howto_operator_gcp_mlengine_training_async]
 
 .. _howto/operator:MLEngineCreateModelOperator:
 
@@ -55,7 +63,7 @@ A model is a container that can hold multiple model versions. A new model can be
 The ``model`` field should be defined with a dictionary containing the information about the model.
 ``name`` is a required field in this dictionary.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_create_model]
@@ -69,7 +77,7 @@ The :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineGetModelO
 can be used to obtain a model previously created. To obtain the correct model, ``model_name``
 must be defined in the operator.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_get_model]
@@ -80,7 +88,7 @@ fields to dynamically determine their values. The result are saved to :ref:`XCom
 allowing them to be used by other operators. In this case, the
 :class:`~airflow.operators.bash.BashOperator` is used to print the model information.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_print_model]
@@ -96,7 +104,7 @@ The model must be specified by ``model_name``, and the ``version`` parameter sho
 all the information about the version. Within the ``version`` parameter's dictionary, the ``name`` field is
 required.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_create_version1]
@@ -105,7 +113,7 @@ required.
 The :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineCreateVersionOperator`
 can also be used to create more versions with varying parameters.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_create_version2]
@@ -120,7 +128,7 @@ By default, the model code will run using the default model version. You can set
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineSetDefaultVersionOperator`
 by specifying the ``model_name`` and ``version_name`` parameters.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_default_version]
@@ -130,7 +138,7 @@ To list the model versions available, use the
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineListVersionsOperator`
 while specifying the ``model_name`` parameter.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_list_versions]
@@ -141,7 +149,7 @@ fields to dynamically determine their values. The result are saved to :ref:`XCom
 allowing them to be used by other operators. In this case, the
 :class:`~airflow.operators.bash.BashOperator` is used to print the version information.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_print_versions]
@@ -156,7 +164,7 @@ A Google Cloud AI Platform prediction job can be started with the
 For specifying the model origin, you need to provide either the ``model_name``, ``uri``, or ``model_name`` and
 ``version_name``. If you do not provide the ``version_name``, the operator will use the default model version.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_get_prediction]
@@ -171,7 +179,7 @@ A model version can be deleted with the
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteVersionOperator` by
 the ``version_name`` and ``model_name`` parameters.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_delete_version]
@@ -181,7 +189,7 @@ You can also delete a model with the
 :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineDeleteModelOperator`
 by providing the ``model_name`` parameter.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_delete_model]
@@ -193,7 +201,7 @@ To evaluate a prediction and model, specify a metric function to generate a summ
 the evaluation of the model. This function receives a dictionary derived from a json in the batch
 prediction result, then returns a tuple of metrics.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_get_metric]
@@ -203,7 +211,7 @@ To evaluate a prediction and model, it's useful to have a function to validate t
 This function receives a dictionary of the averaged metrics the function above generated. It then
 raises an exception if a task fails or should not proceed.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_validate_error]
@@ -214,7 +222,7 @@ Prediction results and a model summary can be generated through a function such 
 It makes predictions using the specified inputs and then summarizes and validates the result. The
 functions created above should be passed in through the ``metric_fn_and_keys`` and ``validate_fn`` fields.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcp_mlengine_evaluate]

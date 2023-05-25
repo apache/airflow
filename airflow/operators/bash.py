@@ -19,7 +19,8 @@ from __future__ import annotations
 
 import os
 import shutil
-from typing import Sequence
+import warnings
+from typing import Container, Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowSkipException
@@ -51,16 +52,17 @@ class BashOperator(BaseOperator):
         from current passes and then environment variable passed by the user will either update the existing
         inherited environment variables or the new variables gets appended to it
     :param output_encoding: Output encoding of bash command
-    :param skip_exit_code: If task exits with this exit code, leave the task
+    :param skip_on_exit_code: If task exits with this exit code, leave the task
         in ``skipped`` state (default: 99). If set to ``None``, any non-zero
         exit code will be treated as a failure.
     :param cwd: Working directory to execute the command in.
         If None (default), the command is run in a temporary directory.
 
     Airflow will evaluate the exit code of the bash command. In general, a non-zero exit code will result in
-    task failure and zero will result in task success. Exit code ``99`` (or another set in ``skip_exit_code``)
+    task failure and zero will result in task success.
+    Exit code ``99`` (or another set in ``skip_on_exit_code``)
     will throw an :class:`airflow.exceptions.AirflowSkipException`, which will leave the task in ``skipped``
-    state. You can have all non-zero exit codes be treated as a failure by setting ``skip_exit_code=None``.
+    state. You can have all non-zero exit codes be treated as a failure by setting ``skip_on_exit_code=None``.
 
     .. list-table::
        :widths: 25 25
@@ -70,7 +72,7 @@ class BashOperator(BaseOperator):
          - Behavior
        * - 0
          - success
-       * - `skip_exit_code` (default: 99)
+       * - `skip_on_exit_code` (default: 99)
          - raise :class:`airflow.exceptions.AirflowSkipException`
        * - otherwise
          - raise :class:`airflow.exceptions.AirflowException`
@@ -125,13 +127,13 @@ class BashOperator(BaseOperator):
 
     """
 
-    template_fields: Sequence[str] = ('bash_command', 'env')
-    template_fields_renderers = {'bash_command': 'bash', 'env': 'json'}
+    template_fields: Sequence[str] = ("bash_command", "env")
+    template_fields_renderers = {"bash_command": "bash", "env": "json"}
     template_ext: Sequence[str] = (
-        '.sh',
-        '.bash',
+        ".sh",
+        ".bash",
     )
-    ui_color = '#f0ede4'
+    ui_color = "#f0ede4"
 
     def __init__(
         self,
@@ -139,8 +141,9 @@ class BashOperator(BaseOperator):
         bash_command: str,
         env: dict[str, str] | None = None,
         append_env: bool = False,
-        output_encoding: str = 'utf-8',
-        skip_exit_code: int = 99,
+        output_encoding: str = "utf-8",
+        skip_exit_code: int | None = None,
+        skip_on_exit_code: int | Container[int] | None = 99,
         cwd: str | None = None,
         **kwargs,
     ) -> None:
@@ -148,17 +151,28 @@ class BashOperator(BaseOperator):
         self.bash_command = bash_command
         self.env = env
         self.output_encoding = output_encoding
-        self.skip_exit_code = skip_exit_code
+        if skip_exit_code is not None:
+            warnings.warn(
+                "skip_exit_code is deprecated. Please use skip_on_exit_code", DeprecationWarning, stacklevel=2
+            )
+            skip_on_exit_code = skip_exit_code
+        self.skip_on_exit_code = (
+            skip_on_exit_code
+            if isinstance(skip_on_exit_code, Container)
+            else [skip_on_exit_code]
+            if skip_on_exit_code
+            else []
+        )
         self.cwd = cwd
         self.append_env = append_env
 
     @cached_property
     def subprocess_hook(self):
-        """Returns hook for running the bash command"""
+        """Returns hook for running the bash command."""
         return SubprocessHook()
 
     def get_env(self, context):
-        """Builds the set of environment variables to be exposed for the bash command"""
+        """Builds the set of environment variables to be exposed for the bash command."""
         system_env = os.environ.copy()
         env = self.env
         if env is None:
@@ -170,8 +184,8 @@ class BashOperator(BaseOperator):
 
         airflow_context_vars = context_to_airflow_vars(context, in_env_var_format=True)
         self.log.debug(
-            'Exporting the following env vars:\n%s',
-            '\n'.join(f"{k}={v}" for k, v in airflow_context_vars.items()),
+            "Exporting env vars: %s",
+            " ".join(f"{k}={v!r}" for k, v in airflow_context_vars.items()),
         )
         env.update(airflow_context_vars)
         return env
@@ -185,16 +199,16 @@ class BashOperator(BaseOperator):
                 raise AirflowException(f"The cwd {self.cwd} must be a directory")
         env = self.get_env(context)
         result = self.subprocess_hook.run_command(
-            command=[bash_path, '-c', self.bash_command],
+            command=[bash_path, "-c", self.bash_command],
             env=env,
             output_encoding=self.output_encoding,
             cwd=self.cwd,
         )
-        if self.skip_exit_code is not None and result.exit_code == self.skip_exit_code:
-            raise AirflowSkipException(f"Bash command returned exit code {self.skip_exit_code}. Skipping.")
+        if self.skip_on_exit_code is not None and result.exit_code in self.skip_on_exit_code:
+            raise AirflowSkipException(f"Bash command returned exit code {self.skip_on_exit_code}. Skipping.")
         elif result.exit_code != 0:
             raise AirflowException(
-                f'Bash command failed. The command returned a non-zero exit code {result.exit_code}.'
+                f"Bash command failed. The command returned a non-zero exit code {result.exit_code}."
             )
         return result.output
 

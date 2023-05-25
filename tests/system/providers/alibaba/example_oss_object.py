@@ -34,32 +34,32 @@ DAG_ID = "oss_object_dag"
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
-    default_args={'bucket_name': 'your bucket', 'region': 'your region'},
+    default_args={"bucket_name": "your bucket", "region": "your region"},
     max_active_runs=1,
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
 
     create_object = OSSUploadObjectOperator(
-        file='your local file',
-        key='your oss key',
-        task_id='task1',
+        file="your local file",
+        key="your oss key",
+        task_id="task1",
     )
 
     download_object = OSSDownloadObjectOperator(
-        file='your local file',
-        key='your oss key',
-        task_id='task2',
+        file="your local file",
+        key="your oss key",
+        task_id="task2",
     )
 
     delete_object = OSSDeleteObjectOperator(
-        key='your oss key',
-        task_id='task3',
+        key="your oss key",
+        task_id="task3",
     )
 
     delete_batch_object = OSSDeleteBatchObjectOperator(
-        keys=['obj1', 'obj2', 'obj3'],
-        task_id='task4',
+        keys=["obj1", "obj2", "obj3"],
+        task_id="task4",
     )
 
     create_object >> download_object >> delete_object >> delete_batch_object

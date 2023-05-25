@@ -44,7 +44,7 @@ class GrpcOperator(BaseOperator):
     :param log_response: A flag to indicate if we need to log the response
     """
 
-    template_fields: Sequence[str] = ('stub_class', 'call_func', 'data')
+    template_fields: Sequence[str] = ("stub_class", "call_func", "data")
     template_fields_renderers = {"data": "py"}
 
     def __init__(

@@ -45,10 +45,10 @@ class ImapHook(BaseHook):
         that contains the information used to authenticate the client.
     """
 
-    conn_name_attr = 'imap_conn_id'
-    default_conn_name = 'imap_default'
-    conn_type = 'imap'
-    hook_name = 'IMAP'
+    conn_name_attr = "imap_conn_id"
+    default_conn_name = "imap_default"
+    conn_type = "imap"
+    hook_name = "IMAP"
 
     def __init__(self, imap_conn_id: str = default_conn_name) -> None:
         super().__init__()
@@ -69,7 +69,6 @@ class ImapHook(BaseHook):
             to automatically open and close the connection to the mail server.
 
         :return: an authorized ImapHook object.
-        :rtype: ImapHook
         """
         if not self.mail_client:
             conn = self.get_connection(self.imap_conn_id)
@@ -80,7 +79,7 @@ class ImapHook(BaseHook):
 
     def _build_client(self, conn: Connection) -> imaplib.IMAP4_SSL | imaplib.IMAP4:
         IMAP: type[imaplib.IMAP4_SSL] | type[imaplib.IMAP4]
-        if conn.extra_dejson.get('use_ssl', True):
+        if conn.extra_dejson.get("use_ssl", True):
             IMAP = imaplib.IMAP4_SSL
         else:
             IMAP = imaplib.IMAP4
@@ -93,7 +92,7 @@ class ImapHook(BaseHook):
         return mail_client
 
     def has_mail_attachment(
-        self, name: str, *, check_regex: bool = False, mail_folder: str = 'INBOX', mail_filter: str = 'All'
+        self, name: str, *, check_regex: bool = False, mail_folder: str = "INBOX", mail_filter: str = "All"
     ) -> bool:
         """
         Checks the mail folder for mails containing attachments with the given name.
@@ -104,7 +103,6 @@ class ImapHook(BaseHook):
         :param mail_filter: If set other than 'All' only specific mails will be checked.
             See :py:meth:`imaplib.IMAP4.search` for details.
         :returns: True if there is an attachment with the given name and False if not.
-        :rtype: bool
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
             name, check_regex, True, mail_folder, mail_filter
@@ -117,9 +115,9 @@ class ImapHook(BaseHook):
         *,
         check_regex: bool = False,
         latest_only: bool = False,
-        mail_folder: str = 'INBOX',
-        mail_filter: str = 'All',
-        not_found_mode: str = 'raise',
+        mail_folder: str = "INBOX",
+        mail_filter: str = "All",
+        not_found_mode: str = "raise",
     ) -> list[tuple]:
         """
         Retrieves mail's attachments in the mail folder by its name.
@@ -136,7 +134,6 @@ class ImapHook(BaseHook):
             if set to 'warn' it will only print a warning and
             if set to 'ignore' it won't notify you at all.
         :returns: a list of tuple each containing the attachment filename and its payload.
-        :rtype: a list of tuple
         """
         mail_attachments = self._retrieve_mails_attachments_by_name(
             name, check_regex, latest_only, mail_folder, mail_filter
@@ -154,9 +151,9 @@ class ImapHook(BaseHook):
         *,
         check_regex: bool = False,
         latest_only: bool = False,
-        mail_folder: str = 'INBOX',
-        mail_filter: str = 'All',
-        not_found_mode: str = 'raise',
+        mail_folder: str = "INBOX",
+        mail_filter: str = "All",
+        not_found_mode: str = "raise",
     ) -> None:
         """
         Downloads mail's attachments in the mail folder by its name to the local directory.
@@ -185,14 +182,12 @@ class ImapHook(BaseHook):
         self._create_files(mail_attachments, local_output_directory)
 
     def _handle_not_found_mode(self, not_found_mode: str) -> None:
-        if not_found_mode == 'raise':
-            raise AirflowException('No mail attachments found!')
-        if not_found_mode == 'warn':
-            self.log.warning('No mail attachments found!')
-        elif not_found_mode == 'ignore':
-            pass  # Do not notify if the attachment has not been found.
-        else:
+        if not_found_mode not in ("raise", "warn", "ignore"):
             self.log.error('Invalid "not_found_mode" %s', not_found_mode)
+        elif not_found_mode == "raise":
+            raise AirflowException("No mail attachments found!")
+        elif not_found_mode == "warn":
+            self.log.warning("No mail attachments found!")
 
     def _retrieve_mails_attachments_by_name(
         self, name: str, check_regex: bool, latest_only: bool, mail_folder: str, mail_filter: str
@@ -227,9 +222,9 @@ class ImapHook(BaseHook):
     def _fetch_mail_body(self, mail_id: str) -> str:
         if not self.mail_client:
             raise Exception("The 'mail_client' should be initialized before!")
-        _, data = self.mail_client.fetch(mail_id, '(RFC822)')
+        _, data = self.mail_client.fetch(mail_id, "(RFC822)")
         mail_body = data[0][1]  # type: ignore # The mail body is always in this specific location
-        mail_body_str = mail_body.decode('utf-8')  # type: ignore
+        mail_body_str = mail_body.decode("utf-8")  # type: ignore
         return mail_body_str
 
     def _check_mail_body(
@@ -243,9 +238,9 @@ class ImapHook(BaseHook):
     def _create_files(self, mail_attachments: list, local_output_directory: str) -> None:
         for name, payload in mail_attachments:
             if self._is_symlink(name):
-                self.log.error('Can not create file because it is a symlink!')
+                self.log.error("Can not create file because it is a symlink!")
             elif self._is_escaping_current_directory(name):
-                self.log.error('Can not create file because it is escaping the current directory!')
+                self.log.error("Can not create file because it is escaping the current directory!")
             else:
                 self._create_file(name, payload, local_output_directory)
 
@@ -255,19 +250,19 @@ class ImapHook(BaseHook):
         return os.path.islink(name)
 
     def _is_escaping_current_directory(self, name: str) -> bool:
-        return '../' in name
+        return "../" in name
 
     def _correct_path(self, name: str, local_output_directory: str) -> str:
         return (
             local_output_directory + name
-            if local_output_directory.endswith('/')
-            else local_output_directory + '/' + name
+            if local_output_directory.endswith("/")
+            else local_output_directory + "/" + name
         )
 
     def _create_file(self, name: str, payload: Any, local_output_directory: str) -> None:
         file_path = self._correct_path(name, local_output_directory)
 
-        with open(file_path, 'wb') as file:
+        with open(file_path, "wb") as file:
             file.write(payload)
 
 
@@ -287,9 +282,8 @@ class Mail(LoggingMixin):
         Checks the mail for a attachments.
 
         :returns: True if it has attachments and False if not.
-        :rtype: bool
         """
-        return self.mail.get_content_maintype() == 'multipart'
+        return self.mail.get_content_maintype() == "multipart"
 
     def get_attachments_by_name(
         self, name: str, check_regex: bool, find_first: bool = False
@@ -302,7 +296,6 @@ class Mail(LoggingMixin):
         :param find_first: If set to True it will only find the first match and then quit.
         :returns: a list of tuples each containing name and payload
             where the attachments name matches the given name.
-        :rtype: list(tuple)
         """
         attachments = []
 
@@ -312,7 +305,7 @@ class Mail(LoggingMixin):
             )
             if found_attachment:
                 file_name, file_payload = attachment.get_file()
-                self.log.info('Found attachment: %s', file_name)
+                self.log.info("Found attachment: %s", file_name)
                 attachments.append((file_name, file_payload))
                 if find_first:
                     break
@@ -341,9 +334,8 @@ class MailPart:
         Checks if the part is a valid mail attachment.
 
         :returns: True if it is an attachment and False if not.
-        :rtype: bool
         """
-        return self.part.get_content_maintype() != 'multipart' and self.part.get('Content-Disposition')
+        return self.part.get_content_maintype() != "multipart" and self.part.get("Content-Disposition")
 
     def has_matching_name(self, name: str) -> tuple[Any, Any] | None:
         """
@@ -351,7 +343,6 @@ class MailPart:
 
         :param name: The name to look for.
         :returns: True if it matches the name (including regular expression).
-        :rtype: tuple
         """
         return re.match(name, self.part.get_filename())  # type: ignore
 
@@ -361,7 +352,6 @@ class MailPart:
 
         :param name: The name to look for.
         :returns: True if it is equal to the given name.
-        :rtype: bool
         """
         return self.part.get_filename() == name
 
@@ -370,6 +360,5 @@ class MailPart:
         Gets the file including name and payload.
 
         :returns: the part's name and payload.
-        :rtype: tuple
         """
         return self.part.get_filename(), self.part.get_payload(decode=True)

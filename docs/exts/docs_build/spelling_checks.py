@@ -64,12 +64,12 @@ class SpellingError(NamedTuple):
         return not self == other
 
     def __lt__(self, other):
-        file_path_a = self.file_path or ''
-        file_path_b = other.file_path or ''
+        file_path_a = self.file_path or ""
+        file_path_b = other.file_path or ""
         line_no_a = self.line_no or 0
         line_no_b = other.line_no or 0
-        context_line_a = self.context_line or ''
-        context_line_b = other.context_line or ''
+        context_line_a = self.context_line or ""
+        context_line_b = other.context_line or ""
         left = (file_path_a, line_no_a, context_line_a, self.spelling, self.message)
         right = (
             file_path_b,
@@ -102,7 +102,7 @@ def parse_spelling_warnings(warning_text: str, docs_dir: str) -> list[SpellingEr
                 sphinx_spelling_errors.append(
                     SpellingError(
                         file_path=os.path.join(docs_dir, warning_parts[0]),
-                        line_no=int(warning_parts[1]) if warning_parts[1] not in ('None', '') else None,
+                        line_no=int(warning_parts[1]) if warning_parts[1] not in ("None", "") else None,
                         spelling=warning_parts[2],
                         suggestion=warning_parts[3] if warning_parts[3] else None,
                         context_line=warning_parts[4],

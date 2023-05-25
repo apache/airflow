@@ -25,14 +25,14 @@ from sphinx.application import Sphinx
 
 CURRENT_DIR = os.path.dirname(__file__)
 ROOT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
-DOCS_DIR = os.path.join(ROOT_DIR, 'docs')
-DOCS_PROVIDER_DIR = os.path.join(ROOT_DIR, 'docs')
+DOCS_DIR = os.path.join(ROOT_DIR, "docs")
+DOCS_PROVIDER_DIR = os.path.join(ROOT_DIR, "docs")
 
 
 def _create_init_py(app, config):
     del app
     # del config
-    intersphinx_mapping = getattr(config, 'intersphinx_mapping', None) or {}
+    intersphinx_mapping = getattr(config, "intersphinx_mapping", None) or {}
 
     providers_mapping = _generate_provider_intersphinx_mapping()
     intersphinx_mapping.update(providers_mapping)
@@ -42,17 +42,17 @@ def _create_init_py(app, config):
 
 def _generate_provider_intersphinx_mapping():
     airflow_mapping = {}
-    for_production = os.environ.get('AIRFLOW_FOR_PRODUCTION', 'false') == 'true'
-    current_version = 'stable' if for_production else 'latest'
+    for_production = os.environ.get("AIRFLOW_FOR_PRODUCTION", "false") == "true"
+    current_version = "stable" if for_production else "latest"
 
     for provider in load_package_data():
-        package_name = provider['package-name']
-        if os.environ.get('AIRFLOW_PACKAGE_NAME') == package_name:
+        package_name = provider["package-name"]
+        if os.environ.get("AIRFLOW_PACKAGE_NAME") == package_name:
             continue
 
-        provider_base_url = f'/docs/{package_name}/{current_version}/'
-        doc_inventory = f'{DOCS_DIR}/_build/docs/{package_name}/{current_version}/objects.inv'
-        cache_inventory = f'{DOCS_DIR}/_inventory_cache/{package_name}/objects.inv'
+        provider_base_url = f"/docs/{package_name}/{current_version}/"
+        doc_inventory = f"{DOCS_DIR}/_build/docs/{package_name}/{current_version}/objects.inv"
+        cache_inventory = f"{DOCS_DIR}/_inventory_cache/{package_name}/objects.inv"
 
         # Skip adding the mapping if the path does not exist
         if not os.path.exists(doc_inventory) and not os.path.exists(cache_inventory):
@@ -63,26 +63,26 @@ def _generate_provider_intersphinx_mapping():
             provider_base_url,
             (doc_inventory if os.path.exists(doc_inventory) else cache_inventory,),
         )
-    for pkg_name in ["apache-airflow", 'helm-chart']:
-        if os.environ.get('AIRFLOW_PACKAGE_NAME') == pkg_name:
+    for pkg_name in ["apache-airflow", "helm-chart"]:
+        if os.environ.get("AIRFLOW_PACKAGE_NAME") == pkg_name:
             continue
-        doc_inventory = f'{DOCS_DIR}/_build/docs/{pkg_name}/{current_version}/objects.inv'
-        cache_inventory = f'{DOCS_DIR}/_inventory_cache/{pkg_name}/objects.inv'
+        doc_inventory = f"{DOCS_DIR}/_build/docs/{pkg_name}/{current_version}/objects.inv"
+        cache_inventory = f"{DOCS_DIR}/_inventory_cache/{pkg_name}/objects.inv"
 
         airflow_mapping[pkg_name] = (
             # base URI
             f'/docs/{pkg_name}/{"stable" if for_production else "latest"}/',
             (doc_inventory if os.path.exists(doc_inventory) else cache_inventory,),
         )
-    for pkg_name in ['apache-airflow-providers', 'docker-stack']:
-        if os.environ.get('AIRFLOW_PACKAGE_NAME') == pkg_name:
+    for pkg_name in ["apache-airflow-providers", "docker-stack"]:
+        if os.environ.get("AIRFLOW_PACKAGE_NAME") == pkg_name:
             continue
-        doc_inventory = f'{DOCS_DIR}/_build/docs/{pkg_name}/objects.inv'
-        cache_inventory = f'{DOCS_DIR}/_inventory_cache/{pkg_name}/objects.inv'
+        doc_inventory = f"{DOCS_DIR}/_build/docs/{pkg_name}/objects.inv"
+        cache_inventory = f"{DOCS_DIR}/_inventory_cache/{pkg_name}/objects.inv"
 
         airflow_mapping[pkg_name] = (
             # base URI
-            f'/docs/{pkg_name}/',
+            f"/docs/{pkg_name}/",
             (doc_inventory if os.path.exists(doc_inventory) else cache_inventory,),
         )
 
@@ -112,7 +112,7 @@ if __name__ == "__main__":
             user_agent = None
 
         class _MockApp:
-            srcdir = ''
+            srcdir = ""
             config = _MockConfig()
 
             def warn(self, msg: str) -> None:
@@ -135,11 +135,11 @@ if __name__ == "__main__":
             return inv_dict
 
         def domain_and_object_type_to_role(domain: str, object_type: str) -> str:
-            if domain == 'py':
+            if domain == "py":
                 from sphinx.domains.python import PythonDomain
 
                 role_name = PythonDomain.object_types[object_type].roles[0]
-            elif domain == 'std':
+            elif domain == "std":
                 from sphinx.domains.std import StandardDomain
 
                 role_name = StandardDomain.object_types[object_type].roles[0]
@@ -158,7 +158,7 @@ if __name__ == "__main__":
             except ValueError as exc:
                 print(exc.args[0] % exc.args[1:])
             except Exception as exc:
-                print(f'Unknown error: {exc!r}')
+                print(f"Unknown error: {exc!r}")
 
         provider_mapping = _generate_provider_intersphinx_mapping()
 

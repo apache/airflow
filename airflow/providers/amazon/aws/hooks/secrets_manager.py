@@ -26,33 +26,37 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class SecretsManagerHook(AwsBaseHook):
     """
     Interact with Amazon SecretsManager Service.
+    Provide thin wrapper around
+    :external+boto3:py:class:`boto3.client("secretsmanager") <SecretsManager.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
-    .. see also::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self, *args, **kwargs):
-        super().__init__(client_type='secretsmanager', *args, **kwargs)
+        super().__init__(client_type="secretsmanager", *args, **kwargs)
 
     def get_secret(self, secret_name: str) -> str | bytes:
         """
         Retrieve secret value from AWS Secrets Manager as a str or bytes
         reflecting format it stored in the AWS Secrets Manager
 
+        .. seealso::
+            - :external+boto3:py:meth:`SecretsManager.Client.get_secret_value`
+
         :param secret_name: name of the secrets.
         :return: Union[str, bytes] with the information about the secrets
-        :rtype: Union[str, bytes]
         """
         # Depending on whether the secret is a string or binary, one of
         # these fields will be populated.
         get_secret_value_response = self.get_conn().get_secret_value(SecretId=secret_name)
-        if 'SecretString' in get_secret_value_response:
-            secret = get_secret_value_response['SecretString']
+        if "SecretString" in get_secret_value_response:
+            secret = get_secret_value_response["SecretString"]
         else:
-            secret = base64.b64decode(get_secret_value_response['SecretBinary'])
+            secret = base64.b64decode(get_secret_value_response["SecretBinary"])
         return secret
 
     def get_secret_as_dict(self, secret_name: str) -> dict:
@@ -61,6 +65,5 @@ class SecretsManagerHook(AwsBaseHook):
 
         :param secret_name: name of the secrets.
         :return: dict with the information about the secrets
-        :rtype: dict
         """
         return json.loads(self.get_secret(secret_name))

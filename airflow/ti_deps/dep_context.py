@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 import attr
 from sqlalchemy.orm.session import Session
 
+from airflow.exceptions import TaskNotFound
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
@@ -32,9 +33,11 @@ if TYPE_CHECKING:
 @attr.define
 class DepContext:
     """
-    A base class for contexts that specifies which dependencies should be evaluated in
-    the context for a task instance to satisfy the requirements of the context. Also
-    stores state related to the context that can be used by dependency classes.
+    A base class for dependency contexts.
+
+    Specifies which dependencies should be evaluated in the context for a task
+    instance to satisfy the requirements of the context. Also stores state
+    related to the context that can be used by dependency classes.
 
     For example there could be a SomeRunContext that subclasses this class which has
     dependencies for:
@@ -54,6 +57,7 @@ class DepContext:
         dependencies. Overrides the other ignore_* parameters
     :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs (e.g. for
         Backfills)
+    :param wait_for_past_depends_before_skipping: Wait for past depends before marking the ti as skipped
     :param ignore_in_retry_period: Ignore the retry period for task instances
     :param ignore_in_reschedule_period: Ignore the reschedule period for task instances
     :param ignore_unmapped_tasks: Ignore errors about mapped tasks not yet being expanded
@@ -67,12 +71,14 @@ class DepContext:
     flag_upstream_failed: bool = False
     ignore_all_deps: bool = False
     ignore_depends_on_past: bool = False
+    wait_for_past_depends_before_skipping: bool = False
     ignore_in_retry_period: bool = False
     ignore_in_reschedule_period: bool = False
     ignore_task_deps: bool = False
     ignore_ti_state: bool = False
     ignore_unmapped_tasks: bool = False
     finished_tis: list[TaskInstance] | None = None
+    description: str | None = None
 
     have_changed_ti_states: bool = False
     """Have any of the TIs state's been changed as a result of evaluating dependencies"""
@@ -84,10 +90,16 @@ class DepContext:
 
         :param dag_run: The DagRun for which to find finished tasks
         :return: A list of all the finished tasks of this DAG and execution_date
-        :rtype: list[airflow.models.TaskInstance]
         """
         if self.finished_tis is None:
             finished_tis = dag_run.get_task_instances(state=State.finished, session=session)
+            for ti in finished_tis:
+                if not hasattr(ti, "task") and dag_run.dag:
+                    try:
+                        ti.task = dag_run.dag.get_task(ti.task_id)
+                    except TaskNotFound:
+                        pass
+
             self.finished_tis = finished_tis
         else:
             finished_tis = self.finished_tis

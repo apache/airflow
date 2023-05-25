@@ -30,7 +30,7 @@ def test_dagrun_state_enum_escape():
     referenced in DB query
     """
     with create_session() as session:
-        dag = DAG(dag_id='test_dagrun_state_enum_escape', start_date=DEFAULT_DATE)
+        dag = DAG(dag_id="test_dagrun_state_enum_escape", start_date=DEFAULT_DATE)
         dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             state=DagRunState.QUEUED,
@@ -45,8 +45,8 @@ def test_dagrun_state_enum_escape():
             DagRun.state == DagRunState.QUEUED,
         )
         assert str(query.statement.compile(compile_kwargs={"literal_binds": True})) == (
-            'SELECT dag_run.dag_id, dag_run.state, dag_run.run_type \n'
-            'FROM dag_run \n'
+            "SELECT dag_run.dag_id, dag_run.state, dag_run.run_type \n"
+            "FROM dag_run \n"
             "WHERE dag_run.dag_id = 'test_dagrun_state_enum_escape' AND dag_run.state = 'queued'"
         )
 
@@ -54,6 +54,6 @@ def test_dagrun_state_enum_escape():
         assert len(rows) == 1
         assert rows[0].dag_id == dag.dag_id
         # make sure value in db is stored as `queued`, not `DagRunType.QUEUED`
-        assert rows[0].state == 'queued'
+        assert rows[0].state == "queued"
 
         session.rollback()

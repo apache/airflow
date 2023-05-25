@@ -21,22 +21,22 @@
   Base setup for anywhere we add react to the UI
 */
 
-import React, { PropsWithChildren } from 'react';
-import { BrowserRouter } from 'react-router-dom';
-import { ChakraProvider } from '@chakra-ui/react';
-import { CacheProvider } from '@emotion/react';
-import type { EmotionCache } from '@emotion/cache';
-import { QueryClient, QueryClientProvider } from 'react-query';
+import React, { PropsWithChildren } from "react";
+import { BrowserRouter } from "react-router-dom";
+import { ChakraProvider } from "@chakra-ui/react";
+import { CacheProvider } from "@emotion/react";
+import type { EmotionCache } from "@emotion/cache";
+import { QueryClient, QueryClientProvider } from "react-query";
 
-import theme from './theme';
-import { ContainerRefProvider, useContainerRef } from './context/containerRef';
-import { TimezoneProvider } from './context/timezone';
-import { AutoRefreshProvider } from './context/autorefresh';
+import theme from "./theme";
+import { ContainerRefProvider, useContainerRef } from "./context/containerRef";
+import { TimezoneProvider } from "./context/timezone";
+import { AutoRefreshProvider } from "./context/autorefresh";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      notifyOnChangeProps: 'tracked',
+      notifyOnChangeProps: "tracked",
       refetchOnWindowFocus: false,
       retry: 1,
       retryDelay: 500,
@@ -59,13 +59,14 @@ interface AppProps extends PropsWithChildren {
 const ChakraApp = ({ children }: PropsWithChildren) => {
   const containerRef = useContainerRef();
   return (
-    <ChakraProvider theme={theme} toastOptions={{ portalProps: { containerRef } }}>
+    <ChakraProvider
+      theme={theme}
+      toastOptions={{ portalProps: { containerRef } }}
+    >
       <QueryClientProvider client={queryClient}>
         <TimezoneProvider>
           <AutoRefreshProvider>
-            <BrowserRouter>
-              {children}
-            </BrowserRouter>
+            <BrowserRouter>{children}</BrowserRouter>
           </AutoRefreshProvider>
         </TimezoneProvider>
       </QueryClientProvider>
@@ -78,9 +79,7 @@ function App({ children, cache }: AppProps) {
     <React.StrictMode>
       <CacheProvider value={cache}>
         <ContainerRefProvider>
-          <ChakraApp>
-            {children}
-          </ChakraApp>
+          <ChakraApp>{children}</ChakraApp>
         </ContainerRefProvider>
       </CacheProvider>
     </React.StrictMode>

@@ -24,23 +24,23 @@ from airflow import models
 from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = 'docker_swarm_dag'
+DAG_ID = "docker_swarm_dag"
 
 with models.DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example', "docker"],
+    tags=["example", "docker"],
 ) as dag:
 
     t1 = DockerSwarmOperator(
-        api_version='auto',
-        docker_url='unix://var/run/docker.sock',  # Set your docker URL
-        command='/bin/sleep 10',
-        image='centos:latest',
+        api_version="auto",
+        docker_url="unix://var/run/docker.sock",  # Set your docker URL
+        command="/bin/sleep 10",
+        image="centos:latest",
         auto_remove=True,
-        task_id='sleep_with_swarm',
+        task_id="sleep_with_swarm",
     )
 
     (

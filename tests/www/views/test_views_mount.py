@@ -32,7 +32,7 @@ def app():
         return create_app(testing=True)
 
     app = factory()
-    app.config['WTF_CSRF_ENABLED'] = False
+    app.config["WTF_CSRF_ENABLED"] = False
     return app
 
 
@@ -43,17 +43,17 @@ def client(app):
 
 def test_mount(client):
     # Test an endpoint that doesn't need auth!
-    resp = client.get('/test/health')
+    resp = client.get("/test/health")
     assert resp.status_code == 200
     assert b"healthy" in resp.data
 
 
 def test_not_found(client):
-    resp = client.get('/', follow_redirects=True)
+    resp = client.get("/", follow_redirects=True)
     assert resp.status_code == 404
 
 
 def test_index(client):
-    resp = client.get('/test/')
+    resp = client.get("/test/")
     assert resp.status_code == 302
-    assert resp.headers['Location'] == '/test/home'
+    assert resp.headers["Location"] == "/test/home"

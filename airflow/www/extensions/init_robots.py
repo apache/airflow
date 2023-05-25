@@ -31,7 +31,7 @@ def init_robots(app):
     """
 
     def apply_robot_tag(response):
-        response.headers['X-Robots-Tag'] = 'noindex, nofollow'
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
         return response
 
     app.after_request(apply_robot_tag)

@@ -18,7 +18,6 @@
 """This module allows you to transfer mail attachments from a mail server into s3 bucket."""
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
@@ -27,10 +26,6 @@ from airflow.providers.imap.hooks.imap import ImapHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-_DEPRECATION_MSG = (
-    "The s3_conn_id parameter has been deprecated. You should pass instead the aws_conn_id parameter."
-)
 
 
 class ImapAttachmentToS3Operator(BaseOperator):
@@ -53,7 +48,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
     :param aws_conn_id: AWS connection to use.
     """
 
-    template_fields: Sequence[str] = ('imap_attachment_name', 's3_key', 'imap_mail_filter')
+    template_fields: Sequence[str] = ("imap_attachment_name", "s3_key", "imap_mail_filter")
 
     def __init__(
         self,
@@ -62,19 +57,14 @@ class ImapAttachmentToS3Operator(BaseOperator):
         s3_bucket: str,
         s3_key: str,
         imap_check_regex: bool = False,
-        imap_mail_folder: str = 'INBOX',
-        imap_mail_filter: str = 'All',
+        imap_mail_folder: str = "INBOX",
+        imap_mail_filter: str = "All",
         s3_overwrite: bool = False,
-        imap_conn_id: str = 'imap_default',
-        s3_conn_id: str | None = None,
-        aws_conn_id: str = 'aws_default',
+        imap_conn_id: str = "imap_default",
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if s3_conn_id:
-            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
-            aws_conn_id = s3_conn_id
-
         self.imap_attachment_name = imap_attachment_name
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
@@ -92,7 +82,7 @@ class ImapAttachmentToS3Operator(BaseOperator):
         :param context: The context while executing.
         """
         self.log.info(
-            'Transferring mail attachment %s from mail server via imap to s3 key %s...',
+            "Transferring mail attachment %s from mail server via imap to s3 key %s...",
             self.imap_attachment_name,
             self.s3_key,
         )

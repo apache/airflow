@@ -25,37 +25,37 @@ from airflow.utils.context import Context, lazy_mapping_from_context
 
 R = TypeVar("R")
 
-DEFAULT_FORMAT_PREFIX = 'airflow.ctx.'
-ENV_VAR_FORMAT_PREFIX = 'AIRFLOW_CTX_'
+DEFAULT_FORMAT_PREFIX = "airflow.ctx."
+ENV_VAR_FORMAT_PREFIX = "AIRFLOW_CTX_"
 
 AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
-    'AIRFLOW_CONTEXT_DAG_ID': {
-        'default': f'{DEFAULT_FORMAT_PREFIX}dag_id',
-        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}DAG_ID',
+    "AIRFLOW_CONTEXT_DAG_ID": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}dag_id",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}DAG_ID",
     },
-    'AIRFLOW_CONTEXT_TASK_ID': {
-        'default': f'{DEFAULT_FORMAT_PREFIX}task_id',
-        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}TASK_ID',
+    "AIRFLOW_CONTEXT_TASK_ID": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}task_id",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}TASK_ID",
     },
-    'AIRFLOW_CONTEXT_EXECUTION_DATE': {
-        'default': f'{DEFAULT_FORMAT_PREFIX}execution_date',
-        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}EXECUTION_DATE',
+    "AIRFLOW_CONTEXT_EXECUTION_DATE": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}execution_date",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}EXECUTION_DATE",
     },
-    'AIRFLOW_CONTEXT_TRY_NUMBER': {
-        'default': f'{DEFAULT_FORMAT_PREFIX}try_number',
-        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}TRY_NUMBER',
+    "AIRFLOW_CONTEXT_TRY_NUMBER": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}try_number",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}TRY_NUMBER",
     },
-    'AIRFLOW_CONTEXT_DAG_RUN_ID': {
-        'default': f'{DEFAULT_FORMAT_PREFIX}dag_run_id',
-        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}DAG_RUN_ID',
+    "AIRFLOW_CONTEXT_DAG_RUN_ID": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}dag_run_id",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}DAG_RUN_ID",
     },
-    'AIRFLOW_CONTEXT_DAG_OWNER': {
-        'default': f'{DEFAULT_FORMAT_PREFIX}dag_owner',
-        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}DAG_OWNER',
+    "AIRFLOW_CONTEXT_DAG_OWNER": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}dag_owner",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}DAG_OWNER",
     },
-    'AIRFLOW_CONTEXT_DAG_EMAIL': {
-        'default': f'{DEFAULT_FORMAT_PREFIX}dag_email',
-        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}DAG_EMAIL',
+    "AIRFLOW_CONTEXT_DAG_EMAIL": {
+        "default": f"{DEFAULT_FORMAT_PREFIX}dag_email",
+        "env_var_format": f"{ENV_VAR_FORMAT_PREFIX}DAG_EMAIL",
     },
 }
 
@@ -73,22 +73,22 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
     """
     params = {}
     if in_env_var_format:
-        name_format = 'env_var_format'
+        name_format = "env_var_format"
     else:
-        name_format = 'default'
+        name_format = "default"
 
-    task = context.get('task')
-    task_instance = context.get('task_instance')
-    dag_run = context.get('dag_run')
+    task = context.get("task")
+    task_instance = context.get("task_instance")
+    dag_run = context.get("dag_run")
 
     ops = [
-        (task, 'email', 'AIRFLOW_CONTEXT_DAG_EMAIL'),
-        (task, 'owner', 'AIRFLOW_CONTEXT_DAG_OWNER'),
-        (task_instance, 'dag_id', 'AIRFLOW_CONTEXT_DAG_ID'),
-        (task_instance, 'task_id', 'AIRFLOW_CONTEXT_TASK_ID'),
-        (task_instance, 'execution_date', 'AIRFLOW_CONTEXT_EXECUTION_DATE'),
-        (task_instance, 'try_number', 'AIRFLOW_CONTEXT_TRY_NUMBER'),
-        (dag_run, 'run_id', 'AIRFLOW_CONTEXT_DAG_RUN_ID'),
+        (task, "email", "AIRFLOW_CONTEXT_DAG_EMAIL"),
+        (task, "owner", "AIRFLOW_CONTEXT_DAG_OWNER"),
+        (task_instance, "dag_id", "AIRFLOW_CONTEXT_DAG_ID"),
+        (task_instance, "task_id", "AIRFLOW_CONTEXT_TASK_ID"),
+        (task_instance, "execution_date", "AIRFLOW_CONTEXT_EXECUTION_DATE"),
+        (task_instance, "try_number", "AIRFLOW_CONTEXT_TRY_NUMBER"),
+        (dag_run, "run_id", "AIRFLOW_CONTEXT_DAG_RUN_ID"),
     ]
 
     context_params = settings.get_airflow_context_vars(context)
@@ -116,7 +116,7 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
                 params[mapping_value] = _attr.isoformat()
             elif isinstance(_attr, list):
                 # os env variable value needs to be string
-                params[mapping_value] = ','.join(_attr)
+                params[mapping_value] = ",".join(_attr)
             else:
                 params[mapping_value] = str(_attr)
 

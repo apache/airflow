@@ -17,8 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.jobs.base_job import BaseJob
-from airflow.jobs.triggerer_job import TriggererJob
+from airflow.jobs.job import Job
 from airflow.models import (
     Connection,
     DagModel,
@@ -56,7 +55,7 @@ from airflow.www.fab_security.sqla.models import Permission, Resource, assoc_per
 
 def clear_db_runs():
     with create_session() as session:
-        session.query(TriggererJob).delete()
+        session.query(Job).delete()
         session.query(Trigger).delete()
         session.query(DagRun).delete()
         session.query(TaskInstance).delete()
@@ -157,7 +156,7 @@ def clear_db_logs():
 
 def clear_db_jobs():
     with create_session() as session:
-        session.query(BaseJob).delete()
+        session.query(Job).delete()
 
 
 def clear_db_task_fail():
@@ -185,3 +184,25 @@ def clear_dag_specific_permissions():
             synchronize_session=False
         )
         session.query(Resource).filter(Resource.id.in_(dag_resource_ids)).delete(synchronize_session=False)
+
+
+def clear_all():
+    clear_db_runs()
+    clear_db_datasets()
+    clear_db_dags()
+    clear_db_serialized_dags()
+    clear_db_sla_miss()
+    clear_db_dag_code()
+    clear_db_callbacks()
+    clear_rendered_ti_fields()
+    clear_db_import_errors()
+    clear_db_dag_warnings()
+    clear_db_logs()
+    clear_db_jobs()
+    clear_db_task_fail()
+    clear_db_task_reschedule()
+    clear_db_xcom()
+    clear_db_variables()
+    clear_db_pools()
+    clear_db_connections(add_default_connections_back=True)
+    clear_dag_specific_permissions()

@@ -21,18 +21,23 @@ functions in CloudBuildHook
 """
 from __future__ import annotations
 
-import unittest
-from unittest.mock import MagicMock, patch
+from concurrent.futures import Future
+from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
+from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, GetBuildRequest
 
-from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildAsyncHook, CloudBuildHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
+from tests.providers.google.cloud.utils.compat import async_mock
 
 PROJECT_ID = "cloud-build-project"
 LOCATION = "test-location"
 PARENT = f"projects/{PROJECT_ID}/locations/{LOCATION}"
+CLOUD_BUILD_PATH = "airflow.providers.google.cloud.hooks.cloud_build.{}"
 BUILD_ID = "test-build-id-9832662"
 REPO_SOURCE = {"repo_source": {"repo_name": "test_repo", "branch_name": "main"}}
 BUILD = {
@@ -54,145 +59,184 @@ OPERATION = {"metadata": {"build": {"id": BUILD_ID}}}
 TRIGGER_ID = "32488e7f-09d6-4fe9-a5fb-4ca1419a6e7a"
 
 
-class TestCloudBuildHook(unittest.TestCase):
-    def setUp(self):
-        with patch(
+class TestCloudBuildHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudBuildHook(gcp_conn_id="test", delegate_to="delegate_to")
+
+    def setup_method(self):
+        with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
         ):
             self.hook = CloudBuildHook(gcp_conn_id="test")
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_credentials")
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildClient")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_credentials")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildClient")
     def test_cloud_build_service_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=CLIENT_INFO,
+            client_options=None,
+        )
         assert mock_client.return_value == result
-        assert self.hook._client == result
+        assert self.hook._client["global"] == result
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_cancel_build(self, get_conn):
         self.hook.cancel_build(id_=BUILD_ID, project_id=PROJECT_ID)
 
         get_conn.return_value.cancel_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
+            request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.TIME_TO_SLEEP_IN_SECONDS")
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation"
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.TIME_TO_SLEEP_IN_SECONDS")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_create_build_with_wait(self, get_conn, wait_time, mock_get_id_from_operation):
-        get_conn.return_value.run_build_trigger.return_value = MagicMock()
+        get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
         mock_get_id_from_operation.return_value = BUILD_ID
 
         wait_time.return_value = 0
 
-        self.hook.create_build(build=BUILD, project_id=PROJECT_ID)
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+            self.hook.create_build(build=BUILD, project_id=PROJECT_ID)
 
         get_conn.return_value.create_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'build': BUILD}, retry=DEFAULT, timeout=None, metadata=()
+            request={"project_id": PROJECT_ID, "build": BUILD}, retry=DEFAULT, timeout=None, metadata=()
         )
 
         get_conn.return_value.create_build.return_value.result.assert_called_once_with()
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
+            request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation"
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_create_build_without_wait(self, get_conn, mock_get_id_from_operation):
-        get_conn.return_value.run_build_trigger.return_value = MagicMock()
+        get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
         mock_get_id_from_operation.return_value = BUILD_ID
 
-        self.hook.create_build(build=BUILD, project_id=PROJECT_ID, wait=False)
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+            self.hook.create_build(build=BUILD, project_id=PROJECT_ID, wait=False)
 
         mock_operation = get_conn.return_value.create_build
 
         mock_operation.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'build': BUILD}, retry=DEFAULT, timeout=None, metadata=()
+            request={"project_id": PROJECT_ID, "build": BUILD}, retry=DEFAULT, timeout=None, metadata=()
         )
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
+            request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
         mock_get_id_from_operation.assert_called_once_with(mock_operation())
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation"
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    def test_create_build_without_waiting_for_result(self, get_conn, mock_get_id_from_operation):
+        get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
+        mock_get_id_from_operation.return_value = BUILD_ID
+
+        self.hook.create_build_without_waiting_for_result(
+            build=BUILD, project_id=PROJECT_ID, location=LOCATION
+        )
+
+        mock_operation = get_conn.return_value.create_build
+
+        mock_operation.assert_called_once_with(
+            request={"parent": PARENT, "project_id": PROJECT_ID, "build": BUILD},
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+        mock_get_id_from_operation.assert_called_once_with(mock_operation())
+
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_create_build_trigger(self, get_conn):
         self.hook.create_build_trigger(trigger=BUILD_TRIGGER, project_id=PROJECT_ID)
 
         get_conn.return_value.create_build_trigger.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'trigger': BUILD_TRIGGER},
+            request={"project_id": PROJECT_ID, "trigger": BUILD_TRIGGER},
             retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_delete_build_trigger(self, get_conn):
         self.hook.delete_build_trigger(trigger_id=TRIGGER_ID, project_id=PROJECT_ID)
 
         get_conn.return_value.delete_build_trigger.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'trigger_id': TRIGGER_ID},
+            request={"project_id": PROJECT_ID, "trigger_id": TRIGGER_ID},
             retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_get_build(self, get_conn):
         self.hook.get_build(id_=BUILD_ID, project_id=PROJECT_ID)
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
+            request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_get_build_trigger(self, get_conn):
         self.hook.get_build_trigger(trigger_id=TRIGGER_ID, project_id=PROJECT_ID)
 
         get_conn.return_value.get_build_trigger.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'trigger_id': TRIGGER_ID},
+            request={"project_id": PROJECT_ID, "trigger_id": TRIGGER_ID},
             retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_list_build_triggers(self, get_conn):
         self.hook.list_build_triggers(project_id=PROJECT_ID, location=LOCATION)
 
         get_conn.return_value.list_build_triggers.assert_called_once_with(
-            request={'parent': PARENT, 'project_id': PROJECT_ID, 'page_size': None, 'page_token': None},
+            request={"parent": PARENT, "project_id": PROJECT_ID, "page_size": None, "page_token": None},
             retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_list_builds(self, get_conn):
         self.hook.list_builds(project_id=PROJECT_ID, location=LOCATION)
 
         get_conn.return_value.list_builds.assert_called_once_with(
             request={
-                'parent': PARENT,
-                'project_id': PROJECT_ID,
-                'page_size': None,
-                'page_token': None,
-                'filter': None,
+                "parent": PARENT,
+                "project_id": PROJECT_ID,
+                "page_size": None,
+                "page_token": None,
+                "filter": None,
             },
             retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.TIME_TO_SLEEP_IN_SECONDS")
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation"
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.TIME_TO_SLEEP_IN_SECONDS")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_retry_build_with_wait(self, get_conn, wait_time, mock_get_id_from_operation):
-        get_conn.return_value.run_build_trigger.return_value = MagicMock()
+        get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
         mock_get_id_from_operation.return_value = BUILD_ID
 
         wait_time.return_value = 0
@@ -202,82 +246,88 @@ class TestCloudBuildHook(unittest.TestCase):
         mock_operation = get_conn.return_value.retry_build
 
         mock_operation.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
+            request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
-        get_conn.return_value.retry_build.return_value.result.assert_called_once_with()
+        get_conn.return_value.retry_build.return_value.result.assert_called_once_with(timeout=None)
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
+            request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
         mock_get_id_from_operation.assert_called_once_with(mock_operation())
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation"
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_retry_build_without_wait(self, get_conn, mock_get_id_from_operation):
-        get_conn.return_value.run_build_trigger.return_value = MagicMock()
+        get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
         mock_get_id_from_operation.return_value = BUILD_ID
 
         self.hook.retry_build(id_=BUILD_ID, project_id=PROJECT_ID, wait=False)
 
         get_conn.return_value.retry_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
+            request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
+            request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.TIME_TO_SLEEP_IN_SECONDS")
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation"
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.TIME_TO_SLEEP_IN_SECONDS")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_run_build_trigger_with_wait(self, get_conn, wait_time, mock_get_id_from_operation):
-        get_conn.return_value.run_build_trigger.return_value = MagicMock()
+        get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
         mock_get_id_from_operation.return_value = BUILD_ID
 
         wait_time.return_value = 0
 
         self.hook.run_build_trigger(
-            trigger_id=TRIGGER_ID, source=REPO_SOURCE['repo_source'], project_id=PROJECT_ID
+            trigger_id=TRIGGER_ID, source=REPO_SOURCE["repo_source"], project_id=PROJECT_ID
         )
 
         mock_operation = get_conn.return_value.run_build_trigger
 
         mock_operation.assert_called_once_with(
             request={
-                'project_id': PROJECT_ID,
-                'trigger_id': TRIGGER_ID,
-                'source': REPO_SOURCE['repo_source'],
+                "project_id": PROJECT_ID,
+                "trigger_id": TRIGGER_ID,
+                "source": REPO_SOURCE["repo_source"],
             },
             retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
 
-        get_conn.return_value.run_build_trigger.return_value.result.assert_called_once_with()
+        get_conn.return_value.run_build_trigger.return_value.result.assert_called_once_with(timeout=None)
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
+            request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
         mock_get_id_from_operation.assert_called_once_with(mock_operation())
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation")
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook._get_build_id_from_operation"
+    )
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_run_build_trigger_without_wait(self, get_conn, mock_get_id_from_operation):
-        get_conn.return_value.run_build_trigger.return_value = MagicMock()
+        get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
         mock_get_id_from_operation.return_value = BUILD_ID
 
         self.hook.run_build_trigger(
-            trigger_id=TRIGGER_ID, source=REPO_SOURCE['repo_source'], project_id=PROJECT_ID, wait=False
+            trigger_id=TRIGGER_ID, source=REPO_SOURCE["repo_source"], project_id=PROJECT_ID, wait=False
         )
 
         get_conn.return_value.run_build_trigger.assert_called_once_with(
             request={
-                'project_id': PROJECT_ID,
-                'trigger_id': TRIGGER_ID,
-                'source': REPO_SOURCE['repo_source'],
+                "project_id": PROJECT_ID,
+                "trigger_id": TRIGGER_ID,
+                "source": REPO_SOURCE["repo_source"],
             },
             retry=DEFAULT,
             timeout=None,
@@ -285,16 +335,53 @@ class TestCloudBuildHook(unittest.TestCase):
         )
 
         get_conn.return_value.get_build.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'id': BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
+            request={"project_id": PROJECT_ID, "id": BUILD_ID}, retry=DEFAULT, timeout=None, metadata=()
         )
 
-    @patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.cloud_build.CloudBuildHook.get_conn")
     def test_update_build_trigger(self, get_conn):
         self.hook.update_build_trigger(trigger_id=TRIGGER_ID, trigger=BUILD_TRIGGER, project_id=PROJECT_ID)
 
         get_conn.return_value.update_build_trigger.assert_called_once_with(
-            request={'project_id': PROJECT_ID, 'trigger_id': TRIGGER_ID, 'trigger': BUILD_TRIGGER},
+            request={"project_id": PROJECT_ID, "trigger_id": TRIGGER_ID, "trigger": BUILD_TRIGGER},
             retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
+
+
+class TestAsyncHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudBuildAsyncHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
+    @pytest.fixture
+    def hook(self):
+        return CloudBuildAsyncHook(
+            gcp_conn_id="google_cloud_default",
+        )
+
+    @pytest.mark.asyncio
+    @async_mock.patch.object(
+        CloudBuildAsyncClient, "__init__", lambda self, credentials, client_info, client_options: None
+    )
+    @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook.get_credentials"))
+    @async_mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
+    async def test_async_cloud_build_service_client_creation_should_execute_successfully(
+        self, mocked_get_build, mock_get_creds, hook
+    ):
+        mocked_get_build.return_value = Future()
+        await hook.get_cloud_build(project_id=PROJECT_ID, id_=BUILD_ID)
+        request = GetBuildRequest(
+            dict(
+                project_id=PROJECT_ID,
+                id=BUILD_ID,
+            )
+        )
+        mock_get_creds.assert_called_once()
+        mocked_get_build.assert_called_once_with(request=request, retry=DEFAULT, timeout=None, metadata=())
+
+    @pytest.mark.asyncio
+    async def test_async_get_clod_build_without_build_id_should_throw_exception(self, hook):
+        with pytest.raises(AirflowException, match=r"Google Cloud Build id is required."):
+            await hook.get_cloud_build(project_id=PROJECT_ID, id_=None)

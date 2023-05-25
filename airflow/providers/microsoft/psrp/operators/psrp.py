@@ -28,12 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
 from airflow.settings import json
-
-
-# TODO: Replace with airflow.utils.helpers.exactly_one in Airflow 2.3.
-def exactly_one(*args):
-    return len(set(filter(None, args))) == 1
-
+from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -61,8 +56,11 @@ class PsrpOperator(BaseOperator):
     :param cmdlet:
         cmdlet to execute on remote host (templated). Also used as the default
         value for `task_id`.
+    :param arguments:
+        When using the `cmdlet` or `powershell` option, use `arguments` to
+        provide arguments (templated).
     :param parameters:
-        When using the `cmdlet` or `powershell` arguments, use this parameter to
+        When using the `cmdlet` or `powershell` option, use `parameters` to
         provide parameters (templated). Note that a parameter with a value of `None`
         becomes an *argument* (i.e., switch).
     :param logging_level:
@@ -84,6 +82,7 @@ class PsrpOperator(BaseOperator):
     template_fields: Sequence[str] = (
         "cmdlet",
         "command",
+        "arguments",
         "parameters",
         "powershell",
     )
@@ -97,6 +96,7 @@ class PsrpOperator(BaseOperator):
         command: str | None = None,
         powershell: str | None = None,
         cmdlet: str | None = None,
+        arguments: list[str] | None = None,
         parameters: dict[str, str] | None = None,
         logging_level: int = DEBUG,
         runspace_options: dict[str, Any] | None = None,
@@ -107,15 +107,18 @@ class PsrpOperator(BaseOperator):
         args = {command, powershell, cmdlet}
         if not exactly_one(*args):
             raise ValueError("Must provide exactly one of 'command', 'powershell', or 'cmdlet'")
+        if arguments and not cmdlet:
+            raise ValueError("Arguments only allowed with 'cmdlet'")
         if parameters and not cmdlet:
             raise ValueError("Parameters only allowed with 'cmdlet'")
         if cmdlet:
-            kwargs.setdefault('task_id', cmdlet)
+            kwargs.setdefault("task_id", cmdlet)
         super().__init__(**kwargs)
         self.conn_id = psrp_conn_id
         self.command = command
         self.powershell = powershell
         self.cmdlet = cmdlet
+        self.arguments = arguments
         self.parameters = parameters
         self.logging_level = logging_level
         self.runspace_options = runspace_options
@@ -139,6 +142,8 @@ class PsrpOperator(BaseOperator):
                     ps.add_cmdlet(self.cmdlet)
                 else:
                     ps.add_script(self.powershell)
+                for argument in self.arguments or ():
+                    ps.add_argument(argument)
                 if self.parameters:
                     ps.add_parameters(self.parameters)
                 if self.do_xcom_push:

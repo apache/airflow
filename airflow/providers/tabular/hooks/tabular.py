@@ -37,7 +37,7 @@ class TabularHook(BaseHook):
         which refers to the information to connect to the Tabular OAuth service.
     """
 
-    conn_name_attr = 'tabular_conn_id'
+    conn_name_attr = "tabular_conn_id"
     default_conn_name = "tabular_default"
     conn_type = "tabular"
     hook_name = "Tabular"
@@ -77,7 +77,7 @@ class TabularHook(BaseHook):
         """Obtain a short-lived access token via a client_id and client_secret."""
         conn = self.get_connection(self.conn_id)
         base_url = conn.host if conn.host else DEFAULT_TABULAR_URL
-        base_url = base_url.rstrip('/')
+        base_url = base_url.rstrip("/")
         client_id = conn.login
         client_secret = conn.password
         data = {"client_id": client_id, "client_secret": client_secret, "grant_type": "client_credentials"}
@@ -88,4 +88,4 @@ class TabularHook(BaseHook):
         return response.json()["access_token"]
 
     def get_token_macro(self):
-        return f'{{{{ conn.{self.conn_id}.get_hook().get_conn() }}}}'
+        return f"{{{{ conn.{self.conn_id}.get_hook().get_conn() }}}}"

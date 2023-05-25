@@ -21,15 +21,15 @@ import json
 import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
 from slack_sdk import WebhookClient
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.slack.utils import ConnectionExtraConfig, prefixed_extra_field
+from airflow.providers.slack.utils import ConnectionExtraConfig
 from airflow.utils.log.secrets_masker import mask_secret
 
 if TYPE_CHECKING:
@@ -53,6 +53,34 @@ def check_webhook_response(func: Callable) -> Callable:
         return resp
 
     return wrapper
+
+
+def _ensure_prefixes(conn_type):
+    """
+    Remove when provider min airflow version >= 2.5.0 since this is handled by
+    provider manager from that version.
+    """
+
+    def dec(func):
+        @wraps(func)
+        def inner(cls):
+            field_behaviors = func(cls)
+            conn_attrs = {"host", "schema", "login", "password", "port", "extra"}
+
+            def _ensure_prefix(field):
+                if field not in conn_attrs and not field.startswith("extra__"):
+                    return f"extra__{conn_type}__{field}"
+                else:
+                    return field
+
+            if "placeholders" in field_behaviors:
+                placeholders = field_behaviors["placeholders"]
+                field_behaviors["placeholders"] = {_ensure_prefix(k): v for k, v in placeholders.items()}
+            return field_behaviors
+
+        return inner
+
+    return dec
 
 
 class SlackWebhookHook(BaseHook):
@@ -103,10 +131,10 @@ class SlackWebhookHook(BaseHook):
         Use instead Slack Incoming Webhook connection password field.
     """
 
-    conn_name_attr = 'slack_webhook_conn_id'
-    default_conn_name = 'slack_default'
-    conn_type = 'slackwebhook'
-    hook_name = 'Slack Incoming Webhook'
+    conn_name_attr = "slack_webhook_conn_id"
+    default_conn_name = "slack_default"
+    conn_type = "slackwebhook"
+    hook_name = "Slack Incoming Webhook"
 
     def __init__(
         self,
@@ -122,8 +150,8 @@ class SlackWebhookHook(BaseHook):
         http_conn_id = kwargs.pop("http_conn_id", None)
         if http_conn_id:
             warnings.warn(
-                'Parameter `http_conn_id` is deprecated. Please use `slack_webhook_conn_id` instead.',
-                DeprecationWarning,
+                "Parameter `http_conn_id` is deprecated. Please use `slack_webhook_conn_id` instead.",
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             if slack_webhook_conn_id:
@@ -137,7 +165,7 @@ class SlackWebhookHook(BaseHook):
             warnings.warn(
                 "Provide `webhook_token` as hook argument deprecated by security reason and will be removed "
                 "in a future releases. Please specify it in `Slack Webhook` connection.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         if not slack_webhook_conn_id:
@@ -186,7 +214,7 @@ class SlackWebhookHook(BaseHook):
                 f"Provide {','.join(repr(a) for a in deprecated_class_attrs)} as hook argument(s) "
                 f"is deprecated and will be removed in a future releases. "
                 f"Please specify attributes in `{self.__class__.__name__}.send` method instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -206,7 +234,7 @@ class SlackWebhookHook(BaseHook):
         """Return Slack Webhook Token URL."""
         warnings.warn(
             "`SlackHook.webhook_token` property deprecated and will be removed in a future releases.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         return self._get_conn_params()["url"]
@@ -257,7 +285,7 @@ class SlackWebhookHook(BaseHook):
 
             base_url = base_url.rstrip("/")
             if not webhook_token:
-                parsed_token = (urlparse(base_url).path or "").strip("/")
+                parsed_token = (urlsplit(base_url).path or "").strip("/")
                 if base_url == DEFAULT_SLACK_WEBHOOK_ENDPOINT or not parsed_token:
                     # Raise an error in case of password not specified and
                     # 1. Result of constructing base_url equal https://hooks.slack.com/services
@@ -270,7 +298,7 @@ class SlackWebhookHook(BaseHook):
                     f"Found Slack Webhook Token URL in Connection {conn.conn_id!r} `host` "
                     "and `password` field is empty. This behaviour deprecated "
                     "and could expose you token in the UI and will be removed in a future releases.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
             url = (base_url.rstrip("/") + "/" + webhook_token.lstrip("/")).rstrip("/")
@@ -423,21 +451,22 @@ class SlackWebhookHook(BaseHook):
         from wtforms.validators import NumberRange, Optional
 
         return {
-            prefixed_extra_field("timeout", cls.conn_type): IntegerField(
+            "timeout": IntegerField(
                 lazy_gettext("Timeout"),
                 widget=BS3TextFieldWidget(),
                 validators=[Optional(), NumberRange(min=1)],
                 description="Optional. The maximum number of seconds the client will wait to connect "
                 "and receive a response from Slack Incoming Webhook.",
             ),
-            prefixed_extra_field("proxy", cls.conn_type): StringField(
-                lazy_gettext('Proxy'),
+            "proxy": StringField(
+                lazy_gettext("Proxy"),
                 widget=BS3TextFieldWidget(),
                 description="Optional. Proxy to make the Slack Incoming Webhook call.",
             ),
         }
 
     @classmethod
+    @_ensure_prefixes(conn_type="slackwebhook")
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
@@ -450,8 +479,8 @@ class SlackWebhookHook(BaseHook):
                 "schema": "https",
                 "host": "hooks.slack.com/services",
                 "password": "T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
-                prefixed_extra_field("timeout", cls.conn_type): "30",
-                prefixed_extra_field("proxy", cls.conn_type): "http://localhost:9000",
+                "timeout": "30",
+                "proxy": "http://localhost:9000",
             },
         }
 
@@ -468,7 +497,7 @@ class SlackWebhookHook(BaseHook):
             "`SlackWebhookHook.execute` method deprecated and will be removed in a future releases. "
             "Please use `SlackWebhookHook.send` or `SlackWebhookHook.send_dict` or "
             "`SlackWebhookHook.send_text` methods instead.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         self.send()

@@ -30,7 +30,7 @@ yum package, or whatever equivalent applies on the distribution you are using.
 Most of the extra dependencies are linked to a corresponding provider package. For example "amazon" extra
 has a corresponding ``apache-airflow-providers-amazon`` provider package to be installed. When you install
 Airflow with such extras, the necessary provider packages are installed automatically (latest versions from
-PyPI for those packages). However you can freely upgrade and install provider packages independently from
+PyPI for those packages). However, you can freely upgrade and install provider packages independently from
 the main Airflow installation.
 
 For the list of the extras and what they enable, see: :doc:`/extra-packages-ref`.
@@ -60,7 +60,7 @@ packages, but not all optional features of Apache Airflow have corresponding pro
 
 We are using the ``extras`` setuptools features to also install provider packages.
 Most of the extras are also linked (same name) with provider packages - for example adding ``[google]``
-extra also adds ``apache-airflow-providers-google`` as dependency. However there are some extras that do
+extra also adds ``apache-airflow-providers-google`` as dependency. However, there are some extras that do
 not install providers (examples ``github_enterprise``, ``kerberos``, ``async`` - they add some extra
 dependencies which are needed for those ``extra`` features of Airflow mentioned. The three examples
 above add respectively GitHub Enterprise OAuth authentication, Kerberos integration or

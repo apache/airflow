@@ -22,7 +22,7 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "start-airflow",
         "static-checks",
         "build-docs",
-        "stop",
+        "down",
         "shell",
         "exec",
         "compile-www-assets",
@@ -42,6 +42,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--integration",
                 "--forward-credentials",
                 "--db-reset",
+                "--max-time",
+                "--github-repository",
             ],
         },
     ],
@@ -57,11 +59,13 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--integration",
                 "--forward-credentials",
                 "--db-reset",
+                "--github-repository",
             ],
         },
         {
             "name": "Advanced flag for running",
             "options": [
+                "--install-selected-providers",
                 "--use-airflow-version",
                 "--airflow-constraints-reference",
                 "--platform",
@@ -72,6 +76,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--mount-sources",
                 "--include-mypy-volume",
+                "--max-time",
             ],
         },
     ],
@@ -98,6 +103,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--integration",
                 "--forward-credentials",
                 "--db-reset",
+                "--github-repository",
             ],
         },
         {
@@ -124,11 +130,12 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze exec": [
         {"name": "Drops in the interactive shell of active airflow container"},
     ],
-    "breeze stop": [
+    "breeze down": [
         {
-            "name": "Stop flags",
+            "name": "Down flags",
             "options": [
                 "--preserve-volumes",
+                "--cleanup-mypy-cache",
             ],
         },
     ],
@@ -140,7 +147,9 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--spellcheck-only",
                 "--clean-build",
                 "--for-production",
+                "--one-pass-only",
                 "--package-filter",
+                "--github-repository",
             ],
         },
     ],
@@ -149,11 +158,20 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Pre-commit flags",
             "options": [
                 "--type",
+                "--show-diff-on-failure",
+                "--initialize-environment",
+                "--max-initialization-attempts",
+                "--github-repository",
+            ],
+        },
+        {
+            "name": "Selecting files to run the checks on",
+            "options": [
                 "--file",
                 "--all-files",
-                "--show-diff-on-failure",
-                "--last-commit",
                 "--commit-ref",
+                "--last-commit",
+                "--only-my-changes",
             ],
         },
     ],

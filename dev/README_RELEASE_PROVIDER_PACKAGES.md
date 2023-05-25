@@ -27,6 +27,7 @@
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
   - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
+  - [Open PR with suggested version releases](#open-pr-with-suggested-version-releases)
   - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
   - [Commit the source packages to Apache SVN repo](#commit-the-source-packages-to-apache-svn-repo)
@@ -44,6 +45,8 @@
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
+  - [Announce about the release in social media](#announce-about-the-release-in-social-media)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Close the testing status issue](#close-the-testing-status-issue)
 
@@ -151,6 +154,25 @@ are updated, run it in non-interactive mode:
 breeze release-management prepare-provider-documentation --answer yes [packages]
 ```
 
+NOTE!! In case you prepare provider's documentation in a branch different than main, you need to manually
+specify the base branch via `--base-branch` parameter.
+For example if you try to build a `cncf.kubernetes` provider that is build from `provider-cncf-kubernetes/v4-4`
+branch should be prepared like this:
+
+```shell script
+breeze release-management prepare-provider-documentation \
+ --base-branch provider-cncf-kubernetes/v4-4 cncf.kubernetes
+```
+
+## Open PR with suggested version releases
+
+At this point you should have providers yaml files and changelog updated.
+You should go over the change log and place changes in their relevant section (breaking change, feature, bugs, etc...)
+Once finished you should raise a PR : Prepare docs for MM YYYY wave of Providers
+In the PR we will verify if we want to release a specific package or if the versions chosen are right.
+Only after PR is merged you should proceed to next steps.
+
+
 ## Build provider packages for SVN apache upload
 
 Those packages might get promoted  to "final" packages by just renaming the files, so internally they
@@ -204,7 +226,7 @@ svn update --set-depth=infinity asf-dist/dev/airflow
 cd asf-dist/dev/airflow/providers
 
 # Remove previously released providers
-rm -rf *
+svn rm *
 
 # Move the artifacts to svn folder
 mv ${AIRFLOW_REPO_ROOT}/dist/* .
@@ -219,10 +241,16 @@ cd ${AIRFLOW_REPO_ROOT}
 Verify that the files are available at
 [providers](https://dist.apache.org/repos/dist/dev/airflow/providers/)
 
-## Publish the Regular convenience package to PyPI
+You should see only providers that you are about to release.
+If you are seeing others there is an issue.
+You can remove the redundant provider files manually with:
 
-In case of pre-release versions you build the same packages for both PyPI and SVN so you can simply use
-packages generated in the previous step, and you can skip the "prepare" step below.
+```shell script
+svn rm file_name  // repeate that for every file
+svn commit -m "delete old providers"
+```
+
+## Publish the Regular convenience package to PyPI
 
 In order to publish release candidate to PyPI you just need to build and release packages.
 The packages should however contain the rcN suffix in the version file name but not internally in the package,
@@ -256,6 +284,15 @@ twine check ${AIRFLOW_REPO_ROOT}/dist/*
 ```shell script
 twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*
 ```
+
+If you see
+> WARNING  Error during upload. Retry with the --verbose option for more details.
+ERROR   HTTPError: 403 Forbidden from https://test.pypi.org/legacy/
+     The user [user_name] isn't allowed to upload to project [provider_name]
+
+It means that you don't have permission to upload providers.
+Please ask one of the Admins to grant you permissions on the packages you wish to release.
+
 
 * Verify that the test packages look good by downloading it and installing them into a virtual environment.
 Twine prints the package links as output - separately for each package.
@@ -298,6 +335,14 @@ cd airflow-site
 export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 ```
 
+Note if this is not the first time you clone the repo make sure main branch is rebased:
+
+```shell script
+cd "${AIRFLOW_SITE_DIRECTORY}"
+git checkout main
+git pull --rebase
+```
+
 - Then you can go to the directory and build the necessary documentation packages
 
 ```shell script
@@ -315,6 +360,7 @@ If we want to just release some providers you can release them in this way:
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
 breeze build-docs --clean-build --for-production \
+  --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
   ...
@@ -334,16 +380,34 @@ If you have providers as list of provider ids because you just released them, yo
 ./docs/start_doc_server.sh
 ```
 
+You should navigate the providers and make sure the docs render properly.
+Note: if you used ``--for-production`` then default of url paths goes to ``latest``
+thus viewing the pages will result in 404 file not found error.
+You will need to change it manually to see the docs
+
 - Copy the documentation to the ``airflow-site`` repository
 
 **NOTE** In order to run the publish documentation you need to activate virtualenv where you installed
 apache-airflow with doc extra:
 
-* `pip install apache-airflow[doc]`
+* `pip install 'apache-airflow[doc_gen]'`
+
+If you don't have virtual env set you can do:
+
+```shell script
+cd <path_you_want_to_save_your_virtual_env>
+virtualenv providers
+
+source venv/providers/bin/activate
+
+pip install 'apache-airflow[doc_gen]'
+```
 
 All providers (including overriding documentation for doc-only changes):
 
 ```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
 ./docs/publish_docs.py \
     --package-filter apache-airflow-providers \
     --package-filter 'apache-airflow-providers-*' \
@@ -352,9 +416,17 @@ All providers (including overriding documentation for doc-only changes):
 cd "${AIRFLOW_SITE_DIRECTORY}"
 ```
 
+If you see `ModuleNotFoundError: No module named 'docs'`, set:
+
+```
+export PYTHONPATH=.:${PYTHONPATH}
+```
+
 If you have providers as list of provider ids because you just released them you can build them with
 
 ```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+
 ./dev/provider_packages/publish_provider_documentation.sh amazon apache.beam google ....
 ```
 
@@ -381,7 +453,7 @@ set as your environment variable.
 You can also pass the token as `--github-token` option in the script.
 
 ```shell script
-./dev/provider_packages/prepare_provider_packages.py generate-issue-content --only-available-in-dist
+breeze release-management generate-issue-content-providers --only-available-in-dist
 ```
 
 You can also generate the token by following
@@ -390,7 +462,7 @@ You can also generate the token by following
 If you are preparing release for RC2/RC3 candidates, you should add `--suffix` parameter:
 
 ```shell script
-./dev/provider_packages/prepare_provider_packages.py generate-issue-content --only-available-in-dist --suffix rc2
+breeze release-management generate-issue-content-providers --only-available-in-dist --suffix rc2
 ```
 
 
@@ -475,6 +547,8 @@ problems have been found in some packages.
 
 Please modify the message above accordingly to clearly exclude those packages.
 
+Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
+
 ## Verify the release by PMC members
 
 ### SVN check
@@ -499,12 +573,22 @@ Or update it if you already checked it out:
 svn update .
 ```
 
-Optionally you can use `check_files.py` script to verify that all expected files are
-present in SVN. This script may help also with verifying installation of the packages.
+Optionally you can use the [`check_files.py`](https://github.com/apache/airflow/blob/main/dev/check_files.py)
+script to verify that all expected files are present in SVN. This script will produce a `Dockerfile.pmc` which
+may help with verifying installation of the packages.
 
 ```shell script
 # Copy the list of packages (pypi urls) into `packages.txt` then run:
 python check_files.py providers -p {PATH_TO_SVN}
+```
+
+After the above script completes you can build `Dockerfile.pmc` to trigger an installation of each provider
+package and verify the correct versions are installed:
+
+```shell script
+docker build -f Dockerfile.pmc --tag local/airflow .
+docker run --rm --entrypoint "airflow" local/airflow info
+docker image rm local/airflow
 ```
 
 ### Licences check
@@ -731,16 +815,26 @@ We also need to archive older releases before copying the new ones
 cd "<ROOT_OF_YOUR_AIRFLOW_REPO>"
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
 export AIRFLOW_REPO_ROOT="$(pwd)"
-cd ..
 
-# Go the folder where you have checked out the release repo
-cd "<ROOT_OF_YOUR_RELEASE_REPO>"
+# Go the folder where you have checked out the release repo from SVN
+# Make sure this is direct directory and a symbolic link
+# Otherwise 'svn mv' errors out if it is with "E200033: Another process is blocking the working copy database
+cd "<ROOT_WHERE_YOUR_ASF_DIST_IS_CREATED>"
+
+export ASF_DIST_PARENT="$(pwd)"
+
 # or clone it if it's not done yet
 [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
 # Update to latest version
 svn update --set-depth=infinity asf-dist/dev/airflow asf-dist/release/airflow
 
-SOURCE_DIR="${PWD}/dev/airflow/providers"
+SOURCE_DIR="${ASF_DIST_PARENT}/asf-dist/dev/airflow/providers"
+
+# If some packages have been excluded, remove them now
+# Check the packages are there (replace <provider> with the name of the provider that you remove)
+ls ${SOURCE_DIR}/*<provider>*
+# Remove them
+svn rm ${SOURCE_DIR}/*<provider>*
 
 # Create providers folder if it does not exist
 # All latest releases are kept in this one folder without version sub-folder
@@ -748,14 +842,8 @@ cd asf-dist/release/airflow
 mkdir -pv providers
 cd providers
 
-# If some packages have been excluded, remove them now
-# Check the packages
-ls *<provider>*
-# Remove them
-svn rm *<provider>*
-
 # Copy your providers with the target name to dist directory and to SVN
-rm "${AIRFLOW_REPO_ROOT}"/dist/*
+rm -rf "${AIRFLOW_REPO_ROOT}"/dist/*
 
 for file in "${SOURCE_DIR}"/*
 do
@@ -764,21 +852,40 @@ do
  svn mv "${file}" "${base_file//rc[0-9]/}"
 done
 
-# Check which old packages will be removed (you need python 3.7+)
-python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
-    --directory .
+# Check which old packages will be removed (you need Python 3.7+ and dev/requirements.txt installed)
+python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory .
 
 # Remove those packages
-python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
-    --directory . --execute
+python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory . --execute
 
-
+# You need to do go to the asf-dist directory in order to commit both dev and release together
+cd ${ASF_DIST_PARENT}/asf-dist
 # Commit to SVN
 svn commit -m "Release Airflow Providers on $(date "+%Y-%m-%d%n")"
 ```
 
 Verify that the packages appear in
 [providers](https://dist.apache.org/repos/dist/release/airflow/providers)
+
+You are expected to see all latest versions of providers.
+The ones you are about to release (with new version) and the ones that are not part of the current release.
+
+Troubleshoot:
+In case that while viewing the packages in dist/release you see that a provider has files from current version and release version it probably means that you wanted to exclude the new version of provider from release but didn't remove all providers files as expected in previous step.
+Since you already commit to SVN you need to recover files from previous version with svn copy (svn merge will not work since you don't have copy of the file locally)
+for example:
+
+```
+svn copy https://dist.apache.org/repos/dist/release/airflow/providers/apache_airflow_providers_docker-3.4.0-py3-none-any.whl@59404
+https://dist.apache.org/repos/dist/release/airflow/providers/apache_airflow_providers_docker-3.4.0-py3-none-any.whl
+```
+
+Where `59404` is the revision we want to copy the file from. Then you can commit again.
+You can also add  `-m "undeleted file"` to the `svn copy` to commit in 1 step.
+
+Then remove from svn the files of the new provider version that you wanted to exclude from release.
+If you had this issue you will need also to make adjustments in the next step to remove the provider from listed in twine check.
+This is simply by removing the relevant files locally.
 
 
 ## Publish the packages to PyPI
@@ -789,6 +896,11 @@ By that time the packages should be in your dist folder.
 cd ${AIRFLOW_REPO_ROOT}
 git checkout <ONE_OF_THE_RC_TAGS_FOR_ONE_OF_THE_RELEASED_PROVIDERS>
 ```
+
+example `git checkout providers-amazon/7.0.0rc2`
+
+Note you probably will see message `You are in 'detached HEAD' state.`
+This is expected, the RC tag is most likely behind the main branch.
 
 * Verify the artifacts that would be uploaded:
 
@@ -811,7 +923,7 @@ twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/di
 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
-Copy links to updated packages.
+Copy links to updated packages, sort it aphabeticly and save it on the side. You will need it for the announcement message.
 
 * Again, confirm that the packages are available under the links printed.
 
@@ -842,16 +954,12 @@ set tags for the providers in the repo.
 
 ## Notify developers of release
 
-- Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
-the artifacts have been published:
+Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org) that
+the artifacts have been published.
 
 Subject:
 
-```shell script
-cat <<EOF
-Airflow Providers released on $(date "+%B %d, %Y") are ready
-EOF
-```
+[ANNOUNCE] Apache Airflow Providers prepared on <DATE OF CUT RC> are released
 
 Body:
 
@@ -876,6 +984,43 @@ Cheers,
 EOF
 ```
 
+Send the same email to announce@apache.org, except change the opening line to `Dear community,`.
+It is more reliable to send it via the web ui at https://lists.apache.org/list.html?announce@apache.org
+(press "c" to compose a new thread)
+
+Note If you choose sending it with your email client make sure the email is set to plain text mode.
+Trying to send HTML content will result in failure.
+
+## Send announcements about security issues fixed in the release
+
+The release manager should review and mark as READY all the security issues fixed in the release.
+Such issues are marked as affecting `< <JUST_RELEASED_VERSION>` in the CVE management tool
+at https://cveprocess.apache.org/. Then the release manager should announced the issues via the tool.
+
+Once announced, each of the issue should be linked with a 'reference' with tag 'vendor advisory' with the
+URL to the announcement published automatically by the CVE management tool.
+Note that the announce@apache.org is moderated, and the link to the email thread will not be published
+immediately, that's why it is recommended to add the link to users@airflow.apache.org which takes usually
+few seconds to be published after the CVE tool sends them.
+
+The ASF Security will be notified and will submit to the CVE project and will set the state to 'PUBLIC'.
+
+## Announce about the release in social media
+
+------------------------------------------------------------------------------------------------------------
+Announcement is done from official Apache-Airflow accounts.
+
+* Twitter: https://twitter.com/ApacheAirflow
+* Linkedin: https://www.linkedin.com/company/apache-airflow/
+
+If you don't have access to the account ask PMC to post.
+
+------------------------------------------------------------------------------------------------------------
+
+Normally we do not announce on providers in social media other than a new provider added which doesn't happen often.
+If you believe there is a reason to announce in social media for another case consult with PMCs about it.
+Example for special case: an exciting new capability that the community waited for and should have big impact.
+
 ## Add release data to Apache Committee Report Helper
 
 Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
@@ -883,3 +1028,9 @@ Add the release data (version and date) at: https://reporter.apache.org/addrelea
 ## Close the testing status issue
 
 Don't forget to thank the folks who tested and close the issue tracking the testing status.
+
+```shell script
+Thank you everyone.
+Providers are released
+I invite everyone to help improve providers for the next release, a list of open issues can be found [here](https://github.com/apache/airflow/issues?q=is%3Aopen+is%3Aissue+label%3Aarea%3Aproviders).
+```

@@ -28,14 +28,91 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.7.0
+.....
+
+Latest change: 2023-05-18
+
+=================================================================================================  ===========  ======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================
+`abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
+`f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
+`0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+=================================================================================================  ===========  ======================================================================================
+
+3.6.0
+.....
+
+Latest change: 2023-04-02
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`55dbf1ff1f <https://github.com/apache/airflow/commit/55dbf1ff1fb0b22714f695a66f6108b3249d1199>`_  2023-04-02   ``Prepare docs for April 2023 wave of Providers (#30378)``
+`fe727f985b <https://github.com/apache/airflow/commit/fe727f985b1053b838433b817458517c0c0f2480>`_  2023-03-21   ``SSHOperator - Restore ability to override SSHHook cmd_timeout (#30190)``
+=================================================================================================  ===========  ==========================================================================
+
+3.5.0
+.....
+
+Latest change: 2023-03-03
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`fcd3c0149f <https://github.com/apache/airflow/commit/fcd3c0149f17b364dfb94c0523d23e3145976bbe>`_  2023-03-03   ``Prepare docs for 03/2023 wave of Providers (#29878)``
+`fd000684d0 <https://github.com/apache/airflow/commit/fd000684d05a993ade3fef38b683ef3cdfdfc2b6>`_  2023-02-19   ``SSH Provider: Add cmd_timeout to ssh connection extra (#29347)``
+=================================================================================================  ===========  ==================================================================
+
+3.4.0
+.....
+
+Latest change: 2023-01-02
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
+`4f006e8c71 <https://github.com/apache/airflow/commit/4f006e8c71f850fce0450fbabd6aa6d61487498e>`_  2022-12-28   ``Add .bash and other extensions to SSHOperator template_ext (#28617)``
+`38e40c6dc4 <https://github.com/apache/airflow/commit/38e40c6dc45b92b274a06eafd8790140a0c3c7b8>`_  2022-12-21   ``Remove outdated compat imports/code from providers (#28507)``
+`b5338b5825 <https://github.com/apache/airflow/commit/b5338b5825859355b017bed3586d5a42208f1391>`_  2022-12-07   ``Add test_connection method for SSHHook (#28184)``
+`2b107e6f50 <https://github.com/apache/airflow/commit/2b107e6f504732715702ea65e77986c2d42f5d61>`_  2022-12-04   ``SSH task exit code added to XCOM as 'ssh_exit' key (#27370)``
+`4a3a429658 <https://github.com/apache/airflow/commit/4a3a42965801823c39baaccfa96c5e4cffae4012>`_  2022-12-03   ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+=================================================================================================  ===========  =======================================================================
+
+3.3.0
+.....
+
+Latest change: 2022-11-15
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
+`8f152a102b <https://github.com/apache/airflow/commit/8f152a102baf6851a719e4ad10fbb15e928fa72b>`_  2022-11-08   ``Apply log formatter on every ouput line in SSHOperator (#27442)``
+`dc760b45ea <https://github.com/apache/airflow/commit/dc760b45eaeccc3ff35a5acdfe70968ca0451331>`_  2022-11-07   ``SSHOperator ignores cmd_timeout (#27182) (#27184)``
+`9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
+`13b6b3b078 <https://github.com/apache/airflow/commit/13b6b3b0780036ff47a92757d960468f628aa578>`_  2022-10-26   ``Added docs regarding templated field (#27301)``
+`a8a67a3f40 <https://github.com/apache/airflow/commit/a8a67a3f40cdb206676a167829b61a4207ae1fe9>`_  2022-10-26   ``Added environment to templated SSHOperator fields (#26824)``
+`78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
+`2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
+`674f9ce6ea <https://github.com/apache/airflow/commit/674f9ce6eaae533cfe31bc92cc92fa75ed7223fc>`_  2022-10-01   ``A few docs fixups (#26788)``
+=================================================================================================  ===========  =========================================================================
+
 3.2.0
 .....
 
-Latest change: 2022-09-13
+Latest change: 2022-09-28
 
 =================================================================================================  ===========  ====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================
+`f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
 `06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
 `2f26da7023 <https://github.com/apache/airflow/commit/2f26da70230d7d1cf7dfb3a20d38e9a5844862a7>`_  2022-08-27   ``feat: load host keys to save new host key (#25979)``
 =================================================================================================  ===========  ====================================================================================

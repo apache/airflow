@@ -37,12 +37,12 @@ if TYPE_CHECKING:
 
     from airflow.models.taskinstance import TaskInstance
 
-KEY_REGEX = re.compile(r'^[\w.-]+$')
-GROUP_KEY_REGEX = re.compile(r'^[\w-]+$')
-CAMELCASE_TO_SNAKE_CASE_REGEX = re.compile(r'(?!^)([A-Z]+)')
+KEY_REGEX = re.compile(r"^[\w.-]+$")
+GROUP_KEY_REGEX = re.compile(r"^[\w-]+$")
+CAMELCASE_TO_SNAKE_CASE_REGEX = re.compile(r"(?!^)([A-Z]+)")
 
-T = TypeVar('T')
-S = TypeVar('S')
+T = TypeVar("T")
+S = TypeVar("S")
 
 
 def validate_key(k: str, max_length: int = 250):
@@ -71,7 +71,7 @@ def validate_group_key(k: str, max_length: int = 200):
 
 
 def alchemy_to_dict(obj: Any) -> dict | None:
-    """Transforms a SQLAlchemy model instance into a dictionary"""
+    """Transforms a SQLAlchemy model instance into a dictionary."""
     if not obj:
         return None
     output = {}
@@ -85,8 +85,8 @@ def alchemy_to_dict(obj: Any) -> dict | None:
 
 def ask_yesno(question: str, default: bool | None = None) -> bool:
     """Helper to get a yes or no answer from the user."""
-    yes = {'yes', 'y'}
-    no = {'no', 'n'}
+    yes = {"yes", "y"}
+    no = {"no", "n"}
 
     print(question)
     while True:
@@ -101,7 +101,7 @@ def ask_yesno(question: str, default: bool | None = None) -> bool:
 
 
 def prompt_with_timeout(question: str, timeout: int, default: bool | None = None) -> bool:
-    """Ask the user a question and timeout if they don't respond"""
+    """Ask the user a question and timeout if they don't respond."""
 
     def handler(signum, frame):
         raise AirflowException(f"Timeout {timeout}s reached")
@@ -115,8 +115,8 @@ def prompt_with_timeout(question: str, timeout: int, default: bool | None = None
 
 
 def is_container(obj: Any) -> bool:
-    """Test if an object is a container (iterable) but not a string"""
-    return hasattr(obj, '__iter__') and not isinstance(obj, str)
+    """Test if an object is a container (iterable) but not a string."""
+    return hasattr(obj, "__iter__") and not isinstance(obj, str)
 
 
 def as_tuple(obj: Any) -> tuple:
@@ -131,9 +131,9 @@ def as_tuple(obj: Any) -> tuple:
 
 
 def chunks(items: list[T], chunk_size: int) -> Generator[list[T], None, None]:
-    """Yield successive chunks of a given size from a list of items"""
+    """Yield successive chunks of a given size from a list of items."""
     if chunk_size <= 0:
-        raise ValueError('Chunk size must be a positive integer')
+        raise ValueError("Chunk size must be a positive integer")
     for i in range(0, len(items), chunk_size):
         yield items[i : i + chunk_size]
 
@@ -141,7 +141,7 @@ def chunks(items: list[T], chunk_size: int) -> Generator[list[T], None, None]:
 def reduce_in_chunks(fn: Callable[[S, list[T]], S], iterable: list[T], initializer: S, chunk_size: int = 0):
     """
     Reduce the given list of items by splitting it into chunks
-    of the given size and passing each chunk through the reducer
+    of the given size and passing each chunk through the reducer.
     """
     if len(iterable) == 0:
         return initializer
@@ -152,7 +152,7 @@ def reduce_in_chunks(fn: Callable[[S, list[T]], S], iterable: list[T], initializ
 
 def as_flattened_list(iterable: Iterable[Iterable[T]]) -> list[T]:
     """
-    Return an iterable with one level flattened
+    Return an iterable with one level flattened.
 
     >>> as_flattened_list((('blue', 'red'), ('green', 'yellow', 'pink')))
     ['blue', 'red', 'green', 'yellow', 'pink']
@@ -173,7 +173,7 @@ def parse_template_string(template_string: str) -> tuple[str | None, jinja2.Temp
 def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
     """
     Given task instance, try_number, filename_template, return the rendered log
-    filename
+    filename.
 
     :param ti: task instance
     :param try_number: try_number of the task
@@ -183,7 +183,7 @@ def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
     filename_template, filename_jinja_template = parse_template_string(filename_template)
     if filename_jinja_template:
         jinja_context = ti.get_template_context()
-        jinja_context['try_number'] = try_number
+        jinja_context["try_number"] = try_number
         return render_template_to_string(filename_jinja_template, jinja_context)
 
     return filename_template.format(
@@ -196,7 +196,7 @@ def render_log_filename(ti: TaskInstance, try_number, filename_template) -> str:
 
 def convert_camel_to_snake(camel_str: str) -> str:
     """Converts CamelCase to snake_case."""
-    return CAMELCASE_TO_SNAKE_CASE_REGEX.sub(r'_\1', camel_str).lower()
+    return CAMELCASE_TO_SNAKE_CASE_REGEX.sub(r"_\1", camel_str).lower()
 
 
 def merge_dicts(dict1: dict, dict2: dict) -> dict:
@@ -215,7 +215,7 @@ def merge_dicts(dict1: dict, dict2: dict) -> dict:
 
 
 def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterable[T], Iterable[T]]:
-    """Use a predicate to partition entries into false entries and true entries"""
+    """Use a predicate to partition entries into false entries and true entries."""
     iter_1, iter_2 = tee(iterable)
     return filterfalse(pred, iter_1), filter(pred, iter_2)
 
@@ -227,7 +227,7 @@ def chain(*args, **kwargs):
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    return import_string('airflow.models.baseoperator.chain')(*args, **kwargs)
+    return import_string("airflow.models.baseoperator.chain")(*args, **kwargs)
 
 
 def cross_downstream(*args, **kwargs):
@@ -237,18 +237,19 @@ def cross_downstream(*args, **kwargs):
         RemovedInAirflow3Warning,
         stacklevel=2,
     )
-    return import_string('airflow.models.baseoperator.cross_downstream')(*args, **kwargs)
+    return import_string("airflow.models.baseoperator.cross_downstream")(*args, **kwargs)
 
 
 def build_airflow_url_with_query(query: dict[str, Any]) -> str:
     """
-    Build airflow url using base_url and default_view and provided query
+    Build airflow url using base_url and default_view and provided query.
+
     For example:
-    'http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587
+    http://0.0.0.0:8000/base/graph?dag_id=my-task&root=&execution_date=2020-10-27T10%3A59%3A25.615587
     """
     import flask
 
-    view = conf.get_mandatory_value('webserver', 'dag_default_view').lower()
+    view = conf.get_mandatory_value("webserver", "dag_default_view").lower()
     return flask.url_for(f"Airflow.{view}", **query)
 
 
@@ -324,7 +325,7 @@ def at_most_one(*args) -> bool:
     return sum(map(is_set, args)) in (0, 1)
 
 
-def prune_dict(val: Any, mode='strict'):
+def prune_dict(val: Any, mode="strict"):
     """
     Given dict ``val``, returns new dict based on ``val`` with all
     empty elements removed.
@@ -335,9 +336,9 @@ def prune_dict(val: Any, mode='strict'):
     """
 
     def is_empty(x):
-        if mode == 'strict':
+        if mode == "strict":
             return x is None
-        elif mode == 'truthy':
+        elif mode == "truthy":
             return bool(x) is False
         raise ValueError("allowable values for `mode` include 'truthy' and 'strict'")
 

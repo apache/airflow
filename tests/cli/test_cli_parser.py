@@ -23,10 +23,11 @@ import contextlib
 import io
 import re
 from collections import Counter
+from unittest.mock import patch
 
 import pytest
 
-from airflow.cli import cli_parser
+from airflow.cli import cli_config, cli_parser
 from tests.test_utils.config import conf_vars
 
 # Can not be `--snake_case` or contain uppercase letter
@@ -129,7 +130,7 @@ class TestCli:
         parser = argparse.ArgumentParser()
         arg.add_to_parser(parser)
 
-        args = parser.parse_args(['--test', '10'])
+        args = parser.parse_args(["--test", "10"])
         assert args.test == 10
 
         args = parser.parse_args([])
@@ -140,7 +141,7 @@ class TestCli:
 
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
             with pytest.raises(SystemExit):
-                parser.parse_args(['--help'])
+                parser.parse_args(["--help"])
             stdout = stdout.getvalue()
         assert "Commands" in stdout
         assert "Groups" in stdout
@@ -150,7 +151,7 @@ class TestCli:
 
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
             with pytest.raises(SystemExit):
-                parser.parse_args(['--help'])
+                parser.parse_args(["--help"])
             stdout = stdout.getvalue()
         assert "Commands" in stdout
         assert "Groups" in stdout
@@ -169,14 +170,14 @@ class TestCli:
         ]
         for cmd_args in all_command_as_args:
             with pytest.raises(SystemExit):
-                parser.parse_args([*cmd_args, '--help'])
+                parser.parse_args([*cmd_args, "--help"])
 
     def test_dag_cli_should_display_help(self):
         parser = cli_parser.get_parser(dag_parser=True)
 
         all_command_as_args = [
             command_as_args
-            for top_command in cli_parser.dag_cli_commands
+            for top_command in cli_config.dag_cli_commands
             for command_as_args in (
                 [[top_command.name]]
                 if isinstance(top_command, cli_parser.ActionCommand)
@@ -185,23 +186,23 @@ class TestCli:
         ]
         for cmd_args in all_command_as_args:
             with pytest.raises(SystemExit):
-                parser.parse_args([*cmd_args, '--help'])
+                parser.parse_args([*cmd_args, "--help"])
 
     def test_positive_int(self):
-        assert 1 == cli_parser.positive_int(allow_zero=True)('1')
-        assert 0 == cli_parser.positive_int(allow_zero=True)('0')
+        assert 1 == cli_config.positive_int(allow_zero=True)("1")
+        assert 0 == cli_config.positive_int(allow_zero=True)("0")
 
         with pytest.raises(argparse.ArgumentTypeError):
-            cli_parser.positive_int(allow_zero=False)('0')
-            cli_parser.positive_int(allow_zero=True)('-1')
+            cli_config.positive_int(allow_zero=False)("0")
+            cli_config.positive_int(allow_zero=True)("-1")
 
     def test_dag_parser_celery_command_require_celery_executor(self):
-        with conf_vars({('core', 'executor'): 'SequentialExecutor'}), contextlib.redirect_stderr(
+        with conf_vars({("core", "executor"): "SequentialExecutor"}), contextlib.redirect_stderr(
             io.StringIO()
         ) as stderr:
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser.parse_args(['celery'])
+                parser.parse_args(["celery"])
             stderr = stderr.getvalue()
         assert (
             "airflow command error: argument GROUP_OR_COMMAND: celery subcommand "
@@ -219,19 +220,51 @@ class TestCli:
         ],
     )
     def test_dag_parser_celery_command_accept_celery_executor(self, executor):
-        with conf_vars({('core', 'executor'): executor}), contextlib.redirect_stderr(io.StringIO()) as stderr:
+        with conf_vars({("core", "executor"): executor}), contextlib.redirect_stderr(io.StringIO()) as stderr:
             parser = cli_parser.get_parser()
             with pytest.raises(SystemExit):
-                parser.parse_args(['celery'])
+                parser.parse_args(["celery"])
             stderr = stderr.getvalue()
         assert (
             "airflow celery command error: the following arguments are required: COMMAND, see help above."
         ) in stderr
 
     def test_dag_parser_config_command_dont_required_celery_executor(self):
-        with conf_vars({('core', 'executor'): "CeleryExecutor"}), contextlib.redirect_stderr(
+        with conf_vars({("core", "executor"): "CeleryExecutor"}), contextlib.redirect_stderr(
             io.StringIO()
         ) as stdout:
             parser = cli_parser.get_parser()
-            parser.parse_args(['config', 'get-value', 'celery', 'broker-url'])
+            parser.parse_args(["config", "get-value", "celery", "broker-url"])
         assert stdout is not None
+
+    def test_non_existing_directory_raises_when_metavar_is_dir_for_db_export_cleaned(self):
+        """Test that the error message is correct when the directory does not exist."""
+        with contextlib.redirect_stderr(io.StringIO()) as stderr:
+            with pytest.raises(SystemExit):
+                parser = cli_parser.get_parser()
+                parser.parse_args(["db", "export-archived", "--output-path", "/non/existing/directory"])
+            error_msg = stderr.getvalue()
+
+        assert error_msg == (
+            "\nairflow db export-archived command error: The directory "
+            "'/non/existing/directory' does not exist!, see help above.\n"
+        )
+
+    @pytest.mark.parametrize("export_format", ["json", "yaml", "unknown"])
+    @patch("airflow.cli.cli_config.os.path.isdir", return_value=True)
+    def test_invalid_choice_raises_for_export_format_in_db_export_archived_command(
+        self, mock_isdir, export_format
+    ):
+        """Test that invalid choice raises for export-format in db export-cleaned command."""
+        with contextlib.redirect_stderr(io.StringIO()) as stderr:
+            with pytest.raises(SystemExit):
+                parser = cli_parser.get_parser()
+                parser.parse_args(
+                    ["db", "export-archived", "--export-format", export_format, "--output-path", "mydir"]
+                )
+            error_msg = stderr.getvalue()
+        assert error_msg == (
+            "\nairflow db export-archived command error: argument "
+            f"--export-format: invalid choice: '{export_format}' "
+            "(choose from 'csv'), see help above.\n"
+        )

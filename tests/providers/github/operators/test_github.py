@@ -30,17 +30,26 @@ github_client_mock = Mock(name="github_client_for_test")
 
 class TestGithubOperator:
     def setup_class(self):
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        dag = DAG('test_dag_id', default_args=args)
+        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
+        dag = DAG("test_dag_id", default_args=args)
         self.dag = dag
         db.merge_conn(
             Connection(
-                conn_id='github_default',
-                conn_type='github',
-                password='my-access-token',
-                host='https://mygithub.com/api/v3',
+                conn_id="github_default",
+                conn_type="github",
+                password="my-access-token",
+                host="https://mygithub.com/api/v3",
             )
         )
+
+    def test_operator_init_with_optional_args(self):
+        github_operator = GithubOperator(
+            task_id="github_list_repos",
+            github_method="get_user",
+        )
+
+        assert github_operator.github_method_args == {}
+        assert github_operator.result_processor is None
 
     @patch(
         "airflow.providers.github.hooks.github.GithubClient", autospec=True, return_value=github_client_mock
@@ -55,9 +64,9 @@ class TestGithubOperator:
         github_mock.return_value.get_repo.return_value = repo
 
         github_operator = GithubOperator(
-            task_id='github-test',
+            task_id="github-test",
             github_method="get_repo",
-            github_method_args={'full_name_or_id': 'apache/airflow'},
+            github_method_args={"full_name_or_id": "apache/airflow"},
             result_processor=lambda r: r.full_name,
             dag=self.dag,
         )

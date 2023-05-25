@@ -46,8 +46,8 @@ if TYPE_CHECKING:
 
 
 Volume = namedtuple(
-    'Volume',
-    ['conn_id', 'account_name', 'share_name', 'mount_path', 'read_only'],
+    "Volume",
+    ["conn_id", "account_name", "share_name", "mount_path", "read_only"],
 )
 
 
@@ -119,7 +119,7 @@ class AzureContainerInstancesOperator(BaseOperator):
                 )
     """
 
-    template_fields: Sequence[str] = ('name', 'image', 'command', 'environment_variables')
+    template_fields: Sequence[str] = ("name", "image", "command", "environment_variables")
     template_fields_renderers = {"command": "bash", "environment_variables": "json"}
 
     def __init__(
@@ -141,8 +141,8 @@ class AzureContainerInstancesOperator(BaseOperator):
         remove_on_error: bool = True,
         fail_if_exists: bool = True,
         tags: dict[str, str] | None = None,
-        os_type: str = 'Linux',
-        restart_policy: str = 'Never',
+        os_type: str = "Linux",
+        restart_policy: str = "Never",
         ip_address: IpAddress | None = None,
         ports: list[ContainerPort] | None = None,
         network_profile: ContainerGroupNetworkProfile | None = None,
@@ -168,14 +168,14 @@ class AzureContainerInstancesOperator(BaseOperator):
         self._ci_hook: Any = None
         self.tags = tags
         self.os_type = os_type
-        if self.os_type not in ['Linux', 'Windows']:
+        if self.os_type not in ["Linux", "Windows"]:
             raise AirflowException(
                 "Invalid value for the os_type argument. "
                 "Please set 'Linux' or 'Windows' as the os_type. "
                 f"Found `{self.os_type}`."
             )
         self.restart_policy = restart_policy
-        if self.restart_policy not in ['Always', 'OnFailure', 'Never']:
+        if self.restart_policy not in ["Always", "OnFailure", "Never"]:
             raise AirflowException(
                 "Invalid value for the restart_policy argument. "
                 "Please set one of 'Always', 'OnFailure','Never' as the restart_policy. "
@@ -337,7 +337,7 @@ class AzureContainerInstancesOperator(BaseOperator):
             except AirflowTaskTimeout:
                 raise
             except CloudError as err:
-                if 'ResourceNotFound' in str(err):
+                if "ResourceNotFound" in str(err):
                     self.log.warning(
                         "ResourceNotFound, container is probably removed "
                         "by another process "
@@ -370,12 +370,12 @@ class AzureContainerInstancesOperator(BaseOperator):
 
     @staticmethod
     def _check_name(name: str) -> str:
-        if '{{' in name:
+        if "{{" in name:
             # Let macros pass as they cannot be checked at construction time
             return name
         regex_check = re.match("[a-z0-9]([-a-z0-9]*[a-z0-9])?", name)
         if regex_check is None or regex_check.group() != name:
             raise AirflowException('ACI name must match regex [a-z0-9]([-a-z0-9]*[a-z0-9])? (like "my-name")')
         if len(name) > 63:
-            raise AirflowException('ACI name cannot be longer than 63 characters')
+            raise AirflowException("ACI name cannot be longer than 63 characters")
         return name

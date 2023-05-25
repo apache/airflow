@@ -45,19 +45,19 @@ class HivePartitionSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'schema',
-        'table',
-        'partition',
+        "schema",
+        "table",
+        "partition",
     )
-    ui_color = '#C5CAE9'
+    ui_color = "#C5CAE9"
 
     def __init__(
         self,
         *,
         table: str,
         partition: str | None = "ds='{{ ds }}'",
-        metastore_conn_id: str = 'metastore_default',
-        schema: str = 'default',
+        metastore_conn_id: str = "metastore_default",
+        schema: str = "default",
         poke_interval: int = 60 * 3,
         **kwargs: Any,
     ):
@@ -70,9 +70,9 @@ class HivePartitionSensor(BaseSensorOperator):
         self.schema = schema
 
     def poke(self, context: Context) -> bool:
-        if '.' in self.table:
-            self.schema, self.table = self.table.split('.')
-        self.log.info('Poking for table %s.%s, partition %s', self.schema, self.table, self.partition)
-        if not hasattr(self, 'hook'):
+        if "." in self.table:
+            self.schema, self.table = self.table.split(".")
+        self.log.info("Poking for table %s.%s, partition %s", self.schema, self.table, self.partition)
+        if not hasattr(self, "hook"):
             hook = HiveMetastoreHook(metastore_conn_id=self.metastore_conn_id)
         return hook.check_for_partition(self.schema, self.table, self.partition)

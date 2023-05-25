@@ -33,8 +33,8 @@ from airflow.providers.google.cloud.operators.dataproc import (
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "dataproc_spark"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "")
+DAG_ID = "dataproc_spark_deferrable"
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 CLUSTER_NAME = f"cluster-dataproc-spark-{ENV_ID}"
 REGION = "europe-west1"
@@ -72,7 +72,7 @@ SPARK_JOB = {
 
 with models.DAG(
     DAG_ID,
-    schedule_interval='@once',
+    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "dataproc"],

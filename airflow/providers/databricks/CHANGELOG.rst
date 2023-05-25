@@ -24,6 +24,127 @@
 Changelog
 ---------
 
+4.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add conditional output processing in SQL operators (#31136)``
+* ``Add cancel all runs functionality to Databricks hook (#31038)``
+* ``Add retry param in databrics async operator (#30744)``
+* ``Add repair job functionality to databricks hook (#30786)``
+* ``Add 'DatabricksPartitionSensor' (#30980)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+* ``Deprecate databricks async operator (#30761)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move TaskInstanceKey to a separate file (#31033)``
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Add cli cmd to list the provider trigger info (#30822)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add delete inactive run functionality to databricks provider (#30646)``
+* ``Databricks SQL sensor (#30477)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+
+4.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DatabricksSubmitRunOperator to support taskflow (#29840)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``adding trigger info to provider yaml (#29950)``
+
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The ``DatabricksSqlHook`` is now conforming to the same semantics as all the other ``DBApiHook``
+implementations and returns the same kind of response in its ``run`` method. Previously (pre 4.* versions
+of the provider, the Hook returned Tuple of ("cursor description", "results") which was not compatible
+with other DBApiHooks that return just "results". After this change (and dependency on common.sql >= 1.3.1),
+The ``DatabricksSqlHook`` returns now "results" only. The ``description`` can be retrieved via
+``last_description`` field of the hook after ``run`` method completes.
+
+That makes the ``DatabricksSqlHook`` suitable for generic SQL operator and detailed lineage analysis.
+
+If you had custom hooks or used the Hook in your TaskFlow code or custom operators that relied on this
+behaviour, you need to adapt your DAGs.
+
+The Databricks ``DatabricksSQLOperator`` is also more standard and derives from common
+``SQLExecuteQueryOperator`` and uses more consistent approach to process output when SQL queries are run.
+However in this case the result returned by ``execute`` method is unchanged (it still returns Tuple of
+("description", "results") and this Tuple is pushed to XCom, so your DAGs relying on this behaviour
+should continue working without any change.
+
+* ``Fix errors in Databricks SQL operator introduced when refactoring (#27854)``
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix templating fields and do_xcom_push in DatabricksSQLOperator (#27868)``
+* ``Fixing the behaviours of SQL Hooks and Operators finally (#27912)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
+
+3.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+* ``Replace urlparse with urlsplit (#27389)``
+
+Features
+~~~~~~~~
+
+* ``Add SQLExecuteQueryOperator (#25717)``
+* ``Use new job search API for triggering Databricks job by name (#27446)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
 3.3.0
 .....
 
@@ -100,8 +221,9 @@ Bug Fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Features
 ~~~~~~~~

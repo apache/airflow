@@ -37,7 +37,7 @@ with models.DAG(
     schedule=None,  # Override to match your needs
     start_date=START_DATE,
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_operator_start_java_dataflow_runner_pipeline]
     jar_to_local_dataflow_runner = GCSToLocalFilesystemOperator(
@@ -52,11 +52,11 @@ with models.DAG(
         runner="DataflowRunner",
         jar="/tmp/beam_wordcount_dataflow_runner_{{ ds_nodash }}.jar",
         pipeline_options={
-            'tempLocation': GCS_TMP,
-            'stagingLocation': GCS_STAGING,
-            'output': GCS_OUTPUT,
+            "tempLocation": GCS_TMP,
+            "stagingLocation": GCS_STAGING,
+            "output": GCS_OUTPUT,
         },
-        job_class='org.apache.beam.examples.WordCount',
+        job_class="org.apache.beam.examples.WordCount",
         dataflow_config={"job_name": "{{task.task_id}}", "location": "us-central1"},
     )
 

@@ -34,7 +34,7 @@ class KylinHook(BaseHook):
 
     def __init__(
         self,
-        kylin_conn_id: str = 'kylin_default',
+        kylin_conn_id: str = "kylin_default",
         project: str | None = None,
         dsn: str | None = None,
     ):

@@ -19,9 +19,16 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+import pytest
+
 from airflow import models
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.mssql_to_gcs import MSSQLToGCSOperator
+
+try:
+    from airflow.providers.google.cloud.transfers.mssql_to_gcs import MSSQLToGCSOperator
+except ImportError:
+    pytest.skip("MSSQL not available", allow_module_level=True)
+
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -30,16 +37,16 @@ DAG_ID = "example_mssql_to_gcs"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
-FILENAME = 'test_file'
+FILENAME = "test_file"
 
 SQL_QUERY = "USE airflow SELECT * FROM Country;"
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example', 'mssql'],
+    tags=["example", "mssql"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
@@ -47,12 +54,12 @@ with models.DAG(
 
     # [START howto_operator_mssql_to_gcs]
     upload_mssql_to_gcs = MSSQLToGCSOperator(
-        task_id='mssql_to_gcs',
-        mssql_conn_id='airflow_mssql',
+        task_id="mssql_to_gcs",
+        mssql_conn_id="airflow_mssql",
         sql=SQL_QUERY,
         bucket=BUCKET_NAME,
         filename=FILENAME,
-        export_format='csv',
+        export_format="csv",
     )
     # [END howto_operator_mssql_to_gcs]
 

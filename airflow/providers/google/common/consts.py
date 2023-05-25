@@ -20,6 +20,6 @@ from google.api_core.gapic_v1.client_info import ClientInfo
 
 from airflow import version
 
-GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME = 'execute_complete'
+GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME = "execute_complete"
 
-CLIENT_INFO = ClientInfo(client_library_version='airflow_v' + version.version)
+CLIENT_INFO = ClientInfo(client_library_version="airflow_v" + version.version)

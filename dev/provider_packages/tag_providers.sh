@@ -20,7 +20,7 @@ AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../" && pwd)"
 
 # Check common named remotes for the upstream repo
 for remote in origin apache; do
-   git remote get-url --push "$remote" 2>/dev/null | grep -q git@github.com:apache/airflow && break
+   git remote get-url --push "$remote" 2>/dev/null | grep -q apache/airflow.git && break
    unset remote
 done
 

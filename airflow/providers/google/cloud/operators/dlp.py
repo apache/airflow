@@ -31,19 +31,24 @@ from google.cloud.dlp_v2.types import (
     ByteContentItem,
     ContentItem,
     DeidentifyConfig,
+    DeidentifyContentResponse,
     DeidentifyTemplate,
-    FieldMask,
+    DlpJob,
     InspectConfig,
+    InspectContentResponse,
     InspectJobConfig,
     InspectTemplate,
     JobTrigger,
+    ListInfoTypesResponse,
     RedactImageRequest,
+    RedactImageResponse,
+    ReidentifyContentResponse,
     RiskAnalysisJobConfig,
+    StoredInfoType,
     StoredInfoTypeConfig,
 )
-from google.protobuf.json_format import MessageToDict
+from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
 from airflow.providers.google.cloud.links.data_loss_prevention import (
     CloudDLPDeidentifyTemplateDetailsLink,
@@ -58,12 +63,13 @@ from airflow.providers.google.cloud.links.data_loss_prevention import (
     CloudDLPJobTriggersListLink,
     CloudDLPPossibleInfoTypesListLink,
 )
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CloudDLPCancelDLPJobOperator(BaseOperator):
+class CloudDLPCancelDLPJobOperator(GoogleCloudBaseOperator):
     """
     Starts asynchronous cancellation on a long-running DlpJob.
 
@@ -144,7 +150,7 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
             )
 
 
-class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
+class CloudDLPCreateDeidentifyTemplateOperator(GoogleCloudBaseOperator):
     """
     Creates a DeidentifyTemplate for re-using frequently used configuration for
     de-identifying content, images, and storage.
@@ -176,7 +182,6 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -240,10 +245,10 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-        result = MessageToDict(template)
+        result = DeidentifyTemplate.to_dict(template)
 
         project_id = self.project_id or hook.project_id
-        template_id = self.template_id or result['name'].split("/")[-1] if result['name'] else None
+        template_id = self.template_id or result["name"].split("/")[-1] if result["name"] else None
         if project_id and template_id:
             CloudDLPDeidentifyTemplateDetailsLink.persist(
                 context=context,
@@ -255,7 +260,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         return result
 
 
-class CloudDLPCreateDLPJobOperator(BaseOperator):
+class CloudDLPCreateDLPJobOperator(GoogleCloudBaseOperator):
     """
     Creates a new job to inspect storage or calculate risk metrics.
 
@@ -287,7 +292,6 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DlpJob
     """
 
     template_fields: Sequence[str] = (
@@ -354,7 +358,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
                 metadata=self.metadata,
             )
 
-        result = MessageToDict(job)
+        result = DlpJob.to_dict(job)
 
         project_id = self.project_id or hook.project_id
         if project_id:
@@ -362,13 +366,13 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
                 context=context,
                 task_instance=self,
                 project_id=project_id,
-                job_name=result['name'].split("/")[-1] if result['name'] else None,
+                job_name=result["name"].split("/")[-1] if result["name"] else None,
             )
 
         return result
 
 
-class CloudDLPCreateInspectTemplateOperator(BaseOperator):
+class CloudDLPCreateInspectTemplateOperator(GoogleCloudBaseOperator):
     """
     Creates an InspectTemplate for re-using frequently used configuration for
     inspecting content, images, and storage.
@@ -400,7 +404,6 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -465,9 +468,9 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
                 metadata=self.metadata,
             )
 
-        result = MessageToDict(template)
+        result = InspectTemplate.to_dict(template)
 
-        template_id = self.template_id or result['name'].split("/")[-1] if result['name'] else None
+        template_id = self.template_id or result["name"].split("/")[-1] if result["name"] else None
         project_id = self.project_id or hook.project_id
         if project_id and template_id:
             CloudDLPInspectTemplateDetailsLink.persist(
@@ -480,7 +483,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         return result
 
 
-class CloudDLPCreateJobTriggerOperator(BaseOperator):
+class CloudDLPCreateJobTriggerOperator(GoogleCloudBaseOperator):
     """
     Creates a job trigger to run DLP actions such as scanning storage for sensitive
     information on a set schedule.
@@ -510,7 +513,6 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.JobTrigger
     """
 
     template_fields: Sequence[str] = (
@@ -572,10 +574,10 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
                 metadata=self.metadata,
             )
 
-        result = MessageToDict(trigger)
+        result = JobTrigger.to_dict(trigger)
 
         project_id = self.project_id or hook.project_id
-        trigger_name = result['name'].split("/")[-1] if result['name'] else None
+        trigger_name = result["name"].split("/")[-1] if result["name"] else None
         if project_id:
             CloudDLPJobTriggerDetailsLink.persist(
                 context=context,
@@ -587,7 +589,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         return result
 
 
-class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
+class CloudDLPCreateStoredInfoTypeOperator(GoogleCloudBaseOperator):
     """
     Creates a pre-built stored infoType to be used for inspection.
 
@@ -618,7 +620,6 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
     template_fields: Sequence[str] = (
@@ -685,11 +686,11 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
                 metadata=self.metadata,
             )
 
-        result = MessageToDict(info)
+        result = StoredInfoType.to_dict(info)
 
         project_id = self.project_id or hook.project_id
         stored_info_type_id = (
-            self.stored_info_type_id or result['name'].split("/")[-1] if result['name'] else None
+            self.stored_info_type_id or result["name"].split("/")[-1] if result["name"] else None
         )
         if project_id and stored_info_type_id:
             CloudDLPInfoTypeDetailsLink.persist(
@@ -702,7 +703,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         return result
 
 
-class CloudDLPDeidentifyContentOperator(BaseOperator):
+class CloudDLPDeidentifyContentOperator(GoogleCloudBaseOperator):
     """
     De-identifies potentially sensitive info from a ContentItem. This method has limits
     on input size and output size.
@@ -741,7 +742,6 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DeidentifyContentResponse
     """
 
     template_fields: Sequence[str] = (
@@ -800,10 +800,10 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(response)
+        return DeidentifyContentResponse.to_dict(response)
 
 
-class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
+class CloudDLPDeleteDeidentifyTemplateOperator(GoogleCloudBaseOperator):
     """
     Deletes a DeidentifyTemplate.
 
@@ -891,7 +891,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
             self.log.error("Template %s not found.", self.template_id)
 
 
-class CloudDLPDeleteDLPJobOperator(BaseOperator):
+class CloudDLPDeleteDLPJobOperator(GoogleCloudBaseOperator):
     """
     Deletes a long-running DlpJob. This method indicates that the client is no longer
     interested in the DlpJob result. The job will be cancelled if possible.
@@ -976,7 +976,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
             self.log.error("Job %s id not found.", self.dlp_job_id)
 
 
-class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
+class CloudDLPDeleteInspectTemplateOperator(GoogleCloudBaseOperator):
     """
     Deletes an InspectTemplate.
 
@@ -1066,7 +1066,7 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
             self.log.error("Template %s not found", self.template_id)
 
 
-class CloudDLPDeleteJobTriggerOperator(BaseOperator):
+class CloudDLPDeleteJobTriggerOperator(GoogleCloudBaseOperator):
     """
     Deletes a job trigger.
 
@@ -1150,7 +1150,7 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
             self.log.error("Trigger %s not found", self.job_trigger_id)
 
 
-class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
+class CloudDLPDeleteStoredInfoTypeOperator(GoogleCloudBaseOperator):
     """
     Deletes a stored infoType.
 
@@ -1239,7 +1239,7 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
             )
 
 
-class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
+class CloudDLPGetDeidentifyTemplateOperator(GoogleCloudBaseOperator):
     """
     Gets a DeidentifyTemplate.
 
@@ -1269,7 +1269,6 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -1324,10 +1323,10 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
                 context=context, task_instance=self, project_id=project_id, template_name=self.template_id
             )
 
-        return MessageToDict(template)
+        return DeidentifyTemplate.to_dict(template)
 
 
-class CloudDLPGetDLPJobOperator(BaseOperator):
+class CloudDLPGetDLPJobOperator(GoogleCloudBaseOperator):
     """
     Gets the latest state of a long-running DlpJob.
 
@@ -1355,7 +1354,6 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DlpJob
     """
 
     template_fields: Sequence[str] = (
@@ -1409,10 +1407,10 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
                 job_name=self.dlp_job_id,
             )
 
-        return MessageToDict(job)
+        return DlpJob.to_dict(job)
 
 
-class CloudDLPGetInspectTemplateOperator(BaseOperator):
+class CloudDLPGetInspectTemplateOperator(GoogleCloudBaseOperator):
     """
     Gets an InspectTemplate.
 
@@ -1442,7 +1440,6 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -1500,10 +1497,10 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
                 template_name=self.template_id,
             )
 
-        return MessageToDict(template)
+        return InspectTemplate.to_dict(template)
 
 
-class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
+class CloudDLPGetDLPJobTriggerOperator(GoogleCloudBaseOperator):
     """
     Gets a job trigger.
 
@@ -1531,7 +1528,6 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.JobTrigger
     """
 
     template_fields: Sequence[str] = (
@@ -1585,10 +1581,10 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
                 trigger_name=self.job_trigger_id,
             )
 
-        return MessageToDict(trigger)
+        return JobTrigger.to_dict(trigger)
 
 
-class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
+class CloudDLPGetStoredInfoTypeOperator(GoogleCloudBaseOperator):
     """
     Gets a stored infoType.
 
@@ -1618,7 +1614,6 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
     template_fields: Sequence[str] = (
@@ -1676,10 +1671,10 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
                 info_type_name=self.stored_info_type_id,
             )
 
-        return MessageToDict(info)
+        return StoredInfoType.to_dict(info)
 
 
-class CloudDLPInspectContentOperator(BaseOperator):
+class CloudDLPInspectContentOperator(GoogleCloudBaseOperator):
     """
     Finds potentially sensitive info in content. This method has limits on
     input size, processing time, and output size.
@@ -1712,7 +1707,6 @@ class CloudDLPInspectContentOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.InspectContentResponse
     """
 
     template_fields: Sequence[str] = (
@@ -1763,10 +1757,10 @@ class CloudDLPInspectContentOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(response)
+        return InspectContentResponse.to_dict(response)
 
 
-class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
+class CloudDLPListDeidentifyTemplatesOperator(GoogleCloudBaseOperator):
     """
     Lists DeidentifyTemplates.
 
@@ -1799,7 +1793,6 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.DeidentifyTemplate]
     """
 
     template_fields: Sequence[str] = (
@@ -1849,7 +1842,6 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        # the MessageToDict does not have the right type defined as possible to pass in constructor
 
         project_id = self.project_id or hook.project_id
         if project_id:
@@ -1859,10 +1851,10 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
                 project_id=project_id,
             )
 
-        return [MessageToDict(template) for template in templates]  # type: ignore[arg-type]
+        return [DeidentifyTemplate.to_dict(template) for template in templates]  # type: ignore[arg-type]
 
 
-class CloudDLPListDLPJobsOperator(BaseOperator):
+class CloudDLPListDLPJobsOperator(GoogleCloudBaseOperator):
     """
     Lists DlpJobs that match the specified filter in the request.
 
@@ -1895,7 +1887,6 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.DlpJob]
     """
 
     template_fields: Sequence[str] = (
@@ -1956,11 +1947,11 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
                 project_id=project_id,
             )
 
-        # the MessageToDict does not have the right type defined as possible to pass in constructor
-        return [MessageToDict(job) for job in jobs]  # type: ignore[arg-type]
+        # the DlpJob.to_dict does not have the right type defined as possible to pass in constructor
+        return [DlpJob.to_dict(job) for job in jobs]  # type: ignore[arg-type]
 
 
-class CloudDLPListInfoTypesOperator(BaseOperator):
+class CloudDLPListInfoTypesOperator(GoogleCloudBaseOperator):
     """
     Returns a list of the sensitive information types that the DLP API supports.
 
@@ -1988,7 +1979,6 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: ListInfoTypesResponse
     """
 
     template_fields: Sequence[str] = (
@@ -2042,10 +2032,10 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
                 project_id=project_id,
             )
 
-        return MessageToDict(response)
+        return ListInfoTypesResponse.to_dict(response)
 
 
-class CloudDLPListInspectTemplatesOperator(BaseOperator):
+class CloudDLPListInspectTemplatesOperator(GoogleCloudBaseOperator):
     """
     Lists InspectTemplates.
 
@@ -2078,7 +2068,6 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.InspectTemplate]
     """
 
     template_fields: Sequence[str] = (
@@ -2137,10 +2126,10 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
                 project_id=project_id,
             )
 
-        return [MessageToDict(t) for t in templates]
+        return [InspectTemplate.to_dict(t) for t in templates]
 
 
-class CloudDLPListJobTriggersOperator(BaseOperator):
+class CloudDLPListJobTriggersOperator(GoogleCloudBaseOperator):
     """
     Lists job triggers.
 
@@ -2172,7 +2161,6 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.JobTrigger]
     """
 
     template_fields: Sequence[str] = (
@@ -2230,10 +2218,10 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
                 project_id=project_id,
             )
 
-        return [MessageToDict(j) for j in jobs]
+        return [JobTrigger.to_dict(j) for j in jobs]
 
 
-class CloudDLPListStoredInfoTypesOperator(BaseOperator):
+class CloudDLPListStoredInfoTypesOperator(GoogleCloudBaseOperator):
     """
     Lists stored infoTypes.
 
@@ -2266,7 +2254,6 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.dlp_v2.types.StoredInfoType]
     """
 
     template_fields: Sequence[str] = (
@@ -2325,10 +2312,10 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
                 project_id=project_id,
             )
 
-        return [MessageToDict(i) for i in infos]
+        return [StoredInfoType.to_dict(i) for i in infos]
 
 
-class CloudDLPRedactImageOperator(BaseOperator):
+class CloudDLPRedactImageOperator(GoogleCloudBaseOperator):
     """
     Redacts potentially sensitive info from an image. This method has limits on
     input size, processing time, and output size.
@@ -2363,7 +2350,6 @@ class CloudDLPRedactImageOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.RedactImageResponse
     """
 
     template_fields: Sequence[str] = (
@@ -2418,10 +2404,10 @@ class CloudDLPRedactImageOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(response)
+        return RedactImageResponse.to_dict(response)
 
 
-class CloudDLPReidentifyContentOperator(BaseOperator):
+class CloudDLPReidentifyContentOperator(GoogleCloudBaseOperator):
     """
     Re-identifies content that has been de-identified.
 
@@ -2457,7 +2443,6 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.ReidentifyContentResponse
     """
 
     template_fields: Sequence[str] = (
@@ -2516,10 +2501,10 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(response)
+        return ReidentifyContentResponse.to_dict(response)
 
 
-class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
+class CloudDLPUpdateDeidentifyTemplateOperator(GoogleCloudBaseOperator):
     """
     Updates the DeidentifyTemplate.
 
@@ -2551,7 +2536,6 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -2617,10 +2601,10 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
                 template_name=self.template_id,
             )
 
-        return MessageToDict(template)
+        return DeidentifyTemplate.to_dict(template)
 
 
-class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
+class CloudDLPUpdateInspectTemplateOperator(GoogleCloudBaseOperator):
     """
     Updates the InspectTemplate.
 
@@ -2652,7 +2636,6 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -2718,10 +2701,10 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
                 template_name=self.template_id,
             )
 
-        return MessageToDict(template)
+        return InspectTemplate.to_dict(template)
 
 
-class CloudDLPUpdateJobTriggerOperator(BaseOperator):
+class CloudDLPUpdateJobTriggerOperator(GoogleCloudBaseOperator):
     """
     Updates a job trigger.
 
@@ -2751,7 +2734,6 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
     template_fields: Sequence[str] = (
@@ -2769,7 +2751,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         *,
         job_trigger_id,
         project_id: str | None = None,
-        job_trigger: JobTrigger | None = None,
+        job_trigger: dict | JobTrigger | None = None,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -2813,10 +2795,10 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
                 trigger_name=self.job_trigger_id,
             )
 
-        return MessageToDict(trigger)
+        return JobTrigger.to_dict(trigger)
 
 
-class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
+class CloudDLPUpdateStoredInfoTypeOperator(GoogleCloudBaseOperator):
     """
     Updates the stored infoType by creating a new version.
 
@@ -2849,7 +2831,6 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
     template_fields: Sequence[str] = (
@@ -2915,4 +2896,4 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
                 info_type_name=self.stored_info_type_id,
             )
 
-        return MessageToDict(info)
+        return StoredInfoType.to_dict(info)

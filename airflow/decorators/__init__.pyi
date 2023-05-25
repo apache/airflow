@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 # This file provides better type hinting and editor autocompletion support for
 # dynamically generated task decorators. Functions declared in this stub do not
 # necessarily exist at run time. See "Creating Custom @task Decorators"
 # documentation for more details.
+from __future__ import annotations
 
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union, overload
+from datetime import timedelta
+from typing import Any, Callable, Iterable, Mapping, overload
 
 from kubernetes.client import models as k8s
 
@@ -29,6 +30,8 @@ from airflow.decorators.branch_python import branch_task
 from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
+from airflow.decorators.sensor import sensor_task
+from airflow.decorators.short_circuit import short_circuit_task
 from airflow.decorators.task_group import task_group
 from airflow.kubernetes.secret import Secret
 from airflow.models.dag import dag
@@ -45,6 +48,9 @@ __all__ = [
     "external_python_task",
     "branch_task",
     "short_circuit_task",
+    "sensor_task",
+    "setup",
+    "teardown",
 ]
 
 class TaskDecoratorCollection:
@@ -52,10 +58,10 @@ class TaskDecoratorCollection:
     def python(
         self,
         *,
-        multiple_outputs: Optional[bool] = None,
+        multiple_outputs: bool | None = None,
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonDecoratedOperator.
-        templates_dict: Optional[Mapping[str, Any]] = None,
+        templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> TaskDecorator:
@@ -80,8 +86,8 @@ class TaskDecoratorCollection:
     def __call__(
         self,
         *,
-        multiple_outputs: Optional[bool] = None,
-        templates_dict: Optional[Mapping[str, Any]] = None,
+        multiple_outputs: bool | None = None,
+        templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> TaskDecorator:
@@ -93,14 +99,14 @@ class TaskDecoratorCollection:
     def virtualenv(
         self,
         *,
-        multiple_outputs: Optional[bool] = None,
+        multiple_outputs: bool | None = None,
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonVirtualenvDecoratedOperator.
-        requirements: Union[None, Iterable[str], str] = None,
-        python_version: Union[None, str, int, float] = None,
+        requirements: None | Iterable[str] | str = None,
+        python_version: None | str | int | float = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
-        templates_dict: Optional[Mapping[str, Any]] = None,
+        templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> TaskDecorator:
@@ -133,11 +139,11 @@ class TaskDecoratorCollection:
         self,
         *,
         python: str,
-        multiple_outputs: Optional[bool] = None,
+        multiple_outputs: bool | None = None,
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonVirtualenvDecoratedOperator.
         use_dill: bool = False,
-        templates_dict: Optional[Mapping[str, Any]] = None,
+        templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> TaskDecorator:
@@ -161,10 +167,10 @@ class TaskDecoratorCollection:
             such as transmission a large amount of XCom to TaskAPI.
         """
     @overload
-    def branch(self, *, multiple_outputs: Optional[bool] = None, **kwargs) -> TaskDecorator:
+    def branch(self, *, multiple_outputs: bool | None = None, **kwargs) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonOperator.
 
-        For more information on how to use this decorator, see :ref:`howto/operator:BranchPythonOperator`.
+        For more information on how to use this decorator, see :ref:`concepts:branching`.
         Accepts arbitrary for operator kwarg. Can be reused in a single DAG.
 
         :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
@@ -176,7 +182,7 @@ class TaskDecoratorCollection:
     def short_circuit(
         self,
         *,
-        multiple_outputs: Optional[bool] = None,
+        multiple_outputs: bool | None = None,
         ignore_downstream_trigger_rules: bool = True,
         **kwargs,
     ) -> TaskDecorator:
@@ -195,41 +201,41 @@ class TaskDecoratorCollection:
     def docker(
         self,
         *,
-        multiple_outputs: Optional[bool] = None,
+        multiple_outputs: bool | None = None,
         use_dill: bool = False,  # Added by _DockerDecoratedOperator.
         python_command: str = "python3",
         # 'command', 'retrieve_output', and 'retrieve_output_path' are filled by
         # _DockerDecoratedOperator.
         image: str,
-        api_version: Optional[str] = None,
-        container_name: Optional[str] = None,
+        api_version: str | None = None,
+        container_name: str | None = None,
         cpus: float = 1.0,
         docker_url: str = "unix://var/run/docker.sock",
-        environment: Optional[Dict[str, str]] = None,
-        private_environment: Optional[Dict[str, str]] = None,
+        environment: dict[str, str] | None = None,
+        private_environment: dict[str, str] | None = None,
         force_pull: bool = False,
-        mem_limit: Optional[Union[float, str]] = None,
-        host_tmp_dir: Optional[str] = None,
-        network_mode: Optional[str] = None,
-        tls_ca_cert: Optional[str] = None,
-        tls_client_cert: Optional[str] = None,
-        tls_client_key: Optional[str] = None,
-        tls_hostname: Optional[Union[str, bool]] = None,
-        tls_ssl_version: Optional[str] = None,
+        mem_limit: float | str | None = None,
+        host_tmp_dir: str | None = None,
+        network_mode: str | None = None,
+        tls_ca_cert: str | None = None,
+        tls_client_cert: str | None = None,
+        tls_client_key: str | None = None,
+        tls_hostname: str | bool | None = None,
+        tls_ssl_version: str | None = None,
         tmp_dir: str = "/tmp/airflow",
-        user: Optional[Union[str, int]] = None,
-        mounts: Optional[List[str]] = None,
-        working_dir: Optional[str] = None,
+        user: str | int | None = None,
+        mounts: list[str] | None = None,
+        working_dir: str | None = None,
         xcom_all: bool = False,
-        docker_conn_id: Optional[str] = None,
-        dns: Optional[List[str]] = None,
-        dns_search: Optional[List[str]] = None,
+        docker_conn_id: str | None = None,
+        dns: list[str] | None = None,
+        dns_search: list[str] | None = None,
         auto_remove: bool = False,
-        shm_size: Optional[int] = None,
+        shm_size: int | None = None,
         tty: bool = False,
         privileged: bool = False,
-        cap_add: Optional[Iterable[str]] = None,
-        extra_hosts: Optional[Dict[str, str]] = None,
+        cap_add: str | None = None,
+        extra_hosts: dict[str, str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a Docker task.
@@ -261,7 +267,8 @@ class TaskDecoratorCollection:
             None - No networking for this container
             container:<name|id> - Use the network stack of another container specified via <name|id>
             host - Use the host network stack. Incompatible with `port_bindings`
-            '<network-name>|<network-id>' - Connects the container to user created network(using `docker network create` command)
+            '<network-name>|<network-id>' - Connects the container to user created network(using `docker
+            network create` command)
         :param tls_ca_cert: Path to a PEM-encoded certificate authority
             to secure the docker connection.
         :param tls_client_cert: Path to the PEM-encoded certificate
@@ -303,40 +310,40 @@ class TaskDecoratorCollection:
         namespace: str = "default",
         name: str = ...,
         random_name_suffix: bool = True,
-        ports: Optional[List[k8s.V1ContainerPort]] = None,
-        volume_mounts: Optional[List[k8s.V1VolumeMount]] = None,
-        volumes: Optional[List[k8s.V1Volume]] = None,
-        env_vars: Optional[List[k8s.V1EnvVar]] = None,
-        env_from: Optional[List[k8s.V1EnvFromSource]] = None,
-        secrets: Optional[List[Secret]] = None,
-        in_cluster: Optional[bool] = None,
-        cluster_context: Optional[str] = None,
-        labels: Optional[Dict] = None,
+        ports: list[k8s.V1ContainerPort] | None = None,
+        volume_mounts: list[k8s.V1VolumeMount] | None = None,
+        volumes: list[k8s.V1Volume] | None = None,
+        env_vars: list[k8s.V1EnvVar] | None = None,
+        env_from: list[k8s.V1EnvFromSource] | None = None,
+        secrets: list[Secret] | None = None,
+        in_cluster: bool | None = None,
+        cluster_context: str | None = None,
+        labels: dict | None = None,
         reattach_on_restart: bool = True,
         startup_timeout_seconds: int = 120,
         get_logs: bool = True,
-        image_pull_policy: Optional[str] = None,
-        annotations: Optional[Dict] = None,
-        container_resources: Optional[k8s.V1ResourceRequirements] = None,
-        affinity: Optional[k8s.V1Affinity] = None,
+        image_pull_policy: str | None = None,
+        annotations: dict | None = None,
+        container_resources: k8s.V1ResourceRequirements | None = None,
+        affinity: k8s.V1Affinity | None = None,
         config_file: str = ...,
-        node_selector: Optional[dict] = None,
-        image_pull_secrets: Optional[List[k8s.V1LocalObjectReference]] = None,
-        service_account_name: Optional[str] = None,
+        node_selector: dict | None = None,
+        image_pull_secrets: list[k8s.V1LocalObjectReference] | None = None,
+        service_account_name: str | None = None,
         is_delete_operator_pod: bool = True,
         hostnetwork: bool = False,
-        tolerations: Optional[List[k8s.V1Toleration]] = None,
-        security_context: Optional[Dict] = None,
-        dnspolicy: Optional[str] = None,
-        schedulername: Optional[str] = None,
-        init_containers: Optional[List[k8s.V1Container]] = None,
+        tolerations: list[k8s.V1Toleration] | None = None,
+        security_context: dict | None = None,
+        dnspolicy: str | None = None,
+        schedulername: str | None = None,
+        init_containers: list[k8s.V1Container] | None = None,
         log_events_on_failure: bool = False,
         do_xcom_push: bool = False,
-        pod_template_file: Optional[str] = None,
-        priority_class_name: Optional[str] = None,
-        pod_runtime_info_envs: Optional[List[k8s.V1EnvVar]] = None,
-        termination_grace_period: Optional[int] = None,
-        configmaps: Optional[List[str]] = None,
+        pod_template_file: str | None = None,
+        priority_class_name: str | None = None,
+        pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
+        termination_grace_period: int | None = None,
+        configmaps: list[str] | None = None,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert a callable to a Kubernetes Pod task.
@@ -410,5 +417,44 @@ class TaskDecoratorCollection:
             of the target ConfigMap's Data field will represent the key-value
             pairs as environment variables. Extends env_from.
         """
+    @overload
+    def sensor(
+        self,
+        *,
+        poke_interval: float = ...,
+        timeout: float = ...,
+        soft_fail: bool = False,
+        mode: str = ...,
+        exponential_backoff: bool = False,
+        max_wait: timedelta | float | None = None,
+        **kwargs,
+    ) -> TaskDecorator:
+        """
+        Wraps a Python function into a sensor operator.
+
+        :param poke_interval: Time in seconds that the job should wait in
+            between each try
+        :param timeout: Time, in seconds before the task times out and fails.
+        :param soft_fail: Set to true to mark the task as SKIPPED on failure
+        :param mode: How the sensor operates.
+            Options are: ``{ poke | reschedule }``, default is ``poke``.
+            When set to ``poke`` the sensor is taking up a worker slot for its
+            whole execution time and sleeps between pokes. Use this mode if the
+            expected runtime of the sensor is short or if a short poke interval
+            is required. Note that the sensor will hold onto a worker slot and
+            a pool slot for the duration of the sensor's runtime in this mode.
+            When set to ``reschedule`` the sensor task frees the worker slot when
+            the criteria is not yet met and it's rescheduled at a later time. Use
+            this mode if the time before the criteria is met is expected to be
+            quite long. The poke interval should be more than one minute to
+            prevent too much load on the scheduler.
+        :param exponential_backoff: allow progressive longer waits between
+            pokes by using exponential backoff algorithm
+        :param max_wait: maximum wait interval between pokes, can be ``timedelta`` or ``float`` seconds
+        """
+    @overload
+    def sensor(self, python_callable: FParams | FReturn | None = None) -> Task[FParams, FReturn]: ...
 
 task: TaskDecoratorCollection
+setup: Callable
+teardown: Callable

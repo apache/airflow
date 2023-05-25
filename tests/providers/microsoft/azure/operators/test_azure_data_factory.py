@@ -17,18 +17,26 @@
 from __future__ import annotations
 
 import json
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
+import pendulum
 import pytest
 
-from airflow.models import Connection
+from airflow.exceptions import AirflowException, TaskDeferred
+from airflow.models import DAG, Connection
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
     AzureDataFactoryPipelineRunStatus,
 )
 from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
+from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
 from airflow.utils import db, timezone
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2021, 1, 1)
 SUBSCRIPTION_ID = "my-subscription-id"
@@ -36,10 +44,10 @@ TASK_ID = "run_pipeline_op"
 AZURE_DATA_FACTORY_CONN_ID = "azure_data_factory_test"
 PIPELINE_NAME = "pipeline1"
 CONN_EXTRAS = {
-    "extra__azure_data_factory__subscriptionId": SUBSCRIPTION_ID,
-    "extra__azure_data_factory__tenantId": "my-tenant-id",
-    "extra__azure_data_factory__resource_group_name": "my-resource-group-name-from-conn",
-    "extra__azure_data_factory__factory_name": "my-factory-name-from-conn",
+    "subscriptionId": SUBSCRIPTION_ID,
+    "tenantId": "my-tenant-id",
+    "resource_group_name": "my-resource-group-name-from-conn",
+    "factory_name": "my-factory-name-from-conn",
 }
 PIPELINE_RUN_RESPONSE = {"additional_properties": {}, "run_id": "run_id"}
 EXPECTED_PIPELINE_RUN_OP_EXTRA_LINK = (
@@ -48,6 +56,7 @@ EXPECTED_PIPELINE_RUN_OP_EXTRA_LINK = (
     "resourceGroups/{resource_group_name}/providers/Microsoft.DataFactory/"
     "factories/{factory_name}"
 )
+AZ_PIPELINE_RUN_ID = "7f8c6c72-c093-11ec-a83d-0242ac120007"
 
 
 class TestAzureDataFactoryRunPipelineOperator:
@@ -241,8 +250,8 @@ class TestAzureDataFactoryRunPipelineOperator:
         )
 
         conn = AzureDataFactoryHook.get_connection("azure_data_factory_test")
-        conn_resource_group_name = conn.extra_dejson["extra__azure_data_factory__resource_group_name"]
-        conn_factory_name = conn.extra_dejson["extra__azure_data_factory__factory_name"]
+        conn_resource_group_name = conn.extra_dejson["resource_group_name"]
+        conn_factory_name = conn.extra_dejson["factory_name"]
 
         assert url == (
             EXPECTED_PIPELINE_RUN_OP_EXTRA_LINK.format(
@@ -252,3 +261,138 @@ class TestAzureDataFactoryRunPipelineOperator:
                 factory_name=factory if factory else conn_factory_name,
             )
         )
+
+
+class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
+    OPERATOR = AzureDataFactoryRunPipelineOperator(
+        task_id="run_pipeline", pipeline_name="pipeline", parameters={"myParam": "value"}, deferrable=True
+    )
+
+    def get_dag_run(self, dag_id: str = "test_dag_id", run_id: str = "test_dag_id") -> DagRun:
+        dag_run = DagRun(
+            dag_id=dag_id, run_type="manual", execution_date=timezone.datetime(2022, 1, 1), run_id=run_id
+        )
+        return dag_run
+
+    def get_task_instance(self, task: BaseOperator) -> TaskInstance:
+        return TaskInstance(task, timezone.datetime(2022, 1, 1))
+
+    def get_conn(
+        self,
+    ) -> Connection:
+        return Connection(
+            conn_id="test_conn",
+            extra={},
+        )
+
+    def create_context(self, task, dag=None):
+        if dag is None:
+            dag = DAG(dag_id="dag")
+        tzinfo = pendulum.timezone("UTC")
+        execution_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
+        dag_run = DagRun(
+            dag_id=dag.dag_id,
+            execution_date=execution_date,
+            run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
+        )
+
+        task_instance = TaskInstance(task=task)
+        task_instance.dag_run = dag_run
+        task_instance.xcom_push = mock.Mock()
+        return {
+            "dag": dag,
+            "ts": execution_date.isoformat(),
+            "task": task,
+            "ti": task_instance,
+            "task_instance": task_instance,
+            "run_id": dag_run.run_id,
+            "dag_run": dag_run,
+            "execution_date": execution_date,
+            "data_interval_end": execution_date,
+            "logical_date": execution_date,
+        }
+
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator"
+        ".defer"
+    )
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",
+        return_value=AzureDataFactoryPipelineRunStatus.SUCCEEDED,
+    )
+    @mock.patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline")
+    def test_azure_data_factory_run_pipeline_operator_async_succeeded_before_deferred(
+        self, mock_run_pipeline, mock_get_status, mock_defer
+    ):
+        class CreateRunResponse:
+            pass
+
+        CreateRunResponse.run_id = AZ_PIPELINE_RUN_ID
+        mock_run_pipeline.return_value = CreateRunResponse
+
+        self.OPERATOR.execute(context=self.create_context(self.OPERATOR))
+        assert not mock_defer.called
+
+    @pytest.mark.parametrize("status", AzureDataFactoryPipelineRunStatus.FAILURE_STATES)
+    @mock.patch(
+        "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator"
+        ".defer"
+    )
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",
+    )
+    @mock.patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline")
+    def test_azure_data_factory_run_pipeline_operator_async_error_before_deferred(
+        self, mock_run_pipeline, mock_get_status, mock_defer, status
+    ):
+        mock_get_status.return_value = status
+
+        class CreateRunResponse:
+            pass
+
+        CreateRunResponse.run_id = AZ_PIPELINE_RUN_ID
+        mock_run_pipeline.return_value = CreateRunResponse
+
+        with pytest.raises(AzureDataFactoryPipelineRunException):
+            self.OPERATOR.execute(context=self.create_context(self.OPERATOR))
+        assert not mock_defer.called
+
+    @pytest.mark.parametrize("status", AzureDataFactoryPipelineRunStatus.INTERMEDIATE_STATES)
+    @mock.patch(
+        "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",
+    )
+    @mock.patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline")
+    def test_azure_data_factory_run_pipeline_operator_async(self, mock_run_pipeline, mock_get_status, status):
+        """Assert that AzureDataFactoryRunPipelineOperatorAsync deferred"""
+
+        class CreateRunResponse:
+            pass
+
+        CreateRunResponse.run_id = AZ_PIPELINE_RUN_ID
+        mock_run_pipeline.return_value = CreateRunResponse
+
+        with pytest.raises(TaskDeferred) as exc:
+            self.OPERATOR.execute(context=self.create_context(self.OPERATOR))
+
+        assert isinstance(
+            exc.value.trigger, AzureDataFactoryTrigger
+        ), "Trigger is not a AzureDataFactoryTrigger"
+
+    def test_azure_data_factory_run_pipeline_operator_async_execute_complete_success(self):
+        """Assert that execute_complete log success message"""
+
+        with mock.patch.object(self.OPERATOR.log, "info") as mock_log_info:
+            self.OPERATOR.execute_complete(
+                context={},
+                event={"status": "success", "message": "success", "run_id": AZ_PIPELINE_RUN_ID},
+            )
+        mock_log_info.assert_called_with("success")
+
+    def test_azure_data_factory_run_pipeline_operator_async_execute_complete_fail(self):
+        """Assert that execute_complete raise exception on error"""
+
+        with pytest.raises(AirflowException):
+            self.OPERATOR.execute_complete(
+                context={},
+                event={"status": "error", "message": "error", "run_id": AZ_PIPELINE_RUN_ID},
+            )

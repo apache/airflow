@@ -29,13 +29,13 @@ from alembic import op
 from sqlalchemy.dialects import mssql
 
 # revision identifiers, used by Alembic.
-revision = '52d53670a240'
-down_revision = '98271e7606e2'
+revision = "52d53670a240"
+down_revision = "98271e7606e2"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.0'
+airflow_version = "2.0.0"
 
-TABLE_NAME = 'rendered_task_instance_fields'
+TABLE_NAME = "rendered_task_instance_fields"
 
 
 def upgrade():
@@ -50,11 +50,11 @@ def upgrade():
 
         op.create_table(
             TABLE_NAME,
-            sa.Column('dag_id', sa.String(length=250), nullable=False),
-            sa.Column('task_id', sa.String(length=250), nullable=False),
-            sa.Column('execution_date', mssql.DATETIME2, nullable=False),
-            sa.Column('rendered_fields', json_type(), nullable=False),
-            sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date'),
+            sa.Column("dag_id", sa.String(length=250), nullable=False),
+            sa.Column("task_id", sa.String(length=250), nullable=False),
+            sa.Column("execution_date", mssql.DATETIME2, nullable=False),
+            sa.Column("rendered_fields", json_type(), nullable=False),
+            sa.PrimaryKeyConstraint("dag_id", "task_id", "execution_date"),
         )
 
 
@@ -70,9 +70,9 @@ def downgrade():
 
         op.create_table(
             TABLE_NAME,
-            sa.Column('dag_id', sa.String(length=250), nullable=False),
-            sa.Column('task_id', sa.String(length=250), nullable=False),
-            sa.Column('execution_date', sa.TIMESTAMP, nullable=False),
-            sa.Column('rendered_fields', json_type(), nullable=False),
-            sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date'),
+            sa.Column("dag_id", sa.String(length=250), nullable=False),
+            sa.Column("task_id", sa.String(length=250), nullable=False),
+            sa.Column("execution_date", sa.TIMESTAMP, nullable=False),
+            sa.Column("rendered_fields", json_type(), nullable=False),
+            sa.PrimaryKeyConstraint("dag_id", "task_id", "execution_date"),
         )

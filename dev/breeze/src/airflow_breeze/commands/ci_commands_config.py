@@ -23,7 +23,6 @@ CI_COMMANDS: dict[str, str | list[str]] = {
         "free-space",
         "resource-check",
         "selective-check",
-        "find-newer-dependencies",
         "get-workflow-info",
     ],
 }
@@ -36,6 +35,7 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
+    "breeze ci free-space": [],
     "breeze ci selective-check": [
         {
             "name": "Selective check flags",
@@ -44,21 +44,16 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--pr-labels",
                 "--default-branch",
                 "--default-constraints-branch",
-                "--github-event-name",
             ],
-        }
-    ],
-    "breeze ci find-newer-dependencies": [
+        },
         {
-            "name": "Find newer dependencies flags",
+            "name": "Github parameters",
             "options": [
-                "--python",
-                "--timezone",
-                "--airflow-constraints-reference",
-                "--updated-on-or-after",
-                "--max-age",
+                "--github-event-name",
+                "--github-repository",
+                "--github-actor",
             ],
-        }
+        },
     ],
     "breeze ci get-workflow-info": [
         {
@@ -69,4 +64,5 @@ CI_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
+    "breeze ci resource-check": [],
 }

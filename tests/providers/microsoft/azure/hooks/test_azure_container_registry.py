@@ -17,26 +17,24 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook
 from airflow.utils import db
 
 
-class TestAzureContainerRegistryHook(unittest.TestCase):
+class TestAzureContainerRegistryHook:
     def test_get_conn(self):
         db.merge_conn(
             Connection(
-                conn_id='azure_container_registry',
-                conn_type='azure_container_registry',
-                login='myuser',
-                password='password',
-                host='test.cr',
+                conn_id="azure_container_registry",
+                conn_type="azure_container_registry",
+                login="myuser",
+                password="password",
+                host="test.cr",
             )
         )
-        hook = AzureContainerRegistryHook(conn_id='azure_container_registry')
+        hook = AzureContainerRegistryHook(conn_id="azure_container_registry")
         assert hook.connection is not None
-        assert hook.connection.username == 'myuser'
-        assert hook.connection.password == 'password'
-        assert hook.connection.server == 'test.cr'
+        assert hook.connection.username == "myuser"
+        assert hook.connection.password == "password"
+        assert hook.connection.server == "test.cr"

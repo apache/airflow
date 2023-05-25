@@ -24,12 +24,13 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class SqsHook(AwsBaseHook):
     """
     Interact with Amazon Simple Queue Service.
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("sqs") <SQS.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     def __init__(self, *args, **kwargs) -> None:
@@ -38,15 +39,14 @@ class SqsHook(AwsBaseHook):
 
     def create_queue(self, queue_name: str, attributes: dict | None = None) -> dict:
         """
-        Create queue using connection object
+        Create queue using connection object.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SQS.Client.create_queue`
 
         :param queue_name: name of the queue.
         :param attributes: additional attributes for the queue (default: None)
-            For details of the attributes parameter see :py:meth:`SQS.create_queue`
-
-        :return: dict with the information about the queue
-            For details of the returned value see :py:meth:`SQS.create_queue`
-        :rtype: dict
+        :return: dict with the information about the queue.
         """
         return self.get_conn().create_queue(QueueName=queue_name, Attributes=attributes or {})
 
@@ -59,27 +59,25 @@ class SqsHook(AwsBaseHook):
         message_group_id: str | None = None,
     ) -> dict:
         """
-        Send message to the queue
+        Send message to the queue.
+
+        .. seealso::
+            - :external+boto3:py:meth:`SQS.Client.send_message`
 
         :param queue_url: queue url
         :param message_body: the contents of the message
         :param delay_seconds: seconds to delay the message
         :param message_attributes: additional attributes for the message (default: None)
-            For details of the attributes parameter see :py:meth:`botocore.client.SQS.send_message`
         :param message_group_id: This applies only to FIFO (first-in-first-out) queues. (default: None)
-            For details of the attributes parameter see :py:meth:`botocore.client.SQS.send_message`
-
         :return: dict with the information about the message sent
-            For details of the returned value see :py:meth:`botocore.client.SQS.send_message`
-        :rtype: dict
         """
         params = {
-            'QueueUrl': queue_url,
-            'MessageBody': message_body,
-            'DelaySeconds': delay_seconds,
-            'MessageAttributes': message_attributes or {},
+            "QueueUrl": queue_url,
+            "MessageBody": message_body,
+            "DelaySeconds": delay_seconds,
+            "MessageAttributes": message_attributes or {},
         }
         if message_group_id:
-            params['MessageGroupId'] = message_group_id
+            params["MessageGroupId"] = message_group_id
 
         return self.get_conn().send_message(**params)

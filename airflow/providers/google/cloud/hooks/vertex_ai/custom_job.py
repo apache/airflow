@@ -50,12 +50,16 @@ class CustomJobHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._job: None | (
@@ -67,8 +71,8 @@ class CustomJobHook(GoogleBaseHook):
         region: str | None = None,
     ) -> PipelineServiceClient:
         """Returns PipelineServiceClient."""
-        if region and region != 'global':
-            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        if region and region != "global":
+            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
             client_options = ClientOptions()
         return PipelineServiceClient(
@@ -80,8 +84,8 @@ class CustomJobHook(GoogleBaseHook):
         region: str | None = None,
     ) -> JobServiceClient:
         """Returns JobServiceClient"""
-        if region and region != 'global':
-            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        if region and region != "global":
+            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
             client_options = ClientOptions()
 
@@ -247,6 +251,11 @@ class CustomJobHook(GoogleBaseHook):
         """Returns unique id of the Training pipeline."""
         return resource_name.rpartition("/")[-1]
 
+    @staticmethod
+    def extract_custom_job_id(custom_job_name: str) -> str:
+        """Returns unique id of the Custom Job pipeline."""
+        return custom_job_name.rpartition("/")[-1]
+
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Waits for long-lasting operation to complete."""
         try:
@@ -292,7 +301,7 @@ class CustomJobHook(GoogleBaseHook):
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
         sync=True,
-    ) -> tuple[models.Model | None, str]:
+    ) -> tuple[models.Model | None, str, str]:
         """Run Job for training pipeline"""
         model = job.run(
             dataset=dataset,
@@ -323,6 +332,9 @@ class CustomJobHook(GoogleBaseHook):
             sync=sync,
         )
         training_id = self.extract_training_id(job.resource_name)
+        custom_job_id = self.extract_custom_job_id(
+            job.gca_resource.training_task_metadata.get("backingCustomJob")
+        )
         if model:
             model.wait()
         else:
@@ -332,7 +344,7 @@ class CustomJobHook(GoogleBaseHook):
                 "model_serving_container_image_uri and model_display_name passed in. "
                 "Ensure that your training script saves to model to os.environ['AIP_MODEL_DIR']."
             )
-        return model, training_id
+        return model, training_id, custom_job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def cancel_pipeline_job(
@@ -366,7 +378,7 @@ class CustomJobHook(GoogleBaseHook):
 
         client.cancel_pipeline_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -405,7 +417,7 @@ class CustomJobHook(GoogleBaseHook):
 
         client.cancel_training_pipeline(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -444,7 +456,7 @@ class CustomJobHook(GoogleBaseHook):
 
         client.cancel_custom_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -481,9 +493,9 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.create_pipeline_job(
             request={
-                'parent': parent,
-                'pipeline_job': pipeline_job,
-                'pipeline_job_id': pipeline_job_id,
+                "parent": parent,
+                "pipeline_job": pipeline_job,
+                "pipeline_job_id": pipeline_job_id,
             },
             retry=retry,
             timeout=timeout,
@@ -516,8 +528,8 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.create_training_pipeline(
             request={
-                'parent': parent,
-                'training_pipeline': training_pipeline,
+                "parent": parent,
+                "training_pipeline": training_pipeline,
             },
             retry=retry,
             timeout=timeout,
@@ -551,8 +563,8 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.create_custom_job(
             request={
-                'parent': parent,
-                'custom_job': custom_job,
+                "parent": parent,
+                "custom_job": custom_job,
             },
             retry=retry,
             timeout=timeout,
@@ -613,7 +625,7 @@ class CustomJobHook(GoogleBaseHook):
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
         sync=True,
-    ) -> tuple[models.Model | None, str]:
+    ) -> tuple[models.Model | None, str, str]:
         """
         Create Custom Container Training Job
 
@@ -885,7 +897,7 @@ class CustomJobHook(GoogleBaseHook):
         if not self._job:
             raise AirflowException("CustomJob was not created")
 
-        model, training_id = self._run_job(
+        model, training_id, custom_job_id = self._run_job(
             job=self._job,
             dataset=dataset,
             annotation_schema_uri=annotation_schema_uri,
@@ -915,7 +927,7 @@ class CustomJobHook(GoogleBaseHook):
             sync=sync,
         )
 
-        return model, training_id
+        return model, training_id, custom_job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_custom_python_package_training_job(
@@ -971,7 +983,7 @@ class CustomJobHook(GoogleBaseHook):
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
         sync=True,
-    ) -> tuple[models.Model | None, str]:
+    ) -> tuple[models.Model | None, str, str]:
         """
         Create Custom Python Package Training Job
 
@@ -1243,7 +1255,7 @@ class CustomJobHook(GoogleBaseHook):
         if not self._job:
             raise AirflowException("CustomJob was not created")
 
-        model, training_id = self._run_job(
+        model, training_id, custom_job_id = self._run_job(
             job=self._job,
             dataset=dataset,
             annotation_schema_uri=annotation_schema_uri,
@@ -1273,7 +1285,7 @@ class CustomJobHook(GoogleBaseHook):
             sync=sync,
         )
 
-        return model, training_id
+        return model, training_id, custom_job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_custom_training_job(
@@ -1329,7 +1341,7 @@ class CustomJobHook(GoogleBaseHook):
         timestamp_split_column_name: str | None = None,
         tensorboard: str | None = None,
         sync=True,
-    ) -> tuple[models.Model | None, str]:
+    ) -> tuple[models.Model | None, str, str]:
         """
         Create Custom Training Job
 
@@ -1601,7 +1613,7 @@ class CustomJobHook(GoogleBaseHook):
         if not self._job:
             raise AirflowException("CustomJob was not created")
 
-        model, training_id = self._run_job(
+        model, training_id, custom_job_id = self._run_job(
             job=self._job,
             dataset=dataset,
             annotation_schema_uri=annotation_schema_uri,
@@ -1631,7 +1643,7 @@ class CustomJobHook(GoogleBaseHook):
             sync=sync,
         )
 
-        return model, training_id
+        return model, training_id, custom_job_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_pipeline_job(
@@ -1658,7 +1670,7 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.delete_pipeline_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1691,7 +1703,7 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.delete_training_pipeline(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1724,7 +1736,7 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.delete_custom_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1757,7 +1769,7 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.get_pipeline_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1790,7 +1802,7 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.get_training_pipeline(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1823,7 +1835,7 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.get_custom_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1907,11 +1919,11 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.list_pipeline_jobs(
             request={
-                'parent': parent,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter,
-                'order_by': order_by,
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter,
+                "order_by": order_by,
             },
             retry=retry,
             timeout=timeout,
@@ -1968,11 +1980,11 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.list_training_pipelines(
             request={
-                'parent': parent,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter,
-                'read_mask': read_mask,
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter,
+                "read_mask": read_mask,
             },
             retry=retry,
             timeout=timeout,
@@ -2029,11 +2041,11 @@ class CustomJobHook(GoogleBaseHook):
 
         result = client.list_custom_jobs(
             request={
-                'parent': parent,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter,
-                'read_mask': read_mask,
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter,
+                "read_mask": read_mask,
             },
             retry=retry,
             timeout=timeout,

@@ -14,12 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Version command"""
+"""Version command."""
 from __future__ import annotations
 
 import airflow
 
 
 def version(args):
-    """Displays Airflow version at the command line"""
+    """Displays Airflow version at the command line."""
     print(airflow.__version__)

@@ -27,11 +27,12 @@ from airflow.api_connexion.schemas.common_schema import (
     WeightRuleField,
 )
 from airflow.api_connexion.schemas.dag_schema import DAGSchema
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
 
 
 class TaskSchema(Schema):
-    """Task schema"""
+    """Task schema."""
 
     class_ref = fields.Method("_get_class_reference", dump_only=True)
     operator_name = fields.Method("_get_operator_name", dump_only=True)
@@ -59,32 +60,38 @@ class TaskSchema(Schema):
     template_fields = fields.List(fields.String(), dump_only=True)
     sub_dag = fields.Nested(DAGSchema, dump_only=True)
     downstream_task_ids = fields.List(fields.String(), dump_only=True)
-    params = fields.Method('get_params', dump_only=True)
-    is_mapped = fields.Boolean(dump_only=True)
+    params = fields.Method("_get_params", dump_only=True)
+    is_mapped = fields.Method("_get_is_mapped", dump_only=True)
 
-    def _get_class_reference(self, obj):
+    @staticmethod
+    def _get_class_reference(obj):
         result = ClassReferenceSchema().dump(obj)
         return result.data if hasattr(result, "data") else result
 
-    def _get_operator_name(self, obj):
+    @staticmethod
+    def _get_operator_name(obj):
         return obj.operator_name
 
     @staticmethod
-    def get_params(obj):
-        """Get the Params defined in a Task"""
+    def _get_params(obj):
+        """Get the Params defined in a Task."""
         params = obj.params
         return {k: v.dump() for k, v in params.items()}
 
+    @staticmethod
+    def _get_is_mapped(obj):
+        return isinstance(obj, MappedOperator)
+
 
 class TaskCollection(NamedTuple):
-    """List of Tasks with metadata"""
+    """List of Tasks with metadata."""
 
     tasks: list[Operator]
     total_entries: int
 
 
 class TaskCollectionSchema(Schema):
-    """Schema for TaskCollection"""
+    """Schema for TaskCollection."""
 
     tasks = fields.List(fields.Nested(TaskSchema))
     total_entries = fields.Int()

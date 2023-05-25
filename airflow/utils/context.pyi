@@ -24,8 +24,9 @@
 # attributes are injected at runtime, and giving them a class would trigger
 # undefined attribute errors from Mypy. Hopefully there will be a mechanism to
 # declare "these are defined, but don't error if others are accessed" someday.
+from __future__ import annotations
 
-from typing import Any, Collection, Container, Iterable, Mapping, Optional, Set, Tuple, Union, overload
+from typing import Any, Collection, Container, Iterable, Mapping, overload
 
 from pendulum import DateTime
 
@@ -36,9 +37,12 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetEvent
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
+from airflow.serialization.pydantic.dag_run import DagRunPydantic
+from airflow.serialization.pydantic.dataset import DatasetEventPydantic
+from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.typing_compat import TypedDict
 
-KNOWN_CONTEXT_KEYS: Set[str]
+KNOWN_CONTEXT_KEYS: set[str]
 
 class _VariableAccessors(TypedDict):
     json: Any
@@ -56,42 +60,43 @@ class Context(TypedDict, total=False):
     conf: AirflowConfigParser
     conn: Any
     dag: DAG
-    dag_run: DagRun
+    dag_run: DagRun | DagRunPydantic
     data_interval_end: DateTime
     data_interval_start: DateTime
     ds: str
     ds_nodash: str
+    exception: KeyboardInterrupt | Exception | str | None
     execution_date: DateTime
-    exception: Union[KeyboardInterrupt, Exception, str, None]
+    expanded_ti_count: int | None
     inlets: list
     logical_date: DateTime
     macros: Any
-    next_ds: Optional[str]
-    next_ds_nodash: Optional[str]
-    next_execution_date: Optional[DateTime]
+    next_ds: str | None
+    next_ds_nodash: str | None
+    next_execution_date: DateTime | None
     outlets: list
     params: ParamsDict
-    prev_data_interval_start_success: Optional[DateTime]
-    prev_data_interval_end_success: Optional[DateTime]
-    prev_ds: Optional[str]
-    prev_ds_nodash: Optional[str]
-    prev_execution_date: Optional[DateTime]
-    prev_execution_date_success: Optional[DateTime]
-    prev_start_date_success: Optional[DateTime]
+    prev_data_interval_start_success: DateTime | None
+    prev_data_interval_end_success: DateTime | None
+    prev_ds: str | None
+    prev_ds_nodash: str | None
+    prev_execution_date: DateTime | None
+    prev_execution_date_success: DateTime | None
+    prev_start_date_success: DateTime | None
     run_id: str
     task: BaseOperator
-    task_instance: TaskInstance
+    task_instance: TaskInstance | TaskInstancePydantic
     task_instance_key_str: str
     test_mode: bool
-    templates_dict: Optional[Mapping[str, Any]]
-    ti: TaskInstance
+    templates_dict: Mapping[str, Any] | None
+    ti: TaskInstance | TaskInstancePydantic
     tomorrow_ds: str
     tomorrow_ds_nodash: str
-    triggering_dataset_events: Mapping[str, Collection[DatasetEvent]]
+    triggering_dataset_events: Mapping[str, Collection[DatasetEvent | DatasetEventPydantic]]
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str
-    try_number: Optional[int]
+    try_number: int | None
     var: _VariableAccessors
     yesterday_ds: str
     yesterday_ds_nodash: str
@@ -101,7 +106,7 @@ class AirflowContextDeprecationWarning(DeprecationWarning): ...
 @overload
 def context_merge(context: Context, additions: Mapping[str, Any], **kwargs: Any) -> None: ...
 @overload
-def context_merge(context: Context, additions: Iterable[Tuple[str, Any]], **kwargs: Any) -> None: ...
+def context_merge(context: Context, additions: Iterable[tuple[str, Any]], **kwargs: Any) -> None: ...
 @overload
 def context_merge(context: Context, **kwargs: Any) -> None: ...
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None: ...

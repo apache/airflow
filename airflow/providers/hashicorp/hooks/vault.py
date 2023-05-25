@@ -19,17 +19,20 @@ from __future__ import annotations
 
 import json
 import warnings
+from typing import Any
 
 import hvac
 from hvac.exceptions import VaultError
 from requests import Response
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.hashicorp._internal_client.vault_client import (
     DEFAULT_KUBERNETES_JWT_PATH,
     DEFAULT_KV_ENGINE_VERSION,
     _VaultClient,
 )
+from airflow.utils.helpers import merge_dicts
 
 
 class VaultHook(BaseHook):
@@ -97,10 +100,10 @@ class VaultHook(BaseHook):
 
     """
 
-    conn_name_attr = 'vault_conn_id'
-    default_conn_name = 'vault_default'
-    conn_type = 'vault'
-    hook_name = 'Hashicorp Vault'
+    conn_name_attr = "vault_conn_id"
+    default_conn_name = "vault_default"
+    conn_type = "vault"
+    hook_name = "Hashicorp Vault"
 
     def __init__(
         self,
@@ -118,15 +121,16 @@ class VaultHook(BaseHook):
         azure_resource: str | None = None,
         radius_host: str | None = None,
         radius_port: int | None = None,
+        **kwargs,
     ):
         super().__init__()
         self.connection = self.get_connection(vault_conn_id)
 
         if not auth_type:
-            auth_type = self.connection.extra_dejson.get('auth_type') or "token"
+            auth_type = self.connection.extra_dejson.get("auth_type") or "token"
 
         if not auth_mount_point:
-            auth_mount_point = self.connection.extra_dejson.get('auth_mount_point')
+            auth_mount_point = self.connection.extra_dejson.get("auth_mount_point")
 
         if not kv_engine_version:
             conn_version = self.connection.extra_dejson.get("kv_engine_version")
@@ -135,20 +139,25 @@ class VaultHook(BaseHook):
             except ValueError:
                 raise VaultError(f"The version is not an int: {conn_version}. ")
 
+        client_kwargs = self.connection.extra_dejson.get("client_kwargs", {})
+
+        if kwargs:
+            client_kwargs = merge_dicts(client_kwargs, kwargs)
+
         if auth_type == "approle":
             if role_id:
                 warnings.warn(
                     """The usage of role_id for AppRole authentication has been deprecated.
                     Please use connection login.""",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
-            elif self.connection.extra_dejson.get('role_id'):
-                role_id = self.connection.extra_dejson.get('role_id')
+            elif self.connection.extra_dejson.get("role_id"):
+                role_id = self.connection.extra_dejson.get("role_id")
                 warnings.warn(
                     """The usage of role_id in connection extra for AppRole authentication has been
                     deprecated. Please use connection login.""",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
             elif self.connection.login:
@@ -156,48 +165,54 @@ class VaultHook(BaseHook):
 
         if auth_type == "aws_iam":
             if not role_id:
-                role_id = self.connection.extra_dejson.get('role_id')
+                role_id = self.connection.extra_dejson.get("role_id")
 
         azure_resource, azure_tenant_id = (
             self._get_azure_parameters_from_connection(azure_resource, azure_tenant_id)
-            if auth_type == 'azure'
+            if auth_type == "azure"
             else (None, None)
         )
         gcp_key_path, gcp_keyfile_dict, gcp_scopes = (
             self._get_gcp_parameters_from_connection(gcp_key_path, gcp_scopes)
-            if auth_type == 'gcp'
+            if auth_type == "gcp"
             else (None, None, None)
         )
         kubernetes_jwt_path, kubernetes_role = (
             self._get_kubernetes_parameters_from_connection(kubernetes_jwt_path, kubernetes_role)
-            if auth_type == 'kubernetes'
+            if auth_type == "kubernetes"
             else (None, None)
         )
         radius_host, radius_port = (
             self._get_radius_parameters_from_connection(radius_host, radius_port)
-            if auth_type == 'radius'
+            if auth_type == "radius"
             else (None, None)
         )
 
-        if self.connection.conn_type == 'vault':
-            conn_protocol = 'http'
-        elif self.connection.conn_type == 'vaults':
-            conn_protocol = 'https'
-        elif self.connection.conn_type == 'http':
-            conn_protocol = 'http'
-        elif self.connection.conn_type == 'https':
-            conn_protocol = 'https'
+        if self.connection.extra_dejson.get("use_tls") is not None:
+            if bool(self.connection.extra_dejson.get("use_tls")):
+                conn_protocol = "https"
+            else:
+                conn_protocol = "http"
         else:
-            raise VaultError("The url schema must be one of ['http', 'https', 'vault', 'vaults' ]")
+            if self.connection.conn_type == "vault":
+                conn_protocol = "http"
+            elif self.connection.conn_type == "vaults":
+                conn_protocol = "https"
+            elif self.connection.conn_type == "http":
+                conn_protocol = "http"
+            elif self.connection.conn_type == "https":
+                conn_protocol = "https"
+            else:
+                raise VaultError("The url schema must be one of ['http', 'https', 'vault', 'vaults' ]")
 
         url = f"{conn_protocol}://{self.connection.host}"
         if self.connection.port:
             url += f":{self.connection.port}"
 
         # Schema is really path in the Connection definition. This is pretty confusing because of URL schema
-        mount_point = self.connection.schema if self.connection.schema else 'secret'
+        mount_point = self.connection.schema if self.connection.schema else "secret"
 
-        self.vault_client = _VaultClient(
+        client_kwargs.update(
             url=url,
             auth_type=auth_type,
             auth_mount_point=auth_mount_point,
@@ -221,6 +236,8 @@ class VaultHook(BaseHook):
             radius_secret=self.connection.password,
             radius_port=radius_port,
         )
+
+        self.vault_client = _VaultClient(**client_kwargs)
 
     def _get_kubernetes_parameters_from_connection(
         self, kubernetes_jwt_path: str | None, kubernetes_role: str | None
@@ -273,7 +290,6 @@ class VaultHook(BaseHook):
         """
         Retrieves connection to Vault.
 
-        :rtype: hvac.Client
         :return: connection used.
         """
         return self.vault_client.client
@@ -289,7 +305,6 @@ class VaultHook(BaseHook):
         and https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
 
         :param secret_path: Path of the secret
-        :rtype: dict
         :return: secret stored in the vault as a dictionary
         """
         return self.vault_client.get_secret(secret_path=secret_path, secret_version=secret_version)
@@ -299,7 +314,6 @@ class VaultHook(BaseHook):
         Reads secret metadata (including versions) from the engine. It is only valid for KV version 2.
 
         :param secret_path: Path to read from
-        :rtype: dict
         :return: secret metadata. This is a Dict containing metadata for the secret.
 
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v2.html for details.
@@ -317,7 +331,6 @@ class VaultHook(BaseHook):
 
         :param secret_path: Path of the secret
         :param secret_version: Optional version of key to read - can only be used in case of version 2 of KV
-        :rtype: dict
         :return: key info. This is a Dict with "data" mapping keeping secret
             and "metadata" mapping keeping metadata of the secret.
 
@@ -341,7 +354,6 @@ class VaultHook(BaseHook):
             allowed. If set to 0 a write will only be allowed if the key doesn't exist.
             If the index is non-zero the write will only be allowed if the key's current version
             matches the version specified in the cas parameter. Only valid for KV engine version 2.
-        :rtype: requests.Response
         :return: The response of the create_or_update_secret request.
 
         See https://hvac.readthedocs.io/en/stable/usage/secrets_engines/kv_v1.html
@@ -351,3 +363,56 @@ class VaultHook(BaseHook):
         return self.vault_client.create_or_update_secret(
             secret_path=secret_path, secret=secret, method=method, cas=cas
         )
+
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Returns connection widgets to add to connection form"""
+        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_babel import lazy_gettext
+        from wtforms import BooleanField, IntegerField, StringField
+        from wtforms.validators import NumberRange, Optional, any_of
+
+        return {
+            "auth_type": StringField(lazy_gettext("Auth type"), widget=BS3TextFieldWidget()),
+            "auth_mount_point": StringField(lazy_gettext("Auth mount point"), widget=BS3TextFieldWidget()),
+            "kv_engine_version": IntegerField(
+                lazy_gettext("KV engine version"),
+                validators=[any_of([1, 2])],
+                widget=BS3TextFieldWidget(),
+                description="Must be 1 or 2.",
+                default=DEFAULT_KV_ENGINE_VERSION,
+            ),
+            "role_id": StringField(lazy_gettext("Role ID (deprecated)"), widget=BS3TextFieldWidget()),
+            "kubernetes_role": StringField(lazy_gettext("Kubernetes role"), widget=BS3TextFieldWidget()),
+            "kubernetes_jwt_path": StringField(
+                lazy_gettext("Kubernetes jwt path"), widget=BS3TextFieldWidget()
+            ),
+            "token_path": StringField(lazy_gettext("Token path"), widget=BS3TextFieldWidget()),
+            "gcp_key_path": StringField(lazy_gettext("GCP key path"), widget=BS3TextFieldWidget()),
+            "gcp_scopes": StringField(lazy_gettext("GCP scopes"), widget=BS3TextFieldWidget()),
+            "azure_tenant_id": StringField(lazy_gettext("Azure tenant ID"), widget=BS3TextFieldWidget()),
+            "azure_resource": StringField(lazy_gettext("Azure resource"), widget=BS3TextFieldWidget()),
+            "radius_host": StringField(lazy_gettext("Radius host"), widget=BS3TextFieldWidget()),
+            "radius_port": IntegerField(
+                lazy_gettext("Radius port"),
+                widget=BS3TextFieldWidget(),
+                validators=[Optional(), NumberRange(min=0)],
+            ),
+            "use_tls": BooleanField(lazy_gettext("Use TLS"), default=True),
+        }
+
+    @staticmethod
+    def get_ui_field_behaviour() -> dict[str, Any]:
+        """Returns custom field behaviour"""
+        return {
+            "hidden_fields": ["extra"],
+            "relabeling": {},
+        }
+
+    def test_connection(self) -> tuple[bool, str]:
+        """Test Vault connectivity from UI"""
+        try:
+            self.get_conn()
+            return True, "Connection successfully tested"
+        except Exception as e:
+            return False, str(e)

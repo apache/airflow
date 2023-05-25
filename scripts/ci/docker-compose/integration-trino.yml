@@ -32,9 +32,12 @@ services:
       retries: 50
     restart: "on-failure"
 
+    # For avoid 'Error starting userland proxy: listen tcp4 0.0.0.0:38080: bind: address already in use'
+    # we forward container port to first available port in defined range.
+    # For get actual port we need to run `docker port {CONTAINER_NAME|CONTAINER_ID}`.
     ports:
-      - "38080:8080"
-      - "37778:7778"
+      - "38080-38089:8080"
+      - "37778-37786:7778"
 
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source

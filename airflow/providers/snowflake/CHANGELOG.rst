@@ -24,6 +24,151 @@
 Changelog
 ---------
 
+4.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+
+4.0.5
+.....
+
+Misc
+~~~~
+
+* ``Update documentation for snowflake provider 4.0 breaking change (#30020)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+
+4.0.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix missing parens for files parameter (#29437)``
+
+4.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``provide missing connection to the parent class operator (#29211)``
+* ``Snowflake Provider - hide host from UI (#29208)``
+
+
+4.0.2
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+The ``SnowflakeHook`` is now conforming to the same semantics as all the other ``DBApiHook``
+implementations and returns the same kind of response in its ``run`` method. Previously (pre 4.* versions
+of the provider, the Hook returned Dictionary of ``{ "column": "value" ... }`` which was not compatible
+with other DBApiHooks that return just sequence of sequences. After this change (and dependency
+on common.sql >= 1.3.1),the ``SnowflakeHook`` returns now python DbApi-compatible "results" by default.
+
+The ``description`` (i.e. among others names and types of columns returned) can be retrieved
+via ``descriptions`` and ``last_description`` fields of the hook after ``run`` method completes.
+
+That makes the ``DatabricksSqlHook`` suitable for generic SQL operator and detailed lineage analysis.
+
+If you had custom hooks or used the Hook in your TaskFlow code or custom operators that relied on this
+behaviour, you need to adapt your DAGs or you can switch back the ``SnowflakeHook`` to return dictionaries
+by passing ``return_dictionaries=True`` to the run method of the hook.
+
+The ``SnowflakeOperator`` is also more standard and derives from common
+``SQLExecuteQueryOperator`` and uses more consistent approach to process output when SQL queries are run.
+However in this case the result returned by ``execute`` method is unchanged (it still returns Dictionaries
+rather than sequences and those dictionaries are pushed to XCom, so your DAGs relying on this behaviour
+should continue working without any change.
+
+UPDATE: One of the unmentioned, breaking changes in the operator in 4.0 line was to switch autocommit to
+False by default. While not very friendly to the users, it was a side effect of unifying the interface
+with other SQL operators and we released it to the users, so switching it back again would cause even more
+confusion. You should manually add autocommit=True to your SnowflakeOperator if you want to continue using
+it and expect autocommit to work, but even better, you should switch to SQLExecuteQueryOperator.
+
+In SnowflakeHook, if both ``extra__snowflake__foo`` and ``foo`` existed in connection extra
+dict, the prefixed version would be used; now, the non-prefixed version will be preferred.
+
+The ``4.0.0`` and ``4.0.1`` versions have been broken and yanked, so the 4.0.2 is the first change from the
+``4.*`` line that should be used.
+
+* ``Fix wrapping of run() method result of exasol and snowflake DB hooks (#27997)``
+* ``Make Snowflake Hook conform to semantics of DBApi (#28006)``
+
+4.0.1
+.....
+
+.. warning::
+
+    This version is yanked, as it contained problems when interacting with common.sql provider. Please install
+    a version released afterwards.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix errors in Databricks SQL operator introduced when refactoring (#27854)``
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+* ``Fixing the behaviours of SQL Hooks and Operators finally (#27912)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare for follow-up release for November providers (#27774)``
+
+4.0.0
+.....
+
+.. warning::
+
+    This version is yanked, as it contained problems when interacting with common.sql provider. Please install
+    a version released afterwards.
+
+* ``Update snowflake hook to not use extra prefix (#26764)``
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+Features
+~~~~~~~~
+
+* ``Add SQLExecuteQueryOperator (#25717)``
+
+Bug fixes
+~~~~~~~~~
+
+* ``Use unused SQLCheckOperator.parameters in SQLCheckOperator.execute. (#27599)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
 3.3.0
 .....
 
@@ -78,8 +223,9 @@ Bug Fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Bug Fixes
 ~~~~~~~~~

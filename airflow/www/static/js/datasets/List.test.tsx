@@ -19,18 +19,18 @@
 
 /* global describe, test, expect */
 
-import React from 'react';
-import { render } from '@testing-library/react';
+import React from "react";
+import { render } from "@testing-library/react";
 
-import * as useDatasetsModule from 'src/api/useDatasets';
-import { Wrapper } from 'src/utils/testUtils';
+import * as useDatasetsModule from "src/api/useDatasets";
+import { Wrapper } from "src/utils/testUtils";
 
-import DatasetsList from './List';
+import DatasetsList from "./List";
 
 const datasets = [
   {
     id: 0,
-    uri: 'this_dataset',
+    uri: "this_dataset",
     extra: null,
     lastDatasetUpdate: null,
     totalUpdates: 0,
@@ -39,7 +39,7 @@ const datasets = [
   },
   {
     id: 1,
-    uri: 'that_dataset',
+    uri: "that_dataset",
     extra: null,
     lastDatasetUpdate: new Date().toISOString(),
     totalUpdates: 10,
@@ -48,7 +48,7 @@ const datasets = [
   },
   {
     id: 1,
-    uri: 'extra_dataset',
+    uri: "extra_dataset",
     extra: null,
     lastDatasetUpdate: new Date().toISOString(),
     totalUpdates: 1,
@@ -74,58 +74,60 @@ const emptyReturnValue = {
   isLoading: false,
 } as any;
 
-describe('Test Datasets List', () => {
-  test('Displays a list of datasets', () => {
-    jest.spyOn(useDatasetsModule, 'default').mockImplementation(() => returnValue);
+describe("Test Datasets List", () => {
+  test("Displays a list of datasets", () => {
+    jest
+      .spyOn(useDatasetsModule, "default")
+      .mockImplementation(() => returnValue);
 
     const { getByText, queryAllByTestId } = render(
-      <DatasetsList
-        onSelect={() => {}}
-      />,
-      { wrapper: Wrapper },
+      <DatasetsList onSelect={() => {}} />,
+      { wrapper: Wrapper }
     );
 
-    const listItems = queryAllByTestId('dataset-list-item');
+    const listItems = queryAllByTestId("dataset-list-item");
 
     expect(listItems).toHaveLength(3);
 
     expect(getByText(datasets[0].uri)).toBeDefined();
-    expect(getByText('Total Updates: 0')).toBeDefined();
+    expect(getByText("Total Updates: 0")).toBeDefined();
 
     expect(getByText(datasets[1].uri)).toBeDefined();
-    expect(getByText('Total Updates: 10')).toBeDefined();
+    expect(getByText("Total Updates: 10")).toBeDefined();
 
     expect(getByText(datasets[2].uri)).toBeDefined();
-    expect(getByText('Total Updates: 1')).toBeDefined();
+    expect(getByText("Total Updates: 1")).toBeDefined();
   });
 
-  test('Empty state displays when there are no datasets', () => {
-    jest.spyOn(useDatasetsModule, 'default').mockImplementation(() => emptyReturnValue);
+  test("Empty state displays when there are no datasets", () => {
+    jest
+      .spyOn(useDatasetsModule, "default")
+      .mockImplementation(() => emptyReturnValue);
 
     const { getByText, queryAllByTestId, getByTestId } = render(
-      <DatasetsList
-        onSelect={() => {}}
-      />,
-      { wrapper: Wrapper },
+      <DatasetsList onSelect={() => {}} />,
+      { wrapper: Wrapper }
     );
 
-    const listItems = queryAllByTestId('dataset-list-item');
+    const listItems = queryAllByTestId("dataset-list-item");
 
     expect(listItems).toHaveLength(0);
 
-    expect(getByTestId('no-datasets-msg')).toBeInTheDocument();
-    expect(getByText('No Data found.')).toBeInTheDocument();
+    expect(getByTestId("no-datasets-msg")).toBeInTheDocument();
+    expect(getByText("No Data found.")).toBeInTheDocument();
   });
 
-  test('Correctly decodes search param and applies it to the input', () => {
-    jest.spyOn(useDatasetsModule, 'default').mockImplementation(() => returnValue);
+  test("Correctly decodes search param and applies it to the input", () => {
+    jest
+      .spyOn(useDatasetsModule, "default")
+      .mockImplementation(() => returnValue);
 
     const { getByDisplayValue } = render(
-      <Wrapper initialEntries={['/datasets?search=s3%253A%252F%252F']}>
+      <Wrapper initialEntries={["/datasets?search=s3%253A%252F%252F"]}>
         <DatasetsList onSelect={() => {}} />
-      </Wrapper>,
+      </Wrapper>
     );
 
-    expect(getByDisplayValue('s3://')).toBeInTheDocument();
+    expect(getByDisplayValue("s3://")).toBeInTheDocument();
   });
 });

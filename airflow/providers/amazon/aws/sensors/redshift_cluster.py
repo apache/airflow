@@ -18,6 +18,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
+
+from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -37,30 +40,36 @@ class RedshiftClusterSensor(BaseSensorOperator):
     :param target_status: The cluster status desired.
     """
 
-    template_fields: Sequence[str] = ('cluster_identifier', 'target_status')
+    template_fields: Sequence[str] = ("cluster_identifier", "target_status")
 
     def __init__(
         self,
         *,
         cluster_identifier: str,
-        target_status: str = 'available',
-        aws_conn_id: str = 'aws_default',
+        target_status: str = "available",
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.cluster_identifier = cluster_identifier
         self.target_status = target_status
         self.aws_conn_id = aws_conn_id
-        self.hook: RedshiftHook | None = None
 
     def poke(self, context: Context):
-        self.log.info('Poking for status : %s\nfor cluster %s', self.target_status, self.cluster_identifier)
-        return self.get_hook().cluster_status(self.cluster_identifier) == self.target_status
+        current_status = self.hook.cluster_status(self.cluster_identifier)
+        self.log.info(
+            "Poked cluster %s for status '%s', found status '%s'",
+            self.cluster_identifier,
+            self.target_status,
+            current_status,
+        )
+        return current_status == self.target_status
 
+    @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> RedshiftHook:
         """Create and return a RedshiftHook"""
-        if self.hook:
-            return self.hook
-
-        self.hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
         return self.hook
+
+    @cached_property
+    def hook(self) -> RedshiftHook:
+        return RedshiftHook(aws_conn_id=self.aws_conn_id)

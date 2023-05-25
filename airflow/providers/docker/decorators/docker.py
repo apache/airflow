@@ -47,7 +47,7 @@ def _generate_decode_command(env_var, file, python_command):
     # We don't need `f.close()` as the interpreter is about to exit anyway
     return (
         f'{python_command} -c "import base64, os;'
-        rf'x = base64.b64decode(os.environ[\"{env_var}\"]);'
+        rf"x = base64.b64decode(os.environ[\"{env_var}\"]);"
         rf'f = open(\"{file}\", \"wb\"); f.write(x);"'
     )
 
@@ -77,20 +77,16 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
 
     custom_operator_name = "@task.docker"
 
-    template_fields: Sequence[str] = ('op_args', 'op_kwargs')
-
-    # since we won't mutate the arguments, we should just do the shallow copy
-    # there are some cases we can't deepcopy the objects (e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = ('python_callable',)
+    template_fields: Sequence[str] = (*DockerOperator.template_fields, "op_args", "op_kwargs")
 
     def __init__(
         self,
         use_dill=False,
-        python_command='python3',
+        python_command="python3",
         expect_airflow: bool = True,
         **kwargs,
     ) -> None:
-        command = "dummy command"
+        command = "placeholder command"
         self.python_command = python_command
         self.expect_airflow = expect_airflow
         self.pickling_library = dill if use_dill else pickle
@@ -103,18 +99,18 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
             f"""bash -cx  '{_generate_decode_command("__PYTHON_SCRIPT", "/tmp/script.py",
                                                      self.python_command)} &&"""
             f'{_generate_decode_command("__PYTHON_INPUT", "/tmp/script.in", self.python_command)} &&'
-            f'{self.python_command} /tmp/script.py /tmp/script.in /tmp/script.out\''
+            f"{self.python_command} /tmp/script.py /tmp/script.in /tmp/script.out'"
         )
 
     def execute(self, context: Context):
-        with TemporaryDirectory(prefix='venv') as tmp_dir:
-            input_filename = os.path.join(tmp_dir, 'script.in')
-            script_filename = os.path.join(tmp_dir, 'script.py')
+        with TemporaryDirectory(prefix="venv") as tmp_dir:
+            input_filename = os.path.join(tmp_dir, "script.in")
+            script_filename = os.path.join(tmp_dir, "script.py")
 
-            with open(input_filename, 'wb') as file:
+            with open(input_filename, "wb") as file:
                 if self.op_args or self.op_kwargs:
-                    self.pickling_library.dump({'args': self.op_args, 'kwargs': self.op_kwargs}, file)
-            py_source = self._get_python_source()
+                    self.pickling_library.dump({"args": self.op_args, "kwargs": self.op_kwargs}, file)
+            py_source = self.get_python_source()
             write_python_script(
                 jinja_context=dict(
                     op_args=self.op_args,
@@ -140,10 +136,11 @@ class _DockerDecoratedOperator(DecoratedOperator, DockerOperator):
             self.command = self.generate_command()
             return super().execute(context)
 
-    def _get_python_source(self):
+    # TODO: Remove me once this provider min supported Airflow version is 2.6
+    def get_python_source(self):
         raw_source = inspect.getsource(self.python_callable)
         res = dedent(raw_source)
-        res = remove_task_decorator(res, "@task.docker")
+        res = remove_task_decorator(res, self.custom_operator_name)
         return res
 
 

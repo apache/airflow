@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Task instance APIs."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -35,7 +36,7 @@ def get_task_instance(dag_id: str, task_id: str, execution_date: datetime) -> Ta
     # Get task instance object and check that it exists
     task_instance = dagrun.get_task_instance(task_id)
     if not task_instance:
-        error_message = f'Task {task_id} instance for date {execution_date} not found'
+        error_message = f"Task {task_id} instance for date {execution_date} not found"
         raise TaskInstanceNotFound(error_message)
 
     return task_instance

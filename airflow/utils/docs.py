@@ -26,12 +26,12 @@ def get_docs_url(page: str | None = None) -> str:
     """Prepare link to Airflow documentation."""
     from airflow.version import version
 
-    if any(suffix in version for suffix in ['dev', 'a', 'b']):
+    if any(suffix in version for suffix in ["dev", "a", "b"]):
         result = (
             "http://apache-airflow-docs.s3-website.eu-central-1.amazonaws.com/docs/apache-airflow/latest/"
         )
     else:
-        result = f'https://airflow.apache.org/docs/apache-airflow/{version}/'
+        result = f"https://airflow.apache.org/docs/apache-airflow/{version}/"
     if page:
         result = result + page
     return result
@@ -45,7 +45,7 @@ def get_doc_url_for_provider(provider_name: str, provider_version: str) -> str:
             metadata_items = [metadata_items]
         if metadata_items:
             for item in metadata_items:
-                if item.lower().startswith('documentation'):
+                if item.lower().startswith("documentation"):
                     _, _, url = item.partition(",")
                     if url:
                         return url.strip()
@@ -53,5 +53,5 @@ def get_doc_url_for_provider(provider_name: str, provider_version: str) -> str:
         pass
     # Fallback if provider is apache one
     if provider_name.startswith("apache-airflow"):
-        return f'https://airflow.apache.org/docs/{provider_name}/{provider_version}/'
+        return f"https://airflow.apache.org/docs/{provider_name}/{provider_version}/"
     return "https://airflow.apache.org/docs/apache-airflow-providers/index.html#creating-your-own-providers"

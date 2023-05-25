@@ -19,6 +19,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
+from deprecated import deprecated
+
+from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -48,20 +51,20 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'database_name',
-        'table_name',
-        'expression',
+        "database_name",
+        "table_name",
+        "expression",
     )
-    ui_color = '#C5CAE9'
+    ui_color = "#C5CAE9"
 
     def __init__(
         self,
         *,
         table_name: str,
         expression: str = "ds='{{ ds }}'",
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         region_name: str | None = None,
-        database_name: str = 'default',
+        database_name: str = "default",
         poke_interval: int = 60 * 3,
         **kwargs,
     ):
@@ -71,22 +74,22 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
         self.table_name = table_name
         self.expression = expression
         self.database_name = database_name
-        self.hook: GlueCatalogHook | None = None
 
     def poke(self, context: Context):
         """Checks for existence of the partition in the AWS Glue Catalog table"""
-        if '.' in self.table_name:
-            self.database_name, self.table_name = self.table_name.split('.')
+        if "." in self.table_name:
+            self.database_name, self.table_name = self.table_name.split(".")
         self.log.info(
-            'Poking for table %s. %s, expression %s', self.database_name, self.table_name, self.expression
+            "Poking for table %s. %s, expression %s", self.database_name, self.table_name, self.expression
         )
 
-        return self.get_hook().check_for_partition(self.database_name, self.table_name, self.expression)
+        return self.hook.check_for_partition(self.database_name, self.table_name, self.expression)
 
+    @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> GlueCatalogHook:
         """Gets the GlueCatalogHook"""
-        if self.hook:
-            return self.hook
-
-        self.hook = GlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         return self.hook
+
+    @cached_property
+    def hook(self) -> GlueCatalogHook:
+        return GlueCatalogHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)

@@ -25,7 +25,8 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 class ElastiCacheReplicationGroupHook(AwsBaseHook):
     """
-    Interact with AWS ElastiCache
+    Interact with Amazon ElastiCache.
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("elasticache") <ElastiCache.Client>`.
 
     :param max_retries: Max retries for checking availability of and deleting replication group
             If this is not supplied then this is defaulted to 10
@@ -33,6 +34,12 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
             If this is not supplied then this is defaulted to 1
     :param initial_poke_interval: Initial sleep time in seconds
             If this is not supplied then this is defaulted to 60 seconds
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     TERMINAL_STATES = frozenset({"available", "create-failed", "deleting"})
@@ -54,43 +61,51 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
     def create_replication_group(self, config: dict) -> dict:
         """
-        Call ElastiCache API for creating a replication group
+        Creates a Redis (cluster mode disabled) or a Redis (cluster mode enabled) replication group.
+
+        .. seealso::
+            - :external+boto3:py:meth:`ElastiCache.Client.create_replication_group`
 
         :param config: Configuration for creating the replication group
         :return: Response from ElastiCache create replication group API
-        :rtype: dict
         """
         return self.conn.create_replication_group(**config)
 
     def delete_replication_group(self, replication_group_id: str) -> dict:
         """
-        Call ElastiCache API for deleting a replication group
+        Deletes an existing replication group.
+
+        .. seealso::
+            - :external+boto3:py:meth:`ElastiCache.Client.delete_replication_group`
 
         :param replication_group_id: ID of replication group to delete
         :return: Response from ElastiCache delete replication group API
-        :rtype: dict
         """
         return self.conn.delete_replication_group(ReplicationGroupId=replication_group_id)
 
     def describe_replication_group(self, replication_group_id: str) -> dict:
         """
-        Call ElastiCache API for describing a replication group
+        Get information about a particular replication group.
+
+        .. seealso::
+            - :external+boto3:py:meth:`ElastiCache.Client.describe_replication_groups`
 
         :param replication_group_id: ID of replication group to describe
         :return: Response from ElastiCache describe replication group API
-        :rtype: dict
         """
         return self.conn.describe_replication_groups(ReplicationGroupId=replication_group_id)
 
     def get_replication_group_status(self, replication_group_id: str) -> str:
         """
-        Get current status of replication group
+        Get current status of replication group.
+
+        .. seealso::
+            - :external+boto3:py:meth:`ElastiCache.Client.describe_replication_groups`
 
         :param replication_group_id: ID of replication group to check for status
         :return: Current status of replication group
-        :rtype: str
         """
-        return self.describe_replication_group(replication_group_id)['ReplicationGroups'][0]['Status']
+        return self.describe_replication_group(replication_group_id)["ReplicationGroups"][0]["Status"]
 
     def is_replication_group_available(self, replication_group_id: str) -> bool:
         """
@@ -98,9 +113,8 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
 
         :param replication_group_id: ID of replication group to check for availability
         :return: True if available else False
-        :rtype: bool
         """
-        return self.get_replication_group_status(replication_group_id) == 'available'
+        return self.get_replication_group_status(replication_group_id) == "available"
 
     def wait_for_availability(
         self,
@@ -108,7 +122,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         initial_sleep_time: float | None = None,
         exponential_back_off_factor: float | None = None,
         max_retries: int | None = None,
-    ):
+    ) -> bool:
         """
         Check if replication group is available or not by performing a describe over it
 
@@ -120,13 +134,12 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         :param max_retries: Max retries for checking availability of replication group
             If this is not supplied then this is defaulted to class level value
         :return: True if replication is available else False
-        :rtype: bool
         """
         sleep_time = initial_sleep_time or self.initial_poke_interval
         exponential_back_off_factor = exponential_back_off_factor or self.exponential_back_off_factor
         max_retries = max_retries or self.max_retries
         num_tries = 0
-        status = 'not-found'
+        status = "not-found"
         stop_poking = False
 
         while not stop_poking and num_tries <= max_retries:
@@ -134,7 +147,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
             stop_poking = status in self.TERMINAL_STATES
 
             self.log.info(
-                'Current status of replication group with ID %s is %s', replication_group_id, status
+                "Current status of replication group with ID %s is %s", replication_group_id, status
             )
 
             if not stop_poking:
@@ -144,13 +157,13 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
                 if num_tries > max_retries:
                     break
 
-                self.log.info('Poke retry %s. Sleep time %s seconds. Sleeping...', num_tries, sleep_time)
+                self.log.info("Poke retry %s. Sleep time %s seconds. Sleeping...", num_tries, sleep_time)
 
                 sleep(sleep_time)
 
                 sleep_time *= exponential_back_off_factor
 
-        if status != 'available':
+        if status != "available":
             self.log.warning('Replication group is not available. Current status is "%s"', status)
 
             return False
@@ -175,7 +188,6 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         :param max_retries: Max retries for checking availability of replication group
             If this is not supplied then this is defaulted to class level value
         :return: Response from ElastiCache delete replication group API and flag to identify if deleted or not
-        :rtype: (dict, bool)
         """
         deleted = False
         sleep_time = initial_sleep_time or self.initial_poke_interval
@@ -189,12 +201,12 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
                 status = self.get_replication_group_status(replication_group_id=replication_group_id)
 
                 self.log.info(
-                    'Current status of replication group with ID %s is %s', replication_group_id, status
+                    "Current status of replication group with ID %s is %s", replication_group_id, status
                 )
 
                 # Can only delete if status is `available`
                 # Status becomes `deleting` after this call so this will only run once
-                if status == 'available':
+                if status == "available":
                     self.log.info("Initiating delete and then wait for it to finish")
 
                     response = self.delete_replication_group(replication_group_id=replication_group_id)
@@ -214,9 +226,9 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
                 # modifying - Replication group <replication_group_id> has status deleting which is not valid
                 #             for deletion.
 
-                message = exp.response['Error']['Message']
+                message = exp.response["Error"]["Message"]
 
-                self.log.warning('Received error message from AWS ElastiCache API : %s', message)
+                self.log.warning("Received error message from AWS ElastiCache API : %s", message)
 
             if not deleted:
                 num_tries += 1
@@ -225,7 +237,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
                 if num_tries > max_retries:
                     break
 
-                self.log.info('Poke retry %s. Sleep time %s seconds. Sleeping...', num_tries, sleep_time)
+                self.log.info("Poke retry %s. Sleep time %s seconds. Sleeping...", num_tries, sleep_time)
 
                 sleep(sleep_time)
 
@@ -239,7 +251,7 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         initial_sleep_time: float | None = None,
         exponential_back_off_factor: float | None = None,
         max_retries: int | None = None,
-    ):
+    ) -> dict:
         """
         Delete a replication group ensuring it is either deleted or can't be deleted
 
@@ -251,10 +263,9 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
         :param max_retries: Max retries for checking availability of replication group
             If this is not supplied then this is defaulted to class level value
         :return: Response from ElastiCache delete replication group API
-        :rtype: dict
         :raises AirflowException: If replication group is not deleted
         """
-        self.log.info('Deleting replication group with ID %s', replication_group_id)
+        self.log.info("Deleting replication group with ID %s", replication_group_id)
 
         response, deleted = self.wait_for_deletion(
             replication_group_id=replication_group_id,

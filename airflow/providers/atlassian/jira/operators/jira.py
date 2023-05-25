@@ -19,9 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.atlassian.jira.hooks.jira import JIRAError, JiraHook
+from airflow.providers.atlassian.jira.hooks.jira import JiraHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -30,14 +29,14 @@ if TYPE_CHECKING:
 class JiraOperator(BaseOperator):
     """
     JiraOperator to interact and perform action on Jira issue tracking system.
-    This operator is designed to use Jira Python SDK: http://jira.readthedocs.io
+    This operator is designed to use Atlassian Jira SDK: https://atlassian-python-api.readthedocs.io/jira.html
 
-    :param jira_conn_id: reference to a pre-defined Jira Connection
-    :param jira_method: method name from Jira Python SDK to be called
-    :param jira_method_args: required method parameters for the jira_method. (templated)
-    :param result_processor: function to further process the response from Jira
-    :param get_jira_resource_method: function or operator to get jira resource
-                                    on which the provided jira_method will be executed
+    :param jira_conn_id: Reference to a pre-defined Jira Connection.
+    :param jira_method: Method name from Atlassian Jira Python SDK to be called.
+    :param jira_method_args: Method parameters for the jira_method. (templated)
+    :param result_processor: Function to further process the response from Jira.
+    :param get_jira_resource_method: Function or operator to get Jira resource on which the provided
+        jira_method will be executed.
     """
 
     template_fields: Sequence[str] = ("jira_method_args",)
@@ -46,7 +45,7 @@ class JiraOperator(BaseOperator):
         self,
         *,
         jira_method: str,
-        jira_conn_id: str = 'jira_default',
+        jira_conn_id: str = "jira_default",
         jira_method_args: dict | None = None,
         result_processor: Callable | None = None,
         get_jira_resource_method: Callable | None = None,
@@ -55,37 +54,32 @@ class JiraOperator(BaseOperator):
         super().__init__(**kwargs)
         self.jira_conn_id = jira_conn_id
         self.method_name = jira_method
-        self.jira_method_args = jira_method_args
+        self.jira_method_args = jira_method_args or {}
         self.result_processor = result_processor
         self.get_jira_resource_method = get_jira_resource_method
 
     def execute(self, context: Context) -> Any:
-        try:
-            if self.get_jira_resource_method is not None:
-                # if get_jira_resource_method is provided, jira_method will be executed on
-                # resource returned by executing the get_jira_resource_method.
-                # This makes all the provided methods of JIRA sdk accessible and usable
-                # directly at the JiraOperator without additional wrappers.
-                # ref: http://jira.readthedocs.io/en/latest/api.html
-                if isinstance(self.get_jira_resource_method, JiraOperator):
-                    resource = self.get_jira_resource_method.execute(**context)
-                else:
-                    resource = self.get_jira_resource_method(**context)
+        if self.get_jira_resource_method is not None:
+            # if get_jira_resource_method is provided, jira_method will be executed on
+            # resource returned by executing the get_jira_resource_method.
+            # This makes all the provided methods of atlassian-python-api JIRA sdk accessible and usable
+            # directly at the JiraOperator without additional wrappers.
+            # ref: https://atlassian-python-api.readthedocs.io/jira.html
+            if isinstance(self.get_jira_resource_method, JiraOperator):
+                resource = self.get_jira_resource_method.execute(**context)
             else:
-                # Default method execution is on the top level jira client resource
-                hook = JiraHook(jira_conn_id=self.jira_conn_id)
-                resource = hook.client
+                resource = self.get_jira_resource_method(**context)
+        else:
+            # Default method execution is on the top level jira client resource
+            hook = JiraHook(jira_conn_id=self.jira_conn_id)
+            resource = hook.client
 
-            # Current Jira-Python SDK (1.0.7) has issue with pickling the jira response.
-            # ex: self.xcom_push(context, key='operator_response', value=jira_response)
-            # This could potentially throw error if jira_result is not picklable
-            jira_result = getattr(resource, self.method_name)(**self.jira_method_args)
-            if self.result_processor:
-                return self.result_processor(context, jira_result)
+        jira_result = getattr(resource, self.method_name)(**self.jira_method_args)
 
-            return jira_result
+        output = jira_result.get("id", None) if jira_result is not None else None
+        self.xcom_push(context, key="id", value=output)
 
-        except JIRAError as jira_error:
-            raise AirflowException(f"Failed to execute jiraOperator, error: {str(jira_error)}")
-        except Exception as e:
-            raise AirflowException(f"Jira operator error: {str(e)}")
+        if self.result_processor:
+            return self.result_processor(context, jira_result)
+
+        return jira_result

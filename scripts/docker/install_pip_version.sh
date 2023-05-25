@@ -20,17 +20,9 @@
 
 : "${AIRFLOW_PIP_VERSION:?Should be set}"
 
-function install_pip_version() {
-    echo
-    echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
-    echo
-    pip install --disable-pip-version-check --no-cache-dir --upgrade "pip==${AIRFLOW_PIP_VERSION}" &&
-        mkdir -p ${HOME}/.local/bin
-}
-
 common::get_colors
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
 common::show_pip_version_and_location
 
-install_pip_version
+common::install_pip_version

@@ -24,6 +24,106 @@
 Changelog
 ---------
 
+3.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+* ``Optimize deferred execution mode in DbtCloudJobRunSensor (#30968)``
+* ``Optimize deferred execution mode for DbtCloudRunJobOperator (#31188)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Add cli cmd to list the provider trigger info (#30822)``
+   * ``Upgrade ruff to 0.0.262 (#30809)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+
+3.1.1
+.....
+
+Misc
+~~~~
+
+* ``Merge DbtCloudJobRunAsyncSensor logic to DbtCloudJobRunSensor (#30227)``
+* ``Move typing imports behind TYPE_CHECKING in DbtCloudHook (#29989)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add mechanism to suspend providers (#30422)``
+   * ``adding trigger info to provider yaml (#29950)``
+
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'DbtCloudJobRunAsyncSensor' (#29695)``
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+Beginning with version 2.0.0, users could specify single-tenant dbt Cloud domains via the ``schema`` parameter
+in an Airflow connection. Subsequently in version 2.3.1, users could also connect to the dbt Cloud instances
+outside of the US region as well as private instances by using the ``host`` parameter of their Airflow
+connection to specify the entire tenant domain. Backwards compatibility for using ``schema`` was left in
+place. Version 3.0.0 removes support for using ``schema`` to specify the tenant domain of a dbt Cloud
+instance. If you wish to connect to a single-tenant, instance outside of the US, or a private instance, you
+must use the ``host`` parameter to specify the _entire_ tenant domain name in your Airflow connection.
+
+* ``Drop Connection.schema use in DbtCloudHook  (#29166)``
+
+Features
+~~~~~~~~
+
+* ``Allow downloading of dbt Cloud artifacts to non-existent paths (#29048)``
+* ``Add deferrable mode to 'DbtCloudRunJobOperator' (#29014)``
+
+Misc
+~~~~
+
+* ``Provide more context for 'trigger_reason' in DbtCloudRunJobOperator (#28994)``
+
+
+2.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+* ``Use entire tenant domain name in dbt Cloud connection (#28890)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.3.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
 2.2.0
 .....
 
@@ -63,8 +163,9 @@ Bug Fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Features
 ~~~~~~~~

@@ -36,7 +36,7 @@ def stable_sort(x):
     return x.casefold(), x
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     inthewild_path = Path(AIRFLOW_SOURCES) / "INTHEWILD.md"
     content = inthewild_path.read_text()
     header = []

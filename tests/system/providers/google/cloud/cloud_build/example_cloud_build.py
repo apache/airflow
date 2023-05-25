@@ -33,7 +33,7 @@ from pathlib import Path
 from typing import Any, cast
 
 import yaml
-from future.backports.urllib.parse import urlparse
+from future.backports.urllib.parse import urlsplit
 
 from airflow import models
 from airflow.models.baseoperator import chain
@@ -57,10 +57,10 @@ DAG_ID = "example_gcp_cloud_build"
 
 BUCKET_NAME_SRC = f"bucket-src-{DAG_ID}-{ENV_ID}"
 
-GCP_SOURCE_ARCHIVE_URL = os.environ.get("GCP_CLOUD_BUILD_ARCHIVE_URL", f"gs://{BUCKET_NAME_SRC}/file.tar.gz")
+GCP_SOURCE_ARCHIVE_URL = f"gs://{BUCKET_NAME_SRC}/file.tar.gz"
 GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repo"
 
-GCP_SOURCE_ARCHIVE_URL_PARTS = urlparse(GCP_SOURCE_ARCHIVE_URL)
+GCP_SOURCE_ARCHIVE_URL_PARTS = urlsplit(GCP_SOURCE_ARCHIVE_URL)
 GCP_SOURCE_BUCKET_NAME = GCP_SOURCE_ARCHIVE_URL_PARTS.netloc
 
 CURRENT_FOLDER = Path(__file__).parent
@@ -69,21 +69,21 @@ FILE_LOCAL_PATH = str(Path(CURRENT_FOLDER) / "resources" / "file.tar.gz")
 # [START howto_operator_gcp_create_build_from_storage_body]
 create_build_from_storage_body = {
     "source": {"storage_source": GCP_SOURCE_ARCHIVE_URL},
-    "steps": [{"name": "ubuntu", "args": ['echo', 'Hello world']}],
+    "steps": [{"name": "ubuntu", "args": ["echo", "Hello world"]}],
 }
 # [END howto_operator_gcp_create_build_from_storage_body]
 
 # [START howto_operator_create_build_from_repo_body]
 create_build_from_repo_body: dict[str, Any] = {
     "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "master"}},
-    "steps": [{"name": "ubuntu", "args": ['echo', 'Hello world']}],
+    "steps": [{"name": "ubuntu", "args": ["echo", "Hello world"]}],
 }
 # [END howto_operator_create_build_from_repo_body]
 
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
@@ -100,7 +100,9 @@ with models.DAG(
 
     # [START howto_operator_create_build_from_storage]
     create_build_from_storage = CloudBuildCreateBuildOperator(
-        task_id="create_build_from_storage", project_id=PROJECT_ID, build=create_build_from_storage_body
+        task_id="create_build_from_storage",
+        project_id=PROJECT_ID,
+        build=create_build_from_storage_body,
     )
     # [END howto_operator_create_build_from_storage]
 
@@ -113,7 +115,9 @@ with models.DAG(
 
     # [START howto_operator_create_build_from_repo]
     create_build_from_repo = CloudBuildCreateBuildOperator(
-        task_id="create_build_from_repo", project_id=PROJECT_ID, build=create_build_from_repo_body
+        task_id="create_build_from_repo",
+        project_id=PROJECT_ID,
+        build=create_build_from_repo_body,
     )
     # [END howto_operator_create_build_from_repo]
 
@@ -126,7 +130,9 @@ with models.DAG(
 
     # [START howto_operator_list_builds]
     list_builds = CloudBuildListBuildsOperator(
-        task_id="list_builds", project_id=PROJECT_ID, location="global"
+        task_id="list_builds",
+        project_id=PROJECT_ID,
+        location="global",
     )
     # [END howto_operator_list_builds]
 
@@ -142,7 +148,7 @@ with models.DAG(
     # [START howto_operator_cancel_build]
     cancel_build = CloudBuildCancelBuildOperator(
         task_id="cancel_build",
-        id_=cast(str, XComArg(create_build_without_wait, key='id')),
+        id_=cast(str, XComArg(create_build_without_wait, key="id")),
         project_id=PROJECT_ID,
     )
     # [END howto_operator_cancel_build]
@@ -150,7 +156,7 @@ with models.DAG(
     # [START howto_operator_retry_build]
     retry_build = CloudBuildRetryBuildOperator(
         task_id="retry_build",
-        id_=cast(str, XComArg(cancel_build, key='id')),
+        id_=cast(str, XComArg(cancel_build, key="id")),
         project_id=PROJECT_ID,
     )
     # [END howto_operator_retry_build]
@@ -158,7 +164,7 @@ with models.DAG(
     # [START howto_operator_get_build]
     get_build = CloudBuildGetBuildOperator(
         task_id="get_build",
-        id_=cast(str, XComArg(retry_build, key='id')),
+        id_=cast(str, XComArg(retry_build, key="id")),
         project_id=PROJECT_ID,
     )
     # [END howto_operator_get_build]
@@ -167,13 +173,15 @@ with models.DAG(
     create_build_from_file = CloudBuildCreateBuildOperator(
         task_id="create_build_from_file",
         project_id=PROJECT_ID,
-        build=yaml.safe_load((Path(CURRENT_FOLDER) / 'resources' / 'example_cloud_build.yaml').read_text()),
-        params={'name': 'Airflow'},
+        build=yaml.safe_load((Path(CURRENT_FOLDER) / "resources" / "example_cloud_build.yaml").read_text()),
+        params={"name": "Airflow"},
     )
     # [END howto_operator_gcp_create_build_from_yaml_body]
 
     delete_bucket_src = GCSDeleteBucketOperator(
-        task_id="delete_bucket_src", bucket_name=BUCKET_NAME_SRC, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket_src",
+        bucket_name=BUCKET_NAME_SRC,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(

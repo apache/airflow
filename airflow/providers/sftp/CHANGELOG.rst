@@ -24,6 +24,87 @@
 Changelog
 ---------
 
+4.3.0
+.....
+
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Add mechanism to suspend providers (#30422)``
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+
+4.2.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SFTPSensor when using newer_than and there are multiple matched files (#29794)``
+
+4.2.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix sftp sensor with pattern (#29467)``
+
+4.2.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix SFTP operator's template fields processing (#29068)``
+* ``FTP operator has logic in __init__ (#29073)``
+
+4.2.1
+.....
+
+Misc
+~~~~
+
+* ``Update codespell and fix typos (#28568)``
+* ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``SFTP Provider: Fix default folder permissions  (#26593)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
 4.1.0
 .....
 
@@ -62,8 +143,9 @@ Features
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Features
 ~~~~~~~~

@@ -45,7 +45,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-github/2.0.0/tests/system/providers/github>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-github/|version|/tests/system/providers/github>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-github/>
     Installing from sources <installing-providers-from-sources>
 
@@ -71,7 +71,7 @@ Package apache-airflow-providers-github
 `GitHub <https://www.github.com/>`__
 
 
-Release: 2.1.0
+Release: 2.3.0
 
 Provider package
 ----------------
@@ -89,11 +89,13 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
-``pygithub``
+``apache-airflow``  ``>=2.4.0``
+``PyGithub!``       ``=1.58``
 ==================  ==================
 
 .. include:: ../../airflow/providers/github/CHANGELOG.rst

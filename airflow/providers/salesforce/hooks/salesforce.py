@@ -77,6 +77,19 @@ class SalesforceHook(BaseHook):
         self.session_id = session_id
         self.session = session
 
+    def _get_field(self, extras: dict, field_name: str):
+        """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
+        backcompat_prefix = "extra__salesforce__"
+        if field_name.startswith("extra__"):
+            raise ValueError(
+                f"Got prefixed name {field_name}; please remove the '{backcompat_prefix}' prefix "
+                "when using this method."
+            )
+        if field_name in extras:
+            return extras[field_name] or None
+        prefixed_name = f"{backcompat_prefix}{field_name}"
+        return extras.get(prefixed_name) or None
+
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
@@ -85,33 +98,19 @@ class SalesforceHook(BaseHook):
         from wtforms import PasswordField, StringField
 
         return {
-            "extra__salesforce__security_token": PasswordField(
-                lazy_gettext("Security Token"), widget=BS3PasswordFieldWidget()
-            ),
-            "extra__salesforce__domain": StringField(lazy_gettext("Domain"), widget=BS3TextFieldWidget()),
-            "extra__salesforce__consumer_key": StringField(
-                lazy_gettext("Consumer Key"), widget=BS3TextFieldWidget()
-            ),
-            "extra__salesforce__private_key_file_path": PasswordField(
+            "security_token": PasswordField(lazy_gettext("Security Token"), widget=BS3PasswordFieldWidget()),
+            "domain": StringField(lazy_gettext("Domain"), widget=BS3TextFieldWidget()),
+            "consumer_key": StringField(lazy_gettext("Consumer Key"), widget=BS3TextFieldWidget()),
+            "private_key_file_path": PasswordField(
                 lazy_gettext("Private Key File Path"), widget=BS3PasswordFieldWidget()
             ),
-            "extra__salesforce__private_key": PasswordField(
-                lazy_gettext("Private Key"), widget=BS3PasswordFieldWidget()
-            ),
-            "extra__salesforce__organization_id": StringField(
-                lazy_gettext("Organization ID"), widget=BS3TextFieldWidget()
-            ),
-            "extra__salesforce__instance": StringField(lazy_gettext("Instance"), widget=BS3TextFieldWidget()),
-            "extra__salesforce__instance_url": StringField(
-                lazy_gettext("Instance URL"), widget=BS3TextFieldWidget()
-            ),
-            "extra__salesforce__proxies": StringField(lazy_gettext("Proxies"), widget=BS3TextFieldWidget()),
-            "extra__salesforce__version": StringField(
-                lazy_gettext("API Version"), widget=BS3TextFieldWidget()
-            ),
-            "extra__salesforce__client_id": StringField(
-                lazy_gettext("Client ID"), widget=BS3TextFieldWidget()
-            ),
+            "private_key": PasswordField(lazy_gettext("Private Key"), widget=BS3PasswordFieldWidget()),
+            "organization_id": StringField(lazy_gettext("Organization ID"), widget=BS3TextFieldWidget()),
+            "instance": StringField(lazy_gettext("Instance"), widget=BS3TextFieldWidget()),
+            "instance_url": StringField(lazy_gettext("Instance URL"), widget=BS3TextFieldWidget()),
+            "proxies": StringField(lazy_gettext("Proxies"), widget=BS3TextFieldWidget()),
+            "version": StringField(lazy_gettext("API Version"), widget=BS3TextFieldWidget()),
+            "client_id": StringField(lazy_gettext("Client ID"), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
@@ -137,19 +136,19 @@ class SalesforceHook(BaseHook):
         conn = Salesforce(
             username=connection.login,
             password=connection.password,
-            security_token=extras.get('extra__salesforce__security_token') or None,
-            domain=extras.get('extra__salesforce__domain') or None,
+            security_token=self._get_field(extras, "security_token") or None,
+            domain=self._get_field(extras, "domain") or None,
             session_id=self.session_id,
-            instance=extras.get('extra__salesforce__instance') or None,
-            instance_url=extras.get('extra__salesforce__instance_url') or None,
-            organizationId=extras.get('extra__salesforce__organization_id') or None,
-            version=extras.get('extra__salesforce__version') or api.DEFAULT_API_VERSION,
-            proxies=extras.get('extra__salesforce__proxies') or None,
+            instance=self._get_field(extras, "instance") or None,
+            instance_url=self._get_field(extras, "instance_url") or None,
+            organizationId=self._get_field(extras, "organization_id") or None,
+            version=self._get_field(extras, "version") or api.DEFAULT_API_VERSION,
+            proxies=self._get_field(extras, "proxies") or None,
             session=self.session,
-            client_id=extras.get('extra__salesforce__client_id') or None,
-            consumer_key=extras.get('extra__salesforce__consumer_key') or None,
-            privatekey_file=extras.get('extra__salesforce__private_key_file_path') or None,
-            privatekey=extras.get('extra__salesforce__private_key') or None,
+            client_id=self._get_field(extras, "client_id") or None,
+            consumer_key=self._get_field(extras, "consumer_key") or None,
+            privatekey_file=self._get_field(extras, "private_key_file_path") or None,
+            privatekey=self._get_field(extras, "private_key") or None,
         )
         return conn
 
@@ -165,7 +164,6 @@ class SalesforceHook(BaseHook):
         :param include_deleted: True if the query should include deleted records.
         :param query_params: Additional optional arguments
         :return: The query result.
-        :rtype: dict
         """
         conn = self.get_conn()
 
@@ -174,7 +172,7 @@ class SalesforceHook(BaseHook):
         query_results = conn.query_all(query, include_deleted=include_deleted, **query_params)
 
         self.log.info(
-            "Received results: Total size: %s; Done: %s", query_results['totalSize'], query_results['done']
+            "Received results: Total size: %s; Done: %s", query_results["totalSize"], query_results["done"]
         )
 
         return query_results
@@ -187,7 +185,6 @@ class SalesforceHook(BaseHook):
 
         :param obj: The name of the Salesforce object that we are getting a description of.
         :return: the description of the Salesforce object.
-        :rtype: dict
         """
         conn = self.get_conn()
 
@@ -199,11 +196,10 @@ class SalesforceHook(BaseHook):
 
         :param obj: The name of the Salesforce object that we are getting a description of.
         :return: the names of the fields.
-        :rtype: list(str)
         """
         obj_description = self.describe_object(obj)
 
-        return [field['name'] for field in obj_description['fields']]
+        return [field["name"] for field in obj_description["fields"]]
 
     def get_object_from_salesforce(self, obj: str, fields: Iterable[str]) -> dict:
         """
@@ -216,7 +212,6 @@ class SalesforceHook(BaseHook):
         :param obj: The object name to get from Salesforce.
         :param fields: The fields to get from the object.
         :return: all instances of the object from Salesforce.
-        :rtype: dict
         """
         query = f"SELECT {','.join(fields)} FROM {obj}"
 
@@ -234,7 +229,6 @@ class SalesforceHook(BaseHook):
 
         :param column: A Series object representing a column of a dataframe.
         :return: a new series that maintains the same index as the original
-        :rtype: pandas.Series
         """
         # try and convert the column to datetimes
         # the column MUST have a four digit year somewhere in the string
@@ -302,10 +296,9 @@ class SalesforceHook(BaseHook):
         :param record_time_added: True if you want to add a Unix timestamp field
             to the resulting data that marks when the data was fetched from Salesforce. Default: False
         :return: the dataframe that gets written to the file.
-        :rtype: pandas.Dataframe
         """
         fmt = fmt.lower()
-        if fmt not in ['csv', 'json', 'ndjson']:
+        if fmt not in ["csv", "json", "ndjson"]:
             raise ValueError(f"Format value is not recognized: {fmt}")
 
         df = self.object_to_df(
@@ -360,7 +353,6 @@ class SalesforceHook(BaseHook):
         :param record_time_added: True if you want to add a Unix timestamp field
             to the resulting data that marks when the data was fetched from Salesforce. Default: False
         :return: the dataframe.
-        :rtype: pandas.Dataframe
         """
         # this line right here will convert all integers to floats
         # if there are any None/np.nan values in the column
@@ -378,7 +370,7 @@ class SalesforceHook(BaseHook):
             # get the object name out of the query results
             # it's stored in the "attributes" dictionary
             # for each returned record
-            object_name = query_results[0]['attributes']['type']
+            object_name = query_results[0]["attributes"]["type"]
 
             self.log.info("Coercing timestamps for: %s", object_name)
 
@@ -388,9 +380,9 @@ class SalesforceHook(BaseHook):
             # are the ones that are either date or datetime types
             # strings are too general and we risk unintentional conversion
             possible_timestamp_cols = [
-                field['name'].lower()
-                for field in schema['fields']
-                if field['type'] in ["date", "datetime"] and field['name'].lower() in df.columns
+                field["name"].lower()
+                for field in schema["fields"]
+                if field["type"] in ["date", "datetime"] and field["name"].lower() in df.columns
             ]
             df[possible_timestamp_cols] = df[possible_timestamp_cols].apply(self._to_timestamp)
 
@@ -399,3 +391,15 @@ class SalesforceHook(BaseHook):
             df["time_fetched_from_salesforce"] = fetched_time
 
         return df
+
+    def test_connection(self):
+        """Test the Salesforce connectivity"""
+        try:
+            self.describe_object("Account")
+            status = True
+            message = "Connection successfully tested"
+        except Exception as e:
+            status = False
+            message = str(e)
+
+        return status, message

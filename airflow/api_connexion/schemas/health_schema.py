@@ -20,26 +20,33 @@ from marshmallow import Schema, fields
 
 
 class BaseInfoSchema(Schema):
-    """Base status field for metadatabase and scheduler"""
+    """Base status field for metadatabase and scheduler."""
 
     status = fields.String(dump_only=True)
 
 
 class MetaDatabaseInfoSchema(BaseInfoSchema):
-    """Schema for Metadatabase info"""
+    """Schema for Metadatabase info."""
 
 
 class SchedulerInfoSchema(BaseInfoSchema):
-    """Schema for Metadatabase info"""
+    """Schema for Scheduler info."""
 
     latest_scheduler_heartbeat = fields.String(dump_only=True)
 
 
+class TriggererInfoSchema(BaseInfoSchema):
+    """Schema for Triggerer info."""
+
+    latest_triggerer_heartbeat = fields.String(dump_only=True)
+
+
 class HealthInfoSchema(Schema):
-    """Schema for the Health endpoint"""
+    """Schema for the Health endpoint."""
 
     metadatabase = fields.Nested(MetaDatabaseInfoSchema)
     scheduler = fields.Nested(SchedulerInfoSchema)
+    triggerer = fields.Nested(TriggererInfoSchema)
 
 
 health_schema = HealthInfoSchema()

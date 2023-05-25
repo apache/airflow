@@ -52,7 +52,7 @@ ENTRY_NAME = "Wizard"
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:

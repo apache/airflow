@@ -31,15 +31,13 @@ from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-
-try:
-    from airflow.utils.platform import getuser
-except ImportError:
-    from getpass import getuser  # type: ignore[misc]
+from airflow.utils.platform import getuser
+from airflow.utils.types import NOTSET, ArgNotSet
 
 TIMEOUT_DEFAULT = 10
+CMD_TIMEOUT = 10
 
 
 class SSHHook(BaseHook):
@@ -62,6 +60,9 @@ class SSHHook(BaseHook):
         predefined in the connection of `ssh_conn_id`.
     :param timeout: (Deprecated). timeout for the attempt to connect to the remote_host.
         Use conn_timeout instead.
+    :param cmd_timeout: timeout (in seconds) for executing the command. The default is 10 seconds.
+        Nullable, `None` means no timeout. If provided, it will replace the `cmd_timeout`
+        which was predefined in the connection of `ssh_conn_id`.
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
     :param banner_timeout: timeout to wait for banner from the server in seconds
@@ -80,37 +81,38 @@ class SSHHook(BaseHook):
     )
 
     _host_key_mappings = {
-        'rsa': paramiko.RSAKey,
-        'dss': paramiko.DSSKey,
-        'ecdsa': paramiko.ECDSAKey,
-        'ed25519': paramiko.Ed25519Key,
+        "rsa": paramiko.RSAKey,
+        "dss": paramiko.DSSKey,
+        "ecdsa": paramiko.ECDSAKey,
+        "ed25519": paramiko.Ed25519Key,
     }
 
-    conn_name_attr = 'ssh_conn_id'
-    default_conn_name = 'ssh_default'
-    conn_type = 'ssh'
-    hook_name = 'SSH'
+    conn_name_attr = "ssh_conn_id"
+    default_conn_name = "ssh_default"
+    conn_type = "ssh"
+    hook_name = "SSH"
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ['schema'],
+            "hidden_fields": ["schema"],
             "relabeling": {
-                'login': 'Username',
+                "login": "Username",
             },
         }
 
     def __init__(
         self,
         ssh_conn_id: str | None = None,
-        remote_host: str = '',
+        remote_host: str = "",
         username: str | None = None,
         password: str | None = None,
         key_file: str | None = None,
         port: int | None = None,
         timeout: int | None = None,
         conn_timeout: int | None = None,
+        cmd_timeout: int | ArgNotSet | None = NOTSET,
         keepalive_interval: int = 30,
         banner_timeout: float = 30.0,
         disabled_algorithms: dict | None = None,
@@ -126,6 +128,7 @@ class SSHHook(BaseHook):
         self.port = port
         self.timeout = timeout
         self.conn_timeout = conn_timeout
+        self.cmd_timeout = cmd_timeout
         self.keepalive_interval = keepalive_interval
         self.banner_timeout = banner_timeout
         self.disabled_algorithms = disabled_algorithms
@@ -159,25 +162,31 @@ class SSHHook(BaseHook):
                 if "key_file" in extra_options and self.key_file is None:
                     self.key_file = extra_options.get("key_file")
 
-                private_key = extra_options.get('private_key')
-                private_key_passphrase = extra_options.get('private_key_passphrase')
+                private_key = extra_options.get("private_key")
+                private_key_passphrase = extra_options.get("private_key_passphrase")
                 if private_key:
                     self.pkey = self._pkey_from_private_key(private_key, passphrase=private_key_passphrase)
 
                 if "timeout" in extra_options:
                     warnings.warn(
-                        'Extra option `timeout` is deprecated.'
-                        'Please use `conn_timeout` instead.'
-                        'The old option `timeout` will be removed in a future version.',
-                        DeprecationWarning,
+                        "Extra option `timeout` is deprecated."
+                        "Please use `conn_timeout` instead."
+                        "The old option `timeout` will be removed in a future version.",
+                        AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
-                    self.timeout = int(extra_options['timeout'])
+                    self.timeout = int(extra_options["timeout"])
 
                 if "conn_timeout" in extra_options and self.conn_timeout is None:
-                    self.conn_timeout = int(extra_options['conn_timeout'])
+                    self.conn_timeout = int(extra_options["conn_timeout"])
 
-                if "compress" in extra_options and str(extra_options["compress"]).lower() == 'false':
+                if "cmd_timeout" in extra_options and self.cmd_timeout is NOTSET:
+                    if extra_options["cmd_timeout"]:
+                        self.cmd_timeout = int(extra_options["cmd_timeout"])
+                    else:
+                        self.cmd_timeout = None
+
+                if "compress" in extra_options and str(extra_options["compress"]).lower() == "false":
                     self.compress = False
 
                 host_key = extra_options.get("host_key")
@@ -192,13 +201,13 @@ class SSHHook(BaseHook):
 
                 if (
                     "allow_host_key_change" in extra_options
-                    and str(extra_options["allow_host_key_change"]).lower() == 'true'
+                    and str(extra_options["allow_host_key_change"]).lower() == "true"
                 ):
                     self.allow_host_key_change = True
 
                 if (
                     "look_for_keys" in extra_options
-                    and str(extra_options["look_for_keys"]).lower() == 'false'
+                    and str(extra_options["look_for_keys"]).lower() == "false"
                 ):
                     self.look_for_keys = False
 
@@ -214,21 +223,24 @@ class SSHHook(BaseHook):
                         key_constructor = self._host_key_mappings[key_type[4:]]
                     else:
                         key_constructor = paramiko.RSAKey
-                    decoded_host_key = decodebytes(host_key.encode('utf-8'))
+                    decoded_host_key = decodebytes(host_key.encode("utf-8"))
                     self.host_key = key_constructor(data=decoded_host_key)
                     self.no_host_key_check = False
 
         if self.timeout:
             warnings.warn(
-                'Parameter `timeout` is deprecated.'
-                'Please use `conn_timeout` instead.'
-                'The old option `timeout` will be removed in a future version.',
-                DeprecationWarning,
+                "Parameter `timeout` is deprecated."
+                "Please use `conn_timeout` instead."
+                "The old option `timeout` will be removed in a future version.",
+                AirflowProviderDeprecationWarning,
                 stacklevel=1,
             )
 
         if self.conn_timeout is None:
             self.conn_timeout = self.timeout if self.timeout else TIMEOUT_DEFAULT
+
+        if self.cmd_timeout is NOTSET:
+            self.cmd_timeout = CMD_TIMEOUT
 
         if self.pkey and self.key_file:
             raise AirflowException(
@@ -248,18 +260,18 @@ class SSHHook(BaseHook):
             )
             self.username = getuser()
 
-        user_ssh_config_filename = os.path.expanduser('~/.ssh/config')
+        user_ssh_config_filename = os.path.expanduser("~/.ssh/config")
         if os.path.isfile(user_ssh_config_filename):
             ssh_conf = paramiko.SSHConfig()
             with open(user_ssh_config_filename) as config_fd:
                 ssh_conf.parse(config_fd)
             host_info = ssh_conf.lookup(self.remote_host)
-            if host_info and host_info.get('proxycommand'):
-                self.host_proxy_cmd = host_info['proxycommand']
+            if host_info and host_info.get("proxycommand"):
+                self.host_proxy_cmd = host_info["proxycommand"]
 
             if not (self.password or self.key_file):
-                if host_info and host_info.get('identityfile'):
-                    self.key_file = host_info['identityfile'][0]
+                if host_info and host_info.get("identityfile"):
+                    self.key_file = host_info["identityfile"][0]
 
         self.port = self.port or SSH_PORT
 
@@ -269,12 +281,8 @@ class SSHHook(BaseHook):
         return paramiko.ProxyCommand(cmd) if cmd else None
 
     def get_conn(self) -> paramiko.SSHClient:
-        """
-        Opens a ssh connection to the remote host.
-
-        :rtype: paramiko.client.SSHClient
-        """
-        self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
+        """Opens a ssh connection to the remote host."""
+        self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
         client = paramiko.SSHClient()
 
         if self.allow_host_key_change:
@@ -294,17 +302,16 @@ class SSHHook(BaseHook):
             known_hosts = os.path.expanduser("~/.ssh/known_hosts")
             if not self.allow_host_key_change and os.path.isfile(known_hosts):
                 client.load_host_keys(known_hosts)
-        else:
-            if self.host_key is not None:
-                client_host_keys = client.get_host_keys()
-                if self.port == SSH_PORT:
-                    client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
-                else:
-                    client_host_keys.add(
-                        f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
-                    )
+
+        elif self.host_key is not None:
+            # Get host key from connection extra if it not set or None then we fallback to system host keys
+            client_host_keys = client.get_host_keys()
+            if self.port == SSH_PORT:
+                client_host_keys.add(self.remote_host, self.host_key.get_name(), self.host_key)
             else:
-                pass  # will fallback to system host keys if none explicitly specified in conn extra
+                client_host_keys.add(
+                    f"[{self.remote_host}]:{self.port}", self.host_key.get_name(), self.host_key
+                )
 
         connect_kwargs: dict[str, Any] = dict(
             hostname=self.remote_host,
@@ -345,12 +352,12 @@ class SSHHook(BaseHook):
 
         if self.keepalive_interval:
             # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
-            # type "Optional[Transport]" and item "None" has no attribute "set_keepalive".
+            # type "Transport | None" and item "None" has no attribute "set_keepalive".
             client.get_transport().set_keepalive(self.keepalive_interval)  # type: ignore[union-attr]
 
         if self.ciphers:
             # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
-            # type "Optional[Transport]" and item "None" has no method `get_security_options`".
+            # type "Transport | None" and item "None" has no method `get_security_options`".
             client.get_transport().get_security_options().ciphers = self.ciphers  # type: ignore[union-attr]
 
         self.client = client
@@ -358,10 +365,10 @@ class SSHHook(BaseHook):
 
     def __enter__(self) -> SSHHook:
         warnings.warn(
-            'The contextmanager of SSHHook is deprecated.'
-            'Please use get_conn() as a contextmanager instead.'
-            'This method will be removed in Airflow 2.0',
-            category=DeprecationWarning,
+            "The contextmanager of SSHHook is deprecated."
+            "Please use get_conn() as a contextmanager instead."
+            "This method will be removed in Airflow 2.0",
+            category=AirflowProviderDeprecationWarning,
         )
         return self
 
@@ -383,9 +390,9 @@ class SSHHook(BaseHook):
         :return: sshtunnel.SSHTunnelForwarder object
         """
         if local_port:
-            local_bind_address: tuple[str, int] | tuple[str] = ('localhost', local_port)
+            local_bind_address: tuple[str, int] | tuple[str] = ("localhost", local_port)
         else:
-            local_bind_address = ('localhost',)
+            local_bind_address = ("localhost",)
 
         tunnel_kwargs = dict(
             ssh_port=self.port,
@@ -423,11 +430,11 @@ class SSHHook(BaseHook):
         :return:
         """
         warnings.warn(
-            'SSHHook.create_tunnel is deprecated, Please'
-            'use get_tunnel() instead. But please note that the'
-            'order of the parameters have changed'
-            'This method will be removed in Airflow 2.0',
-            category=DeprecationWarning,
+            "SSHHook.create_tunnel is deprecated, Please"
+            "use get_tunnel() instead. But please note that the"
+            "order of the parameters have changed"
+            "This method will be removed in Airflow 2.0",
+            category=AirflowProviderDeprecationWarning,
         )
 
         return self.get_tunnel(remote_port, remote_host, local_port)
@@ -441,21 +448,21 @@ class SSHHook(BaseHook):
         :raises AirflowException: if key cannot be read
         """
         if len(private_key.split("\n", 2)) < 2:
-            raise AirflowException('Key must have BEGIN and END header/footer on separate lines.')
+            raise AirflowException("Key must have BEGIN and END header/footer on separate lines.")
 
         for pkey_class in self._pkey_loaders:
             try:
                 key = pkey_class.from_private_key(StringIO(private_key), password=passphrase)
                 # Test it actually works. If Paramiko loads an openssh generated key, sometimes it will
                 # happily load it as the wrong type, only to fail when actually used.
-                key.sign_ssh_data(b'')
+                key.sign_ssh_data(b"")
                 return key
             except (paramiko.ssh_exception.SSHException, ValueError):
                 continue
         raise AirflowException(
-            'Private key provided cannot be read by paramiko.'
-            'Ensure key provided is valid for one of the following'
-            'key formats: RSA, DSS, ECDSA, or Ed25519'
+            "Private key provided cannot be read by paramiko."
+            "Ensure key provided is valid for one of the following"
+            "key formats: RSA, DSS, ECDSA, or Ed25519"
         )
 
     def exec_ssh_client_command(
@@ -464,15 +471,24 @@ class SSHHook(BaseHook):
         command: str,
         get_pty: bool,
         environment: dict | None,
-        timeout: int | None,
+        timeout: int | ArgNotSet | None = NOTSET,
     ) -> tuple[int, bytes, bytes]:
         self.log.info("Running command: %s", command)
+
+        cmd_timeout: int | None
+        if not isinstance(timeout, ArgNotSet):
+            cmd_timeout = timeout
+        elif not isinstance(self.cmd_timeout, ArgNotSet):
+            cmd_timeout = self.cmd_timeout
+        else:
+            cmd_timeout = CMD_TIMEOUT
+        del timeout  # Too easy to confuse with "timedout" below.
 
         # set timeout taken as params
         stdin, stdout, stderr = ssh_client.exec_command(
             command=command,
             get_pty=get_pty,
-            timeout=timeout,
+            timeout=cmd_timeout,
             environment=environment,
         )
         # get channels
@@ -482,8 +498,8 @@ class SSHHook(BaseHook):
         stdin.close()
         channel.shutdown_write()
 
-        agg_stdout = b''
-        agg_stderr = b''
+        agg_stdout = b""
+        agg_stderr = b""
 
         # capture any initial output in case channel is closed already
         stdout_buffer_length = len(stdout.channel.in_buffer)
@@ -491,23 +507,29 @@ class SSHHook(BaseHook):
         if stdout_buffer_length > 0:
             agg_stdout += stdout.channel.recv(stdout_buffer_length)
 
+        timedout = False
+
         # read from both stdout and stderr
         while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
-            readq, _, _ = select([channel], [], [], timeout)
+            readq, _, _ = select([channel], [], [], cmd_timeout)
+            if cmd_timeout is not None:
+                timedout = len(readq) == 0
             for recv in readq:
                 if recv.recv_ready():
-                    line = stdout.channel.recv(len(recv.in_buffer))
-                    agg_stdout += line
-                    self.log.info(line.decode('utf-8', 'replace').strip('\n'))
+                    output = stdout.channel.recv(len(recv.in_buffer))
+                    agg_stdout += output
+                    for line in output.decode("utf-8", "replace").strip("\n").splitlines():
+                        self.log.info(line)
                 if recv.recv_stderr_ready():
-                    line = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
-                    agg_stderr += line
-                    self.log.warning(line.decode('utf-8', 'replace').strip('\n'))
+                    output = stderr.channel.recv_stderr(len(recv.in_stderr_buffer))
+                    agg_stderr += output
+                    for line in output.decode("utf-8", "replace").strip("\n").splitlines():
+                        self.log.warning(line)
             if (
                 stdout.channel.exit_status_ready()
                 and not stderr.channel.recv_stderr_ready()
                 and not stdout.channel.recv_ready()
-            ):
+            ) or timedout:
                 stdout.channel.shutdown_read()
                 try:
                     stdout.channel.close()
@@ -521,6 +543,18 @@ class SSHHook(BaseHook):
         stdout.close()
         stderr.close()
 
+        if timedout:
+            raise AirflowException("SSH command timed out")
+
         exit_status = stdout.channel.recv_exit_status()
 
         return exit_status, agg_stdout, agg_stderr
+
+    def test_connection(self) -> tuple[bool, str]:
+        """Test the ssh connection by execute remote bash commands"""
+        try:
+            with self.get_conn() as conn:
+                conn.exec_command("pwd")
+            return True, "Connection successfully tested"
+        except Exception as e:
+            return False, str(e)

@@ -54,14 +54,14 @@ def get_task(*, dag_id: str, task_id: str) -> APIResponse:
     ],
 )
 def get_tasks(*, dag_id: str, order_by: str = "task_id") -> APIResponse:
-    """Get tasks for DAG"""
+    """Get tasks for DAG."""
     dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound("DAG not found")
     tasks = dag.tasks
 
     try:
-        tasks = sorted(tasks, key=attrgetter(order_by.lstrip('-')), reverse=(order_by[0:1] == '-'))
+        tasks = sorted(tasks, key=attrgetter(order_by.lstrip("-")), reverse=(order_by[0:1] == "-"))
     except AttributeError as err:
         raise BadRequest(detail=str(err))
     task_collection = TaskCollection(tasks=tasks, total_entries=len(tasks))

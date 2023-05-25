@@ -37,16 +37,16 @@ class TestPluginSchema(TestPluginBase):
     def test_serialize(self):
         deserialized_plugin = plugin_schema.dump(self.mock_plugin)
         assert deserialized_plugin == {
-            'appbuilder_menu_items': [],
-            'appbuilder_views': [],
-            'executors': [],
-            'flask_blueprints': [],
-            'global_operator_extra_links': [],
-            'hooks': [],
-            'macros': [],
-            'operator_extra_links': [],
-            'source': None,
-            'name': 'test_plugin',
+            "appbuilder_menu_items": [],
+            "appbuilder_views": [],
+            "executors": [],
+            "flask_blueprints": [],
+            "global_operator_extra_links": [],
+            "hooks": [],
+            "macros": [],
+            "operator_extra_links": [],
+            "source": None,
+            "name": "test_plugin",
         }
 
 
@@ -56,31 +56,31 @@ class TestPluginCollectionSchema(TestPluginBase):
 
         deserialized = plugin_collection_schema.dump(PluginCollection(plugins=plugins, total_entries=2))
         assert deserialized == {
-            'plugins': [
+            "plugins": [
                 {
-                    'appbuilder_menu_items': [],
-                    'appbuilder_views': [],
-                    'executors': [],
-                    'flask_blueprints': [],
-                    'global_operator_extra_links': [],
-                    'hooks': [],
-                    'macros': [],
-                    'operator_extra_links': [],
-                    'source': None,
-                    'name': 'test_plugin',
+                    "appbuilder_menu_items": [],
+                    "appbuilder_views": [],
+                    "executors": [],
+                    "flask_blueprints": [],
+                    "global_operator_extra_links": [],
+                    "hooks": [],
+                    "macros": [],
+                    "operator_extra_links": [],
+                    "source": None,
+                    "name": "test_plugin",
                 },
                 {
-                    'appbuilder_menu_items': [],
-                    'appbuilder_views': [],
-                    'executors': [],
-                    'flask_blueprints': [],
-                    'global_operator_extra_links': [],
-                    'hooks': [],
-                    'macros': [],
-                    'operator_extra_links': [],
-                    'source': None,
-                    'name': 'test_plugin_2',
+                    "appbuilder_menu_items": [],
+                    "appbuilder_views": [],
+                    "executors": [],
+                    "flask_blueprints": [],
+                    "global_operator_extra_links": [],
+                    "hooks": [],
+                    "macros": [],
+                    "operator_extra_links": [],
+                    "source": None,
+                    "name": "test_plugin_2",
                 },
             ],
-            'total_entries': 2,
+            "total_entries": 2,
         }

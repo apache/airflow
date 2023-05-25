@@ -38,7 +38,7 @@ def sort_uniq(sequence):
     return (x[0] for x in itertools.groupby(sorted(sequence, key=stable_sort)))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     spelling_wordlist_path = Path(AIRFLOW_SOURCES) / "docs" / "spelling_wordlist.txt"
     content = spelling_wordlist_path.read_text().splitlines(keepends=True)
     sorted_content = sort_uniq(content)

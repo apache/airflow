@@ -22,14 +22,16 @@ Apache Drill Operators
 Prerequisite
 ------------
 
-To use ``DrillOperator``, you must configure a :doc:`Drill Connection <connections/drill>`.
+To use :class:`~airflow.providers.apache.drill.operators.drill.DrillOperator`,
+you must configure a :doc:`Drill Connection <connections/drill>`.
 
 .. _howto/operator:DrillOperator:
 
 DrillOperator
 -------------
 
-Executes one or more SQL queries on an Apache Drill server.  The ``sql`` parameter can be templated and be an external ``.sql`` file.
+Executes one or more SQL queries on an Apache Drill server.
+The ``sql`` parameter can be templated and be an external ``.sql`` file.
 
 Using the operator
 """"""""""""""""""

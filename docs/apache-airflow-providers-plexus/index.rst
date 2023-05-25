@@ -38,7 +38,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-plexus/3.0.0/tests/system/providers/plexus>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-plexus/|version|/tests/system/providers/plexus>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-plexus/>
     Installing from sources <installing-providers-from-sources>
 
@@ -58,7 +58,7 @@ Package apache-airflow-providers-plexus
 `Plexus <https://plexus.corescientific.com/>`__
 
 
-Release: 3.0.0
+Release: 3.2.0
 
 Provider package
 ----------------
@@ -76,10 +76,12 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.4.0``
 ``arrow``           ``>=0.16.0``
 ==================  ==================
 

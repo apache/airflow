@@ -30,44 +30,44 @@ def noop():
 
 MOCK_COMMANDS: list[CLICommand] = [
     GroupCommand(
-        name='cmd_a',
-        help='Help text A',
+        name="cmd_a",
+        help="Help text A",
         subcommands=[
             ActionCommand(
-                name='cmd_b',
-                help='Help text B',
+                name="cmd_b",
+                help="Help text B",
                 func=noop,
                 args=(),
             ),
             ActionCommand(
-                name='cmd_c',
-                help='Help text C',
+                name="cmd_c",
+                help="Help text C",
                 func=noop,
                 args=(),
             ),
         ],
     ),
     GroupCommand(
-        name='cmd_e',
-        help='Help text E',
+        name="cmd_e",
+        help="Help text E",
         subcommands=[
             ActionCommand(
-                name='cmd_f',
-                help='Help text F',
+                name="cmd_f",
+                help="Help text F",
                 func=noop,
                 args=(),
             ),
             ActionCommand(
-                name='cmd_g',
-                help='Help text G',
+                name="cmd_g",
+                help="Help text G",
                 func=noop,
                 args=(),
             ),
         ],
     ),
     ActionCommand(
-        name='cmd_b',
-        help='Help text D',
+        name="cmd_b",
+        help="Help text D",
         func=noop,
         args=(),
     ),
@@ -93,10 +93,10 @@ class TestCheatSheetCommand:
     def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    @mock.patch('airflow.cli.cli_parser.airflow_commands', MOCK_COMMANDS)
+    @mock.patch("airflow.cli.cli_parser.airflow_commands", MOCK_COMMANDS)
     def test_should_display_index(self):
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
-            args = self.parser.parse_args(['cheat-sheet'])
+            args = self.parser.parse_args(["cheat-sheet"])
             args.func(args)
         output = temp_stdout.getvalue()
         assert ALL_COMMANDS in output

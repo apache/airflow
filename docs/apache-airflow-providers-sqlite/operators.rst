@@ -22,7 +22,7 @@
 SqliteOperator
 ==============
 
-Use the :class:`~airflow.providers.sqlite.operators.SqliteOperator` to execute
+Use the :class:`~airflow.providers.sqlite.operators.sqlite.SqliteOperator` to execute
 Sqlite commands in a `Sqlite <https://sqlite.org/lang.html>`__ database.
 
 
@@ -40,14 +40,6 @@ the connection metadata is structured as follows:
      - Input
    * - Host: string
      - Sqlite database file
-   * - Schema: string
-     - Set schema to execute Sql operations on by default
-   * - Login: string
-     - Sqlite user
-   * - Password: string
-     - Sqlite user password
-   * - Port: int
-     - Sqlite port
 
 An example usage of the SqliteOperator is as follows:
 

@@ -88,7 +88,7 @@ class CloudStorageTransferJobLink(BaseGoogleLink):
         job_name: str,
     ):
 
-        job_name = job_name.split('/')[1] if job_name else ""
+        job_name = job_name.split("/")[1] if job_name else ""
 
         task_instance.xcom_push(
             context,

@@ -66,9 +66,6 @@ class PubSubPullSensor(BaseSensorOperator):
         immediately rather than by any downstream tasks
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param messages_callback: (Optional) Callback to process received messages.
         It's return value will be saved to XCom.
         If you are pulling large messages, you probably want to provide a custom callback.
@@ -85,11 +82,11 @@ class PubSubPullSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'project_id',
-        'subscription',
-        'impersonation_chain',
+        "project_id",
+        "subscription",
+        "impersonation_chain",
     )
-    ui_color = '#ff7f50'
+    ui_color = "#ff7f50"
 
     def __init__(
         self,
@@ -98,16 +95,14 @@ class PubSubPullSensor(BaseSensorOperator):
         subscription: str,
         max_messages: int = 5,
         ack_messages: bool = False,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
-        self.delegate_to = delegate_to
         self.project_id = project_id
         self.subscription = subscription
         self.max_messages = max_messages
@@ -125,7 +120,6 @@ class PubSubPullSensor(BaseSensorOperator):
     def poke(self, context: Context) -> bool:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 

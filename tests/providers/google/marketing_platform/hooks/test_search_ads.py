@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 from airflow.providers.google.marketing_platform.hooks.search_ads import GoogleSearchAdsHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -26,8 +26,8 @@ API_VERSION = "v2"
 GCP_CONN_ID = "google_cloud_default"
 
 
-class TestSearchAdsHook(TestCase):
-    def setUp(self):
+class TestSearchAdsHook:
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.marketing_platform.hooks.search_ads.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,

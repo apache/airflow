@@ -46,7 +46,7 @@ class QuickSightSensor(BaseSensorOperator):
          maintained on each worker node).
     """
 
-    template_fields: Sequence[str] = ('data_set_id', 'ingestion_id', 'aws_conn_id')
+    template_fields: Sequence[str] = ("data_set_id", "ingestion_id", "aws_conn_id")
 
     def __init__(
         self,
@@ -62,33 +62,29 @@ class QuickSightSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.success_status = "COMPLETED"
         self.errored_statuses = ("FAILED", "CANCELLED")
-        self.quicksight_hook: QuickSightHook | None = None
-        self.sts_hook: StsHook | None = None
 
-    def poke(self, context: Context):
+    def poke(self, context: Context) -> bool:
         """
         Pokes until the QuickSight Ingestion has successfully finished.
 
         :param context: The task context during execution.
         :return: True if it COMPLETED and False if not.
-        :rtype: bool
         """
-        quicksight_hook = self.get_quicksight_hook
-        sts_hook = self.get_sts_hook
         self.log.info("Poking for Amazon QuickSight Ingestion ID: %s", self.ingestion_id)
-        aws_account_id = sts_hook.get_account_number()
-        quicksight_ingestion_state = quicksight_hook.get_status(
+        aws_account_id = self.sts_hook.get_account_number()
+        quicksight_ingestion_state = self.quicksight_hook.get_status(
             aws_account_id, self.data_set_id, self.ingestion_id
         )
         self.log.info("QuickSight Status: %s", quicksight_ingestion_state)
         if quicksight_ingestion_state in self.errored_statuses:
-            raise AirflowException("The QuickSight Ingestion failed!")
+            error = self.quicksight_hook.get_error_info(aws_account_id, self.data_set_id, self.ingestion_id)
+            raise AirflowException(f"The QuickSight Ingestion failed. Error info: {error}")
         return quicksight_ingestion_state == self.success_status
 
     @cached_property
-    def get_quicksight_hook(self):
+    def quicksight_hook(self):
         return QuickSightHook(aws_conn_id=self.aws_conn_id)
 
     @cached_property
-    def get_sts_hook(self):
+    def sts_hook(self):
         return StsHook(aws_conn_id=self.aws_conn_id)

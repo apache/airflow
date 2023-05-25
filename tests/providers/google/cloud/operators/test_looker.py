@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -35,18 +34,18 @@ LOOKER_CONN_ID = "test-conn"
 MODEL = "test_model"
 VIEW = "test_view"
 
-TEST_DAG_ID = 'test-looker-operators'
+TEST_DAG_ID = "test-looker-operators"
 DEFAULT_DATE = datetime(2020, 1, 1)
 TEST_JOB_ID = "123"
 
 
-class LookerTestBase(unittest.TestCase):
+class LookerTestBase:
     @classmethod
     def setUpClass(cls):
         cls.dagbag = DagBag(dag_folder="/dev/null", include_examples=False)
         cls.dag = DAG(TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
 
-    def setUp(self):
+    def setup_method(self):
         self.mock_ti = MagicMock()
         self.mock_context = {"ti": self.mock_ti}
 
@@ -167,6 +166,6 @@ class TestLookerStartPdtBuildOperator(LookerTestBase):
 
         # check AirflowException is raised
         with pytest.raises(
-            AirflowException, match=f'No `materialization_id` was returned for model: {MODEL}, view: {VIEW}.'
+            AirflowException, match=f"No `materialization_id` was returned for model: {MODEL}, view: {VIEW}."
         ):
             task.execute(context=self.mock_context)

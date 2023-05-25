@@ -17,27 +17,50 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-from unittest import mock
+import sys
+from asyncio import Future
 
+import kubernetes.client
 import pytest
+from google.cloud.container_v1 import ClusterManagerAsyncClient
 from google.cloud.container_v1.types import Cluster
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
+from airflow.providers.google.cloud.hooks.kubernetes_engine import (
+    GKEAsyncHook,
+    GKEHook,
+    GKEPodAsyncHook,
+)
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
-TASK_ID = 'test-gke-cluster-operator'
-CLUSTER_NAME = 'test-cluster'
-TEST_GCP_PROJECT_ID = 'test-project'
-GKE_ZONE = 'test-zone'
+if sys.version_info < (3, 8):
+    from asynctest import mock
+else:
+    from unittest import mock
+
+TASK_ID = "test-gke-cluster-operator"
+CLUSTER_NAME = "test-cluster"
+TEST_GCP_PROJECT_ID = "test-project"
+GKE_ZONE = "test-zone"
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GKE_STRING = "airflow.providers.google.cloud.hooks.kubernetes_engine.{}"
+CLUSTER_URL = "https://path.to.cluster"
+SSL_CA_CERT = "test-ssl-ca-cert"
+POD_NAME = "test-pod-name"
+POD_NAMESPACE = "test"
+ASYNC_HOOK_STRING = GKE_STRING.format("GKEAsyncHook")
+GCP_CONN_ID = "test-gcp-conn-id"
+IMPERSONATE_CHAIN = ["impersonate", "this", "test"]
+OPERATION_NAME = "test-operation-name"
 
 
-class TestGKEHookClient(unittest.TestCase):
-    def setUp(self):
+class TestGKEHookClient:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            GKEHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
+    def setup_method(self):
         self.gke_hook = GKEHook(location=GKE_ZONE)
 
     @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
@@ -50,8 +73,8 @@ class TestGKEHookClient(unittest.TestCase):
         assert self.gke_hook._client == result
 
 
-class TestGKEHookDelete(unittest.TestCase):
-    def setUp(self):
+class TestGKEHookDelete:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
@@ -69,7 +92,7 @@ class TestGKEHookDelete(unittest.TestCase):
         )
 
         client_delete.assert_called_once_with(
-            name=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/clusters/{CLUSTER_NAME}',
+            name=f"projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/clusters/{CLUSTER_NAME}",
             retry=retry_mock,
             timeout=timeout_mock,
         )
@@ -81,10 +104,10 @@ class TestGKEHookDelete(unittest.TestCase):
         from google.api_core.exceptions import NotFound
 
         # To force an error
-        message = 'Not Found'
+        message = "Not Found"
         self.gke_hook._client.delete_cluster.side_effect = NotFound(message=message)
 
-        self.gke_hook.delete_cluster(name='not-existing', project_id=TEST_GCP_PROJECT_ID)
+        self.gke_hook.delete_cluster(name="not-existing", project_id=TEST_GCP_PROJECT_ID)
         wait_mock.assert_not_called()
         log_mock.info.assert_any_call("Assuming Success: %s", message)
 
@@ -96,15 +119,15 @@ class TestGKEHookDelete(unittest.TestCase):
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
     def test_delete_cluster_error(self, wait_mock, mock_project_id):
         # To force an error
-        self.gke_hook._client.delete_cluster.side_effect = AirflowException('400')
+        self.gke_hook._client.delete_cluster.side_effect = AirflowException("400")
 
         with pytest.raises(AirflowException):
-            self.gke_hook.delete_cluster(name='a-cluster')
+            self.gke_hook.delete_cluster(name="a-cluster")
             wait_mock.assert_not_called()
 
 
-class TestGKEHookCreate(unittest.TestCase):
-    def setUp(self):
+class TestGKEHookCreate:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
@@ -125,7 +148,7 @@ class TestGKEHookCreate(unittest.TestCase):
         )
 
         client_create.assert_called_once_with(
-            parent=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}',
+            parent=f"projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}",
             cluster=mock_cluster_proto,
             retry=retry_mock,
             timeout=timeout_mock,
@@ -135,7 +158,7 @@ class TestGKEHookCreate(unittest.TestCase):
     @mock.patch(GKE_STRING.format("Cluster.from_json"))
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
     def test_create_cluster_dict(self, wait_mock, convert_mock):
-        mock_cluster_dict = {'name': CLUSTER_NAME}
+        mock_cluster_dict = {"name": CLUSTER_NAME}
         retry_mock, timeout_mock = mock.Mock(), mock.Mock()
 
         client_create = self.gke_hook._client.create_cluster = mock.Mock()
@@ -146,7 +169,7 @@ class TestGKEHookCreate(unittest.TestCase):
         )
 
         client_create.assert_called_once_with(
-            parent=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}',
+            parent=f"projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}",
             cluster=proto_mock,
             retry=retry_mock,
             timeout=timeout_mock,
@@ -168,16 +191,16 @@ class TestGKEHookCreate(unittest.TestCase):
         from google.api_core.exceptions import AlreadyExists
 
         # To force an error
-        message = 'Already Exists'
+        message = "Already Exists"
         self.gke_hook._client.create_cluster.side_effect = AlreadyExists(message=message)
 
-        self.gke_hook.create_cluster(cluster={}, project_id=TEST_GCP_PROJECT_ID)
-        wait_mock.assert_not_called()
-        log_mock.info.assert_any_call("Assuming Success: %s", message)
+        with pytest.raises(AlreadyExists):
+            self.gke_hook.create_cluster(cluster={}, project_id=TEST_GCP_PROJECT_ID)
+            wait_mock.assert_not_called()
 
 
-class TestGKEHookGet(unittest.TestCase):
-    def setUp(self):
+class TestGKEHookGet:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
@@ -194,22 +217,22 @@ class TestGKEHookGet(unittest.TestCase):
         )
 
         client_get.assert_called_once_with(
-            name=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/clusters/{CLUSTER_NAME}',
+            name=f"projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/clusters/{CLUSTER_NAME}",
             retry=retry_mock,
             timeout=timeout_mock,
         )
 
 
-class TestGKEHook(unittest.TestCase):
-    def setUp(self):
+class TestGKEHook:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
             self.gke_hook = GKEHook(gcp_conn_id="test", location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
-    @mock.patch(GKE_STRING.format('ClusterManagerClient'))
-    @mock.patch(GKE_STRING.format('GKEHook.get_credentials'))
+    @mock.patch(GKE_STRING.format("ClusterManagerClient"))
+    @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
     def test_get_client(self, mock_get_credentials, mock_client):
         self.gke_hook._client = None
         self.gke_hook.get_conn()
@@ -220,24 +243,24 @@ class TestGKEHook(unittest.TestCase):
 
     def test_get_operation(self):
         self.gke_hook._client.get_operation = mock.Mock()
-        self.gke_hook.get_operation('TEST_OP', project_id=TEST_GCP_PROJECT_ID)
+        self.gke_hook.get_operation("TEST_OP", project_id=TEST_GCP_PROJECT_ID)
         self.gke_hook._client.get_operation.assert_called_once_with(
-            name=f'projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/operations/TEST_OP'
+            name=f"projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/operations/TEST_OP"
         )
 
     def test_append_label(self):
-        key = 'test-key'
-        val = 'test-val'
+        key = "test-key"
+        val = "test-val"
         mock_proto = mock.Mock()
         self.gke_hook._append_label(mock_proto, key, val)
         mock_proto.resource_labels.update.assert_called_once_with({key: val})
 
     def test_append_label_replace(self):
-        key = 'test-key'
-        val = 'test.val+this'
+        key = "test-key"
+        val = "test.val+this"
         mock_proto = mock.Mock()
         self.gke_hook._append_label(mock_proto, key, val)
-        mock_proto.resource_labels.update.assert_called_once_with({key: 'test-val-this'})
+        mock_proto.resource_labels.update.assert_called_once_with({key: "test-val-this"})
 
     @mock.patch(GKE_STRING.format("time.sleep"))
     def test_wait_for_response_done(self, time_mock):
@@ -278,3 +301,114 @@ class TestGKEHook(unittest.TestCase):
         operation_mock.assert_any_call(running_op.name, project_id=TEST_GCP_PROJECT_ID)
         operation_mock.assert_any_call(pending_op.name, project_id=TEST_GCP_PROJECT_ID)
         assert operation_mock.call_count == 2
+
+
+class TestGKEPodAsyncHook:
+    @staticmethod
+    def make_mock_awaitable(mock_obj, result=None):
+        f = Future()
+        f.set_result(result)
+
+        mock_obj.return_value = f
+
+    @pytest.fixture()
+    def async_hook(self):
+        return GKEPodAsyncHook(
+            cluster_url=CLUSTER_URL,
+            ssl_ca_cert=SSL_CA_CERT,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(GKE_STRING.format("Token"), mock.MagicMock())
+    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
+    @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod"))
+    async def test_get_pod(self, read_namespace_pod_mock, get_conn_mock, async_hook):
+        self.make_mock_awaitable(read_namespace_pod_mock)
+
+        await async_hook.get_pod(name=POD_NAME, namespace=POD_NAMESPACE)
+
+        get_conn_mock.assert_called_once()
+        read_namespace_pod_mock.assert_called_with(
+            name=POD_NAME,
+            namespace=POD_NAMESPACE,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(GKE_STRING.format("Token"), mock.MagicMock())
+    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
+    @mock.patch(GKE_STRING.format("async_client.CoreV1Api.delete_namespaced_pod"))
+    async def test_delete_pod(self, delete_namespaced_pod, get_conn_mock, async_hook):
+        self.make_mock_awaitable(delete_namespaced_pod)
+
+        await async_hook.delete_pod(name=POD_NAME, namespace=POD_NAMESPACE)
+
+        get_conn_mock.assert_called_once()
+        delete_namespaced_pod.assert_called_with(
+            name=POD_NAME,
+            namespace=POD_NAMESPACE,
+            body=kubernetes.client.V1DeleteOptions(),
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(GKE_STRING.format("Token"), mock.MagicMock())
+    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
+    @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod_log"))
+    async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, async_hook, caplog):
+        self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
+
+        await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
+
+        get_conn_mock.assert_called_once()
+        read_namespaced_pod_log.assert_called_with(
+            name=POD_NAME,
+            namespace=POD_NAMESPACE,
+            follow=False,
+            timestamps=True,
+        )
+        assert "Test string #1" in caplog.text
+        assert "Test string #2" in caplog.text
+
+
+@pytest.fixture()
+def async_gke_hook():
+    return GKEAsyncHook(
+        gcp_conn_id=GCP_CONN_ID,
+        location=GKE_ZONE,
+        impersonation_chain=IMPERSONATE_CHAIN,
+    )
+
+
+@pytest.fixture()
+def mock_async_gke_cluster_client():
+    f = Future()
+    f.set_result(None)
+    client = mock.MagicMock(spec=ClusterManagerAsyncClient)
+    client.get_operation.return_value = f
+    return client
+
+
+class TestGKEAsyncHook:
+    @staticmethod
+    def make_get_client_awaitable(mock_obj, result):
+        if sys.version_info < (3, 8):
+            f = Future()
+            f.set_result(result)
+            mock_obj.return_value = f
+        else:
+            mock_obj.return_value = result
+        return mock_obj
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{ASYNC_HOOK_STRING}._get_client")
+    async def test_get_operation(self, mock_get_client, async_gke_hook, mock_async_gke_cluster_client):
+        self.make_get_client_awaitable(mock_get_client, mock_async_gke_cluster_client)
+
+        await async_gke_hook.get_operation(
+            operation_name=OPERATION_NAME,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+
+        operation_path = f"projects/{TEST_GCP_PROJECT_ID}/locations/{GKE_ZONE}/operations/{OPERATION_NAME}"
+        mock_async_gke_cluster_client.get_operation.assert_called_once_with(
+            name=operation_path,
+        )

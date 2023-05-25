@@ -47,25 +47,25 @@ DAG_ID = "POC_winrm_parallel"
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='0 0 * * *',
+    schedule="0 0 * * *",
     start_date=datetime(2021, 1, 1),
     dagrun_timeout=timedelta(minutes=60),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
 
-    run_this_last = EmptyOperator(task_id='run_this_last')
+    run_this_last = EmptyOperator(task_id="run_this_last")
 
     # [START create_hook]
-    winRMHook = WinRMHook(ssh_conn_id='ssh_POC1')
+    winRMHook = WinRMHook(ssh_conn_id="ssh_POC1")
     # [END create_hook]
 
     # [START run_operator]
-    t1 = WinRMOperator(task_id="wintask1", command='ls -altr', winrm_hook=winRMHook)
+    t1 = WinRMOperator(task_id="wintask1", command="ls -altr", winrm_hook=winRMHook)
 
-    t2 = WinRMOperator(task_id="wintask2", command='sleep 60', winrm_hook=winRMHook)
+    t2 = WinRMOperator(task_id="wintask2", command="sleep 60", winrm_hook=winRMHook)
 
-    t3 = WinRMOperator(task_id="wintask3", command='echo \'luke test\' ', winrm_hook=winRMHook)
+    t3 = WinRMOperator(task_id="wintask3", command="echo 'luke test' ", winrm_hook=winRMHook)
     # [END run_operator]
 
     [t1, t2, t3] >> run_this_last

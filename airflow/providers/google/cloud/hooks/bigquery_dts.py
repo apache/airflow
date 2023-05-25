@@ -19,11 +19,11 @@
 from __future__ import annotations
 
 from copy import copy
-from typing import Optional, Sequence
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
-from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceClient
+from google.cloud.bigquery_datatransfer_v1 import DataTransferServiceAsyncClient, DataTransferServiceClient
 from google.cloud.bigquery_datatransfer_v1.types import (
     StartManualTransferRunsResponse,
     TransferConfig,
@@ -32,7 +32,11 @@ from google.cloud.bigquery_datatransfer_v1.types import (
 from googleapiclient.discovery import Resource
 
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 
 
 def get_object_id(obj: dict) -> str:
@@ -48,18 +52,22 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
-    _conn = None  # type: Optional[Resource]
+    _conn: Resource | None = None
 
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self.location = location
@@ -91,7 +99,6 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         Retrieves connection to Google Bigquery.
 
         :return: Google Bigquery API client
-        :rtype: google.cloud.bigquery_datatransfer_v1.DataTransferServiceClient
         """
         if not self._conn:
             self._conn = DataTransferServiceClient(
@@ -133,9 +140,9 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
 
         return client.create_transfer_config(
             request={
-                'parent': parent,
-                'transfer_config': self._disable_auto_scheduling(transfer_config),
-                'authorization_code': authorization_code,
+                "parent": parent,
+                "transfer_config": self._disable_auto_scheduling(transfer_config),
+                "authorization_code": authorization_code,
             },
             retry=retry,
             timeout=timeout,
@@ -173,7 +180,7 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
 
         name = f"{project}/transferConfigs/{transfer_config_id}"
         return client.delete_transfer_config(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -220,9 +227,9 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
         parent = f"{project}/transferConfigs/{transfer_config_id}"
         return client.start_manual_transfer_runs(
             request={
-                'parent': parent,
-                'requested_time_range': requested_time_range,
-                'requested_run_time': requested_run_time,
+                "parent": parent,
+                "requested_time_range": requested_time_range,
+                "requested_run_time": requested_run_time,
             },
             retry=retry,
             timeout=timeout,
@@ -262,5 +269,87 @@ class BiqQueryDataTransferServiceHook(GoogleBaseHook):
 
         name = f"{project}/transferConfigs/{transfer_config_id}/runs/{run_id}"
         return client.get_transfer_run(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )
+
+
+class AsyncBiqQueryDataTransferServiceHook(GoogleBaseAsyncHook):
+    """Hook of the BigQuery service to be used with async client of the Google library."""
+
+    sync_hook_class = BiqQueryDataTransferServiceHook
+
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        location: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ):
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
+        super().__init__(
+            gcp_conn_id=gcp_conn_id,
+            location=location,
+            impersonation_chain=impersonation_chain,
+        )
+        self._conn: DataTransferServiceAsyncClient | None = None
+
+    async def _get_conn(self) -> DataTransferServiceAsyncClient:
+        if not self._conn:
+            credentials = (await self.get_sync_hook()).get_credentials()
+            self._conn = DataTransferServiceAsyncClient(credentials=credentials, client_info=CLIENT_INFO)
+        return self._conn
+
+    async def _get_project_id(self) -> str:
+        sync_hook = await self.get_sync_hook()
+        return sync_hook.project_id
+
+    async def _get_project_location(self) -> str:
+        sync_hook = await self.get_sync_hook()
+        return sync_hook.location
+
+    async def get_transfer_run(
+        self,
+        config_id: str,
+        run_id: str,
+        project_id: str | None,
+        location: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ):
+        """
+        Returns information about the particular transfer run.
+
+        :param run_id: ID of the transfer run.
+        :param config_id: ID of transfer config to be used.
+        :param project_id: The BigQuery project id where the transfer configuration should be
+            created. If set to None or missing, the default project_id from the Google Cloud connection
+            is used.
+        :param location: BigQuery Transfer Service location for regional transfers.
+        :param retry: A retry object used to retry requests. If `None` is
+            specified, requests will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to
+            complete. Note that if retry is specified, the timeout applies to each individual
+            attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        :return: An ``google.cloud.bigquery_datatransfer_v1.types.TransferRun`` instance.
+        """
+        project_id = project_id or (await self._get_project_id())
+        location = location or (await self._get_project_location())
+        name = f"projects/{project_id}"
+        if location:
+            name += f"/locations/{location}"
+        name += f"/transferConfigs/{config_id}/runs/{run_id}"
+
+        client = await self._get_conn()
+        transfer_run = await client.get_transfer_run(
+            name=name,
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return transfer_run

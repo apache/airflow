@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 class RedisKeySensor(BaseSensorOperator):
     """Checks for the existence of a key in a Redis"""
 
-    template_fields: Sequence[str] = ('key',)
-    ui_color = '#f0eee4'
+    template_fields: Sequence[str] = ("key",)
+    ui_color = "#f0eee4"
 
     def __init__(self, *, key: str, redis_conn_id: str, **kwargs) -> None:
         super().__init__(**kwargs)
@@ -38,5 +38,5 @@ class RedisKeySensor(BaseSensorOperator):
         self.key = key
 
     def poke(self, context: Context) -> bool:
-        self.log.info('Sensor checks for existence of key: %s', self.key)
+        self.log.info("Sensor checks for existence of key: %s", self.key)
         return RedisHook(self.redis_conn_id).get_conn().exists(self.key)

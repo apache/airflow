@@ -16,14 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING, Sequence
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
+from deprecated import deprecated
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.sensors.base import BaseSensorOperator
@@ -46,15 +43,15 @@ class BatchSensor(BaseSensorOperator):
     :param region_name: aws region name associated with the client
     """
 
-    template_fields: Sequence[str] = ('job_id',)
+    template_fields: Sequence[str] = ("job_id",)
     template_ext: Sequence[str] = ()
-    ui_color = '#66c3ff'
+    ui_color = "#66c3ff"
 
     def __init__(
         self,
         *,
         job_id: str,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         region_name: str | None = None,
         **kwargs,
     ):
@@ -62,11 +59,10 @@ class BatchSensor(BaseSensorOperator):
         self.job_id = job_id
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-        self.hook: BatchClientHook | None = None
 
     def poke(self, context: Context) -> bool:
-        job_description = self.get_hook().get_job_description(self.job_id)
-        state = job_description['status']
+        job_description = self.hook.get_job_description(self.job_id)
+        state = job_description["status"]
 
         if state == BatchClientHook.SUCCESS_STATE:
             return True
@@ -75,20 +71,21 @@ class BatchSensor(BaseSensorOperator):
             return False
 
         if state == BatchClientHook.FAILURE_STATE:
-            raise AirflowException(f'Batch sensor failed. AWS Batch job status: {state}')
+            raise AirflowException(f"Batch sensor failed. AWS Batch job status: {state}")
 
-        raise AirflowException(f'Batch sensor failed. Unknown AWS Batch job status: {state}')
+        raise AirflowException(f"Batch sensor failed. Unknown AWS Batch job status: {state}")
 
+    @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> BatchClientHook:
         """Create and return a BatchClientHook"""
-        if self.hook:
-            return self.hook
+        return self.hook
 
-        self.hook = BatchClientHook(
+    @cached_property
+    def hook(self) -> BatchClientHook:
+        return BatchClientHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,
         )
-        return self.hook
 
 
 class BatchComputeEnvironmentSensor(BaseSensorOperator):
@@ -107,14 +104,14 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
     :param region_name: aws region name associated with the client
     """
 
-    template_fields: Sequence[str] = ('compute_environment',)
+    template_fields: Sequence[str] = ("compute_environment",)
     template_ext: Sequence[str] = ()
-    ui_color = '#66c3ff'
+    ui_color = "#66c3ff"
 
     def __init__(
         self,
         compute_environment: str,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         region_name: str | None = None,
         **kwargs,
     ):
@@ -132,14 +129,14 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
         )
 
     def poke(self, context: Context) -> bool:
-        response = self.hook.client.describe_compute_environments(
+        response = self.hook.client.describe_compute_environments(  # type: ignore[union-attr]
             computeEnvironments=[self.compute_environment]
         )
 
-        if len(response['computeEnvironments']) == 0:
-            raise AirflowException(f'AWS Batch compute environment {self.compute_environment} not found')
+        if len(response["computeEnvironments"]) == 0:
+            raise AirflowException(f"AWS Batch compute environment {self.compute_environment} not found")
 
-        status = response['computeEnvironments'][0]['status']
+        status = response["computeEnvironments"][0]["status"]
 
         if status in BatchClientHook.COMPUTE_ENVIRONMENT_TERMINAL_STATUS:
             return True
@@ -148,7 +145,7 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
             return False
 
         raise AirflowException(
-            f'AWS Batch compute environment failed. AWS Batch compute environment status: {status}'
+            f"AWS Batch compute environment failed. AWS Batch compute environment status: {status}"
         )
 
 
@@ -171,15 +168,15 @@ class BatchJobQueueSensor(BaseSensorOperator):
     :param region_name: aws region name associated with the client
     """
 
-    template_fields: Sequence[str] = ('job_queue',)
+    template_fields: Sequence[str] = ("job_queue",)
     template_ext: Sequence[str] = ()
-    ui_color = '#66c3ff'
+    ui_color = "#66c3ff"
 
     def __init__(
         self,
         job_queue: str,
         treat_non_existing_as_deleted: bool = False,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         region_name: str | None = None,
         **kwargs,
     ):
@@ -198,15 +195,17 @@ class BatchJobQueueSensor(BaseSensorOperator):
         )
 
     def poke(self, context: Context) -> bool:
-        response = self.hook.client.describe_job_queues(jobQueues=[self.job_queue])
+        response = self.hook.client.describe_job_queues(  # type: ignore[union-attr]
+            jobQueues=[self.job_queue]
+        )
 
-        if len(response['jobQueues']) == 0:
+        if len(response["jobQueues"]) == 0:
             if self.treat_non_existing_as_deleted:
                 return True
             else:
-                raise AirflowException(f'AWS Batch job queue {self.job_queue} not found')
+                raise AirflowException(f"AWS Batch job queue {self.job_queue} not found")
 
-        status = response['jobQueues'][0]['status']
+        status = response["jobQueues"][0]["status"]
 
         if status in BatchClientHook.JOB_QUEUE_TERMINAL_STATUS:
             return True
@@ -214,4 +213,4 @@ class BatchJobQueueSensor(BaseSensorOperator):
         if status in BatchClientHook.JOB_QUEUE_INTERMEDIATE_STATUS:
             return False
 
-        raise AirflowException(f'AWS Batch job queue failed. AWS Batch job queue status: {status}')
+        raise AirflowException(f"AWS Batch job queue failed. AWS Batch job queue status: {status}")

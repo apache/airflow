@@ -20,17 +20,30 @@
 Amazon Web Services Connection
 ==============================
 
-The Amazon Web Services connection type enables the :ref:`AWS Integrations
-<AWS>`.
+The Amazon Web Services connection type enables the :ref:`AWS Integrations <AWS>`.
+
+.. important:: The Amazon Web Services Connection can be tested in the UI/API or by calling
+    :meth:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook.test_connection`,
+    it is **important** to correctly interpret the result of this test.
+    During this test components of Amazon Provider invoke AWS Security Token Service API
+    `GetCallerIdentity <https://docs.aws.amazon.com/STS/latest/APIReference/API_GetCallerIdentity.html>`__.
+    This service can  **only** check if your credentials are valid.
+    Unfortunately it is not possible to validate if credentials have access to specific AWS service or not.
+
+    If you use the Amazon Provider to communicate with AWS API compatible services (MinIO, LocalStack, etc.)
+    test connection failure **doesn't mean** that your connection has wrong credentials.
+    Many compatible services provide only a limited number of AWS API services,
+    and most of them do not implement the AWS STS GetCallerIdentity method.
+
 
 Authenticating to AWS
 ---------------------
 
-Authentication may be performed using any of the `boto3 options <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html#configuring-credentials>`_. Alternatively, one can pass credentials in as a Connection initialisation parameter.
+Authentication may be performed using any of the options described in Boto3 Guide :external+boto3:ref:`guide_credentials`.
+Alternatively, one can pass credentials in as a Connection initialisation parameter.
 
 To use IAM instance profile, create an "empty" connection (i.e. one with no AWS Access Key ID or AWS Secret Access Key
 specified, or ``aws://``).
-
 
 Default Connection IDs
 -----------------------
@@ -39,10 +52,18 @@ The default connection ID is ``aws_default``. If the environment/machine where y
 file credentials in ``/home/.aws/``, and the default connection has user and pass fields empty, it will take
 automatically the credentials from there.
 
-.. note:: Previously, the ``aws_default`` connection had the "extras" field set to ``{"region_name": "us-east-1"}``
+.. important:: Previously, the ``aws_default`` connection had the "extras" field set to ``{"region_name": "us-east-1"}``
     on install. This means that by default the ``aws_default`` connection used the ``us-east-1`` region.
     This is no longer the case and the region needs to be set manually, either in the connection screens in Airflow,
     or via the ``AWS_DEFAULT_REGION`` environment variable.
+
+.. caution:: If you do not set ``[database] load_default_connections`` to ``True``
+    most probably you do not have ``aws_default``. For historical reasons, the Amazon Provider
+    components (Hooks, Operators, Sensors, etc.) fallback to the default boto3 credentials strategy
+    in case of a missing Connection ID. This behaviour is deprecated and will be removed in a future releases.
+
+    If you need to use the default boto3 credential strategy (credentials in environment variables, IAM Profile, etc.)
+    please provide ``None`` instead of a connection ID.
 
 .. _howto/connection:aws:configuring-the-connection:
 
@@ -66,8 +87,7 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in AWS
     connection. All parameters are optional.
 
-    The following extra parameters used to create an initial
-    `boto3.session.Session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__:
+    The following extra parameters are used to create an initial :external:py:class:`boto3.session.Session`:
 
     * ``aws_access_key_id``: AWS access key ID used for the initial connection.
     * ``aws_secret_access_key``: AWS secret access key used for the initial connection
@@ -77,7 +97,7 @@ Extra (optional)
     * ``profile_name``: The name of a profile to use listed in
       `configuration and credential file settings <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-settings>`__.
 
-    The following extra parameters used for `assume role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__:
+    The following extra parameters are used for `assume role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__:
 
     * ``role_arn``: If specified, then assume this role, obtaining a set of temporary security credentials using the ``assume_role_method``.
     * ``assume_role_method``: AWS STS client method, one of
@@ -87,16 +107,29 @@ Extra (optional)
       if not specified then **assume_role** is used.
     * ``assume_role_kwargs``: Additional **kwargs** passed to ``assume_role_method``.
 
-    The following extra parameters used for
-    `boto3.client <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client>`__
-    and `boto3.resource <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.resource>`__:
+    The following extra parameters are available if ``assume_role_method`` is set to ``assume_role_with_web_identity``:
+
+    * ``assume_role_with_web_identity_federation``: The federation type, which is used to determine which token loader to use to retrieve
+      the access token. Currently ``file`` and ``google`` are supported.
+    * ``assume_role_with_web_identity_token_file``: The path to a file on the filesystem that contains the access token used to
+      authenticate with the AWS STS service, for  the ``file`` federation type. If not specified, then the value of the
+      ``AWS_WEB_IDENTITY_TOKEN_FILE`` environment variable will be used.
+    * ``assume_role_with_web_identity_federation_audience``: The ``aud`` claim of the access token, if using the ``google`` federation type.
+
+    The following extra parameters are passed to :external:py:meth:`boto3.session.Session.client`
+    or :external:py:meth:`boto3.session.Session.resource`.
 
     * ``config_kwargs``: Additional **kwargs** used to construct a
       `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__.
     * ``endpoint_url``: Endpoint URL for the connection.
     * ``verify``: Whether or not to verify SSL certificates.
 
-.. warning:: Extra parameters below are deprecated and will be removed in a future version of this provider.
+    The following extra parameters used for specific AWS services:
+
+    * ``service_config``: json used to specify configuration/parameters per AWS service / Amazon provider hook,
+      for more details please refer to :ref:`howto/connection:aws:per-service-configuration`.
+
+.. warning:: The extra parameters below are deprecated and will be removed in a future version of this provider.
 
     * ``aws_account_id``: Used to construct ``role_arn`` if it was not specified.
     * ``aws_iam_role``: Used to construct ``role_arn`` if it was not specified.
@@ -110,15 +143,16 @@ Extra (optional)
     * ``profile``: If you are getting your credentials from the ``s3_config_file``
       you can specify the profile with this parameter.
     * ``host``: Used as connection's URL. Use ``endpoint_url`` instead.
-    * ``session_kwargs``: Additional **kwargs** passed to
-      `boto3.session.Session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__.
+    * ``session_kwargs``: Additional **kwargs** passed to :external:py:class:`boto3.session.Session`.
 
 If you are configuring the connection via a URI, ensure that all components of the URI are URL-encoded.
 
 Examples
 --------
 
-**Snippet for create Connection as URI**:
+Snippet to create Connection and convert to URI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
   .. code-block:: python
 
     import os
@@ -142,18 +176,46 @@ Examples
     print(f"{env_key}={conn_uri}")
     # AIRFLOW_CONN_SAMPLE_AWS_CONNECTION=aws://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI%2FK7MDENG%2FbPxRfiCYEXAMPLEKEY@/?region_name=eu-central-1
 
-    # Test connection
     os.environ[env_key] = conn_uri
-    print(conn.test_connection())
+    print(conn.test_connection())  # Validate connection credentials.
 
-**Using instance profile**:
+
+  .. warning:: When using the Airflow CLI, a ``@`` may need to be added when:
+
+    - login
+    - password
+    - host
+    - port
+
+    are not given, see example below. This is a known airflow limitation.
+
+    ``airflow connections add aws_conn --conn-uri aws://@/?region_name=eu-west-1``
+
+Using instance profile
+^^^^^^^^^^^^^^^^^^^^^^
+
+  This will use boto's default credential look-up chain (the profile named "default" from the ~/.boto/ config files,
+  and instance profile when running inside AWS)
+
+  **URI format example**
+
   .. code-block:: bash
 
     export AIRFLOW_CONN_AWS_DEFAULT=aws://
 
-  This will use boto's default credential look-up chain (the profile named "default" from the ~/.boto/ config files, and instance profile when running inside AWS)
 
-**With a AWS IAM key pair**:
+  **JSON format example**
+
+  .. code-block:: bash
+
+    export AIRFLOW_CONN_AWS_DEFAULT='{"conn_type": "aws"}'
+
+
+With a AWS IAM key pair
+^^^^^^^^^^^^^^^^^^^^^^^
+
+  **URI format example**
+
   .. code-block:: bash
 
     export AIRFLOW_CONN_AWS_DEFAULT=aws://AKIAIOSFODNN7EXAMPLE:wJalrXUtnFEMI%2FK7MDENG%2FbPxRfiCYEXAMPLEKEY@
@@ -161,6 +223,15 @@ Examples
   Note here, that the secret access key has been URL-encoded (changing ``/`` to ``%2F``), and also the
   trailing ``@`` (without which, it is treated as ``<host>:<port>`` and will not work)
 
+  **JSON format example**
+
+  .. code-block:: bash
+
+    export AIRFLOW_CONN_AWS_DEFAULT='{
+      "conn_type": "aws",
+      "login": "AKIAIOSFODNN7EXAMPLE",
+      "password": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    }'
 
 Examples for the **Extra** field
 --------------------------------
@@ -186,7 +257,7 @@ This assumes all other Connection fields eg **AWS Access Key ID** or **AWS Secre
     }
 
 .. seealso::
-    https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerole
+    - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerole
 
 
 3. Configuring an outbound HTTP proxy
@@ -202,7 +273,18 @@ This assumes all other Connection fields eg **AWS Access Key ID** or **AWS Secre
       }
     }
 
-4. Using AssumeRoleWithSAML
+4. Using AssumeRoleWithWebIdentity (file-based token)
+
+.. code-block:: json
+
+    {
+      "role_arn": "arn:aws:iam::112223334444:role/my_role",
+      "assume_role_method": "assume_role_with_web_identity",
+      "assume_role_with_web_identity_federation": "file",
+      "assume_role_with_web_identity_token_file": "/path/to/access_token"
+    }
+
+5. Using AssumeRoleWithSAML
 
 .. code-block:: json
 
@@ -231,7 +313,6 @@ This assumes all other Connection fields eg **AWS Access Key ID** or **AWS Secre
       "assume_role_kwargs": { "something":"something" }
     }
 
-
 The following settings may be used within the ``assume_role_with_saml`` container in Extra.
 
     * ``principal_arn``: The ARN of the SAML provider created in IAM that describes the identity provider.
@@ -251,9 +332,33 @@ The following settings may be used within the ``assume_role_with_saml`` containe
     The ``python-gssapi`` library is outdated, and conflicts with some versions of ``paramiko`` which Airflow uses elsewhere.
 
 .. seealso::
-    :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-    https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerolewithsaml
-    https://pypi.org/project/requests-gssapi/
+    - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    - https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#api_assumerolewithsaml
+    - https://pypi.org/project/requests-gssapi/
+
+
+.. _howto/connection:aws:per-service-configuration:
+
+Per-service configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+S3 Bucket configurations
+""""""""""""""""""""""""
+
+To use S3 bucket name per connection in :class:`~airflow.providers.amazon.aws.hooks.s3.S3Hook` methods,
+provide selected options in the connection's extra field.
+
+.. note:: The ``bucket_name`` parameter in hook methods will override this connection setting.
+
+.. code-block:: json
+
+    {
+      "service_config": {
+        "s3": {
+          "bucket_name": "awesome-bucket"
+        }
+      }
+    }
 
 
 Avoid Throttling exceptions
@@ -273,7 +378,7 @@ If you encounter throttling exceptions, you may change the mode to ``standard`` 
 
 
 .. seealso::
-    https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#retries
+    - Boto3 Guide: :external+boto3:ref:`guide_retries`
 
 Set in Connection
 ^^^^^^^^^^^^^^^^^
@@ -324,8 +429,7 @@ Session Factory
 ---------------
 
 The default ``BaseSessionFactory`` for the connection can handle most of the authentication methods for AWS.
-In the case that you would like to have full control of
-`boto3 session <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html>`__ creation or
+In the case that you would like to have full control of :external:py:class:`boto3.session.Session` creation or
 you are using custom `federation <https://aws.amazon.com/identity/federation/>`__ that requires
 `external process to source the credentials <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sourcing-external.html>`__,
 you can subclass :class:`~airflow.providers.amazon.aws.hooks.base_aws.BaseSessionFactory` and override ``create_session``
@@ -373,13 +477,13 @@ Example
         def federated(self):
             return "federation" in self.extra_config
 
-        def _create_basic_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
+        def _create_basic_session(self, session_kwargs: dict[str, Any]) -> boto3.session.Session:
             if self.federated:
                 return self._create_federated_session(session_kwargs)
             else:
                 return super()._create_basic_session(session_kwargs)
 
-        def _create_federated_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
+        def _create_federated_session(self, session_kwargs: dict[str, Any]) -> boto3.session.Session:
             username = self.extra_config["federation"]["username"]
             region_name = self._get_region_name()
             self.log.debug(
@@ -396,7 +500,7 @@ Example
             session.set_config_variable("region", region_name)
             return boto3.session.Session(botocore_session=session, **session_kwargs)
 
-        def _refresh_federated_credentials(self) -> Dict[str, str]:
+        def _refresh_federated_credentials(self) -> dict[str, str]:
             self.log.debug("Refreshing federated AWS credentials")
             credentials = get_federated_aws_credentials(**self.extra_config["federation"])
             access_key_id = credentials["AccessKeyId"]
@@ -639,7 +743,11 @@ You can configure connection, also using environmental variable :envvar:`AIRFLOW
 Using IAM Roles for Service Accounts (IRSA) on EKS
 ----------------------------------------------------------------
 
-If you are running Airflow on `Amazon EKS <https://aws.amazon.com/eks/>`_, you can grant AWS related permission (such as S3 Read/Write for remote logging) to the Airflow service by granting the IAM role to it's service account. IRSA provides fine-grained permission management for apps(e.g., pods) that run on EKS and use other AWS services. These could be apps that use S3, any other AWS services like Secrets Manager, CloudWatch, DynamoDB etc.
+If you are running Airflow on `Amazon EKS <https://aws.amazon.com/eks/>`_,
+you can grant AWS related permission (such as S3 Read/Write for remote logging) to the Airflow service
+by granting the IAM role to it's service account.
+IRSA provides fine-grained permission management for apps(e.g., pods) that run on EKS and use other AWS services.
+These could be apps that use S3, any other AWS services like Secrets Manager, CloudWatch, DynamoDB etc.
 
 To activate this, the following steps must be followed:
 
@@ -648,10 +756,15 @@ To activate this, the following steps must be followed:
 3. Add the corresponding IAM Role to the Airflow service account as an annotation.
 
 .. seealso::
-    https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
+    - https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
 
-Then you can find ``AWS_ROLE_ARN`` and ``AWS_WEB_IDENTITY_TOKEN_FILE`` in environment variables of appropriate pods that `Amazon EKS Pod Identity Web Hook <https://github.com/aws/amazon-eks-pod-identity-webhook>`__ added. Then `boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials>`__ will configure credentials using those variables.
-In order to use IRSA in Airflow, you have to create an aws connection with all fields empty. If a field such as ``role-arn`` is set, Airflow does not follow the boto3 default flow because it manually create a session using connection fields. If you did not change the default connection ID, an empty AWS connection named ``aws_default`` would be enough.
+Then you can find ``AWS_ROLE_ARN`` and ``AWS_WEB_IDENTITY_TOKEN_FILE`` in environment variables of appropriate pods that
+`Amazon EKS Pod Identity Web Hook <https://github.com/aws/amazon-eks-pod-identity-webhook>`__ added.
+Then `boto3 <https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials>`__
+will configure credentials using those variables. In order to use IRSA in Airflow, you have to create an aws connection
+with all fields empty. If a field such as ``role-arn`` is set, Airflow does not follow the boto3 default flow because
+it manually create a session using connection fields.
+If you did not change the default connection ID, an empty AWS connection named ``aws_default`` would be enough.
 
 Create IAM Role for Service Account(IRSA) using eksctl
 ------------------------------------------------------
@@ -665,13 +778,16 @@ Create IAM Role for Service Account(IRSA) using eksctl
 
     eksctl utils associate-iam-oidc-provider --cluster="<EKS_CLUSTER_ID>" --approve
 
-4. Replace ``EKS_CLUSTER_ID``, ``SERVICE_ACCOUNT_NAME`` and ``NAMESPACE`` and execute the the following command. This command will use an existing EKS Cluster ID and create an IAM role, service account and namespace.
+4. Replace ``EKS_CLUSTER_ID``, ``SERVICE_ACCOUNT_NAME`` and ``NAMESPACE`` and execute the the following command.
+This command will use an existing EKS Cluster ID and create an IAM role, service account and namespace.
 
 .. code-block:: bash
 
     eksctl create iamserviceaccount --cluster="<EKS_CLUSTER_ID>" --name="<SERVICE_ACCOUNT_NAME>" --namespace="<NAMESPACE>" --attach-policy-arn="<IAM_POLICY_ARN>" --approve``
 
-This is an example command with values. This example is using managed policy with full S3 permissions attached to the IAM role. We highly recommend you to create a restricted IAM policy with necessary permissions to S3, Secrets Manager, CloudWatch etc. and use it with ``--attach-policy-arn``.
+This is an example command with values. This example is using managed policy with full
+S3 permissions attached to the IAM role. We highly recommend you to create a restricted IAM policy
+with necessary permissions to S3, Secrets Manager, CloudWatch etc. and use it with ``--attach-policy-arn``.
 
 .. code-block:: bash
 
@@ -684,8 +800,10 @@ Create IAM Role for Service Account(IRSA) using Terraform
 
 For Terraform users, IRSA roles can be created using `Amazon EKS Blueprints for Terraform <https://github.com/aws-ia/terraform-aws-eks-blueprints>`_ module.
 
-This module creates a new IAM Role, service account and namespace. This will associate IAM role with the service account and adds the annotation to the service account.
-You need to create an IAM policy with the required permissions that you would like the containers in your pods to have. Replace ``IAM_POLICY_ARN`` with your IAM policy ARN, other required inputs as shown below and run ``terraform apply``.
+This module creates a new IAM Role, service account and namespace.
+This will associate IAM role with the service account and adds the annotation to the service account.
+You need to create an IAM policy with the required permissions that you would like the containers in your pods to have.
+Replace ``IAM_POLICY_ARN`` with your IAM policy ARN, other required inputs as shown below and run ``terraform apply``.
 
 .. code-block:: terraform
 
@@ -699,4 +817,5 @@ You need to create an IAM policy with the required permissions that you would li
       kubernetes_service_account = "<SERVICE_ACCOUNT_NAME>"
     }
 
-Once the Terraform module is applied then you can use the service account in your Airflow deployments or with Kubernetes Pod Operator.
+Once the Terraform module is applied then you can use the service account in your Airflow deployments
+or with Kubernetes Pod Operator.

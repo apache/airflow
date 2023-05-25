@@ -18,22 +18,24 @@ from __future__ import annotations
 
 TESTING_COMMANDS: dict[str, str | list[str]] = {
     "name": "Testing",
-    "commands": ["tests", "helm-tests", "docker-compose-tests"],
+    "commands": ["tests", "integration-tests", "helm-tests", "docker-compose-tests"],
 }
 TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze testing tests": [
         {
             "name": "Basic flag for tests command",
             "options": [
-                "--integration",
                 "--test-type",
                 "--test-timeout",
+                "--collect-only",
                 "--db-reset",
                 "--backend",
                 "--python",
                 "--postgres-version",
                 "--mysql-version",
                 "--mssql-version",
+                "--integration",
+                "--github-repository",
             ],
         },
         {
@@ -41,7 +43,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--run-in-parallel",
                 "--parallelism",
-                "--test-types",
+                "--parallel-test-types",
                 "--skip-cleanup",
                 "--debug-resources",
                 "--include-success-outputs",
@@ -52,6 +54,32 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-tag",
                 "--mount-sources",
+                "--upgrade-boto",
+                "--remove-arm-packages",
+            ],
+        },
+    ],
+    "breeze testing integration-tests": [
+        {
+            "name": "Basic flag for integration tests command",
+            "options": [
+                "--integration",
+                "--test-timeout",
+                "--db-reset",
+                "--backend",
+                "--python",
+                "--postgres-version",
+                "--mysql-version",
+                "--mssql-version",
+                "--github-repository",
+            ],
+        },
+        {
+            "name": "Advanced flag for integration tests command",
+            "options": [
+                "--image-tag",
+                "--mount-sources",
+                "--skip-provider-tests",
             ],
         },
     ],
@@ -61,6 +89,8 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-tag",
                 "--mount-sources",
+                "--helm-test-package",
+                "--github-repository",
             ],
         },
     ],
@@ -71,6 +101,9 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-name",
                 "--image-tag",
                 "--python",
+                "--skip-docker-compose-deletion",
+                "--wait-for-containers-timeout",
+                "--github-repository",
             ],
         }
     ],

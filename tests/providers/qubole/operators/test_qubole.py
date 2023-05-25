@@ -39,8 +39,8 @@ DEFAULT_DATE = datetime(2017, 1, 1)
 
 class TestQuboleOperator:
     def setup_method(self):
-        db.merge_conn(Connection(conn_id=DEFAULT_CONN, conn_type='HTTP'))
-        db.merge_conn(Connection(conn_id=TEST_CONN, conn_type='HTTP', host='http://localhost/api'))
+        db.merge_conn(Connection(conn_id=DEFAULT_CONN, conn_type="HTTP"))
+        db.merge_conn(Connection(conn_id=TEST_CONN, conn_type="HTTP", host="http://localhost/api"))
 
     def teardown_method(self):
         session = settings.Session()
@@ -57,7 +57,7 @@ class TestQuboleOperator:
         with DAG(DAG_ID, start_date=DEFAULT_DATE):
             task = QuboleOperator(task_id=TASK_ID, qubole_conn_id="{{ qubole_conn_id }}")
 
-        task.render_template_fields({'qubole_conn_id': TEMPLATE_CONN})
+        task.render_template_fields({"qubole_conn_id": TEMPLATE_CONN})
         assert task.task_id == TASK_ID
         assert task.qubole_conn_id == TEMPLATE_CONN
 
@@ -67,17 +67,17 @@ class TestQuboleOperator:
             dag_id="test_init_with_template_cluster_label",
             execution_date=DEFAULT_DATE,
             task_id=TASK_ID,
-            cluster_label='{{ params.cluster_label }}',
-            params={'cluster_label': 'default'},
+            cluster_label="{{ params.cluster_label }}",
+            params={"cluster_label": "default"},
         )
         ti.render_templates()
-        assert ti.task.cluster_label == 'default'
+        assert ti.task.cluster_label == "default"
 
     def test_get_hook(self):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
 
         with dag:
-            task = QuboleOperator(task_id=TASK_ID, command_type='hivecmd', dag=dag)
+            task = QuboleOperator(task_id=TASK_ID, command_type="hivecmd", dag=dag)
 
         hook = task.get_hook()
         assert hook.__class__ == QuboleHook
@@ -86,38 +86,38 @@ class TestQuboleOperator:
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
 
         with dag:
-            task = QuboleOperator(task_id=TASK_ID, command_type='sparkcmd', note_id="123", dag=dag)
+            task = QuboleOperator(task_id=TASK_ID, command_type="sparkcmd", note_id="123", dag=dag)
 
-        assert task.get_hook().create_cmd_args({'run_id': 'dummy'})[0] == "--note-id=123"
+        assert task.get_hook().create_cmd_args({"run_id": "dummy"})[0] == "--note-id=123"
 
     def test_notify(self):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
 
         with dag:
-            task = QuboleOperator(task_id=TASK_ID, command_type='sparkcmd', notify=True, dag=dag)
+            task = QuboleOperator(task_id=TASK_ID, command_type="sparkcmd", notify=True, dag=dag)
 
-        assert task.get_hook().create_cmd_args({'run_id': 'dummy'})[0] == "--notify"
+        assert task.get_hook().create_cmd_args({"run_id": "dummy"})[0] == "--notify"
 
     def test_position_args_parameters(self):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
 
         with dag:
             task = QuboleOperator(
-                task_id=TASK_ID, command_type='pigcmd', parameters="key1=value1 key2=value2", dag=dag
+                task_id=TASK_ID, command_type="pigcmd", parameters="key1=value1 key2=value2", dag=dag
             )
 
-        assert task.get_hook().create_cmd_args({'run_id': 'dummy'})[1] == "key1=value1"
-        assert task.get_hook().create_cmd_args({'run_id': 'dummy'})[2] == "key2=value2"
+        assert task.get_hook().create_cmd_args({"run_id": "dummy"})[1] == "key1=value1"
+        assert task.get_hook().create_cmd_args({"run_id": "dummy"})[2] == "key2=value2"
 
         cmd = "s3distcp --src s3n://airflow/source_hadoopcmd --dest s3n://airflow/destination_hadoopcmd"
-        task = QuboleOperator(task_id=TASK_ID + "_1", command_type='hadoopcmd', dag=dag, sub_command=cmd)
+        task = QuboleOperator(task_id=TASK_ID + "_1", command_type="hadoopcmd", dag=dag, sub_command=cmd)
 
-        assert task.get_hook().create_cmd_args({'run_id': 'dummy'})[1] == "s3distcp"
-        assert task.get_hook().create_cmd_args({'run_id': 'dummy'})[2] == "--src"
-        assert task.get_hook().create_cmd_args({'run_id': 'dummy'})[3] == "s3n://airflow/source_hadoopcmd"
-        assert task.get_hook().create_cmd_args({'run_id': 'dummy'})[4] == "--dest"
+        assert task.get_hook().create_cmd_args({"run_id": "dummy"})[1] == "s3distcp"
+        assert task.get_hook().create_cmd_args({"run_id": "dummy"})[2] == "--src"
+        assert task.get_hook().create_cmd_args({"run_id": "dummy"})[3] == "s3n://airflow/source_hadoopcmd"
+        assert task.get_hook().create_cmd_args({"run_id": "dummy"})[4] == "--dest"
         assert (
-            task.get_hook().create_cmd_args({'run_id': 'dummy'})[5] == "s3n://airflow/destination_hadoopcmd"
+            task.get_hook().create_cmd_args({"run_id": "dummy"})[5] == "s3n://airflow/destination_hadoopcmd"
         )
 
     def test_get_link(self, create_task_instance_of_operator):
@@ -127,13 +127,13 @@ class TestQuboleOperator:
             execution_date=DEFAULT_DATE,
             task_id=TASK_ID,
             qubole_conn_id=TEST_CONN,
-            command_type='shellcmd',
+            command_type="shellcmd",
             parameters="param1 param2",
         )
-        ti.xcom_push('qbol_cmd_id', 12345)
+        ti.xcom_push("qbol_cmd_id", 12345)
 
-        url = ti.task.get_extra_links(ti, 'Go to QDS')
-        assert url == 'http://localhost/v2/analyze?command_id=12345'
+        url = ti.task.get_extra_links(ti, "Go to QDS")
+        assert url == "http://localhost/v2/analyze?command_id=12345"
 
     @pytest.mark.need_serialized_dag
     def test_extra_serialized_field(self, dag_maker, create_task_instance_of_operator):
@@ -142,7 +142,7 @@ class TestQuboleOperator:
             dag_id="test_extra_serialized_field",
             execution_date=DEFAULT_DATE,
             task_id=TASK_ID,
-            command_type='shellcmd',
+            command_type="shellcmd",
             qubole_conn_id=TEST_CONN,
         )
 
@@ -155,25 +155,25 @@ class TestQuboleOperator:
 
         assert isinstance(list(simple_task.operator_extra_links)[0], QDSLink)
 
-        ti.xcom_push('qbol_cmd_id', 12345)
-        url = simple_task.get_extra_links(ti, 'Go to QDS')
-        assert url == 'http://localhost/v2/analyze?command_id=12345'
+        ti.xcom_push("qbol_cmd_id", 12345)
+        url = simple_task.get_extra_links(ti, "Go to QDS")
+        assert url == "http://localhost/v2/analyze?command_id=12345"
 
     def test_parameter_pool_passed(self):
-        test_pool = 'test_pool'
+        test_pool = "test_pool"
         op = QuboleOperator(task_id=TASK_ID, pool=test_pool)
         assert op.pool == test_pool
 
-    @mock.patch('airflow.providers.qubole.hooks.qubole.QuboleHook.get_results')
+    @mock.patch("airflow.providers.qubole.hooks.qubole.QuboleHook.get_results")
     def test_parameter_include_header_passed(self, mock_get_results):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
-        qubole_operator = QuboleOperator(task_id=TASK_ID, dag=dag, command_type='prestocmd')
+        qubole_operator = QuboleOperator(task_id=TASK_ID, dag=dag, command_type="prestocmd")
         qubole_operator.get_results(include_headers=True)
-        mock_get_results.asset_called_with('include_headers', True)
+        mock_get_results.asset_called_with("include_headers", True)
 
-    @mock.patch('airflow.providers.qubole.hooks.qubole.QuboleHook.get_results')
+    @mock.patch("airflow.providers.qubole.hooks.qubole.QuboleHook.get_results")
     def test_parameter_include_header_missing(self, mock_get_results):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
-        qubole_operator = QuboleOperator(task_id=TASK_ID, dag=dag, command_type='prestocmd')
+        qubole_operator = QuboleOperator(task_id=TASK_ID, dag=dag, command_type="prestocmd")
         qubole_operator.get_results()
-        mock_get_results.asset_called_with('include_headers', False)
+        mock_get_results.asset_called_with("include_headers", False)

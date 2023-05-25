@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import re
 import sys
-import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Sequence
 
@@ -29,23 +28,21 @@ from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, XCom
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
-
-# TODO: Remove the following import when EcsProtocol and EcsTaskLogFetcher deprecations are removed.
-from airflow.providers.amazon.aws.hooks import ecs
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.ecs import (
     EcsClusterStates,
     EcsHook,
     EcsTaskDefinitionStates,
+    EcsTaskLogFetcher,
     should_retry_eni,
 )
-from airflow.providers.amazon.aws.sensors.ecs import EcsClusterStateSensor, EcsTaskDefinitionStateSensor
+from airflow.utils.helpers import prune_dict
 from airflow.utils.session import provide_session
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-DEFAULT_CONN_ID = 'aws_default'
+DEFAULT_CONN_ID = "aws_default"
 
 
 class EcsBaseOperator(BaseOperator):
@@ -68,7 +65,7 @@ class EcsBaseOperator(BaseOperator):
 
     def execute(self, context: Context):
         """Must overwrite in child classes."""
-        raise NotImplementedError('Please implement execute() in subclass')
+        raise NotImplementedError("Please implement execute() in subclass")
 
 
 class EcsCreateClusterOperator(EcsBaseOperator):
@@ -83,9 +80,13 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         cluster, you create a cluster that's named default.
     :param create_cluster_kwargs: Extra arguments for Cluster Creation.
     :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
+    :param waiter_delay: The amount of time in seconds to wait between attempts,
+        if not set then the default waiter value will be used.
+    :param waiter_max_attempts: The maximum number of attempts to be made,
+        if not set then the default waiter value will be used.
     """
 
-    template_fields: Sequence[str] = ('cluster_name', 'create_cluster_kwargs', 'wait_for_completion')
+    template_fields: Sequence[str] = ("cluster_name", "create_cluster_kwargs", "wait_for_completion")
 
     def __init__(
         self,
@@ -93,31 +94,44 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         cluster_name: str,
         create_cluster_kwargs: dict | None = None,
         wait_for_completion: bool = True,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.cluster_name = cluster_name
         self.create_cluster_kwargs = create_cluster_kwargs or {}
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context):
         self.log.info(
-            'Creating cluster %s using the following values: %s',
+            "Creating cluster %r using the following values: %s",
             self.cluster_name,
             self.create_cluster_kwargs,
         )
         result = self.client.create_cluster(clusterName=self.cluster_name, **self.create_cluster_kwargs)
+        cluster_details = result["cluster"]
+        cluster_state = cluster_details.get("status")
 
-        if self.wait_for_completion:
-            while not EcsClusterStateSensor(
-                task_id='await_cluster',
-                cluster_name=self.cluster_name,
-            ).poke(context):
-                # The sensor has a built-in delay and will try again until
-                # the cluster is ready or has reached a failed state.
-                pass
+        if cluster_state == EcsClusterStates.ACTIVE:
+            # In some circumstances the ECS Cluster is created immediately,
+            # and there is no reason to wait for completion.
+            self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
+        elif self.wait_for_completion:
+            waiter = self.hook.get_waiter("cluster_active")
+            waiter.wait(
+                clusters=[cluster_details["clusterArn"]],
+                WaiterConfig=prune_dict(
+                    {
+                        "Delay": self.waiter_delay,
+                        "MaxAttempts": self.waiter_max_attempts,
+                    }
+                ),
+            )
 
-        return result['cluster']
+        return cluster_details
 
 
 class EcsDeleteClusterOperator(EcsBaseOperator):
@@ -130,37 +144,52 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
 
     :param cluster_name: The short name or full Amazon Resource Name (ARN) of the cluster to delete.
     :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
+    :param waiter_delay: The amount of time in seconds to wait between attempts,
+        if not set then the default waiter value will be used.
+    :param waiter_max_attempts: The maximum number of attempts to be made,
+        if not set then the default waiter value will be used.
     """
 
-    template_fields: Sequence[str] = ('cluster_name', 'wait_for_completion')
+    template_fields: Sequence[str] = ("cluster_name", "wait_for_completion")
 
     def __init__(
         self,
         *,
         cluster_name: str,
         wait_for_completion: bool = True,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.cluster_name = cluster_name
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context):
-        self.log.info('Deleting cluster %s.', self.cluster_name)
+        self.log.info("Deleting cluster %r.", self.cluster_name)
         result = self.client.delete_cluster(cluster=self.cluster_name)
+        cluster_details = result["cluster"]
+        cluster_state = cluster_details.get("status")
 
-        if self.wait_for_completion:
-            while not EcsClusterStateSensor(
-                task_id='await_cluster_delete',
-                cluster_name=self.cluster_name,
-                target_state=EcsClusterStates.INACTIVE,
-                failure_states={EcsClusterStates.FAILED},
-            ).poke(context):
-                # The sensor has a built-in delay and will try again until
-                # the cluster is deleted or reaches a failed state.
-                pass
+        if cluster_state == EcsClusterStates.INACTIVE:
+            # In some circumstances the ECS Cluster is deleted immediately,
+            # so there is no reason to wait for completion.
+            self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
+        elif self.wait_for_completion:
+            waiter = self.hook.get_waiter("cluster_inactive")
+            waiter.wait(
+                clusters=[cluster_details["clusterArn"]],
+                WaiterConfig=prune_dict(
+                    {
+                        "Delay": self.waiter_delay,
+                        "MaxAttempts": self.waiter_max_attempts,
+                    }
+                ),
+            )
 
-        return result['cluster']
+        return cluster_details
 
 
 class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
@@ -174,30 +203,53 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
     :param task_definition: The family and revision (family:revision) or full Amazon Resource Name (ARN)
         of the task definition to deregister. If you use a family name, you must specify a revision.
     :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
+    :param waiter_delay: The amount of time in seconds to wait between attempts,
+        if not set then the default waiter value will be used.
+    :param waiter_max_attempts: The maximum number of attempts to be made,
+        if not set then the default waiter value will be used.
     """
 
-    template_fields: Sequence[str] = ('task_definition', 'wait_for_completion')
+    template_fields: Sequence[str] = ("task_definition", "wait_for_completion")
 
-    def __init__(self, *, task_definition: str, wait_for_completion: bool = True, **kwargs):
+    def __init__(
+        self,
+        *,
+        task_definition: str,
+        wait_for_completion: bool = True,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.task_definition = task_definition
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context):
-        self.log.info('Deregistering task definition %s.', self.task_definition)
+        self.log.info("Deregistering task definition %s.", self.task_definition)
         result = self.client.deregister_task_definition(taskDefinition=self.task_definition)
+        task_definition_details = result["taskDefinition"]
+        task_definition_arn = task_definition_details["taskDefinitionArn"]
+        task_definition_state = task_definition_details.get("status")
 
-        if self.wait_for_completion:
-            while not EcsTaskDefinitionStateSensor(
-                task_id='await_deregister_task_definition',
-                task_definition=self.task_definition,
-                target_state=EcsTaskDefinitionStates.INACTIVE,
-            ).poke(context):
-                # The sensor has a built-in delay and will try again until the
-                # task definition is deregistered or reaches a failed state.
-                pass
+        if task_definition_state == EcsTaskDefinitionStates.INACTIVE:
+            # In some circumstances the ECS Task Definition is deleted immediately,
+            # so there is no reason to wait for completion.
+            self.log.info("Task Definition %r in state: %r.", task_definition_arn, task_definition_state)
+        elif self.wait_for_completion:
+            waiter = self.hook.get_waiter("task_definition_inactive")
+            waiter.wait(
+                taskDefinition=task_definition_arn,
+                WaiterConfig=prune_dict(
+                    {
+                        "Delay": self.waiter_delay,
+                        "MaxAttempts": self.waiter_max_attempts,
+                    }
+                ),
+            )
 
-        return result['taskDefinition']['taskDefinitionArn']
+        return task_definition_arn
 
 
 class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
@@ -213,13 +265,17 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         the different containers that make up your task.
     :param register_task_kwargs: Extra arguments for Register Task Definition.
     :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
+    :param waiter_delay: The amount of time in seconds to wait between attempts,
+        if not set then the default waiter value will be used.
+    :param waiter_max_attempts: The maximum number of attempts to be made,
+        if not set then the default waiter value will be used.
     """
 
     template_fields: Sequence[str] = (
-        'family',
-        'container_definitions',
-        'register_task_kwargs',
-        'wait_for_completion',
+        "family",
+        "container_definitions",
+        "register_task_kwargs",
+        "wait_for_completion",
     )
 
     def __init__(
@@ -229,6 +285,8 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         container_definitions: list[dict],
         register_task_kwargs: dict | None = None,
         wait_for_completion: bool = True,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -236,31 +294,43 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         self.container_definitions = container_definitions
         self.register_task_kwargs = register_task_kwargs or {}
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context):
         self.log.info(
-            'Registering task definition %s using the following values: %s',
+            "Registering task definition %s using the following values: %s",
             self.family,
             self.register_task_kwargs,
         )
-        self.log.info('Using container definition %s', self.container_definitions)
+        self.log.info("Using container definition %s", self.container_definitions)
         response = self.client.register_task_definition(
             family=self.family,
             containerDefinitions=self.container_definitions,
             **self.register_task_kwargs,
         )
-        task_arn = response['taskDefinition']['taskDefinitionArn']
+        task_definition_details = response["taskDefinition"]
+        task_definition_arn = task_definition_details["taskDefinitionArn"]
+        task_definition_state = task_definition_details.get("status")
 
-        if self.wait_for_completion:
-            while not EcsTaskDefinitionStateSensor(
-                task_id='await_register_task_definition', task_definition=task_arn
-            ).poke(context):
-                # The sensor has a built-in delay and will try again until
-                # the task definition is registered or reaches a failed state.
-                pass
+        if task_definition_state == EcsTaskDefinitionStates.ACTIVE:
+            # In some circumstances the ECS Task Definition is created immediately,
+            # so there is no reason to wait for completion.
+            self.log.info("Task Definition %r in state: %r.", task_definition_arn, task_definition_state)
+        elif self.wait_for_completion:
+            waiter = self.hook.get_waiter("task_definition_active")
+            waiter.wait(
+                taskDefinition=task_definition_arn,
+                WaiterConfig=prune_dict(
+                    {
+                        "Delay": self.waiter_delay,
+                        "MaxAttempts": self.waiter_max_attempts,
+                    }
+                ),
+            )
 
-        context['ti'].xcom_push(key='task_definition_arn', value=task_arn)
-        return task_arn
+        context["ti"].xcom_push(key="task_definition_arn", value=task_definition_arn)
+        return task_definition_arn
 
 
 class EcsRunTaskOperator(EcsBaseOperator):
@@ -278,8 +348,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
         (https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html).
-    :param region_name: region name to use in AWS Hook.
-        Override the region_name in connection (if provided)
+    :param region: region name to use in AWS Hook.
+        Override the region in connection (if provided)
     :param launch_type: the launch type on which to run your task ('EC2', 'EXTERNAL', or 'FARGATE')
     :param capacity_provider_strategy: the capacity provider strategy to use for the task.
         When capacity_provider_strategy is specified, the launch_type parameter is omitted.
@@ -297,7 +367,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
     :param awslogs_region: the region in which your CloudWatch logs are stored.
-        If None, this is the same as the `region_name` parameter. If that is also None,
+        If None, this is the same as the `region` parameter. If that is also None,
         this is the default AWS region based on your connection settings.
     :param awslogs_stream_prefix: the stream prefix that is used for the CloudWatch logs.
         This is usually based on some custom name combined with the name of the container.
@@ -315,29 +385,33 @@ class EcsRunTaskOperator(EcsBaseOperator):
         AirflowException if an ECS task is stopped (to receive Airflow alerts with the logs of what
         failed in the code running in ECS).
     :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
+    :param waiter_delay: The amount of time in seconds to wait between attempts,
+        if not set then the default waiter value will be used.
+    :param waiter_max_attempts: The maximum number of attempts to be made,
+        if not set then the default waiter value will be used.
     """
 
-    ui_color = '#f0ede4'
+    ui_color = "#f0ede4"
     template_fields: Sequence[str] = (
-        'task_definition',
-        'cluster',
-        'overrides',
-        'launch_type',
-        'capacity_provider_strategy',
-        'group',
-        'placement_constraints',
-        'placement_strategy',
-        'platform_version',
-        'network_configuration',
-        'tags',
-        'awslogs_group',
-        'awslogs_region',
-        'awslogs_stream_prefix',
-        'awslogs_fetch_interval',
-        'propagate_tags',
-        'reattach',
-        'number_logs_exception',
-        'wait_for_completion',
+        "task_definition",
+        "cluster",
+        "overrides",
+        "launch_type",
+        "capacity_provider_strategy",
+        "group",
+        "placement_constraints",
+        "placement_strategy",
+        "platform_version",
+        "network_configuration",
+        "tags",
+        "awslogs_group",
+        "awslogs_region",
+        "awslogs_stream_prefix",
+        "awslogs_fetch_interval",
+        "propagate_tags",
+        "reattach",
+        "number_logs_exception",
+        "wait_for_completion",
     )
     template_fields_renderers = {
         "overrides": "json",
@@ -353,7 +427,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         task_definition: str,
         cluster: str,
         overrides: dict,
-        launch_type: str = 'EC2',
+        launch_type: str = "EC2",
         capacity_provider_strategy: list | None = None,
         group: str | None = None,
         placement_constraints: list | None = None,
@@ -370,6 +444,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
         reattach: bool = False,
         number_logs_exception: int = 10,
         wait_for_completion: bool = True,
+        waiter_delay: int | None = None,
+        waiter_max_attempts: int | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -401,20 +477,22 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.retry_args = quota_retry
         self.task_log_fetcher: EcsTaskLogFetcher | None = None
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
     @provide_session
     def execute(self, context, session=None):
         self.log.info(
-            'Running ECS Task - Task definition: %s - on cluster %s', self.task_definition, self.cluster
+            "Running ECS Task - Task definition: %s - on cluster %s", self.task_definition, self.cluster
         )
-        self.log.info('EcsOperator overrides: %s', self.overrides)
+        self.log.info("EcsOperator overrides: %s", self.overrides)
 
         if self.reattach:
             self._try_reattach_task(context)
 
         self._start_wait_check_task(context)
 
-        self.log.info('ECS Task has been successfully executed')
+        self.log.info("ECS Task has been successfully executed")
 
         if self.reattach:
             # Clear the XCom value storing the ECS task ARN if the task has completed
@@ -433,7 +511,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             self._start_task(context)
 
         if self._aws_logs_enabled():
-            self.log.info('Starting ECS Task Log Fetcher')
+            self.log.info("Starting ECS Task Log Fetcher")
             self.task_log_fetcher = self._get_task_log_fetcher()
             self.task_log_fetcher.start()
 
@@ -455,39 +533,39 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
     def _start_task(self, context):
         run_opts = {
-            'cluster': self.cluster,
-            'taskDefinition': self.task_definition,
-            'overrides': self.overrides,
-            'startedBy': self.owner,
+            "cluster": self.cluster,
+            "taskDefinition": self.task_definition,
+            "overrides": self.overrides,
+            "startedBy": self.owner,
         }
 
         if self.capacity_provider_strategy:
-            run_opts['capacityProviderStrategy'] = self.capacity_provider_strategy
+            run_opts["capacityProviderStrategy"] = self.capacity_provider_strategy
         elif self.launch_type:
-            run_opts['launchType'] = self.launch_type
+            run_opts["launchType"] = self.launch_type
         if self.platform_version is not None:
-            run_opts['platformVersion'] = self.platform_version
+            run_opts["platformVersion"] = self.platform_version
         if self.group is not None:
-            run_opts['group'] = self.group
+            run_opts["group"] = self.group
         if self.placement_constraints is not None:
-            run_opts['placementConstraints'] = self.placement_constraints
+            run_opts["placementConstraints"] = self.placement_constraints
         if self.placement_strategy is not None:
-            run_opts['placementStrategy'] = self.placement_strategy
+            run_opts["placementStrategy"] = self.placement_strategy
         if self.network_configuration is not None:
-            run_opts['networkConfiguration'] = self.network_configuration
+            run_opts["networkConfiguration"] = self.network_configuration
         if self.tags is not None:
-            run_opts['tags'] = [{'key': k, 'value': v} for (k, v) in self.tags.items()]
+            run_opts["tags"] = [{"key": k, "value": v} for (k, v) in self.tags.items()]
         if self.propagate_tags is not None:
-            run_opts['propagateTags'] = self.propagate_tags
+            run_opts["propagateTags"] = self.propagate_tags
 
         response = self.client.run_task(**run_opts)
 
-        failures = response['failures']
+        failures = response["failures"]
         if len(failures) > 0:
             raise EcsOperatorError(failures, response)
-        self.log.info('ECS Task started: %s', response)
+        self.log.info("ECS Task started: %s", response)
 
-        self.arn = response['tasks'][0]['taskArn']
+        self.arn = response["tasks"][0]["taskArn"]
         self.ecs_task_id = self.arn.split("/")[-1]
         self.log.info("ECS task ID is: %s", self.ecs_task_id)
 
@@ -497,12 +575,12 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
     def _try_reattach_task(self, context):
         task_def_resp = self.client.describe_task_definition(taskDefinition=self.task_definition)
-        ecs_task_family = task_def_resp['taskDefinition']['family']
+        ecs_task_family = task_def_resp["taskDefinition"]["family"]
 
         list_tasks_resp = self.client.list_tasks(
-            cluster=self.cluster, desiredStatus='RUNNING', family=ecs_task_family
+            cluster=self.cluster, desiredStatus="RUNNING", family=ecs_task_family
         )
-        running_tasks = list_tasks_resp['taskArns']
+        running_tasks = list_tasks_resp["taskArns"]
 
         # Check if the ECS task previously launched is already running
         previous_task_arn = self.xcom_pull(
@@ -521,17 +599,25 @@ class EcsRunTaskOperator(EcsBaseOperator):
         if not self.client or not self.arn:
             return
 
-        waiter = self.client.get_waiter('tasks_stopped')
+        waiter = self.client.get_waiter("tasks_stopped")
         waiter.config.max_attempts = sys.maxsize  # timeout is managed by airflow
-        waiter.wait(cluster=self.cluster, tasks=[self.arn])
+        waiter.wait(
+            cluster=self.cluster,
+            tasks=[self.arn],
+            WaiterConfig=prune_dict(
+                {
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
+                }
+            ),
+        )
 
         return
 
     def _aws_logs_enabled(self):
         return self.awslogs_group and self.awslogs_stream_prefix
 
-    # TODO: When the deprecation wrapper below is removed, please fix the following return type hint.
-    def _get_task_log_fetcher(self) -> ecs.EcsTaskLogFetcher:
+    def _get_task_log_fetcher(self) -> EcsTaskLogFetcher:
         if not self.awslogs_group:
             raise ValueError("must specify awslogs_group to fetch task logs")
         log_stream_name = f"{self.awslogs_stream_prefix}/{self.ecs_task_id}"
@@ -550,14 +636,14 @@ class EcsRunTaskOperator(EcsBaseOperator):
             return
 
         response = self.client.describe_tasks(cluster=self.cluster, tasks=[self.arn])
-        self.log.info('ECS Task stopped, check status: %s', response)
+        self.log.info("ECS Task stopped, check status: %s", response)
 
-        if len(response.get('failures', [])) > 0:
+        if len(response.get("failures", [])) > 0:
             raise AirflowException(response)
 
-        for task in response['tasks']:
+        for task in response["tasks"]:
 
-            if task.get('stopCode', '') == 'TaskFailedToStart':
+            if task.get("stopCode", "") == "TaskFailedToStart":
                 # Reset task arn here otherwise the retry run will not start
                 # a new task but keep polling the old dead one
                 # I'm not resetting it for other exceptions here because
@@ -569,14 +655,14 @@ class EcsRunTaskOperator(EcsBaseOperator):
             # successfully finished, but there is no other indication of failure
             # in the response.
             # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stopped-task-errors.html
-            if re.match(r'Host EC2 \(instance .+?\) (stopped|terminated)\.', task.get('stoppedReason', '')):
+            if re.match(r"Host EC2 \(instance .+?\) (stopped|terminated)\.", task.get("stoppedReason", "")):
                 raise AirflowException(
                     f"The task was stopped because the host instance terminated:"
                     f" {task.get('stoppedReason', '')}"
                 )
-            containers = task['containers']
+            containers = task["containers"]
             for container in containers:
-                if container.get('lastStatus') == 'STOPPED' and container.get('exitCode', 1) != 0:
+                if container.get("lastStatus") == "STOPPED" and container.get("exitCode", 1) != 0:
                     if self.task_log_fetcher:
                         last_logs = "\n".join(
                             self.task_log_fetcher.get_last_log_messages(self.number_logs_exception)
@@ -586,10 +672,10 @@ class EcsRunTaskOperator(EcsBaseOperator):
                             f"logs from Cloudwatch:\n{last_logs}"
                         )
                     else:
-                        raise AirflowException(f'This task is not in success state {task}')
-                elif container.get('lastStatus') == 'PENDING':
-                    raise AirflowException(f'This task is still pending {task}')
-                elif 'error' in container.get('reason', '').lower():
+                        raise AirflowException(f"This task is not in success state {task}")
+                elif container.get("lastStatus") == "PENDING":
+                    raise AirflowException(f"This task is still pending {task}")
+                elif "error" in container.get("reason", "").lower():
                     raise AirflowException(
                         f"This containers encounter an error during launching: "
                         f"{container.get('reason', '').lower()}"
@@ -603,56 +689,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
             self.task_log_fetcher.stop()
 
         response = self.client.stop_task(
-            cluster=self.cluster, task=self.arn, reason='Task killed by the user'
+            cluster=self.cluster, task=self.arn, reason="Task killed by the user"
         )
         self.log.info(response)
-
-
-class EcsOperator(EcsRunTaskOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.ecs.EcsRunTaskOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.ecs.EcsRunTaskOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EcsTaskLogFetcher(ecs.EcsTaskLogFetcher):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.ecs.EcsTaskLogFetcher`.
-    """
-
-    # TODO: Note to deprecator, Be sure to fix the use of `ecs.EcsTaskLogFetcher`
-    #       in the Operators above when you remove this wrapper class.
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. "
-            "Please use `airflow.providers.amazon.aws.hooks.ecs.EcsTaskLogFetcher`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class EcsProtocol(ecs.EcsProtocol):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.ecs.EcsProtocol`.
-    """
-
-    # TODO: Note to deprecator, Be sure to fix the use of `ecs.EcsProtocol`
-    #       in the Operators above when you remove this wrapper class.
-    def __init__(self):
-        warnings.warn(
-            "This class is deprecated.  Please use `airflow.providers.amazon.aws.hooks.ecs.EcsProtocol`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )

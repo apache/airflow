@@ -86,6 +86,6 @@ class GoogleSearchAdsReportSensor(BaseSensorOperator):
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info('Checking status of %s report.', self.report_id)
+        self.log.info("Checking status of %s report.", self.report_id)
         response = hook.get(report_id=self.report_id)
-        return response['isReportReady']
+        return response["isReportReady"]

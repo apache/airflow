@@ -42,7 +42,7 @@ from airflow.www.security import AirflowSecurityManager
 
 def _check_action_and_resource(sm: AirflowSecurityManager, perms: list[tuple[str, str]]) -> None:
     """
-    Checks if the action or resource exists and raise 400 if not
+    Checks if the action or resource exists and otherwise raise 400.
 
     This function is intended for use in the REST API because it raise 400
     """
@@ -55,7 +55,7 @@ def _check_action_and_resource(sm: AirflowSecurityManager, perms: list[tuple[str
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE)])
 def get_role(*, role_name: str) -> APIResponse:
-    """Get role"""
+    """Get role."""
     ab_security_manager = get_airflow_app().appbuilder.sm
     role = ab_security_manager.find_role(name=role_name)
     if not role:
@@ -66,7 +66,7 @@ def get_role(*, role_name: str) -> APIResponse:
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ROLE)])
 @format_parameters({"limit": check_limit})
 def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) -> APIResponse:
-    """Get roles"""
+    """Get roles."""
     appbuilder = get_airflow_app().appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(Role.id)).scalar()
@@ -88,9 +88,9 @@ def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) 
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_ACTION)])
-@format_parameters({'limit': check_limit})
+@format_parameters({"limit": check_limit})
 def get_permissions(*, limit: int, offset: int | None = None) -> APIResponse:
-    """Get permissions"""
+    """Get permissions."""
     session = get_airflow_app().appbuilder.get_session
     total_entries = session.query(func.count(Action.id)).scalar()
     query = session.query(Action)
@@ -100,7 +100,7 @@ def get_permissions(*, limit: int, offset: int | None = None) -> APIResponse:
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ROLE)])
 def delete_role(*, role_name: str) -> APIResponse:
-    """Delete a role"""
+    """Delete a role."""
     ab_security_manager = get_airflow_app().appbuilder.sm
     role = ab_security_manager.find_role(name=role_name)
     if not role:
@@ -111,7 +111,7 @@ def delete_role(*, role_name: str) -> APIResponse:
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE)])
 def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse:
-    """Update a role"""
+    """Update a role."""
     appbuilder = get_airflow_app().appbuilder
     security_manager = appbuilder.sm
     body = request.json
@@ -129,7 +129,7 @@ def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse
             if field in data and not field == "permissions":
                 data_[field] = data[field]
             elif field == "actions":
-                data_["permissions"] = data['permissions']
+                data_["permissions"] = data["permissions"]
             else:
                 raise BadRequest(detail=f"'{field}' in update_mask is unknown")
         data = data_
@@ -145,7 +145,7 @@ def patch_role(*, role_name: str, update_mask: UpdateMask = None) -> APIResponse
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ROLE)])
 def post_role() -> APIResponse:
-    """Create a new role"""
+    """Create a new role."""
     appbuilder = get_airflow_app().appbuilder
     security_manager = appbuilder.sm
     body = request.json
@@ -153,9 +153,9 @@ def post_role() -> APIResponse:
         data = role_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
-    role = security_manager.find_role(name=data['name'])
+    role = security_manager.find_role(name=data["name"])
     if not role:
-        perms = [(item['action']['name'], item['resource']['name']) for item in data['permissions'] if item]
+        perms = [(item["action"]["name"], item["resource"]["name"]) for item in data["permissions"] if item]
         _check_action_and_resource(security_manager, perms)
         security_manager.bulk_sync_roles([{"role": data["name"], "perms": perms}])
         return role_schema.dump(role)

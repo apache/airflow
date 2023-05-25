@@ -28,7 +28,7 @@ class TestDagUnpausedDep:
         """
         Test paused DAG should fail dependency
         """
-        dag = Mock(**{'get_is_paused.return_value': True})
+        dag = Mock(**{"get_is_paused.return_value": True})
         task = Mock(dag=dag)
         ti = TaskInstance(task=task, execution_date=None)
 
@@ -38,7 +38,7 @@ class TestDagUnpausedDep:
         """
         Test all conditions met should pass dep
         """
-        dag = Mock(**{'get_is_paused.return_value': False})
+        dag = Mock(**{"get_is_paused.return_value": False})
         task = Mock(dag=dag)
         ti = TaskInstance(task=task, execution_date=None)
 

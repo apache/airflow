@@ -25,10 +25,10 @@ from airflow.models.pool import Pool
 
 
 class PoolSchema(SQLAlchemySchema):
-    """Pool schema"""
+    """Pool schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = Pool
 
@@ -68,14 +68,14 @@ class PoolSchema(SQLAlchemySchema):
 
 
 class PoolCollection(NamedTuple):
-    """List of Pools with metadata"""
+    """List of Pools with metadata."""
 
     pools: list[Pool]
     total_entries: int
 
 
 class PoolCollectionSchema(Schema):
-    """Pool Collection schema"""
+    """Pool Collection schema."""
 
     pools = fields.List(fields.Nested(PoolSchema))
     total_entries = fields.Int()

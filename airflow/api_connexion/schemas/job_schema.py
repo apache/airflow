@@ -19,16 +19,16 @@ from __future__ import annotations
 
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.jobs.base_job import BaseJob
+from airflow.jobs.job import Job
 
 
 class JobSchema(SQLAlchemySchema):
-    """Sla Miss Schema"""
+    """Sla Miss Schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
-        model = BaseJob
+        model = Job
 
     id = auto_field(dump_only=True)
     dag_id = auto_field(dump_only=True)

@@ -27,7 +27,7 @@ from airflow.providers.microsoft.azure.transfers.local_to_wasb import LocalFiles
 # type: ignore[call-arg]
 
 
-PATH_TO_UPLOAD_FILE = os.environ.get('AZURE_PATH_TO_UPLOAD_FILE', 'example-text.txt')
+PATH_TO_UPLOAD_FILE = os.environ.get("AZURE_PATH_TO_UPLOAD_FILE", "example-text.txt")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_local_to_wasb"
 

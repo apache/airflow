@@ -30,18 +30,18 @@ class TestSecretsManagerBackend:
     def test_aws_secrets_manager_get_connection(self, mock_get_value):
         mock_get_value.return_value = "scheme://user:pass@host:100"
         conn = SecretsManagerBackend().get_connection("fake_conn")
-        assert conn.host == 'host'
+        assert conn.host == "host"
 
     @mock_secretsmanager
     def test_get_conn_value_full_url_mode(self):
-        secret_id = 'airflow/connections/test_postgres'
+        secret_id = "airflow/connections/test_postgres"
         create_param = {
-            'Name': secret_id,
+            "Name": secret_id,
         }
 
         param = {
-            'SecretId': secret_id,
-            'SecretString': 'postgresql://airflow:airflow@host:5432/airflow',
+            "SecretId": secret_id,
+            "SecretString": "postgresql://airflow:airflow@host:5432/airflow",
         }
 
         secrets_manager_backend = SecretsManagerBackend()
@@ -49,68 +49,65 @@ class TestSecretsManagerBackend:
         secrets_manager_backend.client.put_secret_value(**param)
 
         returned_uri = secrets_manager_backend.get_conn_value(conn_id="test_postgres")
-        assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
+        assert "postgresql://airflow:airflow@host:5432/airflow" == returned_uri
 
     @pytest.mark.parametrize(
-        "full_url_mode, login, host",
+        "are_secret_values_urlencoded, login, host",
         [
-            (False, "is url encoded", "not%20idempotent"),
-            (True, "is%20url%20encoded", "not%2520idempotent"),
+            (True, "is url encoded", "not%20idempotent"),
+            (False, "is%20url%20encoded", "not%2520idempotent"),
         ],
     )
     @mock_secretsmanager
-    def test_get_connection_broken_field_mode_url_encoding(self, full_url_mode, login, host):
-        secret_id = 'airflow/connections/test_postgres'
+    def test_get_connection_broken_field_mode_url_encoding(self, are_secret_values_urlencoded, login, host):
+        secret_id = "airflow/connections/test_postgres"
         create_param = {
-            'Name': secret_id,
+            "Name": secret_id,
         }
 
         param = {
-            'SecretId': secret_id,
-            'SecretString': json.dumps(
+            "SecretId": secret_id,
+            "SecretString": json.dumps(
                 {
-                    'conn_type': 'postgresql',
-                    'login': 'is%20url%20encoded',
-                    'password': 'not url encoded',
-                    'host': 'not%2520idempotent',
-                    'extra': json.dumps({'foo': 'bar'}),
+                    "conn_type": "postgresql",
+                    "login": "is%20url%20encoded",
+                    "password": "not url encoded",
+                    "host": "not%2520idempotent",
+                    "extra": json.dumps({"foo": "bar"}),
                 }
             ),
         }
 
-        secrets_manager_backend = SecretsManagerBackend(full_url_mode=full_url_mode)
+        secrets_manager_backend = SecretsManagerBackend(
+            are_secret_values_urlencoded=are_secret_values_urlencoded
+        )
         secrets_manager_backend.client.create_secret(**create_param)
         secrets_manager_backend.client.put_secret_value(**param)
 
-        if full_url_mode:
-            conn = secrets_manager_backend.get_connection(conn_id='test_postgres')
-        else:
-            warning_match = r"When full_url_mode=False, URL-encoding secret values is deprecated\..+"
-            with pytest.warns(DeprecationWarning, match=warning_match):
-                conn = secrets_manager_backend.get_connection(conn_id='test_postgres')
+        conn = secrets_manager_backend.get_connection(conn_id="test_postgres")
 
         assert conn.login == login
-        assert conn.password == 'not url encoded'
+        assert conn.password == "not url encoded"
         assert conn.host == host
-        assert conn.conn_id == 'test_postgres'
-        assert conn.extra_dejson['foo'] == 'bar'
+        assert conn.conn_id == "test_postgres"
+        assert conn.extra_dejson["foo"] == "bar"
 
     @mock_secretsmanager
     def test_get_connection_broken_field_mode_extra_allows_nested_json(self):
-        secret_id = 'airflow/connections/test_postgres'
+        secret_id = "airflow/connections/test_postgres"
         create_param = {
-            'Name': secret_id,
+            "Name": secret_id,
         }
 
         param = {
-            'SecretId': secret_id,
-            'SecretString': json.dumps(
+            "SecretId": secret_id,
+            "SecretString": json.dumps(
                 {
-                    'conn_type': 'postgresql',
-                    'user': 'airflow',
-                    'password': 'airflow',
-                    'host': 'airflow',
-                    'extra': {'foo': 'bar'},
+                    "conn_type": "postgresql",
+                    "user": "airflow",
+                    "password": "airflow",
+                    "host": "airflow",
+                    "extra": {"foo": "bar"},
                 }
             ),
         }
@@ -119,19 +116,19 @@ class TestSecretsManagerBackend:
         secrets_manager_backend.client.create_secret(**create_param)
         secrets_manager_backend.client.put_secret_value(**param)
 
-        conn = secrets_manager_backend.get_connection(conn_id='test_postgres')
-        assert conn.extra_dejson['foo'] == 'bar'
+        conn = secrets_manager_backend.get_connection(conn_id="test_postgres")
+        assert conn.extra_dejson["foo"] == "bar"
 
     @mock_secretsmanager
     def test_get_conn_value_broken_field_mode(self):
-        secret_id = 'airflow/connections/test_postgres'
+        secret_id = "airflow/connections/test_postgres"
         create_param = {
-            'Name': secret_id,
+            "Name": secret_id,
         }
 
         param = {
-            'SecretId': secret_id,
-            'SecretString': '{"user": "airflow", "pass": "airflow", "host": "host", '
+            "SecretId": secret_id,
+            "SecretString": '{"user": "airflow", "pass": "airflow", "host": "host", '
             '"port": 5432, "schema": "airflow", "engine": "postgresql"}',
         }
 
@@ -139,24 +136,20 @@ class TestSecretsManagerBackend:
         secrets_manager_backend.client.create_secret(**create_param)
         secrets_manager_backend.client.put_secret_value(**param)
 
-        warning_match = (
-            r"In future versions, `SecretsManagerBackend\.get_conn_value` will return a JSON string when "
-            r"full_url_mode is False, not a URI\."
-        )
-        with pytest.warns(DeprecationWarning, match=warning_match):
-            returned_uri = secrets_manager_backend.get_conn_value(conn_id="test_postgres")
-        assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
+        conn = secrets_manager_backend.get_connection(conn_id="test_postgres")
+        returned_uri = conn.get_uri()
+        assert "postgres://airflow:airflow@host:5432/airflow" == returned_uri
 
     @mock_secretsmanager
     def test_get_conn_value_broken_field_mode_extra_words_added(self):
-        secret_id = 'airflow/connections/test_postgres'
+        secret_id = "airflow/connections/test_postgres"
         create_param = {
-            'Name': secret_id,
+            "Name": secret_id,
         }
 
         param = {
-            'SecretId': secret_id,
-            'SecretString': '{"usuario": "airflow", "pass": "airflow", "host": "host", '
+            "SecretId": secret_id,
+            "SecretString": '{"usuario": "airflow", "pass": "airflow", "host": "host", '
             '"port": 5432, "schema": "airflow", "engine": "postgresql"}',
         }
 
@@ -166,23 +159,9 @@ class TestSecretsManagerBackend:
         secrets_manager_backend.client.create_secret(**create_param)
         secrets_manager_backend.client.put_secret_value(**param)
 
-        warning_match = (
-            r"In future versions, `SecretsManagerBackend\.get_conn_value` will return a JSON string when "
-            r"full_url_mode is False, not a URI\."
-        )
-        with pytest.warns(DeprecationWarning, match=warning_match):
-            returned_uri = secrets_manager_backend.get_conn_value(conn_id="test_postgres")
-        assert 'postgresql://airflow:airflow@host:5432/airflow' == returned_uri
-
-    @mock_secretsmanager
-    def test_format_uri_with_extra(self):
-        secret = {'extra': '{"key1": "value1", "key2": "value2"}'}
-        conn_string = 'CS'
-        secrets_manager_backend = SecretsManagerBackend()
-
-        conn_string_with_extra = secrets_manager_backend._format_uri_with_extra(secret, conn_string)
-
-        assert conn_string_with_extra == 'CS?key1=value1&key2=value2'
+        conn = secrets_manager_backend.get_connection(conn_id="test_postgres")
+        returned_uri = conn.get_uri()
+        assert "postgres://airflow:airflow@host:5432/airflow" == returned_uri
 
     @mock_secretsmanager
     def test_get_conn_value_non_existent_key(self):
@@ -192,14 +171,14 @@ class TestSecretsManagerBackend:
         """
         conn_id = "test_mysql"
 
-        secret_id = 'airflow/connections/test_postgres'
+        secret_id = "airflow/connections/test_postgres"
         create_param = {
-            'Name': secret_id,
+            "Name": secret_id,
         }
 
         param = {
-            'SecretId': secret_id,
-            'SecretString': 'postgresql://airflow:airflow@host:5432/airflow',
+            "SecretId": secret_id,
+            "SecretString": "postgresql://airflow:airflow@host:5432/airflow",
         }
 
         secrets_manager_backend = SecretsManagerBackend()
@@ -212,19 +191,19 @@ class TestSecretsManagerBackend:
     @mock_secretsmanager
     def test_get_variable(self):
 
-        secret_id = 'airflow/variables/hello'
+        secret_id = "airflow/variables/hello"
         create_param = {
-            'Name': secret_id,
+            "Name": secret_id,
         }
 
-        param = {'SecretId': secret_id, 'SecretString': 'world'}
+        param = {"SecretId": secret_id, "SecretString": "world"}
 
         secrets_manager_backend = SecretsManagerBackend()
         secrets_manager_backend.client.create_secret(**create_param)
         secrets_manager_backend.client.put_secret_value(**param)
 
-        returned_uri = secrets_manager_backend.get_variable('hello')
-        assert 'world' == returned_uri
+        returned_uri = secrets_manager_backend.get_variable("hello")
+        assert "world" == returned_uri
 
     @mock_secretsmanager
     def test_get_variable_non_existent_key(self):
@@ -232,11 +211,11 @@ class TestSecretsManagerBackend:
         Test that if Variable key is not present,
         SystemsManagerParameterStoreBackend.get_variables should return None
         """
-        secret_id = 'airflow/variables/hello'
+        secret_id = "airflow/variables/hello"
         create_param = {
-            'Name': secret_id,
+            "Name": secret_id,
         }
-        param = {'SecretId': secret_id, 'SecretString': 'world'}
+        param = {"SecretId": secret_id, "SecretString": "world"}
 
         secrets_manager_backend = SecretsManagerBackend()
         secrets_manager_backend.client.create_secret(**create_param)
@@ -244,18 +223,37 @@ class TestSecretsManagerBackend:
 
         assert secrets_manager_backend.get_variable("test_mysql") is None
 
+    @mock_secretsmanager
+    def test_get_config_non_existent_key(self):
+        """
+        Test that if Config key is not present,
+        SystemsManagerParameterStoreBackend.get_config should return None
+        """
+        secret_id = "airflow/config/hello"
+        create_param = {
+            "Name": secret_id,
+        }
+        param = {"SecretId": secret_id, "SecretString": "world"}
+
+        secrets_manager_backend = SecretsManagerBackend()
+        secrets_manager_backend.client.create_secret(**create_param)
+        secrets_manager_backend.client.put_secret_value(**param)
+
+        assert secrets_manager_backend.get_config("test") is None
+
     @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
     def test_connection_prefix_none_value(self, mock_get_secret):
         """
-        Test that if Variable key is not present in AWS Secrets Manager,
+        Test that if Connection ID is not present in AWS Secrets Manager,
         SecretsManagerBackend.get_conn_value should return None,
         SecretsManagerBackend._get_secret should not be called
         """
-        kwargs = {'connections_prefix': None}
+        kwargs = {"connections_prefix": None}
 
         secrets_manager_backend = SecretsManagerBackend(**kwargs)
 
         assert secrets_manager_backend.get_conn_value("test_mysql") is None
+        mock_get_secret.assert_not_called()
 
     @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
     def test_variable_prefix_none_value(self, mock_get_secret):
@@ -264,7 +262,7 @@ class TestSecretsManagerBackend:
         SecretsManagerBackend.get_variables should return None,
         SecretsManagerBackend._get_secret should not be called
         """
-        kwargs = {'variables_prefix': None}
+        kwargs = {"variables_prefix": None}
 
         secrets_manager_backend = SecretsManagerBackend(**kwargs)
 
@@ -274,16 +272,95 @@ class TestSecretsManagerBackend:
     @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend._get_secret")
     def test_config_prefix_none_value(self, mock_get_secret):
         """
-        Test that if Variable key is not present in AWS Secrets Manager,
+        Test that if Config key is not present in AWS Secrets Manager,
         SecretsManagerBackend.get_config should return None,
         SecretsManagerBackend._get_secret should not be called
         """
-        kwargs = {'config_prefix': None}
+        kwargs = {"config_prefix": None}
 
         secrets_manager_backend = SecretsManagerBackend(**kwargs)
 
         assert secrets_manager_backend.get_config("config") is None
         mock_get_secret.assert_not_called()
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend.client",
+        new_callable=mock.PropertyMock,
+    )
+    @pytest.mark.parametrize(
+        "connection_id, connections_lookup_pattern, num_client_calls",
+        [
+            ("test", "test", 1),
+            ("test", ".*", 1),
+            ("test", "T.*", 1),
+            ("test", "dummy-pattern", 0),
+            ("test", None, 1),
+        ],
+    )
+    def test_connection_lookup_pattern(
+        self, mock_client, connection_id, connections_lookup_pattern, num_client_calls
+    ):
+        """
+        Test that if Connection ID is looked up in AWS Secrets Manager
+        """
+        mock_client().get_secret_value.return_value = {"SecretString": None}
+        kwargs = {"connections_lookup_pattern": connections_lookup_pattern}
+
+        secrets_manager_backend = SecretsManagerBackend(**kwargs)
+        secrets_manager_backend.get_conn_value(connection_id)
+        assert mock_client().get_secret_value.call_count == num_client_calls
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend.client",
+        new_callable=mock.PropertyMock,
+    )
+    @pytest.mark.parametrize(
+        "variable_key, variables_lookup_pattern, num_client_calls",
+        [
+            ("test", "test", 1),
+            ("test", ".*", 1),
+            ("test", "T.*", 1),
+            ("test", "dummy-pattern", 0),
+            ("test", None, 1),
+        ],
+    )
+    def test_variable_lookup_pattern(
+        self, mock_client, variable_key, variables_lookup_pattern, num_client_calls
+    ):
+        """
+        Test that if Variable key is looked up in AWS Secrets Manager
+        """
+        mock_client().get_secret_value.return_value = {"SecretString": None}
+        kwargs = {"variables_lookup_pattern": variables_lookup_pattern}
+
+        secrets_manager_backend = SecretsManagerBackend(**kwargs)
+        secrets_manager_backend.get_variable(variable_key)
+        assert mock_client().get_secret_value.call_count == num_client_calls
+
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend.client",
+        new_callable=mock.PropertyMock,
+    )
+    @pytest.mark.parametrize(
+        "config_key, config_lookup_pattern, num_client_calls",
+        [
+            ("test", "test", 1),
+            ("test", ".*", 1),
+            ("test", "T.*", 1),
+            ("test", "dummy-pattern", 0),
+            ("test", None, 1),
+        ],
+    )
+    def test_config_lookup_pattern(self, mock_client, config_key, config_lookup_pattern, num_client_calls):
+        """
+        Test that if Variable key is looked up in AWS Secrets Manager
+        """
+        mock_client().get_secret_value.return_value = {"SecretString": None}
+        kwargs = {"config_lookup_pattern": config_lookup_pattern}
+
+        secrets_manager_backend = SecretsManagerBackend(**kwargs)
+        secrets_manager_backend.get_config(config_key)
+        assert mock_client().get_secret_value.call_count == num_client_calls
 
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.SessionFactory")
     def test_passing_client_kwargs(self, mock_session_factory):
@@ -310,5 +387,5 @@ class TestSecretsManagerBackend:
         assert conn_wrapper.region_name == "eu-central-1"
 
         mock_ssm_client.assert_called_once_with(
-            service_name='secretsmanager', region_name="eu-central-1", use_ssl=False
+            service_name="secretsmanager", region_name="eu-central-1", use_ssl=False
         )

@@ -34,9 +34,6 @@ class CloudSpeechToTextHook(GoogleBaseHook):
     Hook for Google Cloud Speech API.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -50,22 +47,25 @@ class CloudSpeechToTextHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None
+        self._client: SpeechClient | None = None
 
     def get_conn(self) -> SpeechClient:
         """
         Retrieves connection to Cloud Speech.
 
         :return: Google Cloud Speech client object.
-        :rtype: google.cloud.speech_v1.SpeechClient
         """
         if not self._client:
             self._client = SpeechClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
@@ -92,6 +92,11 @@ class CloudSpeechToTextHook(GoogleBaseHook):
             Note that if retry is specified, the timeout applies to each individual attempt.
         """
         client = self.get_conn()
+        if isinstance(config, dict):
+            config = RecognitionConfig(config)
+        if isinstance(audio, dict):
+            audio = RecognitionAudio(audio)
+
         response = client.recognize(config=config, audio=audio, retry=retry, timeout=timeout)
         self.log.info("Recognised speech: %s", response)
         return response

@@ -23,11 +23,10 @@ function copy_sources() {
     echo "==================================================================================="
     echo " Copying sources for provider packages"
     echo "==================================================================================="
-    pushd "${AIRFLOW_SOURCES}"
-    rm -rf "provider_packages/airflow"
-    cp -r airflow "provider_packages"
-    popd
-
+    mkdir -pv "${AIRFLOW_SOURCES}/provider_packages/airflow/"
+    rsync -avz --exclude '*node_modules*' --delete \
+        "${AIRFLOW_SOURCES}/airflow"  \
+        "${AIRFLOW_SOURCES}/provider_packages/"
     group_end
 }
 

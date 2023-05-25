@@ -17,19 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import boto3
 import pytest
 from moto import mock_datasync
 
-from airflow.exceptions import AirflowTaskTimeout
+from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
 
 
 @mock_datasync
-class TestDataSyncHook(unittest.TestCase):
+class TestDataSyncHook:
     def test_get_conn(self):
         hook = DataSyncHook(aws_conn_id="aws_default")
         assert hook.get_conn() is not None
@@ -50,21 +49,13 @@ class TestDataSyncHook(unittest.TestCase):
 
 @mock_datasync
 @mock.patch.object(DataSyncHook, "get_conn")
-class TestDataSyncHookMocked(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.source_server_hostname = "host"
-        self.source_subdirectory = "somewhere"
-        self.destination_bucket_name = "my_bucket"
-        self.destination_bucket_dir = "dir"
+class TestDataSyncHookMocked:
+    source_server_hostname = "host"
+    source_subdirectory = "somewhere"
+    destination_bucket_name = "my_bucket"
+    destination_bucket_dir = "dir"
 
-        self.client = None
-        self.hook = None
-        self.source_location_arn = None
-        self.destination_location_arn = None
-        self.task_arn = None
-
-    def setUp(self):
+    def setup_method(self, method):
         self.client = boto3.client("datasync", region_name="us-east-1")
         self.hook = DataSyncHook(aws_conn_id="aws_default", wait_interval_seconds=0)
 
@@ -86,7 +77,7 @@ class TestDataSyncHookMocked(unittest.TestCase):
             DestinationLocationArn=self.destination_location_arn,
         )["TaskArn"]
 
-    def tearDown(self):
+    def teardown_method(self, method):
         # Delete all tasks:
         tasks = self.client.list_tasks()
         for task in tasks["Tasks"]:
@@ -105,6 +96,38 @@ class TestDataSyncHookMocked(unittest.TestCase):
         assert not self.hook.locations
         assert not self.hook.tasks
         assert self.hook.wait_interval_seconds == 0
+
+    @pytest.mark.parametrize(
+        "location_uri, expected_method",
+        [
+            pytest.param("smb://spam/egg/", "create_location_smb", id="smb"),
+            pytest.param("s3://foo/bar", "create_location_s3", id="s3"),
+            pytest.param("nfs://server:2049/path", "create_location_nfs", id="nfs"),
+            pytest.param("efs://12345.efs.aws-region.amazonaws.com/path", "create_location_efs", id="efs"),
+        ],
+    )
+    def test_create_location_method_mapping(self, mock_get_conn, location_uri, expected_method):
+        """Test expected location URI and mapping with DataSync.Client methods."""
+        mock_get_conn.return_value = self.client
+        assert hasattr(self.client, expected_method), f"{self.client} doesn't have method {expected_method}"
+        with mock.patch.object(self.client, expected_method) as m:
+            self.hook.create_location(location_uri, foo="bar", spam="egg")
+            m.assert_called_once_with(foo="bar", spam="egg")
+
+    @pytest.mark.parametrize(
+        "location_uri",
+        [
+            pytest.param("hdfs://namenodehost1/path", id="hdfs"),
+            pytest.param("https://example.org/path", id="https"),
+            pytest.param("http://example.org/path", id="http"),
+            pytest.param("lustre://mount/path", id="lustre"),
+        ],
+    )
+    def test_create_location_unknown_type(self, mock_get_conn, location_uri):
+        """Test unsupported location URI."""
+        mock_get_conn.return_value = mock.MagicMock()
+        with pytest.raises(AirflowException, match="Invalid/Unsupported location type: .*"):
+            self.hook.create_location(location_uri, foo="bar", spam="egg")
 
     def test_create_location_smb(self, mock_get_conn):
         # ### Configure mock:

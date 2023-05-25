@@ -16,13 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 from airflow.providers.snowflake.transfers.copy_into_snowflake import CopyFromExternalStageToSnowflakeOperator
 
 
-class TestCopyFromExternalStageToSnowflake(unittest.TestCase):
+class TestCopyFromExternalStageToSnowflake:
     @mock.patch("airflow.providers.snowflake.transfers.copy_into_snowflake.SnowflakeHook")
     def test_execute(self, mock_hook):
         CopyFromExternalStageToSnowflakeOperator(
@@ -56,7 +55,7 @@ class TestCopyFromExternalStageToSnowflake(unittest.TestCase):
         sql = """
         COPY INTO schema.table(col1, col2)
              FROM  @stage/prefix
-        FILES='file1.csv','file2.csv'
+        FILES=('file1.csv','file2.csv')
         PATTERN='*.csv'
         FILE_FORMAT=CSV
         copy_options

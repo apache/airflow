@@ -19,7 +19,6 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
-from parameterized import parameterized
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.errors import ImportError
@@ -78,7 +77,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         session.commit()
 
         response = self.client.get(
-            f"/api/v1/importErrors/{import_error.id}", environ_overrides={'REMOTE_USER': "test"}
+            f"/api/v1/importErrors/{import_error.id}", environ_overrides={"REMOTE_USER": "test"}
         )
 
         assert response.status_code == 200
@@ -92,7 +91,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         } == response_data
 
     def test_response_404(self):
-        response = self.client.get("/api/v1/importErrors/2", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/importErrors/2", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
         assert {
             "detail": "The ImportError with import_error_id: `2` was not found",
@@ -116,7 +115,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
 
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
-            "/api/v1/importErrors", environ_overrides={'REMOTE_USER': "test_no_permissions"}
+            "/api/v1/importErrors", environ_overrides={"REMOTE_USER": "test_no_permissions"}
         )
         assert response.status_code == 403
 
@@ -134,11 +133,11 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         session.add_all(import_error)
         session.commit()
 
-        response = self.client.get("/api/v1/importErrors", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/importErrors", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
         response_data = response.json
-        self._normalize_import_errors(response_data['import_errors'])
+        self._normalize_import_errors(response_data["import_errors"])
         assert {
             "import_errors": [
                 {
@@ -170,12 +169,12 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         session.commit()
 
         response = self.client.get(
-            "/api/v1/importErrors?order_by=-timestamp", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/importErrors?order_by=-timestamp", environ_overrides={"REMOTE_USER": "test"}
         )
 
         assert response.status_code == 200
         response_data = response.json
-        self._normalize_import_errors(response_data['import_errors'])
+        self._normalize_import_errors(response_data["import_errors"])
         assert {
             "import_errors": [
                 {
@@ -207,12 +206,12 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
         session.commit()
 
         response = self.client.get(
-            "/api/v1/importErrors?order_by=timest", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/importErrors?order_by=timest", environ_overrides={"REMOTE_USER": "test"}
         )
 
         assert response.status_code == 400
         msg = "Ordering with 'timest' is disallowed or the attribute does not exist on the model"
-        assert response.json['detail'] == msg
+        assert response.json["detail"] == msg
 
     def test_should_raises_401_unauthenticated(self, session):
         import_error = [
@@ -232,7 +231,8 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
 
 
 class TestGetImportErrorsEndpointPagination(TestBaseImportError):
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "url, expected_import_error_ids",
         [
             # Limit test data
             ("/api/v1/importErrors?limit=1", ["/tmp/file_1.py"]),
@@ -242,7 +242,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
             ("/api/v1/importErrors?offset=3", [f"/tmp/file_{i}.py" for i in range(4, 104)]),
             # Limit and offset test data
             ("/api/v1/importErrors?offset=3&limit=3", [f"/tmp/file_{i}.py" for i in [4, 5, 6]]),
-        ]
+        ],
     )
     @provide_session
     def test_limit_and_offset(self, url, expected_import_error_ids, session):
@@ -257,7 +257,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         session.add_all(import_errors)
         session.commit()
 
-        response = self.client.get(url, environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
         import_ids = [pool["filename"] for pool in response.json["import_errors"]]
@@ -274,9 +274,9 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         ]
         session.add_all(import_errors)
         session.commit()
-        response = self.client.get("/api/v1/importErrors", environ_overrides={'REMOTE_USER': "test"})
+        response = self.client.get("/api/v1/importErrors", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
-        assert len(response.json['import_errors']) == 100
+        assert len(response.json["import_errors"]) == 100
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
@@ -291,7 +291,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
         session.add_all(import_errors)
         session.commit()
         response = self.client.get(
-            "/api/v1/importErrors?limit=180", environ_overrides={'REMOTE_USER': "test"}
+            "/api/v1/importErrors?limit=180", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
-        assert len(response.json['import_errors']) == 150
+        assert len(response.json["import_errors"]) == 150

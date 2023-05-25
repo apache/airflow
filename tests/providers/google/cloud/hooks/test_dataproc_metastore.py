@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
@@ -59,8 +60,12 @@ BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 DATAPROC_METASTORE_STRING = "airflow.providers.google.cloud.hooks.dataproc_metastore.{}"
 
 
-class TestDataprocMetastoreWithDefaultProjectIdHook(TestCase):
-    def setUp(self):
+class TestDataprocMetastoreWithDefaultProjectIdHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            DataprocMetastoreHook(gcp_conn_id=TEST_GCP_CONN_ID, delegate_to="delegate_to")
+
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
@@ -293,8 +298,8 @@ class TestDataprocMetastoreWithDefaultProjectIdHook(TestCase):
         )
 
 
-class TestDataprocMetastoreWithoutDefaultProjectIdHook(TestCase):
-    def setUp(self):
+class TestDataprocMetastoreWithoutDefaultProjectIdHook:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
         ):

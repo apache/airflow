@@ -36,7 +36,7 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
+    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-22.04' }}
     outputs:
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
       allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
@@ -53,33 +53,30 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          # We do not have output from selective checks yet, so we need to hardcode python
-          python-version: 3.7
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Selective checks
         id: selective-checks
-        run: breeze ci selective-check
+        env:
+          VERBOSE: "false"
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
   release-images:
     timeout-minutes: 120
     name: "Release images: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}"
-    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
+    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-22.04' }}
     needs: [build-info]
     strategy:
       fail-fast: false
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
     env:
-      RUNS_ON: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
+      RUNS_ON: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-22.04' }}
     if: contains(fromJSON('[
       "ashb",
       "ephraimbuddy",
       "jedcunningham",
       "kaxil",
+      "pierrejeambrun",
       "potiuk",
       ]'), github.event.sender.login)
     steps:
@@ -89,15 +86,8 @@ jobs:
         uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
-      - run: ./scripts/ci/install_breeze.sh
-      - name: "Free space"
-        run: breeze ci free-space
+      - name: "Install Breeze"
+        uses: ./.github/actions/breeze
       - name: Build CI image for PROD build ${{ needs.build-info.outputs.defaultPythonVersion }}
         run: breeze ci-image build
         env:

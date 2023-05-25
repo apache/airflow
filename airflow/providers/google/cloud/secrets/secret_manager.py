@@ -23,7 +23,7 @@ import warnings
 
 from google.auth.exceptions import DefaultCredentialsError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.secrets import BaseSecretsBackend
@@ -36,8 +36,8 @@ SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
 
 
 def _parse_version(val):
-    val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
-    return tuple(int(x) for x in val.split('.'))
+    val = re.sub(r"(\d+\.\d+\.\d+).*", lambda x: x.group(1), val)
+    return tuple(int(x) for x in val.split("."))
 
 
 class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
@@ -107,9 +107,9 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
             )
         except (DefaultCredentialsError, FileNotFoundError):
             log.exception(
-                'Unable to load credentials for GCP Secret Manager. '
-                'Make sure that the keyfile path, dictionary, or GOOGLE_APPLICATION_CREDENTIALS '
-                'environment variable is correct and properly configured.'
+                "Unable to load credentials for GCP Secret Manager. "
+                "Make sure that the keyfile path, dictionary, or GOOGLE_APPLICATION_CREDENTIALS "
+                "environment variable is correct and properly configured."
             )
 
         # In case project id provided
@@ -153,7 +153,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
             warnings.warn(
                 f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
                 "in a future release.  Please use method `get_conn_value` instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         return self.get_conn_value(conn_id)

@@ -38,7 +38,8 @@ a file format (see `docs <https://docs.snowflake.com/en/sql-reference/sql/create
 
 An example usage of the S3ToSnowflakeOperator is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/snowflake/example_snowflake.py
+.. exampleinclude:: /../../tests/system/providers/snowflake/example_s3_to_snowflake.py
     :language: python
     :start-after: [START howto_operator_s3_to_snowflake]
     :end-before: [END howto_operator_s3_to_snowflake]
+    :dedent: 4

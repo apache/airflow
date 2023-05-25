@@ -41,13 +41,14 @@ def check_authentication() -> None:
 def requires_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
     """Factory for decorator that checks current user's permissions against required permissions."""
     appbuilder = get_airflow_app().appbuilder
-    appbuilder.sm.sync_resource_permissions(permissions)
+    if appbuilder.update_perms:
+        appbuilder.sm.sync_resource_permissions(permissions)
 
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):
             check_authentication()
-            if appbuilder.sm.check_authorization(permissions, kwargs.get('dag_id')):
+            if appbuilder.sm.check_authorization(permissions, kwargs.get("dag_id")):
                 return func(*args, **kwargs)
             raise PermissionDenied()
 

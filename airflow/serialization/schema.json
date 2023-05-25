@@ -215,6 +215,7 @@
         "trigger_rule": { "type": "string" },
         "depends_on_past": { "type": "boolean" },
         "ignore_first_depends_on_past": { "type": "boolean" },
+        "wait_for_past_depends_before_skipping": { "type": "boolean" },
         "wait_for_downstream": { "type": "boolean" },
         "retries": { "type": "number" },
         "queue": { "type": "string" },
@@ -280,6 +281,7 @@
       ],
       "properties": {
         "_group_id": {"anyOf": [{"type": "null"}, { "type": "string" }]},
+        "is_mapped": { "type": "boolean" },
         "prefix_group_id": { "type": "boolean" },
         "children":  { "$ref": "#/definitions/dict" },
         "tooltip": { "type": "string" },

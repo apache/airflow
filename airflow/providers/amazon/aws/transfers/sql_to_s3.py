@@ -22,8 +22,6 @@ from collections import namedtuple
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
-import numpy as np
-import pandas as pd
 from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException
@@ -33,6 +31,8 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
+    from pandas import DataFrame
+
     from airflow.utils.context import Context
 
 
@@ -44,12 +44,12 @@ class FILE_FORMAT(enum.Enum):
     PARQUET = enum.auto()
 
 
-FileOptions = namedtuple('FileOptions', ['mode', 'suffix', 'function'])
+FileOptions = namedtuple("FileOptions", ["mode", "suffix", "function"])
 
 FILE_OPTIONS_MAP = {
-    FILE_FORMAT.CSV: FileOptions('r+', '.csv', 'to_csv'),
-    FILE_FORMAT.JSON: FileOptions('r+', '.json', 'to_json'),
-    FILE_FORMAT.PARQUET: FileOptions('rb+', '.parquet', 'to_parquet'),
+    FILE_FORMAT.CSV: FileOptions("r+", ".csv", "to_csv"),
+    FILE_FORMAT.JSON: FileOptions("r+", ".json", "to_json"),
+    FILE_FORMAT.PARQUET: FileOptions("rb+", ".parquet", "to_parquet"),
 }
 
 
@@ -80,14 +80,16 @@ class SqlToS3Operator(BaseOperator):
                 CA cert bundle than the one used by botocore.
     :param file_format: the destination file format, only string 'csv', 'json' or 'parquet' is accepted.
     :param pd_kwargs: arguments to include in DataFrame ``.to_parquet()``, ``.to_json()`` or ``.to_csv()``.
+    :param groupby_kwargs: argument to include in DataFrame ``groupby()``.
     """
 
     template_fields: Sequence[str] = (
-        's3_bucket',
-        's3_key',
-        'query',
+        "s3_bucket",
+        "s3_key",
+        "query",
+        "sql_conn_id",
     )
-    template_ext: Sequence[str] = ('.sql',)
+    template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
         "query": "sql",
         "pd_kwargs": "json",
@@ -102,10 +104,11 @@ class SqlToS3Operator(BaseOperator):
         sql_conn_id: str,
         parameters: None | Mapping | Iterable = None,
         replace: bool = False,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         verify: bool | str | None = None,
-        file_format: Literal['csv', 'json', 'parquet'] = 'csv',
+        file_format: Literal["csv", "json", "parquet"] = "csv",
         pd_kwargs: dict | None = None,
+        groupby_kwargs: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -118,9 +121,10 @@ class SqlToS3Operator(BaseOperator):
         self.replace = replace
         self.pd_kwargs = pd_kwargs or {}
         self.parameters = parameters
+        self.groupby_kwargs = groupby_kwargs or {}
 
         if "path_or_buf" in self.pd_kwargs:
-            raise AirflowException('The argument path_or_buf is not allowed, please remove it')
+            raise AirflowException("The argument path_or_buf is not allowed, please remove it")
 
         try:
             self.file_format = FILE_FORMAT[file_format.upper()]
@@ -128,14 +132,22 @@ class SqlToS3Operator(BaseOperator):
             raise AirflowException(f"The argument file_format doesn't support {file_format} value.")
 
     @staticmethod
-    def _fix_dtypes(df: pd.DataFrame, file_format: FILE_FORMAT) -> None:
+    def _fix_dtypes(df: DataFrame, file_format: FILE_FORMAT) -> None:
         """
         Mutate DataFrame to set dtypes for float columns containing NaN values.
         Set dtype of object to str to allow for downstream transformations.
         """
+        try:
+            import numpy as np
+            from pandas import Float64Dtype, Int64Dtype
+        except ImportError as e:
+            from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+            raise AirflowOptionalProviderFeatureException(e)
+
         for col in df:
 
-            if df[col].dtype.name == 'object' and file_format == 'parquet':
+            if df[col].dtype.name == "object" and file_format == "parquet":
                 # if the type wasn't identified or converted, change it to a string so if can still be
                 # processed.
                 df[col] = df[col].astype(str)
@@ -146,11 +158,11 @@ class SqlToS3Operator(BaseOperator):
                 if np.equal(notna_series, notna_series.astype(int)).all():
                     # set to dtype that retains integers and supports NaNs
                     df[col] = np.where(df[col].isnull(), None, df[col])
-                    df[col] = df[col].astype(pd.Int64Dtype())
+                    df[col] = df[col].astype(Int64Dtype())
                 elif np.isclose(notna_series, notna_series.astype(int)).all():
                     # set to float dtype that retains floats and supports NaNs
                     df[col] = np.where(df[col].isnull(), None, df[col])
-                    df[col] = df[col].astype(pd.Float64Dtype())
+                    df[col] = df[col].astype(Float64Dtype())
 
     def execute(self, context: Context) -> None:
         sql_hook = self._get_hook()
@@ -161,21 +173,32 @@ class SqlToS3Operator(BaseOperator):
         self._fix_dtypes(data_df, self.file_format)
         file_options = FILE_OPTIONS_MAP[self.file_format]
 
-        with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
+        for group_name, df in self._partition_dataframe(df=data_df):
+            with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
 
-            self.log.info("Writing data to temp file")
-            getattr(data_df, file_options.function)(tmp_file.name, **self.pd_kwargs)
+                self.log.info("Writing data to temp file")
+                getattr(df, file_options.function)(tmp_file.name, **self.pd_kwargs)
 
-            self.log.info("Uploading data to S3")
-            s3_conn.load_file(
-                filename=tmp_file.name, key=self.s3_key, bucket_name=self.s3_bucket, replace=self.replace
-            )
+                self.log.info("Uploading data to S3")
+                object_key = f"{self.s3_key}_{group_name}" if group_name else self.s3_key
+                s3_conn.load_file(
+                    filename=tmp_file.name, key=object_key, bucket_name=self.s3_bucket, replace=self.replace
+                )
+
+    def _partition_dataframe(self, df: DataFrame) -> Iterable[tuple[str, DataFrame]]:
+        """Partition dataframe using pandas groupby() method"""
+        if not self.groupby_kwargs:
+            yield "", df
+        else:
+            grouped_df = df.groupby(**self.groupby_kwargs)
+            for group_label in grouped_df.groups.keys():
+                yield group_label, grouped_df.get_group(group_label).reset_index(drop=True)
 
     def _get_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
         conn = BaseHook.get_connection(self.sql_conn_id)
         hook = conn.get_hook()
-        if not callable(getattr(hook, 'get_pandas_df', None)):
+        if not callable(getattr(hook, "get_pandas_df", None)):
             raise AirflowException(
                 "This hook is not supported. The hook class must have get_pandas_df method."
             )

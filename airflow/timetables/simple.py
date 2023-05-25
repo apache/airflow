@@ -19,10 +19,11 @@ from __future__ import annotations
 import operator
 from typing import TYPE_CHECKING, Any, Collection
 
+from pendulum import DateTime
+
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 if TYPE_CHECKING:
-    from pendulum import DateTime
     from sqlalchemy import Session
 
     from airflow.models.dataset import DatasetEvent
@@ -108,6 +109,41 @@ class OnceTimetable(_TrivialTimetable):
         return DagRunInfo.exact(run_after)
 
 
+class ContinuousTimetable(_TrivialTimetable):
+    """Timetable that schedules continually, while still respecting start_date and end_date.
+
+    This corresponds to ``schedule="@continuous"``.
+    """
+
+    description: str = "As frequently as possible, but only one run at a time."
+
+    active_runs_limit = 1  # Continuous DAGRuns should be constrained to one run at a time
+
+    @property
+    def summary(self) -> str:
+        return "@continuous"
+
+    def next_dagrun_info(
+        self,
+        *,
+        last_automated_data_interval: DataInterval | None,
+        restriction: TimeRestriction,
+    ) -> DagRunInfo | None:
+        if restriction.earliest is None:  # No start date, won't run.
+            return None
+        if last_automated_data_interval is not None:  # has already run once
+            start = last_automated_data_interval.end
+            end = DateTime.utcnow()
+        else:  # first run
+            start = restriction.earliest
+            end = max(restriction.earliest, DateTime.utcnow())  # won't run any earlier than start_date
+
+        if restriction.latest is not None and end > restriction.latest:
+            return None
+
+        return DagRunInfo.interval(start, end)
+
+
 class DatasetTriggeredTimetable(NullTimetable):
     """Timetable that never schedules anything.
 
@@ -146,9 +182,9 @@ class DatasetTriggeredTimetable(NullTimetable):
             return DataInterval(logical_date, logical_date)
 
         start = min(
-            events, key=operator.attrgetter('source_dag_run.data_interval_start')
+            events, key=operator.attrgetter("source_dag_run.data_interval_start")
         ).source_dag_run.data_interval_start
         end = max(
-            events, key=operator.attrgetter('source_dag_run.data_interval_end')
+            events, key=operator.attrgetter("source_dag_run.data_interval_end")
         ).source_dag_run.data_interval_end
         return DataInterval(start, end)

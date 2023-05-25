@@ -51,7 +51,7 @@ Package apache-airflow-providers-apache-sqoop
 `Apache Sqoop <https://sqoop.apache.org/>`__
 
 
-Release: 3.0.0
+Release: 3.2.0
 
 Provider package
 ----------------
@@ -65,5 +65,16 @@ Installation
 You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-sqoop``
+
+Requirements
+------------
+
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.4.0``
+==================  ==================
 
 .. include:: ../../airflow/providers/apache/sqoop/CHANGELOG.rst

@@ -49,9 +49,9 @@ class TestDagCode:
 
     def _write_two_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
-        bash_dag = example_dags['example_bash_operator']
+        bash_dag = example_dags["example_bash_operator"]
         DagCode(bash_dag.fileloc).sync_to_db()
-        xcom_dag = example_dags['example_xcom']
+        xcom_dag = example_dags["example_xcom"]
         DagCode(xcom_dag.fileloc).sync_to_db()
         return [bash_dag, xcom_dag]
 
@@ -91,7 +91,7 @@ class TestDagCode:
 
         self._compare_example_dags(example_dags)
 
-    @patch.object(DagCode, 'dag_fileloc_hash')
+    @patch.object(DagCode, "dag_fileloc_hash")
     def test_detecting_duplicate_key(self, mock_hash):
         """Dag code detects duplicate key."""
         mock_hash.return_value = 0
@@ -114,7 +114,7 @@ class TestDagCode:
                 )
 
                 assert result.fileloc == dag.fileloc
-                with open_maybe_zipped(dag.fileloc, 'r') as source:
+                with open_maybe_zipped(dag.fileloc, "r") as source:
                     source_code = source.read()
                 assert result.source_code == source_code
 
@@ -123,20 +123,20 @@ class TestDagCode:
         Test that code can be retrieved from DB when you do not have access to Code file.
         Source Code should at least exist in one of DB or File.
         """
-        example_dag = make_example_dags(example_dags_module).get('example_bash_operator')
+        example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
         example_dag.sync_to_db()
 
         # Mock that there is no access to the Dag File
-        with patch('airflow.models.dagcode.open_maybe_zipped') as mock_open:
+        with patch("airflow.models.dagcode.open_maybe_zipped") as mock_open:
             mock_open.side_effect = FileNotFoundError
             dag_code = DagCode.get_code_by_fileloc(example_dag.fileloc)
 
-            for test_string in ['example_bash_operator', 'also_run_this', 'run_this_last']:
+            for test_string in ["example_bash_operator", "also_run_this", "run_this_last"]:
                 assert test_string in dag_code
 
     def test_db_code_updated_on_dag_file_change(self):
         """Test if DagCode is updated in DB when DAG file is changed"""
-        example_dag = make_example_dags(example_dags_module).get('example_bash_operator')
+        example_dag = make_example_dags(example_dags_module).get("example_bash_operator")
         example_dag.sync_to_db()
 
         with create_session() as session:
@@ -145,10 +145,10 @@ class TestDagCode:
             assert result.fileloc == example_dag.fileloc
             assert result.source_code is not None
 
-        with patch('airflow.models.dagcode.os.path.getmtime') as mock_mtime:
+        with patch("airflow.models.dagcode.os.path.getmtime") as mock_mtime:
             mock_mtime.return_value = (result.last_updated + timedelta(seconds=1)).timestamp()
 
-            with patch('airflow.models.dagcode.DagCode._get_code_from_file') as mock_code:
+            with patch("airflow.models.dagcode.DagCode._get_code_from_file") as mock_code:
                 mock_code.return_value = "# dummy code"
                 example_dag.sync_to_db()
 

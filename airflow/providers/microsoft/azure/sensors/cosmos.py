@@ -48,7 +48,7 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
         :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
     """
 
-    template_fields: Sequence[str] = ('database_name', 'collection_name', 'document_id')
+    template_fields: Sequence[str] = ("database_name", "collection_name", "document_id")
 
     def __init__(
         self,

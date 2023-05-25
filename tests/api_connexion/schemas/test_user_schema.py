@@ -38,7 +38,7 @@ def configured_app(minimal_app_for_api):
     )
     yield app
 
-    delete_role(app, 'TestRole')  # type:ignore
+    delete_role(app, "TestRole")  # type:ignore
 
 
 class TestUserBase:
@@ -74,17 +74,17 @@ class TestUserCollectionItemSchema(TestUserBase):
         deserialized_user = user_collection_item_schema.dump(user)
         # No user_id and password in dump
         assert deserialized_user == {
-            'created_on': DEFAULT_TIME,
-            'email': 'test@example.org',
-            'changed_on': DEFAULT_TIME,
-            'active': None,
-            'last_login': None,
-            'last_name': 'Bar',
-            'fail_login_count': None,
-            'first_name': 'Foo',
-            'username': 'test',
-            'login_count': None,
-            'roles': [{'name': 'TestRole'}],
+            "created_on": DEFAULT_TIME,
+            "email": "test@example.org",
+            "changed_on": DEFAULT_TIME,
+            "active": None,
+            "last_login": None,
+            "last_name": "Bar",
+            "fail_login_count": None,
+            "first_name": "Foo",
+            "username": "test",
+            "login_count": None,
+            "roles": [{"name": "TestRole"}],
         }
 
 
@@ -105,34 +105,34 @@ class TestUserSchema(TestUserBase):
         deserialized_user = user_schema.dump(user)
         # No user_id and password in dump
         assert deserialized_user == {
-            'roles': [],
-            'created_on': DEFAULT_TIME,
-            'email': 'test@example.org',
-            'changed_on': DEFAULT_TIME,
-            'active': None,
-            'last_login': None,
-            'last_name': 'Bar',
-            'fail_login_count': None,
-            'first_name': 'Foo',
-            'username': 'test',
-            'login_count': None,
+            "roles": [],
+            "created_on": DEFAULT_TIME,
+            "email": "test@example.org",
+            "changed_on": DEFAULT_TIME,
+            "active": None,
+            "last_login": None,
+            "last_name": "Bar",
+            "fail_login_count": None,
+            "first_name": "Foo",
+            "username": "test",
+            "login_count": None,
         }
 
     def test_deserialize_user(self):
         user_dump = {
-            'roles': [{'name': 'TestRole'}],
-            'email': 'test@example.org',
-            'last_name': 'Bar',
-            'first_name': 'Foo',
-            'username': 'test',
-            'password': 'test',  # loads password
+            "roles": [{"name": "TestRole"}],
+            "email": "test@example.org",
+            "last_name": "Bar",
+            "first_name": "Foo",
+            "username": "test",
+            "password": "test",  # loads password
         }
         result = user_schema.load(user_dump)
         assert result == {
-            'roles': [{'name': "TestRole"}],
-            'email': 'test@example.org',
-            'last_name': 'Bar',
-            'first_name': 'Foo',
-            'username': 'test',
-            'password': 'test',  # Password loaded
+            "roles": [{"name": "TestRole"}],
+            "email": "test@example.org",
+            "last_name": "Bar",
+            "first_name": "Foo",
+            "username": "test",
+            "password": "test",  # Password loaded
         }

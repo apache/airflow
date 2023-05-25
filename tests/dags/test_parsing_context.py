@@ -45,6 +45,6 @@ class DagWithParsingContext(EmptyOperator):
         self.log.info("Executed")
 
 
-dag1 = DAG(dag_id='test_parsing_context', start_date=datetime(2015, 1, 1))
+dag1 = DAG(dag_id="test_parsing_context", start_date=datetime(2015, 1, 1))
 
-dag1_task1 = DagWithParsingContext(task_id='task1', dag=dag1, owner='airflow')
+dag1_task1 = DagWithParsingContext(task_id="task1", dag=dag1, owner="airflow")

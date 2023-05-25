@@ -60,7 +60,7 @@ class AirflowDocsBuilder:
         """Is current documentation package versioned?"""
         # Disable versioning. This documentation does not apply to any released product and we can update
         # it as needed, i.e. with each new package of providers.
-        return self.package_name not in ('apache-airflow-providers', 'docker-stack')
+        return self.package_name not in ("apache-airflow-providers", "docker-stack")
 
     @property
     def _build_dir(self) -> str:
@@ -94,14 +94,14 @@ class AirflowDocsBuilder:
     def _current_version(self):
         if not self.is_versioned:
             raise Exception("This documentation package is not versioned")
-        if self.package_name == 'apache-airflow':
+        if self.package_name == "apache-airflow":
             from airflow.version import version as airflow_version
 
             return airflow_version
-        if self.package_name.startswith('apache-airflow-providers-'):
-            provider = next(p for p in ALL_PROVIDER_YAMLS if p['package-name'] == self.package_name)
-            return provider['versions'][0]
-        if self.package_name == 'helm-chart':
+        if self.package_name.startswith("apache-airflow-providers-"):
+            provider = next(p for p in ALL_PROVIDER_YAMLS if p["package-name"] == self.package_name)
+            return provider["versions"][0]
+        if self.package_name == "helm-chart":
             return chart_version()
         return Exception(f"Unsupported package: {self.package_name}")
 
@@ -153,16 +153,16 @@ class AirflowDocsBuilder:
         ]
 
         env = os.environ.copy()
-        env['AIRFLOW_PACKAGE_NAME'] = self.package_name
+        env["AIRFLOW_PACKAGE_NAME"] = self.package_name
         if self.for_production:
-            env['AIRFLOW_FOR_PRODUCTION'] = 'true'
+            env["AIRFLOW_FOR_PRODUCTION"] = "true"
         if verbose:
             console.print(
                 f"[info]{self.package_name:60}:[/] Executing cmd: ",
                 " ".join(shlex.quote(c) for c in build_cmd),
             )
             console.print(f"[info]{self.package_name:60}:[/] The output is hidden until an error occurs.")
-        with open(self.log_spelling_filename, "wt") as output:
+        with open(self.log_spelling_filename, "w") as output:
             completed_proc = run(
                 build_cmd,
                 cwd=self._src_dir,
@@ -228,9 +228,9 @@ class AirflowDocsBuilder:
             self._build_dir,  # path to output directory
         ]
         env = os.environ.copy()
-        env['AIRFLOW_PACKAGE_NAME'] = self.package_name
+        env["AIRFLOW_PACKAGE_NAME"] = self.package_name
         if self.for_production:
-            env['AIRFLOW_FOR_PRODUCTION'] = 'true'
+            env["AIRFLOW_FOR_PRODUCTION"] = "true"
         if verbose:
             console.print(
                 f"[info]{self.package_name:60}:[/] Executing cmd: ",
@@ -241,7 +241,7 @@ class AirflowDocsBuilder:
                 f"[info]{self.package_name:60}:[/] Running sphinx. "
                 f"The output is hidden until an error occurs."
             )
-        with open(self.log_build_filename, "wt") as output:
+        with open(self.log_build_filename, "w") as output:
             completed_proc = run(
                 build_cmd,
                 cwd=self._src_dir,
@@ -298,7 +298,7 @@ class AirflowDocsBuilder:
 
 def get_available_providers_packages():
     """Get list of all available providers packages to build."""
-    return [provider['package-name'] for provider in ALL_PROVIDER_YAMLS]
+    return [provider["package-name"] for provider in ALL_PROVIDER_YAMLS if not provider.get("suspended")]
 
 
 def get_available_packages():

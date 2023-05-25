@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.automl_v1beta1 import AutoMlClient
 
@@ -51,8 +51,12 @@ DATASET = {"dataset_id": "data"}
 MASK = {"field": "mask"}
 
 
-class TestAuoMLHook(unittest.TestCase):
-    def setUp(self) -> None:
+class TestAutoMLHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudAutoMLHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.automl.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,

@@ -17,25 +17,41 @@
 from __future__ import annotations
 
 import json
-import unittest
+import sys
 from copy import deepcopy
-from unittest import mock
 from unittest.mock import PropertyMock
 
 import httplib2
 import pytest
+from aiohttp import ClientResponse
+from aiohttp.helpers import TimerNoop
 from googleapiclient.errors import HttpError
+from yarl import URL
 
+from airflow import AirflowException
 from airflow.providers.google.cloud.hooks import mlengine as hook
+from airflow.providers.google.cloud.hooks.mlengine import MLEngineAsyncHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST,
     mock_base_gcp_hook_default_project_id,
 )
 
+if sys.version_info < (3, 8):
+    from asynctest import mock
+else:
+    from unittest import mock
 
-class TestMLEngineHook(unittest.TestCase):
-    def setUp(self) -> None:
-        super().setUp()
+pytest.mlengine_hook = MLEngineAsyncHook()
+pytest.PROJECT_ID = "test-project"
+pytest.JOB_ID = "test-job-id"
+
+
+class TestMLEngineHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            hook.MLEngineHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
+    def setup_method(self):
         self.hook = hook.MLEngineHook()
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook._authorize")
@@ -44,21 +60,21 @@ class TestMLEngineHook(unittest.TestCase):
         result = self.hook.get_conn()
 
         assert mock_build.return_value == result
-        mock_build.assert_called_with('ml', 'v1', http=mock_authorize.return_value, cache_discovery=False)
+        mock_build.assert_called_with("ml", "v1", http=mock_authorize.return_value, cache_discovery=False)
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_version(self, mock_get_conn):
-        project_id = 'test-project'
-        model_name = 'test-model'
-        version_name = 'test-version'
-        version = {'name': version_name, 'labels': {'other-label': 'test-value'}}
+        project_id = "test-project"
+        model_name = "test-model"
+        version_name = "test-version"
+        version = {"name": version_name, "labels": {"other-label": "test-value"}}
         version_with_airflow_version = {
-            'name': 'test-version',
-            'labels': {'other-label': 'test-value', 'airflow-version': hook._AIRFLOW_VERSION},
+            "name": "test-version",
+            "labels": {"other-label": "test-value", "airflow-version": hook._AIRFLOW_VERSION},
         }
-        operation_path = f'projects/{project_id}/operations/test-operation'
-        model_path = f'projects/{project_id}/models/{model_name}'
-        operation_done = {'name': operation_path, 'done': True}
+        operation_path = f"projects/{project_id}/operations/test-operation"
+        model_path = f"projects/{project_id}/models/{model_name}"
+        operation_done = {"name": operation_path, "done": True}
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -97,17 +113,17 @@ class TestMLEngineHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_version_with_labels(self, mock_get_conn):
-        project_id = 'test-project'
-        model_name = 'test-model'
-        version_name = 'test-version'
-        version = {'name': version_name}
+        project_id = "test-project"
+        model_name = "test-model"
+        version_name = "test-version"
+        version = {"name": version_name}
         version_with_airflow_version = {
-            'name': 'test-version',
-            'labels': {'airflow-version': hook._AIRFLOW_VERSION},
+            "name": "test-version",
+            "labels": {"airflow-version": hook._AIRFLOW_VERSION},
         }
-        operation_path = f'projects/{project_id}/operations/test-operation'
-        model_path = f'projects/{project_id}/models/{model_name}'
-        operation_done = {'name': operation_path, 'done': True}
+        operation_path = f"projects/{project_id}/operations/test-operation"
+        model_path = f"projects/{project_id}/models/{model_name}"
+        operation_done = {"name": operation_path, "done": True}
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -149,12 +165,12 @@ class TestMLEngineHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_set_default_version(self, mock_get_conn):
-        project_id = 'test-project'
-        model_name = 'test-model'
-        version_name = 'test-version'
-        operation_path = f'projects/{project_id}/operations/test-operation'
-        version_path = f'projects/{project_id}/models/{model_name}/versions/{version_name}'
-        operation_done = {'name': operation_path, 'done': True}
+        project_id = "test-project"
+        model_name = "test-model"
+        version_name = "test-version"
+        operation_path = f"projects/{project_id}/operations/test-operation"
+        version_path = f"projects/{project_id}/models/{model_name}/versions/{version_name}"
+        operation_done = {"name": operation_path, "done": True}
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -182,18 +198,18 @@ class TestMLEngineHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_list_versions(self, mock_get_conn, mock_sleep):
-        project_id = 'test-project'
-        model_name = 'test-model'
-        model_path = f'projects/{project_id}/models/{model_name}'
-        version_names = [f'ver_{ix}' for ix in range(3)]
+        project_id = "test-project"
+        model_name = "test-model"
+        model_path = f"projects/{project_id}/models/{model_name}"
+        version_names = [f"ver_{ix}" for ix in range(3)]
         response_bodies = [
-            {'nextPageToken': f"TOKEN-{ix}", 'versions': [ver]} for ix, ver in enumerate(version_names)
+            {"nextPageToken": f"TOKEN-{ix}", "versions": [ver]} for ix, ver in enumerate(version_names)
         ]
-        response_bodies[-1].pop('nextPageToken')
+        response_bodies[-1].pop("nextPageToken")
 
-        pages_requests = [mock.Mock(**{'execute.return_value': body}) for body in response_bodies]
+        pages_requests = [mock.Mock(**{"execute.return_value": body}) for body in response_bodies]
         versions_mock = mock.Mock(
-            **{'list.return_value': pages_requests[0], 'list_next.side_effect': pages_requests[1:] + [None]}
+            **{"list.return_value": pages_requests[0], "list_next.side_effect": pages_requests[1:] + [None]}
         )
         # fmt: off
         (
@@ -225,14 +241,14 @@ class TestMLEngineHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_version(self, mock_get_conn):
-        project_id = 'test-project'
-        model_name = 'test-model'
-        version_name = 'test-version'
-        operation_path = f'projects/{project_id}/operations/test-operation'
-        version_path = f'projects/{project_id}/models/{model_name}/versions/{version_name}'
-        version = {'name': operation_path}
-        operation_not_done = {'name': operation_path, 'done': False}
-        operation_done = {'name': operation_path, 'done': True}
+        project_id = "test-project"
+        model_name = "test-model"
+        version_name = "test-version"
+        operation_path = f"projects/{project_id}/operations/test-operation"
+        version_path = f"projects/{project_id}/models/{model_name}/versions/{version_name}"
+        version = {"name": operation_path}
+        operation_not_done = {"name": operation_path, "done": False}
+        operation_done = {"name": operation_path, "done": True}
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -268,16 +284,16 @@ class TestMLEngineHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_model(self, mock_get_conn):
-        project_id = 'test-project'
-        model_name = 'test-model'
+        project_id = "test-project"
+        model_name = "test-model"
         model = {
-            'name': model_name,
+            "name": model_name,
         }
         model_with_airflow_version = {
-            'name': model_name,
-            'labels': {'airflow-version': hook._AIRFLOW_VERSION},
+            "name": model_name,
+            "labels": {"airflow-version": hook._AIRFLOW_VERSION},
         }
-        project_path = f'projects/{project_id}'
+        project_path = f"projects/{project_id}"
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -299,16 +315,16 @@ class TestMLEngineHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_model_idempotency(self, mock_get_conn):
-        project_id = 'test-project'
-        model_name = 'test-model'
+        project_id = "test-project"
+        model_name = "test-model"
         model = {
-            'name': model_name,
+            "name": model_name,
         }
         model_with_airflow_version = {
-            'name': model_name,
-            'labels': {'airflow-version': hook._AIRFLOW_VERSION},
+            "name": model_name,
+            "labels": {"airflow-version": hook._AIRFLOW_VERSION},
         }
-        project_path = f'projects/{project_id}'
+        project_path = f"projects/{project_id}"
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -361,21 +377,21 @@ class TestMLEngineHook(unittest.TestCase):
         )
         mock_get_conn.assert_has_calls(
             [
-                mock.call().projects().models().get(name='projects/test-project/models/test-model'),
+                mock.call().projects().models().get(name="projects/test-project/models/test-model"),
                 mock.call().projects().models().get().execute(num_retries=5),
             ]
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_model_with_labels(self, mock_get_conn):
-        project_id = 'test-project'
-        model_name = 'test-model'
-        model = {'name': model_name, 'labels': {'other-label': 'test-value'}}
+        project_id = "test-project"
+        model_name = "test-model"
+        model = {"name": model_name, "labels": {"other-label": "test-value"}}
         model_with_airflow_version = {
-            'name': model_name,
-            'labels': {'other-label': 'test-value', 'airflow-version': hook._AIRFLOW_VERSION},
+            "name": model_name,
+            "labels": {"other-label": "test-value", "airflow-version": hook._AIRFLOW_VERSION},
         }
-        project_path = f'projects/{project_id}'
+        project_path = f"projects/{project_id}"
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -399,10 +415,10 @@ class TestMLEngineHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_get_model(self, mock_get_conn):
-        project_id = 'test-project'
-        model_name = 'test-model'
-        model = {'model': model_name}
-        model_path = f'projects/{project_id}/models/{model_name}'
+        project_id = "test-project"
+        model_name = "test-model"
+        model = {"model": model_name}
+        model_path = f"projects/{project_id}/models/{model_name}"
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -424,10 +440,10 @@ class TestMLEngineHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_model(self, mock_get_conn):
-        project_id = 'test-project'
-        model_name = 'test-model'
-        model = {'model': model_name}
-        model_path = f'projects/{project_id}/models/{model_name}'
+        project_id = "test-project"
+        model_name = "test-model"
+        model = {"model": model_name}
+        model_path = f"projects/{project_id}/models/{model_name}"
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -449,11 +465,11 @@ class TestMLEngineHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.log")
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_model_when_not_exists(self, mock_get_conn, mock_log):
-        project_id = 'test-project'
-        model_name = 'test-model'
-        model_path = f'projects/{project_id}/models/{model_name}'
+        project_id = "test-project"
+        model_name = "test-model"
+        model_path = f"projects/{project_id}/models/{model_name}"
         http_error = HttpError(
-            resp=mock.MagicMock(status=404, reason="Model not found."), content=b'Model not found.'
+            resp=mock.MagicMock(status=404, reason="Model not found."), content=b"Model not found."
         )
         # fmt: off
         (
@@ -472,20 +488,20 @@ class TestMLEngineHook(unittest.TestCase):
                 mock.call().projects().models().delete().execute(num_retries=5),
             ]
         )
-        mock_log.error.assert_called_once_with('Model was not found: %s', http_error)
+        mock_log.error.assert_called_once_with("Model was not found: %s", http_error)
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_model_with_contents(self, mock_get_conn, mock_sleep):
-        project_id = 'test-project'
-        model_name = 'test-model'
-        model_path = f'projects/{project_id}/models/{model_name}'
-        operation_path = f'projects/{project_id}/operations/test-operation'
-        operation_done = {'name': operation_path, 'done': True}
+        project_id = "test-project"
+        model_name = "test-model"
+        model_path = f"projects/{project_id}/models/{model_name}"
+        operation_path = f"projects/{project_id}/operations/test-operation"
+        operation_done = {"name": operation_path, "done": True}
         version_names = ["AAA", "BBB", "CCC"]
         versions = [
             {
-                'name': f'projects/{project_id}/models/{model_name}/versions/{version_name}',
+                "name": f"projects/{project_id}/models/{model_name}/versions/{version_name}",
                 "isDefault": i == 0,
             }
             for i, version_name in enumerate(version_names)
@@ -527,7 +543,7 @@ class TestMLEngineHook(unittest.TestCase):
                 .models()
                 .versions()
                 .delete(
-                    name=f'projects/{project_id}/models/{model_name}/versions/{version_name}',
+                    name=f"projects/{project_id}/models/{model_name}/versions/{version_name}",
                 )
                 for version_name in version_names
             ],
@@ -537,27 +553,27 @@ class TestMLEngineHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job(self, mock_get_conn, mock_sleep):
-        project_id = 'test-project'
-        job_id = 'test-job-id'
-        project_path = f'projects/{project_id}'
-        job_path = f'projects/{project_id}/jobs/{job_id}'
+        project_id = "test-project"
+        job_id = "test-job-id"
+        project_path = f"projects/{project_id}"
+        job_path = f"projects/{project_id}/jobs/{job_id}"
         new_job = {
-            'jobId': job_id,
-            'foo': 4815162342,
+            "jobId": job_id,
+            "foo": 4815162342,
         }
         new_job_with_airflow_version = {
-            'jobId': job_id,
-            'foo': 4815162342,
-            'labels': {'airflow-version': hook._AIRFLOW_VERSION},
+            "jobId": job_id,
+            "foo": 4815162342,
+            "labels": {"airflow-version": hook._AIRFLOW_VERSION},
         }
 
         job_succeeded = {
-            'jobId': job_id,
-            'state': 'SUCCEEDED',
+            "jobId": job_id,
+            "state": "SUCCEEDED",
         }
         job_queued = {
-            'jobId': job_id,
-            'state': 'QUEUED',
+            "jobId": job_id,
+            "state": "QUEUED",
         }
         # fmt: off
         (
@@ -590,24 +606,24 @@ class TestMLEngineHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job_with_labels(self, mock_get_conn, mock_sleep):
-        project_id = 'test-project'
-        job_id = 'test-job-id'
-        project_path = f'projects/{project_id}'
-        job_path = f'projects/{project_id}/jobs/{job_id}'
-        new_job = {'jobId': job_id, 'foo': 4815162342, 'labels': {'other-label': 'test-value'}}
+        project_id = "test-project"
+        job_id = "test-job-id"
+        project_path = f"projects/{project_id}"
+        job_path = f"projects/{project_id}/jobs/{job_id}"
+        new_job = {"jobId": job_id, "foo": 4815162342, "labels": {"other-label": "test-value"}}
         new_job_with_airflow_version = {
-            'jobId': job_id,
-            'foo': 4815162342,
-            'labels': {'other-label': 'test-value', 'airflow-version': hook._AIRFLOW_VERSION},
+            "jobId": job_id,
+            "foo": 4815162342,
+            "labels": {"other-label": "test-value", "airflow-version": hook._AIRFLOW_VERSION},
         }
 
         job_succeeded = {
-            'jobId': job_id,
-            'state': 'SUCCEEDED',
+            "jobId": job_id,
+            "state": "SUCCEEDED",
         }
         job_queued = {
-            'jobId': job_id,
-            'state': 'QUEUED',
+            "jobId": job_id,
+            "state": "QUEUED",
         }
         # fmt: off
         (
@@ -641,16 +657,16 @@ class TestMLEngineHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job_reuse_existing_job_by_default(self, mock_get_conn):
-        project_id = 'test-project'
-        job_id = 'test-job-id'
-        project_path = f'projects/{project_id}'
-        job_path = f'projects/{project_id}/jobs/{job_id}'
+        project_id = "test-project"
+        job_id = "test-job-id"
+        project_path = f"projects/{project_id}"
+        job_path = f"projects/{project_id}/jobs/{job_id}"
         job_succeeded = {
-            'jobId': job_id,
-            'foo': 4815162342,
-            'state': 'SUCCEEDED',
+            "jobId": job_id,
+            "foo": 4815162342,
+            "state": "SUCCEEDED",
         }
-        error_job_exists = HttpError(resp=mock.MagicMock(status=409), content=b'Job already exists')
+        error_job_exists = HttpError(resp=mock.MagicMock(status=409), content=b"Job already exists")
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -682,21 +698,21 @@ class TestMLEngineHook(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job_check_existing_job_failed(self, mock_get_conn):
-        project_id = 'test-project'
-        job_id = 'test-job-id'
+        project_id = "test-project"
+        job_id = "test-job-id"
         my_job = {
-            'jobId': job_id,
-            'foo': 4815162342,
-            'state': 'SUCCEEDED',
-            'someInput': {'input': 'someInput'},
+            "jobId": job_id,
+            "foo": 4815162342,
+            "state": "SUCCEEDED",
+            "someInput": {"input": "someInput"},
         }
         different_job = {
-            'jobId': job_id,
-            'foo': 4815162342,
-            'state': 'SUCCEEDED',
-            'someInput': {'input': 'someDifferentInput'},
+            "jobId": job_id,
+            "foo": 4815162342,
+            "state": "SUCCEEDED",
+            "someInput": {"input": "someDifferentInput"},
         }
-        error_job_exists = HttpError(resp=mock.MagicMock(status=409), content=b'Job already exists')
+        error_job_exists = HttpError(resp=mock.MagicMock(status=409), content=b"Job already exists")
 
         # fmt: off
         (
@@ -716,22 +732,22 @@ class TestMLEngineHook(unittest.TestCase):
 
         # fmt: on
         def check_input(existing_job):
-            return existing_job.get('someInput') == my_job['someInput']
+            return existing_job.get("someInput") == my_job["someInput"]
 
         with pytest.raises(HttpError):
             self.hook.create_job(project_id=project_id, job=my_job, use_existing_job_fn=check_input)
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job_check_existing_job_success(self, mock_get_conn):
-        project_id = 'test-project'
-        job_id = 'test-job-id'
+        project_id = "test-project"
+        job_id = "test-job-id"
         my_job = {
-            'jobId': job_id,
-            'foo': 4815162342,
-            'state': 'SUCCEEDED',
-            'someInput': {'input': 'someInput'},
+            "jobId": job_id,
+            "foo": 4815162342,
+            "state": "SUCCEEDED",
+            "someInput": {"input": "someInput"},
         }
-        error_job_exists = HttpError(resp=mock.MagicMock(status=409), content=b'Job already exists')
+        error_job_exists = HttpError(resp=mock.MagicMock(status=409), content=b"Job already exists")
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -750,7 +766,7 @@ class TestMLEngineHook(unittest.TestCase):
 
         # fmt: on
         def check_input(existing_job):
-            return existing_job.get('someInput') == my_job['someInput']
+            return existing_job.get("someInput") == my_job["someInput"]
 
         create_job_response = self.hook.create_job(
             project_id=project_id, job=my_job, use_existing_job_fn=check_input
@@ -761,8 +777,8 @@ class TestMLEngineHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_cancel_mlengine_job(self, mock_get_conn):
         project_id = "test-project"
-        job_id = 'test-job-id'
-        job_path = f'projects/{project_id}/jobs/{job_id}'
+        job_id = "test-job-id"
+        job_path = f"projects/{project_id}/jobs/{job_id}"
 
         job_cancelled = {}
         # fmt: off
@@ -788,10 +804,10 @@ class TestMLEngineHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_cancel_mlengine_job_nonexistent_job(self, mock_get_conn):
         project_id = "test-project"
-        job_id = 'test-job-id'
+        job_id = "test-job-id"
         job_cancelled = {}
 
-        error_job_does_not_exist = HttpError(resp=mock.MagicMock(status=404), content=b'Job does not exist')
+        error_job_does_not_exist = HttpError(resp=mock.MagicMock(status=404), content=b"Job does not exist")
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -814,12 +830,12 @@ class TestMLEngineHook(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_cancel_mlengine_job_completed_job(self, mock_get_conn):
         project_id = "test-project"
-        job_id = 'test-job-id'
-        job_path = f'projects/{project_id}/jobs/{job_id}'
+        job_id = "test-job-id"
+        job_path = f"projects/{project_id}/jobs/{job_id}"
         job_cancelled = {}
 
         error_job_already_completed = HttpError(
-            resp=mock.MagicMock(status=400), content=b'Job already completed'
+            resp=mock.MagicMock(status=400), content=b"Job already completed"
         )
         # fmt: off
         (
@@ -849,28 +865,27 @@ class TestMLEngineHook(unittest.TestCase):
         )
 
 
-class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
-    def setUp(self) -> None:
-        super().setUp()
+class TestMLEngineHookWithDefaultProjectId:
+    def setup_method(self):
         with mock.patch(
-            'airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.__init__',
+            "airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = hook.MLEngineHook()
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_version(self, mock_get_conn, mock_project_id):
-        model_name = 'test-model'
-        version_name = 'test-version'
-        version = {'name': version_name}
-        operation_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation'
-        model_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}'
-        operation_done = {'name': operation_path, 'done': True}
+        model_name = "test-model"
+        version_name = "test-version"
+        version = {"name": version_name}
+        operation_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation"
+        model_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}"
+        operation_done = {"name": operation_path, "done": True}
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -904,17 +919,17 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_set_default_version(self, mock_get_conn, mock_project_id):
-        model_name = 'test-model'
-        version_name = 'test-version'
-        operation_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation'
-        version_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}/versions/{version_name}'
-        operation_done = {'name': operation_path, 'done': True}
+        model_name = "test-model"
+        version_name = "test-version"
+        operation_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation"
+        version_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}/versions/{version_name}"
+        operation_done = {"name": operation_path, "done": True}
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -941,24 +956,24 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_list_versions(self, mock_get_conn, mock_sleep, mock_project_id):
-        model_name = 'test-model'
-        model_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}'
-        version_names = [f'ver_{ix}' for ix in range(3)]
+        model_name = "test-model"
+        model_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}"
+        version_names = [f"ver_{ix}" for ix in range(3)]
         response_bodies = [
-            {'nextPageToken': f"TOKEN-{ix}", 'versions': [ver]} for ix, ver in enumerate(version_names)
+            {"nextPageToken": f"TOKEN-{ix}", "versions": [ver]} for ix, ver in enumerate(version_names)
         ]
-        response_bodies[-1].pop('nextPageToken')
+        response_bodies[-1].pop("nextPageToken")
 
-        pages_requests = [mock.Mock(**{'execute.return_value': body}) for body in response_bodies]
+        pages_requests = [mock.Mock(**{"execute.return_value": body}) for body in response_bodies]
         versions_mock = mock.Mock(
-            **{'list.return_value': pages_requests[0], 'list_next.side_effect': pages_requests[1:] + [None]}
+            **{"list.return_value": pages_requests[0], "list_next.side_effect": pages_requests[1:] + [None]}
         )
         # fmt: off
         (
@@ -990,14 +1005,14 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_version(self, mock_get_conn, mock_project_id):
-        model_name = 'test-model'
-        version_name = 'test-version'
+        model_name = "test-model"
+        version_name = "test-version"
         # fmt: off
         operation_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/operations/test-operation'
         version_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}/versions/{version_name}'
@@ -1038,17 +1053,17 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_model(self, mock_get_conn, mock_project_id):
-        model_name = 'test-model'
+        model_name = "test-model"
         model = {
-            'name': model_name,
+            "name": model_name,
         }
-        project_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}'
+        project_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}"
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -1069,15 +1084,15 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_get_model(self, mock_get_conn, mock_project_id):
-        model_name = 'test-model'
-        model = {'model': model_name}
-        model_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}'
+        model_name = "test-model"
+        model = {"model": model_name}
+        model_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}"
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -1100,15 +1115,15 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_delete_model(self, mock_get_conn, mock_project_id):
-        model_name = 'test-model'
-        model = {'model': model_name}
-        model_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}'
+        model_name = "test-model"
+        model = {"model": model_name}
+        model_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/models/{model_name}"
         # fmt: off
         (
             mock_get_conn.return_value.
@@ -1128,27 +1143,27 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_create_mlengine_job(self, mock_get_conn, mock_sleep, mock_project_id):
-        job_id = 'test-job-id'
-        project_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}'
-        job_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/jobs/{job_id}'
+        job_id = "test-job-id"
+        project_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}"
+        job_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/jobs/{job_id}"
         new_job = {
-            'jobId': job_id,
-            'foo': 4815162342,
+            "jobId": job_id,
+            "foo": 4815162342,
         }
         job_succeeded = {
-            'jobId': job_id,
-            'state': 'SUCCEEDED',
+            "jobId": job_id,
+            "state": "SUCCEEDED",
         }
         job_queued = {
-            'jobId': job_id,
-            'state': 'QUEUED',
+            "jobId": job_id,
+            "state": "QUEUED",
         }
         # fmt: off
         (
@@ -1179,14 +1194,14 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")
     def test_cancel_mlengine_job(self, mock_get_conn, mock_project_id):
-        job_id = 'test-job-id'
-        job_path = f'projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/jobs/{job_id}'
+        job_id = "test-job-id"
+        job_path = f"projects/{GCP_PROJECT_ID_HOOK_UNIT_TEST}/jobs/{job_id}"
 
         job_cancelled = {}
         # fmt: off
@@ -1208,3 +1223,110 @@ class TestMLEngineHookWithDefaultProjectId(unittest.TestCase):
             ],
             any_order=True,
         )
+
+
+def session():
+    return mock.Mock()
+
+
+@pytest.mark.asyncio
+@mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineAsyncHook._get_link")
+async def test_async_get_job_should_execute_successfully(mocked_link):
+    await pytest.mlengine_hook.get_job(project_id=pytest.PROJECT_ID, job_id=pytest.JOB_ID, session=session)
+    mocked_link.assert_awaited_once_with(
+        url=f"https://ml.googleapis.com/v1/projects/{pytest.PROJECT_ID}/jobs/{pytest.JOB_ID}", session=session
+    )
+
+
+@pytest.mark.asyncio
+async def test_async_get_job_should_fail_if_no_job_id():
+    with pytest.raises(
+        AirflowException, match=r"An unique job id is required for Google MLEngine training job."
+    ):
+        await pytest.mlengine_hook.get_job(project_id=pytest.PROJECT_ID, job_id=None, session=session)
+
+
+@pytest.mark.asyncio
+async def test_async_get_job_should_fail_if_no_project_id():
+    with pytest.raises(AirflowException, match=r"Google Cloud project id is required."):
+        await pytest.mlengine_hook.get_job(project_id=None, job_id=pytest.JOB_ID, session=session)
+
+
+@pytest.mark.asyncio
+@mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineAsyncHook.get_job")
+async def test_async_get_job_status_should_execute_successfully(mocked_get):
+    mocked_get.return_value = ClientResponse(
+        "get",
+        URL(f"https://ml.googleapis.com/v1/projects/{pytest.PROJECT_ID}/jobs/{pytest.JOB_ID}"),
+        request_info=mock.Mock(),
+        writer=mock.Mock(),
+        continue100=None,
+        timer=TimerNoop(),
+        traces=[],
+        loop=mock.Mock(),
+        session=session,
+    )
+    mocked_get.return_value._headers = {"Content-Type": "application/json;charset=cp1251"}
+    mocked_get.return_value._body = b'{"state": "SUCCEEDED"}'
+
+    job_status = await pytest.mlengine_hook.get_job_status(job_id=pytest.JOB_ID, project_id=pytest.PROJECT_ID)
+    mocked_get.assert_awaited_once()
+    assert job_status == "success"
+
+
+@pytest.mark.asyncio
+@mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineAsyncHook.get_job")
+async def test_async_get_job_status_still_running_should_execute_successfully(mocked_get):
+    """Assets that the MLEngineAsyncHook returns a pending response when job is still in running state"""
+    mocked_get.return_value = ClientResponse(
+        "get",
+        URL(f"https://ml.googleapis.com/v1/projects/{pytest.PROJECT_ID}/jobs/{pytest.JOB_ID}"),
+        request_info=mock.Mock(),
+        writer=mock.Mock(),
+        continue100=None,
+        timer=TimerNoop(),
+        traces=[],
+        loop=mock.Mock(),
+        session=session,
+    )
+    mocked_get.return_value._headers = {"Content-Type": "application/json;charset=cp1251"}
+    mocked_get.return_value._body = b'{"state": "RUNNING"}'
+
+    job_status = await pytest.mlengine_hook.get_job_status(job_id=pytest.JOB_ID, project_id=pytest.PROJECT_ID)
+    mocked_get.assert_awaited_once()
+    assert job_status == "pending"
+
+
+@pytest.mark.asyncio
+@mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineAsyncHook.get_job")
+async def test_async_get_job_status_with_oserror_should_execute_successfully(mocked_get):
+    """Assets that the MLEngineAsyncHook returns a pending response when OSError is raised"""
+    mocked_get.side_effect = OSError()
+
+    job_status = await pytest.mlengine_hook.get_job_status(job_id=pytest.JOB_ID, project_id=pytest.PROJECT_ID)
+    mocked_get.assert_awaited_once()
+    assert job_status == "pending"
+
+
+@pytest.mark.asyncio
+@mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineAsyncHook.get_job")
+async def test_async_get_job_status_with_exception_should_execute_successfully(mocked_get, caplog):
+    """Assets that the logging is done correctly when MLEngineAsyncHook raises Exception"""
+    mocked_get.side_effect = Exception()
+
+    await pytest.mlengine_hook.get_job_status(job_id=pytest.JOB_ID, project_id=pytest.PROJECT_ID)
+    assert "Query execution finished with errors..." in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_async_get_job_status_should_fail_if_no_job_id():
+    with pytest.raises(
+        AirflowException, match=r"An unique job id is required for Google MLEngine training job."
+    ):
+        await pytest.mlengine_hook.get_job_status(project_id=pytest.PROJECT_ID, job_id=None)
+
+
+@pytest.mark.asyncio
+async def test_async_get_job_status_should_fail_if_no_project_id():
+    with pytest.raises(AirflowException, match=r"Google Cloud project id is required."):
+        await pytest.mlengine_hook.get_job_status(project_id=None, job_id=pytest.JOB_ID)

@@ -42,7 +42,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="22.2.2"
+            export AIRFLOW_PIP_VERSION="23.1.2"
         fi
     fi
 }
@@ -69,4 +69,16 @@ function common::show_pip_version_and_location() {
    echo "PATH=${PATH}"
    echo "pip on path: $(which pip)"
    echo "Using pip: $(pip --version)"
+}
+
+function common::install_pip_version() {
+    echo
+    echo "${COLOR_BLUE}Installing pip version ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
+    echo
+    if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
+        pip install --disable-pip-version-check --no-cache-dir "pip @ ${AIRFLOW_PIP_VERSION}"
+    else
+        pip install --disable-pip-version-check --no-cache-dir "pip==${AIRFLOW_PIP_VERSION}"
+    fi
+    mkdir -p "${HOME}/.local/bin"
 }

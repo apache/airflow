@@ -26,11 +26,11 @@ from airflow.operators.bash import BashOperator
 DEFAULT_DATE = datetime(2016, 1, 1)
 
 args = {
-    'owner': 'airflow',
-    'start_date': DEFAULT_DATE,
+    "owner": "airflow",
+    "start_date": DEFAULT_DATE,
 }
 
-dag = DAG(dag_id='test_no_impersonation', default_args=args)
+dag = DAG(dag_id="test_no_impersonation", default_args=args)
 
 test_command = dedent(
     """\
@@ -43,7 +43,7 @@ test_command = dedent(
 )
 
 task = BashOperator(
-    task_id='test_superuser',
+    task_id="test_superuser",
     bash_command=test_command,
     dag=dag,
 )

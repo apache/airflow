@@ -29,15 +29,15 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 DAG_ID = "example_oracle_to_gcs"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-FILENAME = 'test_file'
+FILENAME = "test_file"
 SQL_QUERY = "SELECT * from test_table"
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example', 'oracle'],
+    tags=["example", "oracle"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
@@ -45,7 +45,7 @@ with models.DAG(
 
     # [START howto_operator_oracle_to_gcs]
     upload_oracle_to_gcs = OracleToGCSOperator(
-        task_id='oracle_to_gcs', sql=SQL_QUERY, bucket=BUCKET_NAME, filename=FILENAME, export_format='csv'
+        task_id="oracle_to_gcs", sql=SQL_QUERY, bucket=BUCKET_NAME, filename=FILENAME, export_format="csv"
     )
     # [END howto_operator_oracle_to_gcs]
 

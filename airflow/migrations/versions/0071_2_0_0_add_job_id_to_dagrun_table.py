@@ -28,18 +28,18 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '364159666cbd'
-down_revision = '52d53670a240'
+revision = "364159666cbd"
+down_revision = "52d53670a240"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.0'
+airflow_version = "2.0.0"
 
 
 def upgrade():
     """Apply Add ``creating_job_id`` to ``DagRun`` table"""
-    op.add_column('dag_run', sa.Column('creating_job_id', sa.Integer))
+    op.add_column("dag_run", sa.Column("creating_job_id", sa.Integer))
 
 
 def downgrade():
     """Unapply Add job_id to DagRun table"""
-    op.drop_column('dag_run', 'creating_job_id')
+    op.drop_column("dag_run", "creating_job_id")

@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest.mock import patch
 
 import pytest
@@ -27,15 +26,15 @@ from airflow.models import Connection
 from airflow.providers.cloudant.hooks.cloudant import CloudantHook
 
 
-class TestCloudantHook(unittest.TestCase):
-    def setUp(self):
+class TestCloudantHook:
+    def setup_method(self):
         self.cloudant_hook = CloudantHook()
 
     @patch(
-        'airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection',
-        return_value=Connection(login='user', password='password', host='account'),
+        "airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection",
+        return_value=Connection(login="user", password="password", host="account"),
     )
-    @patch('airflow.providers.cloudant.hooks.cloudant.cloudant')
+    @patch("airflow.providers.cloudant.hooks.cloudant.cloudant")
     def test_get_conn(self, mock_cloudant, mock_get_connection):
         cloudant_session = self.cloudant_hook.get_conn()
 
@@ -44,8 +43,8 @@ class TestCloudantHook(unittest.TestCase):
         assert cloudant_session == mock_cloudant.return_value
 
     @patch(
-        'airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection',
-        return_value=Connection(login='user'),
+        "airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection",
+        return_value=Connection(login="user"),
     )
     def test_get_conn_invalid_connection(self, mock_get_connection):
         with pytest.raises(AirflowException):

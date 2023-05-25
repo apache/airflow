@@ -51,9 +51,47 @@ Follow the guidelines when writing unit tests:
 * For new tests, use standard "asserts" of Python and ``pytest`` decorators/context managers for testing
   rather than ``unittest`` ones. See `pytest docs <http://doc.pytest.org/en/latest/assert.html>`_ for details.
 * Use a parameterized framework for tests that have variations in parameters.
+* Use with ``pytest.warn`` to capture warnings rather than ``recwarn`` fixture. We are aiming for 0-warning in our
+  tests, so we run Pytest with ``--disable-warnings`` but instead we have ``pytest-capture-warnings`` plugin that
+  overrides ``recwarn`` fixture behaviour.
 
 **NOTE:** We plan to convert all unit tests to standard "asserts" semi-automatically, but this will be done later
 in Airflow 2.0 development phase. That will include setUp/tearDown/context managers and decorators.
+
+Airflow test types
+------------------
+
+Airflow tests in the CI environment are split into several test types:
+
+* Always - those are tests that should be always executed (always folder)
+* Core - for the core Airflow functionality (core folder)
+* API - Tests for the Airflow API (api and api_connexion folders)
+* CLI - Tests for the Airflow CLI (cli folder)
+* WWW - Tests for the Airflow webserver (www folder)
+* Providers - Tests for all Providers of Airflow (providers folder)
+* Other - all other tests (all other folders that are not part of any of the above)
+
+This is done for three reasons:
+
+1. in order to selectively run only subset of the test types for some PRs
+2. in order to allow parallel execution of the tests on Self-Hosted runners
+
+For case 2. We can utilise memory and CPUs available on both CI and local development machines to run
+test in parallel. This way we can decrease the time of running all tests in self-hosted runners from
+60 minutes to ~15 minutes.
+
+.. note::
+
+  We need to split tests manually into separate suites rather than utilise
+  ``pytest-xdist`` or ``pytest-parallel`` which could be a simpler and much more "native" parallelization
+  mechanism. Unfortunately, we cannot utilise those tools because our tests are not truly ``unit`` tests that
+  can run in parallel. A lot of our tests rely on shared databases - and they update/reset/cleanup the
+  databases while they are executing. They are also exercising features of the Database such as locking which
+  further increases cross-dependency between tests. Until we make all our tests truly unit tests (and not
+  touching the database or until we isolate all such tests to a separate test type, we cannot really rely on
+  frameworks that run tests in parallel. In our solution each of the test types is run in parallel with its
+  own database (!) so when we have 8 test types running in parallel, there are in fact 8 databases run
+  behind the scenes to support them and each of the test types executes its own tests sequentially.
 
 Running Unit Tests from PyCharm IDE
 -----------------------------------
@@ -61,19 +99,54 @@ Running Unit Tests from PyCharm IDE
 To run unit tests from the PyCharm IDE, create the `local virtualenv <LOCAL_VIRTUALENV.rst>`_,
 select it as the default project's environment, then configure your test runner:
 
-.. image:: images/configure_test_runner.png
+.. image:: images/pycharm/configure_test_runner.png
     :align: center
     :alt: Configuring test runner
 
 and run unit tests as follows:
 
-.. image:: images/running_unittests.png
+.. image:: images/pycharm/running_unittests.png
     :align: center
     :alt: Running unit tests
 
 **NOTE:** You can run the unit tests in the standalone local virtualenv
 (with no Breeze installed) if they do not have dependencies such as
 Postgres/MySQL/Hadoop/etc.
+
+Running Unit Tests from PyCharm IDE using Breeze
+------------------------------------------------
+
+Ideally, all unit tests should be run using the standardized Breeze environment.  While not
+as convenient as the one-click "play button" in PyCharm, the IDE can be configured to do
+this in two clicks.
+
+1. Add Breeze as an "External Tool":
+
+   a. From the settings menu, navigate to Tools > External Tools
+   b. Click the little plus symbol to open the "Create Tool" popup and fill it out:
+
+.. image:: images/pycharm/pycharm_create_tool.png
+    :align: center
+    :alt: Installing Python extension
+
+
+2. Add the tool to the context menu:
+
+   a. From the settings menu, navigate to Appearance & Behavior > Menus & Toolbars > Project View Popup Menu
+   b. Click on the list of entries where you would like it to be added.  Right above or below "Project View Popup Menu Run Group" may be a good choice, you can drag and drop this list to rearrange the placement later as desired.
+   c. Click the little plus at the top of the popup window
+   d. Find your "External Tool" in the new "Choose Actions to Add" popup and click OK.  If you followed the image above, it will be at External Tools > External Tools > Breeze
+
+**Note:** That only adds the option to that one menu.  If you would like to add it to the context menu
+when right-clicking on a tab at the top of the editor, for example, follow the steps above again
+and place it in the "Editor Tab Popup Menu"
+
+.. image:: images/pycharm/pycharm_add_to_context.png
+    :align: center
+    :alt: Installing Python extension
+
+3. To run tests in Breeze, right click on the file or directory in the Project View and click Breeze.
+
 
 Running Unit Tests from Visual Studio Code
 ------------------------------------------
@@ -108,8 +181,8 @@ To run unit tests from the Visual Studio Code:
     :align: center
     :alt: Running tests
 
-Running Unit Tests
-------------------
+Running Unit Tests in local virtualenv
+--------------------------------------
 
 To run unit, integration, and system tests from the Breeze and your
 virtualenv, you can use the `pytest <http://doc.pytest.org/en/latest/>`_ framework.
@@ -159,13 +232,42 @@ for debugging purposes, enter:
     pytest --log-cli-level=DEBUG tests/core/test_core.py::TestCore
 
 
-Running Tests for a Specified Target Using Breeze from the Host
----------------------------------------------------------------
+Running Tests using Breeze interactive shell
+--------------------------------------------
+
+You can run tests interactively using regular pytest commands inside the Breeze shell. This has the
+advantage, that Breeze container has all the dependencies installed that are needed to run the tests
+and it will ask you to rebuild the image if it is needed and some new dependencies should be installed.
+
+By using interactive shell and iterating over the tests, you can iterate and re-run tests one-by-one
+or group by group right after you modified them.
+
+Entering the shell is as easy as:
+
+.. code-block:: bash
+
+     breeze
+
+This should drop you into the container.
+
+You can also use other switches (like ``--backend`` for example) to configure the environment for your
+tests (and for example to switch to different database backend - see ``--help`` for more details).
+
+Once you enter the container, you might run regular pytest commands. For example:
+
+.. code-block:: bash
+
+    pytest --log-cli-level=DEBUG tests/core/test_core.py::TestCore
+
+
+Running Tests using Breeze from the Host
+----------------------------------------
 
 If you wish to only run tests and not to drop into the shell, apply the
 ``tests`` command. You can add extra targets and pytest flags after the ``--`` command. Note that
 often you want to run the tests with a clean/reset db, so usually you want to add ``--db-reset`` flag
-to breeze.
+to breeze command. The Breeze image usually will have all the dependencies needed and it
+will ask you to rebuild the image if it is needed and some new dependencies should be installed.
 
 .. code-block:: bash
 
@@ -195,263 +297,59 @@ In case of Providers tests, you can run tests for all providers
 
     breeze testing tests --test-type Providers
 
-You can also limit the set of providers you would like to run tests of
+You can limit the set of providers you would like to run tests of
 
 .. code-block:: bash
 
     breeze testing tests --test-type "Providers[airbyte,http]"
 
+You can also run all providers but exclude the providers you would like to skip
 
-Running Tests of a specified type from the Host
------------------------------------------------
+.. code-block:: bash
 
-You can also run tests for a specific test type. For the stability and performance point of view,
-we separated tests into different test types to be run separately.
+    breeze testing tests --test-type "Providers[-amazon,google]"
 
-You can select the test type by adding ``--test-type TEST_TYPE`` before the test command. There are two
-kinds of test types:
 
-* Per-directories types are added to select subset of the tests based on sub-directories in ``tests`` folder.
-  Example test types there - Core, Providers, CLI. The only action that happens when you choose the right
-  test folders are pre-selected. It is only useful for those types of tests to choose the test type
-  when you do not specify test to run.
+Running full Airflow unit test suite in parallel
+------------------------------------------------
 
-  Runs all core tests:
+If you run ``breeze testing tests --run-in-parallel`` tests run in parallel
+on your development machine - maxing out the number of parallel runs at the number of cores you
+have available in your Docker engine.
+
+In case you do not have enough memory available to your Docker (8 GB), the ``Integration``. ``Provider``
+and ``Core`` test type are executed sequentially with cleaning the docker setup in-between. This
+allows to print
+
+This allows for massive speedup in full test execution. On 8 CPU machine with 16 cores and 64 GB memory
+and fast SSD disk, the whole suite of tests completes in about 5 minutes (!). Same suite of tests takes
+more than 30 minutes on the same machine when tests are run sequentially.
+
+.. note::
+
+  On MacOS you might have less CPUs and less memory available to run the tests than you have in the host,
+  simply because your Docker engine runs in a Linux Virtual Machine under-the-hood. If you want to make
+  use of the parallelism and memory usage for the CI tests you might want to increase the resources available
+  to your docker engine. See the `Resources <https://docs.docker.com/docker-for-mac/#resources>`_ chapter
+  in the ``Docker for Mac`` documentation on how to do it.
+
+You can also limit the parallelism by specifying the maximum number of parallel jobs via
+MAX_PARALLEL_TEST_JOBS variable. If you set it to "1", all the test types will be run sequentially.
+
+.. code-block:: bash
+
+    MAX_PARALLEL_TEST_JOBS="1" ./scripts/ci/testing/ci_run_airflow_testing.sh
+
+.. note::
+
+  In case you would like to cleanup after execution of such tests you might have to cleanup
+  some of the docker containers running in case you use ctrl-c to stop execution. You can easily do it by
+  running this command (it will kill all docker containers running so do not use it if you want to keep some
+  docker containers running):
 
   .. code-block:: bash
 
-       breeze testing tests --test-type Core  --db-reset tests
-
-  Runs all provider tests:
-
-  .. code-block:: bash
-
-       breeze testing tests --test-type Providers --db-reset tests
-
-* Special kinds of tests - Integration, Quarantined, Postgres, MySQL, which are marked with pytest
-  marks and for those you need to select the type using test-type switch. If you want to run such tests
-  using breeze, you need to pass appropriate ``--test-type`` otherwise the test will be skipped.
-  Similarly to the per-directory tests if you do not specify the test or tests to run,
-  all tests of a given type are run
-
-  Run quarantined test_task_command.py test:
-
-  .. code-block:: bash
-
-       breeze testing tests --test-type Quarantined tests tests/cli/commands/test_task_command.py --db-reset
-
-  Run all Quarantined tests:
-
-  .. code-block:: bash
-
-       breeze testing tests --test-type Quarantined tests --db-reset
-
-Helm Unit Tests
-===============
-
-On the Airflow Project, we have decided to stick with pythonic testing for our Helm chart. This makes our chart
-easier to test, easier to modify, and able to run with the same testing infrastructure. To add Helm unit tests
-add them in ``tests/charts``.
-
-.. code-block:: python
-
-    class TestBaseChartTest(unittest.TestCase):
-        ...
-
-To render the chart create a YAML string with the nested dictionary of options you wish to test. You can then
-use our ``render_chart`` function to render the object of interest into a testable Python dictionary. Once the chart
-has been rendered, you can use the ``render_k8s_object`` function to create a k8s model object. It simultaneously
-ensures that the object created properly conforms to the expected resource spec and allows you to use object values
-instead of nested dictionaries.
-
-Example test here:
-
-.. code-block:: python
-
-    from tests.charts.helm_template_generator import render_chart, render_k8s_object
-
-    git_sync_basic = """
-    dags:
-      gitSync:
-      enabled: true
-    """
-
-
-    class TestGitSyncScheduler(unittest.TestCase):
-        def test_basic(self):
-            helm_settings = yaml.safe_load(git_sync_basic)
-            res = render_chart(
-                "GIT-SYNC",
-                helm_settings,
-                show_only=["templates/scheduler/scheduler-deployment.yaml"],
-            )
-            dep: k8s.V1Deployment = render_k8s_object(res[0], k8s.V1Deployment)
-            assert "dags" == dep.spec.template.spec.volumes[1].name
-
-
-To execute all Helm tests using breeze command and utilize parallel pytest tests, you can run the
-following command (but it takes quite a long time even in a multi-processor machine).
-
-.. code-block:: bash
-
-    breeze testing helm-tests
-
-You can also run Helm tests individually via the usual ``breeze`` command. Just enter breeze and run the
-tests with pytest as you would do with regular unit tests (you can add ``-n auto`` command to run Helm
-tests in parallel - unlike most of the regular unit tests of ours that require a database, the Helm tests are
-perfectly safe to be run in parallel (and if you have multiple processors, you can gain significant
-speedups when using parallel runs):
-
-.. code-block:: bash
-
-    breeze
-
-This enters breeze container.
-
-.. code-block:: bash
-
-    pytest tests/charts -n auto
-
-This runs all chart tests using all processors you have available.
-
-.. code-block:: bash
-
-    pytest tests/charts/test_airflow_common.py -n auto
-
-This will run all tests from ``tests_airflow_common.py`` file using all processors you have available.
-
-.. code-block:: bash
-
-    pytest tests/charts/test_airflow_common.py
-
-This will run all tests from ``tests_airflow_common.py`` file sequentially.
-
-
-Airflow Integration Tests
-=========================
-
-Some of the tests in Airflow are integration tests. These tests require ``airflow`` Docker
-image and extra images with integrations (such as ``redis``, ``mongodb``, etc.).
-
-
-Enabling Integrations
----------------------
-
-Airflow integration tests cannot be run in the local virtualenv. They can only run in the Breeze
-environment with enabled integrations and in the CI. See `<.github/workflows/ci.yml>`_ for details about Airflow CI.
-
-When you are in the Breeze environment, by default, all integrations are disabled. This enables only true unit tests
-to be executed in Breeze. You can enable the integration by passing the ``--integration <INTEGRATION>``
-switch when starting Breeze. You can specify multiple integrations by repeating the ``--integration`` switch
-or using the ``--integration all`` switch that enables all integrations.
-
-NOTE: Every integration requires a separate container with the corresponding integration image.
-These containers take precious resources on your PC, mainly the memory. The started integrations are not stopped
-until you stop the Breeze environment with the ``stop`` command  and restart it
-via ``restart`` command.
-
-The following integrations are available:
-
-.. list-table:: Airflow Test Integrations
-   :widths: 15 80
-   :header-rows: 1
-
-   * - Integration
-     - Description
-   * - cassandra
-     - Integration required for Cassandra hooks
-   * - kerberos
-     - Integration that provides Kerberos authentication
-   * - mongo
-     - Integration required for MongoDB hooks
-   * - openldap
-     - Integration required for OpenLDAP hooks
-   * - pinot
-     - Integration required for Apache Pinot hooks
-   * - rabbitmq
-     - Integration required for Celery executor tests
-   * - redis
-     - Integration required for Celery executor tests
-   * - trino
-     - Integration required for Trino hooks
-
-To start the ``mongo`` integration only, enter:
-
-.. code-block:: bash
-
-    breeze --integration mongo
-
-To start ``mongo`` and ``cassandra`` integrations, enter:
-
-.. code-block:: bash
-
-    breeze --integration mongo --integration cassandra
-
-To start all integrations, enter:
-
-.. code-block:: bash
-
-    breeze --integration all
-
-In the CI environment, integrations can be enabled by specifying the ``ENABLED_INTEGRATIONS`` variable
-storing a space-separated list of integrations to start. Thanks to that, we can run integration and
-integration-less tests separately in different jobs, which is desired from the memory usage point of view.
-
-Note that Kerberos is a special kind of integration. Some tests run differently when
-Kerberos integration is enabled (they retrieve and use a Kerberos authentication token) and differently when the
-Kerberos integration is disabled (they neither retrieve nor use the token). Therefore, one of the test jobs
-for the CI system should run all tests with the Kerberos integration enabled to test both scenarios.
-
-Running Integration Tests
--------------------------
-
-All tests using an integration are marked with a custom pytest marker ``pytest.mark.integration``.
-The marker has a single parameter - the name of integration.
-
-Example of the ``redis`` integration test:
-
-.. code-block:: python
-
-    @pytest.mark.integration("redis")
-    def test_real_ping(self):
-        hook = RedisHook(redis_conn_id="redis_default")
-        redis = hook.get_conn()
-
-        assert redis.ping(), "Connection to Redis with PING works."
-
-The markers can be specified at the test level or the class level (then all tests in this class
-require an integration). You can add multiple markers with different integrations for tests that
-require more than one integration.
-
-If such a marked test does not have a required integration enabled, it is skipped.
-The skip message clearly says what is needed to use the test.
-
-To run all tests with a certain integration, use the custom pytest flag ``--integration``.
-You can pass several integration flags if you want to enable several integrations at once.
-
-**NOTE:** If an integration is not enabled in Breeze or CI,
-the affected test will be skipped.
-
-To run only ``mongo`` integration tests:
-
-.. code-block:: bash
-
-    pytest --integration mongo
-
-To run integration tests for ``mongo`` and ``rabbitmq``:
-
-.. code-block:: bash
-
-    pytest --integration mongo --integration rabbitmq
-
-Note that collecting all tests takes some time. So, if you know where your tests are located, you can
-speed up the test collection significantly by providing the folder where the tests are located.
-
-Here is an example of the collection limited to the ``providers/apache`` directory:
-
-.. code-block:: bash
-
-    pytest --integration cassandra tests/providers/apache/
+      docker kill $(docker ps -q)
 
 Running Backend-Specific Tests
 ------------------------------
@@ -494,8 +392,8 @@ Some of the tests rung for a long time. Such tests are marked with ``@pytest.mar
 Those tests are skipped by default. You can enable them with ``--include-long-running`` flag. You
 can also decide to only run tests with ``-m long-running`` flags to run only those tests.
 
-Quarantined tests
------------------
+Running Quarantined tests
+-------------------------
 
 Some of our tests are quarantined. This means that this test will be run in isolation and that it will be
 re-run several times. Also when quarantined tests fail, the whole test suite will not fail. The quarantined
@@ -505,87 +403,8 @@ Those tests are marked with ``@pytest.mark.quarantined`` annotation.
 Those tests are skipped by default. You can enable them with ``--include-quarantined`` flag. You
 can also decide to only run tests with ``-m quarantined`` flag to run only those tests.
 
-
-Airflow test types
-==================
-
-Airflow tests in the CI environment are split into several test types:
-
-* Always - those are tests that should be always executed (always folder)
-* Core - for the core Airflow functionality (core folder)
-* API - Tests for the Airflow API (api and api_connexion folders)
-* CLI - Tests for the Airflow CLI (cli folder)
-* WWW - Tests for the Airflow webserver (www folder)
-* Providers - Tests for all Providers of Airflow (providers folder)
-* Other - all other tests (all other folders that are not part of any of the above)
-
-This is done for three reasons:
-
-1. in order to selectively run only subset of the test types for some PRs
-2. in order to allow parallel execution of the tests on Self-Hosted runners
-
-For case 2. We can utilise memory and CPUs available on both CI and local development machines to run
-test in parallel. This way we can decrease the time of running all tests in self-hosted runners from
-60 minutes to ~15 minutes.
-
-.. note::
-
-  We need to split tests manually into separate suites rather than utilise
-  ``pytest-xdist`` or ``pytest-parallel`` which could be a simpler and much more "native" parallelization
-  mechanism. Unfortunately, we cannot utilise those tools because our tests are not truly ``unit`` tests that
-  can run in parallel. A lot of our tests rely on shared databases - and they update/reset/cleanup the
-  databases while they are executing. They are also exercising features of the Database such as locking which
-  further increases cross-dependency between tests. Until we make all our tests truly unit tests (and not
-  touching the database or until we isolate all such tests to a separate test type, we cannot really rely on
-  frameworks that run tests in parallel. In our solution each of the test types is run in parallel with its
-  own database (!) so when we have 8 test types running in parallel, there are in fact 8 databases run
-  behind the scenes to support them and each of the test types executes its own tests sequentially.
-
-
-Running full Airflow test suite in parallel
-===========================================
-
-If you run ``breeze testing tests --run-in-parallel`` tests run in parallel
-on your development machine - maxing out the number of parallel runs at the number of cores you
-have available in your Docker engine.
-
-In case you do not have enough memory available to your Docker (8 GB), the ``Integration``. ``Provider``
-and ``Core`` test type are executed sequentially with cleaning the docker setup in-between. This
-allows to print
-
-This allows for massive speedup in full test execution. On 8 CPU machine with 16 cores and 64 GB memory
-and fast SSD disk, the whole suite of tests completes in about 5 minutes (!). Same suite of tests takes
-more than 30 minutes on the same machine when tests are run sequentially.
-
-.. note::
-
-  On MacOS you might have less CPUs and less memory available to run the tests than you have in the host,
-  simply because your Docker engine runs in a Linux Virtual Machine under-the-hood. If you want to make
-  use of the parallelism and memory usage for the CI tests you might want to increase the resources available
-  to your docker engine. See the `Resources <https://docs.docker.com/docker-for-mac/#resources>`_ chapter
-  in the ``Docker for Mac`` documentation on how to do it.
-
-You can also limit the parallelism by specifying the maximum number of parallel jobs via
-MAX_PARALLEL_TEST_JOBS variable. If you set it to "1", all the test types will be run sequentially.
-
-.. code-block:: bash
-
-    MAX_PARALLEL_TEST_JOBS="1" ./scripts/ci/testing/ci_run_airflow_testing.sh
-
-.. note::
-
-  In case you would like to cleanup after execution of such tests you might have to cleanup
-  some of the docker containers running in case you use ctrl-c to stop execution. You can easily do it by
-  running this command (it will kill all docker containers running so do not use it if you want to keep some
-  docker containers running):
-
-  .. code-block:: bash
-
-      docker kill $(docker ps -q)
-
-
 Running Tests with provider packages
-====================================
+------------------------------------
 
 Airflow 2.0 introduced the concept of splitting the monolithic Airflow package into separate
 providers packages. The main "apache-airflow" package contains the bare Airflow implementation,
@@ -631,9 +450,317 @@ This prepares airflow .whl package in the dist folder.
 
      breeze --use-airflow-version wheel --use-packages-from-dist --skip-mounting-local-sources
 
+Airflow Docker Compose Tests
+============================
 
-Running Tests with Kubernetes
-=============================
+Running Docker Compose Tests with Breeze
+----------------------------------------
+
+We also test in CI whether the Docker Compose that we expose in our documentation via
+`Running Airflow in Docker <https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html>`_
+works as expected. Those tests are run in CI ("Test docker-compose quick start")
+and you can run them locally as well.
+
+The way the tests work:
+
+1. They first build the Airflow production image
+2. Then they take the Docker Compose file of ours and use the image to start it
+3. Then they perform some simple DAG trigger tests which checks whether Airflow is up and can process
+   an example DAG
+
+This is done in a local environment, not in the Breeze CI image. It uses ``COMPOSE_PROJECT_NAME`` set to
+``quick-start`` to avoid conflicts with other docker compose deployments you might have.
+
+The complete test can be performed using Breeze. The prerequisite to that
+is to have ``docker-compose`` (Docker Compose v1) or ``docker compose`` plugin (Docker Compose v2)
+available on the path.
+
+Running complete test with breeze:
+
+.. code-block:: bash
+
+    breeze prod-image build --python 3.7
+    breeze testing docker-compose-tests
+
+In case the test fails, it will dump the logs from the running containers to the console and it
+will shutdown the Docker Compose deployment. In case you want to debug the Docker Compose deployment
+created for the test, you can pass ``--skip-docker-compose-deletion`` flag to Breeze or
+export ``SKIP_DOCKER_COMPOSE_DELETION`` set to "true" variable and the deployment
+will not be deleted after the test.
+
+You can also specify maximum timeout for the containers with ``--wait-for-containers-timeout`` flag.
+You can also add ``-s`` option to the command pass it to underlying pytest command
+to see the output of the test as it happens (it can be also set via
+``WAIT_FOR_CONTAINERS_TIMEOUT`` environment variable)
+
+The test can be also run manually with ``pytest docker_tests/test_docker_compose_quick_start.py``
+command, provided that you have a local airflow venv with ``dev`` extra set and the
+``DOCKER_IMAGE`` environment variable is set to the image you want to test. The variable defaults
+to ``ghcr.io/apache/airflow/main/prod/python3.7:latest`` which is built by default
+when you run ``breeze prod-image build --python 3.7``. also the switches ``--skip-docker-compose-deletion``
+and ``--wait-for-containers-timeout`` can only be passed via environment variables.
+
+If you want to debug the deployment using ``docker compose`` commands after ``SKIP_DOCKER_COMPOSE_DELETION``
+was used, you should set ``COMPOSE_PROJECT_NAME`` to ``quick-start`` because this is what the test uses:
+
+.. code-block:: bash
+
+    export COMPOSE_PROJECT_NAME=quick-start
+
+You can also add ``--project-name quick-start`` to the ``docker compose`` commands you run.
+When the test will be re-run it will automatically stop previous deployment and start a new one.
+
+Running Docker Compose deployment manually
+------------------------------------------
+
+You can also (independently of Pytest test) run docker-compose deployment manually with the image you built using
+the prod image build command above.
+
+.. code-block:: bash
+
+    export AIRFLOW_IMAGE_NAME=ghcr.io/apache/airflow/main/prod/python3.7:latest
+
+and follow the instructions in the
+`Running Airflow in Docker <https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html>`_
+but make sure to use the docker-compose file from the sources in
+``docs/apache-airflow/stable/howto/docker-compose/`` folder.
+
+Then, the usual ``docker compose`` and ``docker`` commands can be used to debug such running instances.
+The test performs a simple API call to trigger a DAG and wait for it, but you can follow our
+documentation to connect to such running docker compose instances and test it manually.
+
+Airflow Integration Tests
+=========================
+
+Some of the tests in Airflow are integration tests. These tests require ``airflow`` Docker
+image and extra images with integrations (such as ``celery``, ``mongodb``, etc.).
+The integration tests are all stored in the ``tests/integration`` folder.
+
+Enabling Integrations
+---------------------
+
+Airflow integration tests cannot be run in the local virtualenv. They can only run in the Breeze
+environment with enabled integrations and in the CI. See `CI <CI.rst>`_ for details about Airflow CI.
+
+When you are in the Breeze environment, by default, all integrations are disabled. This enables only true unit tests
+to be executed in Breeze. You can enable the integration by passing the ``--integration <INTEGRATION>``
+switch when starting Breeze. You can specify multiple integrations by repeating the ``--integration`` switch
+or using the ``--integration all-testable`` switch that enables all testable integrations and
+``--integration all`` switch that enables all integrations.
+
+NOTE: Every integration requires a separate container with the corresponding integration image.
+These containers take precious resources on your PC, mainly the memory. The started integrations are not stopped
+until you stop the Breeze environment with the ``stop`` command and started with the ``start`` command.
+
+The following integrations are available:
+
+.. list-table:: Airflow Test Integrations
+   :widths: 15 80
+   :header-rows: 1
+
+   * - Integration
+     - Description
+   * - cassandra
+     - Integration required for Cassandra hooks
+   * - kerberos
+     - Integration that provides Kerberos authentication
+   * - mongo
+     - Integration required for MongoDB hooks
+   * - pinot
+     - Integration required for Apache Pinot hooks
+   * - celery
+     - Integration required for Celery executor tests
+   * - trino
+     - Integration required for Trino hooks
+
+To start the ``mongo`` integration only, enter:
+
+.. code-block:: bash
+
+    breeze --integration mongo
+
+To start ``mongo`` and ``cassandra`` integrations, enter:
+
+.. code-block:: bash
+
+    breeze --integration mongo --integration cassandra
+
+To start all testable integrations, enter:
+
+.. code-block:: bash
+
+    breeze --integration all-testable
+
+To start all integrations, enter:
+
+.. code-block:: bash
+
+    breeze --integration all-testable
+
+Note that Kerberos is a special kind of integration. Some tests run differently when
+Kerberos integration is enabled (they retrieve and use a Kerberos authentication token) and differently when the
+Kerberos integration is disabled (they neither retrieve nor use the token). Therefore, one of the test jobs
+for the CI system should run all tests with the Kerberos integration enabled to test both scenarios.
+
+Running Integration Tests
+-------------------------
+
+All tests using an integration are marked with a custom pytest marker ``pytest.mark.integration``.
+The marker has a single parameter - the name of integration.
+
+Example of the ``celery`` integration test:
+
+.. code-block:: python
+
+    @pytest.mark.integration("celery")
+    def test_real_ping(self):
+        hook = RedisHook(redis_conn_id="redis_default")
+        redis = hook.get_conn()
+
+        assert redis.ping(), "Connection to Redis with PING works."
+
+The markers can be specified at the test level or the class level (then all tests in this class
+require an integration). You can add multiple markers with different integrations for tests that
+require more than one integration.
+
+If such a marked test does not have a required integration enabled, it is skipped.
+The skip message clearly says what is needed to use the test.
+
+To run all tests with a certain integration, use the custom pytest flag ``--integration``.
+You can pass several integration flags if you want to enable several integrations at once.
+
+**NOTE:** If an integration is not enabled in Breeze or CI,
+the affected test will be skipped.
+
+To run only ``mongo`` integration tests:
+
+.. code-block:: bash
+
+    pytest --integration mongo tests/integration
+
+To run integration tests for ``mongo`` and ``celery``:
+
+.. code-block:: bash
+
+    pytest --integration mongo --integration celery tests/integration
+
+
+Here is an example of the collection limited to the ``providers/apache`` sub-directory:
+
+.. code-block:: bash
+
+    pytest --integration cassandra tests/integrations/providers/apache
+
+Running Integration Tests from the Host
+---------------------------------------
+
+You can also run integration tests using Breeze from the host.
+
+Runs all integration tests:
+
+  .. code-block:: bash
+
+       breeze testing integration-tests  --db-reset --integration all-testable
+
+Runs all mongo DB tests:
+
+  .. code-block:: bash
+
+       breeze testing integration-tests --db-reset --integration mongo
+
+Helm Unit Tests
+===============
+
+On the Airflow Project, we have decided to stick with pythonic testing for our Helm chart. This makes our chart
+easier to test, easier to modify, and able to run with the same testing infrastructure. To add Helm unit tests
+add them in ``tests/charts``.
+
+.. code-block:: python
+
+    class TestBaseChartTest:
+        ...
+
+To render the chart create a YAML string with the nested dictionary of options you wish to test. You can then
+use our ``render_chart`` function to render the object of interest into a testable Python dictionary. Once the chart
+has been rendered, you can use the ``render_k8s_object`` function to create a k8s model object. It simultaneously
+ensures that the object created properly conforms to the expected resource spec and allows you to use object values
+instead of nested dictionaries.
+
+Example test here:
+
+.. code-block:: python
+
+    from tests.charts.common.helm_template_generator import render_chart, render_k8s_object
+
+    git_sync_basic = """
+    dags:
+      gitSync:
+      enabled: true
+    """
+
+
+    class TestGitSyncScheduler:
+        def test_basic(self):
+            helm_settings = yaml.safe_load(git_sync_basic)
+            res = render_chart(
+                "GIT-SYNC",
+                helm_settings,
+                show_only=["templates/scheduler/scheduler-deployment.yaml"],
+            )
+            dep: k8s.V1Deployment = render_k8s_object(res[0], k8s.V1Deployment)
+            assert "dags" == dep.spec.template.spec.volumes[1].name
+
+
+To execute all Helm tests using breeze command and utilize parallel pytest tests, you can run the
+following command (but it takes quite a long time even in a multi-processor machine).
+
+.. code-block:: bash
+
+    breeze testing helm-tests
+
+You can also execute tests from a selected package only. Tests in ``tests/chart`` are grouped by packages
+so rather than running all tests, you can run only tests from a selected package. For example:
+
+.. code-block:: bash
+
+    breeze testing helm-tests --helm-test-package basic
+
+Will run all tests from ``tests/charts/basic`` package.
+
+
+You can also run Helm tests individually via the usual ``breeze`` command. Just enter breeze and run the
+tests with pytest as you would do with regular unit tests (you can add ``-n auto`` command to run Helm
+tests in parallel - unlike most of the regular unit tests of ours that require a database, the Helm tests are
+perfectly safe to be run in parallel (and if you have multiple processors, you can gain significant
+speedups when using parallel runs):
+
+.. code-block:: bash
+
+    breeze
+
+This enters breeze container.
+
+.. code-block:: bash
+
+    pytest tests/charts -n auto
+
+This runs all chart tests using all processors you have available.
+
+.. code-block:: bash
+
+    pytest tests/charts/test_airflow_common.py -n auto
+
+This will run all tests from ``tests_airflow_common.py`` file using all processors you have available.
+
+.. code-block:: bash
+
+    pytest tests/charts/test_airflow_common.py
+
+This will run all tests from ``tests_airflow_common.py`` file sequentially.
+
+
+Kubernetes tests
+================
 
 Airflow has tests that are run against real Kubernetes cluster. We are using
 `Kind <https://kind.sigs.k8s.io/>`_ to create and run the cluster. We integrated the tools to start/stop/
@@ -1121,15 +1248,15 @@ The virtualenv required will be created automatically when the scripts are run.
     ========================================================================================= test session starts ==========================================================================================
     platform darwin -- Python 3.9.9, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /Users/jarek/IdeaProjects/airflow/.build/.k8s-env/bin/python
     cachedir: .pytest_cache
-    rootdir: /Users/jarek/IdeaProjects/airflow, configfile: pytest.ini
+    rootdir: /Users/jarek/IdeaProjects/airflow/kubernetes_tests
     plugins: anyio-3.6.1, instafail-0.4.2, xdist-2.5.0, forked-1.4.0, timeouts-1.2.1, cov-3.0.0
     setup timeout: 0.0s, execution timeout: 0.0s, teardown timeout: 0.0s
     collected 55 items
 
-    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED                                                                                            [  1%]
-    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED                                                                     [  3%]
-    kubernetes_tests/test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_failure PASSED                                                                        [  5%]
-    kubernetes_tests/test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_success   ...
+    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED                                                                                            [  1%]
+    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED                                                                     [  3%]
+    test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_failure PASSED                                                                        [  5%]
+    test_kubernetes_pod_operator.py::TestKubernetesPodOperatorSystem::test_already_checked_on_success   ...
 
 8b) You can enter an interactive shell to run tests one-by-one
 
@@ -1206,11 +1333,12 @@ and this is where KUBECONFIG env should point to.
 
 You can iterate with tests while you are in the virtualenv. All the tests requiring Kubernetes cluster
 are in "kubernetes_tests" folder. You can add extra ``pytest`` parameters then (for example ``-s`` will
-print output generated test logs and print statements to the terminal immediately.
+print output generated test logs and print statements to the terminal immediately. You should have
+kubernetes_tests as your working directory.
 
 .. code-block:: bash
 
-    pytest kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
+    pytest test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure -s
 
 You can modify the tests or KubernetesPodOperator and re-run them without re-deploying
 Airflow to KinD cluster.
@@ -1414,7 +1542,7 @@ Here is the typical session that you need to do to run system tests:
 
 .. code-block:: bash
 
-   breeze stop
+   breeze down
    breeze --python 3.7 --db-reset --forward-credentials
 
 This will:
@@ -1470,7 +1598,7 @@ Breeze session. They are usually expensive to run.
 
 .. code-block:: bash
 
-    breeze stop
+    breeze down
     breeze --python 3.7 --db-reset --forward-credentials
 
 2. Run create action in helper (to create slowly created resources):

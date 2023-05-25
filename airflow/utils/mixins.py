@@ -24,6 +24,11 @@ import typing
 from airflow.configuration import conf
 from airflow.utils.context import Context
 
+if typing.TYPE_CHECKING:
+    import multiprocessing.context
+
+    from airflow.models.operator import Operator
+
 
 class MultiprocessingStartMethodMixin:
     """Convenience class to add support for different types of multiprocessing."""
@@ -33,17 +38,34 @@ class MultiprocessingStartMethodMixin:
         Determine method of creating new processes by checking if the
         mp_start_method is set in configs, else, it uses the OS default.
         """
-        if conf.has_option('core', 'mp_start_method'):
-            return conf.get_mandatory_value('core', 'mp_start_method')
+        if conf.has_option("core", "mp_start_method"):
+            return conf.get_mandatory_value("core", "mp_start_method")
 
         method = multiprocessing.get_start_method()
         if not method:
             raise ValueError("Failed to determine start method")
         return method
 
+    def _get_multiprocessing_context(self) -> multiprocessing.context.DefaultContext:
+        mp_start_method = self._get_multiprocessing_start_method()
+        return multiprocessing.get_context(mp_start_method)  # type: ignore
+
 
 class ResolveMixin:
     """A runtime-resolved value."""
 
+    def iter_references(self) -> typing.Iterable[tuple[Operator, str]]:
+        """Find underlying XCom references this contains.
+
+        This is used by the DAG parser to recursively find task dependencies.
+
+        :meta private:
+        """
+        raise NotImplementedError
+
     def resolve(self, context: Context) -> typing.Any:
+        """Resolve this value for runtime.
+
+        :meta private:
+        """
         raise NotImplementedError

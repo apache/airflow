@@ -17,16 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
-from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
 from airflow.executors.kubernetes_executor import KubernetesExecutor
 from airflow.executors.local_executor import LocalExecutor
-from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+if TYPE_CHECKING:
+    from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
+    from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 
 
 class LocalKubernetesExecutor(LoggingMixin):
@@ -39,9 +41,19 @@ class LocalKubernetesExecutor(LoggingMixin):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    supports_pickling: bool = False
+    supports_sentry: bool = False
+
+    is_local: bool = False
+    is_single_threaded: bool = False
+    is_production: bool = True
+
+    serve_logs: bool = True
+    change_sensor_mode_to_reschedule: bool = False
+
     callback_sink: BaseCallbackSink | None = None
 
-    KUBERNETES_QUEUE = conf.get('local_kubernetes_executor', 'kubernetes_queue')
+    KUBERNETES_QUEUE = conf.get("local_kubernetes_executor", "kubernetes_queue")
 
     def __init__(self, local_executor: LocalExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
@@ -52,7 +64,7 @@ class LocalKubernetesExecutor(LoggingMixin):
 
     @property
     def queued_tasks(self) -> dict[TaskInstanceKey, QueuedTaskInstanceType]:
-        """Return queued tasks from local and kubernetes executor"""
+        """Return queued tasks from local and kubernetes executor."""
         queued_tasks = self.local_executor.queued_tasks.copy()
         queued_tasks.update(self.kubernetes_executor.queued_tasks)
 
@@ -60,33 +72,35 @@ class LocalKubernetesExecutor(LoggingMixin):
 
     @property
     def running(self) -> set[TaskInstanceKey]:
-        """Return running tasks from local and kubernetes executor"""
+        """Return running tasks from local and kubernetes executor."""
         return self.local_executor.running.union(self.kubernetes_executor.running)
 
     @property
     def job_id(self) -> str | None:
         """
-        This is a class attribute in BaseExecutor but since this is not really an executor, but a wrapper
-        of executors we implement as property so we can have custom setter.
+        Inherited attribute from BaseExecutor.
+
+        Since this is not really an executor, but a wrapper of executors
+        we implemented it as property, so we can have custom setter.
         """
         return self._job_id
 
     @job_id.setter
     def job_id(self, value: str | None) -> None:
-        """job_id is manipulated by SchedulerJob.  We must propagate the job_id to wrapped executors."""
+        """Expose job ID for SchedulerJob."""
         self._job_id = value
         self.kubernetes_executor.job_id = value
         self.local_executor.job_id = value
 
     def start(self) -> None:
+        """Start local and kubernetes executor."""
         self.log.info("Starting local and Kubernetes Executor")
-        """Start local and kubernetes executor"""
         self.local_executor.start()
         self.kubernetes_executor.start()
 
     @property
     def slots_available(self) -> int:
-        """Number of new tasks this executor instance can accept"""
+        """Number of new tasks this executor instance can accept."""
         return self.local_executor.slots_available
 
     def queue_command(
@@ -96,7 +110,7 @@ class LocalKubernetesExecutor(LoggingMixin):
         priority: int = 1,
         queue: str | None = None,
     ) -> None:
-        """Queues command via local or kubernetes executor"""
+        """Queues command via local or kubernetes executor."""
         executor = self._router(task_instance)
         self.log.debug("Using executor: %s for %s", executor.__class__.__name__, task_instance.key)
         executor.queue_command(task_instance, command, priority, queue)
@@ -105,30 +119,40 @@ class LocalKubernetesExecutor(LoggingMixin):
         self,
         task_instance: TaskInstance,
         mark_success: bool = False,
-        pickle_id: str | None = None,
+        pickle_id: int | None = None,
         ignore_all_deps: bool = False,
         ignore_depends_on_past: bool = False,
+        wait_for_past_depends_before_skipping: bool = False,
         ignore_task_deps: bool = False,
         ignore_ti_state: bool = False,
         pool: str | None = None,
         cfg_path: str | None = None,
     ) -> None:
-        """Queues task instance via local or kubernetes executor"""
+        """Queues task instance via local or kubernetes executor."""
+        from airflow.models.taskinstance import SimpleTaskInstance
+
         executor = self._router(SimpleTaskInstance.from_ti(task_instance))
         self.log.debug(
             "Using executor: %s to queue_task_instance for %s", executor.__class__.__name__, task_instance.key
         )
         executor.queue_task_instance(
-            task_instance,
-            mark_success,
-            pickle_id,
-            ignore_all_deps,
-            ignore_depends_on_past,
-            ignore_task_deps,
-            ignore_ti_state,
-            pool,
-            cfg_path,
+            task_instance=task_instance,
+            mark_success=mark_success,
+            pickle_id=pickle_id,
+            ignore_all_deps=ignore_all_deps,
+            ignore_depends_on_past=ignore_depends_on_past,
+            wait_for_past_depends_before_skipping=wait_for_past_depends_before_skipping,
+            ignore_task_deps=ignore_task_deps,
+            ignore_ti_state=ignore_ti_state,
+            pool=pool,
+            cfg_path=cfg_path,
         )
+
+    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
+        """Fetch task log from kubernetes executor."""
+        if ti.queue == self.kubernetes_executor.kubernetes_queue:
+            return self.kubernetes_executor.get_task_log(ti=ti, try_number=try_number)
+        return [], []
 
     def has_task(self, task_instance: TaskInstance) -> bool:
         """
@@ -140,7 +164,7 @@ class LocalKubernetesExecutor(LoggingMixin):
         return self.local_executor.has_task(task_instance) or self.kubernetes_executor.has_task(task_instance)
 
     def heartbeat(self) -> None:
-        """Heartbeat sent to trigger new jobs in local and kubernetes executor"""
+        """Heartbeat sent to trigger new jobs in local and kubernetes executor."""
         self.local_executor.heartbeat()
         self.kubernetes_executor.heartbeat()
 
@@ -148,7 +172,7 @@ class LocalKubernetesExecutor(LoggingMixin):
         self, dag_ids: list[str] | None = None
     ) -> dict[TaskInstanceKey, EventBufferValueType]:
         """
-        Returns and flush the event buffer from local and kubernetes executor
+        Return and flush the event buffer from local and kubernetes executor.
 
         :param dag_ids: dag_ids to return events for, if None returns all
         :return: a dict of events
@@ -166,7 +190,6 @@ class LocalKubernetesExecutor(LoggingMixin):
         re-scheduling)
 
         :return: any TaskInstances that were unable to be adopted
-        :rtype: list[airflow.models.TaskInstance]
         """
         local_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
         kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
@@ -175,30 +198,35 @@ class LocalKubernetesExecutor(LoggingMixin):
             *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
         ]
 
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
+        # LocalExecutor doesn't have a cleanup_stuck_queued_tasks method, so we
+        # will only run KubernetesExecutor's
+        kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
+        return self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis)
+
     def end(self) -> None:
-        """End local and kubernetes executor"""
+        """End local and kubernetes executor."""
         self.local_executor.end()
         self.kubernetes_executor.end()
 
     def terminate(self) -> None:
-        """Terminate local and kubernetes executor"""
+        """Terminate local and kubernetes executor."""
         self.local_executor.terminate()
         self.kubernetes_executor.terminate()
 
     def _router(self, simple_task_instance: SimpleTaskInstance) -> LocalExecutor | KubernetesExecutor:
         """
-        Return either local_executor or kubernetes_executor
+        Return either local_executor or kubernetes_executor.
 
         :param simple_task_instance: SimpleTaskInstance
         :return: local_executor or kubernetes_executor
-        :rtype: Union[LocalExecutor, KubernetesExecutor]
         """
         if simple_task_instance.queue == self.KUBERNETES_QUEUE:
             return self.kubernetes_executor
         return self.local_executor
 
     def debug_dump(self) -> None:
-        """Called in response to SIGUSR2 by the scheduler"""
+        """Called in response to SIGUSR2 by the scheduler."""
         self.log.info("Dumping LocalExecutor state")
         self.local_executor.debug_dump()
         self.log.info("Dumping KubernetesExecutor state")

@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Any, Iterable
 
 from sqlalchemy import Column, Integer, String, Text, func
 from sqlalchemy.orm.session import Session
@@ -32,7 +32,7 @@ from airflow.utils.state import State
 
 
 class PoolStats(TypedDict):
-    """Dictionary containing Pool Stats"""
+    """Dictionary containing Pool Stats."""
 
     total: int
     running: int
@@ -51,20 +51,20 @@ class Pool(Base):
     slots = Column(Integer, default=0)
     description = Column(Text)
 
-    DEFAULT_POOL_NAME = 'default_pool'
+    DEFAULT_POOL_NAME = "default_pool"
 
     def __repr__(self):
         return str(self.pool)
 
     @staticmethod
     @provide_session
-    def get_pools(session: Session = NEW_SESSION):
+    def get_pools(session: Session = NEW_SESSION) -> list[Pool]:
         """Get all pools."""
         return session.query(Pool).all()
 
     @staticmethod
     @provide_session
-    def get_pool(pool_name: str, session: Session = NEW_SESSION):
+    def get_pool(pool_name: str, session: Session = NEW_SESSION) -> Pool | None:
         """
         Get the Pool with specific pool name from the Pools.
 
@@ -76,7 +76,7 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def get_default_pool(session: Session = NEW_SESSION):
+    def get_default_pool(session: Session = NEW_SESSION) -> Pool | None:
         """
         Get the Pool of the default_pool from the Pools.
 
@@ -104,11 +104,17 @@ class Pool(Base):
 
     @staticmethod
     @provide_session
-    def create_or_update_pool(name: str, slots: int, description: str, session: Session = NEW_SESSION):
+    def create_or_update_pool(
+        name: str,
+        slots: int,
+        description: str,
+        session: Session = NEW_SESSION,
+    ) -> Pool:
         """Create a pool with given parameters or update it if it already exists."""
         if not name:
-            return
-        pool = session.query(Pool).filter_by(pool=name).first()
+            raise ValueError("Pool name must not be empty")
+
+        pool = session.query(Pool).filter_by(pool=name).one_or_none()
         if pool is None:
             pool = Pool(pool=name, slots=slots, description=description)
             session.add(pool)
@@ -117,12 +123,11 @@ class Pool(Base):
             pool.description = description
 
         session.commit()
-
         return pool
 
     @staticmethod
     @provide_session
-    def delete_pool(name: str, session: Session = NEW_SESSION):
+    def delete_pool(name: str, session: Session = NEW_SESSION) -> Pool:
         """Delete pool by a given name."""
         if name == Pool.DEFAULT_POOL_NAME:
             raise AirflowException(f"{Pool.DEFAULT_POOL_NAME} cannot be deleted")
@@ -144,7 +149,7 @@ class Pool(Base):
         session: Session = NEW_SESSION,
     ) -> dict[str, PoolStats]:
         """
-        Get Pool stats (Number of Running, Queued, Open & Total tasks)
+        Get Pool stats (Number of Running, Queued, Open & Total tasks).
 
         If ``lock_rows`` is True, and the database engine in use supports the ``NOWAIT`` syntax, then a
         non-blocking lock will be attempted -- if the lock is not available then SQLAlchemy will throw an
@@ -165,7 +170,7 @@ class Pool(Base):
         pool_rows: Iterable[tuple[str, int]] = query.all()
         for (pool_name, total_slots) in pool_rows:
             if total_slots == -1:
-                total_slots = float('inf')  # type: ignore
+                total_slots = float("inf")  # type: ignore
             pools[pool_name] = PoolStats(total=total_slots, running=0, queued=0, open=0)
 
         state_count_by_pool = (
@@ -196,21 +201,21 @@ class Pool(Base):
 
         return pools
 
-    def to_json(self):
+    def to_json(self) -> dict[str, Any]:
         """
-        Get the Pool in a json structure
+        Get the Pool in a json structure.
 
         :return: the pool object in json format
         """
         return {
-            'id': self.id,
-            'pool': self.pool,
-            'slots': self.slots,
-            'description': self.description,
+            "id": self.id,
+            "pool": self.pool,
+            "slots": self.slots,
+            "description": self.description,
         }
 
     @provide_session
-    def occupied_slots(self, session: Session = NEW_SESSION):
+    def occupied_slots(self, session: Session = NEW_SESSION) -> int:
         """
         Get the number of slots used by running/queued tasks at the moment.
 
@@ -222,13 +227,13 @@ class Pool(Base):
         return int(
             session.query(func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.pool == self.pool)
-            .filter(TaskInstance.state.in_(list(EXECUTION_STATES)))
+            .filter(TaskInstance.state.in_(EXECUTION_STATES))
             .scalar()
             or 0
         )
 
     @provide_session
-    def running_slots(self, session: Session = NEW_SESSION):
+    def running_slots(self, session: Session = NEW_SESSION) -> int:
         """
         Get the number of slots used by running tasks at the moment.
 
@@ -246,7 +251,7 @@ class Pool(Base):
         )
 
     @provide_session
-    def queued_slots(self, session: Session = NEW_SESSION):
+    def queued_slots(self, session: Session = NEW_SESSION) -> int:
         """
         Get the number of slots used by queued tasks at the moment.
 
@@ -264,7 +269,7 @@ class Pool(Base):
         )
 
     @provide_session
-    def scheduled_slots(self, session: Session = NEW_SESSION):
+    def scheduled_slots(self, session: Session = NEW_SESSION) -> int:
         """
         Get the number of slots scheduled at the moment.
 
@@ -290,6 +295,5 @@ class Pool(Base):
         :return: the number of slots
         """
         if self.slots == -1:
-            return float('inf')
-        else:
-            return self.slots - self.occupied_slots(session)
+            return float("inf")
+        return self.slots - self.occupied_slots(session)

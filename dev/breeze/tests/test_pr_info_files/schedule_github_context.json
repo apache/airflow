@@ -5,5 +5,5 @@
         "schedule": "28 0 * * *"
     },
     "ref_name": "main",
-    "ref": "refs/head/main"
+    "ref": "refs/heads/main"
 }

@@ -47,25 +47,25 @@ class AthenaSensor(BaseSensorOperator):
     """
 
     INTERMEDIATE_STATES = (
-        'QUEUED',
-        'RUNNING',
+        "QUEUED",
+        "RUNNING",
     )
     FAILURE_STATES = (
-        'FAILED',
-        'CANCELLED',
+        "FAILED",
+        "CANCELLED",
     )
-    SUCCESS_STATES = ('SUCCEEDED',)
+    SUCCESS_STATES = ("SUCCEEDED",)
 
-    template_fields: Sequence[str] = ('query_execution_id',)
+    template_fields: Sequence[str] = ("query_execution_id",)
     template_ext: Sequence[str] = ()
-    ui_color = '#66c3ff'
+    ui_color = "#66c3ff"
 
     def __init__(
         self,
         *,
         query_execution_id: str,
         max_retries: int | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         sleep_time: int = 10,
         **kwargs: Any,
     ) -> None:
@@ -79,7 +79,7 @@ class AthenaSensor(BaseSensorOperator):
         state = self.hook.poll_query_status(self.query_execution_id, self.max_retries)
 
         if state in self.FAILURE_STATES:
-            raise AirflowException('Athena sensor failed')
+            raise AirflowException("Athena sensor failed")
 
         if state in self.INTERMEDIATE_STATES:
             return False

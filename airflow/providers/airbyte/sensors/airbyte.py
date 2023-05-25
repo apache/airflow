@@ -33,19 +33,19 @@ class AirbyteJobSensor(BaseSensorOperator):
     Check for the state of a previously submitted Airbyte job.
 
     :param airbyte_job_id: Required. Id of the Airbyte job
-    :param airbyte_conn_id: Required. The name of the Airflow connection to get
-        connection information for Airbyte.
-    :param api_version: Optional. Airbyte API version.
+    :param airbyte_conn_id: Optional. The name of the Airflow connection to get
+        connection information for Airbyte. Defaults to "airbyte_default".
+    :param api_version: Optional. Airbyte API version. Defaults to "v1".
     """
 
-    template_fields: Sequence[str] = ('airbyte_job_id',)
-    ui_color = '#6C51FD'
+    template_fields: Sequence[str] = ("airbyte_job_id",)
+    ui_color = "#6C51FD"
 
     def __init__(
         self,
         *,
         airbyte_job_id: int,
-        airbyte_conn_id: str = 'airbyte_default',
+        airbyte_conn_id: str = "airbyte_default",
         api_version: str = "v1",
         **kwargs,
     ) -> None:
@@ -57,7 +57,7 @@ class AirbyteJobSensor(BaseSensorOperator):
     def poke(self, context: Context) -> bool:
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         job = hook.get_job(job_id=self.airbyte_job_id)
-        status = job.json()['job']['status']
+        status = job.json()["job"]["status"]
 
         if status == hook.FAILED:
             raise AirflowException(f"Job failed: \n{job}")

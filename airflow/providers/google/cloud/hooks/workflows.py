@@ -39,6 +39,14 @@ class WorkflowsHook(GoogleBaseHook):
     keyword arguments rather than positional.
     """
 
+    def __init__(self, **kwargs):
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
+        super().__init__(**kwargs)
+
     def get_workflows_client(self) -> WorkflowsClient:
         """Returns WorkflowsClient."""
         return WorkflowsClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
@@ -241,6 +249,7 @@ class WorkflowsHook(GoogleBaseHook):
         metadata = metadata or ()
         client = self.get_executions_client()
         parent = f"projects/{project_id}/locations/{location}/workflows/{workflow_id}"
+        execution = {k: str(v) if isinstance(v, dict) else v for k, v in execution.items()}
         return client.create_execution(
             request={"parent": parent, "execution": execution},
             retry=retry,

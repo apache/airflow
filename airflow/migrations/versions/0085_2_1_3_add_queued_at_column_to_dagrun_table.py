@@ -30,19 +30,19 @@ from alembic import op
 from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
-revision = '97cdd93827b8'
-down_revision = 'a13f7613ad25'
+revision = "97cdd93827b8"
+down_revision = "a13f7613ad25"
 branch_labels = None
 depends_on = None
-airflow_version = '2.1.3'
+airflow_version = "2.1.3"
 
 
 def upgrade():
     """Apply Add ``queued_at`` column in ``dag_run`` table"""
-    op.add_column('dag_run', sa.Column('queued_at', TIMESTAMP, nullable=True))
+    op.add_column("dag_run", sa.Column("queued_at", TIMESTAMP, nullable=True))
 
 
 def downgrade():
     """Unapply Add ``queued_at`` column in ``dag_run`` table"""
-    with op.batch_alter_table('dag_run') as batch_op:
-        batch_op.drop_column('queued_at')
+    with op.batch_alter_table("dag_run") as batch_op:
+        batch_op.drop_column("queued_at")

@@ -18,7 +18,7 @@
 
 set -euo pipefail
 rm -rf docker-context-files/*.whl
-rm -rf docker-context-files/*.tgz
+rm -rf docker-context-files/*.tar.gz
 export ANSWER="yes"
 export CI="true"
 export GITHUB_TOKEN=""

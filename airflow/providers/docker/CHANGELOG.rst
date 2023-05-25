@@ -24,6 +24,106 @@
 Changelog
 ---------
 
+3.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``adding docker port expose capability (#30730)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add multiple exit code handling in skip logic for 'DockerOperator' and 'KubernetesPodOperator' (#30769)``
+* ``In 'DockerOperator', adding an attribute 'tls_verify' to choose whether to validate certificate (#30309) (#30310)``
+
+Misc
+~~~~
+
+* ``Deprecate 'skip_exit_code' in 'DockerOperator' and 'KubernetesPodOperator' (#30733)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix and augment 'check-for-inclusive-language' CI check (#29549)``
+   * ``Remove "boilerplate" from all taskflow decorators (#30118)``
+   * ``Add mechanism to suspend providers (#30422)``
+
+3.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix template_fields in the decorator 'task.docker' (#29586)``
+
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add correct widgets in Docker Hook (#28700)``
+* ``Make docker operators always use 'DockerHook' for API calls (#28363)``
+* ``Skip DockerOperator task when it returns a provided exit code (#28996)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix label name for 'reauth' field in Docker Connection (#28974)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
+
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add hostname argument to DockerOperator (#27822)``
+* ``Move min airflow version down for Docker Provider to 2.3.0 (#28648)``
+
+3.3.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+Features
+~~~~~~~~
+
+* ``Add ipc_mode for DockerOperator (#27553)``
+* ``Add env-file parameter to Docker Operator (#26951)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
 3.2.0
 .....
 
@@ -66,8 +166,9 @@ Bug Fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Misc
 ~~~~

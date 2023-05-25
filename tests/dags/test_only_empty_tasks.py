@@ -30,7 +30,7 @@ default_args = {
     "start_date": DEFAULT_DATE,
 }
 
-dag = DAG(dag_id="test_only_empty_tasks", default_args=default_args, schedule='@once')
+dag = DAG(dag_id="test_only_empty_tasks", default_args=default_args, schedule="@once")
 
 
 class MyEmptyOperator(EmptyOperator):

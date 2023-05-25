@@ -22,4 +22,4 @@ import pathlib
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
-TEST_DAGS_FOLDER = pathlib.Path(__file__).parent.with_name('dags')
+TEST_DAGS_FOLDER = pathlib.Path(__file__).parent.with_name("dags")

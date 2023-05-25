@@ -58,7 +58,6 @@ class BatchProtocol(Protocol):
         :param jobs: a list of JobId to describe
 
         :return: an API response to describe jobs
-        :rtype: Dict
         """
         ...
 
@@ -71,7 +70,6 @@ class BatchProtocol(Protocol):
             model file (typically this is CamelCasing).
 
         :return: a waiter object for the named AWS Batch service
-        :rtype: botocore.waiter.Waiter
 
         .. note::
             AWS Batch might not have any waiters (until botocore PR-1307 is released).
@@ -117,7 +115,6 @@ class BatchProtocol(Protocol):
         :param tags: the same parameter that boto3 will receive
 
         :return: an API response
-        :rtype: Dict
         """
         ...
 
@@ -130,7 +127,6 @@ class BatchProtocol(Protocol):
         :param reason: a reason to terminate job ID
 
         :return: an API response
-        :rtype: Dict
         """
         ...
 
@@ -141,11 +137,11 @@ class BatchProtocol(Protocol):
 
 class BatchClientHook(AwsBaseHook):
     """
-    A client for AWS Batch services.
+    Interact with AWS Batch.
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("batch") <Batch.Client>`.
 
     :param max_retries: exponential back-off retries, 4200 = 48 hours;
         polling is only used when waiters is None
-
     :param status_retries: number of HTTP retries to get job status, 10;
         polling is only used when waiters is None
 
@@ -168,8 +164,11 @@ class BatchClientHook(AwsBaseHook):
         convenience method is provided for this, e.g. to get a random delay of
         10 sec +/- 5 sec: ``delay = BatchClient.add_jitter(10, width=5, minima=0)``
 
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
     .. seealso::
-        - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
         - https://docs.aws.amazon.com/general/latest/gr/api-retries.html
         - https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
     """
@@ -181,28 +180,28 @@ class BatchClientHook(AwsBaseHook):
     DEFAULT_DELAY_MIN = 1
     DEFAULT_DELAY_MAX = 10
 
-    FAILURE_STATE = 'FAILED'
-    SUCCESS_STATE = 'SUCCEEDED'
-    RUNNING_STATE = 'RUNNING'
+    FAILURE_STATE = "FAILED"
+    SUCCESS_STATE = "SUCCEEDED"
+    RUNNING_STATE = "RUNNING"
     INTERMEDIATE_STATES = (
-        'SUBMITTED',
-        'PENDING',
-        'RUNNABLE',
-        'STARTING',
+        "SUBMITTED",
+        "PENDING",
+        "RUNNABLE",
+        "STARTING",
         RUNNING_STATE,
     )
 
-    COMPUTE_ENVIRONMENT_TERMINAL_STATUS = ('VALID', 'DELETED')
-    COMPUTE_ENVIRONMENT_INTERMEDIATE_STATUS = ('CREATING', 'UPDATING', 'DELETING')
+    COMPUTE_ENVIRONMENT_TERMINAL_STATUS = ("VALID", "DELETED")
+    COMPUTE_ENVIRONMENT_INTERMEDIATE_STATUS = ("CREATING", "UPDATING", "DELETING")
 
-    JOB_QUEUE_TERMINAL_STATUS = ('VALID', 'DELETED')
-    JOB_QUEUE_INTERMEDIATE_STATUS = ('CREATING', 'UPDATING', 'DELETING')
+    JOB_QUEUE_TERMINAL_STATUS = ("VALID", "DELETED")
+    JOB_QUEUE_INTERMEDIATE_STATUS = ("CREATING", "UPDATING", "DELETING")
 
     def __init__(
         self, *args, max_retries: int | None = None, status_retries: int | None = None, **kwargs
     ) -> None:
         # https://github.com/python/mypy/issues/6799 hence type: ignore
-        super().__init__(client_type='batch', *args, **kwargs)  # type: ignore
+        super().__init__(client_type="batch", *args, **kwargs)  # type: ignore
         self.max_retries = max_retries or self.MAX_RETRIES
         self.status_retries = status_retries or self.STATUS_RETRIES
 
@@ -212,7 +211,6 @@ class BatchClientHook(AwsBaseHook):
         An AWS API client for Batch services.
 
         :return: a boto3 'batch' client for the ``.region_name``
-        :rtype: Union[BatchProtocol, botocore.client.BaseClient]
         """
         return self.conn
 
@@ -225,7 +223,6 @@ class BatchClientHook(AwsBaseHook):
         :param reason: a reason to terminate job ID
 
         :return: an API response
-        :rtype: Dict
         """
         response = self.get_conn().terminate_job(jobId=job_id, reason=reason)
         self.log.info(response)
@@ -238,7 +235,6 @@ class BatchClientHook(AwsBaseHook):
 
         :param job_id: a Batch job ID
 
-        :rtype: bool
 
         :raises: AirflowException
         """
@@ -321,7 +317,6 @@ class BatchClientHook(AwsBaseHook):
         :param match_status: a list of job status to match; the Batch job status are:
             'SUBMITTED'|'PENDING'|'RUNNABLE'|'STARTING'|'RUNNING'|'SUCCEEDED'|'FAILED'
 
-        :rtype: bool
 
         :raises: AirflowException
         """
@@ -361,7 +356,6 @@ class BatchClientHook(AwsBaseHook):
         :param job_id: a Batch job ID
 
         :return: an API response for describe jobs
-        :rtype: Dict
 
         :raises: AirflowException
         """
@@ -372,11 +366,15 @@ class BatchClientHook(AwsBaseHook):
                 return self.parse_job_description(job_id, response)
 
             except botocore.exceptions.ClientError as err:
-                error = err.response.get("Error", {})
-                if error.get("Code") == "TooManyRequestsException":
-                    pass  # allow it to retry, if possible
-                else:
-                    raise AirflowException(f"AWS Batch job ({job_id}) description error: {err}")
+                # Allow it to retry in case of exceeded quota limit of requests to AWS API
+                if err.response.get("Error", {}).get("Code") != "TooManyRequestsException":
+                    raise
+                self.log.warning(
+                    "Ignored TooManyRequestsException error, original message: %r. "
+                    "Please consider to setup retries mode in boto3, "
+                    "check Amazon Provider AWS Connection documentation for more details.",
+                    str(err),
+                )
 
             retries += 1
             if retries >= self.status_retries:
@@ -405,7 +403,6 @@ class BatchClientHook(AwsBaseHook):
         :param response: an API response for describe jobs
 
         :return: an API response to describe job_id
-        :rtype: Dict
 
         :raises: AirflowException
         """
@@ -417,43 +414,76 @@ class BatchClientHook(AwsBaseHook):
         return matching_jobs[0]
 
     def get_job_awslogs_info(self, job_id: str) -> dict[str, str] | None:
+        all_info = self.get_job_all_awslogs_info(job_id)
+        if not all_info:
+            return None
+        if len(all_info) > 1:
+            self.log.warning(
+                f"AWS Batch job ({job_id}) has more than one log stream, only returning the first one."
+            )
+        return all_info[0]
+
+    def get_job_all_awslogs_info(self, job_id: str) -> list[dict[str, str]]:
         """
         Parse job description to extract AWS CloudWatch information.
 
         :param job_id: AWS Batch Job ID
         """
-        job_container_desc = self.get_job_description(job_id=job_id).get("container", {})
-        log_configuration = job_container_desc.get("logConfiguration", {})
+        job_desc = self.get_job_description(job_id=job_id)
 
-        # In case if user select other "logDriver" rather than "awslogs"
-        # than CloudWatch logging should be disabled.
-        # If user not specify anything than expected that "awslogs" will use
-        # with default settings:
-        #   awslogs-group = /aws/batch/job
-        #   awslogs-region = `same as AWS Batch Job region`
-        log_driver = log_configuration.get("logDriver", "awslogs")
-        if log_driver != "awslogs":
-            self.log.warning(
-                "AWS Batch job (%s) uses logDriver (%s). AWS CloudWatch logging disabled.", job_id, log_driver
+        job_node_properties = job_desc.get("nodeProperties", {})
+        job_container_desc = job_desc.get("container", {})
+
+        if job_node_properties:
+            # one log config per node
+            log_configs = [
+                p.get("container", {}).get("logConfiguration", {})
+                for p in job_node_properties.get("nodeRangeProperties", {})
+            ]
+            # one stream name per attempt
+            stream_names = [a.get("container", {}).get("logStreamName") for a in job_desc.get("attempts", [])]
+        elif job_container_desc:
+            log_configs = [job_container_desc.get("logConfiguration", {})]
+            stream_name = job_container_desc.get("logStreamName")
+            stream_names = [stream_name] if stream_name is not None else []
+        else:
+            raise AirflowException(
+                f"AWS Batch job ({job_id}) is not a supported job type. "
+                "Supported job types: container, array, multinode."
             )
-            return None
 
-        awslogs_stream_name = job_container_desc.get("logStreamName")
-        if not awslogs_stream_name:
-            # In case of call this method on very early stage of running AWS Batch
-            # there is possibility than AWS CloudWatch Stream Name not exists yet.
-            # AWS CloudWatch Stream Name also not created in case of misconfiguration.
-            self.log.warning("AWS Batch job (%s) doesn't create AWS CloudWatch Stream.", job_id)
-            return None
+        # If the user selected another logDriver than "awslogs", then CloudWatch logging is disabled.
+        if any([c.get("logDriver", "awslogs") != "awslogs" for c in log_configs]):
+            self.log.warning(
+                f"AWS Batch job ({job_id}) uses non-aws log drivers. AWS CloudWatch logging disabled."
+            )
+            return []
+
+        if not stream_names:
+            # If this method is called very early after starting the AWS Batch job,
+            # there is a possibility that the AWS CloudWatch Stream Name would not exist yet.
+            # This can also happen in case of misconfiguration.
+            self.log.warning(f"AWS Batch job ({job_id}) doesn't have any AWS CloudWatch Stream.")
+            return []
 
         # Try to get user-defined log configuration options
-        log_options = log_configuration.get("options", {})
+        log_options = [c.get("options", {}) for c in log_configs]
 
-        return {
-            "awslogs_stream_name": awslogs_stream_name,
-            "awslogs_group": log_options.get("awslogs-group", "/aws/batch/job"),
-            "awslogs_region": log_options.get("awslogs-region", self.conn_region_name),
-        }
+        # cross stream names with options (i.e. attempts X nodes) to generate all log infos
+        result = []
+        for stream in stream_names:
+            for option in log_options:
+                result.append(
+                    {
+                        "awslogs_stream_name": stream,
+                        # If the user did not specify anything, the default settings are:
+                        #   awslogs-group = /aws/batch/job
+                        #   awslogs-region = `same as AWS Batch Job region`
+                        "awslogs_group": option.get("awslogs-group", "/aws/batch/job"),
+                        "awslogs_region": option.get("awslogs-region", self.conn_region_name),
+                    }
+                )
+        return result
 
     @staticmethod
     def add_jitter(delay: int | float, width: int | float = 1, minima: int | float = 0) -> float:
@@ -475,7 +505,6 @@ class BatchClientHook(AwsBaseHook):
 
         :return: uniform(delay - width, delay + width) jitter
             and it is a non-negative number
-        :rtype: float
         """
         delay = abs(delay)
         width = abs(width)
@@ -513,7 +542,6 @@ class BatchClientHook(AwsBaseHook):
 
         :param tries: Number of tries
 
-        :rtype: float
 
         Examples of behavior:
 

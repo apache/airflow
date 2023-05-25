@@ -36,7 +36,7 @@ revision = "c306b5b5ae4a"
 down_revision = "a3bcd0914482"
 branch_labels = None
 depends_on = None
-airflow_version = '2.3.0'
+airflow_version = "2.3.0"
 
 
 metadata = MetaData()
@@ -168,8 +168,12 @@ def downgrade():
 
     op.drop_table("xcom")
     op.rename_table("__airflow_tmp_xcom", "xcom")
-    if conn.dialect.name == 'mssql':
-        constraints = get_mssql_table_constraints(conn, 'xcom')
-        pk, _ = constraints['PRIMARY KEY'].popitem()
-        op.drop_constraint(pk, 'xcom', type_='primary')
-        op.create_primary_key("pk_xcom", "xcom", ["dag_id", "task_id", "execution_date", "key"])
+    if conn.dialect.name == "mssql":
+        constraints = get_mssql_table_constraints(conn, "xcom")
+        pk, _ = constraints["PRIMARY KEY"].popitem()
+        op.drop_constraint(pk, "xcom", type_="primary")
+        op.create_primary_key(
+            constraint_name="pk_xcom",
+            table_name="xcom",
+            columns=["dag_id", "task_id", "execution_date", "key"],
+        )

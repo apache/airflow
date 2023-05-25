@@ -39,11 +39,11 @@ from airflow.providers.amazon.aws.sensors.ecs import (
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-DAG_ID = 'example_ecs'
+DAG_ID = "example_ecs"
 
 # Externally fetched variables:
-EXISTING_CLUSTER_NAME_KEY = 'CLUSTER_NAME'
-EXISTING_CLUSTER_SUBNETS_KEY = 'SUBNETS'
+EXISTING_CLUSTER_NAME_KEY = "CLUSTER_NAME"
+EXISTING_CLUSTER_SUBNETS_KEY = "SUBNETS"
 
 sys_test_context_task = (
     SystemTestContextBuilder()
@@ -69,9 +69,9 @@ def get_region():
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
@@ -79,16 +79,16 @@ with DAG(
     existing_cluster_name = test_context[EXISTING_CLUSTER_NAME_KEY]
     existing_cluster_subnets = test_context[EXISTING_CLUSTER_SUBNETS_KEY]
 
-    new_cluster_name = f'{env_id}-cluster'
-    container_name = f'{env_id}-container'
-    family_name = f'{env_id}-task-definition'
-    asg_name = f'{env_id}-asg'
+    new_cluster_name = f"{env_id}-cluster"
+    container_name = f"{env_id}-container"
+    family_name = f"{env_id}-task-definition"
+    asg_name = f"{env_id}-asg"
 
     aws_region = get_region()
 
     # [START howto_operator_ecs_create_cluster]
     create_cluster = EcsCreateClusterOperator(
-        task_id='create_cluster',
+        task_id="create_cluster",
         cluster_name=new_cluster_name,
     )
     # [END howto_operator_ecs_create_cluster]
@@ -98,57 +98,57 @@ with DAG(
 
     # [START howto_sensor_ecs_cluster_state]
     await_cluster = EcsClusterStateSensor(
-        task_id='await_cluster',
+        task_id="await_cluster",
         cluster_name=new_cluster_name,
     )
     # [END howto_sensor_ecs_cluster_state]
 
     # [START howto_operator_ecs_register_task_definition]
     register_task = EcsRegisterTaskDefinitionOperator(
-        task_id='register_task',
+        task_id="register_task",
         family=family_name,
         container_definitions=[
             {
-                'name': container_name,
-                'image': 'ubuntu',
-                'workingDirectory': '/usr/bin',
-                'entryPoint': ['sh', '-c'],
-                'command': ['ls'],
+                "name": container_name,
+                "image": "ubuntu",
+                "workingDirectory": "/usr/bin",
+                "entryPoint": ["sh", "-c"],
+                "command": ["ls"],
             }
         ],
         register_task_kwargs={
-            'cpu': '256',
-            'memory': '512',
-            'networkMode': 'awsvpc',
+            "cpu": "256",
+            "memory": "512",
+            "networkMode": "awsvpc",
         },
     )
     # [END howto_operator_ecs_register_task_definition]
 
     # [START howto_sensor_ecs_task_definition_state]
     await_task_definition = EcsTaskDefinitionStateSensor(
-        task_id='await_task_definition',
+        task_id="await_task_definition",
         task_definition=register_task.output,
     )
     # [END howto_sensor_ecs_task_definition_state]
 
     # [START howto_operator_ecs_run_task]
     run_task = EcsRunTaskOperator(
-        task_id='run_task',
+        task_id="run_task",
         cluster=existing_cluster_name,
         task_definition=register_task.output,
         overrides={
-            'containerOverrides': [
+            "containerOverrides": [
                 {
-                    'name': container_name,
-                    'command': ['echo', 'hello', 'world'],
+                    "name": container_name,
+                    "command": ["echo", "hello", "world"],
                 },
             ],
         },
-        network_configuration={'awsvpcConfiguration': {'subnets': existing_cluster_subnets}},
+        network_configuration={"awsvpcConfiguration": {"subnets": existing_cluster_subnets}},
         # [START howto_awslogs_ecs]
-        awslogs_group='/ecs/hello-world',
+        awslogs_group="/ecs/hello-world",
         awslogs_region=aws_region,
-        awslogs_stream_prefix='ecs/hello-world-container',
+        awslogs_stream_prefix="ecs/hello-world-container",
         # [END howto_awslogs_ecs]
         # You must set `reattach=True` in order to get ecs_task_arn if you plan to use a Sensor.
         reattach=True,
@@ -164,9 +164,9 @@ with DAG(
     # demonstrates how to wait until the ECS Task has completed by providing
     # the target_state and failure_states parameters.
     await_task_finish = EcsTaskStateSensor(
-        task_id='await_task_finish',
+        task_id="await_task_finish",
         cluster=existing_cluster_name,
-        task=run_task.output['ecs_task_arn'],
+        task=run_task.output["ecs_task_arn"],
         target_state=EcsTaskStates.STOPPED,
         failure_states={EcsTaskStates.NONE},
     )
@@ -174,7 +174,7 @@ with DAG(
 
     # [START howto_operator_ecs_deregister_task_definition]
     deregister_task = EcsDeregisterTaskDefinitionOperator(
-        task_id='deregister_task',
+        task_id="deregister_task",
         task_definition=register_task.output,
     )
     # [END howto_operator_ecs_deregister_task_definition]
@@ -182,7 +182,7 @@ with DAG(
 
     # [START howto_operator_ecs_delete_cluster]
     delete_cluster = EcsDeleteClusterOperator(
-        task_id='delete_cluster',
+        task_id="delete_cluster",
         cluster_name=new_cluster_name,
     )
     # [END howto_operator_ecs_delete_cluster]
@@ -193,7 +193,7 @@ with DAG(
 
     # [START howto_operator_ecs_delete_cluster]
     await_delete_cluster = EcsClusterStateSensor(
-        task_id='await_delete_cluster',
+        task_id="await_delete_cluster",
         cluster_name=new_cluster_name,
         target_state=EcsClusterStates.INACTIVE,
     )

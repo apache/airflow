@@ -43,7 +43,7 @@ T = TypeVar("T", bound=Callable)
 
 
 def requires_authentication(function: T):
-    """Decorator for functions that require authentication"""
+    """Decorator for functions that require authentication."""
 
     @wraps(function)
     def decorated(*args, **kwargs):
@@ -53,7 +53,7 @@ def requires_authentication(function: T):
     return cast(T, decorated)
 
 
-api_experimental = Blueprint('api_experimental', __name__)
+api_experimental = Blueprint("api_experimental", __name__)
 
 
 def add_deprecation_headers(response: Response):
@@ -61,13 +61,13 @@ def add_deprecation_headers(response: Response):
     Add `Deprecation HTTP Header Field
     <https://tools.ietf.org/id/draft-dalal-deprecation-header-03.html>`__.
     """
-    response.headers['Deprecation'] = 'true'
+    response.headers["Deprecation"] = "true"
     doc_url = get_docs_url("upgrading-to-2.html#migration-guide-from-experimental-api-to-stable-api-v1")
     deprecation_link = f'<{doc_url}>; rel="deprecation"; type="text/html"'
-    if 'link' in response.headers:
-        response.headers['Link'] += f', {deprecation_link}'
+    if "link" in response.headers:
+        response.headers["Link"] += f", {deprecation_link}"
     else:
-        response.headers['Link'] = f'{deprecation_link}'
+        response.headers["Link"] = f"{deprecation_link}"
 
     return response
 
@@ -76,7 +76,7 @@ def add_deprecation_headers(response: Response):
 api_experimental.after_request(add_deprecation_headers)  # type: ignore[arg-type]
 
 
-@api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])
+@api_experimental.route("/dags/<string:dag_id>/dag_runs", methods=["POST"])
 @requires_authentication
 def trigger_dag(dag_id):
     """
@@ -86,22 +86,22 @@ def trigger_dag(dag_id):
     data = request.get_json(force=True)
 
     run_id = None
-    if 'run_id' in data:
-        run_id = data['run_id']
+    if "run_id" in data:
+        run_id = data["run_id"]
 
     conf = None
-    if 'conf' in data:
-        conf = data['conf']
+    if "conf" in data:
+        conf = data["conf"]
         if not isinstance(conf, dict):
-            error_message = 'Dag Run conf must be a dictionary object, other types are not supported'
+            error_message = "Dag Run conf must be a dictionary object, other types are not supported"
             log.error(error_message)
-            response = jsonify({'error': error_message})
+            response = jsonify({"error": error_message})
             response.status_code = 400
             return response
 
     execution_date = None
-    if 'execution_date' in data and data['execution_date'] is not None:
-        execution_date = data['execution_date']
+    if "execution_date" in data and data["execution_date"] is not None:
+        execution_date = data["execution_date"]
 
         # Convert string datetime into actual datetime
         try:
@@ -109,17 +109,17 @@ def trigger_dag(dag_id):
         except ValueError:
             log.error("Given execution date could not be identified as a date.")
             error_message = (
-                f'Given execution date, {execution_date}, could not be identified as a date. '
-                f'Example date format: 2015-11-16T14:34:15+00:00'
+                f"Given execution date, {execution_date}, could not be identified as a date. "
+                f"Example date format: 2015-11-16T14:34:15+00:00"
             )
-            response = jsonify({'error': error_message})
+            response = jsonify({"error": error_message})
             response.status_code = 400
 
             return response
 
     replace_microseconds = execution_date is None
-    if 'replace_microseconds' in data:
-        replace_microseconds = to_boolean(data['replace_microseconds'])
+    if "replace_microseconds" in data:
+        replace_microseconds = to_boolean(data["replace_microseconds"])
 
     try:
         dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
@@ -129,7 +129,7 @@ def trigger_dag(dag_id):
         response.status_code = err.status_code
         return response
 
-    if getattr(g, 'user', None):
+    if getattr(g, "user", None):
         log.info("User %s created %s", g.user, dr)
 
     response = jsonify(
@@ -138,7 +138,7 @@ def trigger_dag(dag_id):
     return response
 
 
-@api_experimental.route('/dags/<string:dag_id>', methods=['DELETE'])
+@api_experimental.route("/dags/<string:dag_id>", methods=["DELETE"])
 @requires_authentication
 def delete_dag(dag_id):
     """Delete all DB records related to the specified Dag."""
@@ -152,19 +152,21 @@ def delete_dag(dag_id):
     return jsonify(message=f"Removed {count} record(s)", count=count)
 
 
-@api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['GET'])
+@api_experimental.route("/dags/<string:dag_id>/dag_runs", methods=["GET"])
 @requires_authentication
 def dag_runs(dag_id):
     """
     Returns a list of Dag Runs for a specific DAG ID.
+
     :query param state: a query string parameter '?state=queued|running|success...'
 
     :param dag_id: String identifier of a DAG
+
     :return: List of DAG runs of a DAG with requested state,
         or all runs if the state is not specified
     """
     try:
-        state = request.args.get('state')
+        state = request.args.get("state")
         dagruns = get_dag_runs(dag_id, state)
     except AirflowException as err:
         log.info(err)
@@ -175,21 +177,21 @@ def dag_runs(dag_id):
     return jsonify(dagruns)
 
 
-@api_experimental.route('/test', methods=['GET'])
+@api_experimental.route("/test", methods=["GET"])
 @requires_authentication
 def test():
-    """Test endpoint to check authentication"""
-    return jsonify(status='OK')
+    """Test endpoint to check authentication."""
+    return jsonify(status="OK")
 
 
-@api_experimental.route('/info', methods=['GET'])
+@api_experimental.route("/info", methods=["GET"])
 @requires_authentication
 def info():
-    """Get Airflow Version"""
+    """Get Airflow Version."""
     return jsonify(version=version)
 
 
-@api_experimental.route('/dags/<string:dag_id>/code', methods=['GET'])
+@api_experimental.route("/dags/<string:dag_id>/code", methods=["GET"])
 @requires_authentication
 def get_dag_code(dag_id):
     """Return python code of a given dag_id."""
@@ -202,10 +204,10 @@ def get_dag_code(dag_id):
         return response
 
 
-@api_experimental.route('/dags/<string:dag_id>/tasks/<string:task_id>', methods=['GET'])
+@api_experimental.route("/dags/<string:dag_id>/tasks/<string:task_id>", methods=["GET"])
 @requires_authentication
 def task_info(dag_id, task_id):
-    """Returns a JSON with a task's public instance variables"""
+    """Returns a JSON with a task's public instance variables."""
     try:
         t_info = get_task(dag_id, task_id)
     except AirflowException as err:
@@ -215,35 +217,35 @@ def task_info(dag_id, task_id):
         return response
 
     # JSONify and return.
-    fields = {k: str(v) for k, v in vars(t_info).items() if not k.startswith('_')}
+    fields = {k: str(v) for k, v in vars(t_info).items() if not k.startswith("_")}
     return jsonify(fields)
 
 
 # ToDo: Shouldn't this be a PUT method?
-@api_experimental.route('/dags/<string:dag_id>/paused/<string:paused>', methods=['GET'])
+@api_experimental.route("/dags/<string:dag_id>/paused/<string:paused>", methods=["GET"])
 @requires_authentication
 def dag_paused(dag_id, paused):
-    """(Un)pauses a dag"""
-    is_paused = bool(paused == 'true')
+    """(Un)pauses a dag."""
+    is_paused = bool(paused == "true")
 
     models.DagModel.get_dagmodel(dag_id).set_is_paused(
         is_paused=is_paused,
     )
 
-    return jsonify({'response': 'ok'})
+    return jsonify({"response": "ok"})
 
 
-@api_experimental.route('/dags/<string:dag_id>/paused', methods=['GET'])
+@api_experimental.route("/dags/<string:dag_id>/paused", methods=["GET"])
 @requires_authentication
 def dag_is_paused(dag_id):
-    """Get paused state of a dag"""
+    """Get paused state of a dag."""
     is_paused = models.DagModel.get_dagmodel(dag_id).is_paused
 
-    return jsonify({'is_paused': is_paused})
+    return jsonify({"is_paused": is_paused})
 
 
 @api_experimental.route(
-    '/dags/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>', methods=['GET']
+    "/dags/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>", methods=["GET"]
 )
 @requires_authentication
 def task_instance_info(dag_id, execution_date, task_id):
@@ -259,10 +261,10 @@ def task_instance_info(dag_id, execution_date, task_id):
     except ValueError:
         log.error("Given execution date could not be identified as a date.")
         error_message = (
-            f'Given execution date, {execution_date}, could not be identified as a date. '
-            f'Example date format: 2015-11-16T14:34:15+00:00'
+            f"Given execution date, {execution_date}, could not be identified as a date. "
+            f"Example date format: 2015-11-16T14:34:15+00:00"
         )
-        response = jsonify({'error': error_message})
+        response = jsonify({"error": error_message})
         response.status_code = 400
 
         return response
@@ -276,11 +278,11 @@ def task_instance_info(dag_id, execution_date, task_id):
         return response
 
     # JSONify and return.
-    fields = {k: str(v) for k, v in vars(ti_info).items() if not k.startswith('_')}
+    fields = {k: str(v) for k, v in vars(ti_info).items() if not k.startswith("_")}
     return jsonify(fields)
 
 
-@api_experimental.route('/dags/<string:dag_id>/dag_runs/<string:execution_date>', methods=['GET'])
+@api_experimental.route("/dags/<string:dag_id>/dag_runs/<string:execution_date>", methods=["GET"])
 @requires_authentication
 def dag_run_status(dag_id, execution_date):
     """
@@ -295,10 +297,10 @@ def dag_run_status(dag_id, execution_date):
     except ValueError:
         log.error("Given execution date could not be identified as a date.")
         error_message = (
-            f'Given execution date, {execution_date}, could not be identified as a date. '
-            f'Example date format: 2015-11-16T14:34:15+00:00'
+            f"Given execution date, {execution_date}, could not be identified as a date. "
+            f"Example date format: 2015-11-16T14:34:15+00:00"
         )
-        response = jsonify({'error': error_message})
+        response = jsonify({"error": error_message})
         response.status_code = 400
 
         return response
@@ -314,10 +316,10 @@ def dag_run_status(dag_id, execution_date):
     return jsonify(dr_info)
 
 
-@api_experimental.route('/latest_runs', methods=['GET'])
+@api_experimental.route("/latest_runs", methods=["GET"])
 @requires_authentication
 def latest_dag_runs():
-    """Returns the latest DagRun for each DAG formatted for the UI"""
+    """Returns the latest DagRun for each DAG formatted for the UI."""
     from airflow.models import DagRun
 
     dagruns = DagRun.get_latest_runs()
@@ -326,18 +328,18 @@ def latest_dag_runs():
         if dagrun.execution_date:
             payload.append(
                 {
-                    'dag_id': dagrun.dag_id,
-                    'execution_date': dagrun.execution_date.isoformat(),
-                    'start_date': ((dagrun.start_date or '') and dagrun.start_date.isoformat()),
-                    'dag_run_url': url_for(
-                        'Airflow.graph', dag_id=dagrun.dag_id, execution_date=dagrun.execution_date
+                    "dag_id": dagrun.dag_id,
+                    "execution_date": dagrun.execution_date.isoformat(),
+                    "start_date": ((dagrun.start_date or "") and dagrun.start_date.isoformat()),
+                    "dag_run_url": url_for(
+                        "Airflow.graph", dag_id=dagrun.dag_id, execution_date=dagrun.execution_date
                     ),
                 }
             )
     return jsonify(items=payload)  # old flask versions don't support jsonifying arrays
 
 
-@api_experimental.route('/pools/<string:name>', methods=['GET'])
+@api_experimental.route("/pools/<string:name>", methods=["GET"])
 @requires_authentication
 def get_pool(name):
     """Get pool by a given name."""
@@ -352,7 +354,7 @@ def get_pool(name):
         return jsonify(pool.to_json())
 
 
-@api_experimental.route('/pools', methods=['GET'])
+@api_experimental.route("/pools", methods=["GET"])
 @requires_authentication
 def get_pools():
     """Get all pools."""
@@ -367,7 +369,7 @@ def get_pools():
         return jsonify([p.to_json() for p in pools])
 
 
-@api_experimental.route('/pools', methods=['POST'])
+@api_experimental.route("/pools", methods=["POST"])
 @requires_authentication
 def create_pool():
     """Create a pool."""
@@ -383,7 +385,7 @@ def create_pool():
         return jsonify(pool.to_json())
 
 
-@api_experimental.route('/pools/<string:name>', methods=['DELETE'])
+@api_experimental.route("/pools/<string:name>", methods=["DELETE"])
 @requires_authentication
 def delete_pool(name):
     """Delete pool."""
@@ -398,20 +400,20 @@ def delete_pool(name):
         return jsonify(pool.to_json())
 
 
-@api_experimental.route('/lineage/<string:dag_id>/<string:execution_date>', methods=['GET'])
+@api_experimental.route("/lineage/<string:dag_id>/<string:execution_date>", methods=["GET"])
 @requires_authentication
 def get_lineage(dag_id: str, execution_date: str):
-    """Get Lineage details for a DagRun"""
+    """Get Lineage details for a DagRun."""
     # Convert string datetime into actual datetime
     try:
         execution_dt = timezone.parse(execution_date)
     except ValueError:
         log.error("Given execution date could not be identified as a date.")
         error_message = (
-            f'Given execution date, {execution_date}, could not be identified as a date. '
-            f'Example date format: 2015-11-16T14:34:15+00:00'
+            f"Given execution date, {execution_date}, could not be identified as a date. "
+            f"Example date format: 2015-11-16T14:34:15+00:00"
         )
-        response = jsonify({'error': error_message})
+        response = jsonify({"error": error_message})
         response.status_code = 400
 
         return response

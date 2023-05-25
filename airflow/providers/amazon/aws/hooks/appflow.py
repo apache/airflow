@@ -16,9 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
-from datetime import datetime, timezone
-from time import sleep
 from typing import TYPE_CHECKING
 
 from airflow.compat.functools import cached_property
@@ -31,23 +28,16 @@ if TYPE_CHECKING:
 
 class AppflowHook(AwsBaseHook):
     """
-    Interact with Amazon Appflow, using the boto3 library.
-    Hook attribute ``conn`` has all methods that listed in documentation.
+    Interact with Amazon Appflow.
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("appflow") <Appflow.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/appflow.html
-        - https://docs.aws.amazon.com/appflow/1.0/APIReference/Welcome.html
-
-    Additional arguments (such as ``aws_conn_id`` or ``region_name``) may be specified and
-        are passed down to the underlying AwsBaseHook.
-
-    .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
-
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - `Amazon Appflow API Reference <https://docs.aws.amazon.com/appflow/1.0/APIReference/Welcome.html>`__
     """
-
-    EVENTUAL_CONSISTENCY_OFFSET: int = 15  # seconds
-    EVENTUAL_CONSISTENCY_POLLING: int = 10  # seconds
 
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "appflow"
@@ -58,51 +48,33 @@ class AppflowHook(AwsBaseHook):
         """Get the underlying boto3 Appflow client (cached)"""
         return super().conn
 
-    def run_flow(self, flow_name: str, poll_interval: int = 20) -> str:
+    def run_flow(self, flow_name: str, poll_interval: int = 20, wait_for_completion: bool = True) -> str:
         """
         Execute an AppFlow run.
 
         :param flow_name: The flow name
         :param poll_interval: Time (seconds) to wait between two consecutive calls to check the run status
+        :param wait_for_completion: whether to wait for the run to end to return
         :return: The run execution ID
         """
-        ts_before: datetime = datetime.now(timezone.utc)
-        sleep(self.EVENTUAL_CONSISTENCY_OFFSET)
         response_start = self.conn.start_flow(flowName=flow_name)
         execution_id = response_start["executionId"]
         self.log.info("executionId: %s", execution_id)
 
-        response_desc = self.conn.describe_flow(flowName=flow_name)
-        last_exec_details = response_desc["lastRunExecutionDetails"]
-
-        # Wait Appflow eventual consistence
-        self.log.info("Waiting for Appflow eventual consistence...")
-        while (
-            response_desc.get("lastRunExecutionDetails", {}).get(
-                "mostRecentExecutionTime", datetime(1970, 1, 1, tzinfo=timezone.utc)
+        if wait_for_completion:
+            self.get_waiter("run_complete", {"EXECUTION_ID": execution_id}).wait(
+                flowName=flow_name,
+                WaiterConfig={"Delay": poll_interval},
             )
-            < ts_before
-        ):
-            sleep(self.EVENTUAL_CONSISTENCY_POLLING)
-            response_desc = self.conn.describe_flow(flowName=flow_name)
-            last_exec_details = response_desc["lastRunExecutionDetails"]
-
-        # Wait flow stops
-        self.log.info("Waiting for flow run...")
-        while (
-            "mostRecentExecutionStatus" not in last_exec_details
-            or last_exec_details["mostRecentExecutionStatus"] == "InProgress"
-        ):
-            sleep(poll_interval)
-            response_desc = self.conn.describe_flow(flowName=flow_name)
-            last_exec_details = response_desc["lastRunExecutionDetails"]
-
-        self.log.info("lastRunExecutionDetails: %s", last_exec_details)
-
-        if last_exec_details["mostRecentExecutionStatus"] == "Error":
-            raise Exception(f"Flow error:\n{json.dumps(response_desc, default=str)}")
+            self._log_execution_description(flow_name, execution_id)
 
         return execution_id
+
+    def _log_execution_description(self, flow_name: str, execution_id: str):
+        response_desc = self.conn.describe_flow_execution_records(flowName=flow_name)
+        last_execs = {fe["executionId"]: fe for fe in response_desc["flowExecutions"]}
+        exec_details = last_execs[execution_id]
+        self.log.info("Run complete, execution details: %s", exec_details)
 
     def update_flow_filter(
         self, flow_name: str, filter_tasks: list[TaskTypeDef], set_trigger_ondemand: bool = False

@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
+from airflow.providers.apache.livy.triggers.livy import LivyTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -33,22 +34,22 @@ class LivyOperator(BaseOperator):
     This operator wraps the Apache Livy batch REST API, allowing to submit a Spark
     application to the underlying cluster.
 
-    :param file: path of the file containing the application to execute (required).
-    :param class_name: name of the application Java/Spark main class.
-    :param args: application command line arguments.
-    :param jars: jars to be used in this sessions.
-    :param py_files: python files to be used in this session.
-    :param files: files to be used in this session.
-    :param driver_memory: amount of memory to use for the driver process.
-    :param driver_cores: number of cores to use for the driver process.
-    :param executor_memory: amount of memory to use per executor process.
-    :param executor_cores: number of cores to use for each executor.
-    :param num_executors: number of executors to launch for this session.
-    :param archives: archives to be used in this session.
-    :param queue: name of the YARN queue to which the application is submitted.
-    :param name: name of this session.
-    :param conf: Spark configuration properties.
-    :param proxy_user: user to impersonate when running the job.
+    :param file: path of the file containing the application to execute (required). (templated)
+    :param class_name: name of the application Java/Spark main class. (templated)
+    :param args: application command line arguments. (templated)
+    :param jars: jars to be used in this sessions. (templated)
+    :param py_files: python files to be used in this session. (templated)
+    :param files: files to be used in this session. (templated)
+    :param driver_memory: amount of memory to use for the driver process. (templated)
+    :param driver_cores: number of cores to use for the driver process. (templated)
+    :param executor_memory: amount of memory to use per executor process. (templated)
+    :param executor_cores: number of cores to use for each executor. (templated)
+    :param num_executors: number of executors to launch for this session. (templated)
+    :param archives: archives to be used in this session. (templated)
+    :param queue: name of the YARN queue to which the application is submitted. (templated)
+    :param name: name of this session. (templated)
+    :param conf: Spark configuration properties. (templated)
+    :param proxy_user: user to impersonate when running the job. (templated)
     :param livy_conn_id: reference to a pre-defined Livy Connection.
     :param livy_conn_auth_type: The auth type for the Livy Connection.
     :param polling_interval: time in seconds between polling for job completion. Don't poll for values >=0
@@ -56,10 +57,12 @@ class LivyOperator(BaseOperator):
         depends on the option that's being modified.
     :param extra_headers: A dictionary of headers passed to the HTTP request to livy.
     :param retry_args: Arguments which define the retry behaviour.
+    :param deferrable: Run operator in the deferrable mode
             See Tenacity documentation at https://github.com/jd/tenacity
     """
 
-    template_fields: Sequence[str] = ('spark_params',)
+    template_fields: Sequence[str] = ("spark_params",)
+    template_fields_renderers = {"spark_params": "json"}
 
     def __init__(
         self,
@@ -80,34 +83,35 @@ class LivyOperator(BaseOperator):
         queue: str | None = None,
         name: str | None = None,
         proxy_user: str | None = None,
-        livy_conn_id: str = 'livy_default',
+        livy_conn_id: str = "livy_default",
         livy_conn_auth_type: Any | None = None,
         polling_interval: int = 0,
         extra_options: dict[str, Any] | None = None,
         extra_headers: dict[str, Any] | None = None,
         retry_args: dict[str, Any] | None = None,
+        deferrable: bool = False,
         **kwargs: Any,
     ) -> None:
 
         super().__init__(**kwargs)
 
         self.spark_params = {
-            'file': file,
-            'class_name': class_name,
-            'args': args,
-            'jars': jars,
-            'py_files': py_files,
-            'files': files,
-            'driver_memory': driver_memory,
-            'driver_cores': driver_cores,
-            'executor_memory': executor_memory,
-            'executor_cores': executor_cores,
-            'num_executors': num_executors,
-            'archives': archives,
-            'queue': queue,
-            'name': name,
-            'conf': conf,
-            'proxy_user': proxy_user,
+            "file": file,
+            "class_name": class_name,
+            "args": args,
+            "jars": jars,
+            "py_files": py_files,
+            "files": files,
+            "driver_memory": driver_memory,
+            "driver_cores": driver_cores,
+            "executor_memory": executor_memory,
+            "executor_cores": executor_cores,
+            "num_executors": num_executors,
+            "archives": archives,
+            "queue": queue,
+            "name": name,
+            "conf": conf,
+            "proxy_user": proxy_user,
         }
 
         self._livy_conn_id = livy_conn_id
@@ -119,13 +123,13 @@ class LivyOperator(BaseOperator):
         self._livy_hook: LivyHook | None = None
         self._batch_id: int | str
         self.retry_args = retry_args
+        self.deferrable = deferrable
 
     def get_hook(self) -> LivyHook:
         """
         Get valid hook.
 
         :return: hook
-        :rtype: LivyHook
         """
         if self._livy_hook is None or not isinstance(self._livy_hook, LivyHook):
             self._livy_hook = LivyHook(
@@ -138,11 +142,27 @@ class LivyOperator(BaseOperator):
 
     def execute(self, context: Context) -> Any:
         self._batch_id = self.get_hook().post_batch(**self.spark_params)
+        self.log.info("Generated batch-id is %s", self._batch_id)
 
-        if self._polling_interval > 0:
-            self.poll_for_termination(self._batch_id)
+        # Wait for the job to complete
+        if not self.deferrable:
+            if self._polling_interval > 0:
+                self.poll_for_termination(self._batch_id)
+            context["ti"].xcom_push(key="app_id", value=self.get_hook().get_batch(self._batch_id)["appId"])
+            return self._batch_id
 
-        return self._batch_id
+        self.defer(
+            timeout=self.execution_timeout,
+            trigger=LivyTrigger(
+                batch_id=self._batch_id,
+                spark_params=self.spark_params,
+                livy_conn_id=self._livy_conn_id,
+                polling_interval=self._polling_interval,
+                extra_options=self._extra_options,
+                extra_headers=self._extra_headers,
+            ),
+            method_name="execute_complete",
+        )
 
     def poll_for_termination(self, batch_id: int | str) -> None:
         """
@@ -153,7 +173,7 @@ class LivyOperator(BaseOperator):
         hook = self.get_hook()
         state = hook.get_batch_state(batch_id, retry_args=self.retry_args)
         while state not in hook.TERMINAL_STATES:
-            self.log.debug('Batch with id %s is in state: %s', batch_id, state.value)
+            self.log.debug("Batch with id %s is in state: %s", batch_id, state.value)
             sleep(self._polling_interval)
             state = hook.get_batch_state(batch_id, retry_args=self.retry_args)
         self.log.info("Batch with id %s terminated with state: %s", batch_id, state.value)
@@ -168,3 +188,23 @@ class LivyOperator(BaseOperator):
         """Delete the current batch session."""
         if self._batch_id is not None:
             self.get_hook().delete_batch(self._batch_id)
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        # dump the logs from livy to worker through triggerer.
+        if event.get("log_lines", None) is not None:
+            for log_line in event["log_lines"]:
+                self.log.info(log_line)
+
+        if event["status"] == "error":
+            raise AirflowException(event["response"])
+        self.log.info(
+            "%s completed with response %s",
+            self.task_id,
+            event["response"],
+        )
+        return event["batch_id"]

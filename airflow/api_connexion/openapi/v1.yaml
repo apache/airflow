@@ -86,7 +86,7 @@ info:
 
     ### Delete
 
-    Deleting a resource requires the resource `id` and is typically executing via an HTTP `DELETE` request.
+    Deleting a resource requires the resource `id` and is typically executed via an HTTP `DELETE` request.
     The response usually returns a `204 No Content` response code upon success.
 
     ## Conventions
@@ -97,12 +97,14 @@ info:
     - Field names are in snake_case.
     ```json
     {
+        "description": "string",
         "name": "string",
-        "slots": 0,
         "occupied_slots": 0,
-        "used_slots": 0,
-        "queued_slots": 0,
         "open_slots": 0
+        "queued_slots": 0,
+        "running_slots": 0,
+        "scheduled_slots": 0,
+        "slots": 0,
     }
     ```
 
@@ -148,7 +150,7 @@ info:
     Using a graphical tool such as [Postman](https://www.postman.com/) or [Insomnia](https://insomnia.rest/),
     it is possible to import the API specifications directly:
 
-    1. Download the API specification by clicking the **Download** button at top of this document
+    1. Download the API specification by clicking the **Download** button at the top of this document
     2. Import the JSON specification in the graphical tool of your choice.
       - In *Postman*, you can click the **import** button at the top
       - With *Insomnia*, you can just drag-and-drop the file on the UI
@@ -229,7 +231,7 @@ info:
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
-  version: '2.3.0'
+  version: '2.7.0.dev0'
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -409,6 +411,7 @@ paths:
         - $ref: '#/components/parameters/OrderBy'
         - $ref: '#/components/parameters/FilterTags'
         - $ref: '#/components/parameters/OnlyActive'
+        - $ref: '#/components/parameters/Paused'
         - name: dag_id_pattern
           in: query
           schema:
@@ -585,6 +588,85 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/setNote:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: '#/components/parameters/TaskID'
+
+    patch:
+      summary: Update the TaskInstance note.
+      description: |
+        Update the manual user note of a non-mapped Task Instance.
+
+        *New in version 2.5.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: set_task_instance_note
+      tags: [TaskInstance]
+      requestBody:
+        description: Parameters of set Task Instance note.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetTaskInstanceNote'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstance'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/setNote:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+      - $ref: '#/components/parameters/TaskID'
+      - $ref: '#/components/parameters/MapIndex'
+
+    patch:
+      summary: Update the TaskInstance note.
+      description: |
+        Update the manual user note of a mapped Task Instance.
+
+        *New in version 2.5.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: set_mapped_task_instance_note
+      tags: [TaskInstance]
+      requestBody:
+        description: Parameters of set Task Instance note.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetTaskInstanceNote'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstance'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /dags/{dag_id}/updateTaskInstancesState:
     parameters:
       - $ref: '#/components/parameters/DAGID'
@@ -638,6 +720,8 @@ paths:
         - $ref: '#/components/parameters/FilterStartDateLTE'
         - $ref: '#/components/parameters/FilterEndDateGTE'
         - $ref: '#/components/parameters/FilterEndDateLTE'
+        - $ref: '#/components/parameters/FilterUpdatedAtGTE'
+        - $ref: '#/components/parameters/FilterUpdatedAtLTE'
         - $ref: '#/components/parameters/FilterState'
         - $ref: '#/components/parameters/OrderBy'
       responses:
@@ -808,7 +892,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DAGRun'
+                anyOf:
+                  - $ref: '#/components/schemas/DAGRun'
+                  - $ref: '#/components/schemas/TaskInstanceCollection'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -845,6 +931,42 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/setNote:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+    patch:
+      summary: Update the DagRun note.
+      description: |
+        Update the manual user note of a DagRun.
+
+        *New in version 2.5.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: set_dag_run_note
+      tags: [DAGRun]
+      requestBody:
+        description: Parameters of set DagRun note.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetDagRunNote'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /eventLogs:
     get:
@@ -1091,6 +1213,8 @@ paths:
       - $ref: '#/components/parameters/FilterStartDateLTE'
       - $ref: '#/components/parameters/FilterEndDateGTE'
       - $ref: '#/components/parameters/FilterEndDateLTE'
+      - $ref: '#/components/parameters/FilterUpdatedAtGTE'
+      - $ref: '#/components/parameters/FilterUpdatedAtLTE'
       - $ref: '#/components/parameters/FilterDurationGTE'
       - $ref: '#/components/parameters/FilterDurationLTE'
       - $ref: '#/components/parameters/FilterState'
@@ -1144,6 +1268,37 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+    patch:
+      summary: Updates the state of a task instance
+      description: >
+        Updates the state for single task instance.
+
+        *New in version 2.5.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: patch_task_instance
+      tags: [TaskInstance]
+      requestBody:
+        description: Parameters of action
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskInstance'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskInstanceReference'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}:
     parameters:
       - $ref: '#/components/parameters/DAGID'
@@ -1174,6 +1329,36 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+    patch:
+        summary: Updates the state of a mapped task instance
+        description: >
+            Updates the state for single mapped task instance.
+
+            *New in version 2.5.0*
+        x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+        operationId: patch_mapped_task_instance
+        tags: [TaskInstance]
+        requestBody:
+          description: Parameters of action
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateTaskInstance'
+        responses:
+          '200':
+            description: Success.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/TaskInstanceReference'
+          '401':
+            $ref: '#/components/responses/Unauthenticated'
+          '403':
+            $ref: '#/components/responses/PermissionDenied'
+          '404':
+            $ref: '#/components/responses/NotFound'
+
+
   /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/listMapped:
     parameters:
       - $ref: '#/components/parameters/DAGID'
@@ -1198,6 +1383,8 @@ paths:
         - $ref: '#/components/parameters/FilterStartDateLTE'
         - $ref: '#/components/parameters/FilterEndDateGTE'
         - $ref: '#/components/parameters/FilterEndDateLTE'
+        - $ref: '#/components/parameters/FilterUpdatedAtGTE'
+        - $ref: '#/components/parameters/FilterUpdatedAtLTE'
         - $ref: '#/components/parameters/FilterDurationGTE'
         - $ref: '#/components/parameters/FilterDurationLTE'
         - $ref: '#/components/parameters/FilterState'
@@ -1483,7 +1670,34 @@ paths:
 
     get:
       summary: Get logs
-      description: Get logs for a specific task instance and its try number.
+      description: |
+        Get logs for a specific task instance and its try number.
+        To get log from specific character position, following way of using
+        URLSafeSerializer can be used.
+
+        Example:
+        ```
+        from itsdangerous.url_safe import URLSafeSerializer
+
+        request_url = f"api/v1/dags/{DAG_ID}/dagRuns/{RUN_ID}/taskInstances/{TASK_ID}/logs/1"
+        key = app.config["SECRET_KEY"]
+        serializer = URLSafeSerializer(key)
+        token = serializer.dumps({"log_pos": 10000})
+
+        response = self.client.get(
+            request_url,
+            query_string={"token": token},
+            headers={"Accept": "text/plain"},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        continuation_token = response.json["continuation_token"]
+            metadata = URLSafeSerializer(key).loads(continuation_token)
+            log_pos = metadata["log_pos"]
+            end_of_log = metadata["end_of_log"]
+        ```
+        If log_pos is passed as 10000 like the above example, it renders the logs starting
+        from char position 10000 to last (not the end as the logs may be tailing behind in
+        running state). This way pagination can be done with metadata as part of the token.
       x-openapi-router-controller: airflow.api_connexion.endpoints.log_endpoint
       operationId: get_log
       tags: [TaskInstance]
@@ -1743,6 +1957,13 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.config_endpoint
       operationId: get_config
       tags: [Config]
+      parameters:
+        - name: section
+          in: query
+          schema:
+            type: string
+          required: false
+          description: If given, only return config of this section.
       responses:
         '200':
           description: Success.
@@ -1773,11 +1994,57 @@ paths:
                 smtp_host = localhost
                 smtp_mail_from =  airflow@example.com
 
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /config/section/{section}/option/{option}:
+    get:
+      summary: Get a option from configuration
+      x-openapi-router-controller: airflow.api_connexion.endpoints.config_endpoint
+      operationId: get_value
+      tags: [Config]
+      parameters:
+        - name: section
+          in: path
+          schema:
+            type: string
+          required: true
+        - name: option
+          in: path
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+              example:
+                sections:
+                  - name: core
+                    options:
+                      - key: dags_folder
+                        value: /home/user/my-dags-folder
+            text/plain:
+              schema:
+                type: string
+              example: |
+                [core]
+                dags_folder = /home/user/my-dags-folder
 
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+           $ref: '#/components/responses/NotFound'
+
 
   /health:
     get:
@@ -2105,7 +2372,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Role'
+                $ref: '#/components/schemas/UserCollectionItem'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -2620,7 +2887,6 @@ components:
             - dataset_triggered
         state:
           $ref: '#/components/schemas/DagState'
-          readOnly: true
         external_trigger:
           type: boolean
           default: true
@@ -2632,6 +2898,13 @@ components:
 
             The value of this field can be set only when creating the object. If you try to modify the
             field of an existing object, the request fails with an BAD_REQUEST error.
+        note:
+          type: string
+          description: |
+            Contains manually entered notes by the user about the DagRun.
+
+            *New in version 2.5.0*
+          nullable: true
 
     UpdateDagRunState:
       type: object
@@ -2697,6 +2970,13 @@ components:
               items:
                 $ref: '#/components/schemas/DagWarning'
         - $ref: '#/components/schemas/CollectionInfo'
+
+    SetDagRunNote:
+      type: object
+      properties:
+        note:
+          description: Custom notes left by users for this Dag Run.
+          type: string
 
     EventLog:
       type: object
@@ -2823,7 +3103,6 @@ components:
           readOnly: true
           nullable: true
 
-
     Pool:
       description: The pool
       type: object
@@ -2839,7 +3118,7 @@ components:
           type: integer
           readOnly: true
           description: The number of slots used by running/queued tasks at the moment.
-        used_slots:
+        running_slots:
           type: integer
           readOnly: true
           description: The number of slots used by running tasks at the moment.
@@ -2851,6 +3130,10 @@ components:
           type: integer
           readOnly: true
           description: The number of free slots at the moment.
+        scheduled_slots:
+          type: integer
+          readOnly: true
+          description: The number of slots used by scheduled tasks at the moment.
         description:
           type: string
           description: |
@@ -2928,6 +3211,7 @@ components:
           nullable: true
         notification_sent:
           type: boolean
+      nullable: true
 
     Trigger:
       type: object
@@ -3058,6 +3342,13 @@ components:
           nullable: true
         triggerer_job:
           $ref: '#/components/schemas/Job'
+          nullable: true
+        note:
+          type: string
+          description: |
+            Contains manually entered notes by the user about the TaskInstance.
+
+            *New in version 2.5.0*
           nullable: true
 
     TaskInstanceCollection:
@@ -3758,7 +4049,6 @@ components:
           nullable: true
         state:
           $ref: '#/components/schemas/DagState'
-          readOnly: true
 
     DatasetEventCollection:
       description: |
@@ -3957,6 +4247,31 @@ components:
           enum:
             - success
             - failed
+
+    UpdateTaskInstance:
+      type: object
+      properties:
+        dry_run:
+          description: |
+            If set, don't actually run this operation. The response will contain the task instance
+            planned to be affected, but won't be modified in any way.
+          type: boolean
+          default: false
+
+        new_state:
+          description: Expected new state.
+          type: string
+          enum:
+            - success
+            - failed
+    SetTaskInstanceNote:
+      type: object
+      required:
+        - note
+      properties:
+        note:
+          description: The custom note to set for this Task Instance.
+          type: string
 
     ListDagRunsForm:
       type: object
@@ -4270,7 +4585,9 @@ components:
       properties:
         total_entries:
           type: integer
-          description: Count of objects in the current result set.
+          description: |
+            Count of total objects in the current result set before pagination parameters
+            (limit, offset) are applied.
 
     # Enums
     TaskState:
@@ -4305,6 +4622,7 @@ components:
 
         *Changed in version 2.1.3*&#58; 'queued' is added as a possible value.
       type: string
+      readOnly: true
       enum:
         - queued
         - running
@@ -4697,6 +5015,45 @@ components:
         Only filter active DAGs.
 
         *New in version 2.1.1*
+
+    FilterUpdatedAtLTE:
+      in: query
+      name: updated_at_lte
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: |
+        Returns objects less or equal the specified date.
+
+        This can be combined with updated_at_gte parameter to receive only the selected period.
+
+        *New in version 2.6.0*
+
+    FilterUpdatedAtGTE:
+      in: query
+      name: updated_at_gte
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: |
+        Returns objects greater or equal the specified date.
+
+        This can be combined with updated_at_lte parameter to receive only the selected period.
+
+        *New in version 2.6.0*
+
+    Paused:
+      in: query
+      name: paused
+      schema:
+        type: boolean
+      required: false
+      description: |
+        Only filter paused/unpaused DAGs. If absent or null, it returns paused and unpaused DAGs.
+
+        *New in version 2.6.0*
 
     # Other parameters
     FileToken:

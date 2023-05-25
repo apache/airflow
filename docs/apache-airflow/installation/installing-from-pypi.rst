@@ -26,12 +26,19 @@ Installation tools
 
 Only ``pip`` installation is currently officially supported.
 
-While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
-`pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
-``pip`` - especially when it comes to constraint vs. requirements management.
-Installing via ``Poetry`` or ``pip-tools`` is not currently supported. If you wish to install airflow
-using those tools you should use the constraints and convert them to appropriate
-format and workflow that your tool requires.
+.. note::
+
+  While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+  `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
+  ``pip`` - especially when it comes to constraint vs. requirements management.
+  Installing via ``Poetry`` or ``pip-tools`` is not currently supported. If you wish to install airflow
+  using those tools you should use the constraints and convert them to appropriate
+  format and workflow that your tool requires.
+
+  There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
+  Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
+  the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
+  newer versions of ``bazel`` will handle it.
 
 Typical command to install airflow from PyPI looks like below:
 
@@ -53,7 +60,7 @@ and both at the same time. We decided to keep our dependencies as open as possib
 version of libraries if needed. This means that from time to time plain ``pip install apache-airflow`` will
 not work or will produce an unusable Airflow installation.
 
-In order to have a repeatable installation, we also keep a set of "known-to-be-working" constraint files in the
+In order to have a repeatable installation (and only for that reason), we also keep a set of "known-to-be-working" constraint files in the
 ``constraints-main``, ``constraints-2-0``, ``constraints-2-1`` etc. orphan branches and then we create a tag
 for each released version e.g. :subst-code:`constraints-|version|`. This way, we keep a tested and working set of dependencies.
 
@@ -87,6 +94,38 @@ constraints always points to the "latest" released Airflow version constraints:
 .. code-block::
 
   https://raw.githubusercontent.com/apache/airflow/constraints-latest/constraints-3.7.txt
+
+
+Fixing Constraint files at release time
+'''''''''''''''''''''''''''''''''''''''
+
+The released "versioned" constraints are mostly ``fixed`` when we release Airflow version and we only
+update them in exceptional circumstances. For example when we find out that the released constraints might prevent
+Airflow from being installed consistently from the scratch. In normal circumstances, the constraint files
+are not going to change if new version of Airflow dependencies are released - not even when those
+versions contain critical security fixes. The process of Airflow releases is designed around upgrading
+dependencies automatically where applicable but only when we release a new version of Airflow,
+not for already released versions.
+
+If you want to make sure that Airflow dependencies are upgraded to the latest released versions containing
+latest security fixes, you should implement your own process to upgrade those yourself when
+you detect the need for that. Airflow usually does not upper-bound versions of its dependencies via
+requirements, so you should be able to upgrade them to the latest versions - usually without any problems.
+
+Obviously - since we have no control over what gets released in new versions of the dependencies, we
+cannot give any guarantees that tests and functionality of those dependencies will be compatible with
+Airflow after you upgrade them - testing if Airflow still works with those is in your hands,
+and in case of any problems, you should raise issue with the authors of the dependencies that are problematic.
+You can also - in such cases - look at the `Airflow issues <https://github.com/apache/airflow/issues>`_
+`Airflow Pull Requests <https://github.com/apache/airflow/pulls>`_ and
+`Airflow Discussions <https://github.com/apache/airflow/discussions>`_, searching for similar
+problems to see if there are any fixes or workarounds found in the ``main`` version of Airflow and apply them
+to your deployment.
+
+The easiest way to keep-up with the latest released dependencies is however, to upgrade to the latest released
+Airflow version. Whenever we release a new version of Airflow, we upgrade all dependencies to the latest
+applicable versions and test them together, so if you want to keep up with those tests - staying up-to-date
+with latest version of Airflow is the easiest way to update those dependencies.
 
 Installation and upgrade scenarios
 ''''''''''''''''''''''''''''''''''
@@ -148,6 +187,15 @@ Note, that installing, upgrading, downgrading providers separately is not guaran
 Airflow versions or other providers. Some providers have minimum-required version of Airflow and some
 versions of providers might have conflicting requirements with Airflow or other dependencies you
 might have installed.
+
+It is the best practice to install apache-airflow in the same version as the one that comes from the
+original image. This way you can be sure that ``pip`` will not try to downgrade or upgrade apache
+airflow while installing other requirements, which might happen in case you try to add a dependency
+that conflicts with the version of apache-airflow that you are using:
+
+.. code-block:: bash
+
+    pip install "apache-airflow==|version|" "apache-airflow-providers-google==8.0.0"
 
 
 Installation and upgrade of Airflow core

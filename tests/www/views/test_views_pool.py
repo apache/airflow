@@ -26,9 +26,9 @@ from airflow.utils.session import create_session
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 POOL = {
-    'pool': 'test-pool',
-    'slots': 777,
-    'description': 'test-pool-description',
+    "pool": "test-pool",
+    "slots": 777,
+    "description": "test-pool-description",
 }
 
 
@@ -51,43 +51,43 @@ def pool_factory(session):
 
 def test_create_pool_with_same_name(admin_client):
     # create test pool
-    resp = admin_client.post('/pool/add', data=POOL, follow_redirects=True)
-    check_content_in_response('Added Row', resp)
+    resp = admin_client.post("/pool/add", data=POOL, follow_redirects=True)
+    check_content_in_response("Added Row", resp)
 
     # create pool with the same name
-    resp = admin_client.post('/pool/add', data=POOL, follow_redirects=True)
-    check_content_in_response('Already exists.', resp)
+    resp = admin_client.post("/pool/add", data=POOL, follow_redirects=True)
+    check_content_in_response("Already exists.", resp)
 
 
 def test_create_pool_with_empty_name(admin_client):
     resp = admin_client.post(
-        '/pool/add',
+        "/pool/add",
         data={**POOL, "pool": ""},
         follow_redirects=True,
     )
-    check_content_in_response('This field is required.', resp)
+    check_content_in_response("This field is required.", resp)
 
 
 def test_odd_name(admin_client, pool_factory):
     pool_factory(pool="test-pool<script></script>")
-    resp = admin_client.get('/pool/list/')
-    check_content_in_response('test-pool&lt;script&gt;', resp)
-    check_content_not_in_response('test-pool<script>', resp)
+    resp = admin_client.get("/pool/list/")
+    check_content_in_response("test-pool&lt;script&gt;", resp)
+    check_content_not_in_response("test-pool<script>", resp)
 
 
 def test_list(app, admin_client, pool_factory):
     pool_factory(pool="test-pool")
 
-    resp = admin_client.get('/pool/list/')
+    resp = admin_client.get("/pool/list/")
     # We should see this link
     with app.test_request_context():
-        url = flask.url_for('TaskInstanceModelView.list', _flt_3_pool='test-pool', _flt_3_state='running')
+        url = flask.url_for("TaskInstanceModelView.list", _flt_3_pool="test-pool", _flt_3_state="running")
         used_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
 
-        url = flask.url_for('TaskInstanceModelView.list', _flt_3_pool='test-pool', _flt_3_state='queued')
+        url = flask.url_for("TaskInstanceModelView.list", _flt_3_pool="test-pool", _flt_3_state="queued")
         queued_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
 
-        url = flask.url_for('TaskInstanceModelView.list', _flt_3_pool='test-pool', _flt_3_state='scheduled')
+        url = flask.url_for("TaskInstanceModelView.list", _flt_3_pool="test-pool", _flt_3_state="scheduled")
         scheduled_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
 
     check_content_in_response(used_tag, resp)

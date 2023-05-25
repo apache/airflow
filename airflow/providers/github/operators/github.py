@@ -38,10 +38,10 @@ class GithubOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GithubOperator`
 
-    :param github_conn_id: reference to a pre-defined GitHub Connection
-    :param github_method: method name from GitHub Python SDK to be called
-    :param github_method_args: required method parameters for the github_method. (templated)
-    :param result_processor: function to further process the response from GitHub API
+    :param github_conn_id: Reference to a pre-defined GitHub Connection
+    :param github_method: Method name from GitHub Python SDK to be called
+    :param github_method_args: Method parameters for the github_method. (templated)
+    :param result_processor: Function to further process the response from GitHub API
     """
 
     template_fields = ("github_method_args",)
@@ -50,7 +50,7 @@ class GithubOperator(BaseOperator):
         self,
         *,
         github_method: str,
-        github_conn_id: str = 'github_default',
+        github_conn_id: str = "github_default",
         github_method_args: dict | None = None,
         result_processor: Callable | None = None,
         **kwargs,
@@ -58,7 +58,7 @@ class GithubOperator(BaseOperator):
         super().__init__(**kwargs)
         self.github_conn_id = github_conn_id
         self.method_name = github_method
-        self.github_method_args = github_method_args
+        self.github_method_args = github_method_args or {}
         self.result_processor = result_processor
 
     def execute(self, context: Context) -> Any:
@@ -76,4 +76,4 @@ class GithubOperator(BaseOperator):
         except GithubException as github_error:
             raise AirflowException(f"Failed to execute GithubOperator, error: {str(github_error)}")
         except Exception as e:
-            raise AirflowException(f'GitHub operator error: {str(e)}')
+            raise AirflowException(f"GitHub operator error: {str(e)}")

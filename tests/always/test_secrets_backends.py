@@ -79,18 +79,18 @@ class TestBaseSecretsBackend:
         assert sample_conn_2.host.lower() == conn.host
 
     @mock.patch.dict(
-        'os.environ',
+        "os.environ",
         {
-            'AIRFLOW_VAR_HELLO': 'World',
-            'AIRFLOW_VAR_EMPTY_STR': '',
+            "AIRFLOW_VAR_HELLO": "World",
+            "AIRFLOW_VAR_EMPTY_STR": "",
         },
     )
     def test_variable_env_secrets_backend(self):
         env_secrets_backend = EnvironmentVariablesBackend()
         variable_value = env_secrets_backend.get_variable(key="hello")
-        assert 'World' == variable_value
+        assert "World" == variable_value
         assert env_secrets_backend.get_variable(key="non_existent_key") is None
-        assert '' == env_secrets_backend.get_variable(key="empty_str")
+        assert "" == env_secrets_backend.get_variable(key="empty_str")
 
     def test_variable_metastore_secrets_backend(self):
         Variable.set(key="hello", value="World")
@@ -99,4 +99,4 @@ class TestBaseSecretsBackend:
         variable_value = metastore_backend.get_variable(key="hello")
         assert "World" == variable_value
         assert metastore_backend.get_variable(key="non_existent_key") is None
-        assert '' == metastore_backend.get_variable(key="empty_str")
+        assert "" == metastore_backend.get_variable(key="empty_str")

@@ -19,6 +19,7 @@ from __future__ import annotations
 import warnings
 from typing import Iterable, Mapping, Sequence
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
 
 
@@ -52,8 +53,8 @@ class SnowflakeToSlackOperator(SqlToSlackOperator):
         'webhook_token' attribute needs to be specified in the 'Extra' JSON field against the slack_conn_id.
     """
 
-    template_fields: Sequence[str] = ('sql', 'slack_message')
-    template_ext: Sequence[str] = ('.sql', '.jinja', '.j2')
+    template_fields: Sequence[str] = ("sql", "slack_message")
+    template_ext: Sequence[str] = (".sql", ".jinja", ".j2")
     template_fields_renderers = {"sql": "sql", "slack_message": "jinja"}
     times_rendered = 0
 
@@ -62,9 +63,9 @@ class SnowflakeToSlackOperator(SqlToSlackOperator):
         *,
         sql: str,
         slack_message: str,
-        snowflake_conn_id: str = 'snowflake_default',
-        slack_conn_id: str = 'slack_default',
-        results_df_name: str = 'results_df',
+        snowflake_conn_id: str = "snowflake_default",
+        slack_conn_id: str = "slack_default",
+        results_df_name: str = "results_df",
         parameters: Iterable | Mapping | None = None,
         warehouse: str | None = None,
         database: str | None = None,
@@ -90,7 +91,7 @@ class SnowflakeToSlackOperator(SqlToSlackOperator):
             SnowflakeToSlackOperator is deprecated.
             Please use `airflow.providers.slack.transfers.sql_to_slack.SqlToSlackOperator`.
             """,
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
 

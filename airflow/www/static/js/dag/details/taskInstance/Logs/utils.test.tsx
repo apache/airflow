@@ -19,7 +19,7 @@
 
 /* global describe, test, expect */
 
-import { LogLevel, parseLogs } from './utils';
+import { LogLevel, parseLogs } from "./utils";
 
 const mockTaskLog = `
 5d28cfda3219
@@ -37,98 +37,91 @@ const mockTaskLog = `
 [2022-06-04 00:00:01,921] {standard_task_runner.py:81} INFO - Job 1626: Subtask section_1.get_entry_group
 [2022-06-04 00:00:01,921] {dagbag.py:507} INFO - Filling up the DagBag from /files/dags/test_ui_grid.py
 [2022-06-04 00:00:01,964] {task_command.py:377} INFO - Running <TaskInstance: test_ui_grid.section_1.get_entry_group scheduled__2022-06-03T00:00:00+00:00 [running]> on host 5d28cfda3219
-[2022-06-04 00:00:02,010] {taskinstance.py:1548} WARNING - Exporting the following env vars:
-AIRFLOW_CTX_DAG_OWNER=***
-AIRFLOW_CTX_DAG_ID=test_ui_grid
+[2022-06-04 00:00:02,010] {taskinstance.py:1548} WARNING - Exporting env vars: AIRFLOW_CTX_DAG_OWNER=*** AIRFLOW_CTX_DAG_ID=test_ui_grid
 `;
 
-describe('Test Logs Utils.', () => {
-  test('parseLogs function replaces datetimes', () => {
-    const { parsedLogs, fileSources } = parseLogs(
-      mockTaskLog,
-      'UTC',
-      [],
-      [],
-    );
+describe("Test Logs Utils.", () => {
+  test("parseLogs function replaces datetimes", () => {
+    const { parsedLogs, fileSources } = parseLogs(mockTaskLog, "UTC", [], []);
 
-    expect(parsedLogs).toContain('2022-06-04, 00:00:01 UTC');
+    expect(parsedLogs).toContain("2022-06-04, 00:00:01 UTC");
     expect(fileSources).toEqual([
-      'dagbag.py',
-      'standard_task_runner.py',
-      'task_command.py',
-      'taskinstance.py',
+      "dagbag.py",
+      "standard_task_runner.py",
+      "task_command.py",
+      "taskinstance.py",
     ]);
-    const result = parseLogs(
-      mockTaskLog,
-      'America/Los_Angeles',
-      [],
-      [],
-    );
-    expect(result.parsedLogs).toContain('2022-06-03, 17:00:01 PDT');
+    const result = parseLogs(mockTaskLog, "America/Los_Angeles", [], []);
+    expect(result.parsedLogs).toContain("2022-06-03, 17:00:01 PDT");
   });
 
   test.each([
-    { logLevelFilters: [LogLevel.INFO], expectedNumberOfLines: 11, expectedNumberOfFileSources: 4 },
+    {
+      logLevelFilters: [LogLevel.INFO],
+      expectedNumberOfLines: 11,
+      expectedNumberOfFileSources: 4,
+    },
     {
       logLevelFilters: [LogLevel.WARNING],
       expectedNumberOfLines: 1,
       expectedNumberOfFileSources: 1,
     },
   ])(
-    'Filtering logs on $logLevelFilters level should return $expectedNumberOfLines lines and $expectedNumberOfFileSources file sources',
+    "Filtering logs on $logLevelFilters level should return $expectedNumberOfLines lines and $expectedNumberOfFileSources file sources",
     ({
       logLevelFilters,
-      expectedNumberOfLines, expectedNumberOfFileSources,
+      expectedNumberOfLines,
+      expectedNumberOfFileSources,
     }) => {
       const { parsedLogs, fileSources } = parseLogs(
         mockTaskLog,
         null,
         logLevelFilters,
-        [],
+        []
       );
 
       expect(fileSources).toHaveLength(expectedNumberOfFileSources);
       expect(parsedLogs).toBeDefined();
-      const lines = parsedLogs!.split('\n');
+      const lines = parsedLogs!.split("\n");
       expect(lines).toHaveLength(expectedNumberOfLines);
       lines.forEach((line) => expect(line).toContain(logLevelFilters[0]));
-    },
+    }
   );
 
-  test('parseLogs function with file source filter', () => {
+  test("parseLogs function with file source filter", () => {
     const { parsedLogs, fileSources } = parseLogs(
       mockTaskLog,
       null,
       [],
-      ['taskinstance.py'],
+      ["taskinstance.py"]
     );
 
     expect(fileSources).toEqual([
-      'dagbag.py',
-      'standard_task_runner.py',
-      'task_command.py',
-      'taskinstance.py',
+      "dagbag.py",
+      "standard_task_runner.py",
+      "task_command.py",
+      "taskinstance.py",
     ]);
-    const lines = parsedLogs!.split('\n');
+    const lines = parsedLogs!.split("\n");
     expect(lines).toHaveLength(7);
-    lines.forEach((line) => expect(line).toContain('taskinstance.py'));
+    lines.forEach((line) => expect(line).toContain("taskinstance.py"));
   });
 
-  test('parseLogs function with filter on log level and file source', () => {
+  test("parseLogs function with filter on log level and file source", () => {
     const { parsedLogs, fileSources } = parseLogs(
       mockTaskLog,
       null,
       [LogLevel.INFO, LogLevel.WARNING],
-      ['taskinstance.py'],
+      ["taskinstance.py"]
     );
 
     expect(fileSources).toEqual([
-      'dagbag.py',
-      'standard_task_runner.py',
-      'task_command.py',
-      'taskinstance.py',
+      "dagbag.py",
+      "standard_task_runner.py",
+      "task_command.py",
+      "taskinstance.py",
     ]);
-    const lines = parsedLogs!.split('\n');
+    const lines = parsedLogs!.split("\n");
     expect(lines).toHaveLength(7);
     lines.forEach((line) => expect(line).toMatch(/INFO|WARNING/));
   });

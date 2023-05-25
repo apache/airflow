@@ -24,6 +24,437 @@
 Changelog
 ---------
 
+8.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``DynamoDBToS3Operator - Add a feature to export the table to a point in time. (#31142)``
+* ``Add deferrable param in SageMakerTransformOperator (#31063)``
+* ``Add deferrable param in SageMakerTrainingOperator (#31042)``
+* ``Add deferrable param in SageMakerProcessingOperator (#31062)``
+* ``Add IAM authentication to Amazon Redshift Connection by AWS Connection (#28187)``
+* ``'StepFunctionStartExecutionOperator': get logs in case of failure (#31072)``
+* ``Add on_kill to EMR Serverless Job Operator (#31169)``
+* ``Add Deferrable Mode for EC2StateSensor (#31130)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``bigfix: EMRHook  Loop through paginated response to check for cluster id (#29732)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+* ``Add template field to S3ToRedshiftOperator (#30781)``
+* ``Add extras links to some more EMR Operators and Sensors (#31032)``
+* ``Add retries to S3 delete_bucket (#31192)``
+* ``Add tags param in RedshiftCreateClusterSnapshotOperator (#31006)``
+* ``improve/fix glue job logs printing (#30886)``
+* ``Import aiobotocore only if deferrable is true (#31094)``
+* ``Update return types of 'get_key' methods on 'S3Hook' (#30923)``
+* ``Support 'shareIdentifier' in BatchOperator (#30829)``
+* ``BaseAWS - Override client when resource_type is user to get custom waiters (#30897)``
+* ``Add future-compatible mongo Hook typing (#31289)``
+* ``Handle temporary credentials when resource_type is used to get custom waiters (#31333)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move TaskInstanceKey to a separate file (#31033)``
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``DynamoDBToS3Operator - Add feature to export table to a point in time (#30501)``
+   * ``Revert "DynamoDBToS3Operator - Add feature to export table to a point in time (#30501)" (#31139)``
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Bring back detection of implicit single-line string concatenation (#31270)``
+   * ``Fix AWS system test example_dynamodb (#31395)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Fix AWS system test example_dynamodb_to_s3 (#31362)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+
+8.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of the provider, deprecated GCS hook's parameter ``delegate_to`` is removed from the following operators: ``GCSToS3Operator``, ``GlacierToGCSOperator`` and ``GoogleApiToS3Operator``.
+  Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+
+  Removed deprecated parameter ``google_cloud_storage_conn_id`` from ``GCSToS3Operator``, ``gcp_conn_id`` should be used instead.
+
+  Removed deprecated parameter ``max_tries`` from the Athena & EMR hook & operators in favor of ``max_polling_attempts``.
+
+  Removed deprecated method ``waiter`` from emr hook in favor of the more generic ``airflow.providers.amazon.aws.utils.waiter.waiter``
+
+  Removed deprecated unused parameter ``cluster_identifier`` from Redshift Cluster's hook method ``get_cluster_snapshot_status``
+
+  Removed deprecated method ``find_processing_job_by_name`` from Sagemaker hook, use ``count_processing_jobs_by_name`` instead.
+
+  Removed deprecated module ``airflow.providers.amazon.aws.operators.aws_lambda`` in favor of ``airflow.providers.amazon.aws.operators.lambda_function``
+
+  Removed EcsOperator in favor of EcsRunTaskOperator.
+  EcsTaskLogFetcher and EcsProtocol should be imported from the hook.
+
+  Removed AwsLambdaInvokeFunctionOperator in favor of LambdaInvokeFunctionOperator.
+
+  Removed deprecated param ``await_result`` from RedshiftDataOperator in favor of ``wait_for_completion``.
+  Some methods from this operator should be imported from the hook instead.
+
+  Removed deprecated ``RedshiftSQLOperator`` in favor of the generic ``SQLExecuteQueryOperator``.
+  The parameter that was passed as ``redshift_conn_id`` needs to be changed to ``conn_id``, and the behavior should stay the same.
+
+  Removed deprecated method ``get_conn_uri`` from secrets manager in favor of ``get_conn_value``
+  Also removed deprecated method ``get_conn_uri`` from systems manager. ``deserialize_connection(...).get_uri()`` should be used instead.
+
+  Removed deprecated and unused param ``s3_conn_id`` from ``ImapAttachmentToS3Operator``, ``MongoToS3Operator`` and ``S3ToSFTPOperator``.
+
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+* ``Remove deprecated code from Amazon provider (#30755)``
+
+Features
+~~~~~~~~
+
+* ``add a stop operator to emr serverless (#30720)``
+* ``SqlToS3Operator - Add feature to partition SQL table (#30460)``
+* ``New AWS sensor — DynamoDBValueSensor (#28338)``
+* ``Add a "force" option to emr serverless stop/delete operator (#30757)``
+* ``Add support for deferrable operators in AMPP (#30032)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed logging issue (#30703)``
+* ``DynamoDBHook - waiter_path() to consider 'resource_type' or 'client_type' (#30595)``
+* ``Add ability to override waiter delay in EcsRunTaskOperator (#30586)``
+* ``Add support in AWS Batch Operator for multinode jobs (#29522)``
+* ``AWS logs. Exit fast when 3 consecutive responses are returned from AWS Cloudwatch logs (#30756)``
+* ``Fix async conn for none aws_session_token (#30868)``
+
+Misc
+~~~~
+
+* ``Remove @poke_mode_only from EmrStepSensor (#30774)``
+* ``Organize Amazon providers docs index (#30541)``
+* ``Remove duplicate param docstring in EksPodOperator (#30634)``
+* ``Update AWS EMR Cluster Link to use the new dashboard (#30844)``
+* ``Restore aiobotocore as optional dependency of amazon provider (#30874)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Decouple "job runner" from BaseJob ORM model (#30255)``
+   * ``Upgrade ruff to 0.0.262 (#30809)``
+   * ``fixes to system tests following obsolete cleanup (#30804)``
+   * ``restore fallback to empty connection behavior (#30806)``
+   * ``Prepare docs for adhoc release of providers (#30787)``
+   * ``Prepare docs for ad-hoc release of Amazon provider (#30848)``
+
+7.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'RedshiftResumeClusterOperator' deferrable implementation (#30370)``
+
+Misc
+~~~~
+
+* ``Add more info to quicksight error messages (#30466)``
+* ``add template field for s3 bucket (#30472)``
+* ``Add s3_bucket to template fields in SFTP to S3 operator (#30444)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add AWS deferrable BatchOperator (#29300)``
+   * ``Revert "Add AWS deferrable BatchOperator (#29300)" (#30489)``
+   * ``Add mechanism to suspend providers (#30422)``
+
+7.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to 'RedshiftResumeClusterOperator' (#30090)``
+* ``Add 'AwsToAwsBaseOperator' (#30044)``
+* ``Add deferrable mode in RedshiftPauseClusterOperator (#28850)``
+* ``Add support of a different AWS connection for DynamoDB (#29452)``
+* ``Add 'EC2CreateInstanceOperator', 'EC2TerminateInstanceOperator' (#29548)``
+* ``Make update config behavior optional in GlueJobOperator (#30162)``
+* ``custom waiters with dynamic values, applied to appflow (#29911)``
+* ``Support deleting the local log files when using remote logging (#29772)``
+
+Misc
+~~~~
+* ``Move string enum class to utils module + add test (#29906)``
+* ``Align cncf provider file names with AIP-21 (#29905)``
+* ``rewrite polling code for appflow hook (#28869)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move and convert all AWS example dags to system tests (#30003)``
+   * ``Remove aws async ci job (#30127)``
+
+7.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add num rows affected to Redshift Data API hook (#29797)``
+* ``Add 'wait_for_completion' param in 'RedshiftCreateClusterOperator' (#29657)``
+* ``Add Amazon Redshift-data to S3<>RS Transfer Operators (#27947)``
+* ``Allow to specify which connection, variable or config are being looked up in the backend using *_lookup_pattern parameters (#29580)``
+* ``Implement file credentials provider for AWS hook AssumeRoleWithWebIdentity (#29623)``
+* ``Implement custom boto waiters for some EMR operators (#29822)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix code checking job names in sagemaker (#29245)``
+* ``Avoid emitting fallback message for S3TaskHandler if streaming logs (#29708)``
+* ``Use waiters in ECS Operators instead of inner sensors (#29761)``
+
+Misc
+~~~~
+
+* ``Impovements for RedshiftDataOperator: better error reporting and an ability to return SQL results (#29434)``
+* ``Standardize AWS lambda naming (#29749)``
+* ``AWS Glue job hook: Make s3_bucket parameter optional (#29659)``
+* ``'RedshiftDataOperator' replace 'await_result' with 'wait_for_completion' (#29633)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix Amazon ECS Enums (#29871)``
+
+7.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Explicitly handle exceptions raised by config parsing in AWS provider (#29587)``
+
+Misc
+~~~~
+
+* ``Fix docstring for EcsRunTaskOperator region_name -> region (#29562)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Restore trigger logging (#29482)``
+   * ``Revert "Enable individual trigger logging (#27758)" (#29472)``
+
+7.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add option to wait for completion on the EmrCreateJobFlowOperator (#28827)``
+* ``Add transfer operator S3 to (generic) SQL (#29085)``
+* ``add retries to stop_pipeline on conflict (#29077)``
+* ``Add log for AWS Glue Job Console URL (#28925)``
+* ``Enable individual trigger logging (#27758)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: 'num_of_dpus' typehints- GlueJobHook/Operator (#29176)``
+* ``Fix typo in DataSyncHook boto3 methods for create location in NFS and EFS (#28948)``
+* ``Decrypt SecureString value obtained by SsmHook (#29142)``
+
+Misc
+~~~~
+
+* ``log the observed status in redshift sensor (#29274)``
+* ``Use thin/passthrough hook instead of one-liner hook method (#29252)``
+* ``Move imports in AWS SqlToS3Operator transfer to callable function (#29045)``
+* ``introduce base class for EKS sensors (#29053)``
+* ``introduce a method to convert dictionaries to boto-style key-value lists (#28816)``
+* ``Update provide_bucket_name() decorator to handle new conn_type (#28706)``
+* ``uniformize getting hook through cached property in aws sensors (#29001)``
+* ``Use boto3 intersphinx inventory in documentation/docstrings. (#28945)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``shorten other wait times in sys tests (#29254)``
+   * ``Fix false-positive spellcheck failure (#29190)``
+
+7.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add ''configuration_overrides'' to templated fields (#28920)``
+* ``Add a new SSM hook and use it in the System Test context builder (#28755)``
+* ``Add waiter config params to emr.add_job_flow_steps (#28464)``
+* ``Add AWS Sagemaker Auto ML operator and sensor (#28472)``
+* ``new operator to create a sagemaker experiment (#28837)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid circular import from S3HookUriParseFailure (#28908)``
+* ``Use compat for cached_property in AWS Batch modules (#28835)``
+* ``Apply "unify bucket and key" before "provide bucket" (#28710)``
+
+Misc
+~~~~
+
+* ``Update S3ToRedshiftOperator docs to inform users about multiple key functionality (#28705)``
+* ``Refactor waiter function and improve unit tests (#28753)``
+* ``Better exception raised in case of numpy missing (#28722)``
+* ``Don't call get_connection from provide_bucket_name (#28716)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Switch to ruff for faster static checks (#28893)``
+
+
+7.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+JSON secrets in the 'SecretsManagerBackend' are never interpreted as urlencoded. In ``5.x`` and ``6.x``, the
+code would infer whether the JSON secret values were urlencoded based on context clues; now the unaltered
+values are *always* used to construct ``Connection`` objects.
+
+Pandas is now an optional dependency of the provider. The ``SqlToS3Operator`` and ``HiveToDynamoDBOperator``
+require Pandas to be installed (you can install it automatically by adding ``[pandas]`` extra when installing
+the provider.
+
+* ``Make pandas dependency optional for Amazon Provider (#28505)``
+
+Features
+~~~~~~~~
+
+* ``Deprecate 'full_url_mode' for SecretsManagerBackend; whether a secret is a JSON or URL is inferred (#27920)``
+* ``Add execution role parameter to AddStepsOperator (#28484)``
+* ``Add AWS SageMaker operator to register a model's version (#28024)``
+* ``Add link for EMR Steps Sensor logs (#28180)``
+* ``Add Amazon Elastic Container Registry (ECR) Hook (#28279)``
+* ``Add EMR Notebook operators (#28312)``
+* ``Create 'LambdaCreateFunctionOperator' and sensor (#28241)``
+* ``Better support for Boto Waiters (#28236)``
+* ``Amazon Provider Package user agent (#27823)``
+* ``Allow waiter to be configured via EmrServerless Operators (#27784)``
+* ``Add operators + sensor for aws sagemaker pipelines (#27786)``
+* ``Update RdsHook docstrings to match correct argument names (#28108)``
+* ``add some important log in aws athena hook (#27917)``
+* ``Lambda hook: make runtime and handler optional (#27778)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix EmrAddStepsOperature wait_for_completion parameter is not working (#28052)``
+* ``Correctly template Glue Jobs 'create_job_kwargs' arg (#28403)``
+* ``Fix template rendered bucket_key in S3KeySensor (#28340)``
+* ``Fix Type Error while using DynamoDBToS3Operator (#28158)``
+* ``AWSGlueJobHook updates job configuration if it exists (#27893)``
+* ``Fix GlueCrawlerOperature failure when using tags (#28005)``
+
+Misc
+~~~~
+
+* ``Fix S3KeySensor documentation (#28297)``
+* ``Improve docstrings for 'AwsLambdaInvokeFunctionOperator' (#28233)``
+* ``Remove outdated compat imports/code from providers (#28507)``
+* ``add description of breaking changes (#28582)``
+* ``[misc] Get rid of 'pass' statement in conditions (#27775)``
+* ``[misc] Replace XOR '^' conditions by 'exactly_one' helper in providers (#27858)``
+
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Use Boto waiters instead of customer _await_status method for RDS Operators (#27410)``
+* ``Handle transient state errors in 'RedshiftResumeClusterOperator' and 'RedshiftPauseClusterOperator' (#27276)``
+* ``Add retry option in RedshiftDeleteClusterOperator to retry when an operation is running in the cluster (#27820)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Correct job name matching in SagemakerProcessingOperator (#27634)``
+* ``Bump common.sql provider to 1.3.1 (#27888)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``System Test for EMR (AIP-47) (#27286)``
+   * ``Prepare for follow-up release for November providers (#27774)``
+
+6.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+* ``Replace urlparse with urlsplit (#27389)``
+
+Features
+~~~~~~~~
+
+* ``Add info about JSON Connection format for AWS SSM Parameter Store Secrets Backend (#27134)``
+* ``Add default name to EMR Serverless jobs (#27458)``
+* ``Adding 'preserve_file_name' param to 'S3Hook.download_file' method (#26886)``
+* ``Add GlacierUploadArchiveOperator (#26652)``
+* ``Add RdsStopDbOperator and RdsStartDbOperator (#27076)``
+* ``'GoogleApiToS3Operator' : add 'gcp_conn_id' to template fields (#27017)``
+* ``Add SQLExecuteQueryOperator (#25717)``
+* ``Add information about Amazon Elastic MapReduce Connection (#26687)``
+* ``Add BatchOperator template fields (#26805)``
+* ``Improve testing AWS Connection response (#26953)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``SagemakerProcessingOperator stopped honoring 'existing_jobs_found' (#27456)``
+* ``CloudWatch task handler doesn't fall back to local logs when Amazon CloudWatch logs aren't found (#27564)``
+* ``Fix backwards compatibility for RedshiftSQLOperator (#27602)``
+* ``Fix typo in redshift sql hook get_ui_field_behaviour (#27533)``
+* ``Fix example_emr_serverless system test (#27149)``
+* ``Fix param in docstring RedshiftSQLHook get_table_primary_key method (#27330)``
+* ``Adds s3_key_prefix to template fields (#27207)``
+* ``Fix assume role if user explicit set credentials (#26946)``
+* ``Fix failure state in waiter call for EmrServerlessStartJobOperator. (#26853)``
+* ``Fix a bunch of deprecation warnings AWS tests (#26857)``
+* ``Fix null strings bug in SqlToS3Operator in non parquet formats (#26676)``
+* ``Sagemaker hook: remove extra call at the end when waiting for completion (#27551)``
+* ``ECS Buglette (#26921)``
+* ``Avoid circular imports in AWS Secrets Backends if obtain secrets from config (#26784)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``sagemaker operators: mutualize init of aws_conn_id (#27579)``
+   * ``Upgrade dependencies in order to avoid backtracking (#27531)``
+   * ``Code quality improvements on sagemaker operators/hook (#27453)``
+   * ``Update old style typing (#26872)``
+   * ``System test for SQL to S3 Transfer (AIP-47) (#27097)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+   * ``Convert emr_eks example dag to system test (#26723)``
+   * ``System test for Dynamo DB (#26729)``
+   * ``ECS System Test (#26808)``
+   * ``RDS Instance System Tests (#26733)``
+
 6.0.0
 .....
 
@@ -210,8 +641,9 @@ Bug Fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Features
 ~~~~~~~~

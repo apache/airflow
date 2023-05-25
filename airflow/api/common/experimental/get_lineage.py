@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Lineage apis"""
+"""Lineage APIs."""
 from __future__ import annotations
 
 import collections
@@ -34,7 +34,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 def get_lineage(
     dag_id: str, execution_date: datetime.datetime, *, session: Session = NEW_SESSION
 ) -> dict[str, dict[str, Any]]:
-    """Gets the lineage information for dag specified."""
+    """Get lineage information for dag specified."""
     dag = check_and_get_dag(dag_id)
     dagrun = check_and_get_dagrun(dag, execution_date)
 

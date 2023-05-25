@@ -24,8 +24,8 @@ from airflow.exceptions import AirflowFailException, AirflowSkipException
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 
-skip_task_dag_dataset = Dataset('s3://dag_with_skip_task/output_1.txt', extra={'hi': 'bye'})
-fail_task_dag_dataset = Dataset('s3://dag_with_fail_task/output_1.txt', extra={'hi': 'bye'})
+skip_task_dag_dataset = Dataset("s3://dag_with_skip_task/output_1.txt", extra={"hi": "bye"})
+fail_task_dag_dataset = Dataset("s3://dag_with_fail_task/output_1.txt", extra={"hi": "bye"})
 
 
 def raise_skip_exc():
@@ -33,28 +33,28 @@ def raise_skip_exc():
 
 
 dag_with_skip_task = DAG(
-    dag_id='dag_with_skip_task',
+    dag_id="dag_with_skip_task",
     catchup=False,
     start_date=datetime(2020, 1, 1),
-    schedule='@daily',
-    tags=['upstream-skipping'],
+    schedule="@daily",
+    tags=["upstream-skipping"],
 )
 PythonOperator(
-    task_id='skip_task',
+    task_id="skip_task",
     outlets=[skip_task_dag_dataset],
     python_callable=raise_skip_exc,
     dag=dag_with_skip_task,
 )
 
 with DAG(
-    dag_id='dag_that_follows_dag_with_skip',
+    dag_id="dag_that_follows_dag_with_skip",
     catchup=False,
     start_date=datetime(2020, 1, 1),
     schedule=[skip_task_dag_dataset],
-    tags=['downstream-skipped'],
+    tags=["downstream-skipped"],
 ) as dag_that_follows_dag_with_skip:
     BashOperator(
-        task_id='dag_that_follows_dag_with_skip_task',
+        task_id="dag_that_follows_dag_with_skip_task",
         bash_command="sleep 5",
     )
 
@@ -64,27 +64,27 @@ def raise_fail_exc():
 
 
 dag_with_fail_task = DAG(
-    dag_id='dag_with_fail_task',
+    dag_id="dag_with_fail_task",
     catchup=False,
     start_date=datetime(2020, 1, 1),
-    schedule='@daily',
-    tags=['upstream-skipping'],
+    schedule="@daily",
+    tags=["upstream-skipping"],
 )
 PythonOperator(
-    task_id='fail_task',
+    task_id="fail_task",
     outlets=[fail_task_dag_dataset],
     python_callable=raise_fail_exc,
     dag=dag_with_fail_task,
 )
 
 with DAG(
-    dag_id='dag_that_follows_dag_with_fail',
+    dag_id="dag_that_follows_dag_with_fail",
     catchup=False,
     start_date=datetime(2020, 1, 1),
     schedule=[fail_task_dag_dataset],
-    tags=['downstream-failed'],
+    tags=["downstream-failed"],
 ) as dag_that_follows_dag_with_fail:
     BashOperator(
-        task_id='dag_that_follows_dag_with_fail_task',
+        task_id="dag_that_follows_dag_with_fail_task",
         bash_command="sleep 5",
     )

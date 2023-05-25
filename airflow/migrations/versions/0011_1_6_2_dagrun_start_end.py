@@ -28,18 +28,18 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '4446e08588'
-down_revision = '561833c1c74b'
+revision = "4446e08588"
+down_revision = "561833c1c74b"
 branch_labels = None
 depends_on = None
-airflow_version = '1.6.2'
+airflow_version = "1.6.2"
 
 
 def upgrade():
-    op.add_column('dag_run', sa.Column('end_date', sa.DateTime(), nullable=True))
-    op.add_column('dag_run', sa.Column('start_date', sa.DateTime(), nullable=True))
+    op.add_column("dag_run", sa.Column("end_date", sa.DateTime(), nullable=True))
+    op.add_column("dag_run", sa.Column("start_date", sa.DateTime(), nullable=True))
 
 
 def downgrade():
-    op.drop_column('dag_run', 'start_date')
-    op.drop_column('dag_run', 'end_date')
+    op.drop_column("dag_run", "start_date")
+    op.drop_column("dag_run", "end_date")

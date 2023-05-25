@@ -34,10 +34,10 @@ There are four ways to connect to Azure File Share using Airflow.
    i.e. add specific credentials (client_id, secret) and subscription id to the Airflow connection.
 2. Use a `SAS Token
    <https://docs.microsoft.com/en-us/rest/api/storageservices/create-account-sas>`_
-   i.e. add a key config to ``extra__azure_fileshare__sas_token`` in the Airflow connection.
+   i.e. add a key config to ``sas_token`` in the Airflow connection.
 3. Use a `Connection String
    <https://docs.microsoft.com/en-us/azure/data-explorer/kusto/api/connection-strings/storage>`_
-   i.e. add connection string to ``extra__azure_fileshare__connection_string`` in the Airflow connection.
+   i.e. add connection string to ``connection_string`` in the Airflow connection.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
 configure multiple connections.
@@ -64,9 +64,9 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Azure connection.
     The following parameters are all optional:
 
-    * ``extra__azure_fileshare__connection_string``: Connection string for use with connection string authentication.
-    * ``extra__azure_fileshare__sas_token``: SAS Token for use with SAS Token authentication.
-    * ``extra__azure_fileshare__protocol``: Specify the protocol to use (default is ``https``).
+    * ``connection_string``: Connection string for use with connection string authentication.
+    * ``sas_token``: SAS Token for use with SAS Token authentication.
+    * ``protocol``: Specify the protocol to use (default is ``https``).
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
@@ -77,4 +77,4 @@ For example connect with token credentials:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_WASP_DEFAULT='azure_fileshare://blob%20username@myblob.com?extra__azure_fileshare__sas_token=token'
+   export AIRFLOW_CONN_WASP_DEFAULT='azure_fileshare://blob%20username@myblob.com?sas_token=token'

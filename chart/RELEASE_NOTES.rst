@@ -23,15 +23,186 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
-Airflow Helm Chart 1.7.0 (2022-10-13)
+Airflow Helm Chart 1.9.0 (2023-04-14)
 -------------------------------------
 
 Significant Changes
 ^^^^^^^^^^^^^^^^^^^
 
-- Default Airflow image is updated to ``2.4.1``
+Default PgBouncer and PgBouncer Exporter images have been updated (#29919)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-  The default Airflow image that is used with the Chart is now ``2.4.1``, previously it was ``2.3.2``. (#26485)
+The PgBouncer and PgBouncer Exporter images are based on newer software/os. They are also multi-platform AMD/ARM images:
+
+  * ``pgbouncer``: 1.16.1 based on alpine 3.14 (``airflow-pgbouncer-2023.02.24-1.16.1``)
+  * ``pgbouncer-exporter``: 0.14.0 based on alpine 3.17 (``apache/airflow:airflow-pgbouncer-exporter-2023.02.21-0.14.0``)
+
+Default Airflow image is updated to ``2.5.3`` (#30411)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.5.3``, previously it was ``2.5.1``.
+
+New Features
+^^^^^^^^^^^^
+
+- Add support for ``hostAliases`` for Airflow webserver and scheduler (#30051)
+- Add support for annotations on StatsD Deployment and cleanup CronJob (#30126)
+- Add support for annotations in logs PVC (#29270)
+- Add support for annotations in extra ConfigMap and Secrets (#30303)
+- Add support for pod annotations to PgBouncer (#30168)
+- Add support for ``ttlSecondsAfterFinished`` on ``migrateDatabaseJob`` and ``createUserJob`` (#29314)
+- Add support for using SHA digest of Docker images (#30214)
+
+Improvements
+^^^^^^^^^^^^
+
+- Template extra volumes in Helm Chart (#29357)
+- Make Liveness/Readiness Probe timeouts configurable for PgBouncer Exporter (#29752)
+- Enable individual trigger logging (#29482)
+
+Bug Fixes
+^^^^^^^^^
+
+- Add ``config.kubernetes_executor`` to values (#29818)
+- Block extra properties in image config (#30217)
+- Remove replicas if KEDA is enabled (#29838)
+- Mount ``kerberos.keytab`` to worker when enabled (#29526)
+- Fix adding annotations for dag persistence PVC (#29622)
+- Fix ``bitnami/postgresql`` default username and password (#29478)
+- Add global volumes in pod template file (#29295)
+- Add log groomer sidecar to triggerer service (#29392)
+- Helm deployment fails when ``postgresql.nameOverride`` is used (#29214)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Add gitSync optional env description (#29378)
+- Add webserver NodePort example (#29460)
+- Include Rancher in Helm chart install instructions (#28416)
+- Change RSA SSH host key to reflect update from Github (#30286)
+
+Misc
+^^^^
+
+- Update Airflow version to 2.5.3 (#30411)
+- Switch to newer versions of PgBouncer and PgBouncer Exporter in chart (#29919)
+- Reformat chart templates (#29917)
+- Reformat chart templates part 2 (#29941)
+- Reformat chart templates part 3 (#30312)
+- Replace deprecated k8s registry references (#29938)
+- Fix ``airflow_dags_mount`` formatting (#29296)
+- Fix ``webserver.service.ports`` formatting (#29297)
+
+Airflow Helm Chart 1.8.0 (2023-02-06)
+-------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+``bitnami/postgresql`` subchart updated to ``12.1.9`` (#29071)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The version of postgresql installed is still version 11.
+
+If you are upgrading an existing helm release with the built-in postgres database, you will either need to delete your release and reinstall fresh, or manually delete these 2 objects:
+
+.. code-block::
+
+    kubectl delete secret {RELEASE_NAME}-postgresql
+    kubectl delete statefulset {RELEASE_NAME}-postgresql
+
+As a reminder, it is recommended to `set up an external database <https://airflow.apache.org/docs/helm-chart/stable/production-guide.html#database>`_ in production.
+
+This version of the chart uses different variable names for setting usernames and passwords in the postgres database.
+
+- ``postgresql.auth.enablePostgresUser`` is used to determine if the "postgres" admin account will be created.
+- ``postgresql.auth.postgresPassword`` sets the password for the "postgres" user.
+- ``postgresql.auth.username`` and ``postrgesql.auth.password`` are used to set credentials for a non-admin account if desired.
+- ``postgresql.postgresqlUsername`` and ``postgresql.postresqlPassword``, which were used in the previous version of the chart, are no longer used.
+
+Users will need to make those changes in their values files if they are changing the Postgres configuration.
+
+Previously the subchart version was ``10.5.3``.
+
+Default ``dags.gitSync.wait`` reduced to ``5`` seconds (#27625)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default for ``dags.gitSync.wait`` has been reduced from ``60`` seconds to ``5`` seconds to reduce the likelihood of DAGs
+becoming inconsistent between Airflow components. This will, however, increase traffic to the remote git repository.
+
+Default Airflow image is updated to ``2.5.1`` (#29074)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.5.1``, previously it was ``2.4.1``.
+
+Default git-sync image is updated to ``3.6.3`` (#27848)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default git-sync image that is used with the Chart is now ``3.6.3``, previously it was ``3.4.0``.
+
+Default redis image is updated to ``7-bullseye`` (#27443)
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default redis image that is used with the Chart is now ``7-bullseye``, previously it was ``6-bullseye``.
+
+New Features
+^^^^^^^^^^^^
+
+- Add annotations on deployments (#28688)
+- Add global volume & volumeMounts to the chart (#27781)
+
+Improvements
+^^^^^^^^^^^^
+
+- Add support for ``webserverConfigConfigMapName`` (#27419)
+- Enhance chart to allow overriding command-line args to statsd exporter (#28041)
+- Add support for NodePort in Services (#26945)
+- Add worker log-groomer-sidecar enable option (#27178)
+- Add HostAliases to Pod template file (#27544)
+- Allow PgBouncer replicas to be configurable (#27439)
+
+Bug Fixes
+^^^^^^^^^
+
+- Create scheduler service to serve task logs for LocalKubernetesExecutor (#28828)
+- Fix NOTES.txt to show correct URL (#28264)
+- Add worker service account for LocalKubernetesExecutor (#28813)
+- Remove checks for 1.19 api checks (#28461)
+- Add airflow_local_settings to all airflow containers (#27779)
+- Make custom env vars optional for job templates (#27148)
+- Decrease default gitSync wait (#27625)
+- Add ``extraVolumeMounts`` to sidecars too (#27420)
+- Fix PgBouncer after PostgreSQL subchart upgrade (#29207)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Enhance production guide with a few Argo specific guidelines (#29078)
+- Add doc note about Pod template images (#29032)
+- Update production guide db section (#28610)
+- Fix to LoadBalancer snippet (#28014)
+- Fix gitSync example code (#28083)
+- Correct repo example for cloning via ssh (#27671)
+
+Misc
+^^^^
+
+- Update Airflow version to 2.5.1 (#29074)
+- Update git-sync to 3.6.3 (#27848)
+- Upgrade ``bitnami/postgresql`` subchart to 12.1.9 (#29071)
+- Update redis to 7 (#27443)
+- Replace helm chart icon (#27704)
+
+Airflow Helm Chart 1.7.0 (2022-10-14)
+-------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Default Airflow image is updated to ``2.4.1`` (#26485)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.4.1``, previously it was ``2.3.2``.
 
 New Features
 ^^^^^^^^^^^^

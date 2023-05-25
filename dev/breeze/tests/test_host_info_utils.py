@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from airflow_breeze.utils import host_info_utils
 
-SUPPORTED_OS = ['linux', 'darwin', 'windows']
+SUPPORTED_OS = ["linux", "darwin", "windows"]
 
 
 def test_get_host_os():

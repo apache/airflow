@@ -32,7 +32,7 @@ def getattr_with_deprecation(imports: dict[str, str], module: str, name: str):
         DeprecationWarning,
         stacklevel=2,
     )
-    new_module, new_class_name = target_class_full_name.rsplit('.', 1)
+    new_module, new_class_name = target_class_full_name.rsplit(".", 1)
     return getattr(importlib.import_module(new_module), new_class_name)
 
 

@@ -24,6 +24,74 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Add mechanism to suspend providers (#30422)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+
+3.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Improve creating Vault connection from the UI and add documentation for this conn (#30057)``
+* ``Remove required validations in Hashicorp Vault conn form (#30138)``
+* ``remove unused key_id variable (#30055)``
+* ``Simplify dict logic in Hashicorp Vault Hook (#30060)``
+
+3.3.0
+.....
+
+Features
+~~~~~~~~
+* ``Support multiple mount points in Vault backend secret (#29734)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix empty paths in Vault secrets backend (#29908)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs for 03/2023 wave of Providers (#29878)``
+
+3.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+* ``Add Airflow specific warning classes (#25799)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Pass kwargs from vault hook to hvac client (#26680)``
+   * ``Update old style typing (#26872)``
+   * ``Enable string normalization in python formatting - providers (#27205)``
+   * ``Update docs for September Provider's release (#26731)``
+   * ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+
 3.1.0
 .....
 
@@ -52,8 +120,9 @@ Bug Fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
    * ``Prepare provider documentation 2022.05.11 (#23631)``

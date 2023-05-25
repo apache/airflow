@@ -47,20 +47,24 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._hyperparameter_tuning_job: HyperparameterTuningJob | None = None
 
     def get_job_service_client(self, region: str | None = None) -> JobServiceClient:
         """Returns JobServiceClient."""
-        if region and region != 'global':
-            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        if region and region != "global":
+            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
             client_options = ClientOptions()
 
@@ -323,7 +327,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
 
         result = client.get_hyperparameter_tuning_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -371,11 +375,11 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
 
         result = client.list_hyperparameter_tuning_jobs(
             request={
-                'parent': parent,
-                'filter': filter,
-                'page_size': page_size,
-                'page_token': page_token,
-                'read_mask': read_mask,
+                "parent": parent,
+                "filter": filter,
+                "page_size": page_size,
+                "page_token": page_token,
+                "read_mask": read_mask,
             },
             retry=retry,
             timeout=timeout,
@@ -409,7 +413,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
 
         result = client.delete_hyperparameter_tuning_job(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,

@@ -34,24 +34,32 @@ def _balance_parens(after_decorator):
             num_paren = num_paren + 1
         elif current == ")":
             num_paren = num_paren - 1
-    return ''.join(after_decorator)
+    return "".join(after_decorator)
 
 
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     """
-    Removed @kubernetes_task
+    Removes @task.kubernetes or similar as well as @setup and @teardown
 
-    :param python_source:
+    :param python_source: python source code
+    :param task_decorator_name: the task decorator name
     """
-    if task_decorator_name not in python_source:
-        return python_source
-    split = python_source.split(task_decorator_name)
-    before_decorator, after_decorator = split[0], split[1]
-    if after_decorator[0] == "(":
-        after_decorator = _balance_parens(after_decorator)
-    if after_decorator[0] == "\n":
-        after_decorator = after_decorator[1:]
-    return before_decorator + after_decorator
+
+    def _remove_task_decorator(py_source, decorator_name):
+        if decorator_name not in py_source:
+            return python_source
+        split = python_source.split(decorator_name)
+        before_decorator, after_decorator = split[0], split[1]
+        if after_decorator[0] == "(":
+            after_decorator = _balance_parens(after_decorator)
+        if after_decorator[0] == "\n":
+            after_decorator = after_decorator[1:]
+        return before_decorator + after_decorator
+
+    decorators = ["@setup", "@teardown", task_decorator_name]
+    for decorator in decorators:
+        python_source = _remove_task_decorator(python_source, decorator)
+    return python_source
 
 
 def write_python_script(
@@ -76,5 +84,5 @@ def write_python_script(
         )
     else:
         template_env = jinja2.Environment(loader=template_loader, undefined=jinja2.StrictUndefined)
-    template = template_env.get_template('python_kubernetes_script.jinja2')
+    template = template_env.get_template("python_kubernetes_script.jinja2")
     template.stream(**jinja_context).dump(filename)

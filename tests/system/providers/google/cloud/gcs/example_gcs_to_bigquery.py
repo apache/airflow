@@ -40,31 +40,31 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
 with models.DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example', "gcs"],
+    tags=["example", "gcs"],
 ) as dag:
     create_test_dataset = BigQueryCreateEmptyDatasetOperator(
-        task_id='create_airflow_test_dataset', dataset_id=DATASET_NAME, project_id=PROJECT_ID
+        task_id="create_airflow_test_dataset", dataset_id=DATASET_NAME, project_id=PROJECT_ID
     )
 
     # [START howto_operator_gcs_to_bigquery]
     load_csv = GCSToBigQueryOperator(
-        task_id='gcs_to_bigquery_example',
-        bucket='cloud-samples-data',
-        source_objects=['bigquery/us-states/us-states.csv'],
+        task_id="gcs_to_bigquery_example",
+        bucket="cloud-samples-data",
+        source_objects=["bigquery/us-states/us-states.csv"],
         destination_project_dataset_table=f"{DATASET_NAME}.{TABLE_NAME}",
         schema_fields=[
-            {'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'},
-            {'name': 'post_abbr', 'type': 'STRING', 'mode': 'NULLABLE'},
+            {"name": "name", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "post_abbr", "type": "STRING", "mode": "NULLABLE"},
         ],
-        write_disposition='WRITE_TRUNCATE',
+        write_disposition="WRITE_TRUNCATE",
     )
     # [END howto_operator_gcs_to_bigquery]
 
     delete_test_dataset = BigQueryDeleteDatasetOperator(
-        task_id='delete_airflow_test_dataset',
+        task_id="delete_airflow_test_dataset",
         dataset_id=DATASET_NAME,
         delete_contents=True,
         trigger_rule=TriggerRule.ALL_DONE,

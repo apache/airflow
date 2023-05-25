@@ -28,25 +28,25 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'c381b21cb7e4'
-down_revision = 'be2bfac3da23'
+revision = "c381b21cb7e4"
+down_revision = "be2bfac3da23"
 branch_labels = None
 depends_on = None
-airflow_version = '2.2.4'
+airflow_version = "2.2.4"
 
-TABLE_NAME = 'session'
+TABLE_NAME = "session"
 
 
 def upgrade():
     """Apply Create a ``session`` table to store web session data"""
     op.create_table(
         TABLE_NAME,
-        sa.Column('id', sa.Integer()),
-        sa.Column('session_id', sa.String(255)),
-        sa.Column('data', sa.LargeBinary()),
-        sa.Column('expiry', sa.DateTime()),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('session_id'),
+        sa.Column("id", sa.Integer()),
+        sa.Column("session_id", sa.String(255)),
+        sa.Column("data", sa.LargeBinary()),
+        sa.Column("expiry", sa.DateTime()),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("session_id"),
     )
 
 

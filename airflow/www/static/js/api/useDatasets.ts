@@ -17,15 +17,21 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from 'axios';
-import { useQuery } from 'react-query';
+import axios, { AxiosResponse } from "axios";
+import { useQuery } from "react-query";
 
-import { getMetaValue } from 'src/utils';
-import type { DatasetListItem } from 'src/types';
+import { getMetaValue } from "src/utils";
+import type { DatasetListItem } from "src/types";
+import type { unitOfTime } from "moment";
 
 interface DatasetsData {
   datasets: DatasetListItem[];
   totalEntries: number;
+}
+
+export interface DateOption {
+  count: number;
+  unit: unitOfTime.DurationConstructor;
 }
 
 interface Props {
@@ -33,29 +39,43 @@ interface Props {
   offset?: number;
   order?: string;
   uri?: string;
+  updatedAfter?: DateOption;
 }
 
 export default function useDatasets({
-  limit, offset, order, uri,
+  limit,
+  offset,
+  order,
+  uri,
+  updatedAfter,
 }: Props) {
   const query = useQuery(
-    ['datasets', limit, offset, order, uri],
+    ["datasets", limit, offset, order, uri, updatedAfter],
     () => {
-      const datasetsUrl = getMetaValue('datasets_api');
+      const datasetsUrl = getMetaValue("datasets_api");
       const orderParam = order ? { order_by: order } : {};
       const uriParam = uri ? { uri_pattern: uri } : {};
-      return axios.get<AxiosResponse, DatasetsData>(
-        datasetsUrl,
-        {
-          params: {
-            offset, limit, ...orderParam, ...uriParam,
-          },
+      const updatedAfterParam =
+        updatedAfter && updatedAfter.count && updatedAfter.unit
+          ? {
+              updated_after: moment()
+                .subtract(updatedAfter.count, updatedAfter.unit)
+                .toISOString(),
+            }
+          : {};
+      return axios.get<AxiosResponse, DatasetsData>(datasetsUrl, {
+        params: {
+          offset,
+          limit,
+          ...orderParam,
+          ...uriParam,
+          ...updatedAfterParam,
         },
-      );
+      });
     },
     {
       keepPreviousData: true,
-    },
+    }
   );
   return {
     ...query,

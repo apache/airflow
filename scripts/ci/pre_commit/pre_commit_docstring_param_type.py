@@ -35,21 +35,21 @@ console = Console(color_system="standard", width=200)
 
 def _check_file(file: Path) -> list:
     content = file.read_text()
-    return re.findall(r' +\:type .+?\:', content)
+    return re.findall(r" +\:type .+?\:", content)
 
 
 def _join_with_newline(list_):
-    return '\n'.join(list_)
+    return "\n".join(list_)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     error_list = []
     for file in sys.argv[1:]:
         matches = _check_file(Path(file))
         if matches:
             error_list.append((file, matches))
     if error_list:
-        error_message = '\n'.join([f"{f}: \n{_join_with_newline(m)}" for f, m in error_list])
+        error_message = "\n".join([f"{f}: \n{_join_with_newline(m)}" for f, m in error_list])
         console.print(
             f"""
 [red]Found files with types specified in docstring.

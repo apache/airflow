@@ -27,18 +27,18 @@ from __future__ import annotations
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '1de7bc13c950'
-down_revision = 'b1b348e02d07'
+revision = "1de7bc13c950"
+down_revision = "b1b348e02d07"
 branch_labels = None
 depends_on = None
-airflow_version = '2.3.1'
+airflow_version = "2.3.1"
 
 
 def upgrade():
     """Apply Add index for ``event`` column in ``log`` table."""
-    op.create_index('idx_log_event', 'log', ['event'], unique=False)
+    op.create_index("idx_log_event", "log", ["event"], unique=False)
 
 
 def downgrade():
     """Unapply Add index for ``event`` column in ``log`` table."""
-    op.drop_index('idx_log_event', table_name='log')
+    op.drop_index("idx_log_event", table_name="log")

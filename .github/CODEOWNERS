@@ -1,10 +1,10 @@
 # Core
-/airflow/executors/ @kaxil @XD-DENG @ashb
+/airflow/executors/ @kaxil @XD-DENG @ashb @o-nikolas @pierrejeambrun
 /airflow/jobs/ @kaxil @ashb @XD-DENG
 /airflow/models/ @kaxil @XD-DENG @ashb
 
 # DAG Serialization
-/airflow/serialization/ @kaxil @ashb
+/airflow/serialization/ @kaxil @ashb @bolkedebruin
 
 # DAG Parsing
 /airflow/dag_processing @jedcunningham @ephraimbuddy
@@ -18,21 +18,18 @@
 # Helm Chart
 /chart/ @dstandish @jedcunningham
 
-# Docs
-/docs/ @mik-laj
-
 # Docs (without Providers)
-/docs/apache-airflow @kaxil @potiuk
+/docs/apache-airflow @potiuk
 /docs/docker-stack @potiuk
 /docs/helm-chart @dstandish @jedcunningham
 /docs/*.py @kaxil @potiuk
 
 # API
-/airflow/api/ @mik-laj @ephraimbuddy
-/airflow/api_connexion/ @mik-laj @ephraimbuddy
+/airflow/api/ @ephraimbuddy @pierrejeambrun
+/airflow/api_connexion/ @ephraimbuddy @pierrejeambrun
 
 # WWW
-/airflow/www/ @ryanahamilton @ashb @bbovenzi
+/airflow/www/ @ryanahamilton @ashb @bbovenzi @pierrejeambrun
 
 # Security/Permissions
 /airflow/security/permissions.py @jhtimmins
@@ -62,33 +59,39 @@
 /airflow/secrets  @dstandish @kaxil @potiuk @ashb
 
 # Providers
-/airflow/providers/google/ @turbaszek
-/airflow/providers/snowflake/ @turbaszek @potiuk @mik-laj
+/airflow/providers/snowflake/ @potiuk @mik-laj
 /airflow/providers/cncf/kubernetes @jedcunningham
 /airflow/providers/dbt/cloud/ @josh-fell
 /airflow/providers/tabular/ @Fokko
-/airflow/providers/amazon/ @eladkal
+/airflow/providers/amazon/ @eladkal @o-nikolas
 /airflow/providers/common/sql/ @eladkal
 /airflow/providers/slack/ @eladkal
-/docs/apache-airflow-providers-amazon/ @eladkal
+/docs/apache-airflow-providers-amazon/ @eladkal @o-nikolas
 /docs/apache-airflow-providers-common-sql/ @eladkal
 /docs/apache-airflow-providers-slack/ @eladkal
 /docs/apache-airflow-providers-cncf-kubernetes @jedcunningham
-/tests/providers/amazon/ @eladkal
+/tests/providers/amazon/ @eladkal @o-nikolas
 /tests/providers/common/sql/ @eladkal
 /tests/providers/slack/ @eladkal
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @kaxil
-Dockerfile @potiuk @ashb @mik-laj
+Dockerfile @potiuk @ashb
 Dockerfile.ci @potiuk @ashb
 /dev/ @potiuk @ashb @jedcunningham
 /provider_packages/ @potiuk @ashb
-/scripts/ @potiuk @ashb @mik-laj
-/docker_tests/ @potiuk @ashb @mik-laj
+/scripts/ @potiuk @ashb
+/docker_tests/ @potiuk @ashb
 
 # Releasing Guides & Project Guidelines
-/dev/README_RELEASE_*.md  @kaxil
+/dev/README_RELEASE_PROVIDER_PACKAGES.md  @eladkal
+/dev/README_RELEASE_*.md  @kaxil @pierrejeambrun
 /dev/README.md  @kaxil
 /dev/PROJECT_GUIDELINES.md  @kaxil
 /dev/PROVIDER_PACKAGE_DETAILS.md  @kaxil
+ISSUE_TRIAGE_PROCESS.rst @eladkal
+
+# AIP-52 - Setup and Teardown
+/airflow/decorators/setup_teardown.py @jedcunningham @ephraimbuddy @dstandish
+/airflow/utils/setup_teardown.py @jedcunningham @ephraimbuddy @dstandish
+/airflow/example_dags/example_setup_teardown*.py @jedcunningham @ephraimbuddy @dstandish

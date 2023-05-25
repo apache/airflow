@@ -29,11 +29,11 @@ from alembic import op
 from sqlalchemy import inspect
 
 # revision identifiers, used by Alembic.
-revision = '92c57b58940d'
-down_revision = 'da3f683c3a5a'
+revision = "92c57b58940d"
+down_revision = "da3f683c3a5a"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.13'
+airflow_version = "1.10.13"
 
 
 def upgrade():
@@ -43,110 +43,110 @@ def upgrade():
     tables = inspector.get_table_names()
     if "ab_permission" not in tables:
         op.create_table(
-            'ab_permission',
-            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
-            sa.Column('name', sa.String(length=100), nullable=False),
-            sa.PrimaryKeyConstraint('id'),
-            sa.UniqueConstraint('name'),
+            "ab_permission",
+            sa.Column("id", sa.Integer(), nullable=False, primary_key=True),
+            sa.Column("name", sa.String(length=100), nullable=False),
+            sa.PrimaryKeyConstraint("id"),
+            sa.UniqueConstraint("name"),
         )
 
     if "ab_view_menu" not in tables:
         op.create_table(
-            'ab_view_menu',
-            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
-            sa.Column('name', sa.String(length=100), nullable=False),
-            sa.PrimaryKeyConstraint('id'),
-            sa.UniqueConstraint('name'),
+            "ab_view_menu",
+            sa.Column("id", sa.Integer(), nullable=False, primary_key=True),
+            sa.Column("name", sa.String(length=100), nullable=False),
+            sa.PrimaryKeyConstraint("id"),
+            sa.UniqueConstraint("name"),
         )
 
     if "ab_role" not in tables:
         op.create_table(
-            'ab_role',
-            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
-            sa.Column('name', sa.String(length=64), nullable=False),
-            sa.PrimaryKeyConstraint('id'),
-            sa.UniqueConstraint('name'),
+            "ab_role",
+            sa.Column("id", sa.Integer(), nullable=False, primary_key=True),
+            sa.Column("name", sa.String(length=64), nullable=False),
+            sa.PrimaryKeyConstraint("id"),
+            sa.UniqueConstraint("name"),
         )
 
     if "ab_permission_view" not in tables:
         op.create_table(
-            'ab_permission_view',
-            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
-            sa.Column('permission_id', sa.Integer(), nullable=True),
-            sa.Column('view_menu_id', sa.Integer(), nullable=True),
-            sa.ForeignKeyConstraint(['permission_id'], ['ab_permission.id']),
-            sa.ForeignKeyConstraint(['view_menu_id'], ['ab_view_menu.id']),
-            sa.PrimaryKeyConstraint('id'),
-            sa.UniqueConstraint('permission_id', 'view_menu_id'),
+            "ab_permission_view",
+            sa.Column("id", sa.Integer(), nullable=False, primary_key=True),
+            sa.Column("permission_id", sa.Integer(), nullable=True),
+            sa.Column("view_menu_id", sa.Integer(), nullable=True),
+            sa.ForeignKeyConstraint(["permission_id"], ["ab_permission.id"]),
+            sa.ForeignKeyConstraint(["view_menu_id"], ["ab_view_menu.id"]),
+            sa.PrimaryKeyConstraint("id"),
+            sa.UniqueConstraint("permission_id", "view_menu_id"),
         )
 
     if "ab_permission_view_role" not in tables:
         op.create_table(
-            'ab_permission_view_role',
-            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
-            sa.Column('permission_view_id', sa.Integer(), nullable=True),
-            sa.Column('role_id', sa.Integer(), nullable=True),
-            sa.ForeignKeyConstraint(['permission_view_id'], ['ab_permission_view.id']),
-            sa.ForeignKeyConstraint(['role_id'], ['ab_role.id']),
-            sa.PrimaryKeyConstraint('id'),
+            "ab_permission_view_role",
+            sa.Column("id", sa.Integer(), nullable=False, primary_key=True),
+            sa.Column("permission_view_id", sa.Integer(), nullable=True),
+            sa.Column("role_id", sa.Integer(), nullable=True),
+            sa.ForeignKeyConstraint(["permission_view_id"], ["ab_permission_view.id"]),
+            sa.ForeignKeyConstraint(["role_id"], ["ab_role.id"]),
+            sa.PrimaryKeyConstraint("id"),
             sa.UniqueConstraint("permission_view_id", "role_id"),
         )
 
     if "ab_user" not in tables:
         op.create_table(
-            'ab_user',
-            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
-            sa.Column('first_name', sa.String(length=64), nullable=False),
-            sa.Column('last_name', sa.String(length=64), nullable=False),
-            sa.Column('username', sa.String(length=64), nullable=False),
-            sa.Column('password', sa.String(length=256), nullable=True),
-            sa.Column('active', sa.Boolean(), nullable=True),
-            sa.Column('email', sa.String(length=64), nullable=False),
-            sa.Column('last_login', sa.DateTime(), nullable=True),
-            sa.Column('login_count', sa.Integer(), nullable=True),
-            sa.Column('fail_login_count', sa.Integer(), nullable=True),
-            sa.Column('created_on', sa.DateTime(), nullable=True),
-            sa.Column('changed_on', sa.DateTime(), nullable=True),
-            sa.Column('created_by_fk', sa.Integer(), nullable=True),
-            sa.Column('changed_by_fk', sa.Integer(), nullable=True),
-            sa.ForeignKeyConstraint(['changed_by_fk'], ['ab_user.id']),
-            sa.ForeignKeyConstraint(['created_by_fk'], ['ab_user.id']),
-            sa.PrimaryKeyConstraint('id'),
-            sa.UniqueConstraint('email'),
-            sa.UniqueConstraint('username'),
+            "ab_user",
+            sa.Column("id", sa.Integer(), nullable=False, primary_key=True),
+            sa.Column("first_name", sa.String(length=64), nullable=False),
+            sa.Column("last_name", sa.String(length=64), nullable=False),
+            sa.Column("username", sa.String(length=64), nullable=False),
+            sa.Column("password", sa.String(length=256), nullable=True),
+            sa.Column("active", sa.Boolean(), nullable=True),
+            sa.Column("email", sa.String(length=64), nullable=False),
+            sa.Column("last_login", sa.DateTime(), nullable=True),
+            sa.Column("login_count", sa.Integer(), nullable=True),
+            sa.Column("fail_login_count", sa.Integer(), nullable=True),
+            sa.Column("created_on", sa.DateTime(), nullable=True),
+            sa.Column("changed_on", sa.DateTime(), nullable=True),
+            sa.Column("created_by_fk", sa.Integer(), nullable=True),
+            sa.Column("changed_by_fk", sa.Integer(), nullable=True),
+            sa.ForeignKeyConstraint(["changed_by_fk"], ["ab_user.id"]),
+            sa.ForeignKeyConstraint(["created_by_fk"], ["ab_user.id"]),
+            sa.PrimaryKeyConstraint("id"),
+            sa.UniqueConstraint("email"),
+            sa.UniqueConstraint("username"),
         )
 
     if "ab_user_role" not in tables:
         op.create_table(
-            'ab_user_role',
-            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
-            sa.Column('user_id', sa.Integer(), nullable=True),
-            sa.Column('role_id', sa.Integer(), nullable=True),
+            "ab_user_role",
+            sa.Column("id", sa.Integer(), nullable=False, primary_key=True),
+            sa.Column("user_id", sa.Integer(), nullable=True),
+            sa.Column("role_id", sa.Integer(), nullable=True),
             sa.ForeignKeyConstraint(
-                ['role_id'],
-                ['ab_role.id'],
+                ["role_id"],
+                ["ab_role.id"],
             ),
             sa.ForeignKeyConstraint(
-                ['user_id'],
-                ['ab_user.id'],
+                ["user_id"],
+                ["ab_user.id"],
             ),
-            sa.PrimaryKeyConstraint('id'),
-            sa.UniqueConstraint('user_id', 'role_id'),
+            sa.PrimaryKeyConstraint("id"),
+            sa.UniqueConstraint("user_id", "role_id"),
         )
 
     if "ab_register_user" not in tables:
         op.create_table(
-            'ab_register_user',
-            sa.Column('id', sa.Integer(), nullable=False, primary_key=True),
-            sa.Column('first_name', sa.String(length=64), nullable=False),
-            sa.Column('last_name', sa.String(length=64), nullable=False),
-            sa.Column('username', sa.String(length=64), nullable=False),
-            sa.Column('password', sa.String(length=256), nullable=True),
-            sa.Column('email', sa.String(length=64), nullable=False),
-            sa.Column('registration_date', sa.DateTime(), nullable=True),
-            sa.Column('registration_hash', sa.String(length=256), nullable=True),
-            sa.PrimaryKeyConstraint('id'),
-            sa.UniqueConstraint('username'),
+            "ab_register_user",
+            sa.Column("id", sa.Integer(), nullable=False, primary_key=True),
+            sa.Column("first_name", sa.String(length=64), nullable=False),
+            sa.Column("last_name", sa.String(length=64), nullable=False),
+            sa.Column("username", sa.String(length=64), nullable=False),
+            sa.Column("password", sa.String(length=256), nullable=True),
+            sa.Column("email", sa.String(length=64), nullable=False),
+            sa.Column("registration_date", sa.DateTime(), nullable=True),
+            sa.Column("registration_hash", sa.String(length=256), nullable=True),
+            sa.PrimaryKeyConstraint("id"),
+            sa.UniqueConstraint("username"),
         )
 
 
@@ -171,7 +171,7 @@ def downgrade():
             indexes = inspector.get_foreign_keys(table)
             for index in indexes:
                 if conn.dialect.name != "sqlite":
-                    op.drop_constraint(index.get('name'), table, type_='foreignkey')
+                    op.drop_constraint(index.get("name"), table, type_="foreignkey")
 
     for table in fab_tables:
         if table in tables:

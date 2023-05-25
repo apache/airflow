@@ -62,7 +62,7 @@ class FTPToS3Operator(BaseOperator):
         uploaded to the S3 bucket.
     """
 
-    template_fields: Sequence[str] = ('ftp_path', 's3_bucket', 's3_key', 'ftp_filenames', 's3_filenames')
+    template_fields: Sequence[str] = ("ftp_path", "s3_bucket", "s3_key", "ftp_filenames", "s3_filenames")
 
     def __init__(
         self,
@@ -72,8 +72,8 @@ class FTPToS3Operator(BaseOperator):
         s3_key: str,
         ftp_filenames: str | list[str] | None = None,
         s3_filenames: str | list[str] | None = None,
-        ftp_conn_id: str = 'ftp_default',
-        aws_conn_id: str = 'aws_default',
+        ftp_conn_id: str = "ftp_default",
+        aws_conn_id: str = "aws_default",
         replace: bool = False,
         encrypt: bool = False,
         gzip: bool = False,
@@ -110,7 +110,7 @@ class FTPToS3Operator(BaseOperator):
                 gzip=self.gzip,
                 acl_policy=self.acl_policy,
             )
-            self.log.info('File upload to %s', s3_file_key)
+            self.log.info("File upload to %s", s3_file_key)
 
     def execute(self, context: Context):
         self.ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
@@ -118,27 +118,27 @@ class FTPToS3Operator(BaseOperator):
 
         if self.ftp_filenames:
             if isinstance(self.ftp_filenames, str):
-                self.log.info('Getting files in %s', self.ftp_path)
+                self.log.info("Getting files in %s", self.ftp_path)
 
                 list_dir = self.ftp_hook.list_directory(
                     path=self.ftp_path,
                 )
 
-                if self.ftp_filenames == '*':
+                if self.ftp_filenames == "*":
                     files = list_dir
                 else:
                     ftp_filename: str = self.ftp_filenames
                     files = list(filter(lambda f: ftp_filename in f, list_dir))
 
                 for file in files:
-                    self.log.info('Moving file %s', file)
+                    self.log.info("Moving file %s", file)
 
                     if self.s3_filenames and isinstance(self.s3_filenames, str):
                         filename = file.replace(self.ftp_filenames, self.s3_filenames)
                     else:
                         filename = file
 
-                    s3_file_key = f'{self.s3_key}{filename}'
+                    s3_file_key = f"{self.s3_key}{filename}"
                     self.__upload_to_s3_from_ftp(file, s3_file_key)
 
             else:

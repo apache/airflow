@@ -75,14 +75,14 @@ result -
 Deleting a task
 ----------------
 
-Be careful when deleting a task from a DAG. You would not be able to see the Task in Graph View, Tree View, etc making
+Be careful when deleting a task from a DAG. You would not be able to see the Task in Graph View, Grid View, etc making
 it difficult to check the logs of that Task from the Webserver. If that is not desired, please create a new DAG.
 
 
 Communication
 --------------
 
-Airflow executes tasks of a DAG on different servers in case you are using :doc:`Kubernetes executor <../executor/kubernetes>` or :doc:`Celery executor <../executor/celery>`.
+Airflow executes tasks of a DAG on different servers in case you are using :doc:`Kubernetes executor </core-concepts/executor/kubernetes>` or :doc:`Celery executor </core-concepts/executor/celery>`.
 Therefore, you should not store any file or config in the local filesystem as the next task is likely to run on a different server without access to it — for example, a task that downloads the data file that the next task processes.
 In the case of :class:`Local executor <airflow.executors.local_executor.LocalExecutor>`,
 storing a file on disk can make retries harder e.g., your task requires a config file that is deleted by another task in DAG.
@@ -92,7 +92,7 @@ For example, if we have a task that stores processed data in S3 that task can pu
 and the downstream tasks can pull the path from XCom and use it to read the data.
 
 The tasks should also not store any authentication parameters such as passwords or token inside them.
-Where at all possible, use :doc:`Connections </concepts/connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
+Where at all possible, use :doc:`Connections </authoring-and-scheduling/connections>` to store data securely in Airflow backend and retrieve them using a unique connection id.
 
 .. _best_practices/top_level_code:
 
@@ -166,13 +166,17 @@ Good example:
       @task()
       def print_array():
           """Print Numpy array."""
-          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE
+          import numpy as np  # <- THIS IS HOW NUMPY SHOULD BE IMPORTED IN THIS CASE!
 
           a = np.arange(15).reshape(3, 5)
           print(a)
           return a
 
       print_array()
+
+In the Bad example, NumPy is imported each time the DAG file is parsed, which will result in suboptimal performance in the DAG file processing. In the Good example, NumPy is only imported when the task is running.
+
+.. _best_practices/dynamic_dag_generation:
 
 Dynamic DAG Generation
 ----------------------
@@ -185,7 +189,7 @@ Avoiding excessive processing at the top level code described in the previous ch
 in case of dynamic DAG configuration, which can be configured essentially in one of those ways:
 
 * via `environment variables <https://wiki.archlinux.org/title/environment_variables>`_ (not to be mistaken
-  with the :doc:`Airflow Variables </concepts/variables>`)
+  with the :doc:`Airflow Variables </core-concepts/variables>`)
 * via externally provided, generated Python code, containing meta-data in the DAG folder
 * via externally provided, generated configuration meta-data file in the DAG folder
 
@@ -213,6 +217,48 @@ or if you need to deserialize a json object from the variable :
 
     {{ var.json.<variable_name> }}
 
+In top-level code, variables using jinja templates do not produce a request until a task is running, whereas, ``Variable.get()`` produces a request every time the dag file is parsed by the scheduler. Using ``Variable.get()`` will lead to suboptimal performance in the dag file processing. In some cases this can cause the dag file to timeout before it is fully parsed.
+
+Bad example:
+
+.. code-block:: python
+
+    from airflow.models import Variable
+
+    foo_var = Variable.get("foo")  # DON'T DO THAT
+    bash_use_variable_bad_1 = BashOperator(
+        task_id="bash_use_variable_bad_1", bash_command="echo variable foo=${foo_env}", env={"foo_env": foo_var}
+    )
+
+    bash_use_variable_bad_2 = BashOperator(
+        task_id="bash_use_variable_bad_2",
+        bash_command=f"echo variable foo=${Variable.get('foo')}",  # DON'T DO THAT
+    )
+
+    bash_use_variable_bad_3 = BashOperator(
+        task_id="bash_use_variable_bad_3",
+        bash_command="echo variable foo=${foo_env}",
+        env={"foo_env": Variable.get("foo")},  # DON'T DO THAT
+    )
+
+
+Good example:
+
+.. code-block:: python
+
+    bash_use_variable_good = BashOperator(
+        task_id="bash_use_variable_good",
+        bash_command="echo variable foo=${foo_env}",
+        env={"foo_env": "{{ var.value.get('foo') }}"},
+    )
+
+.. code-block:: python
+
+  @task
+  def my_task():
+      var = Variable.get("foo")  # this is fine, because func my_task called only run task, not scan DAGs.
+      print(var)
+
 For security purpose, you're recommended to use the :ref:`Secrets Backend<secrets_backend_configuration>`
 for any variable that contains sensitive data.
 
@@ -233,7 +279,7 @@ Bad example:
 
 
     class CustomTimetable(CronDataIntervalTimetable):
-        def __init__(self, *args, something=Variable.get('something'), **kwargs):
+        def __init__(self, *args, something=Variable.get("something"), **kwargs):
             self._something = something
             super().__init__(*args, **kwargs)
 
@@ -246,7 +292,7 @@ Good example:
 
 
     class CustomTimetable(CronDataIntervalTimetable):
-        def __init__(self, *args, something='something', **kwargs):
+        def __init__(self, *args, something="something", **kwargs):
             self._something = Variable.get(something)
             super().__init__(*args, **kwargs)
 
@@ -362,8 +408,8 @@ your DAG "less complex" - since this is a Python code, it's the DAG writer who c
 their code.
 
 There are no "metrics" for DAG complexity, especially, there are no metrics that can tell you
-whether your DAG is "simple enough". However - as with any Python code you can definitely tell that
-your code is "simpler" or "faster" when you optimize it, the same can be said about DAG code. If you
+whether your DAG is "simple enough". However, as with any Python code, you can definitely tell that
+your DAG code is "simpler" or "faster" when it is optimized. If you
 want to optimize your DAGs there are the following actions you can take:
 
 * Make your DAG load faster. This is a single improvement advice that might be implemented in various ways
@@ -386,6 +432,14 @@ want to optimize your DAGs there are the following actions you can take:
   consider splitting them if you observe it takes a long time to reflect changes in your DAG files in the
   UI of Airflow.
 
+* Write efficient Python code. A balance must be struck between fewer DAGs per file, as stated above, and
+  writing less code overall. Creating the Python files that describe DAGs should follow best programming
+  practices and not be treated like configurations. If your DAGs share similar code you should not copy
+  them over and over again to a large number of nearly identical source files, as this will cause a
+  number of unnecessary repeated imports of the same resources. Rather, you should aim to minimize
+  repeated code across all of your DAGs so that the application can run efficiently and can be easily
+  debugged. See :ref:`best_practices/dynamic_dag_generation` on how to create multiple DAGs with similar
+  code.
 
 Testing a DAG
 ^^^^^^^^^^^^^
@@ -648,7 +702,7 @@ A *better* way (though it's a bit more manual) is to use the ``dags pause`` comm
 Add "integration test" DAGs
 ---------------------------
 
-It can be helpful to add a couple "integration test" DAGs that use all the common services in your ecosystem (e.g. S3, Snowflake, Vault) but with dummy resources or "dev" accounts.  These test DAGs can be the ones you turn on *first* after an upgrade, because if they fail, it doesn't matter and you can revert to your backup without negative consequences.  However, if they succeed, they should prove that your cluster is able to run tasks with the libraries and services that you need to use.
+It can be helpful to add a couple "integration test" DAGs that use all the common services in your ecosystem (e.g. S3, Snowflake, Vault) but with test resources or "dev" accounts.  These test DAGs can be the ones you turn on *first* after an upgrade, because if they fail, it doesn't matter and you can revert to your backup without negative consequences.  However, if they succeed, they should prove that your cluster is able to run tasks with the libraries and services that you need to use.
 
 For example, if you use an external secrets backend, make sure you have a task that retrieves a connection.  If you use KubernetesPodOperator, add a task that runs ``sleep 30; echo "hello"``.  If you need to write to s3, do so in a test task.  And if you need to access a database, add a task that does ``select 1`` from the server.
 
@@ -670,9 +724,9 @@ and the dependencies basically conflict between those tasks.
 If you are using pre-defined Airflow Operators to talk to external services, there is not much choice, but usually those
 operators will have dependencies that are not conflicting with basic Airflow dependencies. Airflow uses constraints mechanism
 which means that you have a "fixed" set of dependencies that the community guarantees that Airflow can be installed with
-(including all community providers) without triggering conflicts. However you can upgrade the providers
-independently and their constraints do not limit you so the chance of a conflicting dependency is lower (you still have
-to test those dependencies). Therefore when you are using pre-defined operators, chance is that you will have
+(including all community providers) without triggering conflicts. However, you can upgrade the providers
+independently and their constraints do not limit you, so the chance of a conflicting dependency is lower (you still have
+to test those dependencies). Therefore, when you are using pre-defined operators, chance is that you will have
 little, to no problems with conflicting dependencies.
 
 However, when you are approaching Airflow in a more "modern way", where you use TaskFlow Api and most of
@@ -742,7 +796,7 @@ There are certain limitations and overhead introduced by this operator:
   a victim of "supply chain" attack where new version of a dependency might become malicious
 * The tasks are only isolated from each other via running in different environments. This makes it possible
   that running tasks will still interfere with each other - for example subsequent tasks executed on the
-  same worker might be affected by previous tasks creating/modifying files et.c
+  same worker might be affected by previous tasks creating/modifying files etc.
 
 You can see detailed examples of using :class:`airflow.operators.python.PythonVirtualenvOperator` in
 :ref:`Taskflow Virtualenv example <taskflow/virtualenv_example>`
@@ -757,7 +811,7 @@ A bit more involved but with significantly less overhead, security, stability pr
 :class:`airflow.operators.python.ExternalPythonOperator``. In the modern
 TaskFlow approach described in :doc:`/tutorial/taskflow`. this also can be done with decorating
 your callable with ``@task.external_python`` decorator (recommended way of using the operator).
-It requires however that you have a pre-existing, immutable Python environment, that is prepared upfront.
+It requires, however, that you have a pre-existing, immutable Python environment, that is prepared upfront.
 Unlike in :class:`airflow.operators.python.PythonVirtualenvOperator` you cannot add new dependencies
 to such pre-existing environment. All dependencies you need should be added upfront in your environment
 and available in all the workers in case your Airflow runs in a distributed environment.
@@ -804,7 +858,7 @@ The drawbacks:
   same worker might be affected by previous tasks creating/modifying files et.c
 
 You can think about the ``PythonVirtualenvOperator`` and ``ExternalPythonOperator`` as counterparts -
-that make it smother to move from development phase to production phase. As a DAG author you'd normally
+that make it smoother to move from development phase to production phase. As a DAG author you'd normally
 iterate with dependencies and develop your DAG using ``PythonVirtualenvOperator`` (thus decorating
 your tasks with ``@task.virtualenv`` decorators) while after the iteration and changes you would likely
 want to change it for production to switch to the ``ExternalPythonOperator`` (and ``@task.external_python``)
@@ -886,7 +940,7 @@ Using multiple Docker Images and Celery Queues
 
 There is a possibility (though it requires a deep knowledge of Airflow deployment) to run Airflow tasks
 using multiple, independent Docker images. This can be achieved via allocating different tasks to different
-Queues and configuring your Celery workers to use different images for different Queues. This however
+Queues and configuring your Celery workers to use different images for different Queues. This, however,
 (at least currently) requires a lot of manual deployment configuration and intrinsic knowledge of how
 Airflow, Celery and Kubernetes works. Also it introduces quite some overhead for running the tasks - there
 are less chances for resource reuse and it's much more difficult to fine-tune such a deployment for

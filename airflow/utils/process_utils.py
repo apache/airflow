@@ -30,9 +30,9 @@ import sys
 from airflow.utils.platform import IS_WINDOWS
 
 if not IS_WINDOWS:
-    import tty
-    import termios
     import pty
+    import termios
+    import tty
 
 from contextlib import contextmanager
 from typing import Generator
@@ -47,7 +47,7 @@ log = logging.getLogger(__name__)
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint('core', 'KILLED_TASK_CLEANUP_TIME')
+DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = conf.getint("core", "KILLED_TASK_CLEANUP_TIME")
 
 
 def reap_process_group(
@@ -80,6 +80,8 @@ def reap_process_group(
         returncodes[p.pid] = p.returncode
 
     def signal_procs(sig):
+        if IS_WINDOWS:
+            return
         try:
             logger.info("Sending the signal %s to group %s", sig, process_group_id)
             os.killpg(process_group_id, sig)
@@ -108,7 +110,7 @@ def reap_process_group(
             else:
                 raise
 
-    if process_group_id == os.getpgid(0):
+    if not IS_WINDOWS and process_group_id == os.getpgid(0):
         raise RuntimeError("I refuse to kill myself")
 
     try:
@@ -162,6 +164,7 @@ def reap_process_group(
 def execute_in_subprocess(cmd: list[str], cwd: str | None = None) -> None:
     """
     Execute a process and stream output to logger.
+
     :param cmd: command and arguments to run
     :param cwd: Current working directory passed to the Popen constructor
     """
@@ -183,7 +186,7 @@ def execute_in_subprocess_with_kwargs(cmd: list[str], **kwargs) -> None:
         log.info("Output:")
         if proc.stdout:
             with proc.stdout:
-                for line in iter(proc.stdout.readline, b''):
+                for line in iter(proc.stdout.readline, b""):
                     log.info("%s", line.decode().rstrip())
 
         exit_code = proc.wait()
@@ -321,11 +324,13 @@ def check_if_pidfile_process_is_running(pid_file: str, process_name: str):
 
 
 def set_new_process_group() -> None:
-    """
-    Try to set current process to a new process group.
+    """Try to set current process to a new process group.
+
     That makes it easy to kill all sub-process of this at the OS-level,
     rather than having to iterate the child processes.
-    If current process spawn by system call ``exec()`` than keep current process group
+
+    If current process was spawned by system call ``exec()``, the current
+    process group is kept.
     """
     if os.getpid() == os.getsid(0):
         # If PID = SID than process a session leader, and it is not possible to change process group

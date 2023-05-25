@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -39,8 +38,8 @@ CONN_EXTRAS = {
 JOB_RUN_RESPONSE = {"id": 123}
 
 
-class TestAzureSynapseRunSparkBatchOperator(unittest.TestCase):
-    def setUp(self):
+class TestAzureSynapseRunSparkBatchOperator:
+    def setup_method(self):
         self.mock_ti = MagicMock()
         self.mock_context = {"ti": self.mock_ti}
         self.config = {
@@ -62,9 +61,9 @@ class TestAzureSynapseRunSparkBatchOperator(unittest.TestCase):
             )
         )
 
-    @mock.patch('airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status')
-    @mock.patch('airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_conn')
-    @mock.patch('airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job')
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_conn")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job")
     def test_azure_synapse_run_spark_batch_operator_success(
         self, mock_run_spark_job, mock_conn, mock_get_job_run_status
     ):
@@ -76,9 +75,9 @@ class TestAzureSynapseRunSparkBatchOperator(unittest.TestCase):
         op.execute(context=self.mock_context)
         assert op.job_id == JOB_RUN_RESPONSE["id"]
 
-    @mock.patch('airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status')
-    @mock.patch('airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_conn')
-    @mock.patch('airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job')
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_conn")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job")
     def test_azure_synapse_run_spark_batch_operator_error(
         self, mock_run_spark_job, mock_conn, mock_get_job_run_status
     ):
@@ -93,10 +92,10 @@ class TestAzureSynapseRunSparkBatchOperator(unittest.TestCase):
         ):
             op.execute(context=self.mock_context)
 
-    @mock.patch('airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status')
-    @mock.patch('airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_conn')
-    @mock.patch('airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job')
-    @mock.patch('airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.cancel_job_run')
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_job_run_status")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.get_conn")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.run_spark_job")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.synapse.AzureSynapseHook.cancel_job_run")
     def test_azure_synapse_run_spark_batch_operator_on_kill(
         self, mock_cancel_job_run, mock_run_spark_job, mock_conn, mock_get_job_run_status
     ):
@@ -107,4 +106,4 @@ class TestAzureSynapseRunSparkBatchOperator(unittest.TestCase):
         )
         op.execute(context=self.mock_context)
         op.on_kill()
-        mock_cancel_job_run.assert_called_once_with(job_id=JOB_RUN_RESPONSE['id'])
+        mock_cancel_job_run.assert_called_once_with(job_id=JOB_RUN_RESPONSE["id"])

@@ -22,14 +22,12 @@
 
 - [Selecting what to put into the release](#selecting-what-to-put-into-the-release)
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
+  - [Making the cherry picking](#making-the-cherry-picking)
   - [Reviewing cherry-picked PRs and assigning labels](#reviewing-cherry-picked-prs-and-assigning-labels)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
   - [Update the milestone](#update-the-milestone)
   - [Build RC artifacts](#build-rc-artifacts)
-  - [Prepare new release branches and cache - optional when first minor version is released](#prepare-new-release-branches-and-cache---optional-when-first-minor-version-is-released)
-  - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image RC](#prepare-production-docker-image-rc)
-  - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
   - [SVN check](#svn-check)
@@ -40,22 +38,22 @@
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
-  - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
   - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
   - [Close the milestone](#close-the-milestone)
   - [Close the testing status issue](#close-the-testing-status-issue)
   - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
-  - [Tweet about the release](#tweet-about-the-release)
+  - [Announce about the release in social media](#announce-about-the-release-in-social-media)
   - [Update `main` with the latest release details](#update-main-with-the-latest-release-details)
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
-  - [Update EndOfLife data](#update-endoflife-data)
+  - [API clients](#api-clients)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -88,12 +86,12 @@ For a patch release, find out other bug fixes that are not marked with the targe
 and mark those as well. You can accomplish this by running the following command:
 
 ```
- ./dev/airflow-github needs-categorization 2.3.2 HEAD
- ```
+./dev/airflow-github needs-categorization 2.3.2 HEAD
+```
 
 Often you also want to cherry-pick changes related to CI and development tools, to include the latest
 stability fixes in CI and improvements in development tools. Usually you can see the list of such
-changes via (this will exclude already merged changes:
+changes via (this will exclude already merged changes):
 
 ```shell
 git fetch apache
@@ -117,8 +115,26 @@ git log --oneline --decorate apache/v2-2-stable..apache/main -- docs/apache-airf
 Those changes that are "doc-only" changes should be marked with `type:doc-only` label so that they
 land in documentation part of the changelog. The tool to review and assign the labels is described below.
 
+## Making the cherry picking
+
+To see cherry picking candidates (unmerged PR with the appropriate milestone), from the test
+branch you can run:
+
+```shell
+./dev/airflow-github compare 2.1.2 --unmerged
+```
+
+Be careful and verify the hash commit specified. This is a 'best effort' to find it, and
+could be inaccurate if the PR was referenced in other commits after it was merged. You can start
+cherry picking from the bottom of the list. (older commits first)
+
 When you cherry-pick, pick in chronological order onto the `vX-Y-test` release branch.
-You'll move them over to be on `vX-Y-stable` once the release is cut.
+You'll move them over to be on `vX-Y-stable` once the release is cut. Use the `-x` option
+to keep a reference to the original commit we cherry picked from. ("cherry picked from commit ...")
+
+```shell
+git cherry-pick <hash-commit> -x
+```
 
 ## Reviewing cherry-picked PRs and assigning labels
 
@@ -139,7 +155,7 @@ You can also add `--skip-assigned` flag if you want to automatically skip the qu
 for the PRs that are already correctly assigned to the milestone. You can also avoid the "Are you OK?"
 question with `--assume-yes` flag.
 
-You cn review the list of PRs cherry-picked and produce a nice summary with `--print-summary` (this flag
+You can review the list of PRs cherry-picked and produce a nice summary with `--print-summary` (this flag
 assumes the `--skip-assigned` flag, so that the summary can be produced without questions:
 
 ```shell
@@ -210,20 +226,30 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     export AIRFLOW_REPO_ROOT=$(pwd)
     ```
 
-- Check out the 'test' branch
+- Install `breeze` command:
 
-  For major/minor version release, please follow  the instructions at
-  [Prepare new release branches and cache](#prepare-new-release-branches-and-cache---optional-when-first-minor-version-is-released)
-  to create the 'test' and 'stable' branches.
+    ```shell script
+    pipx install -e ./dev/breeze
+    ```
+
+- For major/minor version release, run the following commands to create the 'test' and 'stable' branches.
+
+    ```shell script
+    breeze release-management create-minor-branch --version-branch ${VERSION_BRANCH}
+    ```
+
+- Check out the 'test' branch
 
     ```shell script
     git checkout v${VERSION_BRANCH}-test
     git reset --hard origin/v${VERSION_BRANCH}-test
     ```
 
-- Set your version in `setup.py` (without the RC tag)
-- Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
+- Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` and `docs/` (without the RC tag).
+- Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
 - Replace the version in `README.md` and verify that installation instructions work fine.
+- Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
+  the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
 - Build the release notes:
 
   Preview with:
@@ -232,272 +258,38 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     towncrier build --draft --version=${VERSION_WITHOUT_RC} --date=2021-12-15 --dir . --config newsfragments/config.toml
     ```
 
+
   Then remove the `--draft` flag to have towncrier build the release notes for real.
 
-  If no significant changes where added in this release, add the header and put "No significant changes." (e.g. `2.1.4`).
+  If no significant changes were added in this release, add the header and put "No significant changes." (e.g. `2.1.4`).
+
+  This will partly generate the release note based on the fragments (adjust to rst format). All PRs does not necessarily
+  create a fragment to document its change, to generate the body of the release note based on the cherry picked commits:
+
+  ```
+  ./dev/airflow-github changelog v2-3-stable v2-3-test
+  ```
 
 - Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Commit the version change.
-- Check out the 'stable' branch
+
+- PR from the 'test' branch to the 'stable' branch
+
+- When the PR is approved, install `dev/breeze` in a virtualenv:
 
     ```shell script
-    git checkout v${VERSION_BRANCH}-stable
-    git reset --hard origin/v${VERSION_BRANCH}-stable
+    pip install -e ./dev/breeze
     ```
 
-- PR from the 'test' branch to the 'stable' branch, and manually merge it once approved. Here's how to manually merge the PR:
+- Set `GITHUB_TOKEN` environment variable. Needed in patch release for generating issue for testing of the RC
+
+- Start the release candidate process by running the below command (If you have not generated a key yet, generate it by following instructions on
+    http://www.apache.org/dev/openpgp.html#key-gen-generate-key):
 
     ```shell script
-    git merge --ff-only v${VERSION_BRANCH}-test
-    git push origin v${VERSION_BRANCH}-stable
-    ```
-
-- Tag your release
-
-    ```shell script
-    git tag -s ${VERSION} -m "Apache Airflow ${VERSION}"
-    ```
-
-- Clean the checkout repo
-
-    ```shell script
-    git clean -fxd
-    ```
-
-- Restore breeze installation (The breeze's `.egginfo` is cleared by git-clean)
-
-    ```shell script
-    pipx install -e ./dev/breeze --force
-    ```
-
-- Make sure you have the latest CI image
-
-    ```shell script
-    breeze ci-image build --python 3.7
-    ```
-
-- Tarball the repo
-
-    ```shell script
-    git archive --format=tar.gz ${VERSION} \
-        --prefix=apache-airflow-${VERSION_WITHOUT_RC}/ \
-        -o dist/apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz
-    ```
-
-    Copy the tarball to a location outside of the repo and verify licences.
-
-- Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
-
-    ```shell script
-    breeze release-management prepare-airflow-package --package-format both
-    pushd dist
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
-    popd
-    ```
-
-- If you aren't using Breeze for packaging, build the distribution and wheel files directly
-
-    ```shell script
-    python setup.py compile_assets sdist bdist_wheel
-    pushd dist
-    ${AIRFLOW_REPO_ROOT}/dev/sign.sh *
-    popd
-    ```
-
-- Tag & Push the constraints files. This pushes constraints with rc suffix (this is expected)!
-
-    ```shell script
-    git checkout origin/constraints-${VERSION_BRANCH}
-    git tag -s "constraints-${VERSION}" -m "Constraints for Apache Airflow ${VERSION}"
-    git push origin tag "constraints-${VERSION}"
-    ```
-
-- Push the artifacts to ASF dev dist repo
-
-    ```shell script
-    # First clone the repo
-
-    [ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
-    svn update --set-depth=infinity asf-dist/dev/airflow
-    cd asf-dist/dev/airflow
-
-    # Create new folder for the release
-    svn mkdir ${VERSION}
-
-    # Move the artifacts to svn folder & commit
-    mv ${AIRFLOW_REPO_ROOT}/dist/* ${VERSION}/
-    cd ${VERSION}
-    svn add *
-    svn commit -m "Add artifacts for Airflow ${VERSION}"
-    cd ${AIRFLOW_REPO_ROOT}
-    rm -rf asf-dist
-    ```
-
-## Prepare new release branches and cache - optional when first minor version is released
-
-When you just released the `X.Y.0` version (first release of new minor version) you need to create release
-branches: `vX-Y-test` and `vX-Y-stable` (for example with `2.1.0rc1` release you need to create v2-1-test and
-`v2-1-stable` branches). You also need to configure the branch
-
-### Create test source branch
-
-   ```shell script
-   # First clone the repo
-   export BRANCH_PREFIX=2-1
-   git branch v${BRANCH_PREFIX}-test
-   ```
-
-### Re-tag images from main
-
-Run script to re-tag images from the ``main`` branch to the  ``vX-Y-test`` branch:
-
-   ```shell script
-   ./dev/retag_docker_images.py --source-branch main --target-branch v${BRANCH_PREFIX}-test
-   ```
-
-
-### Update default branches
-
-#### In Breeze
-
-In ``./dev/breeze/src/airflow_breeze/branch_defaults.py`` update branches to reflect the new branch:
-
-```python
-AIRFLOW_BRANCH = "main"
-DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-main"
-```
-
-should become this, where ``X-Y`` is your new branch version:
-
-```python
-AIRFLOW_BRANCH = "vX-Y-test"
-DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-X-Y"
-```
-
-### Commit the changes to the test branch
-
-```bash
-git add -p .
-git commit "Update default branches for ${BRANCH_PREFIX}"
-```
-
-### Create stable branch
-
-```bash
-git branch v${BRANCH_PREFIX}-stable
-````
-
-### Push test and stable branch
-
-```bash
-git checkout v${BRANCH_PREFIX}-test
-git push --set-upstream origin v${BRANCH_PREFIX}-test
-git checkout v${BRANCH_PREFIX}-stable
-git push --set-upstream origin v${BRANCH_PREFIX}-stable
-````
-
-### Add branches in the main branch
-
-You have to do those steps in the `main` branch of the repository:
-
-```bash
-git checkout main
-git pull
-```
-
-Add ``vX-Y-stable`` and ``vX-Y-test`` branches in ``codecov.yml`` (there are 2 places in the file!)
-
-```yaml
-    branches:
-      - main
-      - v2-0-stable
-      - v2-0-test
-      - v2-1-stable
-      - v2-1-test
-      - v2-2-stable
-      - v2-2-test
-```
-
-Add vX-Y-stable to `.asf.yaml` (X-Y is your new branch)
-
-```yaml
-protected_branches:
-    main:
-        required_pull_request_reviews:
-        required_approving_review_count: 1
-    ...
-    vX-Y-stable:
-        required_pull_request_reviews:
-        required_approving_review_count: 1
-
-```
-
-### Create constraints branch out of the constraints-main one
-
-   ```shell script
-   # First clone the repo
-   export BRANCH_PREFIX=2-1
-   git checkout constraints-main
-   git checkout -b constraints-${BRANCH_PREFIX}
-   git push --set-upstream origin constraints-${BRANCH_PREFIX}
-   ```
-
-
-## Prepare PyPI convenience "snapshot" packages
-
-At this point we have the artifact that we vote on, but as a convenience to developers we also want to
-publish "snapshots" of the RC builds to PyPI for installing via pip:
-
-To do this we need to
-
-- Checkout the rc tag:
-
-    ```shell script
-    cd "${AIRFLOW_REPO_ROOT}"
-    git checkout ${VERSION}
-    ```
-
-- Build the package:
-
-    ```shell script
-    breeze release-management prepare-airflow-package --version-suffix-for-pypi "${VERSION_SUFFIX}" --package-format both
-    ```
-
-- Verify the artifacts that would be uploaded:
-
-    ```shell script
-    twine check dist/*
-    ```
-
-- Upload the package to PyPI's test environment:
-
-    ```shell script
-    twine upload -r pypitest dist/*
-    ```
-
-- Verify that the test package looks good by downloading it and installing it into a virtual environment. The package download link is available at:
-https://test.pypi.org/project/apache-airflow/#files
-
-- Upload the package to PyPI's production environment:
-
-    ```shell script
-    twine upload -r pypi dist/*
-    ```
-
-- Again, confirm that the package is available here:
-https://pypi.python.org/pypi/apache-airflow
-
-It is important to stress that this snapshot should not be named "release", and it
-is not supposed to be used by and advertised to the end-users who do not read the devlist.
-
-- Push Tag for the release candidate
-
-    This step should only be done now and not before, because it triggers an automated build of
-    the production docker image, using the packages that are currently released in PyPI
-    (both airflow and latest provider packages).
-
-    ```shell script
-    git push origin tag ${VERSION}
+    git checkout main
+    git pull # Ensure that the script is up-to-date
+    breeze release-management start-rc-process --version ${VERSION} --previous-version <PREVIOUS_VERSION>
     ```
 
 ## Prepare production Docker Image RC
@@ -521,32 +313,6 @@ When you trigger it you need to pass:
 ![Release prod image](images/release_prod_image_rc.png)
 
 The manual building is described in [MANUALLY_BUILDING_IMAGES.md](MANUALLY_BUILDING_IMAGES.md).
-
-## Prepare issue for testing status of rc
-
-For now this part works for bugfix releases only, for major/minor ones we will experiment and
-see if there is a way to only extract important/not tested bugfixes and high-level changes to
-make the process manageable.
-
-
-Create an issue for testing status of the RC (PREVIOUS_RELEASE should be the previous release version
-(for example 2.1.0).
-
-```shell script
-cat <<EOF
-Status of testing of Apache Airflow ${VERSION}
-EOF
-```
-
-Content is generated with:
-
-```shell
-./dev/prepare_release_issue.py generate-issue-content --previous-release <PREVIOUS_RELEASE> \
-    --current-release ${VERSION}
-
-```
-
-Copy the URL of the issue.
 
 ## Prepare Vote email on the Apache Airflow release candidate
 
@@ -633,6 +399,7 @@ Cheers,
 EOF
 ```
 
+Note, For RC2/3 you may refer to shorten vote period as agreed in mailing list [thread](https://lists.apache.org/thread/cv194w1fqqykrhswhmm54zy9gnnv6kgm).
 
 # Verify the release candidate by PMCs
 
@@ -864,7 +631,6 @@ Cheers,
 <your name>
 ```
 
-
 ## Publish release to SVN
 
 You need to migrate the RC artifacts that passed to this repository:
@@ -874,94 +640,13 @@ https://dist.apache.org/repos/dist/release/airflow/
 The best way of doing this is to svn cp between the two repos (this avoids having to upload the binaries again, and gives a clearer history in the svn commit logs):
 
 ```shell script
-# GO to Airflow Sources first
-cd <YOUR_AIRFLOW_REPO_ROOT>
-export AIRFLOW_REPO_ROOT="$(pwd)"
-cd ..
-
-[ -d asf-dist ] || svn checkout --depth=immediates https://dist.apache.org/repos/dist asf-dist
-svn update --set-depth=infinity asf-dist/{release,dev}/airflow
-AIRFLOW_DEV_SVN="${PWD}/asf-dist/dev/airflow"
-cd asf-dist/release/airflow
-
 export RC=2.0.2rc5
 export VERSION=${RC/rc?/}
-
-# Create new folder for the release
-svn mkdir "${VERSION}"
-cd "${VERSION}"
-
-# Move the artifacts to svn folder & commit
-for f in ${AIRFLOW_DEV_SVN}/$RC/*; do
-    svn cp "$f" "${$(basename $f)/}"
-done
-svn commit -m "Release Airflow ${VERSION} from ${RC}"
-
-# Remove old release
-# See http://www.apache.org/legal/release-policy.html#when-to-archive
-cd ..
-export PREVIOUS_VERSION=2.0.2
-svn rm "${PREVIOUS_VERSION}"
-svn commit -m "Remove old release: ${PREVIOUS_VERSION}"
+# cd to the airflow repo directory and set the environment variable below
+export AIRFLOW_REPO_ROOT=$(pwd)
+# start the release process by running the below command
+breeze release-management start-release --release-candidate ${RC} --previous-release <PREVIOUS RELEASE>
 ```
-
-Verify that the packages appear in [airflow](https://dist.apache.org/repos/dist/release/airflow/)
-
-## Prepare PyPI "release" packages
-
-At this point we release an official package:
-
-- Verify the artifacts that would be uploaded:
-
-    ```shell script
-    cd "${AIRFLOW_RELEASE_SVN}/${VERSION}"
-    twine check *.whl *${VERSION}.tar.gz
-    ```
-
-- Upload the package to PyPI's test environment:
-
-    ```shell script
-    twine upload -r pypitest *.whl *${VERSION}.tar.gz
-    ```
-
-- Verify that the test package looks good by downloading it and installing it into a virtual environment.
-    The package download link is available at: https://test.pypi.org/project/apache-airflow/#files
-
-- Upload the package to PyPI's production environment:
-
-    ```shell script
-    twine upload -r pypi *.whl *${VERSION}.tar.gz
-    ```
-
-- Again, confirm that the package is available here: https://pypi.python.org/pypi/apache-airflow
-
-- Re-Tag & Push the constraints files with the final release version.
-
-    ```shell script
-    cd "${AIRFLOW_REPO_ROOT}"
-    git checkout constraints-${RC}
-    git tag -s "constraints-${VERSION}" -m "Constraints for Apache Airflow ${VERSION}"
-    git push origin tag "constraints-${VERSION}"
-    ```
-
-- In case you release "latest stable" version, also update "latest" constraints
-
-    ```shell script
-    git tag -f -s "constraints-latest" -m "Latest constraints set to Apache Airflow ${VERSION}"
-    git push -f origin tag "constraints-latest"
-    ```
-
-- Push Tag for the final version
-
-    This step should only be done now and not before, because it triggers an automated build of
-    the production docker image, using the packages that are currently released in PyPI
-    (both airflow and latest provider packages).
-
-    ```shell script
-    git checkout ${RC}
-    git tag -s ${VERSION} -m "Apache Airflow ${VERSION}"
-    git push origin tag ${VERSION}
-    ```
 
 ## Manually prepare production Docker Image
 
@@ -985,7 +670,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.7 3.8 3.9 3.10
+for PYTHON in 3.7 3.8 3.9 3.10 3.11
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
@@ -993,7 +678,6 @@ done
 docker pull apache/airflow:${VERSION}
 breeze prod-image verify --image-name apache/airflow:${VERSION}
 ```
-
 
 ## Publish documentation
 
@@ -1024,7 +708,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     ./docs/start_doc_server.sh
     ```
 
-- Copy the documentation to the ``airflow-site`` repository, create commit, push changes and open a PR.
+- Copy the documentation to the ``airflow-site`` repository, create commit, push changes, open a PR and merge it when the build is green.
 
     ```shell script
     ./docs/publish_docs.py --package-filter apache-airflow --package-filter docker-stack
@@ -1082,6 +766,20 @@ Send the same email to announce@apache.org, except change the opening line to `D
 It is more reliable to send it via the web ui at https://lists.apache.org/list.html?announce@apache.org
 (press "c" to compose a new thread)
 
+## Send announcements about security issues fixed in the release
+
+The release manager should review and mark as READY all the security issues fixed in the release.
+Such issues are marked as affecting `< <JUST_RELEASED_VERSION>` in the CVE management tool
+at https://cveprocess.apache.org/. Then the release manager should announced the issues via the tool.
+
+Once announced, each of the issue should be linked with a 'reference' with tag 'vendor advisory' with the
+URL to the announcement published automatically by the CVE management tool.
+Note that the announce@apache.org is moderated, and the link to the email thread will not be published
+immediately, that's why it is recommended to add the link to users@airflow.apache.org which takes usually
+few seconds to be published after the CVE tool sends them.
+
+The ASF Security will be notified and will submit to the CVE project and will set the state to 'PUBLIC'.
+
 ## Add release data to Apache Committee Report Helper
 
 Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
@@ -1122,9 +820,19 @@ Thanks to all the contributors who made this possible.
 EOF
 ```
 
-## Tweet about the release
+## Announce about the release in social media
 
-Tweet about the release:
+------------------------------------------------------------------------------------------------------------
+Announcement is done from official Apache-Airflow accounts.
+
+* Twitter: https://twitter.com/ApacheAirflow
+* Linkedin: https://www.linkedin.com/company/apache-airflow/
+
+If you don't have access to the account ask PMC to post.
+
+------------------------------------------------------------------------------------------------------------
+
+Tweet and post on Linkedin about the release:
 
 ```shell
 cat <<EOF
@@ -1143,12 +851,12 @@ EOF
 
 This includes:
 
-- Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
-- For major/minor release, Update version in `setup.py` and `docs/docker-stack/` to the next likely minor version release.
+- Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
+- For major/minor release, update version in `airflow/__init__.py`, `docs/docker-stack/` and `airflow/api_connexion/openapi/v1.yaml` to the next likely minor version release.
 - Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
-- Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes
-- Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version
-- Updating `Dockerfile` with the new version
+- Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
+- Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
+- Updating `Dockerfile` with the new version.
 
 ## Update default Airflow version in the helm chart
 
@@ -1156,7 +864,7 @@ Update the values of `airflowVersion`, `defaultAirflowTag` and `appVersion` in t
 will use the latest released version. You'll need to update `chart/values.yaml`, `chart/values.schema.json` and
 `chart/Chart.yaml`.
 
-Also add a note to `UPDATING.rst` that the default version of Airflow has changed.
+Add or adjust significant `chart/newsfragments` to express that the default version of Airflow has changed.
 
 In `chart/Chart.yaml`, make sure the screenshot annotations are still all valid URLs.
 
@@ -1172,7 +880,40 @@ File `airflow/config_templates/config.yml` contains documentation on all configu
 
 - Update `airflow/config_templates/config.yml` with the details, and commit it.
 
-## Update EndOfLife data
 
-- Make a PR [EndOfLife](https://github.com/endoflife-date/endoflife.date) with release date, latest version and updated
-changelog link.
+## API clients
+
+After releasing airflow core, we need to check if we have to follow up with API clients release.
+
+Clients are released in a separate process, with their own vote mostly because their version can mismatch the core release.
+ASF policy does not allow to vote against multiple artifacts with different versions.
+
+### API Clients versioning policy
+
+For major/minor version release, always release new versions of the API clients.
+
+- [Python client](https://github.com/apache/airflow-client-python)
+- [Go client](https://github.com/apache/airflow-client-go)
+
+For patch version release, you can also release patch versions of clients **only** if the patch is relevant to the clients.
+A patch is considered relevant to the clients if it updates the [openapi specification](https://github.com/apache/airflow/blob/main/airflow/api_connexion/openapi/v1.yaml).
+There are other external reasons for which we might want to release a patch version for clients only, but they are not
+tied to an airflow release and therefore out of scope.
+
+To determine if you should also release API clients you can run:
+
+```shell
+./dev/airflow-github api-clients-policy 2.3.2 2.3.3
+```
+
+> The patch version of each API client is not necessarily in sync with the patch that you are releasing.
+> You need to check for each client what is the next patch version to be released.
+
+### Releasing the clients
+
+According to the policy above, if we have to release clients:
+
+- Follow the specific release process for each API client:
+
+    - [Python client](https://github.com/apache/airflow-client-python/blob/master/dev/README_RELEASE_CLIENT.md)
+    - [Go client](https://github.com/apache/airflow-client-go/blob/master/dev/README_RELEASE_CLIENT.md)

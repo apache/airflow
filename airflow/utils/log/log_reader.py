@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Iterator
 
 from sqlalchemy.orm.session import Session
@@ -31,7 +32,10 @@ from airflow.utils.state import State
 
 
 class TaskLogReader:
-    """Task log reader"""
+    """Task log reader."""
+
+    STREAM_LOOP_SLEEP_SECONDS = 0.5
+    """Time to sleep between loops while waiting for more logs"""
 
     def read_log_chunks(
         self, ti: TaskInstance, try_number: int | None, metadata
@@ -43,7 +47,6 @@ class TaskLogReader:
         :param try_number: If provided, logs for the given try will be returned.
             Otherwise, logs from all attempts are returned.
         :param metadata: A dictionary containing information about how to read the task log
-        :rtype: Tuple[List[Tuple[Tuple[str, str]]], Dict[str, str]]
 
         The following is an example of how to use this method to read log:
 
@@ -62,12 +65,11 @@ class TaskLogReader:
 
     def read_log_stream(self, ti: TaskInstance, try_number: int | None, metadata: dict) -> Iterator[str]:
         """
-        Used to continuously read log to the end
+        Used to continuously read log to the end.
 
         :param ti: The Task Instance
         :param try_number: the task try number
         :param metadata: A dictionary containing information about how to read the task log
-        :rtype: Iterator[str]
         """
         if try_number is None:
             next_try = ti.next_try_number
@@ -75,29 +77,44 @@ class TaskLogReader:
         else:
             try_numbers = [try_number]
         for current_try_number in try_numbers:
-            metadata.pop('end_of_log', None)
-            metadata.pop('max_offset', None)
-            metadata.pop('offset', None)
-            metadata.pop('log_pos', None)
-            while 'end_of_log' not in metadata or (
-                not metadata['end_of_log'] and ti.state not in State.running
-            ):
+            metadata.pop("end_of_log", None)
+            metadata.pop("max_offset", None)
+            metadata.pop("offset", None)
+            metadata.pop("log_pos", None)
+            while True:
                 logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
                 for host, log in logs[0]:
-                    yield "\n".join([host or '', log]) + "\n"
+                    yield "\n".join([host or "", log]) + "\n"
+                if "end_of_log" not in metadata or (
+                    not metadata["end_of_log"] and ti.state not in [State.RUNNING, State.DEFERRED]
+                ):
+                    if not logs[0]:
+                        # we did not receive any logs in this loop
+                        # sleeping to conserve resources / limit requests on external services
+                        time.sleep(self.STREAM_LOOP_SLEEP_SECONDS)
+                else:
+                    break
 
     @cached_property
     def log_handler(self):
-        """Log handler, which is configured to read logs."""
-        logger = logging.getLogger('airflow.task')
-        task_log_reader = conf.get('logging', 'task_log_reader')
-        handler = next((handler for handler in logger.handlers if handler.name == task_log_reader), None)
-        return handler
+        """Get the log handler which is configured to read logs."""
+        task_log_reader = conf.get("logging", "task_log_reader")
+
+        def handlers():
+            """
+            Yield all handlers first from airflow.task logger then root logger.
+
+            Depending on whether we're in a running task, it could be in either of these locations.
+            """
+            yield from logging.getLogger("airflow.task").handlers
+            yield from logging.getLogger().handlers
+
+        return next((h for h in handlers() if h.name == task_log_reader), None)
 
     @property
     def supports_read(self):
         """Checks if a read operation is supported by a current log handler."""
-        return hasattr(self.log_handler, 'read')
+        return hasattr(self.log_handler, "read")
 
     @property
     def supports_external_link(self) -> bool:
@@ -114,13 +131,12 @@ class TaskLogReader:
         try_number: int | None = None,
         *,
         session: Session = NEW_SESSION,
-    ):
+    ) -> str:
         """
-        Renders the log attachment filename
+        Renders the log attachment filename.
 
         :param ti: The task instance
         :param try_number: The task try number
-        :rtype: str
         """
         dagrun = ti.get_dagrun(session=session)
         attachment_filename = render_log_filename(

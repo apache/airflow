@@ -43,9 +43,6 @@ class AzureFileShareToGCSOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param dest_gcs: The destination Google Cloud Storage bucket and prefix
         where you want to store the files. (templated)
-    :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param replace: Whether you want to replace existing destination files
         or not.
     :param gzip: Option to compress file for upload
@@ -63,10 +60,10 @@ class AzureFileShareToGCSOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'share_name',
-        'directory_name',
-        'prefix',
-        'dest_gcs',
+        "share_name",
+        "directory_name",
+        "prefix",
+        "dest_gcs",
     )
 
     def __init__(
@@ -75,10 +72,9 @@ class AzureFileShareToGCSOperator(BaseOperator):
         share_name: str,
         dest_gcs: str,
         directory_name: str | None = None,
-        prefix: str = '',
-        azure_fileshare_conn_id: str = 'azure_fileshare_default',
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: str | None = None,
+        prefix: str = "",
+        azure_fileshare_conn_id: str = "azure_fileshare_default",
+        gcp_conn_id: str = "google_cloud_default",
         replace: bool = False,
         gzip: bool = False,
         google_impersonation_chain: str | Sequence[str] | None = None,
@@ -92,7 +88,6 @@ class AzureFileShareToGCSOperator(BaseOperator):
         self.azure_fileshare_conn_id = azure_fileshare_conn_id
         self.gcp_conn_id = gcp_conn_id
         self.dest_gcs = dest_gcs
-        self.delegate_to = delegate_to
         self.replace = replace
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain
@@ -100,9 +95,9 @@ class AzureFileShareToGCSOperator(BaseOperator):
     def _check_inputs(self) -> None:
         if self.dest_gcs and not gcs_object_is_directory(self.dest_gcs):
             self.log.info(
-                'Destination Google Cloud Storage path is not a valid '
+                "Destination Google Cloud Storage path is not a valid "
                 '"directory", define a path that ends with a slash "/" or '
-                'leave it empty for the root of the bucket.'
+                "leave it empty for the root of the bucket."
             )
             raise AirflowException(
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
@@ -117,7 +112,6 @@ class AzureFileShareToGCSOperator(BaseOperator):
 
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.google_impersonation_chain,
         )
 
@@ -145,7 +139,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
             files = list(set(files) - set(existing_files))
 
         if files:
-            self.log.info('%s files are going to be synced.', len(files))
+            self.log.info("%s files are going to be synced.", len(files))
             if self.directory_name is None:
                 raise RuntimeError("The directory_name must be set!.")
             for file in files:
@@ -164,7 +158,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
                     gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, temp_file.name, gzip=self.gzip)
             self.log.info("All done, uploaded %d files to Google Cloud Storage.", len(files))
         else:
-            self.log.info('There are no new files to sync. Have a nice day!')
-            self.log.info('In sync, no files needed to be uploaded to Google Cloud Storage')
+            self.log.info("There are no new files to sync. Have a nice day!")
+            self.log.info("In sync, no files needed to be uploaded to Google Cloud Storage")
 
         return files

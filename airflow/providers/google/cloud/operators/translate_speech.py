@@ -24,16 +24,16 @@ from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook
 from airflow.providers.google.cloud.hooks.translate import CloudTranslateHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class CloudTranslateSpeechOperator(BaseOperator):
+class CloudTranslateSpeechOperator(GoogleCloudBaseOperator):
     """
     Recognizes speech in audio input and translates it.
 
@@ -104,13 +104,13 @@ class CloudTranslateSpeechOperator(BaseOperator):
 
     # [START translate_speech_template_fields]
     template_fields: Sequence[str] = (
-        'target_language',
-        'format_',
-        'source_language',
-        'model',
-        'project_id',
-        'gcp_conn_id',
-        'impersonation_chain',
+        "target_language",
+        "format_",
+        "source_language",
+        "model",
+        "project_id",
+        "gcp_conn_id",
+        "impersonation_chain",
     )
     operator_extra_links = (FileDetailsLink(),)
     # [END translate_speech_template_fields]
@@ -125,7 +125,7 @@ class CloudTranslateSpeechOperator(BaseOperator):
         source_language: str | None,
         model: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -151,17 +151,17 @@ class CloudTranslateSpeechOperator(BaseOperator):
         )
 
         recognize_result = speech_to_text_hook.recognize_speech(config=self.config, audio=self.audio)
-        recognize_dict = MessageToDict(recognize_result)
+        recognize_dict = MessageToDict(recognize_result._pb)
 
         self.log.info("Recognition operation finished")
 
-        if not recognize_dict['results']:
+        if not recognize_dict["results"]:
             self.log.info("No recognition results")
             return {}
         self.log.debug("Recognition result: %s", recognize_dict)
 
         try:
-            transcript = recognize_dict['results'][0]['alternatives'][0]['transcript']
+            transcript = recognize_dict["results"][0]["alternatives"][0]["transcript"]
         except KeyError as key:
             raise AirflowException(
                 f"Wrong response '{recognize_dict}' returned - it should contain {key} field"
@@ -175,7 +175,7 @@ class CloudTranslateSpeechOperator(BaseOperator):
                 source_language=self.source_language,
                 model=self.model,
             )
-            self.log.info('Translated output: %s', translation)
+            self.log.info("Translated output: %s", translation)
             FileDetailsLink.persist(
                 context=context,
                 task_instance=self,
@@ -184,6 +184,6 @@ class CloudTranslateSpeechOperator(BaseOperator):
             )
             return translation
         except ValueError as e:
-            self.log.error('An error has been thrown from translate speech method:')
+            self.log.error("An error has been thrown from translate speech method:")
             self.log.error(e)
             raise AirflowException(e)

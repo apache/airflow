@@ -20,14 +20,26 @@
 {% extends 'appbuilder/general/model/add.html' %}
 
 {% block head_css %}
-  {{ super() }}
-  <meta name="rest_api_enabled" content="{{ rest_api_enabled }}">
-  <meta name="test_url" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_connection_endpoint_test_connection') }}">
+{{ super() }}
+<meta name="rest_api_enabled" content="{{ rest_api_enabled }}">
+<meta name="test_url"
+  content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_connection_endpoint_test_connection') }}">
+
+{# required for codemirror #}
+<link rel="stylesheet" type="text/css" href="{{ url_for_asset('codemirror.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for_asset('lint.css') }}">
 {% endblock %}
 
 {% block tail %}
-  {{ super() }}
-  <script src="{{ url_for_asset('connectionForm.js') }}"></script>
-  <script id="field_behaviours" type="text/json">{{ widgets["add"].field_behaviours }}</script>
-  <script id="testable_connection_types" type="text/json">{{ widgets["add"].testable_connection_types }}</script>
+{{ super() }}
+{# required for codemirror #}
+<script src="{{ url_for_asset('codemirror.js') }}"></script>
+<script src="{{ url_for_asset('javascript.js') }}"></script>
+<script src="{{ url_for_asset('lint.js') }}"></script>
+<script src="{{ url_for_asset('javascript-lint.js') }}"></script>
+<script src="{{ url_for_asset('jshint.js') }}"></script>
+
+<script src="{{ url_for_asset('connectionForm.js') }}"></script>
+<script id="field_behaviours" type="text/json">{{ widgets["add"].field_behaviours }}</script>
+<script id="testable_connection_types" type="text/json">{{ widgets["add"].testable_connection_types }}</script>
 {% endblock %}

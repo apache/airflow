@@ -17,26 +17,30 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-from typing import Any, Dict
+from typing import Any
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
-from google.cloud.language_v1.proto.language_service_pb2 import Document
+from google.cloud.language_v1 import Document
 
 from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id
 
-API_RESPONSE = {}  # type: Dict[Any, Any]
+API_RESPONSE: dict[Any, Any] = {}
 DOCUMENT = Document(
     content="Airflow is a platform to programmatically author, schedule and monitor workflows."
 )
 ENCODING_TYPE = "UTF32"
 
 
-class TestCloudNaturalLanguageHook(unittest.TestCase):
-    def setUp(self):
+class TestCloudNaturalLanguageHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudNaturalLanguageHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,

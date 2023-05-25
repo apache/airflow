@@ -31,9 +31,9 @@ from rich.console import Console
 from rich.table import Table
 
 AIRFLOW_SOURCES_DIR = os.path.join(dirname(__file__), os.pardir, os.pardir, os.pardir)
-SETUP_PY_FILE = 'setup.py'
-DOCS_FILE = os.path.join('docs', 'apache-airflow', 'extra-packages-ref.rst')
-PY_IDENTIFIER = r'[a-zA-Z_][a-zA-Z0-9_\.]*'
+SETUP_PY_FILE = "setup.py"
+DOCS_FILE = os.path.join("docs", "apache-airflow", "extra-packages-ref.rst")
+PY_IDENTIFIER = r"[a-zA-Z_][a-zA-Z0-9_\.]*"
 
 sys.path.insert(0, AIRFLOW_SOURCES_DIR)
 
@@ -67,7 +67,7 @@ def get_extras_from_docs() -> set[str]:
     """
     docs_content = get_file_content(DOCS_FILE)
     extras_section_regex = re.compile(
-        rf'\|[^|]+\|.*pip install .apache-airflow\[({PY_IDENTIFIER})][^|]+\|[^|]+\|',
+        rf"\|[^|]+\|.*pip install .apache-airflow\[({PY_IDENTIFIER})][^|]+\|[^|]+\|",
         re.MULTILINE,
     )
     doc_extra_set: set[str] = set()
@@ -82,7 +82,7 @@ def get_preinstalled_providers_from_docs() -> list[str]:
     """
     docs_content = get_file_content(DOCS_FILE)
     preinstalled_section_regex = re.compile(
-        rf'\|\s*({PY_IDENTIFIER})\s*\|[^|]+pip install[^|]+\|[^|]+\|\s+\*\s+\|$',
+        rf"\|\s*({PY_IDENTIFIER})\s*\|[^|]+pip install[^|]+\|[^|]+\|\s+\*\s+\|$",
         re.MULTILINE,
     )
     return preinstalled_section_regex.findall(docs_content)
@@ -96,11 +96,11 @@ def get_deprecated_extras_from_docs() -> dict[str, str]:
     docs_content = get_file_content(DOCS_FILE)
 
     deprecated_extras_section_regex = re.compile(
-        r'\| Deprecated extra    \| Extra to be used instead    \|\n(.*)\n', re.DOTALL
+        r"\| Deprecated extra    \| Extra to be used instead    \|\n(.*)\n", re.DOTALL
     )
     deprecated_extras_content = deprecated_extras_section_regex.findall(docs_content)[0]
 
-    deprecated_extras_regexp = re.compile(r'\|\s(\S+)\s+\|\s(\S*)\s+\|$', re.MULTILINE)
+    deprecated_extras_regexp = re.compile(r"\|\s(\S+)\s+\|\s(\S*)\s+\|$", re.MULTILINE)
     for extras in deprecated_extras_regexp.findall(deprecated_extras_content):
         deprecated_extras[extras[0]] = extras[1]
     return deprecated_extras
@@ -244,7 +244,7 @@ Below is the list of preinstalled providers that:
     return True
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     status: list[bool] = []
     # force adding all provider package dependencies, to check providers status
     add_all_provider_packages()

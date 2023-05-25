@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase
 from unittest.mock import Mock
 
 import pytest
@@ -26,25 +25,25 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.elasticache_replication_group import ElastiCacheReplicationGroupHook
 
 
-class TestElastiCacheReplicationGroupHook(TestCase):
+class TestElastiCacheReplicationGroupHook:
     REPLICATION_GROUP_ID = "test-elasticache-replication-group-hook"
 
     REPLICATION_GROUP_CONFIG = {
-        'ReplicationGroupId': REPLICATION_GROUP_ID,
-        'ReplicationGroupDescription': REPLICATION_GROUP_ID,
-        'AutomaticFailoverEnabled': False,
-        'NumCacheClusters': 1,
-        'CacheNodeType': 'cache.m5.large',
-        'Engine': 'redis',
-        'EngineVersion': '5.0.4',
-        'CacheParameterGroupName': 'default.redis5.0',
+        "ReplicationGroupId": REPLICATION_GROUP_ID,
+        "ReplicationGroupDescription": REPLICATION_GROUP_ID,
+        "AutomaticFailoverEnabled": False,
+        "NumCacheClusters": 1,
+        "CacheNodeType": "cache.m5.large",
+        "Engine": "redis",
+        "EngineVersion": "5.0.4",
+        "CacheParameterGroupName": "default.redis5.0",
     }
 
     VALID_STATES = frozenset(
-        {'creating', 'available', 'modifying', 'deleting', 'create - failed', 'snapshotting'}
+        {"creating", "available", "modifying", "deleting", "create - failed", "snapshotting"}
     )
 
-    def setUp(self):
+    def setup_method(self):
         self.hook = ElastiCacheReplicationGroupHook()
         # noinspection PyPropertyAccess
         self.hook.conn = Mock()

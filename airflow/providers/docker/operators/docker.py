@@ -19,31 +19,36 @@
 from __future__ import annotations
 
 import ast
-import io
 import pickle
 import tarfile
 import warnings
+from collections.abc import Container
+from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, Sequence
 
-from docker import APIClient, tls  # type: ignore[attr-defined]
-from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
-from docker.errors import APIError  # type: ignore[attr-defined]
-from docker.types import DeviceRequest, LogConfig, Mount  # type: ignore[attr-defined]
+from docker.constants import DEFAULT_TIMEOUT_SECONDS
+from docker.errors import APIError
+from docker.types import LogConfig, Mount
+from dotenv import dotenv_values
 
-from airflow.exceptions import AirflowException
+from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook
 
 if TYPE_CHECKING:
+    from docker import APIClient
+    from docker.types import DeviceRequest
+
     from airflow.utils.context import Context
 
 
 def stringify(line: str | bytes):
     """Make sure string is returned even if bytes are passed. Docker stream can return bytes."""
-    decode_method = getattr(line, 'decode', None)
+    decode_method = getattr(line, "decode", None)
     if decode_method:
-        return decode_method(encoding='utf-8', errors='surrogateescape')
+        return decode_method(encoding="utf-8", errors="surrogateescape")
     else:
         return line
 
@@ -87,6 +92,8 @@ class DockerOperator(BaseOperator):
     :param environment: Environment variables to set in the container. (templated)
     :param private_environment: Private environment variables to set in the container.
         These are not templated, and hidden from the website.
+    :param env_file: Relative path to the .env file with environment variables to set in the container.
+        Overridden by variables in the environment parameter. (templated)
     :param force_pull: Pull the docker image on every run. Default is False.
     :param mem_limit: Maximum amount of memory the container can use.
         Either a float value, which represents the limit in bytes,
@@ -106,6 +113,7 @@ class DockerOperator(BaseOperator):
     :param tls_client_cert: Path to the PEM-encoded certificate
         used to authenticate docker client.
     :param tls_client_key: Path to the PEM-encoded key used to authenticate docker client.
+    :param tls_verify: Set ``True`` to verify the validity of the provided certificate.
     :param tls_hostname: Hostname to match against
         the docker server certificate or False to disable the check.
     :param tls_ssl_version: Version of SSL to use when communicating with docker daemon.
@@ -133,6 +141,7 @@ class DockerOperator(BaseOperator):
         greater than 0. If omitted uses system default.
     :param tty: Allocate pseudo-TTY to the container
         This needs to be set see logs of the Docker container.
+    :param hostname: Optional hostname for the container.
     :param privileged: Give extended privileges to this container.
     :param cap_add: Include container capabilities
     :param retrieve_output: Should this docker image consistently attempt to pull from and output
@@ -146,12 +155,22 @@ class DockerOperator(BaseOperator):
     :param log_opts_max_file: The maximum number of log files that can be present.
         If rolling the logs creates excess files, the oldest file is removed.
         Only effective when max-size is also set. A positive integer. Defaults to 1.
+    :param ipc_mode: Set the IPC mode for the container.
+    :param skip_on_exit_code: If task exits with this exit code, leave the task
+        in ``skipped`` state (default: None). If set to ``None``, any non-zero
+        exit code will be treated as a failure.
+    :param port_bindings: Publish a container's port(s) to the host. It is a
+        dictionary of value where the key indicates the port to open inside the container
+        and value indicates the host port that binds to the container port.
+        Incompatible with ``host`` in ``network_mode``.
     """
 
-    template_fields: Sequence[str] = ('image', 'command', 'environment', 'container_name')
+    template_fields: Sequence[str] = ("image", "command", "environment", "env_file", "container_name")
+    template_fields_renderers = {"env_file": "yaml"}
     template_ext: Sequence[str] = (
-        '.sh',
-        '.bash',
+        ".sh",
+        ".bash",
+        ".env",
     )
 
     def __init__(
@@ -162,9 +181,10 @@ class DockerOperator(BaseOperator):
         command: str | list[str] | None = None,
         container_name: str | None = None,
         cpus: float = 1.0,
-        docker_url: str = 'unix://var/run/docker.sock',
+        docker_url: str = "unix://var/run/docker.sock",
         environment: dict | None = None,
         private_environment: dict | None = None,
+        env_file: str | None = None,
         force_pull: bool = False,
         mem_limit: float | str | None = None,
         host_tmp_dir: str | None = None,
@@ -172,10 +192,11 @@ class DockerOperator(BaseOperator):
         tls_ca_cert: str | None = None,
         tls_client_cert: str | None = None,
         tls_client_key: str | None = None,
+        tls_verify: bool = True,
         tls_hostname: str | bool | None = None,
         tls_ssl_version: str | None = None,
         mount_tmp_dir: bool = True,
-        tmp_dir: str = '/tmp/airflow',
+        tmp_dir: str = "/tmp/airflow",
         user: str | int | None = None,
         mounts: list[Mount] | None = None,
         entrypoint: str | list[str] | None = None,
@@ -187,6 +208,7 @@ class DockerOperator(BaseOperator):
         auto_remove: str = "never",
         shm_size: int | None = None,
         tty: bool = False,
+        hostname: str | None = None,
         privileged: bool = False,
         cap_add: Iterable[str] | None = None,
         extra_hosts: dict[str, str] | None = None,
@@ -196,6 +218,10 @@ class DockerOperator(BaseOperator):
         device_requests: list[DeviceRequest] | None = None,
         log_opts_max_size: str | None = None,
         log_opts_max_file: str | None = None,
+        ipc_mode: str | None = None,
+        skip_exit_code: int | None = None,
+        skip_on_exit_code: int | Container[int] | None = None,
+        port_bindings: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -203,7 +229,7 @@ class DockerOperator(BaseOperator):
         if type(auto_remove) == bool:
             warnings.warn(
                 "bool value for auto_remove is deprecated, please use 'never', 'success', or 'force' instead",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         if str(auto_remove) == "False":
@@ -222,6 +248,7 @@ class DockerOperator(BaseOperator):
         self.docker_url = docker_url
         self.environment = environment or {}
         self._private_environment = private_environment or {}
+        self.env_file = env_file
         self.force_pull = force_pull
         self.image = image
         self.mem_limit = mem_limit
@@ -230,6 +257,7 @@ class DockerOperator(BaseOperator):
         self.tls_ca_cert = tls_ca_cert
         self.tls_client_cert = tls_client_cert
         self.tls_client_key = tls_client_key
+        self.tls_verify = tls_verify
         self.tls_hostname = tls_hostname
         self.tls_ssl_version = tls_ssl_version
         self.mount_tmp_dir = mount_tmp_dir
@@ -242,40 +270,70 @@ class DockerOperator(BaseOperator):
         self.docker_conn_id = docker_conn_id
         self.shm_size = shm_size
         self.tty = tty
+        self.hostname = hostname
         self.privileged = privileged
         self.cap_add = cap_add
         self.extra_hosts = extra_hosts
 
-        self.cli = None
-        self.container = None
+        self.container: dict = None  # type: ignore[assignment]
         self.retrieve_output = retrieve_output
         self.retrieve_output_path = retrieve_output_path
         self.timeout = timeout
         self.device_requests = device_requests
         self.log_opts_max_size = log_opts_max_size
         self.log_opts_max_file = log_opts_max_file
+        self.ipc_mode = ipc_mode
+        if skip_exit_code is not None:
+            warnings.warn(
+                "skip_exit_code is deprecated. Please use skip_on_exit_code",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            skip_on_exit_code = skip_exit_code
 
-    def get_hook(self) -> DockerHook:
-        """
-        Retrieves hook for the operator.
+        self.skip_on_exit_code = (
+            skip_on_exit_code
+            if isinstance(skip_on_exit_code, Container)
+            else [skip_on_exit_code]
+            if skip_on_exit_code
+            else []
+        )
+        self.port_bindings = port_bindings or {}
+        if self.port_bindings and self.network_mode == "host":
+            raise ValueError("Port bindings is not supported in the host network mode")
 
-        :return: The Docker Hook
-        """
+    @cached_property
+    def hook(self) -> DockerHook:
+        """Create and return an DockerHook (cached)."""
+        tls_config = DockerHook.construct_tls_config(
+            ca_cert=self.tls_ca_cert,
+            client_cert=self.tls_client_cert,
+            client_key=self.tls_client_key,
+            verify=self.tls_verify,
+            assert_hostname=self.tls_hostname,
+            ssl_version=self.tls_ssl_version,
+        )
         return DockerHook(
             docker_conn_id=self.docker_conn_id,
             base_url=self.docker_url,
             version=self.api_version,
-            tls=self.__get_tls_config(),
+            tls=tls_config,
             timeout=self.timeout,
         )
 
+    def get_hook(self) -> DockerHook:
+        """Create and return an DockerHook (cached)."""
+        return self.hook
+
+    @property
+    def cli(self) -> APIClient:
+        return self.hook.api_client
+
     def _run_image(self) -> list[str] | str | None:
         """Run a Docker container with the provided image"""
-        self.log.info('Starting docker container from image %s', self.image)
-        if not self.cli:
-            raise Exception("The 'cli' should be initialized before!")
+        self.log.info("Starting docker container from image %s", self.image)
         if self.mount_tmp_dir:
-            with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir_generated:
+            with TemporaryDirectory(prefix="airflowtmp", dir=self.host_tmp_dir) as host_tmp_dir_generated:
                 tmp_mount = Mount(self.tmp_dir, host_tmp_dir_generated, "bind")
                 try:
                     return self._run_image_with_mounts(self.mounts + [tmp_mount], add_tmp_variable=True)
@@ -294,20 +352,22 @@ class DockerOperator(BaseOperator):
 
     def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool) -> list[str] | str | None:
         if add_tmp_variable:
-            self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
+            self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
         else:
-            self.environment.pop('AIRFLOW_TMP_DIR', None)
-        if not self.cli:
-            raise Exception("The 'cli' should be initialized before!")
+            self.environment.pop("AIRFLOW_TMP_DIR", None)
         docker_log_config = {}
         if self.log_opts_max_size is not None:
-            docker_log_config['max-size'] = self.log_opts_max_size
+            docker_log_config["max-size"] = self.log_opts_max_size
         if self.log_opts_max_file is not None:
-            docker_log_config['max-file'] = self.log_opts_max_file
+            docker_log_config["max-file"] = self.log_opts_max_file
+        env_file_vars = {}
+        if self.env_file is not None:
+            env_file_vars = self.unpack_environment_variables(self.env_file)
         self.container = self.cli.create_container(
             command=self.format_command(self.command),
             name=self.container_name,
-            environment={**self.environment, **self._private_environment},
+            environment={**env_file_vars, **self.environment, **self._private_environment},
+            ports=list(self.port_bindings),
             host_config=self.cli.create_host_config(
                 auto_remove=False,
                 mounts=target_mounts,
@@ -316,22 +376,25 @@ class DockerOperator(BaseOperator):
                 dns=self.dns,
                 dns_search=self.dns_search,
                 cpu_shares=int(round(self.cpus * 1024)),
+                port_bindings=self.port_bindings,
                 mem_limit=self.mem_limit,
                 cap_add=self.cap_add,
                 extra_hosts=self.extra_hosts,
                 privileged=self.privileged,
                 device_requests=self.device_requests,
                 log_config=LogConfig(config=docker_log_config),
+                ipc_mode=self.ipc_mode,
             ),
             image=self.image,
             user=self.user,
             entrypoint=self.format_command(self.entrypoint),
             working_dir=self.working_dir,
             tty=self.tty,
+            hostname=self.hostname,
         )
-        logstream = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
+        logstream = self.cli.attach(container=self.container["Id"], stdout=True, stderr=True, stream=True)
         try:
-            self.cli.start(self.container['Id'])
+            self.cli.start(self.container["Id"])
 
             log_lines = []
             for log_chunk in logstream:
@@ -339,10 +402,14 @@ class DockerOperator(BaseOperator):
                 log_lines.append(log_chunk)
                 self.log.info("%s", log_chunk)
 
-            result = self.cli.wait(self.container['Id'])
-            if result['StatusCode'] != 0:
+            result = self.cli.wait(self.container["Id"])
+            if result["StatusCode"] in self.skip_on_exit_code:
+                raise AirflowSkipException(
+                    f"Docker container returned exit code {self.skip_on_exit_code}. Skipping."
+                )
+            elif result["StatusCode"] != 0:
                 joined_log_lines = "\n".join(log_lines)
-                raise AirflowException(f'Docker container failed: {repr(result)} lines {joined_log_lines}')
+                raise AirflowException(f"Docker container failed: {repr(result)} lines {joined_log_lines}")
 
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()
@@ -360,9 +427,9 @@ class DockerOperator(BaseOperator):
             return None
         finally:
             if self.auto_remove == "success":
-                self.cli.remove_container(self.container['Id'])
+                self.cli.remove_container(self.container["Id"])
             elif self.auto_remove == "force":
-                self.cli.remove_container(self.container['Id'], force=True)
+                self.cli.remove_container(self.container["Id"], force=True)
 
     def _attempt_to_retrieve_result(self):
         """
@@ -374,38 +441,33 @@ class DockerOperator(BaseOperator):
 
         def copy_from_docker(container_id, src):
             archived_result, stat = self.cli.get_archive(container_id, src)
-            if stat['size'] == 0:
+            if stat["size"] == 0:
                 # 0 byte file, it can't be anything else than None
                 return None
             # no need to port to a file since we intend to deserialize
-            file_standin = io.BytesIO(b"".join(archived_result))
+            file_standin = BytesIO(b"".join(archived_result))
             tar = tarfile.open(fileobj=file_standin)
-            file = tar.extractfile(stat['name'])
-            lib = getattr(self, 'pickling_library', pickle)
+            file = tar.extractfile(stat["name"])
+            lib = getattr(self, "pickling_library", pickle)
             return lib.loads(file.read())
 
         try:
-            return copy_from_docker(self.container['Id'], self.retrieve_output_path)
+            return copy_from_docker(self.container["Id"], self.retrieve_output_path)
         except APIError:
             return None
 
-    def execute(self, context: Context) -> str | None:
-        self.cli = self._get_cli()
-        if not self.cli:
-            raise Exception("The 'cli' should be initialized before!")
-
+    def execute(self, context: Context) -> list[str] | str | None:
         # Pull the docker image if `force_pull` is set or image does not exist locally
-
         if self.force_pull or not self.cli.images(name=self.image):
-            self.log.info('Pulling docker image %s', self.image)
-            latest_status = {}
+            self.log.info("Pulling docker image %s", self.image)
+            latest_status: dict[str, str] = {}
             for output in self.cli.pull(self.image, stream=True, decode=True):
                 if isinstance(output, str):
                     self.log.info("%s", output)
                     continue
-                if isinstance(output, dict) and 'status' in output:
+                if isinstance(output, dict) and "status" in output:
                     output_status = output["status"]
-                    if 'id' not in output:
+                    if "id" not in output:
                         self.log.info("%s", output_status)
                         continue
 
@@ -415,48 +477,34 @@ class DockerOperator(BaseOperator):
                         latest_status[output_id] = output_status
         return self._run_image()
 
-    def _get_cli(self) -> APIClient:
-        if self.docker_conn_id:
-            return self.get_hook().get_conn()
-        else:
-            tls_config = self.__get_tls_config()
-            return APIClient(
-                base_url=self.docker_url, version=self.api_version, tls=tls_config, timeout=self.timeout
-            )
-
     @staticmethod
-    def format_command(command: str | list[str]) -> list[str] | str:
+    def format_command(command: list[str] | str | None) -> list[str] | str | None:
         """
         Retrieve command(s). if command string starts with [, it returns the command list)
 
         :param command: Docker command or entrypoint
 
         :return: the command (or commands)
-        :rtype: str | List[str]
         """
-        if isinstance(command, str) and command.strip().find('[') == 0:
-            return ast.literal_eval(command)
+        if isinstance(command, str) and command.strip().find("[") == 0:
+            command = ast.literal_eval(command)
         return command
 
     def on_kill(self) -> None:
-        if self.cli is not None:
-            self.log.info('Stopping docker container')
+        if self.hook.client_created:
+            self.log.info("Stopping docker container")
             if self.container is None:
-                self.log.info('Not attempting to kill container as it was not created')
+                self.log.info("Not attempting to kill container as it was not created")
                 return
-            self.cli.stop(self.container['Id'])
+            self.cli.stop(self.container["Id"])
 
-    def __get_tls_config(self) -> tls.TLSConfig | None:
-        tls_config = None
-        if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
-            # Ignore type error on SSL version here - it is deprecated and type annotation is wrong
-            # it should be string
-            tls_config = tls.TLSConfig(
-                ca_cert=self.tls_ca_cert,
-                client_cert=(self.tls_client_cert, self.tls_client_key),
-                verify=True,
-                ssl_version=self.tls_ssl_version,
-                assert_hostname=self.tls_hostname,
-            )
-            self.docker_url = self.docker_url.replace('tcp://', 'https://')
-        return tls_config
+    @staticmethod
+    def unpack_environment_variables(env_str: str) -> dict:
+        r"""
+        Parse environment variables from the string
+
+        :param env_str: environment variables in key=value format separated by '\n'
+
+        :return: dictionary containing parsed environment variables
+        """
+        return dotenv_values(stream=StringIO(env_str))

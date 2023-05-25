@@ -45,7 +45,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-http/3.0.0/tests/system/providers/http>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-http/|version|/tests/system/providers/http>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-http/>
     Installing from sources <installing-providers-from-sources>
 
@@ -65,7 +65,7 @@ Package apache-airflow-providers-http
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 4.0.0
+Release: 4.4.1
 
 Provider package
 ----------------
@@ -83,11 +83,16 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 =====================  ==================
 PIP package            Version required
 =====================  ==================
+``apache-airflow``     ``>=2.4.0``
 ``requests``           ``>=2.26.0``
 ``requests_toolbelt``
+``aiohttp``
+``asgiref``
 =====================  ==================
 
 .. include:: ../../airflow/providers/http/CHANGELOG.rst

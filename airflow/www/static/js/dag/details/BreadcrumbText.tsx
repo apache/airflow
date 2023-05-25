@@ -17,11 +17,8 @@
  * under the License.
  */
 
-import React from 'react';
-import {
-  Box,
-  Heading,
-} from '@chakra-ui/react';
+import React from "react";
+import { Box, Heading } from "@chakra-ui/react";
 
 interface Props {
   label: string;
@@ -40,7 +37,9 @@ const BreadcrumbText = ({ label, value }: Props) => (
     >
       {label}
     </Heading>
-    <Heading as="h3" size="md">{value}</Heading>
+    <Heading as="h3" size="md">
+      {value}
+    </Heading>
   </Box>
 );
 

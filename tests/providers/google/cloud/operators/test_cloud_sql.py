@@ -18,15 +18,14 @@
 from __future__ import annotations
 
 import os
-import unittest
 from unittest import mock
 
 import pytest
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.google.cloud.operators.cloud_sql import (
+    CloudSQLCloneInstanceOperator,
     CloudSQLCreateInstanceDatabaseOperator,
     CloudSQLCreateInstanceOperator,
     CloudSQLDeleteInstanceDatabaseOperator,
@@ -38,9 +37,9 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLPatchInstanceDatabaseOperator,
 )
 
-PROJECT_ID = os.environ.get('PROJECT_ID', 'project-id')
-INSTANCE_NAME = os.environ.get('INSTANCE_NAME', 'test-name')
-DB_NAME = os.environ.get('DB_NAME', 'db1')
+PROJECT_ID = os.environ.get("PROJECT_ID", "project-id")
+INSTANCE_NAME = os.environ.get("INSTANCE_NAME", "test-name")
+DB_NAME = os.environ.get("DB_NAME", "db1")
 
 CREATE_BODY = {
     "name": INSTANCE_NAME,
@@ -149,7 +148,7 @@ IMPORT_BODY = {
 }
 
 
-class TestCloudSql(unittest.TestCase):
+class TestCloudSql:
     @mock.patch(
         "airflow.providers.google.cloud.operators.cloud_sql"
         ".CloudSQLCreateInstanceOperator._check_if_instance_exists"
@@ -335,7 +334,7 @@ class TestCloudSql(unittest.TestCase):
             )
             op.execute(None)
         err = ctx.value
-        assert 'specify another instance to patch' in str(err)
+        assert "specify another instance to patch" in str(err)
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
@@ -360,6 +359,36 @@ class TestCloudSql(unittest.TestCase):
         )
         mock_hook.return_value.delete_instance.assert_called_once_with(
             project_id=PROJECT_ID, instance=INSTANCE_NAME
+        )
+
+    @mock.patch(
+        "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLCloneInstanceOperator._check_if_instance_exists"
+    )
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
+    def test_instance_clone(self, mock_hook, _check_if_instance_exists):
+        destination_instance_name = "clone-test-name"
+        _check_if_instance_exists.return_value = True
+        op = CloudSQLCloneInstanceOperator(
+            project_id=PROJECT_ID,
+            instance=INSTANCE_NAME,
+            destination_instance_name=destination_instance_name,
+            task_id="id",
+        )
+        result = op.execute(None)
+        assert result
+        mock_hook.assert_called_once_with(
+            api_version="v1beta4",
+            gcp_conn_id="google_cloud_default",
+            impersonation_chain=None,
+        )
+        body = {
+            "cloneContext": {
+                "kind": "sql#cloneContext",
+                "destinationInstanceName": destination_instance_name,
+            }
+        }
+        mock_hook.return_value.clone_instance.assert_called_once_with(
+            project_id=PROJECT_ID, instance=INSTANCE_NAME, body=body
         )
 
     @mock.patch(
@@ -673,74 +702,76 @@ class TestCloudSql(unittest.TestCase):
         assert result
 
 
-class TestCloudSqlQueryValidation(unittest.TestCase):
+class TestCloudSqlQueryValidation:
     @staticmethod
     def _setup_connections(get_connection, uri):
         gcp_connection = mock.MagicMock()
         gcp_connection.extra_dejson = mock.MagicMock()
-        gcp_connection.extra_dejson.get.return_value = 'empty_project'
+        gcp_connection.extra_dejson.get.return_value = "empty_project"
         cloudsql_connection = Connection(uri=uri)
         cloudsql_connection2 = Connection(uri=uri)
         get_connection.side_effect = [gcp_connection, cloudsql_connection, cloudsql_connection2]
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "project_id, location, instance_name, database_type, use_proxy, use_ssl, sql, message",
         [
             (
-                'project_id',
-                '',
-                'instance_name',
-                'mysql',
+                "project_id",
+                "",
+                "instance_name",
+                "mysql",
                 False,
                 False,
-                'SELECT * FROM TEST',
+                "SELECT * FROM TEST",
                 "The required extra 'location' is empty",
             ),
             (
-                'project_id',
-                'location',
-                '',
-                'postgres',
+                "project_id",
+                "location",
+                "",
+                "postgres",
                 False,
                 False,
-                'SELECT * FROM TEST',
+                "SELECT * FROM TEST",
                 "The required extra 'instance' is empty",
             ),
             (
-                'project_id',
-                'location',
-                'instance_name',
-                'wrong',
+                "project_id",
+                "location",
+                "instance_name",
+                "wrong",
                 False,
                 False,
-                'SELECT * FROM TEST',
+                "SELECT * FROM TEST",
                 "Invalid database type 'wrong'. Must be one of ['postgres', 'mysql']",
             ),
             (
-                'project_id',
-                'location',
-                'instance_name',
-                'postgres',
+                "project_id",
+                "location",
+                "instance_name",
+                "postgres",
                 True,
                 True,
-                'SELECT * FROM TEST',
+                "SELECT * FROM TEST",
                 "Cloud SQL Proxy does not support SSL connections. SSL is not needed as"
                 " Cloud SQL Proxy provides encryption on its own",
             ),
             (
-                'project_id',
-                'location',
-                'instance_name',
-                'postgres',
+                "project_id",
+                "location",
+                "instance_name",
+                "postgres",
                 False,
                 True,
-                'SELECT * FROM TEST',
+                "SELECT * FROM TEST",
                 "SSL connections requires sslcert to be set",
             ),
-        ]
+        ],
     )
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     def test_create_operator_with_wrong_parameters(
         self,
+        get_connection,
         project_id,
         location,
         instance_name,
@@ -749,7 +780,6 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
         use_ssl,
         sql,
         message,
-        get_connection,
     ):
         uri = (
             f"gcpcloudsql://user:password@127.0.0.1:3200/testdb?"
@@ -758,7 +788,7 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
         )
         self._setup_connections(get_connection, uri)
         with pytest.raises(AirflowException) as ctx:
-            op = CloudSQLExecuteQueryOperator(sql=sql, task_id='task_id')
+            op = CloudSQLExecuteQueryOperator(sql=sql, task_id="task_id")
             op.execute(None)
         err = ctx.value
         assert message in str(err)
@@ -772,7 +802,7 @@ class TestCloudSqlQueryValidation(unittest.TestCase):
             "use_proxy=True&sql_proxy_use_tcp=False"
         )
         self._setup_connections(get_connection, uri)
-        operator = CloudSQLExecuteQueryOperator(sql=['SELECT * FROM TABLE'], task_id='task_id')
+        operator = CloudSQLExecuteQueryOperator(sql=["SELECT * FROM TABLE"], task_id="task_id")
         with pytest.raises(AirflowException) as ctx:
             operator.execute(None)
         err = ctx.value

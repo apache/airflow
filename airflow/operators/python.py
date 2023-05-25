@@ -26,6 +26,7 @@ import sys
 import types
 import warnings
 from abc import ABCMeta, abstractmethod
+from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
@@ -33,7 +34,13 @@ from typing import Any, Callable, Collection, Iterable, Mapping, Sequence
 
 import dill
 
-from airflow.exceptions import AirflowConfigException, AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import (
+    AirflowConfigException,
+    AirflowException,
+    AirflowSkipException,
+    DeserializingResultError,
+    RemovedInAirflow3Warning,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
@@ -41,18 +48,13 @@ from airflow.utils.context import Context, context_copy_partial, context_merge
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
-from airflow.version import version as airflow_version
 
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
-    """
-    Deprecated function that calls @task.python and allows users to turn a python function into
-    an Airflow task. Please use the following instead:
+    """Deprecated. Use :func:`airflow.decorators.task` instead.
 
-    from airflow.decorators import task
-
-    @task
-    def my_task()
+    Calls ``@task.python`` and allows users to turn a Python function into
+    an Airflow task.
 
     :param python_callable: A reference to an object that is callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
@@ -62,7 +64,6 @@ def task(python_callable: Callable | None = None, multiple_outputs: bool | None 
     :param multiple_outputs: if set, function return value will be
         unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
-    :return:
     """
     # To maintain backwards compatibility, we import the task object into this file
     # This prevents breakages in dags that use `from airflow.operators.python import task`
@@ -82,7 +83,7 @@ def task(python_callable: Callable | None = None, multiple_outputs: bool | None 
 
 class PythonOperator(BaseOperator):
     """
-    Executes a Python callable
+    Executes a Python callable.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -127,16 +128,16 @@ class PythonOperator(BaseOperator):
         such as transmission a large amount of XCom to TaskAPI.
     """
 
-    template_fields: Sequence[str] = ('templates_dict', 'op_args', 'op_kwargs')
+    template_fields: Sequence[str] = ("templates_dict", "op_args", "op_kwargs")
     template_fields_renderers = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
-    BLUE = '#ffefeb'
+    BLUE = "#ffefeb"
     ui_color = BLUE
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects(e.g protobuf).
     shallow_copy_attrs: Sequence[str] = (
-        'python_callable',
-        'op_kwargs',
+        "python_callable",
+        "op_kwargs",
     )
 
     def __init__(
@@ -156,10 +157,10 @@ class PythonOperator(BaseOperator):
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
-            kwargs.pop('provide_context', None)
+            kwargs.pop("provide_context", None)
         super().__init__(**kwargs)
         if not callable(python_callable):
-            raise AirflowException('`python_callable` param must be callable')
+            raise AirflowException("`python_callable` param must be callable")
         self.python_callable = python_callable
         self.op_args = op_args or ()
         self.op_kwargs = op_kwargs or {}
@@ -183,20 +184,18 @@ class PythonOperator(BaseOperator):
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
         return KeywordParameters.determine(self.python_callable, self.op_args, context).unpacking()
 
-    def execute_callable(self):
+    def execute_callable(self) -> Any:
         """
         Calls the python callable with the given arguments.
 
         :return: the return value of the call.
-        :rtype: any
         """
         return self.python_callable(*self.op_args, **self.op_kwargs)
 
 
 class BranchPythonOperator(PythonOperator, SkipMixin):
     """
-    Allows a workflow to "branch" or follow a path following the execution
-    of this task.
+    A workflow can "branch" or follow a path after the execution of this task.
 
     It derives the PythonOperator and expects a Python function that returns
     a single task_id or list of task_ids to follow. The task_id(s) returned
@@ -209,22 +208,8 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
 
     def execute(self, context: Context) -> Any:
         branch = super().execute(context)
-        # TODO: The logic should be moved to SkipMixin to be available to all branch operators.
-        if isinstance(branch, str):
-            branches = {branch}
-        elif isinstance(branch, list):
-            branches = set(branch)
-        elif branch is None:
-            branches = set()
-        else:
-            raise AirflowException("Branch callable must return either None, a task ID, or a list of IDs")
-        valid_task_ids = set(context["dag"].task_ids)
-        invalid_task_ids = branches - valid_task_ids
-        if invalid_task_ids:
-            raise AirflowException(
-                f"Branch callable must return valid task_ids. Invalid tasks found: {invalid_task_ids}"
-            )
-        self.skip_all_except(context['ti'], branch)
+        self.log.info("Branch callable return %s", branch)
+        self.skip_all_except(context["ti"], branch)
         return branch
 
 
@@ -251,7 +236,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
     :param ignore_downstream_trigger_rules: If set to True, all downstream tasks from this operator task will
         be skipped. This is the default behavior. If set to False, the direct, downstream task(s) will be
-        skipped but the ``trigger_rule`` defined for a other downstream tasks will be respected.
+        skipped but the ``trigger_rule`` defined for all other downstream tasks will be respected.
     """
 
     def __init__(self, *, ignore_downstream_trigger_rules: bool = True, **kwargs) -> None:
@@ -263,10 +248,10 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
         self.log.info("Condition result is %s", condition)
 
         if condition:
-            self.log.info('Proceeding with downstream tasks...')
+            self.log.info("Proceeding with downstream tasks...")
             return condition
 
-        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
+        downstream_tasks = context["task"].get_flat_relatives(upstream=False)
         self.log.debug("Downstream task IDs %s", downstream_tasks)
 
         if downstream_tasks:
@@ -287,45 +272,46 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
 class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
-        'ds',
-        'ds_nodash',
-        'inlets',
-        'next_ds',
-        'next_ds_nodash',
-        'outlets',
-        'prev_ds',
-        'prev_ds_nodash',
-        'run_id',
-        'task_instance_key_str',
-        'test_mode',
-        'tomorrow_ds',
-        'tomorrow_ds_nodash',
-        'ts',
-        'ts_nodash',
-        'ts_nodash_with_tz',
-        'yesterday_ds',
-        'yesterday_ds_nodash',
+        "ds",
+        "ds_nodash",
+        "expanded_ti_count",
+        "inlets",
+        "next_ds",
+        "next_ds_nodash",
+        "outlets",
+        "prev_ds",
+        "prev_ds_nodash",
+        "run_id",
+        "task_instance_key_str",
+        "test_mode",
+        "tomorrow_ds",
+        "tomorrow_ds_nodash",
+        "ts",
+        "ts_nodash",
+        "ts_nodash_with_tz",
+        "yesterday_ds",
+        "yesterday_ds_nodash",
     }
     PENDULUM_SERIALIZABLE_CONTEXT_KEYS = {
-        'data_interval_end',
-        'data_interval_start',
-        'execution_date',
-        'logical_date',
-        'next_execution_date',
-        'prev_data_interval_end_success',
-        'prev_data_interval_start_success',
-        'prev_execution_date',
-        'prev_execution_date_success',
-        'prev_start_date_success',
+        "data_interval_end",
+        "data_interval_start",
+        "execution_date",
+        "logical_date",
+        "next_execution_date",
+        "prev_data_interval_end_success",
+        "prev_data_interval_start_success",
+        "prev_execution_date",
+        "prev_execution_date_success",
+        "prev_start_date_success",
     }
     AIRFLOW_SERIALIZABLE_CONTEXT_KEYS = {
-        'macros',
-        'conf',
-        'dag',
-        'dag_run',
-        'task',
-        'params',
-        'triggering_dataset_events',
+        "macros",
+        "conf",
+        "dag",
+        "dag_run",
+        "task",
+        "params",
+        "triggering_dataset_events",
     }
 
     def __init__(
@@ -339,6 +325,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         templates_dict: dict | None = None,
         templates_exts: list[str] | None = None,
         expect_airflow: bool = True,
+        skip_on_exit_code: int | Container[int] | None = None,
         **kwargs,
     ):
         if (
@@ -346,7 +333,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             or isinstance(python_callable, types.LambdaType)
             and python_callable.__name__ == "<lambda>"
         ):
-            raise AirflowException('PythonVirtualenvOperator only supports functions for python_callable arg')
+            raise AirflowException("PythonVirtualenvOperator only supports functions for python_callable arg")
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,
@@ -359,6 +346,13 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         self.use_dill = use_dill
         self.pickling_library = dill if self.use_dill else pickle
         self.expect_airflow = expect_airflow
+        self.skip_on_exit_code = (
+            skip_on_exit_code
+            if isinstance(skip_on_exit_code, Container)
+            else [skip_on_exit_code]
+            if skip_on_exit_code
+            else []
+        )
 
     @abstractmethod
     def _iter_serializable_context_keys(self):
@@ -370,30 +364,23 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         return super().execute(context=serializable_context)
 
     def get_python_source(self):
-        """
-        Returns the source of self.python_callable
-        @return:
-        """
+        """Return the source of self.python_callable."""
         return dedent(inspect.getsource(self.python_callable))
 
     def _write_args(self, file: Path):
         if self.op_args or self.op_kwargs:
-            file.write_bytes(self.pickling_library.dumps({'args': self.op_args, 'kwargs': self.op_kwargs}))
+            file.write_bytes(self.pickling_library.dumps({"args": self.op_args, "kwargs": self.op_kwargs}))
 
     def _write_string_args(self, file: Path):
-        file.write_text('\n'.join(map(str, self.string_args)))
+        file.write_text("\n".join(map(str, self.string_args)))
 
     def _read_result(self, path: Path):
         if path.stat().st_size == 0:
             return None
         try:
             return self.pickling_library.loads(path.read_bytes())
-        except ValueError:
-            self.log.error(
-                "Error deserializing result. Note that result deserialization "
-                "is not supported across major Python versions."
-            )
-            raise
+        except ValueError as value_error:
+            raise DeserializingResultError() from value_error
 
     def __deepcopy__(self, memo):
         # module objects can't be copied _at all__
@@ -403,11 +390,11 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
     def _execute_python_callable_in_subprocess(self, python_path: Path, tmp_dir: Path):
         op_kwargs: dict[str, Any] = {k: v for k, v in self.op_kwargs.items()}
         if self.templates_dict:
-            op_kwargs['templates_dict'] = self.templates_dict
-        input_path = tmp_dir / 'script.in'
-        output_path = tmp_dir / 'script.out'
-        string_args_path = tmp_dir / 'string_args.txt'
-        script_path = tmp_dir / 'script.py'
+            op_kwargs["templates_dict"] = self.templates_dict
+        input_path = tmp_dir / "script.in"
+        output_path = tmp_dir / "script.out"
+        string_args_path = tmp_dir / "string_args.txt"
+        script_path = tmp_dir / "script.py"
         self._write_args(input_path)
         self._write_string_args(string_args_path)
         write_python_script(
@@ -423,15 +410,22 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             render_template_as_native_obj=self.dag.render_template_as_native_obj,
         )
 
-        execute_in_subprocess(
-            cmd=[
-                os.fspath(python_path),
-                os.fspath(script_path),
-                os.fspath(input_path),
-                os.fspath(output_path),
-                os.fspath(string_args_path),
-            ]
-        )
+        try:
+            execute_in_subprocess(
+                cmd=[
+                    os.fspath(python_path),
+                    os.fspath(script_path),
+                    os.fspath(input_path),
+                    os.fspath(output_path),
+                    os.fspath(string_args_path),
+                ]
+            )
+        except subprocess.CalledProcessError as e:
+            if e.returncode in self.skip_on_exit_code:
+                raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
+            else:
+                raise
+
         return self._read_result(output_path)
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -440,12 +434,11 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
 
 class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     """
-    Allows one to run a function in a virtualenv that is created and destroyed
-    automatically (with certain caveats).
+    Run a function in a virtualenv that is created and destroyed automatically.
 
-    The function must be defined using def, and not be
+    The function (has certain caveats) must be defined using def, and not be
     part of a class. All imports must happen inside the function
-    and no variables outside of the scope may be referenced. A global scope
+    and no variables outside the scope may be referenced. A global scope
     variable named virtualenv_string_args will be available (populated by
     string_args). In addition, one can pass stuff through op_args and op_kwargs, and one
     can use a return value.
@@ -485,10 +478,13 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     :param expect_airflow: expect Airflow to be installed in the target environment. If true, the operator
         will raise warning if Airflow is not installed, and it will attempt to load Airflow
         macros when starting.
+    :param skip_on_exit_code: If python_callable exits with this exit code, leave the task
+        in ``skipped`` state (default: None). If set to ``None``, any non-zero
+        exit code will be treated as a failure.
     """
 
-    template_fields: Sequence[str] = tuple({'requirements'} | set(PythonOperator.template_fields))
-    template_ext: Sequence[str] = ('.txt',)
+    template_fields: Sequence[str] = tuple({"requirements"} | set(PythonOperator.template_fields))
+    template_ext: Sequence[str] = (".txt",)
 
     def __init__(
         self,
@@ -505,6 +501,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         templates_dict: dict | None = None,
         templates_exts: list[str] | None = None,
         expect_airflow: bool = True,
+        skip_on_exit_code: int | Container[int] | None = None,
         **kwargs,
     ):
         if (
@@ -518,7 +515,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 f"Sys version: {sys.version_info}. Venv version: {python_version}"
             )
         if not shutil.which("virtualenv"):
-            raise AirflowException('PythonVirtualenvOperator requires virtualenv, please install it.')
+            raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
         if not requirements:
             self.requirements: list[str] | str = []
         elif isinstance(requirements, str):
@@ -537,13 +534,14 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             templates_dict=templates_dict,
             templates_exts=templates_exts,
             expect_airflow=expect_airflow,
+            skip_on_exit_code=skip_on_exit_code,
             **kwargs,
         )
 
     def execute_callable(self):
-        with TemporaryDirectory(prefix='venv') as tmp_dir:
+        with TemporaryDirectory(prefix="venv") as tmp_dir:
             tmp_path = Path(tmp_dir)
-            requirements_file_name = f'{tmp_dir}/requirements.txt'
+            requirements_file_name = f"{tmp_dir}/requirements.txt"
 
             if not isinstance(self.requirements, str):
                 requirements_file_contents = "\n".join(str(dependency) for dependency in self.requirements)
@@ -551,34 +549,35 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 requirements_file_contents = self.requirements
 
             if not self.system_site_packages and self.use_dill:
-                requirements_file_contents += '\ndill'
+                requirements_file_contents += "\ndill"
 
-            with open(requirements_file_name, 'w') as file:
+            with open(requirements_file_name, "w") as file:
                 file.write(requirements_file_contents)
             prepare_virtualenv(
                 venv_directory=tmp_dir,
-                python_bin=f'python{self.python_version}' if self.python_version else None,
+                python_bin=f"python{self.python_version}" if self.python_version else None,
                 system_site_packages=self.system_site_packages,
                 requirements_file_path=requirements_file_name,
                 pip_install_options=self.pip_install_options,
             )
             python_path = tmp_path / "bin" / "python"
-
-            return self._execute_python_callable_in_subprocess(python_path, tmp_path)
+            result = self._execute_python_callable_in_subprocess(python_path, tmp_path)
+            return result
 
     def _iter_serializable_context_keys(self):
         yield from self.BASE_SERIALIZABLE_CONTEXT_KEYS
-        if self.system_site_packages or 'apache-airflow' in self.requirements:
+        if self.system_site_packages or "apache-airflow" in self.requirements:
             yield from self.AIRFLOW_SERIALIZABLE_CONTEXT_KEYS
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
-        elif 'pendulum' in self.requirements:
+        elif "pendulum" in self.requirements:
             yield from self.PENDULUM_SERIALIZABLE_CONTEXT_KEYS
 
 
 class ExternalPythonOperator(_BasePythonVirtualenvOperator):
     """
-    Allows one to run a function in a virtualenv that is not re-created but used as is
-    without the overhead of creating the virtualenv (with certain caveats).
+    Run a function in a virtualenv that is not re-created.
+
+    Reused as is without the overhead of creating the virtualenv (with certain caveats).
 
     The function must be defined using def, and not be
     part of a class. All imports must happen inside the function
@@ -619,9 +618,12 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
     :param expect_airflow: expect Airflow to be installed in the target environment. If true, the operator
         will raise warning if Airflow is not installed, and it will attempt to load Airflow
         macros when starting.
+    :param skip_on_exit_code: If python_callable exits with this exit code, leave the task
+        in ``skipped`` state (default: None). If set to ``None``, any non-zero
+        exit code will be treated as a failure.
     """
 
-    template_fields: Sequence[str] = tuple({'python_path'} | set(PythonOperator.template_fields))
+    template_fields: Sequence[str] = tuple({"python"} | set(PythonOperator.template_fields))
 
     def __init__(
         self,
@@ -636,6 +638,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         templates_exts: list[str] | None = None,
         expect_airflow: bool = True,
         expect_pendulum: bool = False,
+        skip_on_exit_code: int | Container[int] | None = None,
         **kwargs,
     ):
         if not python:
@@ -651,6 +654,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             templates_dict=templates_dict,
             templates_exts=templates_exts,
             expect_airflow=expect_airflow,
+            skip_on_exit_code=skip_on_exit_code,
             **kwargs,
         )
 
@@ -673,7 +677,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
                 "major versions for ExternalPythonOperator. Please use string_args."
                 f"Sys version: {sys.version_info}. Venv version: {python_version_as_list_of_strings}"
             )
-        with TemporaryDirectory(prefix='tmd') as tmp_dir:
+        with TemporaryDirectory(prefix="tmd") as tmp_dir:
             tmp_path = Path(tmp_dir)
             return self._execute_python_callable_in_subprocess(python_path, tmp_path)
 
@@ -707,9 +711,11 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             return False
 
     def _get_airflow_version_from_target_env(self) -> str | None:
+        from airflow import __version__ as airflow_version
+
         try:
             result = subprocess.check_output(
-                [self.python, "-c", "from airflow import version; print(version.version)"], text=True
+                [self.python, "-c", "from airflow import __version__; print(__version__)"], text=True
             )
             target_airflow_version = result.strip()
             if target_airflow_version != airflow_version:
@@ -733,8 +739,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
 
 def get_current_context() -> Context:
     """
-    Obtain the execution context for the currently executing operator without
-    altering user method's signature.
+    Retrieve the execution context dictionary without altering user method's signature.
     This is the simplest method of retrieving the execution context dictionary.
 
     **Old style:**

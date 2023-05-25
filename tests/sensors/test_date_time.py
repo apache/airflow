@@ -20,7 +20,6 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-from parameterized import parameterized
 
 from airflow.models.dag import DAG
 from airflow.sensors.date_time import DateTimeSensor
@@ -35,7 +34,8 @@ class TestDateTimeSensor:
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
         cls.dag = DAG("test_dag", default_args=args)
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "task_id, target_time, expected",
         [
             (
                 "valid_datetime",
@@ -52,7 +52,7 @@ class TestDateTimeSensor:
                 "{{ ds }}",
                 "{{ ds }}",
             ),
-        ]
+        ],
     )
     def test_valid_input(self, task_id, target_time, expected):
         """target_time should be a string as it is a template field"""
@@ -71,7 +71,8 @@ class TestDateTimeSensor:
                 dag=self.dag,
             )
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "task_id, target_time, expected",
         [
             (
                 "poke_datetime",
@@ -80,12 +81,12 @@ class TestDateTimeSensor:
             ),
             ("poke_str_extended", "2020-01-01T23:00:00.001+00:00", False),
             ("poke_str_basic_with_tz", "20200102T065959+8", True),
-        ]
+        ],
     )
     @patch(
         "airflow.sensors.date_time.timezone.utcnow",
         return_value=timezone.datetime(2020, 1, 1, 23, 0, tzinfo=timezone.utc),
     )
-    def test_poke(self, task_id, target_time, expected, mock_utcnow):
+    def test_poke(self, mock_utcnow, task_id, target_time, expected):
         op = DateTimeSensor(task_id=task_id, target_time=target_time, dag=self.dag)
         assert op.poke(None) == expected

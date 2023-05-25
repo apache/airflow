@@ -83,7 +83,7 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         warehouse: str | None = None,
         database: str | None = None,
         autocommit: bool = True,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         role: str | None = None,
         authenticator: str | None = None,
         session_parameters: dict | None = None,
@@ -132,12 +132,12 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         sql = f"""
         COPY INTO {into}
              FROM  @{self.stage}/{self.prefix or ""}
-        {"FILES=" + ",".join(map(enclose_param ,self.files)) if self.files else ""}
+        {"FILES=(" + ",".join(map(enclose_param, self.files)) + ")" if self.files else ""}
         {"PATTERN=" + enclose_param(self.pattern) if self.pattern else ""}
         FILE_FORMAT={self.file_format}
         {self.copy_options or ""}
         {self.validation_mode or ""}
         """
-        self.log.info('Executing COPY command...')
+        self.log.info("Executing COPY command...")
         snowflake_hook.run(sql=sql, autocommit=self.autocommit)
         self.log.info("COPY command completed")

@@ -64,7 +64,7 @@ class LocalFilesystemToS3Operator(BaseOperator):
         uploaded to the S3 bucket.
     """
 
-    template_fields: Sequence[str] = ('filename', 'dest_key', 'dest_bucket')
+    template_fields: Sequence[str] = ("filename", "dest_key", "dest_bucket")
 
     def __init__(
         self,
@@ -72,7 +72,7 @@ class LocalFilesystemToS3Operator(BaseOperator):
         filename: str,
         dest_key: str,
         dest_bucket: str | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
         replace: bool = False,
         encrypt: bool = False,
@@ -95,7 +95,7 @@ class LocalFilesystemToS3Operator(BaseOperator):
     def execute(self, context: Context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         s3_bucket, s3_key = s3_hook.get_s3_bucket_key(
-            self.dest_bucket, self.dest_key, 'dest_bucket', 'dest_key'
+            self.dest_bucket, self.dest_key, "dest_bucket", "dest_key"
         )
         s3_hook.load_file(
             self.filename,

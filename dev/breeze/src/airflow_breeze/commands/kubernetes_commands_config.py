@@ -41,18 +41,16 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze k8s setup-env": [
         {
             "name": "K8S setup flags",
-            "options": ["--force"],
+            "options": ["--force-venv-setup"],
         }
     ],
     "breeze k8s create-cluster": [
         {
             "name": "K8S cluster creation flags",
             "options": [
-                "--force-recreate-cluster",
-                "--forwarded-port-number",
-                "--api-server-port",
                 "--python",
                 "--kubernetes-version",
+                "--force-recreate-cluster",
             ],
         },
         {
@@ -83,6 +81,26 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--run-in-parallel",
                 "--parallelism",
                 "--python-versions",
+                "--skip-cleanup",
+                "--debug-resources",
+                "--include-success-outputs",
+            ],
+        },
+    ],
+    "breeze k8s configure-cluster": [
+        {
+            "name": "Configure cluster flags",
+            "options": [
+                "--python",
+                "--kubernetes-version",
+            ],
+        },
+        {
+            "name": "Parallel options",
+            "options": [
+                "--run-in-parallel",
+                "--parallelism",
+                "--python-versions",
                 "--kubernetes-versions",
                 "--skip-cleanup",
                 "--debug-resources",
@@ -96,7 +114,6 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--python",
                 "--kubernetes-version",
-                "--image-tag",
             ],
         },
         {
@@ -160,31 +177,19 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze k8s delete-cluster": [
         {
             "name": "K8S cluster delete flags",
-            "options": ["--python", "--kubernetes-version"],
-        },
-        {
-            "name": "K8S multi-cluster flags",
-            "options": ["--all"],
+            "options": ["--python", "--kubernetes-version", "--all"],
         },
     ],
     "breeze k8s status": [
         {
             "name": "K8S cluster status flags",
-            "options": ["--python", "--kubernetes-version", "--wait-time-in-seconds"],
-        },
-        {
-            "name": "K8S multi-cluster flags",
-            "options": ["--all"],
+            "options": ["--python", "--kubernetes-version", "--wait-time-in-seconds", "--all"],
         },
     ],
     "breeze k8s logs": [
         {
             "name": "K8S logs flags",
-            "options": ["--python", "--kubernetes-version"],
-        },
-        {
-            "name": "K8S multi-cluster flags",
-            "options": ["--all"],
+            "options": ["--python", "--kubernetes-version", "--all"],
         },
     ],
     "breeze k8s tests": [
@@ -210,8 +215,6 @@ KUBERNETES_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "K8S cluster creation flags",
             "options": [
                 "--force-recreate-cluster",
-                "--forwarded-port-number",
-                "--api-server-port",
             ],
         },
         {

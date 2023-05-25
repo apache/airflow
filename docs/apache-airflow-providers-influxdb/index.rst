@@ -45,7 +45,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-influxdb/2.0.0/tests/system/providers/influxdb>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-influxdb/|version|/tests/system/providers/influxdb>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-influxdb/>
     Installing from sources <installing-providers-from-sources>
 
@@ -71,7 +71,7 @@ Package apache-airflow-providers-influxdb
 `InfluxDB <https://www.influxdata.com/>`__
 
 
-Release: 2.0.0
+Release: 2.2.0
 
 Provider package
 ----------------
@@ -89,12 +89,14 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 ===================  ==================
 PIP package          Version required
 ===================  ==================
-``apache-airflow``   ``>=2.2.0``
+``apache-airflow``   ``>=2.4.0``
 ``influxdb-client``  ``>=1.19.0``
-``pandas``           ``>=0.17.1``
+``requests``         ``>=2.26.0``
 ===================  ==================
 
 .. include:: ../../airflow/providers/influxdb/CHANGELOG.rst

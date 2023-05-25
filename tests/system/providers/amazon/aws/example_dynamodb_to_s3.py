@@ -19,6 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 import boto3
+import tenacity
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -28,70 +29,96 @@ from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Op
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-DAG_ID = 'example_dynamodb_to_s3'
+DAG_ID = "example_dynamodb_to_s3"
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
 TABLE_ATTRIBUTES = [
-    {'AttributeName': 'ID', 'AttributeType': 'S'},
-    {'AttributeName': 'Value', 'AttributeType': 'S'},
+    {"AttributeName": "ID", "AttributeType": "S"},
+    {"AttributeName": "Value", "AttributeType": "S"},
 ]
 TABLE_KEY_SCHEMA = [
-    {'AttributeName': 'ID', 'KeyType': 'HASH'},
-    {'AttributeName': 'Value', 'KeyType': 'RANGE'},
+    {"AttributeName": "ID", "KeyType": "HASH"},
+    {"AttributeName": "Value", "KeyType": "RANGE"},
 ]
-TABLE_THROUGHPUT = {'ReadCapacityUnits': 1, 'WriteCapacityUnits': 1}
-S3_KEY_PREFIX = 'dynamodb-segmented-file'
+TABLE_THROUGHPUT = {"ReadCapacityUnits": 1, "WriteCapacityUnits": 1}
+S3_KEY_PREFIX = "dynamodb-segmented-file"
+
+
+# UpdateContinuousBackups API might need multiple attempts to succeed
+# Sometimes the API returns the error "Backups are being enabled for the table: <...>. Please retry later"
+# Using a retry strategy with exponential backoff to remediate that
+@tenacity.retry(
+    stop=tenacity.stop_after_attempt(5),
+    wait=tenacity.wait_exponential(min=5),
+)
+def enable_point_in_time_recovery(table_name: str):
+    boto3.client("dynamodb").update_continuous_backups(
+        TableName=table_name,
+        PointInTimeRecoverySpecification={
+            "PointInTimeRecoveryEnabled": True,
+        },
+    )
 
 
 @task
 def set_up_table(table_name: str):
-    dynamo_resource = boto3.resource('dynamodb')
+    dynamo_resource = boto3.resource("dynamodb")
     table = dynamo_resource.create_table(
         AttributeDefinitions=TABLE_ATTRIBUTES,
         TableName=table_name,
         KeySchema=TABLE_KEY_SCHEMA,
         ProvisionedThroughput=TABLE_THROUGHPUT,
     )
-    boto3.client('dynamodb').get_waiter('table_exists').wait(
-        TableName=table_name, WaiterConfig={'Delay': 10, 'MaxAttempts': 10}
+    boto3.client("dynamodb").get_waiter("table_exists").wait(
+        TableName=table_name, WaiterConfig={"Delay": 10, "MaxAttempts": 10}
     )
-    table.put_item(Item={'ID': '123', 'Value': 'Testing'})
+    enable_point_in_time_recovery(table_name)
+    table.put_item(Item={"ID": "123", "Value": "Testing"})
+
+
+@task
+def get_export_time(table_name: str):
+    r = boto3.client("dynamodb").describe_continuous_backups(
+        TableName=table_name,
+    )
+
+    return r["ContinuousBackupsDescription"]["PointInTimeRecoveryDescription"]["EarliestRestorableDateTime"]
 
 
 @task
 def wait_for_bucket(s3_bucket_name):
-    waiter = boto3.client('s3').get_waiter('bucket_exists')
+    waiter = boto3.client("s3").get_waiter("bucket_exists")
     waiter.wait(Bucket=s3_bucket_name)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_dynamodb_table(table_name: str):
-    boto3.resource('dynamodb').Table(table_name).delete()
-    boto3.client('dynamodb').get_waiter('table_not_exists').wait(
-        TableName=table_name, WaiterConfig={'Delay': 10, 'MaxAttempts': 10}
+    boto3.resource("dynamodb").Table(table_name).delete()
+    boto3.client("dynamodb").get_waiter("table_not_exists").wait(
+        TableName=table_name, WaiterConfig={"Delay": 10, "MaxAttempts": 10}
     )
 
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     test_context = sys_test_context_task()
     env_id = test_context[ENV_ID_KEY]
-    table_name = f'{env_id}-dynamodb-table'
-    bucket_name = f'{env_id}-dynamodb-bucket'
+    table_name = f"{env_id}-dynamodb-table"
+    bucket_name = f"{env_id}-dynamodb-bucket"
 
     create_table = set_up_table(table_name=table_name)
 
-    create_bucket = S3CreateBucketOperator(task_id='create_bucket', bucket_name=bucket_name)
+    create_bucket = S3CreateBucketOperator(task_id="create_bucket", bucket_name=bucket_name)
 
     # [START howto_transfer_dynamodb_to_s3]
     backup_db = DynamoDBToS3Operator(
-        task_id='backup_db',
+        task_id="backup_db",
         dynamodb_table_name=table_name,
         s3_bucket_name=bucket_name,
         # Max output file size in bytes.  If the Table is too large, multiple files will be created.
@@ -102,12 +129,12 @@ with DAG(
     # [START howto_transfer_dynamodb_to_s3_segmented]
     # Segmenting allows the transfer to be parallelized into {segment} number of parallel tasks.
     backup_db_segment_1 = DynamoDBToS3Operator(
-        task_id='backup_db_segment_1',
+        task_id="backup_db_segment_1",
         dynamodb_table_name=table_name,
         s3_bucket_name=bucket_name,
         # Max output file size in bytes.  If the Table is too large, multiple files will be created.
         file_size=1000,
-        s3_key_prefix=f'{S3_KEY_PREFIX}-1-',
+        s3_key_prefix=f"{S3_KEY_PREFIX}-1-",
         dynamodb_scan_kwargs={
             "TotalSegments": 2,
             "Segment": 0,
@@ -120,17 +147,30 @@ with DAG(
         s3_bucket_name=bucket_name,
         # Max output file size in bytes.  If the Table is too large, multiple files will be created.
         file_size=1000,
-        s3_key_prefix=f'{S3_KEY_PREFIX}-2-',
+        s3_key_prefix=f"{S3_KEY_PREFIX}-2-",
         dynamodb_scan_kwargs={
             "TotalSegments": 2,
             "Segment": 1,
         },
     )
     # [END howto_transfer_dynamodb_to_s3_segmented]
+
+    export_time = get_export_time(table_name)
+    # [START howto_transfer_dynamodb_to_s3_in_some_point_in_time]
+    backup_db_to_point_in_time = DynamoDBToS3Operator(
+        task_id="backup_db_to_point_in_time",
+        dynamodb_table_name=table_name,
+        file_size=1000,
+        s3_bucket_name=bucket_name,
+        export_time=export_time,
+        s3_key_prefix=f"{S3_KEY_PREFIX}-3-",
+    )
+    # [END howto_transfer_dynamodb_to_s3_in_some_point_in_time]
+
     delete_table = delete_dynamodb_table(table_name=table_name)
 
     delete_bucket = S3DeleteBucketOperator(
-        task_id='delete_bucket',
+        task_id="delete_bucket",
         bucket_name=bucket_name,
         trigger_rule=TriggerRule.ALL_DONE,
         force_delete=True,
@@ -146,6 +186,8 @@ with DAG(
         backup_db,
         backup_db_segment_1,
         backup_db_segment_2,
+        export_time,
+        backup_db_to_point_in_time,
         # TEST TEARDOWN
         delete_table,
         delete_bucket,

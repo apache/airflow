@@ -31,19 +31,17 @@ Extra (required)
     Specify the extra parameters (as json dictionary) that can be used in InfluxDB
     connection.
 
-    The following extras are required:
+    ``token``: (required) `Create token <https://docs.influxdata.com/influxdb/cloud/security/tokens/create-token/>`_
+    using the influxdb cli or UI
 
-        - token - Create token - https://docs.influxdata.com/influxdb/cloud/security/tokens/create-token/
-        - org_name - Create organization - https://docs.influxdata.com/influxdb/cloud/reference/cli/influx/org/create/
+    ``org_name``: (required) `Create org <https://docs.influxdata.com/influxdb/cloud/reference/cli/influx/org/create/>`_
+    name using influxdb cli or UI
 
-      * ``token``: Create token using the influxdb cli or UI
-      * ``org_name``: Create org name using influxdb cli or UI
+    Example "extras" field:
 
-      Example "extras" field:
+    .. code-block:: JSON
 
-      .. code-block:: JSON
-
-         {
-            "token": "343434343423234234234343434",
-            "org_name": "Test"
-         }
+      {
+        "token": "343434343423234234234343434",
+        "org_name": "Test"
+      }

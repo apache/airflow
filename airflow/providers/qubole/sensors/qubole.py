@@ -33,15 +33,15 @@ if TYPE_CHECKING:
 class QuboleSensor(BaseSensorOperator):
     """Base class for all Qubole Sensors."""
 
-    template_fields: Sequence[str] = ('data', 'qubole_conn_id')
+    template_fields: Sequence[str] = ("data", "qubole_conn_id")
 
-    template_ext: Sequence[str] = ('.txt',)
+    template_ext: Sequence[str] = (".txt",)
 
     def __init__(self, *, data, qubole_conn_id: str = "qubole_default", **kwargs) -> None:
         self.data = data
         self.qubole_conn_id = qubole_conn_id
 
-        if 'poke_interval' in kwargs and kwargs['poke_interval'] < 5:
+        if "poke_interval" in kwargs and kwargs["poke_interval"] < 5:
             raise AirflowException(
                 f"Sorry, poke_interval can't be less than 5 sec for task '{kwargs['task_id']}' "
                 f"in dag '{kwargs['dag'].dag_id}'."
@@ -54,7 +54,7 @@ class QuboleSensor(BaseSensorOperator):
         conn = BaseHook.get_connection(self.qubole_conn_id)
         Qubole.configure(api_token=conn.password, api_url=conn.host)
 
-        self.log.info('Poking: %s', self.data)
+        self.log.info("Poking: %s", self.data)
 
         status = False
         try:
@@ -63,7 +63,7 @@ class QuboleSensor(BaseSensorOperator):
             self.log.exception(e)
             status = False
 
-        self.log.info('Status of this Poke: %s', status)
+        self.log.info("Status of this Poke: %s", status)
 
         return status
 

@@ -23,14 +23,15 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc, desc, event, text
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Query, Session, relationship
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
-    from airflow.models.baseoperator import BaseOperator
+    from airflow.models.operator import Operator
+    from airflow.models.taskinstance import TaskInstance
 
 
 class TaskReschedule(Base):
@@ -50,7 +51,7 @@ class TaskReschedule(Base):
     reschedule_date = Column(UtcDateTime, nullable=False)
 
     __table_args__ = (
-        Index('idx_task_reschedule_dag_task_run', dag_id, task_id, run_id, map_index, unique=False),
+        Index("idx_task_reschedule_dag_task_run", dag_id, task_id, run_id, map_index, unique=False),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [
@@ -62,12 +63,12 @@ class TaskReschedule(Base):
             name="task_reschedule_ti_fkey",
             ondelete="CASCADE",
         ),
-        Index('idx_task_reschedule_dag_run', dag_id, run_id),
+        Index("idx_task_reschedule_dag_run", dag_id, run_id),
         ForeignKeyConstraint(
             [dag_id, run_id],
-            ['dag_run.dag_id', 'dag_run.run_id'],
-            name='task_reschedule_dr_fkey',
-            ondelete='CASCADE',
+            ["dag_run.dag_id", "dag_run.run_id"],
+            name="task_reschedule_dr_fkey",
+            ondelete="CASCADE",
         ),
     )
     dag_run = relationship("DagRun")
@@ -75,14 +76,14 @@ class TaskReschedule(Base):
 
     def __init__(
         self,
-        task: BaseOperator,
+        task: Operator,
         run_id: str,
         try_number: int,
         start_date: datetime.datetime,
         end_date: datetime.datetime,
         reschedule_date: datetime.datetime,
         map_index: int = -1,
-    ):
+    ) -> None:
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.run_id = run_id
@@ -95,7 +96,12 @@ class TaskReschedule(Base):
 
     @staticmethod
     @provide_session
-    def query_for_task_instance(task_instance, descending=False, session=None, try_number=None):
+    def query_for_task_instance(
+        task_instance: TaskInstance,
+        descending: bool = False,
+        session: Session = NEW_SESSION,
+        try_number: int | None = None,
+    ) -> Query:
         """
         Returns query for task reschedules for a given the task instance.
 
@@ -123,7 +129,11 @@ class TaskReschedule(Base):
 
     @staticmethod
     @provide_session
-    def find_for_task_instance(task_instance, session=None, try_number=None):
+    def find_for_task_instance(
+        task_instance: TaskInstance,
+        session: Session = NEW_SESSION,
+        try_number: int | None = None,
+    ) -> list[TaskReschedule]:
         """
         Returns all task reschedules for the task instance and try number,
         in ascending order.
@@ -146,5 +156,5 @@ def add_ondelete_for_mssql(table, conn, **kw):
     for constraint in table.constraints:
         if constraint.name != "task_reschedule_dr_fkey":
             continue
-        constraint.ondelete = 'NO ACTION'
+        constraint.ondelete = "NO ACTION"
         return

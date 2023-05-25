@@ -29,3 +29,16 @@ Use the :class:`~airflow.operators.weekday.BranchDayOfWeekOperator` to branch yo
     :dedent: 4
     :start-after: [START howto_operator_day_of_week_branch]
     :end-before: [END howto_operator_day_of_week_branch]
+
+.. _howto/operator:DayOfWeekSensor:
+
+DayOfWeekSensor
+===============
+
+Use the :class:`~airflow.sensors.weekday.DayOfWeekSensor` to sense for day of week.
+
+.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
+    :language: python
+    :dedent: 4
+    :start-after: [START example_day_of_week_sensor]
+    :end-before: [END example_day_of_week_sensor]

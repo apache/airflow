@@ -16,8 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.operators.dataplex import DataplexHook
@@ -33,19 +34,21 @@ BODY = {"body": "test"}
 DATAPLEX_TASK_ID = "testTask001"
 
 GCP_CONN_ID = "google_cloud_default"
-DELEGATE_TO = "test-delegate-to"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestDataplexHook(TestCase):
-    def setUp(self):
+class TestDataplexHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            DataplexHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"),
             new=mock_base_gcp_hook_default_project_id,
         ):
             self.hook = DataplexHook(
                 gcp_conn_id=GCP_CONN_ID,
-                delegate_to=DELEGATE_TO,
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
 
@@ -60,7 +63,7 @@ class TestDataplexHook(TestCase):
             validate_only=None,
         )
 
-        parent = f'projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}'
+        parent = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}"
         mock_client.return_value.create_task.assert_called_once_with(
             request=dict(
                 parent=parent,
@@ -78,7 +81,7 @@ class TestDataplexHook(TestCase):
             project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, dataplex_task_id=DATAPLEX_TASK_ID
         )
 
-        name = f'projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/tasks/{DATAPLEX_TASK_ID}'
+        name = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/tasks/{DATAPLEX_TASK_ID}"
         mock_client.return_value.delete_task.assert_called_once_with(
             request=dict(
                 name=name,
@@ -92,7 +95,7 @@ class TestDataplexHook(TestCase):
     def test_list_tasks(self, mock_client):
         self.hook.list_tasks(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID)
 
-        parent = f'projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}'
+        parent = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}"
         mock_client.return_value.list_tasks.assert_called_once_with(
             request=dict(
                 parent=parent,
@@ -112,8 +115,58 @@ class TestDataplexHook(TestCase):
             project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID, dataplex_task_id=DATAPLEX_TASK_ID
         )
 
-        name = f'projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/tasks/{DATAPLEX_TASK_ID}'
+        name = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/tasks/{DATAPLEX_TASK_ID}"
         mock_client.return_value.get_task.assert_called_once_with(
+            request=dict(
+                name=name,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    def test_create_lake(self, mock_client):
+        self.hook.create_lake(
+            project_id=PROJECT_ID,
+            region=REGION,
+            lake_id=LAKE_ID,
+            body=BODY,
+            validate_only=None,
+        )
+
+        parent = f"projects/{PROJECT_ID}/locations/{REGION}"
+        mock_client.return_value.create_lake.assert_called_once_with(
+            request=dict(
+                parent=parent,
+                lake_id=LAKE_ID,
+                lake=BODY,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    def test_delete_lake(self, mock_client):
+        self.hook.delete_lake(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID)
+
+        name = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}"
+        mock_client.return_value.delete_lake.assert_called_once_with(
+            request=dict(
+                name=name,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @mock.patch(DATAPLEX_STRING.format("DataplexHook.get_dataplex_client"))
+    def test_get_lake(self, mock_client):
+        self.hook.get_lake(project_id=PROJECT_ID, region=REGION, lake_id=LAKE_ID)
+
+        name = f"projects/{PROJECT_ID}/locations/{REGION}/lakes/{LAKE_ID}/"
+        mock_client.return_value.get_lake.assert_called_once_with(
             request=dict(
                 name=name,
             ),

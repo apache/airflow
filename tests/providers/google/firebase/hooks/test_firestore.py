@@ -19,8 +19,6 @@ Tests for Google Cloud Firestore
 """
 from __future__ import annotations
 
-import unittest
-from typing import Optional
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -48,10 +46,10 @@ TEST_ERROR_OPERATION = {"done": True, "response": "response", "error": "error"}
 TEST_PROJECT_ID = "firestore--project-id"
 
 
-class TestCloudFirestoreHookWithPassedProjectId(unittest.TestCase):
-    hook = None  # type: Optional[CloudFirestoreHook]
+class TestCloudFirestoreHookWithPassedProjectId:
+    hook: CloudFirestoreHook | None = None
 
-    def setUp(self):
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -63,7 +61,7 @@ class TestCloudFirestoreHookWithPassedProjectId(unittest.TestCase):
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.build_from_document")
     def test_client_creation(self, mock_build_from_document, mock_build, mock_authorize):
         result = self.hook.get_conn()
-        mock_build.assert_called_once_with('firestore', 'v1', cache_discovery=False)
+        mock_build.assert_called_once_with("firestore", "v1", cache_discovery=False)
         mock_build_from_document.assert_called_once_with(
             mock_build.return_value._rootDesc, http=mock_authorize.return_value
         )
@@ -85,7 +83,7 @@ class TestCloudFirestoreHookWithPassedProjectId(unittest.TestCase):
         self.hook.export_documents(body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID)
 
         mock_export_documents.assert_called_once_with(
-            body=EXPORT_DOCUMENT_BODY, name='projects/firestore--project-id/databases/(default)'
+            body=EXPORT_DOCUMENT_BODY, name="projects/firestore--project-id/databases/(default)"
         )
 
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn")
@@ -107,7 +105,7 @@ class TestCloudFirestoreHookWithPassedProjectId(unittest.TestCase):
         self.hook.export_documents(body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID)
 
         mock_export_documents.assert_called_once_with(
-            body=EXPORT_DOCUMENT_BODY, name='projects/firestore--project-id/databases/(default)'
+            body=EXPORT_DOCUMENT_BODY, name="projects/firestore--project-id/databases/(default)"
         )
 
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.CloudFirestoreHook.get_conn")
@@ -127,10 +125,10 @@ class TestCloudFirestoreHookWithPassedProjectId(unittest.TestCase):
             self.hook.export_documents(body=EXPORT_DOCUMENT_BODY, project_id=TEST_PROJECT_ID)
 
 
-class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase):
-    hook = None  # type: Optional[CloudFirestoreHook]
+class TestCloudFirestoreHookWithDefaultProjectIdFromConnection:
+    hook: CloudFirestoreHook | None = None
 
-    def setUp(self):
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
@@ -142,7 +140,7 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase
     @mock.patch("airflow.providers.google.firebase.hooks.firestore.build_from_document")
     def test_client_creation(self, mock_build_from_document, mock_build, mock_authorize):
         result = self.hook.get_conn()
-        mock_build.assert_called_once_with('firestore', 'v1', cache_discovery=False)
+        mock_build.assert_called_once_with("firestore", "v1", cache_discovery=False)
         mock_build_from_document.assert_called_once_with(
             mock_build.return_value._rootDesc, http=mock_authorize.return_value
         )
@@ -150,7 +148,7 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase
         assert self.hook._conn == result
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
@@ -169,11 +167,11 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase
         self.hook.export_documents(body=EXPORT_DOCUMENT_BODY)
 
         mock_export_documents.assert_called_once_with(
-            body=EXPORT_DOCUMENT_BODY, name='projects/example-project/databases/(default)'
+            body=EXPORT_DOCUMENT_BODY, name="projects/example-project/databases/(default)"
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
@@ -196,11 +194,11 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase
         self.hook.export_documents(body=EXPORT_DOCUMENT_BODY)
 
         mock_export_documents.assert_called_once_with(
-            body=EXPORT_DOCUMENT_BODY, name='projects/example-project/databases/(default)'
+            body=EXPORT_DOCUMENT_BODY, name="projects/example-project/databases/(default)"
         )
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=GCP_PROJECT_ID_HOOK_UNIT_TEST,
     )
@@ -221,10 +219,10 @@ class TestCloudFirestoreHookWithDefaultProjectIdFromConnection(unittest.TestCase
             self.hook.export_documents(body=EXPORT_DOCUMENT_BODY)
 
 
-class TestCloudFirestoreHookWithoutProjectId(unittest.TestCase):
-    hook = None  # type: Optional[CloudFirestoreHook]
+class TestCloudFirestoreHookWithoutProjectId:
+    hook: CloudFirestoreHook | None = None
 
-    def setUp(self):
+    def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_no_default_project_id,
@@ -232,7 +230,7 @@ class TestCloudFirestoreHookWithoutProjectId(unittest.TestCase):
             self.hook = CloudFirestoreHook(gcp_conn_id="test")
 
     @mock.patch(
-        'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
+        "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",
         new_callable=PropertyMock,
         return_value=None,
     )

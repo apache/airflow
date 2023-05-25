@@ -29,7 +29,7 @@ pytestmark = pytest.mark.filterwarnings("ignore::DeprecationWarning")
 
 @pytest.fixture(scope="session")
 def experiemental_api_app():
-    @conf_vars({('api', 'enable_experimental_api'): 'true'})
+    @conf_vars({("api", "enable_experimental_api"): "true"})
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
             "init_api_experimental_auth",
@@ -40,10 +40,10 @@ def experiemental_api_app():
     )
     def factory():
         app = application.create_app(testing=True)
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'
-        app.config['SECRET_KEY'] = 'secret_key'
-        app.config['CSRF_ENABLED'] = False
-        app.config['WTF_CSRF_ENABLED'] = False
+        app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///"
+        app.config["SECRET_KEY"] = "secret_key"
+        app.config["CSRF_ENABLED"] = False
+        app.config["WTF_CSRF_ENABLED"] = False
         return app
 
     return factory()

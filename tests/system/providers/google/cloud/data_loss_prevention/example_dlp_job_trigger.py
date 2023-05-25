@@ -53,7 +53,7 @@ TRIGGER_ID = f"trigger_{ENV_ID}"
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["dlp", "example"],

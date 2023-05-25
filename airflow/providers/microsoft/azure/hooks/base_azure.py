@@ -35,10 +35,10 @@ class AzureBaseHook(BaseHook):
         which refers to the information to connect to the service.
     """
 
-    conn_name_attr = 'azure_conn_id'
-    default_conn_name = 'azure_default'
-    conn_type = 'azure'
-    hook_name = 'Azure'
+    conn_name_attr = "azure_conn_id"
+    default_conn_name = "azure_default"
+    conn_type = "azure"
+    hook_name = "Azure"
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
@@ -49,10 +49,10 @@ class AzureBaseHook(BaseHook):
 
         return {
             "extra__azure__tenantId": StringField(
-                lazy_gettext('Azure Tenant ID'), widget=BS3TextFieldWidget()
+                lazy_gettext("Azure Tenant ID"), widget=BS3TextFieldWidget()
             ),
             "extra__azure__subscriptionId": StringField(
-                lazy_gettext('Azure Subscription ID'), widget=BS3TextFieldWidget()
+                lazy_gettext("Azure Subscription ID"), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -62,27 +62,27 @@ class AzureBaseHook(BaseHook):
         import json
 
         return {
-            "hidden_fields": ['schema', 'port', 'host'],
+            "hidden_fields": ["schema", "port", "host"],
             "relabeling": {
-                'login': 'Azure Client ID',
-                'password': 'Azure Secret',
+                "login": "Azure Client ID",
+                "password": "Azure Secret",
             },
             "placeholders": {
-                'extra': json.dumps(
+                "extra": json.dumps(
                     {
                         "key_path": "path to json file for auth",
                         "key_json": "specifies json dict for auth",
                     },
                     indent=1,
                 ),
-                'login': 'client_id (token credentials auth)',
-                'password': 'secret (token credentials auth)',
-                'extra__azure__tenantId': 'tenantId (token credentials auth)',
-                'extra__azure__subscriptionId': 'subscriptionId (token credentials auth)',
+                "login": "client_id (token credentials auth)",
+                "password": "secret (token credentials auth)",
+                "extra__azure__tenantId": "tenantId (token credentials auth)",
+                "extra__azure__subscriptionId": "subscriptionId (token credentials auth)",
             },
         }
 
-    def __init__(self, sdk_client: Any, conn_id: str = 'azure_default'):
+    def __init__(self, sdk_client: Any, conn_id: str = "azure_default"):
         self.sdk_client = sdk_client
         self.conn_id = conn_id
         super().__init__()
@@ -94,24 +94,24 @@ class AzureBaseHook(BaseHook):
         :return: the authenticated client.
         """
         conn = self.get_connection(self.conn_id)
-        tenant = conn.extra_dejson.get('extra__azure__tenantId') or conn.extra_dejson.get('tenantId')
-        subscription_id = conn.extra_dejson.get('extra__azure__subscriptionId') or conn.extra_dejson.get(
-            'subscriptionId'
+        tenant = conn.extra_dejson.get("extra__azure__tenantId") or conn.extra_dejson.get("tenantId")
+        subscription_id = conn.extra_dejson.get("extra__azure__subscriptionId") or conn.extra_dejson.get(
+            "subscriptionId"
         )
 
-        key_path = conn.extra_dejson.get('key_path')
+        key_path = conn.extra_dejson.get("key_path")
         if key_path:
-            if not key_path.endswith('.json'):
-                raise AirflowException('Unrecognised extension for key file.')
-            self.log.info('Getting connection using a JSON key file.')
+            if not key_path.endswith(".json"):
+                raise AirflowException("Unrecognised extension for key file.")
+            self.log.info("Getting connection using a JSON key file.")
             return get_client_from_auth_file(client_class=self.sdk_client, auth_path=key_path)
 
-        key_json = conn.extra_dejson.get('key_json')
+        key_json = conn.extra_dejson.get("key_json")
         if key_json:
-            self.log.info('Getting connection using a JSON config.')
+            self.log.info("Getting connection using a JSON config.")
             return get_client_from_json_dict(client_class=self.sdk_client, config_dict=key_json)
 
-        self.log.info('Getting connection using specific credentials and subscription_id.')
+        self.log.info("Getting connection using specific credentials and subscription_id.")
         return self.sdk_client(
             credentials=ServicePrincipalCredentials(
                 client_id=conn.login, secret=conn.password, tenant=tenant

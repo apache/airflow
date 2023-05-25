@@ -26,6 +26,7 @@ import pytest
 
 from airflow.configuration import initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
+from airflow.utils.task_group import TaskGroup
 from airflow.www import views
 from airflow.www.views import (
     get_key_paths,
@@ -40,13 +41,13 @@ from tests.test_utils.www import check_content_in_response, check_content_not_in
 
 
 def test_configuration_do_not_expose_config(admin_client):
-    with conf_vars({('webserver', 'expose_config'): 'False'}):
-        resp = admin_client.get('configuration', follow_redirects=True)
+    with conf_vars({("webserver", "expose_config"): "False"}):
+        resp = admin_client.get("configuration", follow_redirects=True)
     check_content_in_response(
         [
-            'Airflow Configuration',
-            '# Your Airflow administrator chose not to expose the configuration, '
-            'most likely for security reasons.',
+            "Airflow Configuration",
+            "Your Airflow administrator chose not to expose the configuration, "
+            "most likely for security reasons.",
         ],
         resp,
     )
@@ -57,29 +58,41 @@ def test_configuration_expose_config(admin_client):
     # make sure config is initialized (without unit test mote)
     conf = initialize_config()
     conf.validate()
-    with conf_vars({('webserver', 'expose_config'): 'True'}):
-        resp = admin_client.get('configuration', follow_redirects=True)
-    check_content_in_response(['Airflow Configuration', 'Running Configuration'], resp)
+    with conf_vars({("webserver", "expose_config"): "True"}):
+        resp = admin_client.get("configuration", follow_redirects=True)
+    check_content_in_response(["Airflow Configuration"], resp)
+
+
+@mock.patch("airflow.configuration.WEBSERVER_CONFIG")
+def test_webserver_configuration_config_file(mock_webserver_config_global, admin_client, tmp_path):
+    import airflow.configuration
+
+    config_file = str(tmp_path / "my_custom_webserver_config.py")
+    with mock.patch.dict(os.environ, {"AIRFLOW__WEBSERVER__CONFIG_FILE": config_file}):
+        initialize_config()
+        assert airflow.configuration.WEBSERVER_CONFIG == config_file
+
+    assert os.path.isfile(config_file)
 
 
 def test_redoc_should_render_template(capture_templates, admin_client):
     from airflow.utils.docs import get_docs_url
 
     with capture_templates() as templates:
-        resp = admin_client.get('redoc')
-        check_content_in_response('Redoc', resp)
+        resp = admin_client.get("redoc")
+        check_content_in_response("Redoc", resp)
 
     assert len(templates) == 1
-    assert templates[0].name == 'airflow/redoc.html'
+    assert templates[0].name == "airflow/redoc.html"
     assert templates[0].local_context == {
-        'openapi_spec_url': '/api/v1/openapi.yaml',
-        'rest_api_enabled': True,
-        'get_docs_url': get_docs_url,
+        "openapi_spec_url": "/api/v1/openapi.yaml",
+        "rest_api_enabled": True,
+        "get_docs_url": get_docs_url,
     }
 
 
 def test_plugin_should_list_on_page_with_details(admin_client):
-    resp = admin_client.get('/plugin')
+    resp = admin_client.get("/plugin")
     check_content_in_response("test_plugin", resp)
     check_content_in_response("Airflow Plugins", resp)
     check_content_in_response("source", resp)
@@ -90,10 +103,10 @@ def test_plugin_should_list_entrypoint_on_page_with_details(admin_client):
     mock_plugin = AirflowPlugin()
     mock_plugin.name = "test_plugin"
     mock_plugin.source = EntryPointSource(
-        mock.Mock(), mock.Mock(version='1.0.0', metadata={'Name': 'test-entrypoint-testpluginview'})
+        mock.Mock(), mock.Mock(version="1.0.0", metadata={"Name": "test-entrypoint-testpluginview"})
     )
     with mock_plugin_manager(plugins=[mock_plugin]):
-        resp = admin_client.get('/plugin')
+        resp = admin_client.get("/plugin")
 
     check_content_in_response("test_plugin", resp)
     check_content_in_response("Airflow Plugins", resp)
@@ -102,16 +115,16 @@ def test_plugin_should_list_entrypoint_on_page_with_details(admin_client):
 
 
 def test_plugin_endpoint_should_not_be_unauthenticated(app):
-    resp = app.test_client().get('/plugin', follow_redirects=True)
+    resp = app.test_client().get("/plugin", follow_redirects=True)
     check_content_not_in_response("test_plugin", resp)
     check_content_in_response("Sign In - Airflow", resp)
 
 
 def test_should_list_providers_on_page_with_details(admin_client):
-    resp = admin_client.get('/provider')
-    beam_href = "<a href=\"https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/"
+    resp = admin_client.get("/provider")
+    beam_href = '<a href="https://airflow.apache.org/docs/apache-airflow-providers-apache-beam/'
     beam_text = "apache-airflow-providers-apache-beam</a>"
-    beam_description = "<a href=\"https://beam.apache.org/\">Apache Beam</a>"
+    beam_description = '<a href="https://beam.apache.org/">Apache Beam</a>'
     check_content_in_response(beam_href, resp)
     check_content_in_response(beam_text, resp)
     check_content_in_response(beam_description, resp)
@@ -119,7 +132,7 @@ def test_should_list_providers_on_page_with_details(admin_client):
 
 
 def test_endpoint_should_not_be_unauthenticated(app):
-    resp = app.test_client().get('/provider', follow_redirects=True)
+    resp = app.test_client().get("/provider", follow_redirects=True)
     check_content_not_in_response("Providers", resp)
     check_content_in_response("Sign In - Airflow", resp)
 
@@ -147,6 +160,19 @@ def test_task_start_date_filter(admin_client, url, content):
 
 
 @pytest.mark.parametrize(
+    "url",
+    [
+        "/taskinstance/list/?_flt_1_try_number=0",  # greater than
+        "/taskinstance/list/?_flt_2_try_number=5",  # less than
+    ],
+)
+def test_try_number_filter(admin_client, url):
+    resp = admin_client.get(url)
+    # Ensure that the taskInstance view can filter on gt / lt try_number
+    check_content_in_response("List Task Instance", resp)
+
+
+@pytest.mark.parametrize(
     "url, content",
     [
         (
@@ -167,7 +193,13 @@ def test_task_dag_id_equals_filter(admin_client, url, content):
     "test_url, expected_url",
     [
         ("", "/home"),
+        ("javascript:alert(1)", "/home"),
+        (" javascript:alert(1)", "http://localhost:8080/ javascript:alert(1)"),
         ("http://google.com", "/home"),
+        ("google.com", "http://localhost:8080/google.com"),
+        ("\\/google.com", "http://localhost:8080/\\/google.com"),
+        ("//google.com", "/home"),
+        ("\\/\\/google.com", "http://localhost:8080/\\/\\/google.com"),
         ("36539'%3balert(1)%2f%2f166", "/home"),
         (
             "http://localhost:8080/trigger?dag_id=test&origin=36539%27%3balert(1)%2f%2f166&abc=2",
@@ -266,7 +298,7 @@ def test_mark_task_instance_state(test_app):
 
         session.commit()
 
-    test_app.dag_bag = DagBag(dag_folder='/dev/null', include_examples=False)
+    test_app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
     test_app.dag_bag.bag_dag(dag=dag, root_dag=dag)
 
     with test_app.test_request_context():
@@ -295,6 +327,109 @@ def test_mark_task_instance_state(test_app):
         assert get_task_instance(session, task_4).state == State.NONE
         # task_5 remains as SKIPPED
         assert get_task_instance(session, task_5).state == State.SKIPPED
+        dagrun.refresh_from_db(session=session)
+        # dagrun should be set to QUEUED
+        assert dagrun.get_state() == State.QUEUED
+
+
+def test_mark_task_group_state(test_app):
+    """
+    Test that _mark_task_group_state() does all three things:
+    - Marks the given TaskGroup as SUCCESS;
+    - Clears downstream TaskInstances in FAILED/UPSTREAM_FAILED state;
+    - Set DagRun to QUEUED.
+    """
+    from airflow.models import DAG, DagBag, TaskInstance
+    from airflow.operators.empty import EmptyOperator
+    from airflow.utils.session import create_session
+    from airflow.utils.state import State
+    from airflow.utils.timezone import datetime
+    from airflow.utils.types import DagRunType
+    from airflow.www.views import Airflow
+    from tests.test_utils.db import clear_db_runs
+
+    clear_db_runs()
+    start_date = datetime(2020, 1, 1)
+    with DAG("test_mark_task_group_state", start_date=start_date) as dag:
+        start = EmptyOperator(task_id="start")
+
+        with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:
+            task_1 = EmptyOperator(task_id="task_1")
+            task_2 = EmptyOperator(task_id="task_2")
+            task_3 = EmptyOperator(task_id="task_3")
+
+            task_1 >> [task_2, task_3]
+
+        task_4 = EmptyOperator(task_id="task_4")
+        task_5 = EmptyOperator(task_id="task_5")
+        task_6 = EmptyOperator(task_id="task_6")
+        task_7 = EmptyOperator(task_id="task_7")
+        task_8 = EmptyOperator(task_id="task_8")
+
+        start >> section_1 >> [task_4, task_5, task_6, task_7, task_8]
+
+    dagrun = dag.create_dagrun(
+        start_date=start_date,
+        execution_date=start_date,
+        data_interval=(start_date, start_date),
+        state=State.FAILED,
+        run_type=DagRunType.SCHEDULED,
+    )
+
+    def get_task_instance(session, task):
+        return (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.task_id == task.task_id,
+                TaskInstance.execution_date == start_date,
+            )
+            .one()
+        )
+
+    with create_session() as session:
+        get_task_instance(session, task_1).state = State.FAILED
+        get_task_instance(session, task_2).state = State.SUCCESS
+        get_task_instance(session, task_3).state = State.UPSTREAM_FAILED
+        get_task_instance(session, task_4).state = State.SUCCESS
+        get_task_instance(session, task_5).state = State.UPSTREAM_FAILED
+        get_task_instance(session, task_6).state = State.FAILED
+        get_task_instance(session, task_7).state = State.SKIPPED
+
+        session.commit()
+
+    test_app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
+    test_app.dag_bag.bag_dag(dag=dag, root_dag=dag)
+
+    with test_app.test_request_context():
+        view = Airflow()
+
+        view._mark_task_group_state(
+            dag_id=dag.dag_id,
+            run_id=dagrun.run_id,
+            group_id=section_1.group_id,
+            origin="",
+            upstream=False,
+            downstream=False,
+            future=False,
+            past=False,
+            state=State.SUCCESS,
+        )
+
+    with create_session() as session:
+        # After _mark_task_group_state, task_1 is marked as SUCCESS
+        assert get_task_instance(session, task_1).state == State.SUCCESS
+        # task_2 should remain as SUCCESS
+        assert get_task_instance(session, task_2).state == State.SUCCESS
+        # task_3 should be marked as SUCCESS
+        assert get_task_instance(session, task_3).state == State.SUCCESS
+        # task_4 should remain as SUCCESS
+        assert get_task_instance(session, task_4).state == State.SUCCESS
+        # task_5 and task_6 are cleared because they were in FAILED/UPSTREAM_FAILED state
+        assert get_task_instance(session, task_5).state == State.NONE
+        assert get_task_instance(session, task_6).state == State.NONE
+        # task_7 remains as SKIPPED
+        assert get_task_instance(session, task_7).state == State.SKIPPED
         dagrun.refresh_from_db(session=session)
         # dagrun should be set to QUEUED
         assert dagrun.get_state() == State.QUEUED
@@ -329,10 +464,10 @@ def assert_decorator_used(cls: type, fn_name: str, decorator: Callable):
     while fn is not None:
         if fn.__code__ is code:
             return
-        if not hasattr(fn, '__wrapped__'):
+        if not hasattr(fn, "__wrapped__"):
             break
-        fn = getattr(fn, '__wrapped__')
-    assert False, f'{cls.__name__}.{fn_name} was not decorated with @{decorator.__name__}'
+        fn = getattr(fn, "__wrapped__")
+    assert False, f"{cls.__name__}.{fn_name} was not decorated with @{decorator.__name__}"
 
 
 @pytest.mark.parametrize(
@@ -353,24 +488,24 @@ def test_dag_edit_privileged_requires_view_has_action_decorators(cls: type):
 
 def test_get_task_stats_from_query():
     query_data = [
-        ['dag1', 'queued', True, 1],
-        ['dag1', 'running', True, 2],
-        ['dag1', 'success', False, 3],
-        ['dag2', 'running', True, 4],
-        ['dag2', 'success', True, 5],
-        ['dag3', 'success', False, 6],
+        ["dag1", "queued", True, 1],
+        ["dag1", "running", True, 2],
+        ["dag1", "success", False, 3],
+        ["dag2", "running", True, 4],
+        ["dag2", "success", True, 5],
+        ["dag3", "success", False, 6],
     ]
     expected_data = {
-        'dag1': {
-            'queued': 1,
-            'running': 2,
+        "dag1": {
+            "queued": 1,
+            "running": 2,
         },
-        'dag2': {
-            'running': 4,
-            'success': 5,
+        "dag2": {
+            "running": 4,
+            "success": 5,
         },
-        'dag3': {
-            'success': 6,
+        "dag3": {
+            "success": 6,
         },
     }
 
@@ -385,47 +520,47 @@ INVALID_DATETIME_RESPONSE = re.compile(r"Invalid datetime: &#x?\d+;invalid&#x?\d
     "url, content",
     [
         (
-            '/rendered-templates?execution_date=invalid',
+            "/rendered-templates?execution_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            '/log?execution_date=invalid',
+            "/log?dag_id=tutorial&execution_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            '/redirect_to_external_log?execution_date=invalid',
+            "/redirect_to_external_log?execution_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            '/task?execution_date=invalid',
+            "/task?execution_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            'dags/example_bash_operator/graph?execution_date=invalid',
+            "dags/example_bash_operator/graph?execution_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            'dags/example_bash_operator/graph?execution_date=invalid',
+            "dags/example_bash_operator/graph?execution_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            'dags/example_bash_operator/duration?base_date=invalid',
+            "dags/example_bash_operator/duration?base_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            'dags/example_bash_operator/tries?base_date=invalid',
+            "dags/example_bash_operator/tries?base_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            'dags/example_bash_operator/landing-times?base_date=invalid',
+            "dags/example_bash_operator/landing-times?base_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            'dags/example_bash_operator/gantt?execution_date=invalid',
+            "dags/example_bash_operator/gantt?execution_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
         (
-            'extra_links?execution_date=invalid',
+            "extra_links?execution_date=invalid",
             INVALID_DATETIME_RESPONSE,
         ),
     ],

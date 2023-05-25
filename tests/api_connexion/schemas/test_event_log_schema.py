@@ -41,7 +41,7 @@ class TestEventLogSchemaBase:
     @pytest.fixture(autouse=True)
     def set_attrs(self):
         self.default_time = timezone.parse("2020-06-09T13:00:00+00:00")
-        self.default_time2 = timezone.parse('2020-06-11T07:00:00+00:00')
+        self.default_time2 = timezone.parse("2020-06-11T07:00:00+00:00")
 
 
 class TestEventLogSchema(TestEventLogSchemaBase):
@@ -55,7 +55,7 @@ class TestEventLogSchema(TestEventLogSchemaBase):
             "dag_id": "TEST_DAG_ID",
             "task_id": "TEST_TASK_ID",
             "execution_date": self.default_time.isoformat(),
-            "owner": 'airflow',
+            "owner": "airflow",
             "when": self.default_time.isoformat(),
             "extra": None,
         }
@@ -78,7 +78,7 @@ class TestEventLogCollection(TestEventLogSchemaBase):
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
                     "execution_date": self.default_time.isoformat(),
-                    "owner": 'airflow',
+                    "owner": "airflow",
                     "when": self.default_time.isoformat(),
                     "extra": None,
                 },
@@ -88,7 +88,7 @@ class TestEventLogCollection(TestEventLogSchemaBase):
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
                     "execution_date": self.default_time.isoformat(),
-                    "owner": 'airflow',
+                    "owner": "airflow",
                     "when": self.default_time2.isoformat(),
                     "extra": None,
                 },

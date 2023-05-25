@@ -17,25 +17,18 @@
  * under the License.
  */
 
-import React from 'react';
-import {
-  Text,
-  Flex,
-  Table,
-  Tbody,
-  Tr,
-  Td,
-  Divider,
-} from '@chakra-ui/react';
+import React from "react";
+import { Text, Flex, Table, Tbody, Tr, Td, Divider } from "@chakra-ui/react";
+import { snakeCase } from "lodash";
 
-import { finalStatesMap } from 'src/utils';
-import { getDuration, formatDuration } from 'src/datetime_utils';
-import { SimpleStatus } from 'src/dag/StatusBox';
-import Time from 'src/components/Time';
-import { ClipboardText } from 'src/components/Clipboard';
-import type { Task, TaskInstance, TaskState } from 'src/types';
-import useTaskInstance from 'src/api/useTaskInstance';
-import DatasetUpdateEvents from './DatasetUpdateEvents';
+import { getGroupAndMapSummary } from "src/utils";
+import { getDuration, formatDuration } from "src/datetime_utils";
+import { SimpleStatus } from "src/dag/StatusBox";
+import Time from "src/components/Time";
+import { ClipboardText } from "src/components/Clipboard";
+import type { Task, TaskInstance, TaskState } from "src/types";
+import useTaskInstance from "src/api/useTaskInstance";
+import DatasetUpdateEvents from "./DatasetUpdateEvents";
 
 interface Props {
   instance: TaskInstance;
@@ -47,22 +40,10 @@ const Details = ({ instance, group, dagId }: Props) => {
   const isGroup = !!group.children;
   const summary: React.ReactNode[] = [];
 
-  const {
-    taskId,
-    runId,
-    startDate,
-    endDate,
-    state,
-    mappedStates,
-    mapIndex,
-  } = instance;
+  const { taskId, runId, startDate, endDate, state, mappedStates, mapIndex } =
+    instance;
 
-  const {
-    isMapped,
-    tooltip,
-    operator,
-    hasOutletDatasets,
-  } = group;
+  const { isMapped, tooltip, operator, hasOutletDatasets, triggerRule } = group;
 
   const { data: apiTI } = useTaskInstance({
     dagId,
@@ -72,49 +53,39 @@ const Details = ({ instance, group, dagId }: Props) => {
     enabled: !isGroup && !isMapped,
   });
 
-  const numMap = finalStatesMap();
-  let numMapped = 0;
-  if (isGroup) {
-    group.children?.forEach((child) => {
-      const taskInstance = child.instances.find((ti) => ti.runId === runId);
-      if (taskInstance) {
-        const stateKey = taskInstance.state == null ? 'no_status' : taskInstance.state;
-        if (numMap.has(stateKey)) numMap.set(stateKey, (numMap.get(stateKey) || 0) + 1);
-      }
-    });
-  } else if (isMapped && mappedStates) {
-    Object.keys(mappedStates).forEach((stateKey) => {
-      const num = mappedStates[stateKey];
-      numMapped += num;
-      numMap.set(stateKey || 'no_status', num);
-    });
-  }
+  const { totalTasks, childTaskMap } = getGroupAndMapSummary({
+    group,
+    runId,
+    mappedStates,
+  });
 
-  numMap.forEach((key, val) => {
+  childTaskMap.forEach((key, val) => {
+    const childState = snakeCase(val);
     if (key > 0) {
       summary.push(
-        // eslint-disable-next-line react/no-array-index-key
-        <Tr key={val}>
+        <Tr key={childState}>
           <Td />
           <Td>
             <Flex alignItems="center">
-              <SimpleStatus state={val as TaskState} mx={2} />
-              {val}
-              {': '}
+              <SimpleStatus state={childState as TaskState} mx={2} />
+              {childState}
+              {": "}
               {key}
             </Flex>
           </Td>
-        </Tr>,
+        </Tr>
       );
     }
   });
 
-  const taskIdTitle = isGroup ? 'Task Group ID' : 'Task ID';
-  const isStateFinal = state && ['success', 'failed', 'upstream_failed', 'skipped'].includes(state);
-  const isOverall = (isMapped || isGroup) && 'Overall ';
+  const taskIdTitle = isGroup ? "Task Group ID" : "Task ID";
+  const isStateFinal =
+    state &&
+    ["success", "failed", "upstream_failed", "skipped"].includes(state);
+  const isOverall = (isMapped || isGroup) && "Overall ";
   return (
     <Flex flexWrap="wrap" justifyContent="space-between">
-      {state === 'deferred' && (
+      {state === "deferred" && (
         <>
           <Text as="strong">Triggerer info</Text>
           <Divider my={2} />
@@ -158,16 +129,15 @@ const Details = ({ instance, group, dagId }: Props) => {
             <Td>
               <Flex>
                 <SimpleStatus state={state} mx={2} />
-                {state || 'no status'}
+                {state || "no status"}
               </Flex>
             </Td>
           </Tr>
-          {mappedStates && numMapped > 0 && (
+          {mappedStates && totalTasks > 0 && (
             <Tr>
               <Td colSpan={2}>
-                {numMapped}
-                {' '}
-                {numMapped === 1 ? 'Task ' : 'Tasks '}
+                {totalTasks} {isGroup ? "Task Group" : "Task"}
+                {totalTasks === 1 ? " " : "s "}
                 Mapped
               </Td>
             </Tr>
@@ -199,13 +169,21 @@ const Details = ({ instance, group, dagId }: Props) => {
               <Td>{operator}</Td>
             </Tr>
           )}
-          <Tr>
-            <Td>
-              {isOverall}
-              Duration
-            </Td>
-            <Td>{formatDuration(getDuration(startDate, endDate))}</Td>
-          </Tr>
+          {triggerRule && (
+            <Tr>
+              <Td>Trigger Rule</Td>
+              <Td>{triggerRule}</Td>
+            </Tr>
+          )}
+          {startDate && (
+            <Tr>
+              <Td>
+                {isOverall}
+                Duration
+              </Td>
+              <Td>{formatDuration(getDuration(startDate, endDate))}</Td>
+            </Tr>
+          )}
           {startDate && (
             <Tr>
               <Td>Started</Td>

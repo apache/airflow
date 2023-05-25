@@ -23,7 +23,7 @@ from airflow.decorators import task
 from airflow.models import DAG
 from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
 
-NAME = 'myfileshare'
+NAME = "myfileshare"
 DIRECTORY = "mydirectory"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_fileshare"

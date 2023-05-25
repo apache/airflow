@@ -64,7 +64,7 @@ from google.cloud.aiplatform_v1 import JobServiceClient, PipelineServiceClient
 from google.cloud.aiplatform_v1.services.pipeline_service.pagers import ListTrainingPipelinesPager
 from google.cloud.aiplatform_v1.types import TrainingPipeline
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -74,12 +74,16 @@ class AutoMLHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._job: None | (
@@ -95,8 +99,8 @@ class AutoMLHook(GoogleBaseHook):
         region: str | None = None,
     ) -> PipelineServiceClient:
         """Returns PipelineServiceClient."""
-        if region and region != 'global':
-            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        if region and region != "global":
+            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
             client_options = ClientOptions()
 
@@ -109,8 +113,8 @@ class AutoMLHook(GoogleBaseHook):
         region: str | None = None,
     ) -> JobServiceClient:
         """Returns JobServiceClient"""
-        if region and region != 'global':
-            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        if region and region != "global":
+            client_options = ClientOptions(api_endpoint=f"{region}-aiplatform.googleapis.com:443")
         else:
             client_options = ClientOptions()
 
@@ -259,6 +263,11 @@ class AutoMLHook(GoogleBaseHook):
         """Returns unique id of the Model."""
         return obj["name"].rpartition("/")[-1]
 
+    @staticmethod
+    def extract_training_id(resource_name: str) -> str:
+        """Returns unique id of the Training pipeline."""
+        return resource_name.rpartition("/")[-1]
+
     def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Waits for long-lasting operation to complete."""
         try:
@@ -303,7 +312,7 @@ class AutoMLHook(GoogleBaseHook):
         export_evaluated_data_items_bigquery_destination_uri: str | None = None,
         export_evaluated_data_items_override_destination: bool = False,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Tabular Training Job.
 
@@ -446,7 +455,7 @@ class AutoMLHook(GoogleBaseHook):
         if column_transformations:
             warnings.warn(
                 "Consider using column_specs as column_transformations will be deprecated eventually.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -488,9 +497,15 @@ class AutoMLHook(GoogleBaseHook):
             export_evaluated_data_items_override_destination=export_evaluated_data_items_override_destination,
             sync=sync,
         )
-        model.wait()
-
-        return model
+        training_id = self.extract_training_id(self._job.resource_name)
+        if model:
+            model.wait()
+        else:
+            self.log.warning(
+                "Training did not produce a Managed Model returning None. Training Pipeline is not "
+                "configured to upload a Model."
+            )
+        return model, training_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_auto_ml_forecasting_training_job(
@@ -529,7 +544,7 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: str | None = None,
         model_labels: dict[str, str] | None = None,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Forecasting Training Job.
 
@@ -667,7 +682,7 @@ class AutoMLHook(GoogleBaseHook):
         if column_transformations:
             warnings.warn(
                 "Consider using column_specs as column_transformations will be deprecated eventually.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -715,9 +730,15 @@ class AutoMLHook(GoogleBaseHook):
             model_labels=model_labels,
             sync=sync,
         )
-        model.wait()
-
-        return model
+        training_id = self.extract_training_id(self._job.resource_name)
+        if model:
+            model.wait()
+        else:
+            self.log.warning(
+                "Training did not produce a Managed Model returning None. Training Pipeline is not "
+                "configured to upload a Model."
+            )
+        return model, training_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_auto_ml_image_training_job(
@@ -744,7 +765,7 @@ class AutoMLHook(GoogleBaseHook):
         model_labels: dict[str, str] | None = None,
         disable_early_stopping: bool = False,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Image Training Job.
 
@@ -885,9 +906,15 @@ class AutoMLHook(GoogleBaseHook):
             disable_early_stopping=disable_early_stopping,
             sync=sync,
         )
-        model.wait()
-
-        return model
+        training_id = self.extract_training_id(self._job.resource_name)
+        if model:
+            model.wait()
+        else:
+            self.log.warning(
+                "Training did not produce a Managed Model returning None. AutoML Image Training "
+                "Pipeline is not configured to upload a Model."
+            )
+        return model, training_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_auto_ml_text_training_job(
@@ -911,7 +938,7 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: str | None = None,
         model_labels: dict[str, str] | None = None,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Text Training Job.
 
@@ -1016,9 +1043,15 @@ class AutoMLHook(GoogleBaseHook):
             model_labels=model_labels,
             sync=sync,
         )
-        model.wait()
-
-        return model
+        training_id = self.extract_training_id(self._job.resource_name)
+        if model:
+            model.wait()
+        else:
+            self.log.warning(
+                "Training did not produce a Managed Model returning None. AutoML Text Training "
+                "Pipeline is not configured to upload a Model."
+            )
+        return model, training_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_auto_ml_video_training_job(
@@ -1039,7 +1072,7 @@ class AutoMLHook(GoogleBaseHook):
         model_display_name: str | None = None,
         model_labels: dict[str, str] | None = None,
         sync: bool = True,
-    ) -> models.Model:
+    ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Video Training Job.
 
@@ -1141,9 +1174,15 @@ class AutoMLHook(GoogleBaseHook):
             model_labels=model_labels,
             sync=sync,
         )
-        model.wait()
-
-        return model
+        training_id = self.extract_training_id(self._job.resource_name)
+        if model:
+            model.wait()
+        else:
+            self.log.warning(
+                "Training did not produce a Managed Model returning None. AutoML Video Training "
+                "Pipeline is not configured to upload a Model."
+            )
+        return model, training_id
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_training_pipeline(
@@ -1170,7 +1209,7 @@ class AutoMLHook(GoogleBaseHook):
 
         result = client.delete_training_pipeline(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1203,7 +1242,7 @@ class AutoMLHook(GoogleBaseHook):
 
         result = client.get_training_pipeline(
             request={
-                'name': name,
+                "name": name,
             },
             retry=retry,
             timeout=timeout,
@@ -1260,11 +1299,11 @@ class AutoMLHook(GoogleBaseHook):
 
         result = client.list_training_pipelines(
             request={
-                'parent': parent,
-                'page_size': page_size,
-                'page_token': page_token,
-                'filter': filter,
-                'read_mask': read_mask,
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter,
+                "read_mask": read_mask,
             },
             retry=retry,
             timeout=timeout,

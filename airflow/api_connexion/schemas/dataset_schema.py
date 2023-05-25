@@ -32,10 +32,10 @@ from airflow.models.dataset import (
 
 
 class TaskOutletDatasetReferenceSchema(SQLAlchemySchema):
-    """TaskOutletDatasetReference DB schema"""
+    """TaskOutletDatasetReference DB schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = TaskOutletDatasetReference
 
@@ -46,10 +46,10 @@ class TaskOutletDatasetReferenceSchema(SQLAlchemySchema):
 
 
 class DagScheduleDatasetReferenceSchema(SQLAlchemySchema):
-    """DagScheduleDatasetReference DB schema"""
+    """DagScheduleDatasetReference DB schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = DagScheduleDatasetReference
 
@@ -59,10 +59,10 @@ class DagScheduleDatasetReferenceSchema(SQLAlchemySchema):
 
 
 class DatasetSchema(SQLAlchemySchema):
-    """Dataset DB schema"""
+    """Dataset DB schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = DatasetModel
 
@@ -76,14 +76,14 @@ class DatasetSchema(SQLAlchemySchema):
 
 
 class DatasetCollection(NamedTuple):
-    """List of Datasets with meta"""
+    """List of Datasets with meta."""
 
     datasets: list[DatasetModel]
     total_entries: int
 
 
 class DatasetCollectionSchema(Schema):
-    """Dataset Collection Schema"""
+    """Dataset Collection Schema."""
 
     datasets = fields.List(fields.Nested(DatasetSchema))
     total_entries = fields.Int()
@@ -94,15 +94,15 @@ dataset_collection_schema = DatasetCollectionSchema()
 
 
 class BasicDAGRunSchema(SQLAlchemySchema):
-    """Basic Schema for DAGRun"""
+    """Basic Schema for DAGRun."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = DagRun
         dateformat = "iso"
 
-    run_id = auto_field(data_key='dag_run_id')
+    run_id = auto_field(data_key="dag_run_id")
     dag_id = auto_field(dump_only=True)
     execution_date = auto_field(data_key="logical_date", dump_only=True)
     start_date = auto_field(dump_only=True)
@@ -113,16 +113,16 @@ class BasicDAGRunSchema(SQLAlchemySchema):
 
 
 class DatasetEventSchema(SQLAlchemySchema):
-    """Dataset Event DB schema"""
+    """Dataset Event DB schema."""
 
     class Meta:
-        """Meta"""
+        """Meta."""
 
         model = DatasetEvent
 
     id = auto_field()
     dataset_id = auto_field()
-    dataset_uri = fields.String(attribute='dataset.uri', dump_only=True)
+    dataset_uri = fields.String(attribute="dataset.uri", dump_only=True)
     extra = JsonObjectField()
     source_task_id = auto_field()
     source_dag_id = auto_field()
@@ -133,14 +133,14 @@ class DatasetEventSchema(SQLAlchemySchema):
 
 
 class DatasetEventCollection(NamedTuple):
-    """List of Dataset events with meta"""
+    """List of Dataset events with meta."""
 
     dataset_events: list[DatasetEvent]
     total_entries: int
 
 
 class DatasetEventCollectionSchema(Schema):
-    """Dataset Event Collection Schema"""
+    """Dataset Event Collection Schema."""
 
     dataset_events = fields.List(fields.Nested(DatasetEventSchema))
     total_entries = fields.Int()

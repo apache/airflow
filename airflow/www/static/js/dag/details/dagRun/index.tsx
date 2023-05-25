@@ -16,52 +16,58 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import React from 'react';
+import React, { useRef } from "react";
 import {
   Flex,
-  Text,
   Box,
   Button,
-  Link,
   Divider,
+  Spacer,
   Table,
   Tbody,
   Tr,
   Td,
-} from '@chakra-ui/react';
+  useClipboard,
+} from "@chakra-ui/react";
 
-import { MdOutlineAccountTree } from 'react-icons/md';
-import ReactJson from 'react-json-view';
+import ReactJson from "react-json-view";
 
-import { useGridData } from 'src/api';
-import { appendSearchParams, getMetaValue } from 'src/utils';
-import type { DagRun as DagRunType } from 'src/types';
-import { SimpleStatus } from 'src/dag/StatusBox';
-import { ClipboardText } from 'src/components/Clipboard';
-import { formatDuration, getDuration } from 'src/datetime_utils';
-import Time from 'src/components/Time';
-import RunTypeIcon from 'src/components/RunTypeIcon';
+import { useGridData } from "src/api";
+import { getMetaValue, useOffsetTop } from "src/utils";
+import type { DagRun as DagRunType } from "src/types";
+import { SimpleStatus } from "src/dag/StatusBox";
+import { ClipboardText } from "src/components/Clipboard";
+import { formatDuration, getDuration } from "src/datetime_utils";
+import Time from "src/components/Time";
+import RunTypeIcon from "src/components/RunTypeIcon";
+import NotesAccordion from "src/dag/details/NotesAccordion";
 
-import URLSearchParamsWrapper from 'src/utils/URLSearchParamWrapper';
-import MarkFailedRun from './MarkFailedRun';
-import MarkSuccessRun from './MarkSuccessRun';
-import QueueRun from './QueueRun';
-import ClearRun from './ClearRun';
-import DatasetTriggerEvents from './DatasetTriggerEvents';
+import DatasetTriggerEvents from "./DatasetTriggerEvents";
 
-const dagId = getMetaValue('dag_id');
-const graphUrl = getMetaValue('graph_url');
+const dagId = getMetaValue("dag_id");
 
 interface Props {
-  runId: DagRunType['runId'];
+  runId: DagRunType["runId"];
 }
 
+const formatConf = (conf: string | null | undefined): string => {
+  if (!conf) {
+    return "";
+  }
+  return JSON.stringify(JSON.parse(conf), null, 4);
+};
+
 const DagRun = ({ runId }: Props) => {
-  const { data: { dagRuns } } = useGridData();
+  const {
+    data: { dagRuns },
+  } = useGridData();
+  const detailsRef = useRef<HTMLDivElement>(null);
+  const offsetTop = useOffsetTop(detailsRef);
+
   const run = dagRuns.find((dr) => dr.runId === runId);
+  const { onCopy, hasCopied } = useClipboard(formatConf(run?.conf));
   if (!run) return null;
   const {
-    executionDate,
     state,
     runType,
     lastSchedulingDecision,
@@ -73,30 +79,25 @@ const DagRun = ({ runId }: Props) => {
     externalTrigger,
     conf,
     confIsJson,
+    note,
   } = run;
-  const graphParams = new URLSearchParamsWrapper({
-    execution_date: executionDate,
-  }).toString();
-  const graphLink = appendSearchParams(graphUrl, graphParams);
 
   return (
-    <>
-      <Flex justifyContent="space-between" alignItems="center">
-        <Button as={Link} variant="ghost" colorScheme="blue" href={graphLink} leftIcon={<MdOutlineAccountTree />}>
-          Graph
-        </Button>
-        <MarkFailedRun dagId={dagId} runId={runId} />
-        <MarkSuccessRun dagId={dagId} runId={runId} />
-      </Flex>
-      <Box py="4px">
-        <Divider my={3} />
-        <Flex justifyContent="flex-end" alignItems="center">
-          <Text fontWeight="bold" mr={2}>Re-run:</Text>
-          <ClearRun dagId={dagId} runId={runId} />
-          <QueueRun dagId={dagId} runId={runId} />
-        </Flex>
-        <Divider my={3} />
+    <Box
+      maxHeight={`calc(100% - ${offsetTop}px)`}
+      ref={detailsRef}
+      overflowY="auto"
+      pb={4}
+    >
+      <Box px={4}>
+        <NotesAccordion
+          dagId={dagId}
+          runId={runId}
+          initialValue={note}
+          key={dagId + runId}
+        />
       </Box>
+      <Divider my={0} />
       <Table variant="striped">
         <Tbody>
           <Tr>
@@ -104,13 +105,15 @@ const DagRun = ({ runId }: Props) => {
             <Td>
               <Flex>
                 <SimpleStatus state={state} mx={2} />
-                {state || 'no status'}
+                {state || "no status"}
               </Flex>
             </Td>
           </Tr>
           <Tr>
             <Td>Run ID</Td>
-            <Td><ClipboardText value={runId} /></Td>
+            <Td>
+              <ClipboardText value={runId} />
+            </Td>
           </Tr>
           <Tr>
             <Td>Run type</Td>
@@ -119,12 +122,12 @@ const DagRun = ({ runId }: Props) => {
               {runType}
             </Td>
           </Tr>
-          <Tr>
-            <Td>Run duration</Td>
-            <Td>
-              {formatDuration(getDuration(startDate, endDate))}
-            </Td>
-          </Tr>
+          {startDate && (
+            <Tr>
+              <Td>Run duration</Td>
+              <Td>{formatDuration(getDuration(startDate, endDate))}</Td>
+            </Tr>
+          )}
           {lastSchedulingDecision && (
             <Tr>
               <Td>Last scheduling decision</Td>
@@ -175,36 +178,39 @@ const DagRun = ({ runId }: Props) => {
           )}
           <Tr>
             <Td>Externally triggered</Td>
-            <Td>
-              {externalTrigger ? 'True' : 'False'}
-            </Td>
+            <Td>{externalTrigger ? "True" : "False"}</Td>
           </Tr>
           <Tr>
             <Td>Run config</Td>
-            {
-                confIsJson
-                  ? (
-                    <Td>
-                      <ReactJson
-                        src={JSON.parse(conf ?? '')}
-                        theme="tomorrow"
-                        iconStyle="triangle"
-                        indentWidth={2}
-                        displayDataTypes={false}
-                        enableClipboard={false}
-                        style={{ backgroundColor: 'inherit' }}
-                      />
-                    </Td>
-                  )
-                  : <Td>{conf ?? 'None'}</Td>
-              }
+            {confIsJson ? (
+              <Td>
+                <Flex>
+                  <ReactJson
+                    src={JSON.parse(conf ?? "")}
+                    name={false}
+                    theme="rjv-default"
+                    iconStyle="triangle"
+                    indentWidth={2}
+                    displayDataTypes={false}
+                    enableClipboard={false}
+                    style={{ backgroundColor: "inherit" }}
+                  />
+                  <Spacer />
+                  <Button aria-label="Copy" onClick={onCopy}>
+                    {hasCopied ? "Copied!" : "Copy"}
+                  </Button>
+                </Flex>
+              </Td>
+            ) : (
+              <Td>{conf ?? "None"}</Td>
+            )}
           </Tr>
         </Tbody>
       </Table>
-      {runType === 'dataset_triggered' && (
+      {runType === "dataset_triggered" && (
         <DatasetTriggerEvents runId={runId} />
       )}
-    </>
+    </Box>
   );
 };
 

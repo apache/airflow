@@ -18,9 +18,11 @@
 """Transfers data from AWS Redshift into a S3 Bucket."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, List, Mapping, Sequence
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
@@ -67,20 +69,23 @@ class RedshiftToS3Operator(BaseOperator):
     :param parameters: (optional) the parameters to render the SQL query with.
     :param table_as_file_name: If set to True, the s3 file will be named as the table.
         Applicable when ``table`` param provided.
+    :param redshift_data_api_kwargs: If using the Redshift Data API instead of the SQL-based connection,
+        dict of arguments for the hook's ``execute_query`` method.
+        Cannot include any of these kwargs: ``{'sql', 'parameters'}``
     """
 
     template_fields: Sequence[str] = (
-        's3_bucket',
-        's3_key',
-        'schema',
-        'table',
-        'unload_options',
-        'select_query',
-        'redshift_conn_id',
+        "s3_bucket",
+        "s3_key",
+        "schema",
+        "table",
+        "unload_options",
+        "select_query",
+        "redshift_conn_id",
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'select_query': 'sql'}
-    ui_color = '#ededed'
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"select_query": "sql"}
+    ui_color = "#ededed"
 
     def __init__(
         self,
@@ -90,29 +95,31 @@ class RedshiftToS3Operator(BaseOperator):
         schema: str | None = None,
         table: str | None = None,
         select_query: str | None = None,
-        redshift_conn_id: str = 'redshift_default',
-        aws_conn_id: str = 'aws_default',
+        redshift_conn_id: str = "redshift_default",
+        aws_conn_id: str = "aws_default",
         verify: bool | str | None = None,
         unload_options: list | None = None,
         autocommit: bool = False,
         include_header: bool = False,
         parameters: Iterable | Mapping | None = None,
         table_as_file_name: bool = True,  # Set to True by default for not breaking current workflows
+        redshift_data_api_kwargs: dict = {},
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.s3_bucket = s3_bucket
-        self.s3_key = f'{s3_key}/{table}_' if (table and table_as_file_name) else s3_key
+        self.s3_key = f"{s3_key}/{table}_" if (table and table_as_file_name) else s3_key
         self.schema = schema
         self.table = table
         self.redshift_conn_id = redshift_conn_id
         self.aws_conn_id = aws_conn_id
         self.verify = verify
-        self.unload_options = unload_options or []  # type: List
+        self.unload_options: list = unload_options or []
         self.autocommit = autocommit
         self.include_header = include_header
         self.parameters = parameters
         self.table_as_file_name = table_as_file_name
+        self.redshift_data_api_kwargs = redshift_data_api_kwargs
 
         if select_query:
             self.select_query = select_query
@@ -120,13 +127,18 @@ class RedshiftToS3Operator(BaseOperator):
             self.select_query = f"SELECT * FROM {self.schema}.{self.table}"
         else:
             raise ValueError(
-                'Please provide both `schema` and `table` params or `select_query` to fetch the data.'
+                "Please provide both `schema` and `table` params or `select_query` to fetch the data."
             )
 
-        if self.include_header and 'HEADER' not in [uo.upper().strip() for uo in self.unload_options]:
+        if self.include_header and "HEADER" not in [uo.upper().strip() for uo in self.unload_options]:
             self.unload_options = list(self.unload_options) + [
-                'HEADER',
+                "HEADER",
             ]
+
+        if self.redshift_data_api_kwargs:
+            for arg in ["sql", "parameters"]:
+                if arg in self.redshift_data_api_kwargs.keys():
+                    raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
 
     def _build_unload_query(
         self, credentials_block: str, select_query: str, s3_key: str, unload_options: str
@@ -140,21 +152,30 @@ class RedshiftToS3Operator(BaseOperator):
         """
 
     def execute(self, context: Context) -> None:
-        redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
+        redshift_hook: RedshiftDataHook | RedshiftSQLHook
+        if self.redshift_data_api_kwargs:
+            redshift_hook = RedshiftDataHook(aws_conn_id=self.redshift_conn_id)
+        else:
+            redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
         conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
-        if conn.extra_dejson.get('role_arn', False):
+        if conn.extra_dejson.get("role_arn", False):
             credentials_block = f"aws_iam_role={conn.extra_dejson['role_arn']}"
         else:
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
             credentials = s3_hook.get_credentials()
             credentials_block = build_credentials_block(credentials)
 
-        unload_options = '\n\t\t\t'.join(self.unload_options)
+        unload_options = "\n\t\t\t".join(self.unload_options)
 
         unload_query = self._build_unload_query(
             credentials_block, self.select_query, self.s3_key, unload_options
         )
 
-        self.log.info('Executing UNLOAD command...')
-        redshift_hook.run(unload_query, self.autocommit, parameters=self.parameters)
+        self.log.info("Executing UNLOAD command...")
+        if isinstance(redshift_hook, RedshiftDataHook):
+            redshift_hook.execute_query(
+                sql=unload_query, parameters=self.parameters, **self.redshift_data_api_kwargs
+            )
+        else:
+            redshift_hook.run(unload_query, self.autocommit, parameters=self.parameters)
         self.log.info("UNLOAD command complete...")

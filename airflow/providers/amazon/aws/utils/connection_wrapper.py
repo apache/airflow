@@ -25,19 +25,11 @@ from typing import TYPE_CHECKING, Any
 from botocore.config import Config
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
-
-try:
-    from airflow.utils.types import NOTSET, ArgNotSet
-except ImportError:  # TODO: Remove when the provider has an Airflow 2.3+ requirement.
-
-    class ArgNotSet:  # type: ignore[no-redef]
-        """Sentinel type for annotations, useful when None is not viable."""
-
-    NOTSET = ArgNotSet()
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection  # Avoid circular imports.
@@ -111,6 +103,7 @@ class AwsConnectionWrapper(LoggingMixin):
     conn_type: str | None = field(init=False, default=None)
     login: str | None = field(init=False, repr=False, default=None)
     password: str | None = field(init=False, repr=False, default=None)
+    schema: str | None = field(init=False, repr=False, default=None)
     extra_config: dict[str, Any] = field(init=False, repr=False, default_factory=dict)
 
     # AWS Credentials from connection.
@@ -131,6 +124,9 @@ class AwsConnectionWrapper(LoggingMixin):
     @cached_property
     def conn_repr(self):
         return f"AWS Connection (conn_id={self.conn_id!r}, conn_type={self.conn_type!r})"
+
+    def get_service_config(self, service_name):
+        return self.extra_dejson.get("service_config", {}).get(service_name, {})
 
     def __post_init__(self, conn: Connection):
         if isinstance(conn, type(self)):
@@ -164,6 +160,7 @@ class AwsConnectionWrapper(LoggingMixin):
         self.conn_type = conn.conn_type or "aws"
         self.login = conn.login
         self.password = conn.password
+        self.schema = conn.schema or None
         self.extra_config = deepcopy(conn.extra_dejson)
 
         if self.conn_type.lower() == "s3":
@@ -171,7 +168,7 @@ class AwsConnectionWrapper(LoggingMixin):
                 f"{self.conn_repr} has connection type 's3', "
                 "which has been replaced by connection type 'aws'. "
                 "Please update your connection to have `conn_type='aws'`.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         elif self.conn_type != "aws":
@@ -189,7 +186,7 @@ class AwsConnectionWrapper(LoggingMixin):
             warnings.warn(
                 "'session_kwargs' in extra config is deprecated and will be removed in a future releases. "
                 f"Please specify arguments passed to boto3 Session directly in {self.conn_repr} extra.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -245,7 +242,7 @@ class AwsConnectionWrapper(LoggingMixin):
             warnings.warn(
                 f"Host {conn.host} specified in the connection is not used."
                 " Please, set it on extra['endpoint_url'] instead",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -254,7 +251,7 @@ class AwsConnectionWrapper(LoggingMixin):
             warnings.warn(
                 "extra['host'] is deprecated and will be removed in a future release."
                 " Please set extra['endpoint_url'] instead",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         else:
@@ -388,7 +385,7 @@ class AwsConnectionWrapper(LoggingMixin):
                 "Constructing 'role_arn' from extra['aws_account_id'] and extra['aws_iam_role'] is deprecated"
                 f" and will be removed in a future releases."
                 f" Please set 'role_arn' in {self.conn_repr} extra.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
             role_arn = f"arn:aws:iam::{aws_account_id}:role/{aws_iam_role}"
@@ -402,11 +399,11 @@ class AwsConnectionWrapper(LoggingMixin):
             # There is no reason obtain `assume_role_method` and `assume_role_kwargs` if `role_arn` not set.
             return None, None, {}
 
-        supported_methods = ['assume_role', 'assume_role_with_saml', 'assume_role_with_web_identity']
+        supported_methods = ["assume_role", "assume_role_with_saml", "assume_role_with_web_identity"]
         if assume_role_method not in supported_methods:
             raise NotImplementedError(
-                f'Found assume_role_method={assume_role_method!r} in {self.conn_repr} extra.'
-                f' Currently {supported_methods} are supported.'
+                f"Found assume_role_method={assume_role_method!r} in {self.conn_repr} extra."
+                f" Currently {supported_methods} are supported."
                 ' (Exclude this setting will default to "assume_role").'
             )
         self.log.debug("Retrieve assume_role_method=%r from %s.", assume_role_method, self.conn_repr)
@@ -416,7 +413,7 @@ class AwsConnectionWrapper(LoggingMixin):
             warnings.warn(
                 "'external_id' in extra config is deprecated and will be removed in a future releases. "
                 f"Please set 'ExternalId' in 'assume_role_kwargs' in {self.conn_repr} extra.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
             assume_role_kwargs["ExternalId"] = external_id
@@ -439,17 +436,20 @@ def _parse_s3_config(
     warnings.warn(
         "Use local credentials file is never documented and well tested. "
         "Obtain credentials by this way deprecated and will be removed in a future releases.",
-        DeprecationWarning,
+        AirflowProviderDeprecationWarning,
         stacklevel=4,
     )
 
     import configparser
 
     config = configparser.ConfigParser()
-    if config.read(config_file_name):  # pragma: no cover
-        sections = config.sections()
-    else:
-        raise AirflowException(f"Couldn't read {config_file_name}")
+    try:
+        if config.read(config_file_name):  # pragma: no cover
+            sections = config.sections()
+        else:
+            raise AirflowException(f"Couldn't read {config_file_name}")
+    except Exception as e:
+        raise AirflowException("Exception when parsing %s: %s", config_file_name, e.__class__.__name__)
     # Setting option names depending on file format
     if config_format is None:
         config_format = "boto"

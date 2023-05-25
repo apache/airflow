@@ -18,10 +18,9 @@
 """Unit tests for SerializedDagModel."""
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
-from parameterized import parameterized, parameterized_class
+import pytest
 
 from airflow import DAG, example_dags as example_dags_module
 from airflow.models import DagBag
@@ -29,6 +28,7 @@ from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel as SDM
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.session import create_session
+from tests.test_utils import db
 from tests.test_utils.asserts import assert_queries_count
 
 
@@ -39,37 +39,25 @@ def make_example_dags(module):
     return dagbag.dags
 
 
-def clear_db_serialized_dags():
-    with create_session() as session:
-        session.query(SDM).delete()
-
-
-@parameterized_class(
-    [
-        {"compress_serialized_dags": "False"},
-        {"compress_serialized_dags": "True"},
-    ]
-)
-class SerializedDagModelTest(unittest.TestCase):
+class TestSerializedDagModel:
     """Unit tests for SerializedDagModel."""
 
-    compress_serialized_dags = "False"
-
-    def setUp(self):
-        self.patcher = mock.patch(
-            'airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS', self.compress_serialized_dags
-        )
-        self.patcher.start()
-
-        clear_db_serialized_dags()
-
-    def tearDown(self):
-        self.patcher.stop()
-        clear_db_serialized_dags()
+    @pytest.fixture(
+        autouse=True,
+        params=[
+            pytest.param(False, id="raw-serialized_dags"),
+            pytest.param(True, id="compress-serialized_dags"),
+        ],
+    )
+    def setup_test_cases(self, request, monkeypatch):
+        db.clear_db_serialized_dags()
+        with mock.patch("airflow.models.serialized_dag.COMPRESS_SERIALIZED_DAGS", request.param):
+            yield
+        db.clear_db_serialized_dags()
 
     def test_dag_fileloc_hash(self):
         """Verifies the correctness of hashing file path."""
-        assert DagCode.dag_fileloc_hash('/airflow/dags/test_dag.py') == 33826252060516589
+        assert DagCode.dag_fileloc_hash("/airflow/dags/test_dag.py") == 33826252060516589
 
     def _write_example_dags(self):
         example_dags = make_example_dags(example_dags_module)
@@ -98,12 +86,12 @@ class SerializedDagModelTest(unittest.TestCase):
         assert dag_updated is True
 
         with create_session() as session:
-            s_dag = session.query(SDM).get(example_bash_op_dag.dag_id)
+            s_dag = session.get(SDM, example_bash_op_dag.dag_id)
 
             # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
             # column is not updated
             dag_updated = SDM.write_dag(dag=example_bash_op_dag)
-            s_dag_1 = session.query(SDM).get(example_bash_op_dag.dag_id)
+            s_dag_1 = session.get(SDM, example_bash_op_dag.dag_id)
 
             assert s_dag_1.dag_hash == s_dag.dag_hash
             assert s_dag.last_updated == s_dag_1.last_updated
@@ -114,7 +102,7 @@ class SerializedDagModelTest(unittest.TestCase):
             assert set(example_bash_op_dag.tags) == {"example", "example2", "new_tag"}
 
             dag_updated = SDM.write_dag(dag=example_bash_op_dag)
-            s_dag_2 = session.query(SDM).get(example_bash_op_dag.dag_id)
+            s_dag_2 = session.get(SDM, example_bash_op_dag.dag_id)
 
             assert s_dag.last_updated != s_dag_2.last_updated
             assert s_dag.dag_hash != s_dag_2.dag_hash
@@ -125,16 +113,16 @@ class SerializedDagModelTest(unittest.TestCase):
         """Test Serialized DAG is updated if processor_subdir is changed"""
         example_dags = make_example_dags(example_dags_module)
         example_bash_op_dag = example_dags.get("example_bash_operator")
-        dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir='/tmp/test')
+        dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/test")
         assert dag_updated is True
 
         with create_session() as session:
-            s_dag = session.query(SDM).get(example_bash_op_dag.dag_id)
+            s_dag = session.get(SDM, example_bash_op_dag.dag_id)
 
             # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
             # column is not updated
-            dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir='/tmp/test')
-            s_dag_1 = session.query(SDM).get(example_bash_op_dag.dag_id)
+            dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/test")
+            s_dag_1 = session.get(SDM, example_bash_op_dag.dag_id)
 
             assert s_dag_1.dag_hash == s_dag.dag_hash
             assert s_dag.last_updated == s_dag_1.last_updated
@@ -142,8 +130,8 @@ class SerializedDagModelTest(unittest.TestCase):
             session.flush()
 
             # Update DAG
-            dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir='/tmp/other')
-            s_dag_2 = session.query(SDM).get(example_bash_op_dag.dag_id)
+            dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/other")
+            s_dag_2 = session.get(SDM, example_bash_op_dag.dag_id)
 
             assert s_dag.processor_subdir != s_dag_2.processor_subdir
             assert dag_updated is True
@@ -181,7 +169,7 @@ class SerializedDagModelTest(unittest.TestCase):
         # remove repeated files for those DAGs that define multiple dags in the same file (set comprehension)
         example_dag_files = list({dag.fileloc for dag in filtered_example_dags_list})
         example_dag_files.remove(dag_removed_by_file.fileloc)
-        SDM.remove_deleted_dags(example_dag_files)
+        SDM.remove_deleted_dags(example_dag_files, processor_subdir="/tmp/test")
         assert not SDM.has_dag(dag_removed_by_file.dag_id)
 
     def test_bulk_sync_to_db(self):
@@ -193,7 +181,7 @@ class SerializedDagModelTest(unittest.TestCase):
         with assert_queries_count(10):
             SDM.bulk_sync_to_db(dags)
 
-    @parameterized.expand([({"dag_dependencies": None},), ({},)])
+    @pytest.mark.parametrize("dag_dependencies_fields", [{"dag_dependencies": None}, {}])
     def test_get_dag_dependencies_default_to_empty(self, dag_dependencies_fields):
         """Test a pre-2.1.0 serialized DAG can deserialize DAG dependencies."""
         example_dags = make_example_dags(example_dags_module)

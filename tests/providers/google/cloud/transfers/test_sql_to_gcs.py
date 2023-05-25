@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 import json
-import unittest
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
 import pandas as pd
+import pytest
 import unicodecsv as csv
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -44,6 +44,7 @@ CURSOR_DESCRIPTION = [
     ("column_c", "10", 0, 0, 0, 0, False),
 ]
 TMP_FILE_NAME = "temp-file"
+EMPTY_INPUT_DATA = []
 INPUT_DATA = [
     ["101", "school", "2015-01-01"],
     ["102", "business", "2017-05-24"],
@@ -59,31 +60,32 @@ OUTPUT_DATA = json.dumps(
 SCHEMA_FILE = "schema_file.json"
 APP_JSON = "application/json"
 
-OUTPUT_DF = pd.DataFrame([['convert_type_return_value'] * 3] * 3, columns=COLUMNS)
+OUTPUT_DF = pd.DataFrame([["convert_type_return_value"] * 3] * 3, columns=COLUMNS)
 
-EXCLUDE_COLUMNS = set('column_c')
+EXCLUDE_COLUMNS = set("column_c")
+PARTITION_COLUMNS = ["column_b", "column_c"]
 NEW_COLUMNS = [c for c in COLUMNS if c not in EXCLUDE_COLUMNS]
 OUTPUT_DF_WITH_EXCLUDE_COLUMNS = pd.DataFrame(
-    [['convert_type_return_value'] * len(NEW_COLUMNS)] * 3, columns=NEW_COLUMNS
+    [["convert_type_return_value"] * len(NEW_COLUMNS)] * 3, columns=NEW_COLUMNS
 )
 
 
 class DummySQLToGCSOperator(BaseSQLToGCSOperator):
     def field_to_bigquery(self, field) -> dict[str, str]:
         return {
-            'name': field[0],
-            'type': 'STRING',
-            'mode': 'NULLABLE',
+            "name": field[0],
+            "type": "STRING",
+            "mode": "NULLABLE",
         }
 
     def convert_type(self, value, schema_type, stringify_dict):
-        return 'convert_type_return_value'
+        return "convert_type_return_value"
 
     def query(self):
         pass
 
 
-class TestBaseSQLToGCSOperator(unittest.TestCase):
+class TestBaseSQLToGCSOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.NamedTemporaryFile")
     @mock.patch.object(csv.writer, "writerow")
     @mock.patch.object(GCSHook, "upload")
@@ -126,19 +128,19 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             export_format="csv",
             gzip=True,
             schema=SCHEMA,
-            gcp_conn_id='google_cloud_default',
+            gcp_conn_id="google_cloud_default",
             upload_metadata=True,
         )
         result = operator.execute(context=dict())
 
         assert result == {
-            'bucket': 'TEST-BUCKET-1',
-            'total_row_count': 3,
-            'total_files': 3,
-            'files': [
-                {'file_name': 'test_results_0.csv', 'file_mime_type': 'text/csv', 'file_row_count': 1},
-                {'file_name': 'test_results_1.csv', 'file_mime_type': 'text/csv', 'file_row_count': 1},
-                {'file_name': 'test_results_2.csv', 'file_mime_type': 'text/csv', 'file_row_count': 1},
+            "bucket": "TEST-BUCKET-1",
+            "total_row_count": 3,
+            "total_files": 3,
+            "files": [
+                {"file_name": "test_results_0.csv", "file_mime_type": "text/csv", "file_row_count": 1},
+                {"file_name": "test_results_1.csv", "file_mime_type": "text/csv", "file_row_count": 1},
+                {"file_name": "test_results_2.csv", "file_mime_type": "text/csv", "file_row_count": 1},
             ],
         }
 
@@ -162,9 +164,9 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
                     BUCKET,
                     FILENAME.format(i),
                     TMP_FILE_NAME,
-                    mime_type='text/csv',
+                    mime_type="text/csv",
                     gzip=True,
-                    metadata={'row_count': 1},
+                    metadata={"row_count": 1},
                 )
             )
         json_call = mock.call(
@@ -189,11 +191,11 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         result = operator.execute(context=dict())
 
         assert result == {
-            'bucket': 'TEST-BUCKET-1',
-            'total_row_count': 3,
-            'total_files': 1,
-            'files': [
-                {'file_name': 'test_results_0.csv', 'file_mime_type': 'application/json', 'file_row_count': 3}
+            "bucket": "TEST-BUCKET-1",
+            "total_row_count": 3,
+            "total_files": 1,
+            "files": [
+                {"file_name": "test_results_0.csv", "file_mime_type": "application/json", "file_row_count": 3}
             ],
         }
 
@@ -235,11 +237,11 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         result = operator.execute(context=dict())
 
         assert result == {
-            'bucket': 'TEST-BUCKET-1',
-            'total_row_count': 3,
-            'total_files': 1,
-            'files': [
-                {'file_name': 'test_results_0.csv', 'file_mime_type': 'application/json', 'file_row_count': 3}
+            "bucket": "TEST-BUCKET-1",
+            "total_row_count": 3,
+            "total_files": 1,
+            "files": [
+                {"file_name": "test_results_0.csv", "file_mime_type": "application/json", "file_row_count": 3}
             ],
         }
 
@@ -262,7 +264,7 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             TMP_FILE_NAME,
             mime_type=APP_JSON,
             gzip=False,
-            metadata={'row_count': 3},
+            metadata={"row_count": 3},
         )
         mock_close.assert_called_once()
 
@@ -281,14 +283,14 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         result = operator.execute(context=dict())
 
         assert result == {
-            'bucket': 'TEST-BUCKET-1',
-            'total_row_count': 3,
-            'total_files': 1,
-            'files': [
+            "bucket": "TEST-BUCKET-1",
+            "total_row_count": 3,
+            "total_files": 1,
+            "files": [
                 {
-                    'file_name': 'test_results_0.csv',
-                    'file_mime_type': 'application/octet-stream',
-                    'file_row_count': 3,
+                    "file_name": "test_results_0.csv",
+                    "file_mime_type": "application/octet-stream",
+                    "file_row_count": 3,
                 }
             ],
         }
@@ -299,11 +301,79 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             BUCKET,
             FILENAME.format(0),
             TMP_FILE_NAME,
-            mime_type='application/octet-stream',
+            mime_type="application/octet-stream",
             gzip=False,
             metadata=None,
         )
         mock_close.assert_called_once()
+
+        mock_query.reset_mock()
+        mock_flush.reset_mock()
+        mock_upload.reset_mock()
+        mock_close.reset_mock()
+        cursor_mock.reset_mock()
+
+        cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
+
+        # Test partition columns
+        operator = DummySQLToGCSOperator(
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            export_format="parquet",
+            schema=SCHEMA,
+            partition_columns=PARTITION_COLUMNS,
+        )
+        result = operator.execute(context=dict())
+
+        assert result == {
+            "bucket": "TEST-BUCKET-1",
+            "total_row_count": 3,
+            "total_files": 3,
+            "files": [
+                {
+                    "file_name": "test_results_0.csv",
+                    "file_mime_type": "application/octet-stream",
+                    "file_row_count": 1,
+                },
+                {
+                    "file_name": "test_results_1.csv",
+                    "file_mime_type": "application/octet-stream",
+                    "file_row_count": 1,
+                },
+                {
+                    "file_name": "test_results_2.csv",
+                    "file_mime_type": "application/octet-stream",
+                    "file_row_count": 1,
+                },
+            ],
+        }
+
+        mock_query.assert_called_once()
+        assert mock_flush.call_count == 3
+        assert mock_close.call_count == 3
+        mock_upload.assert_has_calls(
+            [
+                mock.call(
+                    BUCKET,
+                    f"column_b={row[1]}/column_c={row[2]}/test_results_{i}.csv",
+                    TMP_FILE_NAME,
+                    mime_type="application/octet-stream",
+                    gzip=False,
+                    metadata=None,
+                )
+                for i, row in enumerate(INPUT_DATA)
+            ]
+        )
+
+        mock_query.reset_mock()
+        mock_flush.reset_mock()
+        mock_upload.reset_mock()
+        mock_close.reset_mock()
+        cursor_mock.reset_mock()
+
+        cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
 
         # Test null marker
         cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
@@ -320,10 +390,10 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         result = operator.execute(context=dict())
 
         assert result == {
-            'bucket': 'TEST-BUCKET-1',
-            'total_row_count': 3,
-            'total_files': 1,
-            'files': [{'file_name': 'test_results_0.csv', 'file_mime_type': 'text/csv', 'file_row_count': 3}],
+            "bucket": "TEST-BUCKET-1",
+            "total_row_count": 3,
+            "total_files": 1,
+            "files": [{"file_name": "test_results_0.csv", "file_mime_type": "text/csv", "file_row_count": 3}],
         }
 
         mock_writerow.assert_has_calls(
@@ -345,14 +415,14 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             export_format="csv",
             gzip=False,
             schema=SCHEMA,
-            gcp_conn_id='google_cloud_default',
+            gcp_conn_id="google_cloud_default",
         )
         cursor = MagicMock()
         cursor.__iter__.return_value = INPUT_DATA
         cursor.description = CURSOR_DESCRIPTION
 
         files = op._write_local_data_files(cursor)
-        file = next(files)['file_handle']
+        file = next(files)["file_handle"]
         file.flush()
         df = pd.read_csv(file.name)
         assert df.equals(OUTPUT_DF)
@@ -367,16 +437,16 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             export_format="json",
             gzip=False,
             schema=SCHEMA,
-            gcp_conn_id='google_cloud_default',
+            gcp_conn_id="google_cloud_default",
         )
         cursor = MagicMock()
         cursor.__iter__.return_value = INPUT_DATA
         cursor.description = CURSOR_DESCRIPTION
 
         files = op._write_local_data_files(cursor)
-        file = next(files)['file_handle']
+        file = next(files)["file_handle"]
         file.flush()
-        df = pd.read_json(file.name, orient='records', lines=True)
+        df = pd.read_json(file.name, orient="records", lines=True)
         assert df.equals(OUTPUT_DF)
 
     def test__write_local_data_files_parquet(self):
@@ -389,14 +459,14 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             export_format="parquet",
             gzip=False,
             schema=SCHEMA,
-            gcp_conn_id='google_cloud_default',
+            gcp_conn_id="google_cloud_default",
         )
         cursor = MagicMock()
         cursor.__iter__.return_value = INPUT_DATA
         cursor.description = CURSOR_DESCRIPTION
 
         files = op._write_local_data_files(cursor)
-        file = next(files)['file_handle']
+        file = next(files)["file_handle"]
         file.flush()
         df = pd.read_parquet(file.name)
         assert df.equals(OUTPUT_DF)
@@ -411,7 +481,7 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             export_format="json",
             gzip=False,
             schema=SCHEMA,
-            gcp_conn_id='google_cloud_default',
+            gcp_conn_id="google_cloud_default",
             exclude_columns=EXCLUDE_COLUMNS,
         )
         cursor = MagicMock()
@@ -419,7 +489,82 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         cursor.description = CURSOR_DESCRIPTION
 
         files = op._write_local_data_files(cursor)
-        file = next(files)['file_handle']
+        file = next(files)["file_handle"]
         file.flush()
-        df = pd.read_json(file.name, orient='records', lines=True)
+        df = pd.read_json(file.name, orient="records", lines=True)
         assert df.equals(OUTPUT_DF_WITH_EXCLUDE_COLUMNS)
+
+    def test__write_local_data_files_parquet_with_partition_columns(self):
+        op = DummySQLToGCSOperator(
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            schema_filename=SCHEMA_FILE,
+            export_format="parquet",
+            gzip=False,
+            schema=SCHEMA,
+            gcp_conn_id="google_cloud_default",
+            partition_columns=PARTITION_COLUMNS,
+        )
+        cursor = MagicMock()
+        cursor.__iter__.return_value = INPUT_DATA
+        cursor.description = CURSOR_DESCRIPTION
+
+        local_data_files = op._write_local_data_files(cursor)
+        concat_dfs = []
+        for local_data_file in local_data_files:
+            file = local_data_file["file_handle"]
+            file.flush()
+            df = pd.read_parquet(file.name)
+            concat_dfs.append(df)
+
+        concat_df = pd.concat(concat_dfs, ignore_index=True)
+        assert concat_df.equals(OUTPUT_DF)
+
+    def test__write_local_data_files_csv_does_not_write_on_empty_rows(self):
+        op = DummySQLToGCSOperator(
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            schema_filename=SCHEMA_FILE,
+            export_format="csv",
+            gzip=False,
+            schema=SCHEMA,
+            gcp_conn_id="google_cloud_default",
+        )
+        cursor = MagicMock()
+        cursor.__iter__.return_value = EMPTY_INPUT_DATA
+        cursor.description = CURSOR_DESCRIPTION
+
+        files = op._write_local_data_files(cursor)
+        # Raises StopIteration when next is called because generator returns no files
+        with pytest.raises(StopIteration):
+            next(files)["file_handle"]
+
+        assert len([f for f in files]) == 0
+
+    def test__write_local_data_files_csv_writes_empty_file_with_write_on_empty(self):
+        op = DummySQLToGCSOperator(
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            schema_filename=SCHEMA_FILE,
+            export_format="csv",
+            gzip=False,
+            schema=SCHEMA,
+            gcp_conn_id="google_cloud_default",
+            write_on_empty=True,
+        )
+        cursor = MagicMock()
+        cursor.__iter__.return_value = EMPTY_INPUT_DATA
+        cursor.description = CURSOR_DESCRIPTION
+
+        files = op._write_local_data_files(cursor)
+        file = next(files)["file_handle"]
+        file.flush()
+
+        df = pd.read_csv(file.name)
+        assert len(df.index) == 0

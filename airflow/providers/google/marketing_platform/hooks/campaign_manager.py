@@ -18,7 +18,7 @@
 """This module contains Google Campaign Manager hook."""
 from __future__ import annotations
 
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 from googleapiclient import http
 from googleapiclient.discovery import Resource, build
@@ -30,11 +30,11 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class GoogleCampaignManagerHook(GoogleBaseHook):
     """Hook for Google Campaign Manager."""
 
-    _conn = None  # type: Optional[Resource]
+    _conn: Resource | None = None
 
     def __init__(
         self,
-        api_version: str = "v3.3",
+        api_version: str = "v4",
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -236,7 +236,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
         :param profile_id: User profile ID associated with this request.
         :param conversions: Conversations to insert, should by type of Conversation:
-            https://developers.google.com/doubleclick-advertisers/v3.3/conversions#resource
+            https://developers.google.com/doubleclick-advertisers/rest/v4/conversions/batchinsert
         :param encryption_entity_type: The encryption entity type. This should match the encryption
             configuration for ad serving or Data Transfer.
         :param encryption_entity_id: The encryption entity ID. This should match the encryption
@@ -260,8 +260,8 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
             )
             .execute(num_retries=self.num_retries)
         )
-        if response.get('hasFailures', False):
-            errored_conversions = [stat['errors'] for stat in response['status'] if 'errors' in stat]
+        if response.get("hasFailures", False):
+            errored_conversions = [stat["errors"] for stat in response["status"] if "errors" in stat]
             if len(errored_conversions) > max_failed_inserts:
                 raise AirflowException(errored_conversions)
         return response
@@ -280,7 +280,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
 
         :param profile_id: User profile ID associated with this request.
         :param conversions: Conversations to update, should by type of Conversation:
-            https://developers.google.com/doubleclick-advertisers/v3.3/conversions#resource
+            https://developers.google.com/doubleclick-advertisers/rest/v4/conversions/batchupdate
         :param encryption_entity_type: The encryption entity type. This should match the encryption
             configuration for ad serving or Data Transfer.
         :param encryption_entity_id: The encryption entity ID. This should match the encryption
@@ -304,8 +304,8 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
             )
             .execute(num_retries=self.num_retries)
         )
-        if response.get('hasFailures', False):
-            errored_conversions = [stat['errors'] for stat in response['status'] if 'errors' in stat]
+        if response.get("hasFailures", False):
+            errored_conversions = [stat["errors"] for stat in response["status"] if "errors" in stat]
             if len(errored_conversions) > max_failed_updates:
                 raise AirflowException(errored_conversions)
         return response

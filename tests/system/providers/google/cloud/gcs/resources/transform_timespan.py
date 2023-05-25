@@ -25,8 +25,8 @@ timespan_start = sys.argv[3]
 timespan_end = sys.argv[4]
 
 print(sys.argv)
-print(f'Running script, called with source: {source}, destination: {destination}')
-print(f'timespan_start: {timespan_start}, timespan_end: {timespan_end}')
+print(f"Running script, called with source: {source}, destination: {destination}")
+print(f"timespan_start: {timespan_start}, timespan_end: {timespan_end}")
 
 with open(Path(destination) / "output.txt", "w+") as dest:
     for f in Path(source).glob("**/*"):

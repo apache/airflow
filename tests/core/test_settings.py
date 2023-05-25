@@ -69,7 +69,7 @@ class SettingsContext:
         self.settings_file = os.path.join(self.settings_root, filename)
 
     def __enter__(self):
-        with open(self.settings_file, 'w') as handle:
+        with open(self.settings_file, "w") as handle:
             handle.writelines(self.content)
         sys.path.append(self.settings_root)
         return self.settings_file
@@ -172,7 +172,7 @@ class TestLocalSettings:
             pod = MagicMock()
             settings.pod_mutation_hook(pod)
 
-            assert pod.namespace == 'airflow-tests'
+            assert pod.namespace == "airflow-tests"
 
     def test_custom_policy(self):
         with SettingsContext(SETTINGS_FILE_CUSTOM_POLICY, "airflow_local_settings"):
@@ -181,14 +181,14 @@ class TestLocalSettings:
             settings.import_local_settings()
 
             task_instance = MagicMock()
-            task_instance.owner = 'airflow'
+            task_instance.owner = "airflow"
             with pytest.raises(AirflowClusterPolicyViolation):
                 settings.task_must_have_owners(task_instance)
 
 
 class TestUpdatedConfigNames:
     @conf_vars(
-        {("webserver", "session_lifetime_days"): '5', ("webserver", "session_lifetime_minutes"): '43200'}
+        {("webserver", "session_lifetime_days"): "5", ("webserver", "session_lifetime_minutes"): "43200"}
     )
     def test_updates_deprecated_session_timeout_config_val_when_new_config_val_is_default(self):
         from airflow import settings
@@ -199,7 +199,7 @@ class TestUpdatedConfigNames:
             assert session_lifetime_config == minutes_in_five_days
 
     @conf_vars(
-        {("webserver", "session_lifetime_days"): '5', ("webserver", "session_lifetime_minutes"): '43201'}
+        {("webserver", "session_lifetime_days"): "5", ("webserver", "session_lifetime_minutes"): "43201"}
     )
     def test_uses_updated_session_timeout_config_when_val_is_not_default(self):
         from airflow import settings
@@ -207,7 +207,7 @@ class TestUpdatedConfigNames:
         session_lifetime_config = settings.get_session_lifetime_config()
         assert session_lifetime_config == 43201
 
-    @conf_vars({("webserver", "session_lifetime_days"): ''})
+    @conf_vars({("webserver", "session_lifetime_days"): ""})
     def test_uses_updated_session_timeout_config_by_default(self):
         from airflow import settings
 

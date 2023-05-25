@@ -55,6 +55,17 @@ The following example adds ``lxml`` python package from PyPI to the image. When 
 ``pip`` you need to use the ``airflow`` user rather than ``root``. Attempts to install ``pip`` packages
 as ``root`` will fail with an appropriate error message.
 
+.. note::
+   In the example below, we also add apache-airflow package to be installed - in the very same version
+   that the image version you used it from. This is not strictly necessary, but it is a good practice
+   to always install the same version of apache-airflow as the one you are using. This way you can
+   be sure that the version you are using is the same as the one you are extending. In some cases where
+   your new packages have conflicting dependencies, ``pip`` might decide to downgrade or upgrade
+   apache-airflow for you, so adding it explicitly is a good practice - this way if you have conflicting
+   requirements, you will get an error message with conflict information, rather than a surprise
+   downgrade or upgrade of airflow. If you upgrade airflow base image, you should also update the version
+   to match the new version of airflow.
+
 .. exampleinclude:: docker-examples/extending/add-pypi-packages/Dockerfile
     :language: Dockerfile
     :start-after: [START Dockerfile]
@@ -67,10 +78,25 @@ The following example adds few python packages from ``requirements.txt`` from Py
 Note that similarly when adding individual packages, you need to use the ``airflow`` user rather than
 ``root``. Attempts to install ``pip`` packages as ``root`` will fail with an appropriate error message.
 
+.. note::
+   In the example below, we also add apache-airflow package to be installed - in the very same version
+   that the image version you used it from. This is not strictly necessary, but it is a good practice
+   to always install the same version of apache-airflow as the one you are using. This way you can
+   be sure that the version you are using is the same as the one you are extending. In some cases where
+   your new packages have conflicting dependencies, ``pip`` might decide to downgrade or upgrade
+   apache-airflow for you, so adding it explicitly is a good practice - this way if you have conflicting
+   requirements, you will get an error message with conflict information, rather than a surprise
+   downgrade or upgrade of airflow. If you upgrade airflow base image, you should also update the version
+   to match the new version of airflow.
+
+
 .. exampleinclude:: docker-examples/extending/add-requirement-packages/Dockerfile
     :language: Dockerfile
     :start-after: [START Dockerfile]
     :end-before: [END Dockerfile]
+
+.. exampleinclude:: docker-examples/extending/add-requirement-packages/requirements.txt
+    :language: text
 
 
 Embedding DAGs
@@ -180,13 +206,13 @@ In the simplest case building your image consists of those steps:
    In case you use some kind of registry where you will be using the image from, it is usually named
    in the form of ``registry/image-name``. The name of the image has to be configured for the deployment
    method your image will be deployed. This can be set for example as image name in the
-   `docker-compose file <running-airflow-in-docker>`_ or in the `Helm chart <helm-chart>`_.
+   :doc:`apache-airflow:howto/docker-compose/index` or in the :doc:`helm-chart:index`.
 
 .. code-block:: shell
 
    docker build . -f Dockerfile --pull --tag my-image:0.0.1
 
-3) [Optional] Test the image. Airflow contains tool that allows you to test the image. This step however,
+3) [Optional] Test the image. Airflow contains tool that allows you to test the image. This step, however,
    requires locally checked out or extracted Airflow sources. If you happen to have the sources you can
    test the image by running this command (in airflow root folder). The output will tell you if the image
    is "good-to-go".
@@ -262,18 +288,21 @@ There are two types of images you can extend your image from:
 
 Naming conventions for the images:
 
-+----------------+------------------+---------------------------------+--------------------------------------+
-| Image          | Python           | Standard image                  | Slim image                           |
-+================+==================+=================================+======================================+
-| Latest default | 3.7              | apache/airflow:latest           | apache/airflow:slim-latest           |
-| Default        | 3.7              | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
-| Latest         | 3.7,3.8,3.9,3.10 | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
-| Specific       | 3.7,3.8,3.9,3.10 | apache/airflow:X.Y.Z-pythonN.M  | apache/airflow:slim-X.Y.Z-pythonN.M  |
-+----------------+------------------+---------------------------------+--------------------------------------+
++----------------+-----------------------+---------------------------------+--------------------------------------+
+| Image          | Python                | Standard image                  | Slim image                           |
++================+=======================+=================================+======================================+
+| Latest default | 3.7                   | apache/airflow:latest           | apache/airflow:slim-latest           |
++----------------+-----------------------+---------------------------------+--------------------------------------+
+| Default        | 3.7                   | apache/airflow:X.Y.Z            | apache/airflow:slim-X.Y.Z            |
++----------------+-----------------------+---------------------------------+--------------------------------------+
+| Latest         | 3.7,3.8,3.9,3.10,3.11 | apache/airflow:latest-pythonN.M | apache/airflow:slim-latest-pythonN.M |
++----------------+-----------------------+---------------------------------+--------------------------------------+
+| Specific       | 3.7,3.8,3.9,3.10,3.11 | apache/airflow:X.Y.Z-pythonN.M  | apache/airflow:slim-X.Y.Z-pythonN.M  |
++----------------+-----------------------+---------------------------------+--------------------------------------+
 
 * The "latest" image is always the latest released stable version available.
 
-.. spelling::
+.. spelling:word-list::
 
      pythonN
 
@@ -299,9 +328,9 @@ You should be aware, about a few things:
 
 * If your apt, or PyPI dependencies require some of the ``build-essential`` or other packages that need
   to compile your python dependencies, then your best choice is to follow the "Customize the image" route,
-  because you can build a highly-optimized (for size) image this way. However it requires you to use
+  because you can build a highly-optimized (for size) image this way. However, it requires you to use
   the Dockerfile that is released as part of Apache Airflow sources (also available at
-  `Dockerfile <https://github.com/apache/airflow/blob/main/Dockerfile>`_)
+  `Dockerfile <https://github.com/apache/airflow/blob/main/Dockerfile>`_).
 
 * You can also embed your dags in the image by simply adding them with COPY directive of Airflow.
   The DAGs in production image are in ``/opt/airflow/dags`` folder.
@@ -385,10 +414,24 @@ The following example adds few python packages from ``requirements.txt`` from Py
 Note that similarly when adding individual packages, you need to use the ``airflow`` user rather than
 ``root``. Attempts to install ``pip`` packages as ``root`` will fail with an appropriate error message.
 
+.. note::
+   In the example below, we also add apache-airflow package to be installed - in the very same version
+   that the image version you used it from. This is not strictly necessary, but it is a good practice
+   to always install the same version of apache-airflow as the one you are using. This way you can
+   be sure that the version you are using is the same as the one you are extending. In some cases where
+   your new packages have conflicting dependencies, ``pip`` might decide to downgrade or upgrade
+   apache-airflow for you, so adding it explicitly is a good practice - this way if you have conflicting
+   requirements, you will get an error message with conflict information, rather than a surprise
+   downgrade or upgrade of airflow. If you upgrade airflow base image, you should also update the version
+   to match the new version of airflow.
+
 .. exampleinclude:: docker-examples/extending/add-requirement-packages/Dockerfile
     :language: Dockerfile
     :start-after: [START Dockerfile]
     :end-before: [END Dockerfile]
+
+.. exampleinclude:: docker-examples/extending/add-requirement-packages/requirements.txt
+    :language: text
 
 
 Example when writable directory is needed
@@ -449,7 +492,7 @@ Customizing the image
 
 .. note::
     You can usually use the latest ``Dockerfile`` released by Airflow to build previous Airflow versions.
-    Note however, that there are slight changes in the Dockerfile and entrypoint scripts that can make it
+    Note, however, that there are slight changes in the Dockerfile and entrypoint scripts that can make it
     behave slightly differently, depending which Dockerfile version you used. Details of what has changed
     in each of the released versions of Docker image can be found in the :doc:`Changelog <changelog>`.
 
@@ -487,7 +530,7 @@ The disadvantage it that building the image takes longer and it requires you to 
 the Dockerfile that is released as part of Apache Airflow sources.
 
 The disadvantage is that the pattern of building Docker images with ``--build-arg`` is less familiar
-to developers of such images. However it is quite well-known to "power-users". That's why the
+to developers of such images. However, it is quite well-known to "power-users". That's why the
 customizing flow is better suited for those users who have more familiarity and have more custom
 requirements.
 
@@ -525,7 +568,7 @@ that it can be predictably installed, even if some new versions of Airflow depen
 released (or even dependencies of our dependencies!). The docker image and accompanying scripts
 usually determine automatically the right versions of constraints to be used based on the Airflow
 version installed and Python version. For example 2.0.2 version of Airflow installed from PyPI
-uses constraints from ``constraints-2.0.2`` tag). However in some cases - when installing airflow from
+uses constraints from ``constraints-2.0.2`` tag). However, in some cases - when installing airflow from
 GitHub for example - you have to manually specify the version of constraints used, otherwise
 it will default to the latest version of the constraints which might not be compatible with the
 version of Airflow you use.
@@ -539,7 +582,7 @@ You can read more about constraints in :doc:`apache-airflow:installation/install
 Note that if you place ``requirements.txt`` in the ``docker-context-files`` folder, it will be
 used to install all requirements declared there. It is recommended that the file
 contains specified version of dependencies to add with ``==`` version specifier, to achieve
-stable set of requirements, independent if someone releases a newer version. However you have
+stable set of requirements, independent if someone releases a newer version. However, you have
 to make sure to update those requirements and rebuild the images to account for latest security fixes.
 
 .. _using-docker-context-files:
@@ -557,6 +600,18 @@ You can use ``docker-context-files`` for the following purposes:
 
 * you can place ``requirements.txt`` and add any ``pip`` packages you want to install in the
   ``docker-context-file`` folder. Those requirements will be automatically installed during the build.
+
+.. note::
+   In the example below, we also add apache-airflow package to be installed - in the very same version
+   that the image version you used it from. This is not strictly necessary, but it is a good practice
+   to always install the same version of apache-airflow as the one you are using. This way you can
+   be sure that the version you are using is the same as the one you are extending. In some cases where
+   your new packages have conflicting dependencies, ``pip`` might decide to downgrade or upgrade
+   apache-airflow for you, so adding it explicitly is a good practice - this way if you have conflicting
+   requirements, you will get an error message with conflict information, rather than a surprise
+   downgrade or upgrade of airflow. If you upgrade airflow base image, you should also update the version
+   to match the new version of airflow.
+
 
 .. exampleinclude:: docker-examples/customizing/own-requirements.sh
     :language: bash
@@ -584,7 +639,7 @@ You can use ``docker-context-files`` for the following purposes:
 
 .. note::
   You can also pass ``--build-arg DOCKER_CONTEXT_FILES=.`` if you want to place your ``requirements.txt``
-  in main directory without creating a dedicated folder, however this is a good practice to keep any files
+  in the main directory without creating a dedicated folder. However, it is a good practice to keep any files
   that you copy to the image context in a sub-folder. This makes it easier to separate things that
   are used on the host from those that are passed in Docker context. Of course, by default when you run
   ``docker build .`` the whole folder is available as "Docker build context" and sent to the docker
@@ -826,8 +881,8 @@ where you can build the image using the packages downloaded by passing those bui
 
 Note, that the solution we have for installing python packages from local packages, only solves the problem
 of "air-gaped" python installation. The Docker image also downloads ``apt`` dependencies and ``node-modules``.
-Those types of dependencies are however more likely to be available in your "air-gaped" system via transparent
-proxies and it should automatically reach out to your private registries, however in the future the
+Those types of dependencies are more likely to be available in your "air-gaped" system via transparent
+proxies and it should automatically reach out to your private registries. However, in the future the
 solution might be applied to both of those installation steps.
 
 You can also use techniques described in the previous chapter to make ``docker build`` use your private
@@ -845,11 +900,11 @@ Modifying the Dockerfile
 ........................
 
 The build arg approach is a convenience method if you do not want to manually modify the ``Dockerfile``.
-Our approach is flexible enough, to be able to accommodate most requirements and
+Our approach is flexible enough to be able to accommodate most requirements and
 customizations out-of-the-box. When you use it, you do not need to worry about adapting the image every
-time new version of Airflow is released. However sometimes it is not enough if you have very
+time a new version of Airflow is released. However, sometimes it is not enough if you have very
 specific needs and want to build a very custom image. In such case you can simply modify the
-``Dockerfile`` manually as you see fit and store it in your forked repository. However you will have to
+``Dockerfile`` manually as you see fit and store it in your forked repository. However, you will have to
 make sure to rebase your changes whenever new version of Airflow is released, because we might modify
 the approach of our Dockerfile builds in the future and you might need to resolve conflicts
 and rebase your changes.

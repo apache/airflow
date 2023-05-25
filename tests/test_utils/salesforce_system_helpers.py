@@ -25,8 +25,8 @@ from airflow.models import Connection
 from airflow.utils.process_utils import patch_environ
 
 CONFIG_REQUIRED_FIELDS = ["host", "login", "password", "security_token"]
-SALESFORCE_CONNECTION_ID = os.environ.get('SALESFORCE_CONNECTION_ID', 'salesforce_default')
-CONNECTION_TYPE = os.environ.get('CONNECTION_TYPE', 'http')
+SALESFORCE_CONNECTION_ID = os.environ.get("SALESFORCE_CONNECTION_ID", "salesforce_default")
+CONNECTION_TYPE = os.environ.get("CONNECTION_TYPE", "http")
 
 
 @contextmanager

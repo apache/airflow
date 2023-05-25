@@ -49,13 +49,18 @@ def only_client_type(func):
 
 class EC2Hook(AwsBaseHook):
     """
-    Interact with AWS EC2 Service.
+    Interact with Amazon Elastic Compute Cloud (EC2).
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("ec2") <EC2.Client>`
+    or :external+boto3:py:class:`boto3.resource("ec2") <EC2.ServiceResource>`.
+
+    :param api_type: If set to ``client_type`` then hook use ``boto3.client("ec2")`` capabilities,
+        If set to ``resource_type`` then hook use ``boto3.resource("ec2")`` capabilities.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     API_TYPES = frozenset({"resource_type", "client_type"})
@@ -77,7 +82,6 @@ class EC2Hook(AwsBaseHook):
         :param instance_id: id of the AWS EC2 instance
         :param filters: List of filters to specify instances to get
         :return: Instance object
-        :rtype: ec2.Instance
         """
         if self._api_type == "client_type":
             return self.get_instances(filters=filters, instance_ids=[instance_id])
@@ -162,13 +166,17 @@ class EC2Hook(AwsBaseHook):
         """
         return [instance["InstanceId"] for instance in self.get_instances(filters=filters)]
 
+    async def get_instance_state_async(self, instance_id: str) -> str:
+        async with self.async_conn as client:
+            response = await client.describe_instances(InstanceIds=[instance_id])
+            return response["Reservations"][0]["Instances"][0]["State"]["Name"]
+
     def get_instance_state(self, instance_id: str) -> str:
         """
         Get EC2 instance state by id and return it.
 
         :param instance_id: id of the AWS EC2 instance
         :return: current state of the instance
-        :rtype: str
         """
         if self._api_type == "client_type":
             return self.get_instances(instance_ids=[instance_id])[0]["State"]["Name"]
@@ -184,7 +192,6 @@ class EC2Hook(AwsBaseHook):
         :param check_interval: time in seconds that the job should wait in
             between each instance state checks until operation is completed
         :return: None
-        :rtype: None
         """
         instance_state = self.get_instance_state(instance_id=instance_id)
 

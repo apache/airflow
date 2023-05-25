@@ -49,9 +49,9 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     :param quoting: Quoting strategy. See unicodecsv quoting for more information.
     """
 
-    template_fields: Sequence[str] = ('filename', 'sql', 'sql_params')
+    template_fields: Sequence[str] = ("filename", "sql", "sql_params")
     template_fields_renderers = {"sql_params": "py"}
-    ui_color = '#e08c8c'
+    ui_color = "#e08c8c"
 
     def __init__(
         self,
@@ -83,7 +83,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
         self.quoting = quoting
 
     def _write_temp_file(self, cursor: Any, path_to_save: str | bytes | int) -> None:
-        with open(path_to_save, 'wb') as csvfile:
+        with open(path_to_save, "wb") as csvfile:
             csv_writer = csv.writer(
                 csvfile,
                 delimiter=self.delimiter,
@@ -104,7 +104,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
         cursor = conn.cursor()  # type: ignore[attr-defined]
         cursor.execute(self.sql, self.sql_params)
 
-        with TemporaryDirectory(prefix='airflow_oracle_to_azure_op_') as temp:
+        with TemporaryDirectory(prefix="airflow_oracle_to_azure_op_") as temp:
             self._write_temp_file(cursor, os.path.join(temp, self.filename))
             self.log.info("Uploading local file to Azure Data Lake")
             azure_data_lake_hook.upload_file(

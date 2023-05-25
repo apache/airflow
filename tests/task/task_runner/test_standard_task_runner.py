@@ -20,167 +20,279 @@ from __future__ import annotations
 import logging
 import os
 import time
-from logging.config import dictConfig
+from contextlib import contextmanager
 from pathlib import Path
 from unittest import mock
+from unittest.mock import patch
 
 import psutil
 import pytest
 
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.jobs.local_task_job import LocalTaskJob
+from airflow.jobs.job import Job
+from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
+from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
+from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.platform import getuser
-from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
+from tests.listeners.file_write_listener import FileWriteListener
 from tests.test_utils.db import clear_db_runs
 
-TEST_DAG_FOLDER = os.environ['AIRFLOW__CORE__DAGS_FOLDER']
+TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
-TASK_FORMAT = '{{%(filename)s:%(lineno)d}} %(levelname)s - %(message)s'
-
-LOGGING_CONFIG = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'airflow.task': {'format': TASK_FORMAT},
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'airflow.task',
-            'stream': 'ext://sys.stdout',
-        },
-    },
-    'loggers': {'airflow': {'handlers': ['console'], 'level': 'INFO', 'propagate': True}},
-}
+TASK_FORMAT = "%(filename)s:%(lineno)d %(levelname)s - %(message)s"
 
 
+@contextmanager
+def propagate_task_logger():
+    """
+    Set `airflow.task` logger to propagate.
+
+    Apparently, caplog doesn't work if you don't propagate messages to root.
+
+    But the normal behavior of the `airflow.task` logger is not to propagate.
+
+    When freshly configured, the logger is set to propagate.  However,
+    ordinarily when set_context is called, this is set to False.
+
+    To override this behavior, so that the messages make it to caplog, we
+    must tell the handler to maintain its current setting.
+    """
+    logger = logging.getLogger("airflow.task")
+    h = logger.handlers[0]
+    assert isinstance(h, FileTaskHandler)  # just to make sure / document
+    _propagate = h.maintain_propagate
+    if _propagate is False:
+        h.maintain_propagate = True
+    try:
+        yield
+    finally:
+        if _propagate is False:
+            h.maintain_propagate = _propagate
+
+
+@pytest.mark.usefixtures("reset_logging_config")
 class TestStandardTaskRunner:
-    @pytest.fixture(autouse=True, scope="class")
-    def logging_and_db(self):
+    def setup_class(self):
         """
         This fixture sets up logging to have a different setup on the way in
         (as the test environment does not have enough context for the normal
         way to run) and ensures they reset back to normal on the way out.
         """
+        get_listener_manager().clear()
         clear_db_runs()
-        dictConfig(LOGGING_CONFIG)
         yield
-        airflow_logger = logging.getLogger('airflow')
-        airflow_logger.handlers = []
         clear_db_runs()
-        dictConfig(DEFAULT_LOGGING_CONFIG)
+        get_listener_manager().clear()
 
-    def test_start_and_terminate(self):
-        local_task_job = mock.Mock()
-        local_task_job.task_instance = mock.MagicMock()
-        local_task_job.task_instance.run_as_user = None
-        local_task_job.task_instance.command_as_list.return_value = [
-            'airflow',
-            'tasks',
-            'run',
-            'test_on_kill',
-            'task1',
-            '2016-01-01',
+    @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
+    def test_start_and_terminate(self, mock_init):
+        mock_init.return_value = "/tmp/any"
+        Job = mock.Mock()
+        Job.job_type = None
+        Job.task_instance = mock.MagicMock()
+        Job.task_instance.run_as_user = None
+        Job.task_instance.command_as_list.return_value = [
+            "airflow",
+            "tasks",
+            "run",
+            "test_on_kill",
+            "task1",
+            "2016-01-01",
         ]
-
-        runner = StandardTaskRunner(local_task_job)
-        runner.start()
+        job_runner = LocalTaskJobRunner(job=Job, task_instance=Job.task_instance)
+        task_runner = StandardTaskRunner(job_runner)
+        task_runner.start()
         # Wait until process sets its pgid to be equal to pid
         with timeout(seconds=1):
             while True:
-                runner_pgid = os.getpgid(runner.process.pid)
-                if runner_pgid == runner.process.pid:
+                runner_pgid = os.getpgid(task_runner.process.pid)
+                if runner_pgid == task_runner.process.pid:
                     break
                 time.sleep(0.01)
 
         assert runner_pgid > 0
         assert runner_pgid != os.getpgid(0), "Task should be in a different process group to us"
         processes = list(self._procs_in_pgroup(runner_pgid))
-        runner.terminate()
+        task_runner.terminate()
 
         for process in processes:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
-        assert runner.return_code() is not None
+        assert task_runner.return_code() is not None
 
-    def test_start_and_terminate_run_as_user(self):
-        local_task_job = mock.Mock()
-        local_task_job.task_instance = mock.MagicMock()
-        local_task_job.task_instance.task_id = 'task_id'
-        local_task_job.task_instance.dag_id = 'dag_id'
-        local_task_job.task_instance.run_as_user = getuser()
-        local_task_job.task_instance.command_as_list.return_value = [
-            'airflow',
-            'tasks',
-            'test',
-            'test_on_kill',
-            'task1',
-            '2016-01-01',
+    def test_notifies_about_start_and_stop(self):
+        path_listener_writer = "/tmp/test_notifies_about_start_and_stop"
+        try:
+            os.unlink(path_listener_writer)
+        except OSError:
+            pass
+
+        lm = get_listener_manager()
+        lm.add_listener(FileWriteListener(path_listener_writer))
+
+        dagbag = DagBag(
+            dag_folder=TEST_DAG_FOLDER,
+            include_examples=False,
+        )
+        dag = dagbag.dags.get("test_example_bash_operator")
+        task = dag.get_task("runme_1")
+        dag.create_dagrun(
+            run_id="test",
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=State.RUNNING,
+            start_date=DEFAULT_DATE,
+        )
+        ti = TaskInstance(task=task, run_id="test")
+        job = Job(dag_id=ti.dag_id)
+        job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
+        task_runner = StandardTaskRunner(job_runner)
+        task_runner.start()
+
+        # Wait until process makes itself the leader of its own process group
+        with timeout(seconds=1):
+            while True:
+                runner_pgid = os.getpgid(task_runner.process.pid)
+                if runner_pgid == task_runner.process.pid:
+                    break
+                time.sleep(0.01)
+
+            # Wait till process finishes
+        assert task_runner.return_code(timeout=10) is not None
+        with open(path_listener_writer) as f:
+            assert f.readline() == "on_starting\n"
+            assert f.readline() == "on_task_instance_running\n"
+            assert f.readline() == "on_task_instance_success\n"
+            assert f.readline() == "before_stopping\n"
+
+    def test_notifies_about_fail(self):
+        path_listener_writer = "/tmp/test_notifies_about_fail"
+        try:
+            os.unlink(path_listener_writer)
+        except OSError:
+            pass
+
+        lm = get_listener_manager()
+        lm.add_listener(FileWriteListener(path_listener_writer))
+
+        dagbag = DagBag(
+            dag_folder=TEST_DAG_FOLDER,
+            include_examples=False,
+        )
+        dag = dagbag.dags.get("test_failing_bash_operator")
+        task = dag.get_task("failing_task")
+        dag.create_dagrun(
+            run_id="test",
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=State.RUNNING,
+            start_date=DEFAULT_DATE,
+        )
+        ti = TaskInstance(task=task, run_id="test")
+        job = Job(dag_id=ti.dag_id)
+        job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
+        task_runner = StandardTaskRunner(job_runner)
+        task_runner.start()
+
+        # Wait until process makes itself the leader of its own process group
+        with timeout(seconds=1):
+            while True:
+                runner_pgid = os.getpgid(task_runner.process.pid)
+                if runner_pgid == task_runner.process.pid:
+                    break
+                time.sleep(0.01)
+
+            # Wait till process finishes
+        assert task_runner.return_code(timeout=10) is not None
+        with open(path_listener_writer) as f:
+            assert f.readline() == "on_starting\n"
+            assert f.readline() == "on_task_instance_running\n"
+            assert f.readline() == "on_task_instance_failed\n"
+            assert f.readline() == "before_stopping\n"
+
+    @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
+    def test_start_and_terminate_run_as_user(self, mock_init):
+        mock_init.return_value = "/tmp/any"
+        Job = mock.Mock()
+        Job.job_type = None
+        Job.task_instance = mock.MagicMock()
+        Job.task_instance.task_id = "task_id"
+        Job.task_instance.dag_id = "dag_id"
+        Job.task_instance.run_as_user = getuser()
+        Job.task_instance.command_as_list.return_value = [
+            "airflow",
+            "tasks",
+            "test",
+            "test_on_kill",
+            "task1",
+            "2016-01-01",
         ]
+        job_runner = LocalTaskJobRunner(job=Job, task_instance=Job.task_instance)
+        task_runner = StandardTaskRunner(job_runner)
 
-        runner = StandardTaskRunner(local_task_job)
+        task_runner.start()
+        try:
+            time.sleep(0.5)
 
-        runner.start()
-        time.sleep(0.5)
+            pgid = os.getpgid(task_runner.process.pid)
+            assert pgid > 0
+            assert pgid != os.getpgid(0), "Task should be in a different process group to us"
 
-        pgid = os.getpgid(runner.process.pid)
-        assert pgid > 0
-        assert pgid != os.getpgid(0), "Task should be in a different process group to us"
-
-        processes = list(self._procs_in_pgroup(pgid))
-
-        runner.terminate()
+            processes = list(self._procs_in_pgroup(pgid))
+        finally:
+            task_runner.terminate()
 
         for process in processes:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
 
-        assert runner.return_code() is not None
+        assert task_runner.return_code() is not None
 
-    def test_early_reap_exit(self, caplog):
+    @propagate_task_logger()
+    @patch("airflow.utils.log.file_task_handler.FileTaskHandler._init_file")
+    def test_early_reap_exit(self, mock_init, caplog):
         """
         Tests that when a child process running a task is killed externally
         (e.g. by an OOM error, which we fake here), then we get return code
         -9 and a log message.
         """
-        # Set up mock task
-        local_task_job = mock.Mock()
-        local_task_job.task_instance = mock.MagicMock()
-        local_task_job.task_instance.task_id = 'task_id'
-        local_task_job.task_instance.dag_id = 'dag_id'
-        local_task_job.task_instance.run_as_user = getuser()
-        local_task_job.task_instance.command_as_list.return_value = [
-            'airflow',
-            'tasks',
-            'test',
-            'test_on_kill',
-            'task1',
-            '2016-01-01',
+        mock_init.return_value = "/tmp/any"
+        Job = mock.Mock()
+        Job.job_type = None
+        Job.task_instance = mock.MagicMock()
+        Job.task_instance.task_id = "task_id"
+        Job.task_instance.dag_id = "dag_id"
+        Job.task_instance.run_as_user = getuser()
+        Job.task_instance.command_as_list.return_value = [
+            "airflow",
+            "tasks",
+            "test",
+            "test_on_kill",
+            "task1",
+            "2016-01-01",
         ]
+        job_runner = LocalTaskJobRunner(job=Job, task_instance=Job.task_instance)
 
         # Kick off the runner
-        runner = StandardTaskRunner(local_task_job)
-        runner.start()
+        task_runner = StandardTaskRunner(job_runner)
+        task_runner.start()
         time.sleep(0.2)
 
         # Kill the child process externally from the runner
         # Note that we have to do this from ANOTHER process, as if we just
         # call os.kill here we're doing it from the parent process and it
         # won't be the same as an external kill in terms of OS tracking.
-        pgid = os.getpgid(runner.process.pid)
+        pgid = os.getpgid(task_runner.process.pid)
         os.system(f"kill -s KILL {pgid}")
         time.sleep(0.2)
 
-        runner.terminate()
+        task_runner.terminate()
 
-        assert runner.return_code() == -9
+        assert task_runner.return_code() == -9
         assert "running out of memory" in caplog.text
 
     def test_on_kill(self):
@@ -203,47 +315,39 @@ class TestStandardTaskRunner:
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
-        dag = dagbag.dags.get('test_on_kill')
-        task = dag.get_task('task1')
+        dag = dagbag.dags.get("test_on_kill")
+        task = dag.get_task("task1")
+        dag.create_dagrun(
+            run_id="test",
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=State.RUNNING,
+            start_date=DEFAULT_DATE,
+        )
+        ti = TaskInstance(task=task, run_id="test")
+        job = Job(dag_id=ti.dag_id)
+        job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
+        task_runner = StandardTaskRunner(job_runner)
+        task_runner.start()
 
-        with create_session() as session:
-            dag.create_dagrun(
-                run_id="test",
-                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-                state=State.RUNNING,
-                start_date=DEFAULT_DATE,
-                session=session,
-            )
-            ti = TaskInstance(task=task, run_id="test")
-            job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
-            session.commit()
-            ti.refresh_from_task(task)
+        with timeout(seconds=3):
+            while True:
+                runner_pgid = os.getpgid(task_runner.process.pid)
+                if runner_pgid == task_runner.process.pid:
+                    break
+                time.sleep(0.01)
 
-            runner = StandardTaskRunner(job1)
-            runner.start()
+        processes = list(self._procs_in_pgroup(runner_pgid))
 
-            with timeout(seconds=3):
-                while True:
-                    runner_pgid = os.getpgid(runner.process.pid)
-                    if runner_pgid == runner.process.pid:
-                        break
-                    time.sleep(0.01)
-
-            processes = list(self._procs_in_pgroup(runner_pgid))
-
-            logging.info("Waiting for the task to start")
-            with timeout(seconds=20):
-                while True:
-                    if os.path.exists(path_on_kill_running):
-                        break
-                    time.sleep(0.01)
-            logging.info("Task started. Give the task some time to settle")
-            time.sleep(3)
-            logging.info("Terminating processes %s belonging to %s group", processes, runner_pgid)
-            runner.terminate()
-            session.close()  # explicitly close as `create_session`s commit will blow up otherwise
-
-        ti.refresh_from_db()
+        logging.info("Waiting for the task to start")
+        with timeout(seconds=20):
+            while True:
+                if os.path.exists(path_on_kill_running):
+                    break
+                time.sleep(0.01)
+        logging.info("Task started. Give the task some time to settle")
+        time.sleep(3)
+        logging.info("Terminating processes %s belonging to %s group", processes, runner_pgid)
+        task_runner.terminate()
 
         logging.info("Waiting for the on kill killed file to appear")
         with timeout(seconds=4):
@@ -269,41 +373,37 @@ class TestStandardTaskRunner:
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
-        dag = dagbag.dags.get('test_parsing_context')
-        task = dag.get_task('task1')
+        dag = dagbag.dags.get("test_parsing_context")
+        task = dag.get_task("task1")
 
-        with create_session() as session:
-            dag.create_dagrun(
-                run_id="test",
-                data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-                state=State.RUNNING,
-                start_date=DEFAULT_DATE,
-                session=session,
-            )
-            ti = TaskInstance(task=task, run_id="test")
-            job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
-            session.commit()
-            ti.refresh_from_task(task)
+        dag.create_dagrun(
+            run_id="test",
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            state=State.RUNNING,
+            start_date=DEFAULT_DATE,
+        )
+        ti = TaskInstance(task=task, run_id="test")
+        job = Job(dag_id=ti.dag_id)
+        job_runner = LocalTaskJobRunner(job=job, task_instance=ti, ignore_ti_state=True)
+        task_runner = StandardTaskRunner(job_runner)
+        task_runner.start()
 
-            runner = StandardTaskRunner(job1)
-            runner.start()
+        # Wait until process sets its pgid to be equal to pid
+        with timeout(seconds=1):
+            while True:
+                runner_pgid = os.getpgid(task_runner.process.pid)
+                if runner_pgid == task_runner.process.pid:
+                    break
+                time.sleep(0.01)
 
-            # Wait until process sets its pgid to be equal to pid
-            with timeout(seconds=1):
-                while True:
-                    runner_pgid = os.getpgid(runner.process.pid)
-                    if runner_pgid == runner.process.pid:
-                        break
-                    time.sleep(0.01)
+        assert runner_pgid > 0
+        assert runner_pgid != os.getpgid(0), "Task should be in a different process group to us"
+        processes = list(self._procs_in_pgroup(runner_pgid))
+        psutil.wait_procs([task_runner.process])
 
-            assert runner_pgid > 0
-            assert runner_pgid != os.getpgid(0), "Task should be in a different process group to us"
-            processes = list(self._procs_in_pgroup(runner_pgid))
-            psutil.wait_procs([runner.process])
-            session.close()
         for process in processes:
             assert not psutil.pid_exists(process.pid), f"{process} is still alive"
-        assert runner.return_code() == 0
+        assert task_runner.return_code() == 0
         text = context_file.read_text()
         assert (
             text == "_AIRFLOW_PARSING_CONTEXT_DAG_ID=test_parsing_context\n"
@@ -312,7 +412,7 @@ class TestStandardTaskRunner:
 
     @staticmethod
     def _procs_in_pgroup(pgid):
-        for proc in psutil.process_iter(attrs=['pid', 'name']):
+        for proc in psutil.process_iter(attrs=["pid", "name"]):
             try:
                 if os.getpgid(proc.pid) == pgid and proc.pid != 0:
                     yield proc

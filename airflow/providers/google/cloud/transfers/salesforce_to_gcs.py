@@ -54,12 +54,12 @@ class SalesforceToGcsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'query',
-        'bucket_name',
-        'object_name',
+        "query",
+        "bucket_name",
+        "object_name",
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
 
     def __init__(
         self,

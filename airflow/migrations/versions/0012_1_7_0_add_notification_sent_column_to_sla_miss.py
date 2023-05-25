@@ -28,16 +28,16 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'bbc73705a13e'
-down_revision = '4446e08588'
+revision = "bbc73705a13e"
+down_revision = "4446e08588"
 branch_labels = None
 depends_on = None
-airflow_version = '1.7.0'
+airflow_version = "1.7.0"
 
 
 def upgrade():
-    op.add_column('sla_miss', sa.Column('notification_sent', sa.Boolean, default=False))
+    op.add_column("sla_miss", sa.Column("notification_sent", sa.Boolean, default=False))
 
 
 def downgrade():
-    op.drop_column('sla_miss', 'notification_sent')
+    op.drop_column("sla_miss", "notification_sent")

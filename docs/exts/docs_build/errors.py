@@ -23,7 +23,9 @@ from typing import NamedTuple
 from rich.console import Console
 
 from airflow.utils.code_utils import prepare_code_snippet
-from docs.exts.docs_build.code_utils import CONSOLE_WIDTH
+
+from docs.exts.docs_build.code_utils import CONSOLE_WIDTH  # isort:skip (needed to workaround isort bug)
+
 
 CURRENT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 DOCS_DIR = os.path.abspath(os.path.join(CURRENT_DIR, os.pardir, os.pardir))
@@ -48,8 +50,8 @@ class DocBuildError(NamedTuple):
         return not self == other
 
     def __lt__(self, right):
-        file_path_a = self.file_path or ''
-        file_path_b = right.file_path or ''
+        file_path_a = self.file_path or ""
+        file_path_b = right.file_path or ""
         line_no_a = self.line_no or 0
         line_no_b = right.line_no or 0
         left = (file_path_a, line_no_a, self.message)

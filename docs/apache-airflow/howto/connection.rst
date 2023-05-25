@@ -20,16 +20,18 @@ Managing Connections
 
 .. seealso::
 
-  For an overview of hooks and connections, see :doc:`/concepts/connections`.
+  For an overview of hooks and connections, see :doc:`/authoring-and-scheduling/connections`.
 
 Airflow's :class:`~airflow.models.connection.Connection` object is used for storing credentials and other information necessary for connecting to external services.
 
 Connections may be defined in the following ways:
 
-  - in :ref:`environment variables <environment_variables_secrets_backend>`
-  - in an external :doc:`/security/secrets/secrets-backend/index`
+  - in :ref:`environment variables <environment_variables_connections>`
+  - in an external :doc:`/administration-and-deployment/security/secrets/secrets-backend/index`
   - in the :ref:`Airflow metadata database <connections-in-database>`
     (using the :ref:`CLI <connection/cli>` or :ref:`web UI <creating_connection_ui>`)
+
+.. _environment_variables_connections:
 
 Storing connections in environment variables
 --------------------------------------------
@@ -84,7 +86,7 @@ See :ref:`Connection URI format <connection-uri-format>` for more details on how
 Storing connections in a Secrets Backend
 ----------------------------------------
 
-You can store Airflow connections in external secrets backends like HashiCorp Vault, AWS SSM Parameter Store, and other such services. For more details see :doc:`/security/secrets/secrets-backend/index`.
+You can store Airflow connections in external secrets backends like HashiCorp Vault, AWS SSM Parameter Store, and other such services. For more details see :doc:`/administration-and-deployment/security/secrets/secrets-backend/index`.
 
 .. _connections-in-database:
 
@@ -92,7 +94,7 @@ Storing connections in the database
 -----------------------------------
 .. seealso::
 
-    Connections can alternatively be stored in :ref:`environment variables <environment_variables_secrets_backend>` or an :doc:`external secrets backend </security/secrets/secrets-backend/index>` such as HashiCorp Vault, AWS SSM Parameter Store, etc.
+    Connections can alternatively be stored in :ref:`environment variables <environment_variables_connections>` or an :doc:`external secrets backend </administration-and-deployment/security/secrets/secrets-backend/index>` such as HashiCorp Vault, AWS SSM Parameter Store, etc.
 
 When storing connections in the database, you may manage them using either the web UI or the Airflow CLI.
 
@@ -179,7 +181,6 @@ Exporting connections to file
 
 You can export to file connections stored in the database (e.g. for migrating connections from one environment to another).  See :ref:`Exporting Connections <cli-export-connections>` for usage.
 
-.. _environment_variables_secrets_backend:
 
 Security of connections in the database
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -190,19 +191,30 @@ Passwords cannot be manipulated or read without the key. For information on conf
 Testing Connections
 ^^^^^^^^^^^^^^^^^^^
 
-Airflow Web UI & API allows to test connections. The test connection feature can be used from
-:ref:`create <creating_connection_ui>` or :ref:`edit <editing_connection_ui>` connection page, or through calling
-:doc:`Connections REST API </stable-rest-api-ref/>`.
+Airflow Web UI, REST API, and CLI allow you to test connections. The test connection feature can be used from
+:ref:`create <creating_connection_ui>` or :ref:`edit <editing_connection_ui>` connection page in the UI, through calling
+:doc:`Connections REST API </stable-rest-api-ref/>`, or running the ``airflow connections test`` :ref:`CLI command <cli>`.
 
-To test a connection Airflow calls out the ``test_connection`` method from the associated hook class and reports the
-results of it. It may happen that the connection type does not have any associated hook or the hook doesn't have the
-``test_connection`` method implementation, in either case the error message will throw the proper error message.
+.. warning::
 
-One important point to note is that the connections will be tested from the webserver only, so this feature is
-subject to network egress rules setup for your webserver. Also, if webserver & worker machines have different libs or
-provider packages installed then the test results might differ.
+    This feature won't be available for the connections residing in external secrets backends when using the
+    Airflow UI or REST API.
 
-Last caveat is that this feature won't be available for the connections coming out of the secrets backends.
+To test a connection, Airflow calls the ``test_connection`` method from the associated hook class and reports the
+results. It may happen that the connection type does not have any associated hook or the hook doesn't have the
+``test_connection`` method implementation, in either case an error message will be displayed or functionality
+will be disabled (if you are testing in the UI).
+
+.. note::
+
+    When testing in the Airflow UI, the test executes from the webserver so this feature is subject to network
+    egress rules setup for your webserver.
+
+.. note::
+
+    If webserver & worker machines (if testing via the Airflow UI) or machines/pods (if testing via the
+    Airflow CLI) have different libs or provider packages installed, test results *might* differ.
+
 
 Custom connection types
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -214,7 +226,7 @@ for description on how to add custom providers.
 
 The custom connection types are defined via Hooks delivered by the providers. The Hooks can implement
 methods defined in the protocol class :class:`~airflow.hooks.base_hook.DiscoverableHook`. Note that your
-custom Hook should not derive from this class, this class is a dummy example to document expectations
+custom Hook should not derive from this class, this class is an example to document expectations
 regarding about class fields and methods that your Hook might define. Another good example is
 :py:class:`~airflow.providers.jdbc.hooks.jdbc.JdbcHook`.
 
@@ -243,7 +255,7 @@ Here's an example:
 .. code-block:: python
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -267,19 +279,22 @@ An example:
 .. code-block:: python
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ["port", "host", "login", "schema"],
             "relabeling": {},
             "placeholders": {
                 "password": "Asana personal access token",
-                "extra__my_conn_type__workspace": "My workspace gid",
-                "extra__my_conn_type__project": "My project gid",
+                "workspace": "My workspace gid",
+                "project": "My project gid",
             },
         }
 
-Note here that *here* (in contrast with ``get_connection_form_widgets``) we must add the prefix ``extra__<conn type>__`` when referencing a custom field.  This is because it's possible to create a custom field whose name overlaps with a built-in field and we need to be able to reference it unambiguously.
+.. note::
+
+    If you want to add a form placeholder for an ``extra`` field whose name conflicts with a standard connection attribute (i.e. login, password, host, scheme, port, extra) then
+    you must prefix it with ``extra__<conn type>__``.  E.g. ``extra__myservice__password``.
 
 Take a look at providers for examples of what you can do, for example :py:class:`~airflow.providers.jdbc.hooks.jdbc.JdbcHook`
 and :py:class:`~airflow.providers.asana.hooks.jdbc.AsanaHook` both make use of this feature.
@@ -287,8 +302,8 @@ and :py:class:`~airflow.providers.asana.hooks.jdbc.AsanaHook` both make use of t
 .. note:: Deprecated ``hook-class-names``
 
    Prior to Airflow 2.2.0, the connections in providers have been exposed via ``hook-class-names`` array
-   in provider's meta-data, this however has proven to be not well optimized for using individual hooks
-   in workers and the ``hook-class-names`` array is now replaced by ``connection-types`` array. Until
+   in provider's meta-data. However, this has proven to be inefficient when using individual hooks
+   in workers, and the ``hook-class-names`` array is now replaced by the ``connection-types`` array. Until
    provider supports Airflow below 2.2.0, both ``connection-types`` and ``hook-class-names`` should be
    present. Automated checks during CI build will verify consistency of those two arrays.
 

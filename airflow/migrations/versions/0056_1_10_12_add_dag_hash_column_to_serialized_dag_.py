@@ -28,21 +28,21 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'da3f683c3a5a'
-down_revision = 'a66efa278eea'
+revision = "da3f683c3a5a"
+down_revision = "a66efa278eea"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.12'
+airflow_version = "1.10.12"
 
 
 def upgrade():
     """Apply Add ``dag_hash`` Column to ``serialized_dag`` table"""
     op.add_column(
-        'serialized_dag',
-        sa.Column('dag_hash', sa.String(32), nullable=False, server_default='Hash not calculated yet'),
+        "serialized_dag",
+        sa.Column("dag_hash", sa.String(32), nullable=False, server_default="Hash not calculated yet"),
     )
 
 
 def downgrade():
     """Unapply Add ``dag_hash`` Column to ``serialized_dag`` table"""
-    op.drop_column('serialized_dag', 'dag_hash')
+    op.drop_column("serialized_dag", "dag_hash")

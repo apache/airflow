@@ -56,7 +56,7 @@ class TestSFTPToWasbOperator:
         assert operator.blob_prefix == BLOB_PREFIX
         assert operator.create_container is False
 
-    @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook', autospec=True)
+    @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook", autospec=True)
     def test_execute_more_than_one_wildcard_exception(self, mock_hook):
         operator = SFTPToWasbOperator(
             task_id=TASK_ID,
@@ -83,8 +83,8 @@ class TestSFTPToWasbOperator:
         )
         sftp_complete_path, prefix, delimiter = operator.get_tree_behavior()
 
-        assert sftp_complete_path == 'main_dir', "not matched at expected complete path"
-        assert prefix == 'main_dir/', "Prefix must be EQUAL TO wildcard"
+        assert sftp_complete_path == "main_dir", "not matched at expected complete path"
+        assert prefix == "main_dir/", "Prefix must be EQUAL TO wildcard"
         assert delimiter == "", "Delimiter must be empty"
 
     def test_get_sftp_tree_behavior_without_wildcard(self):
@@ -98,7 +98,7 @@ class TestSFTPToWasbOperator:
         )
         sftp_complete_path, prefix, delimiter = operator.get_tree_behavior()
 
-        assert sftp_complete_path == 'main_dir/', "not matched at expected complete path"
+        assert sftp_complete_path == "main_dir/", "not matched at expected complete path"
         assert prefix is None, "Prefix must be NONE when no wildcard"
         assert delimiter is None, "Delimiter must be none"
 
@@ -126,8 +126,8 @@ class TestSFTPToWasbOperator:
         output = operator.source_path_contains_wildcard
         assert output is False, "This path does not contains a wildpath"
 
-    @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook')
-    @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPHook')
+    @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPHook")
     def test_get_sftp_files_map_no_wildcard(self, sftp_hook, mock_hook):
         sftp_hook.return_value.get_tree_map.return_value = [
             EXPECTED_FILES,
@@ -148,8 +148,8 @@ class TestSFTPToWasbOperator:
         assert files[0].blob_name == EXPECTED_BLOB_NAME, "expected blob name not matched"
 
     @pytest.mark.parametrize(argnames="create_container", argvalues=[True, False])
-    @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook')
-    @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPHook')
+    @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPHook")
     def test_copy_files_to_wasb(self, sftp_hook, mock_hook, create_container):
         operator = SFTPToWasbOperator(
             task_id=TASK_ID,
@@ -172,7 +172,7 @@ class TestSFTPToWasbOperator:
 
         assert len(files) == 1, "no matched at expected uploaded files"
 
-    @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPHook')
+    @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPHook")
     def test_delete_files(self, sftp_hook):
         sftp_mock = sftp_hook.return_value
 
@@ -191,8 +191,8 @@ class TestSFTPToWasbOperator:
         sftp_mock.delete_file.assert_has_calls([mock.call(EXPECTED_FILES[0])])
 
     @pytest.mark.parametrize(argnames="create_container", argvalues=[True, False])
-    @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook')
-    @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPHook')
+    @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPHook")
     def test_execute(self, sftp_hook, mock_hook, create_container):
         operator = SFTPToWasbOperator(
             task_id=TASK_ID,
@@ -227,8 +227,8 @@ class TestSFTPToWasbOperator:
         sftp_hook.return_value.delete_file.assert_not_called()
 
     @pytest.mark.parametrize(argnames="create_container", argvalues=[True, False])
-    @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook')
-    @mock.patch('airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPHook')
+    @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.WasbHook")
+    @mock.patch("airflow.providers.microsoft.azure.transfers.sftp_to_wasb.SFTPHook")
     def test_execute_moved_files(self, sftp_hook, mock_hook, create_container):
         operator = SFTPToWasbOperator(
             task_id=TASK_ID,

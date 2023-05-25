@@ -16,10 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime
+from enum import Enum
 
 from airflow.version import version
+
+log = logging.getLogger(__name__)
 
 
 def trim_none_values(obj: dict):
@@ -42,5 +46,22 @@ def datetime_to_epoch_us(date_time: datetime) -> int:
 
 
 def get_airflow_version() -> tuple[int, ...]:
-    val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), version)
-    return tuple(int(x) for x in val.split('.'))
+    val = re.sub(r"(\d+\.\d+\.\d+).*", lambda x: x.group(1), version)
+    return tuple(int(x) for x in val.split("."))
+
+
+class _StringCompareEnum(Enum):
+    """
+    An Enum class which can be compared with regular `str` and subclasses.
+
+    This class avoids multiple inheritance such as AwesomeEnum(str, Enum)
+    which does not work well with templated_fields and Jinja templates.
+    """
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.value == other
+        return super().__eq__(other)
+
+    def __hash__(self):
+        return super().__hash__()  # Need to set because we redefine __eq__

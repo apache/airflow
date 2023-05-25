@@ -21,6 +21,7 @@ from __future__ import annotations
 import warnings
 from typing import Any, Sequence
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.common import enclose_param
@@ -81,7 +82,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         warehouse: str | None = None,
         database: str | None = None,
         autocommit: bool = True,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         role: str | None = None,
         authenticator: str | None = None,
         session_parameters: dict | None = None,
@@ -93,7 +94,7 @@ class S3ToSnowflakeOperator(BaseOperator):
             Please use
             `airflow.providers.snowflake.transfers.copy_into_snowflake.CopyFromExternalStageToSnowflakeOperator`.
             """,
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         super().__init__(**kwargs)
@@ -143,6 +144,6 @@ class S3ToSnowflakeOperator(BaseOperator):
             sql_parts.append(f"pattern={enclose_param(self.pattern)}")
         copy_query = "\n".join(sql_parts)
 
-        self.log.info('Executing COPY command...')
+        self.log.info("Executing COPY command...")
         snowflake_hook.run(copy_query, self.autocommit)
         self.log.info("COPY command completed")

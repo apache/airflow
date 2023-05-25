@@ -26,48 +26,59 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class DmsTaskWaiterStatus(str, Enum):
     """Available AWS DMS Task Waiter statuses."""
 
-    DELETED = 'deleted'
-    READY = 'ready'
-    RUNNING = 'running'
-    STOPPED = 'stopped'
+    DELETED = "deleted"
+    READY = "ready"
+    RUNNING = "running"
+    STOPPED = "stopped"
 
 
 class DmsHook(AwsBaseHook):
-    """Interact with AWS Database Migration Service."""
+    """
+    Interact with AWS Database Migration Service (DMS).
+    Provide thin wrapper around
+    :external+boto3:py:class:`boto3.client("dms") <DatabaseMigrationService.Client>`.
 
-    def __init__(
-        self,
-        *args,
-        **kwargs,
-    ):
-        kwargs['client_type'] = 'dms'
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    def __init__(self, *args, **kwargs):
+        kwargs["client_type"] = "dms"
         super().__init__(*args, **kwargs)
 
-    def describe_replication_tasks(self, **kwargs):
+    def describe_replication_tasks(self, **kwargs) -> tuple[str | None, list]:
         """
         Describe replication tasks
 
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.describe_replication_tasks`
+
         :return: Marker and list of replication tasks
-        :rtype: (Optional[str], list)
         """
         dms_client = self.get_conn()
         response = dms_client.describe_replication_tasks(**kwargs)
 
-        return response.get('Marker'), response.get('ReplicationTasks', [])
+        return response.get("Marker"), response.get("ReplicationTasks", [])
 
     def find_replication_tasks_by_arn(self, replication_task_arn: str, without_settings: bool | None = False):
         """
         Find and describe replication tasks by task ARN
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.describe_replication_tasks`
+
         :param replication_task_arn: Replication task arn
         :param without_settings: Indicates whether to return task information with settings.
-
         :return: list of replication tasks that match the ARN
         """
         _, tasks = self.describe_replication_tasks(
             Filters=[
                 {
-                    'Name': 'replication-task-arn',
-                    'Values': [replication_task_arn],
+                    "Name": "replication-task-arn",
+                    "Values": [replication_task_arn],
                 }
             ],
             WithoutSettings=without_settings,
@@ -88,11 +99,11 @@ class DmsHook(AwsBaseHook):
         )
 
         if len(replication_tasks) == 1:
-            status = replication_tasks[0]['Status']
+            status = replication_tasks[0]["Status"]
             self.log.info('Replication task with ARN(%s) has status "%s".', replication_task_arn, status)
             return status
         else:
-            self.log.info('Replication task with ARN(%s) is not found.', replication_task_arn)
+            self.log.info("Replication task with ARN(%s) is not found.", replication_task_arn)
             return None
 
     def create_replication_task(
@@ -106,7 +117,10 @@ class DmsHook(AwsBaseHook):
         **kwargs,
     ) -> str:
         """
-        Create DMS replication task
+        Create DMS replication task.
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.create_replication_task`
 
         :param replication_task_id: Replication task id
         :param source_endpoint_arn: Source endpoint ARN
@@ -127,7 +141,7 @@ class DmsHook(AwsBaseHook):
             **kwargs,
         )
 
-        replication_task_arn = create_task_response['ReplicationTask']['ReplicationTaskArn']
+        replication_task_arn = create_task_response["ReplicationTask"]["ReplicationTaskArn"]
         self.wait_for_task_status(replication_task_arn, DmsTaskWaiterStatus.READY)
 
         return replication_task_arn
@@ -140,6 +154,9 @@ class DmsHook(AwsBaseHook):
     ):
         """
         Starts replication task.
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.start_replication_task`
 
         :param replication_task_arn: Replication task ARN
         :param start_replication_task_type: Replication task start type (default='start-replication')
@@ -156,6 +173,9 @@ class DmsHook(AwsBaseHook):
         """
         Stops replication task.
 
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.stop_replication_task`
+
         :param replication_task_arn: Replication task ARN
         """
         dms_client = self.get_conn()
@@ -163,7 +183,10 @@ class DmsHook(AwsBaseHook):
 
     def delete_replication_task(self, replication_task_arn):
         """
-        Starts replication task deletion and waits for it to be deleted
+        Starts replication task deletion and waits for it to be deleted.
+
+        .. seealso::
+            - :external+boto3:py:meth:`DatabaseMigrationService.Client.delete_replication_task`
 
         :param replication_task_arn: Replication task ARN
         """
@@ -181,15 +204,15 @@ class DmsHook(AwsBaseHook):
         :param replication_task_arn: Replication task ARN
         """
         if not isinstance(status, DmsTaskWaiterStatus):
-            raise TypeError('Status must be an instance of DmsTaskWaiterStatus')
+            raise TypeError("Status must be an instance of DmsTaskWaiterStatus")
 
         dms_client = self.get_conn()
-        waiter = dms_client.get_waiter(f'replication_task_{status}')
+        waiter = dms_client.get_waiter(f"replication_task_{status.value}")
         waiter.wait(
             Filters=[
                 {
-                    'Name': 'replication-task-arn',
-                    'Values': [
+                    "Name": "replication-task-arn",
+                    "Values": [
                         replication_task_arn,
                     ],
                 },

@@ -36,7 +36,6 @@ class SqoopHook(BaseHook):
 
         * ``job_tracker``: Job tracker local|jobtracker:port.
         * ``namenode``: Namenode.
-        * ``lib_jars``: Comma separated jar files to include in the classpath.
         * ``files``: Comma separated files to be copied to the map reduce cluster.
         * ``archives``: Comma separated archives to be unarchived on the compute
             machines.
@@ -46,12 +45,13 @@ class SqoopHook(BaseHook):
     :param verbose: Set sqoop to verbose.
     :param num_mappers: Number of map tasks to import in parallel.
     :param properties: Properties to set via the -D argument
+    :param libjars: Optional Comma separated jar files to include in the classpath.
     """
 
-    conn_name_attr = 'conn_id'
-    default_conn_name = 'sqoop_default'
-    conn_type = 'sqoop'
-    hook_name = 'Sqoop'
+    conn_name_attr = "conn_id"
+    default_conn_name = "sqoop_default"
+    conn_type = "sqoop"
+    hook_name = "Sqoop"
 
     def __init__(
         self,
@@ -61,17 +61,18 @@ class SqoopHook(BaseHook):
         hcatalog_database: str | None = None,
         hcatalog_table: str | None = None,
         properties: dict[str, Any] | None = None,
+        libjars: str | None = None,
     ) -> None:
         # No mutable types in the default parameters
         super().__init__()
         self.conn = self.get_connection(conn_id)
         connection_parameters = self.conn.extra_dejson
-        self.job_tracker = connection_parameters.get('job_tracker', None)
-        self.namenode = connection_parameters.get('namenode', None)
-        self.libjars = connection_parameters.get('libjars', None)
-        self.files = connection_parameters.get('files', None)
-        self.archives = connection_parameters.get('archives', None)
-        self.password_file = connection_parameters.get('password_file', None)
+        self.job_tracker = connection_parameters.get("job_tracker", None)
+        self.namenode = connection_parameters.get("namenode", None)
+        self.libjars = libjars
+        self.files = connection_parameters.get("files", None)
+        self.archives = connection_parameters.get("archives", None)
+        self.password_file = connection_parameters.get("password_file", None)
         self.hcatalog_database = hcatalog_database
         self.hcatalog_table = hcatalog_table
         self.verbose = verbose
@@ -87,8 +88,8 @@ class SqoopHook(BaseHook):
         """Mask command password for safety"""
         cmd = deepcopy(cmd_orig)
         try:
-            password_index = cmd.index('--password')
-            cmd[password_index + 1] = 'MASKED'
+            password_index = cmd.index("--password")
+            cmd[password_index + 1] = "MASKED"
         except ValueError:
             self.log.debug("No password in sqoop cmd")
         return cmd
@@ -101,7 +102,7 @@ class SqoopHook(BaseHook):
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
         :return: handle to subprocess
         """
-        masked_cmd = ' '.join(self.cmd_mask_password(cmd))
+        masked_cmd = " ".join(self.cmd_mask_password(cmd))
         self.log.info("Executing command: %s", masked_cmd)
         with subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **kwargs) as sub_process:
             self.sub_process_pid = sub_process.pid
@@ -149,7 +150,7 @@ class SqoopHook(BaseHook):
             connect_str += f":{self.conn.port}"
         if self.conn.schema:
             self.log.info("CONNECTION TYPE %s", self.conn.conn_type)
-            if self.conn.conn_type != 'mssql':
+            if self.conn.conn_type != "mssql":
                 connect_str += f"/{self.conn.schema}"
             else:
                 connect_str += f";databaseName={self.conn.schema}"
@@ -158,7 +159,7 @@ class SqoopHook(BaseHook):
         return connection_cmd
 
     @staticmethod
-    def _get_export_format_argument(file_type: str = 'text') -> list[str]:
+    def _get_export_format_argument(file_type: str = "text") -> list[str]:
         if file_type == "avro":
             return ["--as-avrodatafile"]
         elif file_type == "sequence":
@@ -202,7 +203,7 @@ class SqoopHook(BaseHook):
 
         if extra_import_options:
             for key, value in extra_import_options.items():
-                cmd += [f'--{key}']
+                cmd += [f"--{key}"]
                 if value:
                     cmd += [str(value)]
 
@@ -344,7 +345,7 @@ class SqoopHook(BaseHook):
 
         if extra_export_options:
             for key, value in extra_export_options.items():
-                cmd += [f'--{key}']
+                cmd += [f"--{key}"]
                 if value:
                     cmd += [str(value)]
 

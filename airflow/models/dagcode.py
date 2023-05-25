@@ -24,13 +24,14 @@ from typing import Iterable
 
 from sqlalchemy import BigInteger, Column, String, Text
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
+from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import literal
 
 from airflow.exceptions import AirflowException, DagCodeNotFound
 from airflow.models.base import Base
 from airflow.utils import timezone
 from airflow.utils.file import correct_maybe_zipped, open_maybe_zipped
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
 log = logging.getLogger(__name__)
@@ -44,13 +45,13 @@ class DagCode(Base):
     For details on dag serialization see SerializedDagModel
     """
 
-    __tablename__ = 'dag_code'
+    __tablename__ = "dag_code"
 
     fileloc_hash = Column(BigInteger, nullable=False, primary_key=True, autoincrement=False)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     last_updated = Column(UtcDateTime, nullable=False)
-    source_code = Column(Text().with_variant(MEDIUMTEXT(), 'mysql'), nullable=False)
+    source_code = Column(Text().with_variant(MEDIUMTEXT(), "mysql"), nullable=False)
 
     def __init__(self, full_filepath: str, source_code: str | None = None):
         self.fileloc = full_filepath
@@ -59,7 +60,7 @@ class DagCode(Base):
         self.source_code = source_code or DagCode.code(self.fileloc)
 
     @provide_session
-    def sync_to_db(self, session=None):
+    def sync_to_db(self, session: Session = NEW_SESSION) -> None:
         """Writes code into database.
 
         :param session: ORM Session
@@ -68,7 +69,7 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def bulk_sync_to_db(cls, filelocs: Iterable[str], session=None):
+    def bulk_sync_to_db(cls, filelocs: Iterable[str], session: Session = NEW_SESSION) -> None:
         """Writes code in bulk into database.
 
         :param filelocs: file paths of DAGs to sync
@@ -125,7 +126,7 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def remove_deleted_code(cls, alive_dag_filelocs: list[str], session=None):
+    def remove_deleted_code(cls, alive_dag_filelocs: list[str], session: Session = NEW_SESSION) -> None:
         """Deletes code not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
@@ -137,11 +138,11 @@ class DagCode(Base):
 
         session.query(cls).filter(
             cls.fileloc_hash.notin_(alive_fileloc_hashes), cls.fileloc.notin_(alive_dag_filelocs)
-        ).delete(synchronize_session='fetch')
+        ).delete(synchronize_session="fetch")
 
     @classmethod
     @provide_session
-    def has_dag(cls, fileloc: str, session=None) -> bool:
+    def has_dag(cls, fileloc: str, session: Session = NEW_SESSION) -> bool:
         """Checks a file exist in dag_code table.
 
         :param fileloc: the file to check
@@ -169,13 +170,13 @@ class DagCode(Base):
 
     @staticmethod
     def _get_code_from_file(fileloc):
-        with open_maybe_zipped(fileloc, 'r') as f:
+        with open_maybe_zipped(fileloc, "r") as f:
             code = f.read()
         return code
 
     @classmethod
     @provide_session
-    def _get_code_from_db(cls, fileloc, session=None):
+    def _get_code_from_db(cls, fileloc, session: Session = NEW_SESSION) -> str:
         dag_code = session.query(cls).filter(cls.fileloc_hash == cls.dag_fileloc_hash(fileloc)).first()
         if not dag_code:
             raise DagCodeNotFound()
@@ -195,4 +196,4 @@ class DagCode(Base):
         import hashlib
 
         # Only 7 bytes because MySQL BigInteger can hold only 8 bytes (signed).
-        return struct.unpack('>Q', hashlib.sha1(full_filepath.encode('utf-8')).digest()[-8:])[0] >> 8
+        return struct.unpack(">Q", hashlib.sha1(full_filepath.encode("utf-8")).digest()[-8:])[0] >> 8

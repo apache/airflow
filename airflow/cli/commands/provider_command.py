@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Providers sub-commands"""
+"""Providers sub-commands."""
 from __future__ import annotations
 
 import re
@@ -44,15 +44,16 @@ def provider_get(args):
                 output=args.output,
             )
         else:
-            print(f"Provider: {args.provider_name}")
-            print(f"Version: {provider_version}")
+            AirflowConsole().print_as(
+                data=[{"Provider": args.provider_name, "Version": provider_version}], output=args.output
+            )
     else:
         raise SystemExit(f"No such provider installed: {args.provider_name}")
 
 
 @suppress_logs_and_warning
 def providers_list(args):
-    """Lists all providers at the command line"""
+    """Lists all providers at the command line."""
     AirflowConsole().print_as(
         data=list(ProvidersManager().providers.values()),
         output=args.output,
@@ -66,7 +67,7 @@ def providers_list(args):
 
 @suppress_logs_and_warning
 def hooks_list(args):
-    """Lists all hooks at the command line"""
+    """Lists all hooks at the command line."""
     AirflowConsole().print_as(
         data=list(ProvidersManager().hooks.items()),
         output=args.output,
@@ -74,30 +75,43 @@ def hooks_list(args):
             "connection_type": x[0],
             "class": x[1].hook_class_name if x[1] else ERROR_IMPORTING_HOOK,
             "conn_id_attribute_name": x[1].connection_id_attribute_name if x[1] else ERROR_IMPORTING_HOOK,
-            'package_name': x[1].package_name if x[1] else ERROR_IMPORTING_HOOK,
-            'hook_name': x[1].hook_name if x[1] else ERROR_IMPORTING_HOOK,
+            "package_name": x[1].package_name if x[1] else ERROR_IMPORTING_HOOK,
+            "hook_name": x[1].hook_name if x[1] else ERROR_IMPORTING_HOOK,
+        },
+    )
+
+
+@suppress_logs_and_warning
+def triggers_list(args):
+    AirflowConsole().print_as(
+        data=ProvidersManager().trigger,
+        output=args.output,
+        mapper=lambda x: {
+            "package_name": x.package_name,
+            "class": x.trigger_class_name,
+            "integration_name": x.integration_name,
         },
     )
 
 
 @suppress_logs_and_warning
 def connection_form_widget_list(args):
-    """Lists all custom connection form fields at the command line"""
+    """Lists all custom connection form fields at the command line."""
     AirflowConsole().print_as(
         data=list(sorted(ProvidersManager().connection_form_widgets.items())),
         output=args.output,
         mapper=lambda x: {
             "connection_parameter_name": x[0],
             "class": x[1].hook_class_name,
-            'package_name': x[1].package_name,
-            'field_type': x[1].field.field_class.__name__,
+            "package_name": x[1].package_name,
+            "field_type": x[1].field.field_class.__name__,
         },
     )
 
 
 @suppress_logs_and_warning
 def connection_field_behaviours(args):
-    """Lists field behaviours"""
+    """Lists field behaviours."""
     AirflowConsole().print_as(
         data=list(ProvidersManager().field_behaviours.keys()),
         output=args.output,
@@ -109,7 +123,7 @@ def connection_field_behaviours(args):
 
 @suppress_logs_and_warning
 def extra_links_list(args):
-    """Lists all extra links at the command line"""
+    """Lists all extra links at the command line."""
     AirflowConsole().print_as(
         data=ProvidersManager().extra_links_class_names,
         output=args.output,
@@ -121,7 +135,7 @@ def extra_links_list(args):
 
 @suppress_logs_and_warning
 def logging_list(args):
-    """Lists all log task handlers at the command line"""
+    """Lists all log task handlers at the command line."""
     AirflowConsole().print_as(
         data=list(ProvidersManager().logging_class_names),
         output=args.output,
@@ -133,7 +147,7 @@ def logging_list(args):
 
 @suppress_logs_and_warning
 def secrets_backends_list(args):
-    """Lists all secrets backends at the command line"""
+    """Lists all secrets backends at the command line."""
     AirflowConsole().print_as(
         data=list(ProvidersManager().secrets_backend_class_names),
         output=args.output,
@@ -145,7 +159,7 @@ def secrets_backends_list(args):
 
 @suppress_logs_and_warning
 def auth_backend_list(args):
-    """Lists all API auth backend modules at the command line"""
+    """Lists all API auth backend modules at the command line."""
     AirflowConsole().print_as(
         data=list(ProvidersManager().auth_backend_module_names),
         output=args.output,

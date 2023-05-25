@@ -32,12 +32,23 @@ class BaseTrigger(abc.ABC, LoggingMixin):
      - Actively running in a trigger worker
 
     We use the same class for both situations, and rely on all Trigger classes
-    to be able to return the (Airflow-JSON-encodable) arguments that will
+    to be able to return the arguments (possible to encode with Airflow-JSON) that will
     let them be re-instantiated elsewhere.
     """
 
     def __init__(self, **kwargs):
-        pass
+
+        # these values are set by triggerer when preparing to run the instance
+        # when run, they are injected into logger record.
+        self.task_instance = None
+        self.trigger_id = None
+
+    def _set_context(self, context):
+        """
+        This method, part of LoggingMixin, is used mainly for configuration of logging
+        for tasks, but is not used for triggers.
+        """
+        raise NotImplementedError
 
     @abc.abstractmethod
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -49,7 +60,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         raise NotImplementedError("Triggers must implement serialize()")
 
     @abc.abstractmethod
-    async def run(self) -> AsyncIterator["TriggerEvent"]:
+    async def run(self) -> AsyncIterator[TriggerEvent]:
         """
         Runs the trigger in an asynchronous context.
 
@@ -66,11 +77,20 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         and then rely on cleanup() being called when they are no longer needed.
         """
         raise NotImplementedError("Triggers must implement run()")
+        yield  # To convince Mypy this is an async iterator.
 
-    def cleanup(self) -> None:
+    async def cleanup(self) -> None:
         """
-        Called when the trigger is no longer needed and it's being removed
+        Cleanup the trigger.
+
+        Called when the trigger is no longer needed, and it's being removed
         from the active triggerer process.
+
+        This method follows the async/await pattern to allow to run the cleanup
+        in triggerer main event loop. Exceptions raised by the cleanup method
+        are ignored, so if you would like to be able to debug them and be notified
+        that cleanup method failed, you should wrap your code with try/except block
+        and handle it appropriately (in async-compatible way).
         """
 
     def __repr__(self) -> str:

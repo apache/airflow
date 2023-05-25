@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from requests.auth import AuthBase, HTTPBasicAuth
+from requests.auth import AuthBase
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -64,27 +64,27 @@ class SimpleHttpOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'endpoint',
-        'data',
-        'headers',
+        "endpoint",
+        "data",
+        "headers",
     )
-    template_fields_renderers = {'headers': 'json', 'data': 'py'}
+    template_fields_renderers = {"headers": "json", "data": "py"}
     template_ext: Sequence[str] = ()
-    ui_color = '#f4a460'
+    ui_color = "#f4a460"
 
     def __init__(
         self,
         *,
         endpoint: str | None = None,
-        method: str = 'POST',
+        method: str = "POST",
         data: Any = None,
         headers: dict[str, str] | None = None,
         response_check: Callable[..., bool] | None = None,
         response_filter: Callable[..., Any] | None = None,
         extra_options: dict[str, Any] | None = None,
-        http_conn_id: str = 'http_default',
+        http_conn_id: str = "http_default",
         log_response: bool = False,
-        auth_type: type[AuthBase] = HTTPBasicAuth,
+        auth_type: type[AuthBase] | None = None,
         tcp_keep_alive: bool = True,
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,

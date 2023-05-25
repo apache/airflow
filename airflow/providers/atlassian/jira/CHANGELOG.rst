@@ -24,6 +24,67 @@
 Changelog
 ---------
 
+2.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Add mechanism to suspend providers (#30422)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+
+2.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Handle 'jira_method_args' in JiraOperator when not provided (#29741)``
+
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Changing atlassian JIRA SDK to official atlassian-python-api SDK (#27633)``
+
+Migrated ``Jira`` provider from Atlassian ``Jira`` SDK to ``atlassian-python-api`` SDK.
+``Jira`` provider doesn't support ``validate`` and ``get_server_info`` in connection extra dict.
+Changed the return type of ``JiraHook.get_conn`` to return an ``atlassian.Jira`` object instead of a ``jira.Jira`` object.
+
+.. warning:: Due to the underlying SDK change, the ``JiraOperator`` now requires ``jira_method`` and ``jira_method_args``
+             arguments as per ``atlassian-python-api``.
+
+             Please refer `Atlassian Python API Documentation <https://atlassian-python-api.readthedocs.io/jira.html>`__
+
+1.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Move min airflow version to 2.3.0 for all providers (#27196)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable string normalization in python formatting - providers (#27205)``
+
 1.0.0
 .....
 

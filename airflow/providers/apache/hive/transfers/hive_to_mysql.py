@@ -25,13 +25,9 @@ from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveServer2Hook
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils.operator_helpers import context_to_airflow_vars
-from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-# TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-MYSQL_RENDERER = 'mysql' if 'mysql' in wwwutils.get_attr_renderer() else 'sql'
 
 
 class HiveToMySqlOperator(BaseOperator):
@@ -54,28 +50,28 @@ class HiveToMySqlOperator(BaseOperator):
         import, typically used to move data from staging to
         production and issue cleanup commands. (templated)
     :param bulk_load: flag to use bulk_load option.  This loads mysql directly
-        from a tab-delimited text file using the LOAD DATA LOCAL INFILE command.
-        This option requires an extra connection parameter for the
-        destination MySQL connection: {'local_infile': true}.
+        from a tab-delimited text file using the LOAD DATA LOCAL INFILE command. The MySQL
+        server must support loading local files via this command (it is disabled by default).
+
     :param hive_conf:
     """
 
-    template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
-    template_ext: Sequence[str] = ('.sql',)
+    template_fields: Sequence[str] = ("sql", "mysql_table", "mysql_preoperator", "mysql_postoperator")
+    template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {
-        'sql': 'hql',
-        'mysql_preoperator': MYSQL_RENDERER,
-        'mysql_postoperator': MYSQL_RENDERER,
+        "sql": "hql",
+        "mysql_preoperator": "mysql",
+        "mysql_postoperator": "mysql",
     }
-    ui_color = '#a0e08c'
+    ui_color = "#a0e08c"
 
     def __init__(
         self,
         *,
         sql: str,
         mysql_table: str,
-        hiveserver2_conn_id: str = 'hiveserver2_default',
-        mysql_conn_id: str = 'mysql_default',
+        hiveserver2_conn_id: str = "hiveserver2_default",
+        mysql_conn_id: str = "mysql_default",
         mysql_preoperator: str | None = None,
         mysql_postoperator: str | None = None,
         bulk_load: bool = False,
@@ -104,12 +100,12 @@ class HiveToMySqlOperator(BaseOperator):
                 hive.to_csv(
                     self.sql,
                     tmp_file.name,
-                    delimiter='\t',
-                    lineterminator='\n',
+                    delimiter="\t",
+                    lineterminator="\n",
                     output_header=False,
                     hive_conf=hive_conf,
                 )
-                mysql = self._call_preoperator()
+                mysql = self._call_preoperator(local_infile=self.bulk_load)
                 mysql.bulk_load(table=self.mysql_table, tmp_file=tmp_file.name)
         else:
             hive_results = hive.get_records(self.sql, parameters=hive_conf)
@@ -122,8 +118,8 @@ class HiveToMySqlOperator(BaseOperator):
 
         self.log.info("Done.")
 
-    def _call_preoperator(self):
-        mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
+    def _call_preoperator(self, local_infile: bool = False) -> MySqlHook:
+        mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id, local_infile=local_infile)
         if self.mysql_preoperator:
             self.log.info("Running MySQL preoperator")
             mysql.run(self.mysql_preoperator)

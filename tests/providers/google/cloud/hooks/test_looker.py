@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -32,13 +31,13 @@ JOB_ID = "test-id"
 TASK_ID = "test-task-id"
 MODEL = "test_model"
 VIEW = "test_view"
-SOURCE = f'airflow:{version}'
+SOURCE = f"airflow:{version}"
 
 CONN_EXTRA = {"verify_ssl": "true", "timeout": "120"}
 
 
-class TestLookerHook(unittest.TestCase):
-    def setUp(self):
+class TestLookerHook:
+    def setup_method(self):
         with mock.patch("airflow.hooks.base.BaseHook.get_connection") as conn:
             conn.return_value.extra_dejson = CONN_EXTRA
             self.hook = LookerHook(looker_conn_id="test")
@@ -47,8 +46,8 @@ class TestLookerHook(unittest.TestCase):
     def test_wait_for_job(self, mock_pdt_build_status):
         # replace pdt_build_status invocation with mock status
         mock_pdt_build_status.side_effect = [
-            {'status': JobStatus.RUNNING.value},
-            {'status': JobStatus.ERROR.value, 'message': 'test'},
+            {"status": JobStatus.RUNNING.value},
+            {"status": JobStatus.ERROR.value, "message": "test"},
         ]
 
         # call hook in mock context (w/ no wait b/w job checks)

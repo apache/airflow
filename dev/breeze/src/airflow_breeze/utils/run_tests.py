@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from subprocess import DEVNULL
 
@@ -29,15 +30,11 @@ def verify_an_image(
     image_name: str,
     image_type: str,
     output: Output | None,
-    dry_run: bool,
-    verbose: bool,
     slim_image: bool,
     extra_pytest_args: tuple,
 ) -> tuple[int, str]:
     command_result = run_command(
         ["docker", "inspect", image_name],
-        dry_run=dry_run,
-        verbose=verbose,
         check=False,
         output=output,
     )
@@ -47,18 +44,16 @@ def verify_an_image(
         )
         return command_result.returncode, f"Testing {image_type} python {image_name}"
     pytest_args = ("-n", str(os.cpu_count()), "--color=yes")
-    if image_type == 'PROD':
+    if image_type == "PROD":
         test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_prod_image.py"
     else:
         test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_ci_image.py"
     env = os.environ.copy()
-    env['DOCKER_IMAGE'] = image_name
+    env["DOCKER_IMAGE"] = image_name
     if slim_image:
-        env['TEST_SLIM_IMAGE'] = 'true'
+        env["TEST_SLIM_IMAGE"] = "true"
     command_result = run_command(
         [sys.executable, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
-        dry_run=dry_run,
-        verbose=verbose,
         env=env,
         output=output,
         check=False,
@@ -67,23 +62,30 @@ def verify_an_image(
 
 
 def run_docker_compose_tests(
-    image_name: str, dry_run: bool, verbose: bool, extra_pytest_args: tuple
+    image_name: str,
+    extra_pytest_args: tuple,
+    skip_docker_compose_deletion: bool,
+    wait_for_containers_timeout: int,
 ) -> tuple[int, str]:
-    command_result = run_command(
-        ["docker", "inspect", image_name], dry_run=dry_run, verbose=verbose, check=False, stdout=DEVNULL
-    )
+    command_result = run_command(["docker", "inspect", image_name], check=False, stdout=DEVNULL)
     if command_result.returncode != 0:
         get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
         return command_result.returncode, f"Testing docker-compose python with {image_name}"
-    pytest_args = ("-n", str(os.cpu_count()), "--color=yes")
+    pytest_args = ("--color=yes",)
     test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_docker_compose_quick_start.py"
     env = os.environ.copy()
-    env['DOCKER_IMAGE'] = image_name
+    env["DOCKER_IMAGE"] = image_name
+    if skip_docker_compose_deletion:
+        env["SKIP_DOCKER_COMPOSE_DELETION"] = "true"
+    env["WAIT_FOR_CONTAINERS_TIMEOUT"] = str(wait_for_containers_timeout)
     command_result = run_command(
         [sys.executable, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
-        dry_run=dry_run,
-        verbose=verbose,
         env=env,
         check=False,
     )
     return command_result.returncode, f"Testing docker-compose python with {image_name}"
+
+
+def file_name_from_test_type(test_type: str):
+    test_type_no_brackets = test_type.lower().replace("[", "_").replace("]", "")
+    return re.sub("[,.]", "_", test_type_no_brackets)[:30]

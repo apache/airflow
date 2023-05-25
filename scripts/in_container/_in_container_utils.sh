@@ -60,44 +60,6 @@ function in_container_script_start() {
 }
 
 #
-# Cleans up PYC files (in case they come in mounted folders)
-#
-function in_container_cleanup_pyc() {
-    set +o pipefail
-    if [[ ${CLEANED_PYC=} == "true" ]]; then
-        return
-    fi
-    sudo find . \
-        -path "./airflow/www/node_modules" -prune -o \
-        -path "./provider_packages/airflow/www/node_modules" -prune -o \
-        -path "./.eggs" -prune -o \
-        -path "./docs/_build" -prune -o \
-        -path "./build" -prune -o \
-        -name "*.pyc" | grep ".pyc$" | sudo xargs rm -f
-    set -o pipefail
-    export CLEANED_PYC="true"
-}
-
-#
-# Cleans up __pycache__ directories (in case they come in mounted folders)
-#
-function in_container_cleanup_pycache() {
-    set +o pipefail
-    if [[ ${CLEANED_PYCACHE=} == "true" ]]; then
-        return
-    fi
-    find . \
-        -path "./airflow/www/node_modules" -prune -o \
-        -path "./provider_packages/airflow/www/node_modules" -prune -o \
-        -path "./.eggs" -prune -o \
-        -path "./docs/_build" -prune -o \
-        -path "./build" -prune -o \
-        -name "__pycache__" | grep "__pycache__" | sudo xargs rm -rf
-    set -o pipefail
-    export CLEANED_PYCACHE="true"
-}
-
-#
 # Fixes ownership of files generated in container - if they are owned by root, they will be owned by
 # The host user. Only needed if the host is Linux - on Mac, ownership of files is automatically
 # changed to the Host user via osxfs filesystem
@@ -111,7 +73,10 @@ function in_container_fix_ownership() {
             "${AIRFLOW_SOURCES}/docs"
             "${AIRFLOW_SOURCES}/dags"
             "${AIRFLOW_SOURCES}/airflow/"
+            "${AIRFLOW_SOURCES}/constraints/"
             "${AIRFLOW_SOURCES}/images/"
+            "${AIRFLOW_SOURCES}/.mypy_cache/"
+            "${AIRFLOW_SOURCES}/dev/"
         )
         count_matching=$(find "${DIRECTORIES_TO_FIX[@]}" -mindepth 1 -user root -printf . 2>/dev/null | wc -m || true)
         if [[ ${count_matching=} != "0" && ${count_matching=} != "" ]]; then
@@ -137,8 +102,6 @@ function in_container_go_to_airflow_sources() {
 function in_container_basic_sanity_check() {
     assert_in_container
     in_container_go_to_airflow_sources
-    in_container_cleanup_pyc
-    in_container_cleanup_pycache
 }
 
 export DISABLE_CHECKS_FOR_TESTS="missing-docstring,no-self-use,too-many-public-methods,protected-access,do-not-use-asserts"
@@ -301,7 +264,7 @@ function install_local_airflow_with_eager_upgrade() {
     # we add eager requirements to make sure to take into account limitations that will allow us to
     # install all providers
     # shellcheck disable=SC2086
-    pip install -e ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    pip install ".${extras}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
         --upgrade --upgrade-strategy eager
 }
 
@@ -330,7 +293,7 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     # Installing it with Airflow makes sure that the version of package that matches current
     # Airflow requirements will be used.
     # shellcheck disable=SC2086
-    pip install -e ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
+    pip install ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
         --upgrade --upgrade-strategy eager
 
 }
@@ -393,7 +356,12 @@ function setup_provider_packages() {
 
 
 function install_supported_pip_version() {
-    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+    if [[ ${AIRFLOW_PIP_VERSION} =~ .*https.* ]]; then
+        pip install --disable-pip-version-check "pip @ ${AIRFLOW_PIP_VERSION}"
+    else
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+    fi
+
 }
 
 function filename_to_python_module() {

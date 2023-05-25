@@ -23,44 +23,86 @@ from urllib.parse import parse_qs
 
 from bs4 import BeautifulSoup
 
+from airflow.utils import json as utils_json
 from airflow.www import utils
 from airflow.www.utils import wrapped_markdown
 
 
 class TestUtils:
-    def check_generate_pages_html(self, current_page, total_pages, window=7, check_middle=False):
+    def check_generate_pages_html(
+        self,
+        current_page,
+        total_pages,
+        window=7,
+        check_middle=False,
+        sorting_key=None,
+        sorting_direction=None,
+    ):
         extra_links = 4  # first, prev, next, last
         search = "'>\"/><img src=x onerror=alert(1)>"
-        html_str = utils.generate_pages(current_page, total_pages, search=search)
+        if sorting_key and sorting_direction:
+            html_str = utils.generate_pages(
+                current_page,
+                total_pages,
+                search=search,
+                sorting_key=sorting_key,
+                sorting_direction=sorting_direction,
+            )
+        else:
+            html_str = utils.generate_pages(current_page, total_pages, search=search)
 
         assert search not in html_str, "The raw search string shouldn't appear in the output"
-        assert 'search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E' in html_str
+        assert "search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E" in html_str
 
         assert callable(html_str.__html__), "Should return something that is HTML-escaping aware"
 
-        dom = BeautifulSoup(html_str, 'html.parser')
+        dom = BeautifulSoup(html_str, "html.parser")
         assert dom is not None
 
         ulist = dom.ul
-        ulist_items = ulist.find_all('li')
+        ulist_items = ulist.find_all("li")
         assert min(window, total_pages) + extra_links == len(ulist_items)
 
         page_items = ulist_items[2:-2]
         mid = int(len(page_items) / 2)
+        all_nodes = []
+        pages = []
+
+        if sorting_key and sorting_direction:
+            last_page = total_pages - 1
+
+            if current_page <= mid or total_pages < window:
+                pages = list(range(0, min(total_pages, window)))
+            elif mid < current_page < last_page - mid:
+                pages = list(range(current_page - mid, current_page + mid + 1))
+            else:
+                pages = list(range(total_pages - window, last_page + 1))
+
+            pages.append(last_page + 1)
+            pages.sort(reverse=True if sorting_direction == "desc" else False)
+
         for i, item in enumerate(page_items):
             a_node = item.a
-            href_link = a_node['href']
+            href_link = a_node["href"]
             node_text = a_node.string
+            all_nodes.append(node_text)
             if node_text == str(current_page + 1):
                 if check_middle:
                     assert mid == i
-                assert 'javascript:void(0)' == href_link
-                assert 'active' in item['class']
+                assert "javascript:void(0)" == href_link
+                assert "active" in item["class"]
             else:
-                assert re.search(r'^\?', href_link), 'Link is page-relative'
+                assert re.search(r"^\?", href_link), "Link is page-relative"
                 query = parse_qs(href_link[1:])
-                assert query['page'] == [str(int(node_text) - 1)]
-                assert query['search'] == [search]
+                assert query["page"] == [str(int(node_text) - 1)]
+                assert query["search"] == [search]
+
+        if sorting_key and sorting_direction:
+            if pages[0] == 0:
+                pages = pages[1:]
+                pages = list(map(lambda x: str(x), pages))
+
+            assert pages == all_nodes
 
     def test_generate_pager_current_start(self):
         self.check_generate_pages_html(current_page=0, total_pages=6)
@@ -71,40 +113,45 @@ class TestUtils:
     def test_generate_pager_current_end(self):
         self.check_generate_pages_html(current_page=38, total_pages=39)
 
+    def test_generate_pager_current_start_with_sorting(self):
+        self.check_generate_pages_html(
+            current_page=0, total_pages=4, sorting_key="dag_id", sorting_direction="asc"
+        )
+
     def test_params_no_values(self):
         """Should return an empty string if no params are passed"""
-        assert '' == utils.get_params()
+        assert "" == utils.get_params()
 
     def test_params_search(self):
-        assert 'search=bash_' == utils.get_params(search='bash_')
+        assert "search=bash_" == utils.get_params(search="bash_")
 
     def test_params_none_and_zero(self):
-        query_str = utils.get_params(a=0, b=None, c='true')
+        query_str = utils.get_params(a=0, b=None, c="true")
         # The order won't be consistent, but that doesn't affect behaviour of a browser
-        pairs = list(sorted(query_str.split('&')))
-        assert ['a=0', 'c=true'] == pairs
+        pairs = list(sorted(query_str.split("&")))
+        assert ["a=0", "c=true"] == pairs
 
     def test_params_all(self):
-        query = utils.get_params(tags=['tag1', 'tag2'], status='active', page=3, search='bash_')
+        query = utils.get_params(tags=["tag1", "tag2"], status="active", page=3, search="bash_")
         assert {
-            'tags': ['tag1', 'tag2'],
-            'page': ['3'],
-            'search': ['bash_'],
-            'status': ['active'],
+            "tags": ["tag1", "tag2"],
+            "page": ["3"],
+            "search": ["bash_"],
+            "status": ["active"],
         } == parse_qs(query)
 
     def test_params_escape(self):
-        assert 'search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E' == utils.get_params(
+        assert "search=%27%3E%22%2F%3E%3Cimg+src%3Dx+onerror%3Dalert%281%29%3E" == utils.get_params(
             search="'>\"/><img src=x onerror=alert(1)>"
         )
 
     def test_state_token(self):
         # It's shouldn't possible to set these odd values anymore, but lets
         # ensure they are escaped!
-        html = str(utils.state_token('<script>alert(1)</script>'))
+        html = str(utils.state_token("<script>alert(1)</script>"))
 
-        assert '&lt;script&gt;alert(1)&lt;/script&gt;' in html
-        assert '<script>alert(1)</script>' not in html
+        assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
+        assert "<script>alert(1)</script>" not in html
 
     def test_task_instance_link(self):
 
@@ -113,23 +160,23 @@ class TestUtils:
         with cached_app(testing=True).test_request_context():
             html = str(
                 utils.task_instance_link(
-                    {'dag_id': '<a&1>', 'task_id': '<b2>', 'execution_date': datetime.now()}
+                    {"dag_id": "<a&1>", "task_id": "<b2>", "execution_date": datetime.now()}
                 )
             )
 
-        assert '%3Ca%261%3E' in html
-        assert '%3Cb2%3E' in html
-        assert '<a&1>' not in html
-        assert '<b2>' not in html
+        assert "%3Ca%261%3E" in html
+        assert "%3Cb2%3E" in html
+        assert "<a&1>" not in html
+        assert "<b2>" not in html
 
     def test_dag_link(self):
         from airflow.www.app import cached_app
 
         with cached_app(testing=True).test_request_context():
-            html = str(utils.dag_link({'dag_id': '<a&1>', 'execution_date': datetime.now()}))
+            html = str(utils.dag_link({"dag_id": "<a&1>", "execution_date": datetime.now()}))
 
-        assert '%3Ca%261%3E' in html
-        assert '<a&1>' not in html
+        assert "%3Ca%261%3E" in html
+        assert "<a&1>" not in html
 
     def test_dag_link_when_dag_is_none(self):
         """Test that when there is no dag_id, dag_link does not contain hyperlink"""
@@ -138,21 +185,21 @@ class TestUtils:
         with cached_app(testing=True).test_request_context():
             html = str(utils.dag_link({}))
 
-        assert 'None' in html
-        assert '<a href=' not in html
+        assert "None" in html
+        assert "<a href=" not in html
 
     def test_dag_run_link(self):
         from airflow.www.app import cached_app
 
         with cached_app(testing=True).test_request_context():
             html = str(
-                utils.dag_run_link({'dag_id': '<a&1>', 'run_id': '<b2>', 'execution_date': datetime.now()})
+                utils.dag_run_link({"dag_id": "<a&1>", "run_id": "<b2>", "execution_date": datetime.now()})
             )
 
-        assert '%3Ca%261%3E' in html
-        assert '%3Cb2%3E' in html
-        assert '<a&1>' not in html
-        assert '<b2>' not in html
+        assert "%3Ca%261%3E" in html
+        assert "%3Cb2%3E" in html
+        assert "<a&1>" not in html
+        assert "<b2>" not in html
 
 
 class TestAttrRenderer:
@@ -164,7 +211,7 @@ class TestAttrRenderer:
             print("example")
 
         rendered = self.attr_renderer["python_callable"](example_callable)
-        assert '&quot;example&quot;' in rendered
+        assert "&quot;example&quot;" in rendered
 
     def test_python_callable_none(self):
         rendered = self.attr_renderer["python_callable"](None)
@@ -180,13 +227,29 @@ class TestAttrRenderer:
         rendered = self.attr_renderer["doc_md"](None)
         assert rendered is None
 
+    def test_get_dag_run_conf(self):
+        dag_run_conf = {
+            "1": "string",
+            "2": b"bytes",
+            "3": 123,
+            "4": "à".encode("latin"),
+            "5": datetime(2023, 1, 1),
+        }
+        expected_encoded_dag_run_conf = (
+            '{"1": "string", "2": "bytes", "3": 123, "4": "à", "5": "2023-01-01T00:00:00+00:00"}'
+        )
+        encoded_dag_run_conf, conf_is_json = utils.get_dag_run_conf(
+            dag_run_conf, json_encoder=utils_json.WebEncoder
+        )
+        assert expected_encoded_dag_run_conf == encoded_dag_run_conf
+
 
 class TestWrappedMarkdown:
     def test_wrapped_markdown_with_docstring_curly_braces(self):
         rendered = wrapped_markdown("{braces}", css_class="a_class")
         assert (
-            '''<div class="a_class" ><p>{braces}</p>
-</div>'''
+            """<div class="a_class" ><p>{braces}</p>
+</div>"""
             == rendered
         )
 
@@ -199,9 +262,9 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            '''<div class="a_class" ><p><em>italic</em>
+            """<div class="a_class" ><p><em>italic</em>
 <strong>bold</strong></p>
-</div>'''
+</div>"""
             == rendered
         )
 
@@ -215,7 +278,7 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            '''<div class="rich_doc" ><table>
+            """<div class="rich_doc" ><table>
 <thead>
 <tr>
 <th>Job</th>
@@ -229,7 +292,7 @@ class TestWrappedMarkdown:
 </tr>
 </tbody>
 </table>
-</div>'''
+</div>"""
             == rendered
         )
 
@@ -243,8 +306,8 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            '''<div class="rich_doc" ><h1>header</h1>\n<p>1st line\n2nd line</p>
-</div>'''
+            """<div class="rich_doc" ><h1>header</h1>\n<p>1st line\n2nd line</p>
+</div>"""
             == rendered
         )
 
@@ -264,10 +327,10 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            '''<div class="rich_doc" ><h1>Markdown code block</h1>
+            """<div class="rich_doc" ><h1>Markdown code block</h1>
 <p>Inline <code>code</code> works well.</p>
 <pre><code>Code block\ndoes not\nrespect\nnewlines\n</code></pre>
-</div>'''
+</div>"""
             == rendered
         )
 
@@ -282,7 +345,7 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            '''<div class="rich_doc" ><h3>Docstring with a code block</h3>
+            """<div class="rich_doc" ><h3>Docstring with a code block</h3>
 <ul>
 <li>And
 <ul>
@@ -290,7 +353,7 @@ class TestWrappedMarkdown:
 </ul>
 </li>
 </ul>
-</div>'''
+</div>"""
             == rendered
         )
 
@@ -311,7 +374,7 @@ class TestWrappedMarkdown:
         )
 
         assert (
-            '''<div class="rich_doc" ><h1>A collapsible section with markdown</h1>
+            """<div class="rich_doc" ><h1>A collapsible section with markdown</h1>
 <details>
   <summary>Click to expand!</summary>
 <h2>Heading</h2>
@@ -325,6 +388,6 @@ class TestWrappedMarkdown:
 </li>
 </ol>
 </details>
-</div>'''
+</div>"""
             == rendered
         )

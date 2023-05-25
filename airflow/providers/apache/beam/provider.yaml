@@ -21,7 +21,14 @@ name: Apache Beam
 description: |
     `Apache Beam <https://beam.apache.org/>`__.
 
+suspended: false
 versions:
+  - 5.1.0
+  - 5.0.0
+  - 4.3.0
+  - 4.2.0
+  - 4.1.1
+  - 4.1.0
   - 4.0.0
   - 3.4.0
   - 3.3.0
@@ -35,8 +42,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.2.0
-  - apache-beam>=2.39.0
+  - apache-airflow>=2.4.0
+  - apache-beam>=2.47.0
 
 integrations:
   - integration-name: Apache Beam

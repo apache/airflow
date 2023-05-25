@@ -21,7 +21,10 @@ name: Opsgenie
 description: |
     `Opsgenie <https://www.opsgenie.com/>`__
 
+suspended: false
 versions:
+  - 5.1.0
+  - 5.0.0
   - 4.0.0
   - 3.1.0
   - 3.0.3
@@ -35,7 +38,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.2.0
+  - apache-airflow>=2.4.0
   - opsgenie-sdk>=2.1.5
 
 integrations:
@@ -49,13 +52,11 @@ integrations:
 operators:
   - integration-name: Opsgenie
     python-modules:
-      - airflow.providers.opsgenie.operators.opsgenie_alert
       - airflow.providers.opsgenie.operators.opsgenie
 
 hooks:
   - integration-name: Opsgenie
     python-modules:
-      - airflow.providers.opsgenie.hooks.opsgenie_alert
       - airflow.providers.opsgenie.hooks.opsgenie
 
 connection-types:

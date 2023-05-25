@@ -31,5 +31,5 @@ class TestCliVersion:
 
     def test_cli_version(self):
         with redirect_stdout(io.StringIO()) as stdout:
-            airflow.cli.commands.version_command.version(self.parser.parse_args(['version']))
+            airflow.cli.commands.version_command.version(self.parser.parse_args(["version"]))
         assert version in stdout.getvalue()

@@ -36,6 +36,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--tag-as-latest",
                 "--docker-cache",
                 "--force-build",
+                "--github-repository",
             ],
         },
         {
@@ -54,6 +55,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--builder",
                 "--install-providers-from-sources",
+                "--airflow-constraints-location",
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--python-image",
@@ -73,7 +75,6 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-token",
                 "--github-username",
                 "--platform",
-                "--login-to-github-registry",
                 "--push",
                 "--empty-image",
                 "--prepare-buildx-cache",
@@ -90,6 +91,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--verify",
                 "--wait-for-image",
                 "--tag-as-latest",
+                "--github-repository",
             ],
         },
         {
@@ -112,6 +114,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--image-tag",
                 "--pull",
+                "--github-repository",
             ],
         }
     ],

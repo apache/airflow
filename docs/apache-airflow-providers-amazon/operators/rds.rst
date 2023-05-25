@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-======================================================
-Amazon Relational Database Service Documentation (RDS)
-======================================================
+========================================
+Amazon Relational Database Service (RDS)
+========================================
 
 `Amazon Relational Database Service (Amazon RDS) <https://aws.amazon.com/rds/>`__ is a web service that makes it
 easier to set up, operate, and scale a relational database in the cloud.
@@ -27,7 +27,7 @@ common database administration tasks.
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
 ---------
@@ -165,6 +165,35 @@ To delete a AWS DB instance you can use
     :dedent: 4
     :start-after: [START howto_operator_rds_delete_db_instance]
     :end-before: [END howto_operator_rds_delete_db_instance]
+
+.. _howto/operator:RdsStartDbOperator:
+
+Start a database instance or cluster
+====================================
+
+To start an Amazon RDS DB instance or cluster you can use
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsStartDbOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_rds_start_db]
+    :end-before: [END howto_operator_rds_start_db]
+
+
+.. _howto/operator:RdsStopDbOperator:
+
+Stop a database instance or cluster
+===================================
+
+To stop an Amazon RDS DB instance or cluster you can use
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsStopDbOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_instance.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_rds_stop_db]
+    :end-before: [END howto_operator_rds_stop_db]
 
 Sensors
 -------
