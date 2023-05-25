@@ -25,11 +25,10 @@ import sys
 import textwrap
 from datetime import datetime
 
+import github
 import pendulum
 import rich_click as click
-import github
 from github import Github
-from github.Requester import Requester
 from github.PullRequest import PullRequest
 from rich.console import Console
 
@@ -160,8 +159,8 @@ class PrStat:
             for num in self.issue_nums:
                 try:
                     issue = repo.get_issue(num)
-                except github.GithubException as e:
-                    continue 
+                except github.GithubException:
+                    continue
                 for reaction in issue.get_reactions():
                     self._users.add(reaction.user.login)
                     issue_reactions += 1
@@ -179,13 +178,13 @@ class PrStat:
             for num in self.issue_nums:
                 try:
                     issue = repo.get_issue(num)
-                except github.GithubException as e:
-                    continue 
+                except github.GithubException:
+                    continue
                 for issue_comment in issue.get_comments():
                     issue_comments += 1
                     self._users.add(issue_comment.user.login)
                     if issue_comment.body is not None:
-                        len_issue_comments += len(issue_comment.body)  
+                        len_issue_comments += len(issue_comment.body)
             self.len_issue_comments = len_issue_comments
             self.num_issue_comments = issue_comments
             return issue_comments
@@ -289,7 +288,10 @@ class PrStat:
         # Weight PRs with protm tags more heavily:
         # If there is at least one protm tag, multiply the interaction score by the number of tags, up to 3.
         interaction_score = self.interaction_score
-        interaction_score *= min(self.protm_score + 1, 3)
+        try:
+            interaction_score *= min(self.protm_score + 1, 3)
+        except AttributeError:
+            interaction_score = 0
         return round(
             1.0
             * interaction_score
@@ -301,14 +303,24 @@ class PrStat:
         )
 
     def __str__(self) -> str:
-        if self.protm_score > 0:
-            return (
-                "[magenta]##Tagged PR## [/]"
-                f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
-                f'"{self.pull_request.title}". '
-                f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
-            )
-        else:
+        try:
+            if self.protm_score > 0:
+                return (
+                    "[magenta]##Tagged PR## [/]"
+                    f"Score: {self.score:.2f}: PR{self.pull_request.number}"\
+                         "by @{self.pull_request.user.login}: "
+                    f'"{self.pull_request.title}". '
+                    f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
+                )
+            else:
+                return (
+                    f"Score: {self.score:.2f}: PR{self.pull_request.number}"\
+                          "by @{self.pull_request.user.login}: "
+                    f'"{self.pull_request.title}". '
+                    f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
+                )
+        except AttributeError:
+            self.protm_score = 0
             return (
                 f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
                 f'"{self.pull_request.title}". '
