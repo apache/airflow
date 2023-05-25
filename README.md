@@ -318,6 +318,9 @@ They are based on the official release schedule of Python and Kubernetes, nicely
    make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
    new versions of Python mostly) we release new images/support in Airflow based on the working CI setup.
 
+4. This policy is best-effort which means there may be situations where we might terminate support earlier
+   if circumstances require it.
+
 ## Base OS support for reference Airflow images
 
 The Airflow Community provides conveniently packaged container images that are published whenever
