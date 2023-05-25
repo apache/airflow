@@ -19,8 +19,8 @@
 from __future__ import annotations
 
 import logging
-import ssl
 import re
+import ssl
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
@@ -39,7 +39,7 @@ if "visibility_timeout" not in broker_transport_options:
     if _broker_supports_visibility_timeout(broker_url):
         broker_transport_options["visibility_timeout"] = 21600
 
-broker_transport_options_for_celery: dict = dict.copy(broker_transport_options)
+broker_transport_options_for_celery = broker_transport_options.copy()
 if "sentinel_kwargs" in broker_transport_options:
     try:
         sentinel_kwargs = conf.getjson("celery_broker_transport_options", "sentinel_kwargs")
@@ -53,7 +53,7 @@ if conf.has_option("celery", "RESULT_BACKEND"):
     result_backend = conf.get_mandatory_value("celery", "RESULT_BACKEND")
 else:
     log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
-    result_backend = f'db+{conf.get("database", "SQL_ALCHEMY_CONN")}'
+    result_backend = "db+{}".format(conf.get("database", "SQL_ALCHEMY_CONN"))
 
 DEFAULT_CELERY_CONFIG = {
     "accept_content": ["json"],
@@ -107,8 +107,8 @@ except AirflowConfigException:
     )
 except Exception as e:
     raise AirflowException(
-        f"Exception: There was an unknown Celery SSL Error. Please ensure you want to use SSL and/or have "
-        f"all necessary certs and key ({e})."
+        "Exception: There was an unknown Celery SSL Error. Please ensure you "
+        "want to use SSL and/or have all necessary certs and key ({}).".format(e)
     )
 
 if re.search("rediss?://|amqp://|rpc://", result_backend):
