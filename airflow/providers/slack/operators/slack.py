@@ -31,7 +31,6 @@ from airflow.utils.log.secrets_masker import mask_secret
 class SlackAPIOperator(BaseOperator):
     """
     Base Slack Operator.
-
     The SlackAPIPostOperator is derived from this operator.
     In the future additional Slack API Operators will be derived from this class as well.
     Only one of `slack_conn_id` and `token` is required.
@@ -92,7 +91,6 @@ class SlackAPIPostOperator(SlackAPIOperator):
     """
     Posts messages to a Slack channel.
 
-    Examples:
     .. code-block:: python
 
         slack = SlackAPIPostOperator(
@@ -154,7 +152,6 @@ class SlackAPIFileOperator(SlackAPIOperator):
     """
     Send a file to a Slack channel.
 
-    Examples:
     .. code-block:: python
 
         # Send file with filename and filetype
