@@ -105,14 +105,14 @@ class AppriseHook(BaseHook):
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import StringField
+        from wtforms import PasswordField
 
         return {
-            "config": StringField(
+            "config": PasswordField(
                 lazy_gettext("config"),
-                widget=BS3TextFieldWidget(),
+                widget=BS3PasswordFieldWidget(),
                 description='format example - {"path": "service url", "tag": "alerts"} or '
                 '[{"path": "service url", "tag": "alerts"},'
                 ' {"path": "service url", "tag": "alerts"}]',
