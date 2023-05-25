@@ -40,7 +40,7 @@ Example Code:
         catchup=False,
         on_failure_callback=[
             send_smtp_notification(
-                mail_from="someone@mail.com",
+                from_email="someone@mail.com",
                 to="someone@mail.com",
                 subject="[Error] The dag {{ dag.dag_id }} failed",
                 html_content="debug logs",
@@ -51,7 +51,7 @@ Example Code:
             task_id="mytask",
             on_failure_callback=[
                 send_smtp_notification(
-                    mail_from="someone@mail.com",
+                    from_email="someone@mail.com",
                     to="someone@mail.com",
                     subject="[Error] The Task {{ ti.task_id }} failed",
                     html_content="debug logs",

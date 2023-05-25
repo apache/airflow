@@ -41,7 +41,7 @@ class SmtpNotifier(BaseNotifier):
     """
 
     template_fields = (
-        "mail_from",
+        "from_email",
         "to",
         "subject",
         "html_content",
@@ -55,7 +55,7 @@ class SmtpNotifier(BaseNotifier):
 
     def __init__(
         self,
-        mail_from: str | None,
+        from_email: str | None,
         to: str | Iterable[str],
         subject: str,
         html_content: str,
@@ -69,7 +69,7 @@ class SmtpNotifier(BaseNotifier):
     ):
         super().__init__()
         self.smtp_conn_id = smtp_conn_id
-        self.mail_from = mail_from
+        self.from_email = from_email
         self.to = to
         self.subject = subject
         self.html_content = html_content
@@ -90,7 +90,7 @@ class SmtpNotifier(BaseNotifier):
         with self.hook as smtp:
             smtp.send_email_smtp(
                 smtp_conn_id=self.smtp_conn_id,
-                mail_from=self.mail_from,
+                from_email=self.from_email,
                 to=self.to,
                 subject=self.subject,
                 html_content=self.html_content,
