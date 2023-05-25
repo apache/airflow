@@ -37,7 +37,7 @@ There are two ways to connect to Google Cloud using Airflow.
    or as secret in Secret Manager (``Keyfile secret name``). Only one way of defining the key can be used at a time.
    If you need to manage multiple keys then you should configure multiple connections.
 3. Using a `credential configuration file <https://googleapis.dev/python/google-auth/2.9.0/user-guide.html#external-credentials-workload-identity-federation>`_,
-   by specifying the path to a valid credential configuration.
+   by specifying the path to or the content of a valid credential configuration file.
    A credential configuration file is a configuration file that typically contains non-sensitive metadata to instruct
    the ``google-auth`` library on how to retrieve external subject tokens and exchange them for service account access
    tokens.
