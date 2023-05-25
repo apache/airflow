@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-appraise``
+``apache-airflow-providers-apprise``
 ======================================
 
 Content
@@ -26,7 +26,7 @@ Content
     :maxdepth: 1
     :caption: References
 
-    Python API <_api/airflow/providers/appraise/index>
+    Python API <_api/airflow/providers/apprise/index>
 
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
@@ -39,10 +39,10 @@ Content
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-appraise
+Package apache-airflow-providers-apprise
 -----------------------------------------
 
-`Pagerduty <https://github.com/caronc/apprise>`__
+`Apprise <https://github.com/caronc/apprise>`__
 
 
 Release: 1.0.0
@@ -50,8 +50,8 @@ Release: 1.0.0
 Provider package
 ----------------
 
-This is a provider package for ``appraise`` provider. All classes for this provider package
-are in ``airflow.providers.appraise`` python package.
+This is a provider package for ``apprise`` provider. All classes for this provider package
+are in ``airflow.providers.apprise`` python package.
 
 
 Requirements
@@ -69,4 +69,4 @@ PIP package         Version required
     :maxdepth: 1
     :caption: Guides
 
-    Pagerduty Notifications <notifications/appraise_notifier_howto_guide>
+    Apprise Notifications <notifications/apprise_notifier_howto_guide>

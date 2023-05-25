@@ -15,12 +15,12 @@
     specific language governing permissions and limitations
     under the License.
 
-How-to Guide for Appraise notifications
+How-to Guide for Apprise notifications
 ========================================
 
 Introduction
 ------------
-The appraise notifier (:class:`airflow.providers.appraise.notifications.appraise.AppraiseNotifier`) allows users to send
+The apprise notifier (:class:`airflow.providers.apprise.notifications.apprise.AppriseNotifier`) allows users to send
 messages to `multiple service <https://github.com/caronc/apprise#supported-notifications>`_ using the various ``on_*_callbacks`` at both the DAG level and Task level.
 
 Example Code:
@@ -30,24 +30,22 @@ Example Code:
     from datetime import datetime
     from airflow import DAG
     from airflow.operators.bash import BashOperator
-    from airflow.providers.apprise.notifications.apprise import send_appraise_notification
+    from airflow.providers.apprise.notifications.apprise import send_apprise_notification
     from apprise import NotifyType
 
     with DAG(
-        dag_id="appraise_notifier_testing",
+        dag_id="apprise_notifier_testing",
         schedule_interval=None,
         start_date=datetime(2023, 1, 1),
         catchup=False,
         on_success_callback=[
-            send_appraise_notification(body="The dag {{ dag.dag_id }} failed", notify_type=NotifyType.FAILURE)
+            send_apprise_notification(body="The dag {{ dag.dag_id }} failed", notify_type=NotifyType.FAILURE)
         ],
     ):
         BashOperator(
             task_id="mytask",
             on_failure_callback=[
-                send_appraise_notification(
-                    body="The task {{ ti.task_id }} failed", notify_type=NotifyType.FAILURE
-                )
+                send_apprise_notification(body="The task {{ ti.task_id }} failed", notify_type=NotifyType.FAILURE)
             ],
             bash_command="fail",
         )

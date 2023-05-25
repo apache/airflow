@@ -16,20 +16,20 @@
     under the License.
 
 
-Appraise Connection
+Apprise Connection
 =======================
 
-The Appraise connection type enables connection to multiple services to send notifications, entire list of services supported can be found `here <https://github.com/caronc/apprise#supported-notifications>`_.
+The Apprise connection type enables connection to multiple services to send notifications, the entire list of services supported can be found `here <https://github.com/caronc/apprise#supported-notifications>`_.
 
 Default Connection IDs
 ----------------------
 
-Appraise hooks point to ``apprise_default`` by default.
+Apprise hooks point to ``apprise_default`` by default.
 
 Configuring the Connection
 --------------------------
 config (required)
-    The service(s) to send notifications can be specified here. The format to specify single or multiple services as following:
+    The service(s) to send notifications can be specified here. The format to specify single or multiple services is as follows::
 
     .. code-block:: python
 
