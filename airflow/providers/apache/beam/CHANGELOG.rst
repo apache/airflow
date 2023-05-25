@@ -35,10 +35,14 @@ Misc
 ~~~~
 
 * ``Bump minimum Airflow version in providers (#30917)``
+* ``Update SDKs for google provider package (#30067)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
 
 5.0.0
 ......

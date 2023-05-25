@@ -81,6 +81,12 @@ def test_home_status_filter_cookie(admin_client):
         admin_client.get("home?status=paused", follow_redirects=True)
         assert "paused" == flask.session[FILTER_STATUS_COOKIE]
 
+        admin_client.get("home?status=running", follow_redirects=True)
+        assert "running" == flask.session[FILTER_STATUS_COOKIE]
+
+        admin_client.get("home?status=failed", follow_redirects=True)
+        assert "failed" == flask.session[FILTER_STATUS_COOKIE]
+
         admin_client.get("home?status=all", follow_redirects=True)
         assert "all" == flask.session[FILTER_STATUS_COOKIE]
 
@@ -230,7 +236,17 @@ def test_home_importerrors(broken_dags, user_client):
         check_content_in_response(f"/{dag_id}.py", resp)
 
 
-@pytest.mark.parametrize("page", ["home", "home?status=active", "home?status=paused", "home?status=all"])
+@pytest.mark.parametrize(
+    "page",
+    [
+        "home",
+        "home?status=all",
+        "home?status=active",
+        "home?status=paused",
+        "home?status=running",
+        "home?status=failed",
+    ],
+)
 def test_home_importerrors_filtered_singledag_user(broken_dags_with_read_perm, client_single_dag, page):
     # Users that can only see certain DAGs get a filtered list of import errors
     resp = client_single_dag.get(page, follow_redirects=True)

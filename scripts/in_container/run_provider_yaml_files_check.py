@@ -306,6 +306,22 @@ def check_hook_classes(yaml_files: dict[str, dict]):
             )
 
 
+def check_trigger_classes(yaml_files: dict[str, dict]):
+    print("Checking triggers classes belong to package, exist and are classes")
+    resource_type = "triggers"
+    for yaml_file_path, provider_data in yaml_files.items():
+        provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
+        trigger_classes = {
+            name
+            for trigger_class in provider_data.get(resource_type, {})
+            for name in trigger_class["class-names"]
+        }
+        if trigger_classes:
+            check_if_objects_exist_and_belong_to_package(
+                trigger_classes, provider_package, yaml_file_path, resource_type, ObjectType.CLASS
+            )
+
+
 def check_plugin_classes(yaml_files: dict[str, dict]):
     print("Checking plugin classes belong to package, exist and are classes")
     resource_type = "plugins"
@@ -509,6 +525,7 @@ if __name__ == "__main__":
     check_hook_classes(all_parsed_yaml_files)
     check_plugin_classes(all_parsed_yaml_files)
     check_extra_link_classes(all_parsed_yaml_files)
+    check_trigger_classes(all_parsed_yaml_files)
     check_correctness_of_list_of_sensors_operators_hook_modules(all_parsed_yaml_files)
     check_unique_provider_name(all_parsed_yaml_files)
     check_providers_have_all_documentation_files(all_parsed_yaml_files)

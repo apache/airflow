@@ -29,33 +29,31 @@ utc = pendulum.tz.timezone("UTC")
 
 
 def is_localized(value):
-    """
-    Determine if a given datetime.datetime is aware.
-    The concept is defined in Python's docs:
-    http://docs.python.org/library/datetime.html#datetime.tzinfo
-    Assuming value.tzinfo is either None or a proper datetime.tzinfo,
-    value.utcoffset() implements the appropriate logic.
+    """Determine if a given datetime.datetime is aware.
+
+    The concept is defined in Python documentation. Assuming the tzinfo is
+    either None or a proper ``datetime.tzinfo`` instance, ``value.utcoffset()``
+    implements the appropriate logic.
+
+    .. seealso:: http://docs.python.org/library/datetime.html#datetime.tzinfo
     """
     return value.utcoffset() is not None
 
 
 def is_naive(value):
-    """
-    Determine if a given datetime.datetime is naive.
-    The concept is defined in Python's docs:
-    http://docs.python.org/library/datetime.html#datetime.tzinfo
-    Assuming value.tzinfo is either None or a proper datetime.tzinfo,
-    value.utcoffset() implements the appropriate logic.
+    """Determine if a given datetime.datetime is naive.
+
+    The concept is defined in Python documentation. Assuming the tzinfo is
+    either None or a proper ``datetime.tzinfo`` instance, ``value.utcoffset()``
+    implements the appropriate logic.
+
+    .. seealso:: http://docs.python.org/library/datetime.html#datetime.tzinfo
     """
     return value.utcoffset() is None
 
 
 def utcnow() -> dt.datetime:
-    """
-    Get the current date and time in UTC.
-
-    :return:
-    """
+    """Get the current date and time in UTC."""
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not picklable and also creates issues
     # when using replace()
@@ -66,11 +64,7 @@ def utcnow() -> dt.datetime:
 
 
 def utc_epoch() -> dt.datetime:
-    """
-    Gets the epoch in the users timezone.
-
-    :return:
-    """
+    """Gets the epoch in the users timezone."""
     # pendulum utcnow() is not used as that sets a TimezoneInfo object
     # instead of a Timezone. This is not picklable and also creates issues
     # when using replace()
@@ -91,9 +85,7 @@ def convert_to_utc(value: dt.datetime) -> DateTime:
 
 
 def convert_to_utc(value: dt.datetime | None) -> DateTime | None:
-    """
-    Returns the datetime with the default timezone added if timezone
-    information was not associated.
+    """Creates a datetime with the default timezone added if none is associated.
 
     :param value: datetime
     :return: datetime with tzinfo

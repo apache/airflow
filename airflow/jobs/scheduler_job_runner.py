@@ -639,7 +639,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         There are three steps:
         1. Pick TIs by priority with the constraint that they are in the expected states
-        and that we do exceed max_active_runs or pool limits.
+        and that we do not exceed max_active_runs or pool limits.
         2. Change the state for the TIs above atomically.
         3. Enqueue the TIs in the executor.
 
