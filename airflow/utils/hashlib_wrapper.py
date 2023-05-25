@@ -24,7 +24,6 @@ if TYPE_CHECKING:
     from _typeshed import ReadableBuffer
 
 from airflow import PY39
-from airflow.configuration import conf
 
 
 def md5(__string: ReadableBuffer = b"") -> hashlib._Hash:
@@ -36,6 +35,6 @@ def md5(__string: ReadableBuffer = b"") -> hashlib._Hash:
     :return: The hashed value.
     :rtype: _Hash
     """
-    if PY39 and conf.getboolean("security", "disable_md5_for_security"):
+    if PY39:
         return hashlib.md5(__string, usedforsecurity=False)  # type: ignore
     return hashlib.md5(__string)
