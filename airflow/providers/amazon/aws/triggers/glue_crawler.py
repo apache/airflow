@@ -71,7 +71,7 @@ class GlueCrawlerCompleteTrigger(BaseTrigger):
                             {"status": "failure", "message": f"Glue Crawler creation Failed: {error}"}
                         )
                         break
-                    self.log.info("Status of cluster snapshot is %s", error.last_response["Crawler"]["State"])
+                    self.log.info("Status of glue crawl is %s", error.last_response["Crawler"]["State"])
                     await asyncio.sleep(int(self.poll_interval))
 
         yield TriggerEvent({"status": "success", "message": "Crawl Complete"})
