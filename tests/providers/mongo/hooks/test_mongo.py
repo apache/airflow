@@ -241,7 +241,7 @@ class TestMongoHook:
 
         self.hook.delete_one(collection, {"_id": "1"})
 
-        assert 0 == collection.count()
+        assert 0 == collection.count_documents({})
 
     def test_delete_many(self):
         collection = mongomock.MongoClient().db.collection
@@ -251,12 +251,12 @@ class TestMongoHook:
 
         self.hook.delete_many(collection, {"field": "value"})
 
-        assert 0 == collection.count()
+        assert 0 == collection.count_documents({})
 
     def test_find_one(self):
         collection = mongomock.MongoClient().db.collection
         obj = {"test_find_one": "test_value"}
-        collection.insert(obj)
+        collection.insert_one(obj)
 
         result_obj = self.hook.find(collection, {}, find_one=True)
         result_obj = {result: result_obj[result] for result in result_obj}
@@ -265,7 +265,7 @@ class TestMongoHook:
     def test_find_many(self):
         collection = mongomock.MongoClient().db.collection
         objs = [{"_id": 1, "test_find_many_1": "test_value"}, {"_id": 2, "test_find_many_2": "test_value"}]
-        collection.insert(objs)
+        collection.insert_many(objs)
 
         result_objs = self.hook.find(mongo_collection=collection, query={}, projection={}, find_one=False)
 
@@ -277,7 +277,7 @@ class TestMongoHook:
             {"_id": "1", "test_find_many_1": "test_value", "field_3": "a"},
             {"_id": "2", "test_find_many_2": "test_value", "field_3": "b"},
         ]
-        collection.insert(objs)
+        collection.insert_many(objs)
 
         projection = {"_id": 0}
         result_objs = self.hook.find(
@@ -293,7 +293,7 @@ class TestMongoHook:
             {"test_id": "3", "test_status": "success"},
         ]
 
-        collection.insert(objs)
+        collection.insert_many(objs)
 
         aggregate_query = [{"$match": {"test_status": "success"}}]
 

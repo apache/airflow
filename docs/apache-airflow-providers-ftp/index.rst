@@ -70,7 +70,8 @@ Package apache-airflow-providers-ftp
 
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
-Release: 3.3.1
+
+Release: 3.4.0
 
 Provider package
 ----------------

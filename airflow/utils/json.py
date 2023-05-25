@@ -122,7 +122,7 @@ class XComDecoder(json.JSONDecoder):
 
     @staticmethod
     def orm_object_hook(dct: dict) -> object:
-        """Creates a readable representation of a serialized object"""
+        """Creates a readable representation of a serialized object."""
         return deserialize(dct, False)
 
 

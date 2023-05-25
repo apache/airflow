@@ -114,12 +114,6 @@ __deprecated_classes = {
             'airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor'
         ),
     },
-    'hdfs_sensor': {
-        'HdfsFolderSensor': 'airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor',
-        'HdfsRegexSensor': 'airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor',
-        'HdfsSensorFolder': 'airflow.providers.apache.hdfs.sensors.hdfs.HdfsFolderSensor',
-        'HdfsSensorRegex': 'airflow.providers.apache.hdfs.sensors.hdfs.HdfsRegexSensor',
-    },
     'imap_attachment_sensor': {
         'ImapAttachmentSensor': 'airflow.providers.imap.sensors.imap_attachment.ImapAttachmentSensor',
     },

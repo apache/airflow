@@ -68,7 +68,7 @@ class Variable(Base, LoggingMixin):
         return f"{self.key} : {self._val}"
 
     def get_val(self):
-        """Get Airflow Variable from Metadata DB and decode it using the Fernet Key"""
+        """Get Airflow Variable from Metadata DB and decode it using the Fernet Key."""
         from cryptography.fernet import InvalidToken as InvalidFernetToken
 
         if self._val is not None and self.is_encrypted:
@@ -93,7 +93,7 @@ class Variable(Base, LoggingMixin):
 
     @declared_attr
     def val(cls):
-        """Get Airflow Variable from Metadata DB and decode it using the Fernet Key"""
+        """Get Airflow Variable from Metadata DB and decode it using the Fernet Key."""
         return synonym("_val", descriptor=property(cls.get_val, cls.set_val))
 
     @classmethod
@@ -128,7 +128,7 @@ class Variable(Base, LoggingMixin):
         deserialize_json: bool = False,
     ) -> Any:
         """
-        Gets a value for an Airflow Variable Key
+        Gets a value for an Airflow Variable Key.
 
         :param key: Variable Key
         :param default_var: Default value of the Variable if the Variable doesn't exist
@@ -190,7 +190,7 @@ class Variable(Base, LoggingMixin):
         session: Session = None,
     ):
         """
-        Updates a given Airflow Variable with the Provided value
+        Updates a given Airflow Variable with the Provided value.
 
         :param key: Variable Key
         :param value: Value to set for the Variable
@@ -213,7 +213,7 @@ class Variable(Base, LoggingMixin):
     @internal_api_call
     def delete(key: str, session: Session = None) -> int:
         """
-        Delete an Airflow Variable for a given key
+        Delete an Airflow Variable for a given key.
 
         :param key: Variable Key
         :param session: SQL Alchemy Sessions
@@ -221,7 +221,7 @@ class Variable(Base, LoggingMixin):
         return session.query(Variable).filter(Variable.key == key).delete()
 
     def rotate_fernet_key(self):
-        """Rotate Fernet Key"""
+        """Rotate Fernet Key."""
         fernet = get_fernet()
         if self._val and self.is_encrypted:
             self._val = fernet.rotate(self._val.encode("utf-8")).decode()

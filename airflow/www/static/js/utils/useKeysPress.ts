@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { debounce } from "lodash";
 
-import type { PrimaryShortcutKey, IsInputInFocus, KeyboardShortcutKeys } from "src/types";
+import type { IsInputInFocus, KeyboardShortcutKeys } from "src/types";
 
 const isInputInFocus: IsInputInFocus = "isInputInFocus";
 
