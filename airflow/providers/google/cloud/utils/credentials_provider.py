@@ -196,6 +196,7 @@ class _CredentialProvider(LoggingMixin):
         self,
         key_path: str | None = None,
         keyfile_dict: dict[str, str] | None = None,
+        credential_config_file: str | None = None,
         key_secret_name: str | None = None,
         key_secret_project_id: str | None = None,
         scopes: Collection[str] | None = None,
@@ -213,6 +214,7 @@ class _CredentialProvider(LoggingMixin):
             )
         self.key_path = key_path
         self.keyfile_dict = keyfile_dict
+        self.credential_config_file = credential_config_file
         self.key_secret_name = key_secret_name
         self.key_secret_project_id = key_secret_project_id
         self.scopes = scopes
@@ -233,6 +235,8 @@ class _CredentialProvider(LoggingMixin):
             credentials, project_id = self._get_credentials_using_key_secret_name()
         elif self.keyfile_dict:
             credentials, project_id = self._get_credentials_using_keyfile_dict()
+        elif self.credential_config_file:
+            credentials, project_id = self._get_credentials_using_credential_config_file()
         else:
             credentials, project_id = self._get_credentials_using_adc()
 
@@ -311,9 +315,20 @@ class _CredentialProvider(LoggingMixin):
         project_id = credentials.project_id
         return credentials, project_id
 
+    def _get_credentials_using_credential_config_file(self):
+        self._log_info(
+            f"Getting connection using credential configuration file: `{self.credential_config_file}`"
+        )
+
+        credentials, project_id = google.auth.load_credentials_from_file(
+            self.credential_config_file, scopes=self.scopes
+        )
+
+        return credentials, project_id
+
     def _get_credentials_using_adc(self):
         self._log_info(
-            "Getting connection using `google.auth.default()` since no key file is defined for hook."
+            "Getting connection using `google.auth.default()` since no explicit credentials are provided."
         )
         credentials, project_id = google.auth.default(scopes=self.scopes)
         return credentials, project_id
