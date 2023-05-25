@@ -60,8 +60,7 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
   };
 
   useKeysPress(
-    keyboardShortcutIdentifier.dagRunClear.primaryKey,
-    keyboardShortcutIdentifier.dagRunClear.secondaryKey,
+    keyboardShortcutIdentifier.dagRunClear,
     clearExistingTasks
   );
 

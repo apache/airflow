@@ -100,8 +100,7 @@ const NotesAccordion = ({
   };
 
   useKeysPress(
-    keyboardShortcutIdentifier.addOrEditNotes.primaryKey,
-    keyboardShortcutIdentifier.addOrEditNotes.secondaryKey,
+    keyboardShortcutIdentifier.addOrEditNotes,
     () => {
       if (canEdit) {
         // Notes index is 0
@@ -115,8 +114,7 @@ const NotesAccordion = ({
   );
 
   useKeysPress(
-    keyboardShortcutIdentifier.viewNotes.primaryKey,
-    keyboardShortcutIdentifier.viewNotes.secondaryKey,
+    keyboardShortcutIdentifier.viewNotes,
     () => {
       // toggling notes accordion (index = 0)
       toggleNotesAccordionIthIndex(0);

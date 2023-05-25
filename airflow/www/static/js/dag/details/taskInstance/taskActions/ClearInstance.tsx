@@ -82,8 +82,7 @@ const ClearInstance = ({
   const initialClearButtonFocusRef = useRef<HTMLButtonElement>(null);
 
   useKeysPress(
-    keyboardShortcutIdentifier.taskRunClear.primaryKey,
-    keyboardShortcutIdentifier.taskRunClear.secondaryKey,
+    keyboardShortcutIdentifier.taskRunClear,
     onOpen
   );
 

@@ -166,8 +166,7 @@ const MarkInstanceAs = ({
   const isMappedSummary = isMapped && mapIndex === undefined;
 
   useKeysPress(
-    keyboardShortcutIdentifier.taskMarkSuccess.primaryKey,
-    keyboardShortcutIdentifier.taskMarkSuccess.secondaryKey,
+    keyboardShortcutIdentifier.taskMarkSuccess,
     () => {
       if (1 - Number(!isMappedSummary && currentState === "success"))
         markAsSuccess();
@@ -175,8 +174,7 @@ const MarkInstanceAs = ({
   );
 
   useKeysPress(
-    keyboardShortcutIdentifier.taskMarkFailed.primaryKey,
-    keyboardShortcutIdentifier.taskMarkFailed.secondaryKey,
+    keyboardShortcutIdentifier.taskMarkFailed,
     () => {
       if (1 - Number(!isMappedSummary && currentState === "failed"))
         markAsFailed();

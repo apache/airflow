@@ -59,15 +59,13 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
   };
 
   useKeysPress(
-    keyboardShortcutIdentifier.dagMarkSuccess.primaryKey,
-    keyboardShortcutIdentifier.dagMarkSuccess.secondaryKey,
+    keyboardShortcutIdentifier.dagMarkSuccess,
     () => {
       if (state === "failed") markAsSuccess();
     }
   );
   useKeysPress(
-    keyboardShortcutIdentifier.dagMarkFailed.primaryKey,
-    keyboardShortcutIdentifier.dagMarkFailed.secondaryKey,
+    keyboardShortcutIdentifier.dagMarkFailed,
     () => {
       if (state === "success") markAsFailed();
     }

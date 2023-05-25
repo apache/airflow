@@ -154,8 +154,7 @@ const Main = () => {
   };
 
   useKeysPress(
-    keyboardShortcutIdentifier.toggleShortcutCheatSheet.primaryKey,
-    keyboardShortcutIdentifier.toggleShortcutCheatSheet.secondaryKey,
+    keyboardShortcutIdentifier.toggleShortcutCheatSheet,
     onToggleShortcut
   );
 
