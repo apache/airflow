@@ -35,14 +35,14 @@ class TestPagerdutyNotifier:
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
         notifier = send_smtp_notification(
-            mail_from="test_sender@test.com",
+            from_email="test_sender@test.com",
             to="test_reciver@test.com",
             subject="subject",
             html_content="body",
         )
         notifier(context={"dag": dag})
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
-            mail_from="test_sender@test.com",
+            from_email="test_sender@test.com",
             to="test_reciver@test.com",
             subject="subject",
             html_content="body",
@@ -60,14 +60,14 @@ class TestPagerdutyNotifier:
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
         notifier = SmtpNotifier(
-            mail_from="test_sender@test.com",
+            from_email="test_sender@test.com",
             to="test_reciver@test.com",
             subject="subject",
             html_content="body",
         )
         notifier(context={"dag": dag})
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
-            mail_from="test_sender@test.com",
+            from_email="test_sender@test.com",
             to="test_reciver@test.com",
             subject="subject",
             html_content="body",
@@ -86,7 +86,7 @@ class TestPagerdutyNotifier:
             EmptyOperator(task_id="task1")
 
         notifier = SmtpNotifier(
-            mail_from="test_sender@test.com {{dag.dag_id}}",
+            from_email="test_sender@test.com {{dag.dag_id}}",
             to="test_reciver@test.com {{dag.dag_id}}",
             subject="subject {{dag.dag_id}}",
             html_content="body {{dag.dag_id}}",
@@ -94,7 +94,7 @@ class TestPagerdutyNotifier:
         context = {"dag": dag}
         notifier(context)
         mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
-            mail_from="test_sender@test.com test_notifier",
+            from_email="test_sender@test.com test_notifier",
             to="test_reciver@test.com test_notifier",
             subject="subject test_notifier",
             html_content="body test_notifier",
