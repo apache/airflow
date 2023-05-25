@@ -2686,6 +2686,13 @@ kubernetes_executor:
       type: string
       example: '{ "total": 3, "backoff_factor": 0.5 }'
       default: ""
+    logs_task_metadata:
+      description: |
+        Flag to control the information added to kubernetes executor logs for better traceability
+      version_added: 2.7.0
+      type: boolean
+      example: ~
+      default: "False"
     pod_template_file:
       description: |
         Path to the YAML pod file that forms the basis for KubernetesExecutor workers.
