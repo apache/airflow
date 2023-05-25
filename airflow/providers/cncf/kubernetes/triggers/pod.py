@@ -26,6 +26,7 @@ from typing import Any, AsyncIterator
 import pytz
 from kubernetes_asyncio.client.models import V1Pod
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodPhase
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -100,7 +101,7 @@ class KubernetesPodTrigger(BaseTrigger):
         if should_delete_pod is not None:
             warnings.warn(
                 "`should_delete_pod` parameter is deprecated, please use `on_finish_action`",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
             )
             self.on_finish_action = (
                 OnFinishAction.DELETE_POD if should_delete_pod else OnFinishAction.KEEP_POD
