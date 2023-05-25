@@ -154,18 +154,13 @@ class AbstractOperator(Templater, DAGNode):
             return self.upstream_task_ids
         return self.downstream_task_ids
 
-    def get_flat_relative_ids(
-        self,
-        upstream: bool = False,
-        found_descendants: set[str] | None = None,
-    ) -> set[str]:
+    def get_flat_relative_ids(self, upstream: bool = False) -> set[str]:
         """Get a flat set of relative IDs, upstream or downstream."""
         dag = self.get_dag()
         if not dag:
             return set()
 
-        if found_descendants is None:
-            found_descendants = set()
+        found_descendants = set()
 
         task_ids_to_trace = self.get_direct_relative_ids(upstream)
         while task_ids_to_trace:
