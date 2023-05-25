@@ -59,10 +59,7 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
     onQueue({ confirmed: true });
   };
 
-  useKeysPress(
-    keyboardShortcutIdentifier.dagRunClear,
-    clearExistingTasks
-  );
+  useKeysPress(keyboardShortcutIdentifier.dagRunClear, clearExistingTasks);
 
   const clearLabel = "Clear tasks or add new tasks";
   return (

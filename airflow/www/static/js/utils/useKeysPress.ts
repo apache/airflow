@@ -41,7 +41,9 @@ const useKeysPress = (
       if (
         !JSON.parse(localStorage.getItem(isInputInFocus) || "true") &&
         event[keyboardShortcutKeys.primaryKey] &&
-        keyboardShortcutKeys.secondaryKey.some((key: String) => event.key === key)
+        keyboardShortcutKeys.secondaryKey.some(
+          (key: String) => event.key === key
+        )
       ) {
         callbackRef.current(event);
       }

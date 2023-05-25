@@ -58,18 +58,12 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
     markSuccess({ confirmed: true });
   };
 
-  useKeysPress(
-    keyboardShortcutIdentifier.dagMarkSuccess,
-    () => {
-      if (state === "failed") markAsSuccess();
-    }
-  );
-  useKeysPress(
-    keyboardShortcutIdentifier.dagMarkFailed,
-    () => {
-      if (state === "success") markAsFailed();
-    }
-  );
+  useKeysPress(keyboardShortcutIdentifier.dagMarkSuccess, () => {
+    if (state === "failed") markAsSuccess();
+  });
+  useKeysPress(keyboardShortcutIdentifier.dagMarkFailed, () => {
+    if (state === "success") markAsFailed();
+  });
 
   const markLabel = "Manually set dag run state";
   return (

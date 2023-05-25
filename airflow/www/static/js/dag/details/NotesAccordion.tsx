@@ -89,37 +89,26 @@ const NotesAccordion = ({
     setEditMode(false);
   };
 
-  const toggleNotesAccordionIthIndex = (ithIndex: number) => {
-    if (accordionIndexes.includes(ithIndex)) {
-      setAccordionIndexes((prevIndexes) =>
-        prevIndexes.splice(prevIndexes.indexOf(ithIndex, 1))
-      );
+  const toggleNotesPanel = () => {
+    if (accordionIndexes.includes(0)) {
+      setAccordionIndexes([]);
     } else {
-      setAccordionIndexes((prevIndexes) => [...prevIndexes, ithIndex]);
+      setAccordionIndexes([0]);
     }
   };
 
-  useKeysPress(
-    keyboardShortcutIdentifier.addOrEditNotes,
-    () => {
-      if (canEdit) {
-        // Notes index is 0
-        if (!accordionIndexes.includes(0)) {
-          toggleNotesAccordionIthIndex(0);
-        }
-        setEditMode(true);
-        setTimeout(() => textAreaRef.current?.focus(), 100);
+  useKeysPress(keyboardShortcutIdentifier.addOrEditNotes, () => {
+    if (canEdit) {
+      // Notes index is 0
+      if (!accordionIndexes.includes(0)) {
+        setAccordionIndexes([0]);
       }
+      setEditMode(true);
+      setTimeout(() => textAreaRef.current?.focus(), 100);
     }
-  );
+  });
 
-  useKeysPress(
-    keyboardShortcutIdentifier.viewNotes,
-    () => {
-      // toggling notes accordion (index = 0)
-      toggleNotesAccordionIthIndex(0);
-    }
-  );
+  useKeysPress(keyboardShortcutIdentifier.viewNotes, toggleNotesPanel);
 
   return (
     <>
@@ -130,13 +119,7 @@ const NotesAccordion = ({
       >
         <AccordionItem border="0">
           <AccordionButton p={0} pb={2} fontSize="inherit">
-            <Box
-              flex="1"
-              textAlign="left"
-              onClick={() => {
-                toggleNotesAccordionIthIndex(0);
-              }}
-            >
+            <Box flex="1" textAlign="left" onClick={toggleNotesPanel}>
               <Text as="strong" size="lg">
                 {objectIdentifier} Notes:
               </Text>

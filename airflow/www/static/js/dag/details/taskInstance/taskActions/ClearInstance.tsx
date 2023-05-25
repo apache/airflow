@@ -81,10 +81,7 @@ const ClearInstance = ({
 
   const initialClearButtonFocusRef = useRef<HTMLButtonElement>(null);
 
-  useKeysPress(
-    keyboardShortcutIdentifier.taskRunClear,
-    onOpen
-  );
+  useKeysPress(keyboardShortcutIdentifier.taskRunClear, onOpen);
 
   const mapIndexes =
     mapIndex !== undefined && mapIndex !== -1 ? [mapIndex] : undefined;

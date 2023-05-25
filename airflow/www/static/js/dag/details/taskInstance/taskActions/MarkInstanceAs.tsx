@@ -165,21 +165,15 @@ const MarkInstanceAs = ({
   const markLabel = "Manually set task instance state";
   const isMappedSummary = isMapped && mapIndex === undefined;
 
-  useKeysPress(
-    keyboardShortcutIdentifier.taskMarkSuccess,
-    () => {
-      if (1 - Number(!isMappedSummary && currentState === "success"))
-        markAsSuccess();
-    }
-  );
+  useKeysPress(keyboardShortcutIdentifier.taskMarkSuccess, () => {
+    if (1 - Number(!isMappedSummary && currentState === "success"))
+      markAsSuccess();
+  });
 
-  useKeysPress(
-    keyboardShortcutIdentifier.taskMarkFailed,
-    () => {
-      if (1 - Number(!isMappedSummary && currentState === "failed"))
-        markAsFailed();
-    }
-  );
+  useKeysPress(keyboardShortcutIdentifier.taskMarkFailed, () => {
+    if (1 - Number(!isMappedSummary && currentState === "failed"))
+      markAsFailed();
+  });
 
   return (
     <>
