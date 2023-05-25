@@ -112,6 +112,8 @@ def users_delete(args):
     """Deletes user from DB."""
     user = _find_user(args)
 
+    user.roles = []  # Clear foreign keys on this user first.
+
     from airflow.utils.cli_app_builder import get_application_builder
 
     with get_application_builder() as appbuilder:
