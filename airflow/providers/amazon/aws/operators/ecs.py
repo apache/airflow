@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.hooks.ecs import (
     EcsTaskLogFetcher,
     should_retry_eni,
 )
+from airflow.providers.amazon.aws.triggers.ecs import ClusterActiveTrigger
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import provide_session
 
@@ -84,6 +85,9 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         if not set then the default waiter value will be used.
     :param waiter_max_attempts: The maximum number of attempts to be made,
         if not set then the default waiter value will be used.
+    :param deferrable: If True, the operator will wait asynchronously for the job to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     template_fields: Sequence[str] = ("cluster_name", "create_cluster_kwargs", "wait_for_completion")
@@ -96,6 +100,7 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int | None = None,
         waiter_max_attempts: int | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -104,6 +109,7 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
 
     def execute(self, context: Context):
         self.log.info(
@@ -119,6 +125,17 @@ class EcsCreateClusterOperator(EcsBaseOperator):
             # In some circumstances the ECS Cluster is created immediately,
             # and there is no reason to wait for completion.
             self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
+        elif self.deferrable:
+            self.defer(
+                trigger=ClusterActiveTrigger(
+                    cluster_arn=cluster_details["clusterArn"],
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                    region=self.region,
+                ),
+                method_name="execute_complete",
+            )
         elif self.wait_for_completion:
             waiter = self.hook.get_waiter("cluster_active")
             waiter.wait(
@@ -132,6 +149,11 @@ class EcsCreateClusterOperator(EcsBaseOperator):
             )
 
         return cluster_details
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error in cluster creation: {event}")
+        return event.get("value")
 
 
 class EcsDeleteClusterOperator(EcsBaseOperator):

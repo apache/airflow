@@ -20,13 +20,14 @@ from __future__ import annotations
 import sys
 from copy import deepcopy
 from unittest import mock
+from unittest.mock import MagicMock
 
 import boto3
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
-from airflow.providers.amazon.aws.hooks.ecs import EcsHook
+from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
 from airflow.providers.amazon.aws.operators.ecs import (
     DEFAULT_CONN_ID,
     EcsBaseOperator,
@@ -678,6 +679,26 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
             expected_waiter_config["MaxAttempts"] = waiter_max_attempts
         mocked_waiters.wait.assert_called_once_with(clusters=mock.ANY, WaiterConfig=expected_waiter_config)
         assert result is not None
+
+    @mock.patch.object(EcsCreateClusterOperator, "client")
+    def test_execute_deferrable(self, mock_client: MagicMock):
+        op = EcsCreateClusterOperator(
+            task_id="task",
+            cluster_name=CLUSTER_NAME,
+            deferrable=True,
+            waiter_delay=12,
+            waiter_max_attempts=34,
+        )
+        mock_client.create_cluster.return_value = {
+            "cluster": {"status": EcsClusterStates.PROVISIONING, "clusterArn": "my arn"}
+        }
+
+        with pytest.raises(TaskDeferred) as defer:
+            op.execute(None)
+
+        assert defer.value.trigger.cluster_arn == "my arn"
+        assert defer.value.trigger.waiter_delay == 12
+        assert defer.value.trigger.attempts == 34
 
     def test_execute_immediate_create(self, patch_hook_waiters):
         """Test if cluster created during initial request."""
