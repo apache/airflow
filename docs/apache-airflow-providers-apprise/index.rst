@@ -40,6 +40,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
+    Python API <_api/airflow/providers/apprise/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apprise/>
     Installing from sources <installing-providers-from-sources>
 
