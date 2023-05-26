@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from tempfile import gettempdir
 from typing import TYPE_CHECKING, Callable, Generator, Iterable
 
-from sqlalchemy import Table, and_, column, exc, func, inspect, or_, select, table, text, tuple_
+from sqlalchemy import Table, and_, column, delete, exc, func, inspect, or_, select, table, text, tuple_
 from sqlalchemy.orm.session import Session
 
 import airflow
@@ -870,7 +870,7 @@ def _reserialize_dags(*, session: Session) -> None:
     from airflow.models.dagbag import DagBag
     from airflow.models.serialized_dag import SerializedDagModel
 
-    session.query(SerializedDagModel).delete(synchronize_session=False)
+    session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
     dagbag = DagBag(collect_dags=False)
     dagbag.collect_dags(only_if_updated=False)
     dagbag.sync_to_db(session=session)
@@ -1189,13 +1189,15 @@ def _create_table_as(
         stmt = ins.compile(bind=session.get_bind())
         cte_sql = stmt.ctes[cte]
 
-        session.execute(f"WITH {cte_sql} SELECT source.* INTO {target_table_name} FROM source")
+        session.execute(text(f"WITH {cte_sql} SELECT source.* INTO {target_table_name} FROM source"))
     elif dialect_name == "mysql":
         # MySQL with replication needs this split in to two queries, so just do it for all MySQL
         # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
-        session.execute(f"CREATE TABLE {target_table_name} LIKE {source_table_name}")
+        session.execute(text(f"CREATE TABLE {target_table_name} LIKE {source_table_name}"))
         session.execute(
-            f"INSERT INTO {target_table_name} {source_query.selectable.compile(bind=session.get_bind())}"
+            text(
+                f"INSERT INTO {target_table_name} {source_query.selectable.compile(bind=session.get_bind())}"
+            )
         )
     else:
         # Postgres and SQLite both support the same "CREATE TABLE a AS SELECT ..." syntax
