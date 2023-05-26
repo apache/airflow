@@ -159,7 +159,7 @@ class PrStat:
             for num in self.issue_nums:
                 try:
                     issue = repo.get_issue(num)
-                except github.GithubException:
+                except github.GithubException.UnknownObjectException:
                     continue
                 for reaction in issue.get_reactions():
                     self._users.add(reaction.user.login)
@@ -178,7 +178,7 @@ class PrStat:
             for num in self.issue_nums:
                 try:
                     issue = repo.get_issue(num)
-                except github.GithubException:
+                except github.GithubException.UnknownObjectException:
                     continue
                 for issue_comment in issue.get_comments():
                     issue_comments += 1
