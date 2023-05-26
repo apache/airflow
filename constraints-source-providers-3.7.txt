@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-26T17:32:25Z
+# This constraints file was automatically generated on 2023-05-26T21:18:21Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -16,7 +16,7 @@ Flask-AppBuilder==4.3.1
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.0.2
-Flask-JWT-Extended==4.4.4
+Flask-JWT-Extended==4.5.2
 Flask-Limiter==3.3.1
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
@@ -443,7 +443,7 @@ python-telegram-bot==20.2
 pytz==2023.3
 pytzdata==2020.1
 pywinrm==0.4.3
-pyzmq==25.0.2
+pyzmq==25.1.0
 qds-sdk==1.16.1
 reactivex==4.0.4
 readme-renderer==37.3
