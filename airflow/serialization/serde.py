@@ -156,7 +156,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
     # pydantic models are recursive
     if _is_pydantic(cls):
-        data = o.dict()  # type: ignore[call-overload]
+        data = o.dict()  # type: ignore[attr-defined]
         dct[DATA] = serialize(data, depth + 1)
         return dct
 
