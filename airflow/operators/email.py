@@ -19,12 +19,35 @@ from __future__ import annotations
 
 import warnings
 
-from airflow.providers.smtp.operators.smtp import EmailOperator
-
-__all__ = ["EmailOperator"]
+from airflow.providers.smtp.operators.smtp import EmailOperator as ProviderEmailOperator
+from airflow.utils.context import Context
+from airflow.utils.email import _SmtpHook
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.smtp.operators.smtp` instead.",
     DeprecationWarning,
     stacklevel=2,
 )
+
+
+class EmailOperator(ProviderEmailOperator):
+    """
+    Sends an email.
+    Deprecated: Please use `airflow.providers.smtp.operators.smtp.EmailOperator`.
+    """
+
+    def execute(self, context: Context):
+        with _SmtpHook(smtp_conn_id=self.conn_id) as smtp_hook:
+            return smtp_hook.send_email_smtp(
+                to=self.to,
+                subject=self.subject,
+                html_content=self.html_content,
+                from_email=self.from_email,
+                files=self.files,
+                cc=self.cc,
+                bcc=self.bcc,
+                mime_subtype=self.mime_subtype,
+                mime_charset=self.mime_charset,
+                conn_id=self.conn_id,
+                custom_headers=self.custom_headers,
+            )
