@@ -28,14 +28,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.1.1
+.....
+
+Latest change: 2023-05-23
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`45b6cfa138 <https://github.com/apache/airflow/commit/45b6cfa138ae23e39802b493075bd5b7531ccdae>`_  2023-05-23   ``Fix deferrable mode execution in WasbPrefixSensor (#31411)``
+`26b8997fb1 <https://github.com/apache/airflow/commit/26b8997fb185fd308c243a9418ade317e533e26b>`_  2023-05-23   ``Optimize deferred mode execution for wasb sensors (#31009)``
+=================================================================================================  ===========  ==============================================================
+
 6.1.0
 .....
 
-Latest change: 2023-05-18
+Latest change: 2023-05-19
 
 =================================================================================================  ===========  =========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================================
+`45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``

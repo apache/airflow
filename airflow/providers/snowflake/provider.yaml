@@ -75,6 +75,8 @@ hooks:
   - integration-name: Snowflake
     python-modules:
       - airflow.providers.snowflake.hooks.snowflake
+      - airflow.providers.snowflake.hooks.snowflake_sql_api
+      - airflow.providers.snowflake.hooks.sql_api_generate_jwt
 
 transfers:
   - source-integration-name: Amazon Simple Storage Service (S3)
