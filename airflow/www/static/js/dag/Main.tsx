@@ -33,7 +33,6 @@ import Grid from "./grid";
 import FilterBar from "./nav/FilterBar";
 import LegendRow from "./nav/LegendRow";
 import useToggleGroups from "./useToggleGroups";
-import useSelection from "./useSelection";
 import keyboardShortcutIdentifier from "./keyboardShortcutIdentifier";
 
 const detailsPanelKey = "hideDetailsPanel";
@@ -71,7 +70,6 @@ const Main = () => {
   const gridRef = useRef<HTMLDivElement>(null);
   const isPanelOpen = localStorage.getItem(detailsPanelKey) !== "true";
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
-  const { clearSelection } = useSelection();
   const [hoveredTaskState, setHoveredTaskState] = useState<
     string | null | undefined
   >();
@@ -99,8 +97,10 @@ const Main = () => {
     if (!isOpen) {
       localStorage.setItem(detailsPanelKey, "false");
     } else {
-      clearSelection();
       localStorage.setItem(detailsPanelKey, "true");
+      if (isGridCollapsed) {
+        setIsGridCollapsed(!isGridCollapsed);
+      }
     }
     onToggle();
   };

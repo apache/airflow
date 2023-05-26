@@ -44,9 +44,9 @@ from __future__ import annotations
 
 import packaging.version
 
-__all__ = ["version"]
+__all__ = ["__version__"]
 
-version = "{{ RELEASE }}{{ VERSION_SUFFIX }}"
+__version__ = "{{ RELEASE }}{{ VERSION_SUFFIX }}"
 
 try:
     from airflow import __version__ as airflow_version
@@ -55,5 +55,5 @@ except ImportError:
 
 if packaging.version.parse(airflow_version) < packaging.version.parse("{{ MIN_AIRFLOW_VERSION }}"):
     raise RuntimeError(
-        f"The package `{{ PACKAGE_PIP_NAME }}:{version}` requires Apache Airflow {{ MIN_AIRFLOW_VERSION }}+"
+        f"The package `{{ PACKAGE_PIP_NAME }}:{__version__}` requires Apache Airflow {{ MIN_AIRFLOW_VERSION }}+"  # NOQA: E501
     )

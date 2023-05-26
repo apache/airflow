@@ -24,11 +24,9 @@ from flask import url_for
 
 
 def configure_manifest_files(app):
-    """
-    Loads the manifest file and register the `url_for_asset_` template tag.
+    """Loads the manifest file and register the `url_for_asset_` template tag.
 
     :param app:
-    :return:
     """
     manifest = {}
 
@@ -52,11 +50,10 @@ def configure_manifest_files(app):
 
     @app.context_processor
     def get_url_for_asset():
-        """
-        Template tag to return the asset URL.
-        WebPack renders the assets after minification and modification
-        under the static/dist folder.
-        This template tag reads the asset name in manifest.json and returns
-        the appropriate file.
+        """Template tag to return the asset URL.
+
+        WebPack renders the assets after minification and modification under the
+        static/dist folder. This template tag reads the asset name in
+        ``manifest.json`` and returns the appropriate file.
         """
         return dict(url_for_asset=get_asset_url)

@@ -33,11 +33,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.3.0
 .....
 
-Latest change: 2023-05-03
+Latest change: 2023-05-18
 
-=================================================================================================  ===========  ======================================================================
+=================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ======================================================================
+=================================================================================================  ===========  ======================================================================================
+`abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
+`f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
 `0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
 `eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
 `a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
@@ -45,7 +48,7 @@ Commit                                                                          
 `41fade2d21 <https://github.com/apache/airflow/commit/41fade2d219c1841fafa439cc5dbb036f34ee32a>`_  2023-02-13   ``Upgrade Mypy to 1.0 (#29468)``
 `6c1eeb5839 <https://github.com/apache/airflow/commit/6c1eeb58393173895944d5414793b38abdc7510d>`_  2023-02-11   ``Revert "Upgrade mypy to 0.991 (#28926)" (#29470)``
 `6ae0a80cba <https://github.com/apache/airflow/commit/6ae0a80cbaf1d33343b763c7f82612b4522afc40>`_  2023-02-11   ``Upgrade mypy to 0.991 (#28926)``
-=================================================================================================  ===========  ======================================================================
+=================================================================================================  ===========  ======================================================================================
 
 2.2.0
 .....

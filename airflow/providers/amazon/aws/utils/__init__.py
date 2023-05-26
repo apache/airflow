@@ -16,11 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import re
 from datetime import datetime
 from enum import Enum
 
 from airflow.version import version
+
+log = logging.getLogger(__name__)
 
 
 def trim_none_values(obj: dict):

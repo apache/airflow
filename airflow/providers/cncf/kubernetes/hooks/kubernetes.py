@@ -17,9 +17,7 @@
 from __future__ import annotations
 
 import contextlib
-import json
 import tempfile
-import warnings
 from typing import TYPE_CHECKING, Any, Generator
 
 from asgiref.sync import sync_to_async
@@ -30,7 +28,7 @@ from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.models import Connection
@@ -101,12 +99,6 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             "cluster_context": StringField(lazy_gettext("Cluster context"), widget=BS3TextFieldWidget()),
             "disable_verify_ssl": BooleanField(lazy_gettext("Disable SSL")),
             "disable_tcp_keepalive": BooleanField(lazy_gettext("Disable TCP keepalive")),
-            "xcom_sidecar_container_image": StringField(
-                lazy_gettext("XCom sidecar image"), widget=BS3TextFieldWidget()
-            ),
-            "xcom_sidecar_container_resources": StringField(
-                lazy_gettext("XCom sidecar resources (JSON format)"), widget=BS3TextFieldWidget()
-            ),
         }
 
     @staticmethod
@@ -303,7 +295,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         response = api.create_namespaced_custom_object(
             group=group,
             version=version,
-            namespace=namespace or self.get_namespace(),
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             plural=plural,
             body=body_dict,
         )
@@ -327,7 +319,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         response = api.get_namespaced_custom_object(
             group=group,
             version=version,
-            namespace=namespace or self.get_namespace(),
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             plural=plural,
             name=name,
         )
@@ -349,51 +341,17 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return api.delete_namespaced_custom_object(
             group=group,
             version=version,
-            namespace=namespace or self.get_namespace(),
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             plural=plural,
             name=name,
             **kwargs,
         )
 
     def get_namespace(self) -> str | None:
-        """
-        Returns the namespace defined in the connection or 'default'.
-
-        TODO: in provider version 6.0, return None when namespace not defined in connection
-        """
-        namespace = self._get_namespace()
-        if self.conn_id and not namespace:
-            warnings.warn(
-                "Airflow connection defined but namespace is not set; returning 'default'.  In "
-                "cncf.kubernetes provider version 6.0 we will return None when namespace is "
-                "not defined in the connection so that it's clear whether user intends 'default' or "
-                "whether namespace is unset (which is required in order to apply precedence logic in "
-                "KubernetesPodOperator).",
-                AirflowProviderDeprecationWarning,
-            )
-            return "default"
-        return namespace
-
-    def _get_namespace(self) -> str | None:
-        """
-        Returns the namespace that defined in the connection
-
-        TODO: in provider version 6.0, get rid of this method and make it the behavior of get_namespace.
-        """
+        """Returns the namespace that defined in the connection"""
         if self.conn_id:
             return self._get_field("namespace")
         return None
-
-    def get_xcom_sidecar_container_image(self):
-        """Returns the xcom sidecar image that defined in the connection"""
-        return self._get_field("xcom_sidecar_container_image")
-
-    def get_xcom_sidecar_container_resources(self):
-        """Returns the xcom sidecar resources that defined in the connection"""
-        field = self._get_field("xcom_sidecar_container_resources")
-        if not field:
-            return None
-        return json.loads(field)
 
     def get_pod_log_stream(
         self,
@@ -415,7 +373,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
                 self.core_v1_client.read_namespaced_pod_log,
                 name=pod_name,
                 container=container,
-                namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
+                namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             ),
         )
 
@@ -436,7 +394,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             name=pod_name,
             container=container,
             _preload_content=False,
-            namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
         )
 
     def get_pod(self, name: str, namespace: str) -> V1Pod:
@@ -460,7 +418,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param watch: Watch for changes to the described resources and return them as a stream
         """
         return self.core_v1_client.list_namespaced_pod(
-            namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             watch=watch,
             label_selector=label_selector,
             _preload_content=False,

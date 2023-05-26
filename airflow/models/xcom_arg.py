@@ -206,7 +206,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         raise NotImplementedError()
 
     def __enter__(self):
-        if not self.operator._is_setup and not self.operator._is_teardown:
+        if not self.operator.is_setup and not self.operator.is_teardown:
             raise AirflowException("Only setup/teardown tasks can be used as context managers.")
         SetupTeardownContext.push_setup_teardown_task(self.operator)
         return self

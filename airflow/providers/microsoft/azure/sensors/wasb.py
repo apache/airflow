@@ -78,17 +78,18 @@ class WasbBlobSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context=context)
         else:
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=WasbBlobSensorTrigger(
-                    container_name=self.container_name,
-                    blob_name=self.blob_name,
-                    wasb_conn_id=self.wasb_conn_id,
-                    public_read=self.public_read,
-                    poke_interval=self.poke_interval,
-                ),
-                method_name="execute_complete",
-            )
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=WasbBlobSensorTrigger(
+                        container_name=self.container_name,
+                        blob_name=self.blob_name,
+                        wasb_conn_id=self.wasb_conn_id,
+                        public_read=self.public_read,
+                        poke_interval=self.poke_interval,
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
@@ -172,16 +173,17 @@ class WasbPrefixSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context=context)
         else:
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=WasbPrefixSensorTrigger(
-                    container_name=self.container_name,
-                    prefix=self.prefix,
-                    wasb_conn_id=self.wasb_conn_id,
-                    poke_interval=self.poke_interval,
-                ),
-                method_name="execute_complete",
-            )
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=WasbPrefixSensorTrigger(
+                        container_name=self.container_name,
+                        prefix=self.prefix,
+                        wasb_conn_id=self.wasb_conn_id,
+                        poke_interval=self.poke_interval,
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
