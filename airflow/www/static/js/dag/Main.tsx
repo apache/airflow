@@ -131,7 +131,7 @@ const Main = () => {
       };
     }
     return () => {};
-  }, [resize, isLoading, isOpen]);
+  }, [resize, isLoading, isOpen, isGridCollapsed]);
 
   const onToggleGridCollapse = () => {
     const gridElement = gridRef.current;
