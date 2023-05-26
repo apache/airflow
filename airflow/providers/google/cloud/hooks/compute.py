@@ -122,7 +122,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         client = self.get_compute_instance_template_client()
-        client.insert(
+        operation = client.insert(
             # Calling method insert() on client to create Instance Template.
             # This method accepts request object as an argument and should be of type
             # Union[google.cloud.compute_v1.types.InsertInstanceTemplateRequest, dict] to construct a request
@@ -143,6 +143,7 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
+        self._wait_for_operation_to_complete(operation_name=operation.name, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance_template(
@@ -174,7 +175,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         client = self.get_compute_instance_template_client()
-        client.delete(
+        operation = client.delete(
             # Calling method delete() on client to delete Instance Template.
             # This method accepts request object as an argument and should be of type
             # Union[google.cloud.compute_v1.types.DeleteInstanceTemplateRequest, dict] to
@@ -195,6 +196,7 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
+        self._wait_for_operation_to_complete(operation_name=operation.name, project_id=project_id)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance_template(
@@ -222,7 +224,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :rtype: object
         """
         client = self.get_compute_instance_template_client()
-        instance_template_obj = client.get(
+        instance_template = client.get(
             # Calling method get() on client to get the specified Instance Template.
             # This method accepts request object as an argument and should be of type
             # Union[google.cloud.compute_v1.types.GetInstanceTemplateRequest, dict] to construct a request
@@ -240,7 +242,7 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        return instance_template_obj
+        return instance_template
 
     @GoogleBaseHook.fallback_to_default_project_id
     def insert_instance(
@@ -271,9 +273,8 @@ class ComputeEngineHook(GoogleBaseHook):
         :param source_instance_template: Existing Instance Template that will be used as a base while
             creating new Instance.
             When specified, only name of new Instance should be provided as input arguments in 'body'
-            parameter when creating new Instance. All other parameters, such as machine_type, disks
-            and network_interfaces and etc will be passed to Instance as they are specified
-            in the Instance Template.
+            parameter when creating new Instance. All other parameters, will be passed to Instance as they
+            are specified in the Instance Template.
             Full or partial URL and can be represented as examples below:
             1. "https://www.googleapis.com/compute/v1/projects/your-project/global/instanceTemplates/temp"
             2. "projects/your-project/global/instanceTemplates/temp"
@@ -289,7 +290,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         client = self.get_compute_instance_client()
-        client.insert(
+        operation = client.insert(
             # Calling method insert() on client to create Instance.
             # This method accepts request object as an argument and should be of type
             # Union[google.cloud.compute_v1.types.InsertInstanceRequest, dict] to construct a request
@@ -316,6 +317,7 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
+        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation.name, zone=zone)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance(
@@ -345,7 +347,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :rtype: object
         """
         client = self.get_compute_instance_client()
-        instance_obj = client.get(
+        instance = client.get(
             # Calling method get() on client to get the specified Instance.
             # This method accepts request object as an argument and should be of type
             # Union[google.cloud.compute_v1.types.GetInstanceRequest, dict] to construct a request
@@ -366,7 +368,7 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        return instance_obj
+        return instance
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance(
@@ -400,7 +402,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         client = self.get_compute_instance_client()
-        client.delete(
+        operation = client.delete(
             # Calling method delete() on client to delete Instance.
             # This method accepts request object as an argument and should be of type
             # Union[google.cloud.compute_v1.types.DeleteInstanceRequest, dict] to construct a request
@@ -424,6 +426,7 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
+        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation.name, zone=zone)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def start_instance(self, zone: str, resource_id: str, project_id: str) -> None:
@@ -538,7 +541,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         client = self.get_compute_instance_group_managers_client()
-        client.insert(
+        operation = client.insert(
             # Calling method insert() on client to create the specified Instance Group Managers.
             # This method accepts request object as an argument and should be of type
             # Union[google.cloud.compute_v1.types.InsertInstanceGroupManagerRequest, dict] to construct
@@ -562,6 +565,7 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
+        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation.name, zone=zone)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance_group_manager(
@@ -591,7 +595,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :rtype: object
         """
         client = self.get_compute_instance_group_managers_client()
-        instance_group_manager_obj = client.get(
+        instance_group_manager = client.get(
             # Calling method get() on client to get the specified Instance Group Manager.
             # This method accepts request object as an argument and should be of type
             # Union[google.cloud.compute_v1.types.GetInstanceGroupManagerRequest, dict] to construct a
@@ -612,7 +616,7 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        return instance_group_manager_obj
+        return instance_group_manager
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_instance_group_manager(
@@ -645,7 +649,7 @@ class ComputeEngineHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         client = self.get_compute_instance_group_managers_client()
-        client.delete(
+        operation = client.delete(
             # Calling method delete() on client to delete Instance Group Managers.
             # This method accepts request object as an argument and should be of type
             # Union[google.cloud.compute_v1.types.DeleteInstanceGroupManagerRequest, dict] to construct a
@@ -669,6 +673,7 @@ class ComputeEngineHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
+        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation.name, zone=zone)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def patch_instance_group_manager(
@@ -723,10 +728,12 @@ class ComputeEngineHook(GoogleBaseHook):
 
         :param operation_name: name of the operation
         :param zone: optional region of the request (might be None for global operations)
+        :param project_id: Google Cloud project ID where the Compute Engine Instance exists.
         :return: None
         """
         service = self.get_conn()
         while True:
+            self.log.info("Waiting for Operation to complete...")
             if zone is None:
                 operation_response = self._check_global_operation_status(
                     service=service,
@@ -745,6 +752,7 @@ class ComputeEngineHook(GoogleBaseHook):
                     msg = operation_response.get("httpErrorMessage")
                     # Extracting the errors list as string and trimming square braces
                     error_msg = str(error.get("errors"))[1:-1]
+
                     raise AirflowException(f"{code} {msg}: " + error_msg)
                 break
             time.sleep(TIME_TO_SLEEP_IN_SECONDS)

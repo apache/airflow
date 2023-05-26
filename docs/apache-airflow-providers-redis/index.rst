@@ -32,8 +32,15 @@ Content
     :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/providers-redis/|version|/tests/system/providers/redis>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-redis/>
     Installing from sources <installing-providers-from-sources>
+
+.. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/redis/index>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
@@ -51,7 +58,7 @@ Package apache-airflow-providers-redis
 `Redis <https://redis.io/>`__
 
 
-Release: 3.1.0
+Release: 3.2.0
 
 Provider package
 ----------------
@@ -69,11 +76,13 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.3.0``
-``redis``           ``~=3.2``
+``apache-airflow``  ``>=2.4.0``
+``redis``           ``>=3.2.0``
 ==================  ==================
 
 .. include:: ../../airflow/providers/redis/CHANGELOG.rst

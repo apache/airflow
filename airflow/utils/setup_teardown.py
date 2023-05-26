@@ -93,14 +93,14 @@ class SetupTeardownContext:
 
     @classmethod
     def push_setup_teardown_task(cls, operator):
-        if operator._is_teardown:
+        if operator.is_teardown:
             SetupTeardownContext.push_context_managed_teardown_task(operator)
-            upstream_setup = [task for task in operator.upstream_list if task._is_setup]
+            upstream_setup = [task for task in operator.upstream_list if task.is_setup]
             if upstream_setup:
                 SetupTeardownContext.push_context_managed_setup_task(upstream_setup[-1])
-        elif operator._is_setup:
+        elif operator.is_setup:
             SetupTeardownContext.push_context_managed_setup_task(operator)
-            downstream_teardown = [task for task in operator.downstream_list if task._is_teardown]
+            downstream_teardown = [task for task in operator.downstream_list if task.is_teardown]
             if downstream_teardown:
                 SetupTeardownContext.push_context_managed_teardown_task(downstream_teardown[0])
         SetupTeardownContext.active = True

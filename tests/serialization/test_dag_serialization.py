@@ -162,9 +162,9 @@ serialized_simple_dag_ground_truth = {
                 "_task_type": "BashOperator",
                 "_task_module": "airflow.operators.bash",
                 "pool": "default_pool",
-                "_is_setup": False,
-                "_is_teardown": False,
-                "_on_failure_fail_dagrun": False,
+                "is_setup": False,
+                "is_teardown": False,
+                "on_failure_fail_dagrun": False,
                 "executor_config": {
                     "__type": "dict",
                     "__var": {
@@ -194,9 +194,9 @@ serialized_simple_dag_ground_truth = {
                 "_operator_name": "@custom",
                 "_task_module": "tests.test_utils.mock_operators",
                 "pool": "default_pool",
-                "_is_setup": False,
-                "_is_teardown": False,
-                "_on_failure_fail_dagrun": False,
+                "is_setup": False,
+                "is_teardown": False,
+                "on_failure_fail_dagrun": False,
             },
         ],
         "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
@@ -570,7 +570,7 @@ class TestStringifiedDAGs:
                 "on_retry_callback",
                 # Checked separately
                 "resources",
-                "_on_failure_fail_dagrun",
+                "on_failure_fail_dagrun",
             }
         else:  # Promised to be mapped by the assert above.
             assert isinstance(serialized_task, MappedOperator)
@@ -1316,8 +1316,8 @@ class TestStringifiedDAGs:
 
     @staticmethod
     def assert_task_is_setup_teardown(task, is_setup: bool = False, is_teardown: bool = False):
-        assert task._is_setup == is_setup
-        assert task._is_teardown == is_teardown
+        assert task.is_setup == is_setup
+        assert task.is_teardown == is_teardown
 
     def test_setup_teardown_tasks(self):
         """
@@ -1392,8 +1392,8 @@ class TestStringifiedDAGs:
 
         serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
         task = serialized_dag.task_group.children["mytask"]
-        assert task._is_teardown
-        assert task._on_failure_fail_dagrun
+        assert task.is_teardown
+        assert task.on_failure_fail_dagrun
 
     def test_deps_sorted(self):
         """

@@ -24,7 +24,7 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
+from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator, SnowflakeSqlApiOperator
 
 SNOWFLAKE_CONN_ID = "my_snowflake_conn"
 SNOWFLAKE_SAMPLE_TABLE = "sample_table"
@@ -72,6 +72,14 @@ with DAG(
 
     # [END howto_operator_snowflake]
 
+    # [START howto_snowflake_sql_api_operator]
+    snowflake_sql_api_op_sql_multiple_stmt = SnowflakeSqlApiOperator(
+        task_id="snowflake_op_sql_multiple_stmt",
+        sql=SQL_MULTIPLE_STMTS,
+        statement_count=len(SQL_LIST),
+    )
+    # [END howto_snowflake_sql_api_operator]
+
     (
         snowflake_op_sql_str
         >> [
@@ -79,6 +87,7 @@ with DAG(
             snowflake_op_sql_list,
             snowflake_op_template_file,
             snowflake_op_sql_multiple_stmts,
+            snowflake_sql_api_op_sql_multiple_stmt,
         ]
     )
 
