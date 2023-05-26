@@ -42,18 +42,19 @@ if "visibility_timeout" not in broker_transport_options:
 broker_transport_options_for_celery = broker_transport_options.copy()
 if "sentinel_kwargs" in broker_transport_options:
     try:
-        sentinel_kwargs = conf.getjson("celery_broker_transport_options", "sentinel_kwargs")
+        sentinel_kwargs = broker_transport_options.get("sentinel_kwargs")
         if not isinstance(sentinel_kwargs, dict):
             raise ValueError
         broker_transport_options_for_celery["sentinel_kwargs"] = sentinel_kwargs
     except Exception:
         raise AirflowException("sentinel_kwargs should be written in the correct dictionary format.")
 
+
 if conf.has_option("celery", "RESULT_BACKEND"):
     result_backend = conf.get_mandatory_value("celery", "RESULT_BACKEND")
 else:
     log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
-    result_backend = "db+{}".format(conf.get("database", "SQL_ALCHEMY_CONN"))
+    result_backend = f'db+{conf.get("database", "SQL_ALCHEMY_CONN")}'
 
 DEFAULT_CELERY_CONFIG = {
     "accept_content": ["json"],
@@ -107,8 +108,8 @@ except AirflowConfigException:
     )
 except Exception as e:
     raise AirflowException(
-        "Exception: There was an unknown Celery SSL Error. Please ensure you "
-        "want to use SSL and/or have all necessary certs and key ({}).".format(e)
+        f"Exception: There was an unknown Celery SSL Error. Please ensure you want to use SSL and/or have "
+        f"all necessary certs and key ({e})."
     )
 
 if re.search("rediss?://|amqp://|rpc://", result_backend):
