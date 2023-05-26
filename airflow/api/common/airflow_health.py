@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 
@@ -23,7 +25,7 @@ HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
 
 
-def get_airflow_health() -> dict[str, dict[str, str | None]]:
+def get_airflow_health() -> dict[str, Any]:
     """Get the health for Airflow metadatabase, scheduler and triggerer."""
     metadatabase_status = HEALTHY
     latest_scheduler_heartbeat = None
