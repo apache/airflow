@@ -35,7 +35,7 @@ revisionHistoryLimit: ~
 uid: 50000
 gid: 0
 
-# Default security context for airflow (deprecated, use below in the future)
+# Default security context for airflow (deprecated, use `securityContexts` instead)
 securityContext: {}
 #  runAsUser: 50000
 #  fsGroup: 0
@@ -709,7 +709,7 @@ scheduler:
   # (when not using LocalExecutor and workers.persistence)
   strategy: ~
 
-  # When not set, the values defined in the global securityContext will be used (deprecated)
+  # When not set, the values defined in the global securityContext will be used (deprecated, use `securityContexts` instead)
   securityContext: {}
   #  runAsUser: 50000
   #  fsGroup: 0
@@ -1049,7 +1049,7 @@ webserver:
   # Allow overriding Update Strategy for Webserver
   strategy: ~
 
-  # When not set, the values defined in the global securityContext will be used (deprecated)
+  # When not set, the values defined in the global securityContext will be used (deprecated, use `securityContexts` instead)
   securityContext: {}
   #  runAsUser: 50000
   #  fsGroup: 0
@@ -1584,7 +1584,7 @@ statsd:
   uid: 65534
   # When not set, `statsd.uid` will be used
 
-  # When not set, the values defined in the global securityContext will be used (deprecated)
+  # When not set, the values defined in the global securityContext will be used (deprecated, use `securityContexts` instead)
   securityContext: {}
   #  runAsUser: 65534
   #  fsGroup: 0

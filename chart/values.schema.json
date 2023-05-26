@@ -96,7 +96,7 @@
             "x-docsSection": "Common"
         },
         "securityContext": {
-            "description": "Pod security context definition (deprecated, use `securityContexts` instead). The values in this parameter will be used when `securityContext` is not defined for specific Pods",
+            "description": "Default pod security context definition (deprecated, use `securityContexts` instead). The values in this parameter will be used when `securityContext` is not defined for specific Pods",
             "type": "object",
             "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
             "default": {},
@@ -110,12 +110,12 @@
             ]
         },
         "securityContexts": {
-            "description": "Security context definition for the scheduler. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container.",
+            "description": "Default security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods/Container.",
             "type": "object",
             "x-docsSection": "Kubernetes",
             "properties": {
                 "pod": {
-                    "description": "Pod security context definition for the scheduler. The values in this parameter will be used when `securityContexts` is not defined for specific Pods.",
+                    "description": "Default pod security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific Pods.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -129,7 +129,7 @@
                     ]
                 },
                 "container": {
-                    "description": "Container security context definition for the scheduler. The values in this parameter will be used when `securityContexts` is not defined for specific containers",
+                    "description": "Default container security context definition. The values in this parameter will be used when `securityContexts` is not defined for specific containers",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                     "default": {},
@@ -1709,7 +1709,7 @@
                     "description": "Configuration for worker log groomer sidecar"
                 },
                 "securityContext": {
-                    "description": "Security context for the worker pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the worker pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -2144,7 +2144,7 @@
                     "description": "Configuration for the schedulers log groomer sidecar."
                 },
                 "securityContext": {
-                    "description": "Security context for the scheduler pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the scheduler pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -2577,7 +2577,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the triggerer pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the triggerer pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -2960,7 +2960,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the dag processor pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the dag processor pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -3248,7 +3248,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the create user job pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the create user job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -3261,7 +3261,7 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the  create user job. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the create user job. If not set, the values from global `securityContexts` will be used.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
@@ -3512,7 +3512,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the migrate database job pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the migrate database job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -3838,7 +3838,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the webserver job pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the webserver job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -4573,7 +4573,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the flower pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the flower pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -4791,7 +4791,7 @@
                     "default": []
                 },
                 "securityContext": {
-                    "description": "Security context for the StatsD pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the StatsD pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -5505,7 +5505,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the cleanup job pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the cleanup job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -5907,7 +5907,7 @@
                     }
                 },
                 "securityContext": {
-                    "description": "Security context for the cleanup job pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the cleanup job pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -6209,7 +6209,7 @@
                             "default": "git-sync"
                         },
                         "securityContext": {
-                            "description": "Security context for the `gitSync` container. If not set, the values from `securityContext` will be used.",
+                            "description": "Security context for the `gitSync` container (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
                             "type": "object",
                             "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
                             "default": {},
@@ -6864,7 +6864,7 @@
                 },
                 "securityContext": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
-                    "description": "SecurityContext defines the security options the container should be run with. If set, the fields of SecurityContext override the equivalent fields of PodSecurityContext. More info: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/"
+                    "description": "SecurityContext defines the security options the container should be run with (deprecated, use `securityContexts` instead). If set, the fields of SecurityContext override the equivalent fields of PodSecurityContext. More info: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/"
                 },
                 "startupProbe": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.Probe",
