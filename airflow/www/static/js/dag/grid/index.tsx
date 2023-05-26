@@ -94,14 +94,14 @@ const Grid = ({
 
   return (
     <Box height="100%" position="relative">
-      {isPanelOpen && (
+      {(isPanelOpen || isGridCollapsed) && (
         <IconButton
           fontSize="2xl"
           variant="ghost"
           color="gray.400"
           size="sm"
           position="absolute"
-          right={0}
+          right={isGridCollapsed ? -10 : 0}
           zIndex={2}
           top={-8}
           onClick={() =>
@@ -114,22 +114,24 @@ const Grid = ({
           transitionProperty="none"
         />
       )}
-      <IconButton
-        fontSize="2xl"
-        variant="ghost"
-        color="gray.400"
-        size="sm"
-        position="absolute"
-        right={isPanelOpen ? -10 : 0}
-        zIndex={2}
-        top={-8}
-        onClick={onPanelToggle}
-        title={`${isPanelOpen ? "Hide " : "Show "} Details Panel`}
-        aria-label={isPanelOpen ? "Show Details" : "Hide Details"}
-        icon={<MdDoubleArrow />}
-        transform={isPanelOpen ? undefined : "rotateZ(180deg)"}
-        transitionProperty="none"
-      />
+      {!isGridCollapsed && (
+        <IconButton
+          fontSize="2xl"
+          variant="ghost"
+          color="gray.400"
+          size="sm"
+          position="absolute"
+          right={isPanelOpen ? -10 : 0}
+          zIndex={2}
+          top={-8}
+          onClick={onPanelToggle}
+          title={`${isPanelOpen ? "Hide " : "Show "} Details Panel`}
+          aria-label={isPanelOpen ? "Show Details" : "Hide Details"}
+          icon={<MdDoubleArrow />}
+          transform={isPanelOpen ? undefined : "rotateZ(180deg)"}
+          transitionProperty="none"
+        />
+      )}
       <Box
         maxHeight={`calc(100% - ${offsetTop}px)`}
         ref={scrollRef}
