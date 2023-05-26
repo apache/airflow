@@ -42,6 +42,7 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
 from airflow.utils.state import State
 from tests.test_utils import db
+from tests.test_utils.config import conf_vars
 
 FAKE_EXCEPTION_MSG = "Fake Exception"
 
@@ -247,6 +248,22 @@ class TestCeleryExecutor:
         assert executor.tasks == {}
         assert app.control.revoke.called_with("231")
         assert mock_fail.called_once()
+
+    @conf_vars({("celery", "result_backend_engine_options"): '{"pool_recycle": 1800}'})
+    @mock.patch("celery.Celery")
+    def test_result_backend_engine_options(self, mock_celery):
+        import importlib
+
+        from airflow.config_templates import default_celery
+
+        # relaod celery conf to apply the new config
+        importlib.reload(default_celery)
+        # reload celery_executor to recreate the celery app with new config
+        importlib.reload(celery_executor)
+
+        call_args = mock_celery.call_args[1]["config_source"]
+        assert "database_engine_options" in call_args
+        assert call_args["database_engine_options"] == {"pool_recycle": 1800}
 
 
 def test_operation_timeout_config():
