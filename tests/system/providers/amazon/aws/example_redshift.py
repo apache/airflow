@@ -40,6 +40,7 @@ from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftCluste
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests.system.providers.amazon.aws.utils.ec2 import get_default_vpc_id
 
 DAG_ID = "example_redshift"
 DB_LOGIN = "adminuser"
@@ -75,9 +76,8 @@ def create_connection(conn_id_name: str, cluster_id: str):
 
 
 @task
-def setup_security_group(sec_group_name: str, ip_permissions: list[dict]):
+def setup_security_group(sec_group_name: str, ip_permissions: list[dict], vpc_id: str):
     client = boto3.client("ec2")
-    vpc_id = client.describe_vpcs()["Vpcs"][0]["VpcId"]
     security_group = client.create_security_group(
         Description="Redshift-system-test", GroupName=sec_group_name, VpcId=vpc_id
     )
@@ -111,7 +111,9 @@ with DAG(
     conn_id_name = f"{env_id}-conn-id"
     sg_name = f"{env_id}-sg"
 
-    set_up_sg = setup_security_group(sec_group_name=sg_name, ip_permissions=[IP_PERMISSION])
+    get_vpc_id = get_default_vpc_id()
+
+    set_up_sg = setup_security_group(sg_name, [IP_PERMISSION], get_vpc_id)
 
     # [START howto_operator_redshift_cluster]
     create_cluster = RedshiftCreateClusterOperator(
