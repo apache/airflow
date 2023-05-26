@@ -1170,7 +1170,11 @@ To install yarn on macOS:
 
     export PATH="$HOME/.yarn/bin:$PATH"
 
-4.  Install third-party libraries defined in ``package.json`` by running the
+4.  Install third-party libraries defined in ``package.json`` by running the following command
+
+.. code-block:: bash
+
+    yarn install
 
 Generate Bundled Files with yarn
 --------------------------------
