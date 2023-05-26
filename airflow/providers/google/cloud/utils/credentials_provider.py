@@ -325,13 +325,13 @@ class _CredentialProvider(LoggingMixin):
                 self.credential_config_file, scopes=self.scopes
             )
         else:
-            with tempfile.NamedTemporaryFile() as temp_credentials_fd:
+            with tempfile.NamedTemporaryFile(mode="w+t") as temp_credentials_fd:
                 if isinstance(self.credential_config_file, dict):
                     self._log_info("Getting connection using credential configuration dict.")
-                    temp_credentials_fd.write(json.dumps(self.credential_config_file).encode())
+                    temp_credentials_fd.write(json.dumps(self.credential_config_file))
                 elif isinstance(self.credential_config_file, str):
                     self._log_info("Getting connection using credential configuration string.")
-                    temp_credentials_fd.write(self.credential_config_file.encode())
+                    temp_credentials_fd.write(self.credential_config_file)
 
                 temp_credentials_fd.flush()
                 credentials, project_id = google.auth.load_credentials_from_file(
