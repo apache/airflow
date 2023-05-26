@@ -25,10 +25,9 @@ import sys
 import textwrap
 from datetime import datetime
 
-import github
 import pendulum
 import rich_click as click
-from github import Github
+from github import Github, UnknownObjectException
 from github.PullRequest import PullRequest
 from rich.console import Console
 
@@ -159,7 +158,7 @@ class PrStat:
             for num in self.issue_nums:
                 try:
                     issue = repo.get_issue(num)
-                except github.GithubException.UnknownObjectException:
+                except UnknownObjectException:
                     continue
                 for reaction in issue.get_reactions():
                     self._users.add(reaction.user.login)
@@ -178,7 +177,7 @@ class PrStat:
             for num in self.issue_nums:
                 try:
                     issue = repo.get_issue(num)
-                except github.GithubException.UnknownObjectException:
+                except UnknownObjectException:
                     continue
                 for issue_comment in issue.get_comments():
                     issue_comments += 1
