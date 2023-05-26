@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -24,7 +23,7 @@ HEALTHY = "healthy"
 UNHEALTHY = "unhealthy"
 
 
-def get_airflow_health():
+def get_airflow_health() -> dict[str, dict[str, str | None]]:
     """Get the health for Airflow metadatabase, scheduler and triggerer."""
     metadatabase_status = HEALTHY
     latest_scheduler_heartbeat = None
