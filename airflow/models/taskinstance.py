@@ -2826,8 +2826,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def clear_db_references(self, session):
         """
-        Clear DB references to XCom, TaskFail, TaskInstanceNote,
-        TaskReschedule and RenderedTaskInstanceFields.
+        Clear db tables what have a reference to this instance.
 
         :param session: ORM Session
 
