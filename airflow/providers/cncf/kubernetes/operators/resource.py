@@ -57,17 +57,11 @@ class KubernetesResourceBaseOperator(BaseOperator):
         yaml_conf: str,
         namespace: str | None = None,
         kubernetes_conn_id: str | None = KubernetesHook.default_conn_name,
-        in_cluster: bool | None = None,
-        cluster_context: str | None = None,
-        config_file: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self._namespace = namespace
         self.kubernetes_conn_id = kubernetes_conn_id
-        self.in_cluster = in_cluster
-        self.cluster_context = cluster_context
-        self.config_file = config_file
         self.yaml_conf = yaml_conf
 
     @cached_property
@@ -76,12 +70,7 @@ class KubernetesResourceBaseOperator(BaseOperator):
 
     @cached_property
     def hook(self) -> KubernetesHook:
-        hook = KubernetesHook(
-            conn_id=self.kubernetes_conn_id,
-            in_cluster=self.in_cluster,
-            config_file=self.config_file,
-            cluster_context=self.cluster_context,
-        )
+        hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
         return hook
 
     def get_namespace(self) -> str:
