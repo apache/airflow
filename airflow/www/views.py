@@ -871,6 +871,8 @@ class Airflow(AirflowBaseView):
                 for name, in dagtags
             ]
 
+            tags = sorted(tags, key=lambda t: t['name'])
+
             owner_links_dict = DagOwnerAttributes.get_all(session)
 
             import_errors = session.query(errors.ImportError).order_by(errors.ImportError.id)
