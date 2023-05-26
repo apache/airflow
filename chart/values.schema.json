@@ -6864,7 +6864,7 @@
                 },
                 "securityContext": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.SecurityContext",
-                    "description": "SecurityContext defines the security options the container should be run with (deprecated, use `securityContexts` instead). If set, the fields of SecurityContext override the equivalent fields of PodSecurityContext. More info: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/"
+                    "description": "SecurityContext defines the security options the container should be run with. If set, the fields of SecurityContext override the equivalent fields of PodSecurityContext. More info: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/"
                 },
                 "startupProbe": {
                     "$ref": "#/definitions/io.k8s.api.core.v1.Probe",
