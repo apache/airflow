@@ -107,6 +107,8 @@ class RedshiftSQLHook(DbApiHook):
         cluster_identifier = conn.extra_dejson.get("cluster_identifier", None)
         if conn.host and not cluster_identifier:
             cluster_identifier = conn.host.split(".")[0]
+        if not cluster_identifier and not conn.host:
+            raise Exception("Please set cluster_identifier or host in redshift connection.")
         redshift_client = AwsBaseHook(aws_conn_id=self.aws_conn_id, client_type="redshift").conn
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
         cluster_creds = redshift_client.get_cluster_credentials(
