@@ -5193,7 +5193,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "run_type",
         "start_date",
         "end_date",
-        # "note",  # todo: maybe figure out how to re-enable this
+        "note",
         "external_trigger",
     ]
     label_columns = {
@@ -5574,7 +5574,15 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     ]
 
     order_columns = [
-        item for item in list_columns if item not in ["try_number", "log_url", "external_executor_id"]
+        item
+        for item in list_columns
+        if item
+        not in [
+            "try_number",
+            "log_url",
+            "external_executor_id",
+            "note",  # todo: maybe figure out how to re-enable this
+        ]
     ]
 
     label_columns = {
@@ -5591,7 +5599,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "operator",
         "start_date",
         "end_date",
-        # "note",  # todo: maybe make note work with TI search?
+        "note",
         "hostname",
         "priority_weight",
         "queue",
