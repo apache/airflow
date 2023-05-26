@@ -154,7 +154,7 @@ class AbstractOperator(Templater, DAGNode):
             return self.upstream_task_ids
         return self.downstream_task_ids
 
-    def get_flat_relative_ids(self, upstream: bool = False) -> set[str]:
+    def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
         """
         Get a flat set of relative IDs, upstream or downstream.
 
@@ -185,7 +185,7 @@ class AbstractOperator(Templater, DAGNode):
         dag = self.get_dag()
         if not dag:
             return set()
-        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream)]
+        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that are direct dependencies of the current task.
