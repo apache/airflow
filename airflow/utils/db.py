@@ -1012,7 +1012,6 @@ def reflect_tables(tables: list[Base | str] | None, session):
 
     bind = session.bind
     metadata = sqlalchemy.schema.MetaData()
-    metadata.bind = bind
 
     if tables is None:
         metadata.reflect(bind=bind, resolve_fks=False)
