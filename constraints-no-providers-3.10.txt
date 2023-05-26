@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-26T14:19:25Z
+# This constraints file was automatically generated on 2023-05-26T17:37:05Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -15,7 +15,7 @@ Flask-AppBuilder==4.3.1
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.0.2
-Flask-JWT-Extended==4.4.4
+Flask-JWT-Extended==4.5.1
 Flask-Limiter==3.3.1
 Flask-Login==0.6.2
 Flask-SQLAlchemy==2.5.1
@@ -145,7 +145,7 @@ plyvel==1.5.0
 prison==0.2.1
 prometheus-client==0.17.0
 prompt-toolkit==3.0.38
-protobuf==4.23.1
+protobuf==4.23.2
 psutil==5.9.5
 pure-sasl==0.6.2
 pyarrow==12.0.0
