@@ -20,11 +20,11 @@ import datetime
 import enum
 from dataclasses import dataclass
 from importlib import import_module
-from pydantic import BaseModel
 from typing import ClassVar
 
 import attr
 import pytest
+from pydantic import BaseModel
 
 from airflow.datasets import Dataset
 from airflow.serialization.serde import (

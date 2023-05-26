@@ -156,7 +156,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
     # pydantic models are recursive
     if _is_pydantic(cls):
-        data = o.dict()
+        data = o.dict()  # type: ignore[call-overload]
         dct[DATA] = serialize(data, depth + 1)
         return dct
 
@@ -309,8 +309,12 @@ def _stringify(classname: str, version: int, value: T | None) -> str:
 
 
 def _is_pydantic(cls: Any) -> bool:
-    """Return True if the class is a pydantic model."""
-    return hasattr(cls, "validate") and hasattr(cls, "json") and hasattr(cls, "dict")
+    """Return True if the class is a pydantic model.
+
+    Checking is done by attributes as it is significantly faster than
+    using isinstance.
+    """
+    return hasattr(cls, "__validators__") and hasattr(cls, "__fields__") and hasattr(cls, "dict")
 
 
 def _register():
