@@ -300,7 +300,7 @@ These are extras that provide support for integration with external systems via 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | sftp                | ``pip install 'apache-airflow[sftp]'``              | SFTP hooks, operators and sensors    |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-| smtp                | ``pip install 'apache-airflow[smtp]'``              | SMTP hooks and operators             |              |
+| smtp                | ``pip install 'apache-airflow[smtp]'``              | SMTP hooks and operators             |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | sqlite              | ``pip install 'apache-airflow[sqlite]'``            | SQLite hooks and operators           |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+

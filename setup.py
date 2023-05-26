@@ -731,6 +731,7 @@ PREINSTALLED_PROVIDERS = [
     "ftp",
     "http",
     "imap",
+    "smtp",
     "sqlite",
 ]
 
