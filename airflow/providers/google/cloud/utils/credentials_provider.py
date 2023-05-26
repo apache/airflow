@@ -26,7 +26,6 @@ import logging
 import os.path
 import tempfile
 from contextlib import ExitStack, contextmanager
-from json import JSONDecodeError
 from typing import Collection, Generator, Sequence
 from urllib.parse import urlencode
 
@@ -318,7 +317,7 @@ class _CredentialProvider(LoggingMixin):
         return credentials, project_id
 
     def _get_credentials_using_credential_config_file(self):
-        if os.path.exists(self.credential_config_file):
+        if isinstance(self.credential_config_file, str) and os.path.exists(self.credential_config_file):
             self._log_info(
                 f"Getting connection using credential configuration file: `{self.credential_config_file}`"
             )
@@ -329,8 +328,8 @@ class _CredentialProvider(LoggingMixin):
             with tempfile.NamedTemporaryFile() as temp_credentials_fd:
                 if isinstance(self.credential_config_file, dict):
                     self._log_info("Getting connection using credential configuration dict.")
-                    json.dump(self.credential_config_file, temp_credentials_fd)
-                else:
+                    temp_credentials_fd.write(json.dumps(self.credential_config_file).encode())
+                elif isinstance(self.credential_config_file, str):
                     self._log_info("Getting connection using credential configuration string.")
                     temp_credentials_fd.write(self.credential_config_file.encode())
 
