@@ -28,6 +28,11 @@ suspended: false
 versions:
   - 1.0.0
 
+integrations:
+  - integration-name: Apprise
+    external-doc-url: https://github.com/caronc/apprise
+    tags: [software]
+
 dependencies:
   - apache-airflow>=2.2.0
   - apprise
