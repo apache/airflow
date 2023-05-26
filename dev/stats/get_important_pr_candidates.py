@@ -290,7 +290,7 @@ class PrStat:
         try:
             interaction_score *= min(self.protm_score + 1, 3)
         except AttributeError:
-            interaction_score = 0
+            interaction_score = 1.0
         return round(
             1.0
             * interaction_score
