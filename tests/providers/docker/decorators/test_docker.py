@@ -123,9 +123,9 @@ class TestDockerDecorator:
         "extra_kwargs, actual_exit_code, expected_state",
         [
             (None, 99, TaskInstanceState.FAILED),
-            ({"skip_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
-            ({"skip_exit_code": 100}, 101, TaskInstanceState.FAILED),
-            ({"skip_exit_code": None}, 0, TaskInstanceState.SUCCESS),
+            ({"skip_on_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": 100}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": None}, 0, TaskInstanceState.SUCCESS),
         ],
     )
     def test_skip_docker_operator(self, extra_kwargs, actual_exit_code, expected_state, dag_maker):
@@ -156,7 +156,7 @@ class TestDockerDecorator:
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["f"]
-        assert setup_task._is_setup
+        assert setup_task.is_setup
 
     def test_teardown_decorator_with_decorated_docker_task(self, dag_maker):
         @teardown
@@ -169,7 +169,7 @@ class TestDockerDecorator:
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
-        assert teardown_task._is_teardown
+        assert teardown_task.is_teardown
 
     @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
     def test_teardown_decorator_with_decorated_docker_task_and_on_failure_fail_arg(
@@ -185,5 +185,5 @@ class TestDockerDecorator:
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
-        assert teardown_task._is_teardown
-        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
+        assert teardown_task.is_teardown
+        assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun

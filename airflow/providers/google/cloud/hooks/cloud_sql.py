@@ -31,7 +31,6 @@ import string
 import subprocess
 import time
 import uuid
-import warnings
 from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
@@ -80,7 +79,6 @@ class CloudSQLHook(GoogleBaseHook):
 
     :param api_version: This is the version of the api.
     :param gcp_conn_id: The Airflow connection used for GCP credentials.
-    :param delegate_to: This performs a task on one host with reference to other hosts.
     :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
     """
@@ -94,16 +92,16 @@ class CloudSQLHook(GoogleBaseHook):
         self,
         api_version: str,
         gcp_conn_id: str = default_conn_name,
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
@@ -201,7 +199,11 @@ class CloudSQLHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+        # For some delete instance operations, the operation stops being available ~9 seconds after
+        # completion, so we need a shorter sleep time to make sure we don't miss the DONE status.
+        self._wait_for_operation_to_complete(
+            project_id=project_id, operation_name=operation_name, time_to_sleep=5
+        )
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_database(self, instance: str, database: str, project_id: str) -> dict:
@@ -357,7 +359,7 @@ class CloudSQLHook(GoogleBaseHook):
         :param instance: Database instance ID to be used for the clone. This does not include the
             project ID.
         :param body: The request body, as described in
-            https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1/instances/clone
+            https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1beta4/instances/clone
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
         :return: None
@@ -374,13 +376,16 @@ class CloudSQLHook(GoogleBaseHook):
         except HttpError as ex:
             raise AirflowException(f"Cloning of instance {instance} failed: {ex.content}")
 
-    def _wait_for_operation_to_complete(self, project_id: str, operation_name: str) -> None:
+    def _wait_for_operation_to_complete(
+        self, project_id: str, operation_name: str, time_to_sleep: int = TIME_TO_SLEEP_IN_SECONDS
+    ) -> None:
         """
         Waits for the named operation to complete - checks status of the
         asynchronous call.
 
         :param project_id: Project ID of the project that contains the instance.
         :param operation_name: Name of the operation.
+        :param time_to_sleep: Time to sleep between active checks of the operation results.
         :return: None
         """
         service = self.get_conn()
@@ -398,7 +403,7 @@ class CloudSQLHook(GoogleBaseHook):
                     raise AirflowException(error_msg)
                 # No meaningful info to return from the response in case of success
                 return
-            time.sleep(TIME_TO_SLEEP_IN_SECONDS)
+            time.sleep(time_to_sleep)
 
 
 CLOUD_SQL_PROXY_DOWNLOAD_URL = "https://dl.google.com/cloudsql/cloud_sql_proxy.{}.{}"

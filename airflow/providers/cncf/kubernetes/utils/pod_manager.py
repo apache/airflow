@@ -38,9 +38,9 @@ from pendulum.parsing.exceptions import ParserError
 from urllib3.exceptions import HTTPError as BaseHTTPError
 from urllib3.response import HTTPResponse
 
-from airflow.exceptions import AirflowException
-from airflow.kubernetes.kube_client import get_kube_client
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.kubernetes.pod_generator import PodDefaults
+from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
 
@@ -71,6 +71,30 @@ class PodPhase:
     SUCCEEDED = "Succeeded"
 
     terminal_states = {FAILED, SUCCEEDED}
+
+
+class PodOperatorHookProtocol(Protocol):
+    """
+    Protocol to define methods relied upon by KubernetesPodOperator
+
+    Subclasses of KubernetesPodOperator, such as GKEStartPodOperator, may use
+    hooks that don't extend KubernetesHook.  We use this protocol to document the
+    methods used by KPO and ensure that these methods exist on such other hooks.
+    """
+
+    @property
+    def core_v1_client(self) -> client.CoreV1Api:
+        """Get authenticated CoreV1Api object."""
+
+    @property
+    def is_in_cluster(self) -> bool:
+        """Expose whether the hook is configured with ``load_incluster_config`` or not"""
+
+    def get_pod(self, name: str, namespace: str) -> V1Pod:
+        """Read pod object from kubernetes API."""
+
+    def get_namespace(self) -> str | None:
+        """Returns the namespace that defined in the connection"""
 
 
 def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:
@@ -219,28 +243,15 @@ class PodManager(LoggingMixin):
 
     def __init__(
         self,
-        kube_client: client.CoreV1Api = None,
-        in_cluster: bool = True,
-        cluster_context: str | None = None,
+        kube_client: client.CoreV1Api,
     ):
         """
         Creates the launcher.
 
         :param kube_client: kubernetes client
-        :param in_cluster: whether we are in cluster
-        :param cluster_context: context of the cluster
         """
         super().__init__()
-        if kube_client:
-            self._client = kube_client
-        else:
-            self._client = get_kube_client(in_cluster=in_cluster, cluster_context=cluster_context)
-            warnings.warn(
-                "`kube_client` not supplied to PodManager. "
-                "This will be a required argument in a future release. "
-                "Please use KubernetesHook to create the client before calling.",
-                DeprecationWarning,
-            )
+        self._client = kube_client
         self._watch = watch.Watch()
 
     def run_pod_async(self, pod: V1Pod, **kwargs) -> V1Pod:
@@ -310,7 +321,7 @@ class PodManager(LoggingMixin):
         warnings.warn(
             "Method `follow_container_logs` is deprecated.  Use `fetch_container_logs` instead"
             "with option `follow=True`.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         return self.fetch_container_logs(pod=pod, container_name=container_name, follow=True)
 

@@ -266,10 +266,15 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator",
         "airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator",
+        "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360CreateQueryOperator",
+        "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360RunQueryOperator",
+        "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadReportV2Operator",
+        "airflow.providers.google.marketing_platform.sensors.GoogleDisplayVideo360RunQuerySensor",
     }
 
     BASE_CLASSES = {
         "airflow.providers.google.cloud.operators.compute.ComputeEngineBaseOperator",
+        "airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryToSqlBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_sql.CloudSQLBaseOperator",
         "airflow.providers.google.cloud.operators.dataproc.DataprocJobBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
@@ -281,7 +286,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.dlp.CloudDLPRedactImageOperator",
         "airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraToGCSOperator",
         "airflow.providers.google.cloud.transfers.adls_to_gcs.ADLSToGCSOperator",
-        "airflow.providers.google.cloud.transfers.bigquery_to_mysql.BigQueryToMySqlOperator",
         "airflow.providers.google.cloud.transfers.sql_to_gcs.BaseSQLToGCSOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.endpoint_service.GetEndpointOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.AutoMLTrainingJobBaseOperator",
@@ -401,8 +405,6 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator",
         # Glue Catalog sensor difficult to test
         "airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor",
-        # EMR Step sensor difficult to test, see: https://github.com/apache/airflow/pull/27286
-        "airflow.providers.amazon.aws.sensors.emr.EmrStepSensor",
     }
 
     DEPRECATED_CLASSES = {
@@ -425,6 +427,23 @@ class TestCncfProviderProjectStructure(ExampleCoverageTest):
     DEPRECATED_CLASSES = {
         "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
         "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
+    }
+
+
+class TestSlackProviderProjectStructure(ExampleCoverageTest):
+    PROVIDER = "slack"
+    CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
+    BASE_CLASSES = {
+        "airflow.providers.slack.transfers.sql_to_slack.BaseSqlToSlackOperator",
+    }
+    MISSING_EXAMPLES_FOR_CLASSES = {
+        "airflow.providers.slack.operators.slack.SlackAPIOperator",
+        "airflow.providers.slack.operators.slack.SlackAPIPostOperator",
+        "airflow.providers.slack.operators.slack_webhook.SlackWebhookOperator",
+        "airflow.providers.slack.transfers.sql_to_slack.SqlToSlackApiFileOperator",
+    }
+    DEPRECATED_CLASSES = {
+        "airflow.providers.slack.notifications.slack_notifier.py.",
     }
 
 

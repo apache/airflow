@@ -28,14 +28,97 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.1.1
+.....
+
+Latest change: 2023-05-23
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`45b6cfa138 <https://github.com/apache/airflow/commit/45b6cfa138ae23e39802b493075bd5b7531ccdae>`_  2023-05-23   ``Fix deferrable mode execution in WasbPrefixSensor (#31411)``
+`26b8997fb1 <https://github.com/apache/airflow/commit/26b8997fb185fd308c243a9418ade317e533e26b>`_  2023-05-23   ``Optimize deferred mode execution for wasb sensors (#31009)``
+=================================================================================================  ===========  ==============================================================
+
+6.1.0
+.....
+
+Latest change: 2023-05-19
+
+=================================================================================================  ===========  =========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================================
+`45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
+`abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
+`f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
+`ec2f0f12db <https://github.com/apache/airflow/commit/ec2f0f12db1a5e1d595203f9a0ec0cac6862250c>`_  2023-05-11   ``Optimize deferred execution for AzureDataFactoryRunPipelineOperator (#31214)``
+`ac46902154 <https://github.com/apache/airflow/commit/ac46902154c060246dec942f921f7670015e6031>`_  2023-05-04   ``Move TaskInstanceKey to a separate file (#31033)``
+`0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`607068f4f0 <https://github.com/apache/airflow/commit/607068f4f0d259b638743db5b101660da1b43d11>`_  2023-05-01   ``Optimize deferrable execution mode 'AzureDataFactoryPipelineRunStatusSensor' (#30983)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+`c585ad51c5 <https://github.com/apache/airflow/commit/c585ad51c522c6e9f3bbbf7ae6e0132e25a3a378>`_  2023-04-22   ``Upgrade ruff to 0.0.262 (#30809)``
+`0cea23a43f <https://github.com/apache/airflow/commit/0cea23a43fb891ebb9e2fc0ae36f45c122a4a96c>`_  2023-04-22   ``Add deferrable mode to 'WasbPrefixSensor' (#30252)``
+=================================================================================================  ===========  =========================================================================================
+
+6.0.0
+.....
+
+Latest change: 2023-04-21
+
+=================================================================================================  ===========  ============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================
+`e46ce78b66 <https://github.com/apache/airflow/commit/e46ce78b66953146c04de5da00cab6299787adad>`_  2023-04-21   ``Prepare docs for adhoc release of providers (#30787)``
+`fbc1382514 <https://github.com/apache/airflow/commit/fbc13825140cc6cc6b3d4b27db6d329692a1c451>`_  2023-04-21   ``remove delegate_to from GCP operators and hooks (#30748)``
+`6b5db07e0d <https://github.com/apache/airflow/commit/6b5db07e0dc8bdf482de5864018cd50c8770472b>`_  2023-04-17   ``Merge WasbBlobAsyncSensor to WasbBlobSensor (#30488)``
+=================================================================================================  ===========  ============================================================
+
+5.3.1
+.....
+
+Latest change: 2023-04-12
+
+=================================================================================================  ===========  ===================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================
+`0f3b6579cb <https://github.com/apache/airflow/commit/0f3b6579cb67d3cf8bd9fa8f9abd502fc774201a>`_  2023-04-12   ``Prepare docs for RC2 of provider wave (#30606)``
+`7ce3b66237 <https://github.com/apache/airflow/commit/7ce3b66237fbdb1605cf1f7cec06f0b823c455a1>`_  2023-04-10   ``Load subscription_id from extra__azure__subscriptionId (#30556)``
+`874ea9588e <https://github.com/apache/airflow/commit/874ea9588e3ce7869759440302e53bb6a730a11e>`_  2023-04-09   ``Prepare docs for ad hoc release of Providers (#30545)``
+`a09fd0d121 <https://github.com/apache/airflow/commit/a09fd0d121476964f1c9d7f12960c24517500d2c>`_  2023-04-08   ``Fix AzureDataFactoryPipelineRunLink get_link method (#30514)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+=================================================================================================  ===========  ===================================================================
+
+5.3.0
+.....
+
+Latest change: 2023-04-02
+
+=================================================================================================  ===========  ==========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================================================
+`55dbf1ff1f <https://github.com/apache/airflow/commit/55dbf1ff1fb0b22714f695a66f6108b3249d1199>`_  2023-04-02   ``Prepare docs for April 2023 wave of Providers (#30378)``
+`54a59d7cae <https://github.com/apache/airflow/commit/54a59d7cae5d49993e018ad408954c44f15dc509>`_  2023-03-31   ``Add 'WasbBlobAsyncSensor' (#30197)``
+`0e69ca7c0f <https://github.com/apache/airflow/commit/0e69ca7c0f87045264a82c2b2daa953506579d5f>`_  2023-03-29   ``Fix ADF job failure during deferral (#30248)``
+`c39097c07a <https://github.com/apache/airflow/commit/c39097c07a50fdc0baad08573d319627291f5f91>`_  2023-03-29   ``merge AzureDataFactoryPipelineRunStatusAsyncSensor to AzureDataFactoryPipelineRunStatusSensor (#30250)``
+`c99201afa2 <https://github.com/apache/airflow/commit/c99201afa294ffe680a5f24b0893d8efdeb53272>`_  2023-03-17   ``Add deferrable 'AzureDataFactoryRunPipelineOperator' (#30147)``
+`9a417a54ba <https://github.com/apache/airflow/commit/9a417a54baf1bd2dfcc24e8a537b989746e59a52>`_  2023-03-17   ``organize azure provider.yaml (#30155)``
+`a755c5e82b <https://github.com/apache/airflow/commit/a755c5e82b5c0c673b2278220b55150e6dd743c0>`_  2023-03-15   ``Expose missing params in AzureSynapseHook API docs (#30099)``
+`2f25ba572e <https://github.com/apache/airflow/commit/2f25ba572e0219c614c11cec1fa68dc80d0ec854>`_  2023-03-13   ``Add deferrable 'AzureDataFactoryPipelineRunStatusSensor' (#29801)``
+`008f52444a <https://github.com/apache/airflow/commit/008f52444a84ceaa2de7c2166b8f253f55ca8c21>`_  2023-03-10   ``Fix AzureDataLakeStorageV2Hook 'account_url' with Active Directory authentication (#29980) (#29981)``
+`b6392ae5fd <https://github.com/apache/airflow/commit/b6392ae5fd466fa06ca92c061a0f93272e27a26b>`_  2023-03-07   ``Support deleting the local log files when using remote logging (#29772)``
+=================================================================================================  ===========  ==========================================================================================================
+
 5.2.1
 .....
 
-Latest change: 2023-02-16
+Latest change: 2023-02-18
 
 =================================================================================================  ===========  ===============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================================
+`470fdaea27 <https://github.com/apache/airflow/commit/470fdaea275660970777c0f72b8867b382eabc14>`_  2023-02-18   ``Prepare docs for 02 2023 midmonth wave of Providers (#29589)``
 `ce28775397 <https://github.com/apache/airflow/commit/ce28775397627a750514c904577703ecaa331d2b>`_  2023-02-16   ``Handle deleting more than 256 blobs using 'WasbHook.delete_file()' (#29565)``
 `f9e9d23457 <https://github.com/apache/airflow/commit/f9e9d23457cba5d3e18b5bdb7b65ecc63735b65b>`_  2023-02-11   ``Restore trigger logging (#29482)``
 `60d4bcd1d1 <https://github.com/apache/airflow/commit/60d4bcd1d101bb56955081d14e3e138a0c960c5f>`_  2023-02-10   ``Revert "Enable individual trigger logging (#27758)" (#29472)``

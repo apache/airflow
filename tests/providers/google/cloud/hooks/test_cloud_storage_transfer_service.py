@@ -23,6 +23,7 @@ from copy import deepcopy
 from unittest import mock
 from unittest.mock import MagicMock, PropertyMock
 
+import httplib2
 import pytest
 from googleapiclient.errors import HttpError
 
@@ -101,12 +102,11 @@ def _with_name(body, job_name):
     return obj
 
 
-class GCPRequestMock:
-
-    status = TEST_HTTP_ERR_CODE
-
-
 class TestGCPTransferServiceHookWithPassedName:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudDataTransferServiceHook(gcp_conn_id="test", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
@@ -139,7 +139,9 @@ class TestGCPTransferServiceHookWithPassedName:
         enable_transfer_job: MagicMock,
     ):
         body = _with_name(TEST_BODY, TEST_CLEAR_JOB_NAME)
-        get_conn.side_effect = HttpError(GCPRequestMock(), TEST_HTTP_ERR_CONTENT)
+        get_conn.side_effect = HttpError(
+            httplib2.Response({"status": TEST_HTTP_ERR_CODE}), TEST_HTTP_ERR_CONTENT
+        )
 
         with pytest.raises(HttpError):
 

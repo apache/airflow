@@ -38,6 +38,14 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class DataformHook(GoogleBaseHook):
     """Hook for Google Cloud DataForm APIs."""
 
+    def __init__(self, **kwargs):
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
+        super().__init__(**kwargs)
+
     def get_dataform_client(self) -> DataformClient:
         """Retrieves client library object that allow access to Cloud Dataform service."""
         return DataformClient(credentials=self.get_credentials())

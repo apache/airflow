@@ -37,7 +37,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_batch"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 REGION = "europe-west1"
 
 BATCH_ID = f"test-batch-id-{ENV_ID}"
@@ -130,7 +130,7 @@ with models.DAG(
         task_id="cancel_operation",
         project_id=PROJECT_ID,
         region=REGION,
-        operation_name="{{ task_instance.xcom_pull('create_batch') }}",
+        operation_name="{{ task_instance.xcom_pull('create_batch_4') }}",
     )
     # [END how_to_cloud_dataproc_cancel_operation_operator]
 

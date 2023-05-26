@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import contextlib
 import tempfile
-import warnings
 from typing import TYPE_CHECKING, Any, Generator
 
 from asgiref.sync import sync_to_async
@@ -29,9 +28,11 @@ from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
+from airflow.models import Connection
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.utils import yaml
 
 LOADING_KUBE_CONFIG_FILE_RESOURCE = "Loading Kubernetes configuration file kube_config from {}..."
@@ -45,7 +46,7 @@ def _load_body_to_dict(body: str) -> dict:
     return body_dict
 
 
-class KubernetesHook(BaseHook):
+class KubernetesHook(BaseHook, PodOperatorHookProtocol):
     """
     Creates Kubernetes API connection.
 
@@ -98,9 +99,6 @@ class KubernetesHook(BaseHook):
             "cluster_context": StringField(lazy_gettext("Cluster context"), widget=BS3TextFieldWidget()),
             "disable_verify_ssl": BooleanField(lazy_gettext("Disable SSL")),
             "disable_tcp_keepalive": BooleanField(lazy_gettext("Disable TCP keepalive")),
-            "xcom_sidecar_container_image": StringField(
-                lazy_gettext("XCom sidecar image"), widget=BS3TextFieldWidget()
-            ),
         }
 
     @staticmethod
@@ -136,6 +134,22 @@ class KubernetesHook(BaseHook):
         for param in params:
             if param is not None:
                 return param
+
+    @classmethod
+    def get_connection(cls, conn_id: str) -> Connection:
+        """
+        Return requested connection.
+
+        If missing and conn_id is "kubernetes_default", will return empty connection so that hook will
+        default to cluster-derived credentials.
+        """
+        try:
+            return super().get_connection(conn_id)
+        except AirflowNotFoundException:
+            if conn_id == cls.default_conn_name:
+                return Connection(conn_id=cls.default_conn_name)
+            else:
+                raise
 
     @cached_property
     def conn_extras(self):
@@ -281,7 +295,7 @@ class KubernetesHook(BaseHook):
         response = api.create_namespaced_custom_object(
             group=group,
             version=version,
-            namespace=namespace or self.get_namespace(),
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             plural=plural,
             body=body_dict,
         )
@@ -305,7 +319,7 @@ class KubernetesHook(BaseHook):
         response = api.get_namespaced_custom_object(
             group=group,
             version=version,
-            namespace=namespace or self.get_namespace(),
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             plural=plural,
             name=name,
         )
@@ -327,44 +341,17 @@ class KubernetesHook(BaseHook):
         return api.delete_namespaced_custom_object(
             group=group,
             version=version,
-            namespace=namespace or self.get_namespace(),
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             plural=plural,
             name=name,
             **kwargs,
         )
 
     def get_namespace(self) -> str | None:
-        """
-        Returns the namespace defined in the connection or 'default'.
-
-        TODO: in provider version 6.0, return None when namespace not defined in connection
-        """
-        namespace = self._get_namespace()
-        if self.conn_id and not namespace:
-            warnings.warn(
-                "Airflow connection defined but namespace is not set; returning 'default'.  In "
-                "cncf.kubernetes provider version 6.0 we will return None when namespace is "
-                "not defined in the connection so that it's clear whether user intends 'default' or "
-                "whether namespace is unset (which is required in order to apply precedence logic in "
-                "KubernetesPodOperator).",
-                DeprecationWarning,
-            )
-            return "default"
-        return namespace
-
-    def _get_namespace(self) -> str | None:
-        """
-        Returns the namespace that defined in the connection
-
-        TODO: in provider version 6.0, get rid of this method and make it the behavior of get_namespace.
-        """
+        """Returns the namespace that defined in the connection"""
         if self.conn_id:
             return self._get_field("namespace")
         return None
-
-    def get_xcom_sidecar_container_image(self):
-        """Returns the xcom sidecar image that defined in the connection"""
-        return self._get_field("xcom_sidecar_container_image")
 
     def get_pod_log_stream(
         self,
@@ -386,7 +373,7 @@ class KubernetesHook(BaseHook):
                 self.core_v1_client.read_namespaced_pod_log,
                 name=pod_name,
                 container=container,
-                namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
+                namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             ),
         )
 
@@ -407,10 +394,11 @@ class KubernetesHook(BaseHook):
             name=pod_name,
             container=container,
             _preload_content=False,
-            namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
         )
 
     def get_pod(self, name: str, namespace: str) -> V1Pod:
+        """Read pod object from kubernetes API."""
         return self.core_v1_client.read_namespaced_pod(
             name=name,
             namespace=namespace,
@@ -430,7 +418,7 @@ class KubernetesHook(BaseHook):
         :param watch: Watch for changes to the described resources and return them as a stream
         """
         return self.core_v1_client.list_namespaced_pod(
-            namespace=namespace or self._get_namespace() or self.DEFAULT_NAMESPACE,
+            namespace=namespace or self.get_namespace() or self.DEFAULT_NAMESPACE,
             watch=watch,
             label_selector=label_selector,
             _preload_content=False,
@@ -456,19 +444,18 @@ def _get_bool(val) -> bool | None:
 class AsyncKubernetesHook(KubernetesHook):
     """Hook to use Kubernetes SDK asynchronously."""
 
-    def __init__(self, config_dict: dict | None = None, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.config_dict = config_dict
-
         self._extras: dict | None = None
 
     async def _load_config(self):
         """Returns Kubernetes API session for use with requests"""
         in_cluster = self._coalesce_param(self.in_cluster, await self._get_field("in_cluster"))
         cluster_context = self._coalesce_param(self.cluster_context, await self._get_field("cluster_context"))
+        kubeconfig_path = self._coalesce_param(self.config_file, await self._get_field("kube_config_path"))
         kubeconfig = await self._get_field("kube_config")
 
-        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, self.config_dict] if o])
+        num_selected_configuration = len([o for o in [in_cluster, kubeconfig, kubeconfig_path] if o])
 
         if num_selected_configuration > 1:
             raise AirflowException(
@@ -483,9 +470,14 @@ class AsyncKubernetesHook(KubernetesHook):
             async_config.load_incluster_config()
             return async_client.ApiClient()
 
-        if self.config_dict:
-            self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
-            await async_config.load_kube_config_from_dict(self.config_dict)
+        if kubeconfig_path:
+            self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("kube_config"))
+            self._is_in_cluster = False
+            await async_config.load_kube_config(
+                config_file=kubeconfig_path,
+                client_configuration=self.client_configuration,
+                context=cluster_context,
+            )
             return async_client.ApiClient()
 
         if kubeconfig is not None:

@@ -48,7 +48,7 @@ core:
          with argument as: `(file_path: str, zip_file: zipfile.ZipFile | None = None)`
          return True if it has dags otherwise False
          If this is not provided, Airflow uses its own heuristic rules.
-      version_added: ~
+      version_added: 2.6.0
       type: string
       example: ~
       default: "airflow.utils.file.might_contain_dag_via_default_heuristic"
@@ -259,7 +259,7 @@ core:
       default: "True"
     dag_discovery_safe_mode:
       description: |
-        When discovering DAGs, ignore any files that don't contain the strings ``DAG`` and ``airflow``.
+        If enabled, Airflow will only scan files containing both ``DAG`` and ``airflow`` (case-insensitive).
       version_added: 1.10.3
       type: string
       example: ~
@@ -438,20 +438,28 @@ core:
       example: '{"some_param": "some_value"}'
     database_access_isolation:
       description: (experimental) Whether components should use Airflow Internal API for DB connectivity.
-      version_added: 2.6.0
+      version_added: 2.7.0
       type: boolean
       example: ~
       default: "False"
     internal_api_url:
       description: |
-        (experimental)Airflow Internal API url. Only used if [core] database_access_isolation is True.
-      version_added: 2.6.0
+        (experimental) Airflow Internal API url. Only used if [core] database_access_isolation is True.
+      version_added: 2.7.0
       type: string
       default: ~
       example: 'http://localhost:8080'
 database:
   description: ~
   options:
+    alembic_ini_file_path:
+      description: |
+        Path to the ``alembic.ini`` file. You can either provide the file path relative
+        to the Airflow home directory or the absolute path if it is located elsewhere.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "alembic.ini"
     sql_alchemy_conn:
       description: |
         The SqlAlchemy connection string to the metadata database.
@@ -556,7 +564,7 @@ database:
         See https://docs.sqlalchemy.org/en/14/core/engines.html#sqlalchemy.create_engine.params.connect_args
       version_added: 2.3.0
       type: string
-      example: ~
+      example: '{"timeout": 30}'
       default: ~
     load_default_connections:
       description: |
@@ -870,6 +878,17 @@ logging:
       type: string
       example: "0o664"
       default: "0o664"
+    celery_stdout_stderr_separation:
+      description: |
+        By default Celery sends all logs into stderr.
+        If enabled any previous logging handlers will get *removed*.
+        With this option AirFlow will create new handlers
+        and send low level logs like INFO and WARNING to stdout,
+        while sending higher severity logs to stderr.
+      version_added: 2.5.4
+      type: boolean
+      example: ~
+      default: "False"
 
 
 metrics:
@@ -881,7 +900,7 @@ metrics:
         If you want to avoid emitting all the available metrics, you can configure an
         allow list of prefixes (comma separated) to send only the metrics that start
         with the elements of the list (e.g: "scheduler,executor,dagrun")
-      version_added: 2.0.0
+      version_added: 2.6.0
       type: string
       example: ~
       default: ""
@@ -1159,6 +1178,65 @@ lineage:
       type: string
       example: ~
       default: ""
+openlineage:
+  description: |
+    This section applies settings for OpenLineage integration.
+    For backwards compatibility with `openlineage-python` one can still use
+    `openlineage.yml` file or `OPENLINEAGE_` environment variables. However, below
+    configuration takes precedence over those.
+    More in documentation - https://openlineage.io/docs/client/python#configuration.
+  options:
+    disabled:
+      description: |
+        Set this to true if you don't want OpenLineage to emit events.
+      type: boolean
+      example: ~
+      default: "False"
+      version_added: ~
+    namespace:
+      description: |
+        OpenLineage namespace
+      version_added: ~
+      type: string
+      example: "food_delivery"
+      default: ~
+    extractors:
+      description: |
+        Comma-separated paths to custom OpenLineage extractors.
+      type: string
+      example: full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
+      default: ''
+      version_added: ~
+    config_path:
+      description: |
+        Path to YAML config. This provides backwards compatibility to pass config as
+        `openlineage.yml` file.
+      version_added: ~
+      type: string
+      example: ~
+      default: ''
+    transport:
+      description: |
+        OpenLineage Client transport configuration. It should contain type
+        and additional options per each type.
+
+        Currently supported types are:
+
+          * HTTP
+          * Kafka
+          * Console
+      type: string
+      example: '{"type": "http", "url": "http://localhost:5000"}'
+      default: ''
+      version_added: ~
+    disable_source_code:
+      description: |
+        If disabled, OpenLineage events do not contain source code of particular
+        operators, like PythonOperator.
+      default: ~
+      example: ~
+      type: boolean
+      version_added: ~
 atlas:
   description: ~
   options:
@@ -1264,6 +1342,13 @@ hive:
 webserver:
   description: ~
   options:
+    config_file:
+      description: |
+        Path of webserver config file used for configuring the webserver parameters
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "{AIRFLOW_HOME}/webserver_config.py"
     base_url:
       description: |
         The base url of your website as airflow cannot guess what domain or
@@ -1674,7 +1759,7 @@ webserver:
     run_internal_api:
       description: |
         Boolean for running Internal API in the webserver.
-      version_added: 2.6.0
+      version_added: 2.7.0
       type: boolean
       example: ~
       default: "False"
@@ -1692,6 +1777,13 @@ webserver:
       type: string
       example: ~
       default: "5 per 40 second"
+    caching_hash_method:
+      description: |
+        The caching algorithm used by the webserver. Must be a valid hashlib function name.
+      version_added: 2.6.0
+      type: string
+      example: "sha256"
+      default: "md5"
 
 email:
   description: |
@@ -2054,26 +2146,6 @@ celery:
       type: boolean
       example: ~
       default: "True"
-    task_adoption_timeout:
-      description: |
-        Time in seconds after which adopted tasks which are queued in celery are assumed to be stalled,
-        and are automatically rescheduled. This setting does the same thing as ``stalled_task_timeout`` but
-        applies specifically to adopted tasks only. When set to 0, the ``stalled_task_timeout`` setting
-        also applies to adopted tasks. To calculate adoption time, subtract the
-        :ref:`task duration<ui:task-duration>` from the task's :ref:`landing time<ui:landing-times>`.
-      version_added: 2.0.0
-      type: integer
-      example: ~
-      default: "600"
-    stalled_task_timeout:
-      description: |
-        Time in seconds after which tasks queued in celery are assumed to be stalled, and are automatically
-        rescheduled. Adopted tasks will instead use the ``task_adoption_timeout`` setting if specified.
-        When set to 0, automatic clearing of stalled tasks is disabled.
-      version_added: 2.3.1
-      type: integer
-      example: ~
-      default: "0"
     task_publish_max_retries:
       description: |
         The Maximum number of retries for publishing task messages to the broker when failing
@@ -2103,10 +2175,22 @@ celery_broker_transport_options:
         ETA you're planning to use.
         visibility_timeout is only supported for Redis and SQS celery brokers.
         See:
-        http://docs.celeryproject.org/en/master/userguide/configuration.html#std:setting-broker_transport_options
+        https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#visibility-timeout
       version_added: ~
       type: string
       example: "21600"
+      default: ~
+    sentinel_kwargs:
+      description: |
+        The sentinel_kwargs parameter allows passing additional options to the Sentinel client.
+        In a typical scenario where Redis Sentinel is used as the broker and Redis servers are
+        password-protected, the password needs to be passed through this parameter. Although its
+        type is string, it is required to pass a string that conforms to the dictionary format.
+        See:
+        https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#configuration
+      version_added: 2.7.0
+      type: string
+      example: '{"password": "password_for_redis_server"}'
       default: ~
 dask:
   description: |
@@ -2232,7 +2316,8 @@ scheduler:
       description: |
         If the last scheduler heartbeat happened more than scheduler_health_check_threshold
         ago (in seconds), scheduler is considered unhealthy.
-        This is used by the health check in the "/health" endpoint
+        This is used by the health check in the "/health" endpoint and in `airflow jobs check` CLI
+        for SchedulerJob.
       version_added: 1.10.2
       type: string
       example: ~
@@ -2351,6 +2436,16 @@ scheduler:
       version_added: 2.0.0
       type: boolean
       default: "True"
+    parsing_pre_import_modules:
+      description: |
+        The scheduler reads dag files to extract the airflow modules that are going to be used,
+        and imports them ahead of time to avoid having to re-do it for each parsing process.
+        This flag can be set to False to disable this behavior in case an airflow module needs to be freshly
+        imported each time (at the cost of increased DAG parsing time).
+      version_added: 2.6.0
+      type: boolean
+      example: ~
+      default: "True"
     parsing_processes:
       description: |
         The scheduler can run multiple processes in parallel to parse dags.
@@ -2370,7 +2465,6 @@ scheduler:
           same host. This is useful when running with Scheduler in HA mode where each scheduler can
           parse different DAG files.
         * ``alphabetical``: Sort by filename
-
       version_added: 2.1.0
       type: string
       example: ~
@@ -2422,6 +2516,21 @@ scheduler:
       type: string
       example: ~
       default: "15"
+    task_queued_timeout:
+      description: |
+        Amount of time a task can be in the queued state before being retried or set to failed.
+      version_added: 2.6.0
+      type: float
+      example: ~
+      default: "600.0"
+    task_queued_timeout_check_interval:
+      description: |
+        How often to check for tasks that have been in the queued state for
+        longer than `[scheduler] task_queued_timeout`.
+      version_added: 2.6.0
+      type: float
+      example: ~
+      default: "120.0"
 triggerer:
   description: ~
   options:
@@ -2577,6 +2686,20 @@ kubernetes_executor:
     previous_name: kubernetes
     version: 2.5.0
   options:
+    api_client_retry_configuration:
+      description: |
+        Kwargs to override the default urllib3 Retry used in the kubernetes API client
+      version_added: 2.6.0
+      type: string
+      example: '{ "total": 3, "backoff_factor": 0.5 }'
+      default: ""
+    logs_task_metadata:
+      description: |
+        Flag to control the information added to kubernetes executor logs for better traceability
+      version_added: 2.7.0
+      type: boolean
+      example: ~
+      default: "False"
     pod_template_file:
       description: |
         Path to the YAML pod file that forms the basis for KubernetesExecutor workers.
@@ -2738,20 +2861,6 @@ kubernetes_executor:
       type: boolean
       example: ~
       default: "True"
-    worker_pods_pending_timeout:
-      description: |
-        How long in seconds a worker can be in Pending before it is considered a failure
-      version_added: 2.1.0
-      type: integer
-      example: ~
-      default: "300"
-    worker_pods_pending_timeout_check_interval:
-      description: |
-        How often in seconds to check if Pending workers have exceeded their timeouts
-      version_added: 2.1.0
-      type: integer
-      example: ~
-      default: "120"
     worker_pods_queued_check_interval:
       description: |
         How often in seconds to check for task instances stuck in "queued" status without a pod
@@ -2759,14 +2868,6 @@ kubernetes_executor:
       type: integer
       example: ~
       default: "60"
-    worker_pods_pending_timeout_batch_size:
-      description: |
-        How many pending pods to check for timeout violations in each check interval.
-        You may want this higher if you have a very large cluster and/or use ``multi_namespace_mode``.
-      version_added: 2.1.0
-      type: integer
-      example: ~
-      default: "100"
     ssl_ca_cert:
       description: |
         Path to a CA certificate to be used by the Kubernetes client to verify the server's SSL certificate.

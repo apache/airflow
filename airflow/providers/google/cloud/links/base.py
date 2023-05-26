@@ -23,7 +23,7 @@ from airflow.models import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 BASE_LINK = "https://console.cloud.google.com"

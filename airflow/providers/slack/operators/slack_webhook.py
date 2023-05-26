@@ -21,7 +21,7 @@ import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
 
@@ -96,7 +96,7 @@ class SlackWebhookOperator(BaseOperator):
         if http_conn_id:
             warnings.warn(
                 "Parameter `http_conn_id` is deprecated. Please use `slack_webhook_conn_id` instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             if slack_webhook_conn_id:
@@ -130,7 +130,7 @@ class SlackWebhookOperator(BaseOperator):
                 f"Provide {','.join(repr(a) for a in deprecated_class_attrs)} is deprecated "
                 f"and as has no affect, please remove it from {self.__class__.__name__} "
                 "constructor attributes otherwise in future version of provider it might cause an issue.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 

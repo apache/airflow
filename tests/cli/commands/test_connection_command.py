@@ -545,6 +545,7 @@ class TestCliAddConnections:
             ),
         ],
     )
+    @pytest.mark.execution_timeout(120)
     def test_cli_connection_add(self, cmd, expected_output, expected_conn):
         with redirect_stdout(io.StringIO()) as stdout:
             connection_command.connections_add(self.parser.parse_args(cmd))
@@ -633,6 +634,16 @@ class TestCliAddConnections:
                     ["connections", "add", "fsconn", "--conn-host=/tmp", "--conn-type=File"]
                 )
             )
+
+    def test_cli_connections_add_invalid_conn_id(self):
+        with pytest.raises(SystemExit) as e:
+            connection_command.connections_add(
+                self.parser.parse_args(["connections", "add", "Test$", f"--conn-uri={TEST_URL}"])
+            )
+        assert (
+            e.value.args[0] == "Could not create connection. The key 'Test$' has to be made of "
+            "alphanumeric characters, dashes, dots and underscores exclusively"
+        )
 
 
 class TestCliDeleteConnections:

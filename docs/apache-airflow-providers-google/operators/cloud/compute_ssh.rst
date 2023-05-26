@@ -45,20 +45,20 @@ Please note that the target instance must allow tcp traffic on port 22.
 
 Below is the code to create the operator:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_compute_ssh.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute_ssh.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_execute_command_on_remote1]
-    :end-before: [END howto_execute_command_on_remote1]
+    :start-after: [START howto_execute_command_on_remote_1]
+    :end-before: [END howto_execute_command_on_remote_1]
 
 You can also create the hook without project id - project id will be retrieved
 from the Google credentials used:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_compute_ssh.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/compute/example_compute_ssh.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_execute_command_on_remote2]
-    :end-before: [END howto_execute_command_on_remote2]
+    :start-after: [START howto_execute_command_on_remote_2]
+    :end-before: [END howto_execute_command_on_remote_2]
 
 More information
 """"""""""""""""

@@ -22,7 +22,7 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTableExistenceTrigger,
@@ -45,9 +45,6 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         storage bucket.
     :param table_id: The name of the table to check the existence of.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -73,7 +70,6 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         dataset_id: str,
         table_id: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = False,
         **kwargs,
@@ -85,7 +81,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
                 warnings.warn(
                     "Argument `poll_interval` is deprecated and will be removed "
                     "in a future release.  Please use `poke_interval` instead.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
             else:
@@ -97,11 +93,6 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
         self.deferrable = deferrable
@@ -111,7 +102,6 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         self.log.info("Sensor checks existence of table: %s", table_uri)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         return hook.table_exists(
@@ -120,21 +110,24 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
 
     def execute(self, context: Context) -> None:
         """Airflow runs this method on the worker and defers using the trigger."""
-        self.defer(
-            timeout=timedelta(seconds=self.timeout),
-            trigger=BigQueryTableExistenceTrigger(
-                dataset_id=self.dataset_id,
-                table_id=self.table_id,
-                project_id=self.project_id,
-                poll_interval=self.poke_interval,
-                gcp_conn_id=self.gcp_conn_id,
-                hook_params={
-                    "delegate_to": self.delegate_to,
-                    "impersonation_chain": self.impersonation_chain,
-                },
-            ),
-            method_name="execute_complete",
-        )
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=BigQueryTableExistenceTrigger(
+                        dataset_id=self.dataset_id,
+                        table_id=self.table_id,
+                        project_id=self.project_id,
+                        poll_interval=self.poke_interval,
+                        gcp_conn_id=self.gcp_conn_id,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
@@ -163,9 +156,6 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
     :param table_id: The name of the table to check the existence of.
     :param partition_id: The name of the partition to check the existence of.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must
-        have domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -193,7 +183,6 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         table_id: str,
         partition_id: str,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = False,
         **kwargs,
@@ -207,11 +196,6 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         self.table_id = table_id
         self.partition_id = partition_id
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
         self.deferrable = deferrable
@@ -221,7 +205,6 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         return hook.table_partition_exists(
@@ -239,21 +222,22 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context)
         else:
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=BigQueryTablePartitionExistenceTrigger(
-                    dataset_id=self.dataset_id,
-                    table_id=self.table_id,
-                    project_id=self.project_id,
-                    partition_id=self.partition_id,
-                    poll_interval=self.poke_interval,
-                    gcp_conn_id=self.gcp_conn_id,
-                    hook_params={
-                        "impersonation_chain": self.impersonation_chain,
-                    },
-                ),
-                method_name="execute_complete",
-            )
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=BigQueryTablePartitionExistenceTrigger(
+                        dataset_id=self.dataset_id,
+                        table_id=self.table_id,
+                        project_id=self.project_id,
+                        partition_id=self.partition_id,
+                        poll_interval=self.poke_interval,
+                        gcp_conn_id=self.gcp_conn_id,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
@@ -283,9 +267,6 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
     :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-       if any. For this to work, the service account making the request must have
-       domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
        credentials, or chained list of accounts required to get the access_token
        of the last account in the list, which will be impersonated in the request.
@@ -303,7 +284,7 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
             "will be removed in a future release. "
             "Please use `BigQueryTableExistenceSensor` and "
             "set `deferrable` attribute to `True` instead",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         super().__init__(deferrable=True, **kwargs)
 
@@ -339,6 +320,6 @@ class BigQueryTableExistencePartitionAsyncSensor(BigQueryTablePartitionExistence
             "will be removed in a future release. "
             "Please use `BigQueryTableExistencePartitionSensor` and "
             "set `deferrable` attribute to `True` instead",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         super().__init__(deferrable=True, **kwargs)

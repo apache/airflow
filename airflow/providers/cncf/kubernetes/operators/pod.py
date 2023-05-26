@@ -20,11 +20,10 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import secrets
 import string
-import warnings
+from collections.abc import Container
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -33,7 +32,7 @@ from slugify import slugify
 from urllib3.exceptions import HTTPError
 
 from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
@@ -55,6 +54,7 @@ from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLaunchFailedException,
     PodManager,
+    PodOperatorHookProtocol,
     PodPhase,
     get_container_termination_message,
 )
@@ -196,6 +196,9 @@ class KubernetesPodOperator(BaseOperator):
     :param security_context: security options the pod should run with (PodSecurityContext).
     :param container_security_context: security options the container should run with.
     :param dnspolicy: dnspolicy for the pod.
+    :param dns_config: dns configuration (ip addresses, searches, options) for the pod.
+    :param hostname: hostname for the pod.
+    :param subdomain: subdomain for the pod.
     :param schedulername: Specify a schedulername for the pod
     :param full_pod_spec: The complete podSpec
     :param init_containers: init container for the launched Pod
@@ -213,6 +216,9 @@ class KubernetesPodOperator(BaseOperator):
         to populate the environment variables with. The contents of the target
         ConfigMap's Data field will represent the key-value pairs as environment variables.
         Extends env_from.
+    :param skip_on_exit_code: If task exits with this exit code, leave the task
+        in ``skipped`` state (default: None). If set to ``None``, any non-zero
+        exit code will be treated as a failure.
     :param base_container_name: The name of the base container in the pod. This container's logs
         will appear as part of this task's logs if get_logs is True. Defaults to None. If None,
         will consult the class variable BASE_CONTAINER_NAME (which defaults to "base") for the base
@@ -245,7 +251,7 @@ class KubernetesPodOperator(BaseOperator):
     def __init__(
         self,
         *,
-        kubernetes_conn_id: str | None = None,  # 'kubernetes_default',
+        kubernetes_conn_id: str | None = KubernetesHook.default_conn_name,
         namespace: str | None = None,
         image: str | None = None,
         name: str | None = None,
@@ -278,6 +284,9 @@ class KubernetesPodOperator(BaseOperator):
         security_context: dict | None = None,
         container_security_context: dict | None = None,
         dnspolicy: str | None = None,
+        dns_config: k8s.V1PodDNSConfig | None = None,
+        hostname: str | None = None,
+        subdomain: str | None = None,
         schedulername: str | None = None,
         full_pod_spec: k8s.V1Pod | None = None,
         init_containers: list[k8s.V1Container] | None = None,
@@ -288,6 +297,7 @@ class KubernetesPodOperator(BaseOperator):
         pod_runtime_info_envs: list[k8s.V1EnvVar] | None = None,
         termination_grace_period: int | None = None,
         configmaps: list[str] | None = None,
+        skip_on_exit_code: int | Container[int] | None = None,
         base_container_name: str | None = None,
         deferrable: bool = False,
         poll_interval: float = 2,
@@ -346,6 +356,9 @@ class KubernetesPodOperator(BaseOperator):
         self.security_context = security_context or {}
         self.container_security_context = container_security_context
         self.dnspolicy = dnspolicy
+        self.dns_config = dns_config
+        self.hostname = hostname
+        self.subdomain = subdomain
         self.schedulername = schedulername
         self.full_pod_spec = full_pod_spec
         self.init_containers = init_containers or []
@@ -357,12 +370,18 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_grace_period = termination_grace_period
         self.pod_request_obj: k8s.V1Pod | None = None
         self.pod: k8s.V1Pod | None = None
+        self.skip_on_exit_code = (
+            skip_on_exit_code
+            if isinstance(skip_on_exit_code, Container)
+            else [skip_on_exit_code]
+            if skip_on_exit_code
+            else []
+        )
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.remote_pod: k8s.V1Pod | None = None
-
-        self._config_dict: dict | None = None
+        self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
 
     @cached_property
     def _incluster_namespace(self):
@@ -443,7 +462,7 @@ class KubernetesPodOperator(BaseOperator):
         return PodManager(kube_client=self.client)
 
     @cached_property
-    def hook(self) -> KubernetesHook:
+    def hook(self) -> PodOperatorHookProtocol:
         hook = KubernetesHook(
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
@@ -451,10 +470,6 @@ class KubernetesPodOperator(BaseOperator):
             cluster_context=self.cluster_context,
         )
         return hook
-
-    def get_hook(self):
-        warnings.warn("get_hook is deprecated. Please use hook instead.", DeprecationWarning, stacklevel=2)
-        return self.hook
 
     @cached_property
     def client(self) -> CoreV1Api:
@@ -503,7 +518,7 @@ class KubernetesPodOperator(BaseOperator):
         """Retrieves xcom value and kills xcom sidecar container"""
         result = self.pod_manager.extract_xcom(pod)
         if isinstance(result, str) and result.rstrip() == "__airflow_xcom_result_empty__":
-            self.log.info("Result file is empty.")
+            self.log.info("xcom result file is empty.")
             return None
         else:
             self.log.info("xcom result: \n%s", result)
@@ -523,6 +538,11 @@ class KubernetesPodOperator(BaseOperator):
                 pod_request_obj=self.pod_request_obj,
                 context=context,
             )
+            # push to xcom now so that if there is an error we still have the values
+            ti = context["ti"]
+            ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
+            ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
+
             # get remote pod for use in cleanup methods
             self.remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
             self.await_pod_start(pod=self.pod)
@@ -548,9 +568,6 @@ class KubernetesPodOperator(BaseOperator):
                 pod=self.pod or self.pod_request_obj,
                 remote_pod=self.remote_pod,
             )
-        ti = context["ti"]
-        ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
-        ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
         if self.do_xcom_push:
             return result
 
@@ -560,17 +577,7 @@ class KubernetesPodOperator(BaseOperator):
             pod_request_obj=self.pod_request_obj,
             context=context,
         )
-        self.convert_config_file_to_dict()
         self.invoke_defer_method()
-
-    def convert_config_file_to_dict(self):
-        """Converts passed config_file to dict format."""
-        config_file = self.config_file if self.config_file else os.environ.get(KUBE_CONFIG_ENV_VAR)
-        if config_file:
-            with open(config_file) as f:
-                self._config_dict = yaml.safe_load(f)
-        else:
-            self._config_dict = None
 
     def invoke_defer_method(self):
         """Method to easily redefine triggers which are being used in child classes."""
@@ -582,7 +589,7 @@ class KubernetesPodOperator(BaseOperator):
                 trigger_start_time=trigger_start_time,
                 kubernetes_conn_id=self.kubernetes_conn_id,
                 cluster_context=self.cluster_context,
-                config_dict=self._config_dict,
+                config_file=self.config_file,
                 in_cluster=self.in_cluster,
                 poll_interval=self.poll_interval,
                 should_delete_pod=self.is_delete_operator_pod,
@@ -670,6 +677,25 @@ class KubernetesPodOperator(BaseOperator):
 
             error_message = get_container_termination_message(remote_pod, self.base_container_name)
             error_message = "\n" + error_message if error_message else ""
+            if self.skip_on_exit_code is not None:
+                container_statuses = (
+                    remote_pod.status.container_statuses if remote_pod and remote_pod.status else None
+                ) or []
+                base_container_status = next(
+                    (x for x in container_statuses if x.name == self.base_container_name), None
+                )
+                exit_code = (
+                    base_container_status.last_state.terminated.exit_code
+                    if base_container_status
+                    and base_container_status.last_state
+                    and base_container_status.last_state.terminated
+                    else None
+                )
+                if exit_code in self.skip_on_exit_code:
+                    raise AirflowSkipException(
+                        f"Pod {pod and pod.metadata.name} returned exit code "
+                        f"{self.skip_on_exit_code}. Skipping."
+                    )
             raise AirflowException(
                 f"Pod {pod and pod.metadata.name} returned a failure:\n{error_message}\n"
                 f"remote_pod: {remote_pod}"
@@ -778,8 +804,11 @@ class KubernetesPodOperator(BaseOperator):
                 image_pull_secrets=self.image_pull_secrets,
                 service_account_name=self.service_account_name,
                 host_network=self.hostnetwork,
+                hostname=self.hostname,
+                subdomain=self.subdomain,
                 security_context=self.security_context,
                 dns_policy=self.dnspolicy,
+                dns_config=self.dns_config,
                 scheduler_name=self.schedulername,
                 restart_policy="Never",
                 priority_class_name=self.priority_class_name,
@@ -798,9 +827,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.metadata.name = _add_pod_suffix(pod_name=pod.metadata.name)
 
         if not pod.metadata.namespace:
-            # todo: replace with call to `hook.get_namespace` in 6.0, when it doesn't default to `default`.
-            # if namespace not actually defined in hook, we want to check k8s if in cluster
-            hook_namespace = self.hook._get_namespace()
+            hook_namespace = self.hook.get_namespace()
             pod_namespace = self.namespace or hook_namespace or self._incluster_namespace or "default"
             pod.metadata.namespace = pod_namespace
 
@@ -809,9 +836,7 @@ class KubernetesPodOperator(BaseOperator):
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
-            pod = xcom_sidecar.add_xcom_sidecar(
-                pod, sidecar_container_image=self.hook.get_xcom_sidecar_container_image()
-            )
+            pod = xcom_sidecar.add_xcom_sidecar(pod)
 
         labels = self._get_ti_pod_labels(context)
         self.log.info("Building pod %s with labels: %s", pod.metadata.name, labels)

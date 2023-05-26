@@ -29,7 +29,6 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftDeleteClusterOperator,
 )
-from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
@@ -39,8 +38,10 @@ from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftCluste
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor
 from airflow.providers.amazon.aws.transfers.redshift_to_s3 import RedshiftToS3Operator
 from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests.system.providers.amazon.aws.utils.ec2 import get_default_vpc_id
 
 DAG_ID = "example_redshift_to_s3"
 
@@ -96,9 +97,8 @@ def create_connection(conn_id_name: str, cluster_id: str):
 
 
 @task
-def setup_security_group(sec_group_name: str, ip_permissions: list[dict]):
+def setup_security_group(sec_group_name: str, ip_permissions: list[dict], vpc_id: str):
     client = boto3.client("ec2")
-    vpc_id = client.describe_vpcs()["Vpcs"][0]["VpcId"]
     security_group = client.create_security_group(
         Description="Redshift-system-test", GroupName=sec_group_name, VpcId=vpc_id
     )
@@ -132,7 +132,9 @@ with DAG(
     sg_name = f"{env_id}-sg"
     bucket_name = f"{env_id}-bucket"
 
-    set_up_sg = setup_security_group(sec_group_name=sg_name, ip_permissions=[IP_PERMISSION])
+    get_vpc_id = get_default_vpc_id()
+
+    set_up_sg = setup_security_group(sg_name, [IP_PERMISSION], get_vpc_id)
 
     create_bucket = S3CreateBucketOperator(
         task_id="s3_create_bucket",
@@ -155,7 +157,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
         poke_interval=5,
-        timeout=60 * 15,
+        timeout=60 * 30,
     )
 
     set_up_connection = create_connection(conn_id_name, cluster_id=redshift_cluster_identifier)
@@ -168,14 +170,14 @@ with DAG(
         replace=True,
     )
 
-    create_table_redshift_data = RedshiftSQLOperator(
+    create_table_redshift_data = SQLExecuteQueryOperator(
         task_id="create_table_redshift_data",
-        redshift_conn_id=conn_id_name,
+        conn_id=conn_id_name,
         sql=SQL_CREATE_TABLE,
     )
-    insert_data = RedshiftSQLOperator(
+    insert_data = SQLExecuteQueryOperator(
         task_id="insert_data",
-        redshift_conn_id=conn_id_name,
+        conn_id=conn_id_name,
         sql=SQL_INSERT_DATA,
     )
 
@@ -220,9 +222,9 @@ with DAG(
     )
     # [END howto_transfer_s3_to_redshift_multiple_keys]
 
-    drop_table = RedshiftSQLOperator(
+    drop_table = SQLExecuteQueryOperator(
         task_id="drop_table",
-        redshift_conn_id=conn_id_name,
+        conn_id=conn_id_name,
         sql=SQL_DROP_TABLE,
         trigger_rule=TriggerRule.ALL_DONE,
     )

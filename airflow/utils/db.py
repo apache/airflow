@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import contextlib
 import enum
+import json
 import logging
 import os
 import sys
@@ -39,7 +40,7 @@ from airflow.models import import_all_models
 from airflow.utils import helpers
 
 # TODO: remove create_session once we decide to break backward compatibility
-from airflow.utils.session import NEW_SESSION, create_session, provide_session  # noqa: F401
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
@@ -79,6 +80,8 @@ REVISION_HEADS_MAP = {
     "2.5.1": "290244fb8b83",
     "2.5.2": "290244fb8b83",
     "2.5.3": "290244fb8b83",
+    "2.6.0": "98ae134e6fff",
+    "2.6.1": "98ae134e6fff",
 }
 
 
@@ -364,6 +367,14 @@ def create_default_connections(session: Session = NEW_SESSION):
         session,
     )
     merge_conn(Connection(conn_id="impala_default", conn_type="impala", host="localhost", port=21050))
+    merge_conn(
+        Connection(
+            conn_id="kafka_default",
+            conn_type="kafka",
+            extra=json.dumps({"bootstrap.servers": "broker:29092"}),
+        ),
+        session,
+    )
     merge_conn(
         Connection(
             conn_id="kubernetes_default",
@@ -684,18 +695,19 @@ def _create_db_from_orm(session):
     from airflow.www.fab_security.sqla.models import Model
     from airflow.www.session import AirflowDatabaseSessionInterface
 
-    def _create_flask_session_tbl():
+    def _create_flask_session_tbl(sql_database_uri):
         flask_app = Flask(__name__)
-        flask_app.config["SQLALCHEMY_DATABASE_URI"] = conf.get("database", "SQL_ALCHEMY_CONN")
+        flask_app.config["SQLALCHEMY_DATABASE_URI"] = sql_database_uri
         flask_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
         db = SQLAlchemy(flask_app)
         AirflowDatabaseSessionInterface(app=flask_app, db=db, table="session", key_prefix="")
         db.create_all()
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-        Base.metadata.create_all(settings.engine)
-        Model.metadata.create_all(settings.engine)
-        _create_flask_session_tbl()
+        engine = session.get_bind().engine
+        Base.metadata.create_all(engine)
+        Model.metadata.create_all(engine)
+        _create_flask_session_tbl(engine.url)
         # stamp the migration head
         config = _get_alembic_config()
         command.stamp(config, "head")
@@ -724,7 +736,11 @@ def _get_alembic_config():
 
     package_dir = os.path.dirname(airflow.__file__)
     directory = os.path.join(package_dir, "migrations")
-    config = Config(os.path.join(package_dir, "alembic.ini"))
+    alembic_file = conf.get("database", "alembic_ini_file_path")
+    if os.path.isabs(alembic_file):
+        config = Config(alembic_file)
+    else:
+        config = Config(os.path.join(package_dir, alembic_file))
     config.set_main_option("script_location", directory.replace("%", "%%"))
     config.set_main_option("sqlalchemy.url", settings.SQL_ALCHEMY_CONN.replace("%", "%%"))
     return config
@@ -751,6 +767,7 @@ def _get_current_revision(session):
 def check_migrations(timeout):
     """
     Function to wait for all airflow migrations to complete.
+
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
@@ -793,7 +810,7 @@ def _configured_alembic_environment() -> Generator[EnvironmentContext, None, Non
 
 
 def check_and_run_migrations():
-    """Check and run migrations if necessary. Only use in a tty"""
+    """Check and run migrations if necessary. Only use in a tty."""
     with _configured_alembic_environment() as env:
         context = env.get_context()
         source_heads = set(env.script.get_heads())
@@ -927,7 +944,7 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
 
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     """
-    Check unique conn_id in connection table
+    Check unique conn_id in connection table.
 
     :param session:  session of the sqlalchemy
     """
@@ -950,7 +967,7 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
 
 def check_username_duplicates(session: Session) -> Iterable[str]:
     """
-    Check unique username in User & RegisterUser table
+    Check unique username in User & RegisterUser table.
 
     :param session:  session of the sqlalchemy
     :rtype: str
@@ -1068,7 +1085,7 @@ def check_table_for_duplicates(
 
 def check_conn_type_null(session: Session) -> Iterable[str]:
     """
-    Check nullable conn_type column in Connection table
+    Check nullable conn_type column in Connection table.
 
     :param session:  session of the sqlalchemy
     """
@@ -1160,7 +1177,7 @@ def _create_table_as(
     if dialect_name == "mssql":
         cte = source_query.cte("source")
         moved_data_tbl = table(target_table_name, *(column(c.name) for c in cte.columns))
-        ins = moved_data_tbl.insert().from_select(list(cte.columns), select([cte]))
+        ins = moved_data_tbl.insert().from_select(list(cte.columns), select(cte))
 
         stmt = ins.compile(bind=session.get_bind())
         cte_sql = stmt.ctes[cte]
@@ -1199,7 +1216,7 @@ def _move_dangling_data_to_new_table(
 
     target_table = source_table.to_metadata(source_table.metadata, name=target_table_name)
     log.debug("checking whether rows were moved for table %s", target_table_name)
-    moved_rows_exist_query = select([1]).select_from(target_table).limit(1)
+    moved_rows_exist_query = select(1).select_from(target_table).limit(1)
     first_moved_row = session.execute(moved_rows_exist_query).all()
     session.commit()
 
@@ -1440,7 +1457,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
 
 @provide_session
 def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
-    """:session: session of the sqlalchemy"""
+    """:session: session of the sqlalchemy."""
     check_functions: tuple[Callable[..., Iterable[str]], ...] = (
         check_conn_id_duplicates,
         check_conn_type_null,
@@ -1606,7 +1623,7 @@ def upgradedb(
 
 @provide_session
 def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
-    """Clear out the database"""
+    """Clear out the database."""
     if not settings.engine:
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
     log.info("Dropping tables that exist")

@@ -49,7 +49,8 @@ class TestQuickSightSensor:
 
     @mock_sts
     @mock.patch.object(QuickSightHook, "get_status")
-    def test_poke_cancelled(self, mock_get_status):
+    @mock.patch.object(QuickSightHook, "get_error_info")
+    def test_poke_cancelled(self, _, mock_get_status):
         mock_get_status.return_value = "CANCELLED"
         with pytest.raises(AirflowException):
             self.sensor.poke({})
@@ -57,7 +58,8 @@ class TestQuickSightSensor:
 
     @mock_sts
     @mock.patch.object(QuickSightHook, "get_status")
-    def test_poke_failed(self, mock_get_status):
+    @mock.patch.object(QuickSightHook, "get_error_info")
+    def test_poke_failed(self, _, mock_get_status):
         mock_get_status.return_value = "FAILED"
         with pytest.raises(AirflowException):
             self.sensor.poke({})

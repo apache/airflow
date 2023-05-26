@@ -75,6 +75,8 @@
   <meta name="set_task_instance_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_set_task_instance_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_' ) }}">
   <meta name="set_mapped_task_instance_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_set_mapped_task_instance_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_', map_index=0 ) }}">
   <meta name="set_dag_run_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_set_dag_run_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_') }}">
+  <meta name="dag_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag', dag_id=dag.dag_id) }}">
+  <meta name="dag_source_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_source_endpoint_get_dag_source', file_token='_FILE_TOKEN_') }}">
 
   <!-- End Urls -->
   <meta name="is_paused" content="{{ dag_is_paused }}">

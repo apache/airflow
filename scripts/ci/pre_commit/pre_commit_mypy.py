@@ -45,6 +45,9 @@ if __name__ == "__main__":
         get_ci_image_for_pre_commits,
         run_command,
     )
+    from airflow_breeze.utils.suspended_providers import get_suspended_providers_folders
+
+    suspended_providers_folders = get_suspended_providers_folders()
 
     files_to_test = filter_out_providers_on_non_main_branch(sys.argv[1:])
     if files_to_test == ["--namespace-packages"]:
@@ -61,6 +64,8 @@ if __name__ == "__main__":
             "-e",
             "SKIP_ENVIRONMENT_INITIALIZATION=true",
             "-e",
+            f"SUSPENDED_PROVIDERS_FOLDERS={' '.join(suspended_providers_folders)}",
+            "-e",
             "BACKEND=sqlite",
             "--pull",
             "never",
@@ -71,9 +76,15 @@ if __name__ == "__main__":
         check=False,
     )
     if cmd_result.returncode != 0:
+        upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
+        if upgrading:
+            get_console().print(
+                "[warning]You are running mypy with the image that has dependencies upgraded automatically."
+            )
+        flag = " --upgrade-to-newer-dependencies" if upgrading else ""
         get_console().print(
             "[warning]If you see strange stacktraces above, "
-            "run `breeze ci-image build --python 3.7` and try again. "
-            "You can also run `breeze stop --cleanup-mypy-cache` to clean up the cache used."
+            f"run `breeze ci-image build --python 3.7{flag}` and try again. "
+            "You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used."
         )
     sys.exit(cmd_result.returncode)

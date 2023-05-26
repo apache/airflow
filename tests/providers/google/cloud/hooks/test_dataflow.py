@@ -29,7 +29,7 @@ from uuid import UUID
 import pytest
 from google.cloud.dataflow_v1beta3 import GetJobRequest, JobView
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, run_beam_command
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
@@ -183,6 +183,10 @@ class TestFallbackToVariables:
 
 
 class TestDataflowHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            DataflowHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         self.dataflow_hook = DataflowHook(gcp_conn_id="google_cloud_default")
         self.dataflow_hook.beam_hook = MagicMock()
@@ -206,7 +210,7 @@ class TestDataflowHook:
         py_requirements = ["pandas", "numpy"]
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
@@ -251,7 +255,7 @@ class TestDataflowHook:
         passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
         passed_variables["region"] = TEST_LOCATION
 
-        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -295,7 +299,7 @@ class TestDataflowHook:
 
         passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
 
-        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -329,6 +333,50 @@ class TestDataflowHook:
     @mock.patch(DATAFLOW_STRING.format("uuid.uuid4"))
     @mock.patch(DATAFLOW_STRING.format("DataflowHook.wait_for_done"))
     @mock.patch(DATAFLOW_STRING.format("process_line_and_extract_dataflow_job_id_callback"))
+    def test_start_python_dataflow_with_no_custom_region_or_region(
+        self, mock_callback_on_job_id, mock_dataflow_wait_for_done, mock_uuid
+    ):
+        mock_beam_start_python_pipeline = self.dataflow_hook.beam_hook.start_python_pipeline
+        mock_uuid.return_value = MOCK_UUID
+        on_new_job_id_callback = MagicMock()
+        py_requirements = ["pandas", "numpy"]
+        job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
+
+        passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
+
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+            self.dataflow_hook.start_python_dataflow(
+                job_name=JOB_NAME,
+                variables=passed_variables,
+                dataflow=PY_FILE,
+                py_options=PY_OPTIONS,
+                py_interpreter=DEFAULT_PY_INTERPRETER,
+                py_requirements=py_requirements,
+                on_new_job_id_callback=on_new_job_id_callback,
+            )
+
+        expected_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
+        expected_variables["job_name"] = job_name
+        expected_variables["region"] = DEFAULT_DATAFLOW_LOCATION
+
+        mock_callback_on_job_id.assert_called_once_with(on_new_job_id_callback)
+        mock_beam_start_python_pipeline.assert_called_once_with(
+            variables=expected_variables,
+            py_file=PY_FILE,
+            py_interpreter=DEFAULT_PY_INTERPRETER,
+            py_options=PY_OPTIONS,
+            py_requirements=py_requirements,
+            py_system_site_packages=False,
+            process_line_callback=mock_callback_on_job_id.return_value,
+        )
+
+        mock_dataflow_wait_for_done.assert_called_once_with(
+            job_id=mock.ANY, job_name=job_name, location=DEFAULT_DATAFLOW_LOCATION
+        )
+
+    @mock.patch(DATAFLOW_STRING.format("uuid.uuid4"))
+    @mock.patch(DATAFLOW_STRING.format("DataflowHook.wait_for_done"))
+    @mock.patch(DATAFLOW_STRING.format("process_line_and_extract_dataflow_job_id_callback"))
     def test_start_python_dataflow_with_multiple_extra_packages(
         self, mock_callback_on_job_id, mock_dataflow_wait_for_done, mock_uuid
     ):
@@ -341,7 +389,7 @@ class TestDataflowHook:
         passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
         passed_variables["extra-package"] = ["a.whl", "b.whl"]
 
-        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -384,7 +432,7 @@ class TestDataflowHook:
         on_new_job_id_callback = MagicMock()
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
@@ -438,7 +486,7 @@ class TestDataflowHook:
         on_new_job_id_callback = MagicMock()
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
@@ -478,7 +526,7 @@ class TestDataflowHook:
         mock_uuid.return_value = MOCK_UUID
         on_new_job_id_callback = MagicMock()
         with pytest.raises(AirflowException, match=r"Invalid method invocation\."):
-            with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+            with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
                 self.dataflow_hook.start_python_dataflow(
                     job_name=JOB_NAME,
                     variables=DATAFLOW_VARIABLES_PY,
@@ -500,7 +548,7 @@ class TestDataflowHook:
         on_new_job_id_callback = MagicMock()
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_JAVA,
@@ -540,7 +588,7 @@ class TestDataflowHook:
         passed_variables: dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
         passed_variables["mock-option"] = ["a.whl", "b.whl"]
 
-        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -580,7 +628,7 @@ class TestDataflowHook:
         passed_variables: dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
         passed_variables["region"] = TEST_LOCATION
 
-        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -617,7 +665,7 @@ class TestDataflowHook:
         on_new_job_id_callback = MagicMock()
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with pytest.warns(DeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
             self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_JAVA,
@@ -1910,6 +1958,10 @@ def make_mock_awaitable():
 
 
 class TestAsyncHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            AsyncDataflowHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     @pytest.fixture
     def hook(self):
         return AsyncDataflowHook(

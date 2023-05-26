@@ -82,3 +82,44 @@ class TestRedshiftAsyncHook:
             "message": "An error occurred (SomeServiceException) when calling the "
             "redshift operation: Details/context around the exception or error",
         }
+
+    @pytest.mark.asyncio
+    @async_mock.patch("aiobotocore.client.AioBaseClient._make_api_call")
+    async def test_resume_cluster(self, mock_make_api_call):
+        """Test Resume cluster async hook function by mocking return value of resume_cluster"""
+
+        hook = RedshiftAsyncHook()
+        await hook.resume_cluster(cluster_identifier="redshift_cluster_1")
+        mock_make_api_call.assert_called_once_with(
+            "ResumeCluster", {"ClusterIdentifier": "redshift_cluster_1"}
+        )
+
+    @pytest.mark.asyncio
+    @async_mock.patch(
+        "airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.get_client_async"
+    )
+    async def test_resume_cluster_exception(self, mock_client):
+        """Test Resume cluster async hook function with exception by mocking return value of resume_cluster"""
+        mock_client.return_value.__aenter__.return_value.resume_cluster.side_effect = ClientError(
+            {
+                "Error": {
+                    "Code": "SomeServiceException",
+                    "Message": "Details/context around the exception or error",
+                },
+                "ResponseMetadata": {
+                    "RequestId": "1234567890ABCDEF",
+                    "HostId": "host ID data will appear here as a hash",
+                    "HTTPStatusCode": 500,
+                    "HTTPHeaders": {"header metadata key/values will appear here"},
+                    "RetryAttempts": 0,
+                },
+            },
+            operation_name="redshift",
+        )
+        hook = RedshiftAsyncHook(aws_conn_id="test_aws_connection_id")
+        result = await hook.resume_cluster(cluster_identifier="test")
+        assert result == {
+            "status": "error",
+            "message": "An error occurred (SomeServiceException) when calling the "
+            "redshift operation: Details/context around the exception or error",
+        }

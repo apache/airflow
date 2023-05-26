@@ -22,7 +22,7 @@ import re
 import sys
 from copy import deepcopy
 from random import randint
-from subprocess import CalledProcessError, CompletedProcess
+from subprocess import DEVNULL, CalledProcessError, CompletedProcess
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -262,11 +262,11 @@ Please upgrade to at least {MIN_DOCKER_VERSION}[/]
 
 
 def check_remote_ghcr_io_commands():
-    """
-    Checks if you have permissions to pull an empty image from ghcr.io. Unfortunately, GitHub packages
-    treat expired login as "no-access" even on public repos. We need to detect that situation and suggest
-    user to log-out.
-    :return:
+    """Checks if you have permissions to pull an empty image from ghcr.io.
+
+    Unfortunately, GitHub packages treat expired login as "no-access" even on
+    public repos. We need to detect that situation and suggest user to log-out
+    or if they are in CI environment to re-push their PR/close or reopen the PR.
     """
     response = run_command(
         ["docker", "pull", "ghcr.io/apache/airflow-hello-world"],
@@ -281,27 +281,39 @@ def check_remote_ghcr_io_commands():
                 "[error]\nYou seem to be offline. This command requires access to network.[/]\n"
             )
             sys.exit(2)
-        get_console().print(
-            "[error]\nYou seem to have expired permissions on ghcr.io.[/]\n"
-            "[warning]Please logout. Run this command:[/]\n\n"
-            "   docker logout ghcr.io\n\n"
-        )
-        sys.exit(1)
+        if os.environ.get("CI"):
+            get_console().print(
+                "\n[error]We are extremely sorry but you've hit the rare case that the "
+                "credentials you got from GitHub Actions to run are expired, and we cannot do much.[/]"
+                "\n¯\\_(ツ)_/¯\n\n"
+                "[warning]You have the following options now:\n\n"
+                "  * Close and reopen the Pull Request of yours\n"
+                "  * Rebase or amend your commit and push your branch again\n"
+                "  * Ask in the PR to re-run the failed job\n\n"
+            )
+            sys.exit(1)
+        else:
+            get_console().print(
+                "[error]\nYou seem to have expired permissions on ghcr.io.[/]\n"
+                "[warning]Please logout. Run this command:[/]\n\n"
+                "   docker logout ghcr.io\n\n"
+            )
+            sys.exit(1)
 
 
-DOCKER_COMPOSE_COMMAND = ["docker-compose"]
+DOCKER_COMPOSE_COMMAND = ["docker", "compose"]
 
 
 def check_docker_compose_version():
-    """
-    Checks if the docker compose version is as expected, including some specific modifications done by
-    some vendors such as Microsoft. They might have modified version of docker-compose/docker in their
-    cloud. In case docker compose version is wrong we continue but print warning for the user.
+    """Checks if the docker compose version is as expected.
 
-
+    This includes specific modifications done by some vendors such as Microsoft.
+    They might have modified version of docker-compose/docker in their cloud. In
+    the case the docker compose version is wrong, we continue but print a
+    warning for the user.
     """
     version_pattern = re.compile(r"(\d+)\.(\d+)\.(\d+)")
-    docker_compose_version_command = ["docker-compose", "--version"]
+    docker_compose_version_command = ["docker", "compose", "version"]
     try:
         docker_compose_version_result = run_command(
             docker_compose_version_command,
@@ -310,8 +322,8 @@ def check_docker_compose_version():
             text=True,
             dry_run_override=False,
         )
-    except FileNotFoundError:
-        docker_compose_version_command = ["docker", "compose", "version"]
+    except Exception:
+        docker_compose_version_command = ["docker-compose", "--version"]
         docker_compose_version_result = run_command(
             docker_compose_version_command,
             no_output_dump_on_exception=True,
@@ -320,7 +332,7 @@ def check_docker_compose_version():
             dry_run_override=False,
         )
         DOCKER_COMPOSE_COMMAND.clear()
-        DOCKER_COMPOSE_COMMAND.extend(["docker", "compose"])
+        DOCKER_COMPOSE_COMMAND.append("docker-compose")
     if docker_compose_version_result.returncode == 0:
         docker_compose_version = docker_compose_version_result.stdout
         version_extracted = version_pattern.search(docker_compose_version)
@@ -351,10 +363,7 @@ Make sure docker-compose you install is first on the PATH variable of yours.
 
 
 def check_docker_context():
-    """
-    Checks whether Docker is using the expected context
-
-    """
+    """Checks whether Docker is using the expected context."""
     expected_docker_context = "default"
     response = run_command(
         ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
@@ -564,12 +573,11 @@ def make_sure_builder_configured(params: CommonBuildParams):
 
 
 def set_value_to_default_if_not_set(env: dict[str, str], name: str, default: str):
-    """
-    Set value of name parameter to default (indexed by name) if not set.
+    """Set value of name parameter to default (indexed by name) if not set.
+
     :param env: dictionary where to set the parameter
     :param name: name of parameter
     :param default: default value
-    :return:
     """
     if env.get(name) is None:
         env[name] = os.environ.get(name, default)
@@ -585,6 +593,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "AIRFLOW_CONSTRAINTS_MODE", "constraints-source-providers")
     set_value_to_default_if_not_set(env, "AIRFLOW_CONSTRAINTS_REFERENCE", "constraints-source-providers")
     set_value_to_default_if_not_set(env, "AIRFLOW_EXTRAS", "")
+    set_value_to_default_if_not_set(env, "AIRFLOW_ENABLE_AIP_44", "true")
     set_value_to_default_if_not_set(env, "ANSWER", answer if answer is not None else "")
     set_value_to_default_if_not_set(env, "BASE_BRANCH", "main")
     set_value_to_default_if_not_set(env, "BREEZE", "true")
@@ -596,6 +605,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "CI_TARGET_BRANCH", AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, "CI_TARGET_REPO", APACHE_AIRFLOW_GITHUB_REPOSITORY)
     set_value_to_default_if_not_set(env, "COMMIT_SHA", commit_sha())
+    set_value_to_default_if_not_set(env, "COLLECT_ONLY", "false")
     set_value_to_default_if_not_set(env, "DB_RESET", "false")
     set_value_to_default_if_not_set(env, "DEFAULT_BRANCH", AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, "ENABLED_SYSTEMS", "")
@@ -608,13 +618,16 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "INSTALL_PROVIDERS_FROM_SOURCES", "true")
     set_value_to_default_if_not_set(env, "LOAD_DEFAULT_CONNECTIONS", "false")
     set_value_to_default_if_not_set(env, "LOAD_EXAMPLES", "false")
+    set_value_to_default_if_not_set(env, "ONLY_MIN_VERSION_UPDATE", "false")
     set_value_to_default_if_not_set(env, "PACKAGE_FORMAT", ALLOWED_PACKAGE_FORMATS[0])
     set_value_to_default_if_not_set(env, "PYTHONDONTWRITEBYTECODE", "true")
+    set_value_to_default_if_not_set(env, "REMOVE_ARM_PACKAGES", "false")
     set_value_to_default_if_not_set(env, "RUN_SYSTEM_TESTS", "false")
     set_value_to_default_if_not_set(env, "RUN_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_ENVIRONMENT_INITIALIZATION", "false")
     set_value_to_default_if_not_set(env, "SKIP_PROVIDER_TESTS", "false")
     set_value_to_default_if_not_set(env, "SKIP_SSH_SETUP", "false")
+    set_value_to_default_if_not_set(env, "SUSPENDED_PROVIDERS_FOLDERS", "")
     set_value_to_default_if_not_set(env, "TEST_TYPE", "")
     set_value_to_default_if_not_set(env, "TEST_TIMEOUT", "60")
     set_value_to_default_if_not_set(env, "UPGRADE_BOTO", "false")
@@ -645,6 +658,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "GITHUB_ACTIONS": "github_actions",
     "INSTALL_AIRFLOW_VERSION": "install_airflow_version",
     "INSTALL_PROVIDERS_FROM_SOURCES": "install_providers_from_sources",
+    "INSTALL_SELECTED_PROVIDERS": "install_selected_providers",
     "ISSUE_ID": "issue_id",
     "LOAD_DEFAULT_CONNECTIONS": "load_default_connections",
     "LOAD_EXAMPLES": "load_example_dags",
@@ -652,6 +666,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "MSSQL_VERSION": "mssql_version",
     "MYSQL_VERSION": "mysql_version",
     "NUM_RUNS": "num_runs",
+    "ONLY_MIN_VERSION_UPDATE": "only_min_version_update",
     "PACKAGE_FORMAT": "package_format",
     "POSTGRES_VERSION": "postgres_version",
     "PYTHON_MAJOR_MINOR_VERSION": "python",
@@ -768,3 +783,26 @@ def fix_ownership_using_docker():
         "/opt/airflow/scripts/in_container/run_fix_ownership.sh",
     ]
     run_command(cmd, text=True, env=env, check=False)
+
+
+def remove_docker_networks(networks: list[str] | None = None) -> None:
+    """
+    Removes specified docker networks. If no networks are specified, it removes all unused networks.
+    Errors are ignored (not even printed in the output), so you can safely call it without checking
+    if the networks exist.
+
+    :param networks: list of networks to remove
+    """
+    if networks is None:
+        run_command(
+            ["docker", "network", "prune", "-f"],
+            check=False,
+            stderr=DEVNULL,
+        )
+    else:
+        for network in networks:
+            run_command(
+                ["docker", "network", "rm", network],
+                check=False,
+                stderr=DEVNULL,
+            )

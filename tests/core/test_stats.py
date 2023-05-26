@@ -27,7 +27,9 @@ import statsd
 
 import airflow
 from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
-from airflow.stats import AllowListValidator, BlockListValidator, SafeDogStatsdLogger, SafeStatsdLogger
+from airflow.metrics.datadog_logger import SafeDogStatsdLogger
+from airflow.metrics.statsd_logger import SafeStatsdLogger
+from airflow.metrics.validators import AllowListValidator, BlockListValidator
 from tests.test_utils.config import conf_vars
 
 
@@ -67,9 +69,10 @@ class TestStats:
         self.statsd_client.assert_not_called()
 
     def test_timer(self):
-        with self.stats.timer("empty_timer"):
+        with self.stats.timer("empty_timer") as t:
             pass
         self.statsd_client.timer.assert_called_once_with("empty_timer")
+        assert type(t.duration) == float
 
     def test_empty_timer(self):
         with self.stats.timer():

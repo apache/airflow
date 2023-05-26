@@ -151,6 +151,7 @@ class SmtpHook(BaseHook):
 
     def send_email_smtp(
         self,
+        *,
         to: str | Iterable[str],
         subject: str,
         html_content: str,
