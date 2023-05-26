@@ -133,7 +133,6 @@ class TestProvideGcpConnAndCredentials:
 class TestGetGcpCredentialsAndProjectId:
     test_scopes = _DEFAULT_SCOPES
     test_key_file = "KEY_PATH.json"
-    test_credential_config_file = "CREDS_CONFIG_FILE.json"
     test_project_id = "project_id"
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
