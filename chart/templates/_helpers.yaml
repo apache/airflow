@@ -750,13 +750,13 @@ Where `.` is the global variables scope and `.Values.webserver` the local variab
   {{- $ := index . 0 -}}
   {{- with index . 1 }}
     {{- if .securityContexts.pod -}}
-{{ toYaml .securityContexts.pod | print }}
+      {{ toYaml .securityContexts.pod | print }}
     {{- else if .securityContext -}}
-{{ toYaml .securityContext | print }}
+      {{ toYaml .securityContext | print }}
     {{- else if $.Values.securityContexts.pod -}}
-{{ toYaml $.Values.securityContexts.pod | print }}
+      {{ toYaml $.Values.securityContexts.pod | print }}
     {{- else if $.Values.securityContext -}}
-{{ toYaml $.Values.securityContext | print }}
+      {{ toYaml $.Values.securityContext | print }}
     {{- else -}}
 runAsUser: {{ $.Values.uid }}
 fsGroup: {{ $.Values.gid }}
@@ -779,9 +779,9 @@ It is important to pass the local variables scope to this template as it is used
 */}}
 {{- define "localPodSecurityContext" -}}
   {{- if .securityContexts.pod -}}
-{{ toYaml .securityContexts.pod | print }}
+    {{ toYaml .securityContexts.pod | print }}
   {{- else if .securityContext -}}
-{{ toYaml .securityContext | print }}
+    {{ toYaml .securityContext | print }}
   {{- else -}}
 runAsUser: {{ .uid }}
   {{- end -}}
@@ -802,9 +802,9 @@ It is important to pass the local variables scope to this template as it is used
 */}}
 {{- define "localContainerSecurityContext" -}}
   {{- if .securityContexts.container -}}
-{{ toYaml .securityContexts.container | print }}
+    {{ toYaml .securityContexts.container | print }}
   {{- else if .securityContext -}}
-{{ toYaml .securityContext | print }}
+    {{ toYaml .securityContext | print }}
   {{- else -}}
 runAsUser: {{ .uid }}
   {{- end -}}
@@ -831,13 +831,13 @@ Where `.` is the global variables scope and `.Values.workers` the local variable
   {{- $ := index . 0 -}}
   {{- with index . 1 }}
     {{- if .securityContexts.pod -}}
-{{ pluck "runAsUser" .securityContexts.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" .securityContexts.pod | first | default $.Values.gid }}
+      {{ pluck "runAsUser" .securityContexts.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" .securityContexts.pod | first | default $.Values.gid }}
     {{- else if $.Values.securityContext -}}
-{{ pluck "runAsUser" $.Values.securityContext | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContext | first | default $.Values.gid }}
+      {{ pluck "runAsUser" $.Values.securityContext | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContext | first | default $.Values.gid }}
     {{- else if $.Values.securityContexts.pod -}}
-{{ pluck "runAsUser" $.Values.securityContexts.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContexts.pod | first | default $.Values.gid }}
+      {{ pluck "runAsUser" $.Values.securityContexts.pod | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContexts.pod | first | default $.Values.gid }}
     {{- else if $.Values.securityContext -}}
-{{ pluck "runAsUser" $.Values.securityContext | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContext | first | default $.Values.gid }}
+      {{ pluck "runAsUser" $.Values.securityContext | first | default $.Values.uid }}:{{ pluck "fsGroup" $.Values.securityContext | first | default $.Values.gid }}
     {{- else -}}
 {{ $.Values.uid }}:{{ $.Values.gid }}
     {{- end -}}
@@ -862,9 +862,9 @@ Where `.` is the global variables scope and `.Values.webserver` the local variab
   {{- $ := index . 0 -}}
   {{- with index . 1 }}
     {{- if .securityContexts.container -}}
-{{ toYaml .securityContexts.container | print }}
+      {{ toYaml .securityContexts.container | print }}
     {{- else if $.Values.securityContexts.containers -}}
-{{ toYaml $.Values.securityContexts.containers | print }}
+      {{ toYaml $.Values.securityContexts.containers | print }}
     {{- else -}}
 allowPrivilegeEscalation: false
 capabilities:
