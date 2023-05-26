@@ -20,6 +20,7 @@ import datetime
 import enum
 from dataclasses import dataclass
 from importlib import import_module
+from pydantic import BaseModel
 from typing import ClassVar
 
 import attr
@@ -90,6 +91,13 @@ class V:
     s: list
     t: tuple
     c: int
+
+
+class U(BaseModel):
+    __version__: ClassVar[int] = 1
+    x: int
+    v: V
+    u: tuple
 
 
 @pytest.mark.usefixtures("recalculate_patterns")
@@ -317,3 +325,9 @@ class TestSerDe:
         i = Z(10)
         e = deserialize(i)
         assert i == e
+
+    def test_pydantic(self):
+        i = U(x=10, v=V(W(10), ["l1", "l2"], (1, 2), 10), u=(1, 2))
+        e = serialize(i)
+        s = deserialize(e)
+        assert i == s

@@ -154,6 +154,12 @@ def serialize(o: object, depth: int = 0) -> U | None:
         dct[DATA] = data
         return dct
 
+    # pydantic models are recursive
+    if _is_pydantic(cls):
+        data = o.dict()
+        dct[DATA] = serialize(data, depth + 1)
+        return dct
+
     # dataclasses
     if dataclasses.is_dataclass(cls):
         # fixme: unfortunately using asdict with nested dataclasses it looses information
@@ -250,8 +256,8 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     if hasattr(cls, "deserialize"):
         return getattr(cls, "deserialize")(deserialize(value), version)
 
-    # attr or dataclass
-    if attr.has(cls) or dataclasses.is_dataclass(cls):
+    # attr or dataclass or pydantic
+    if attr.has(cls) or dataclasses.is_dataclass(cls) or _is_pydantic(cls):
         class_version = getattr(cls, "__version__", 0)
         if int(version) > class_version:
             raise TypeError(
@@ -300,6 +306,11 @@ def _stringify(classname: str, version: int, value: T | None) -> str:
         s = s[:-1] + ")"
 
     return s
+
+
+def _is_pydantic(cls: Any) -> bool:
+    """Return True if the class is a pydantic model."""
+    return hasattr(cls, "validate") and hasattr(cls, "json") and hasattr(cls, "dict")
 
 
 def _register():
