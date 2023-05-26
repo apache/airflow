@@ -1643,7 +1643,7 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         with connection.begin():
             drop_airflow_models(connection)
-            drop_airflow_moved_tables(session)
+            drop_airflow_moved_tables(connection)
 
     if not skip_init:
         initdb(session=session)
@@ -1725,11 +1725,11 @@ def drop_airflow_models(connection):
         version.drop(connection)
 
 
-def drop_airflow_moved_tables(session):
+def drop_airflow_moved_tables(connection):
     from airflow.models.base import Base
     from airflow.settings import AIRFLOW_MOVED_TABLE_PREFIX
 
-    tables = set(inspect(session.get_bind()).get_table_names())
+    tables = set(inspect(connection).get_table_names())
     to_delete = [Table(x, Base.metadata) for x in tables if x.startswith(AIRFLOW_MOVED_TABLE_PREFIX)]
     for tbl in to_delete:
         tbl.drop(settings.engine, checkfirst=False)

@@ -230,7 +230,7 @@ class TestDb:
         session_mock = MagicMock()
         resetdb(session_mock, skip_init=skip_init)
         mock_drop_airflow.assert_called_once_with(mock_connect.return_value)
-        mock_drop_moved.assert_called_once_with(session_mock)
+        mock_drop_moved.assert_called_once_with(mock_connect.return_value)
         if skip_init:
             mock_init.assert_not_called()
         else:
