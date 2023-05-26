@@ -56,8 +56,6 @@ apis
 AppBuilder
 appbuilder
 Appflow
-Apprise
-apprise
 approle
 AQL
 arango
