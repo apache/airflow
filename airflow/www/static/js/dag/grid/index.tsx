@@ -101,7 +101,7 @@ const Grid = ({
           color="gray.400"
           size="sm"
           position="absolute"
-          right={isGridCollapsed ? -8 : 0}
+          right={isGridCollapsed ? -10 : 0}
           zIndex={2}
           top={-8}
           onClick={() =>

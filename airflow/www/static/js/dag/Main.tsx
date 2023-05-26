@@ -34,7 +34,7 @@ import useToggleGroups from "./useToggleGroups";
 
 const detailsPanelKey = "hideDetailsPanel";
 const minPanelWidth = 300;
-const collapsedWidth = "1px";
+const collapsedWidth = "28px";
 
 const gridWidthKey = "grid-width";
 const saveWidth = debounce(
@@ -131,7 +131,7 @@ const Main = () => {
       };
     }
     return () => {};
-  }, [resize, isLoading, isOpen, isGridCollapsed]);
+  }, [resize, isLoading, isOpen]);
 
   const onToggleGridCollapse = () => {
     const gridElement = gridRef.current;
@@ -179,29 +179,29 @@ const Main = () => {
                 setIsGridCollapsed={onToggleGridCollapse}
               />
             </Box>
-            {isOpen && !isGridCollapsed && (
-              <Box
-                width={2}
-                cursor="ew-resize"
-                bg="gray.200"
-                ref={resizeRef}
-                zIndex={1}
-              />
-            )}
             {isOpen && (
-              <Box
-                flex={1}
-                minWidth={minPanelWidth}
-                zIndex={1}
-                bg="white"
-                height="100%"
-              >
-                <Details
-                  openGroupIds={openGroupIds}
-                  onToggleGroups={onToggleGroups}
-                  hoveredTaskState={hoveredTaskState}
+              <>
+                <Box
+                  width={2}
+                  cursor="ew-resize"
+                  bg="gray.200"
+                  ref={resizeRef}
+                  zIndex={1}
                 />
-              </Box>
+                <Box
+                  flex={1}
+                  minWidth={minPanelWidth}
+                  zIndex={1}
+                  bg="white"
+                  height="100%"
+                >
+                  <Details
+                    openGroupIds={openGroupIds}
+                    onToggleGroups={onToggleGroups}
+                    hoveredTaskState={hoveredTaskState}
+                  />
+                </Box>
+              </>
             )}
           </>
         )}
