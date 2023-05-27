@@ -46,22 +46,17 @@ const Dags = (props: BoxProps) => {
       >
         <Card w="100%">
           <CardHeader textAlign="center" p={3}>
-            <Heading size="md">DAGs</Heading>
+            <Heading size="md">Unpaused DAGs</Heading>
           </CardHeader>
           <CardBody>
-            <Flex flexDirection="column" mb={5}>
-              <Text as="b" color="blue.600">
-                Number of unpaused DAGs:
-              </Text>
-              <Flex justifyContent="center" mt={2}>
-                <Heading as="b" size="xl">
-                  {dataOnlyUnpaused?.totalEntries}
-                </Heading>
-              </Flex>
+            <Flex justifyContent="center" mb={4}>
+              <Heading as="b" size="xl">
+                {dataOnlyUnpaused?.totalEntries}
+              </Heading>
             </Flex>
             <Flex justifyContent="end" textAlign="right">
               <Text size="md" color="gray.500">
-                on a total of <Text as="b">{data?.totalEntries}</Text> DAGs
+                out of <Text as="b">{data?.totalEntries}</Text> total DAGs
               </Text>
             </Flex>
           </CardBody>

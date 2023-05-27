@@ -147,7 +147,7 @@ describe("Test ToggleGroups", () => {
     expect(getAllByTestId("echart-container")).toHaveLength(4);
 
     expect(getAllByText("healthy")).toHaveLength(2);
-    expect(getByText("Number of unpaused DAGs:")).toBeInTheDocument();
-    expect(getByText("No Dag Running")).toBeInTheDocument();
+    expect(getByText("Unpaused DAGs")).toBeInTheDocument();
+    expect(getByText("No dag running")).toBeInTheDocument();
   });
 });
