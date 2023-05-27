@@ -20,7 +20,7 @@
 import React from "react";
 import {
   Badge,
-  BoxProps,
+  CenterProps,
   Card,
   CardBody,
   CardHeader,
@@ -29,27 +29,57 @@ import {
   Heading,
   Stack,
   Text,
+  FlexProps,
 } from "@chakra-ui/react";
 import { useHealth } from "src/api";
 import type { API } from "src/types";
 import Time from "src/components/Time";
 import LoadingWrapper from "src/components/LoadingWrapper";
 
-const StatusRow = ({ status }: { status?: API.HealthStatus }) => (
-  <Stack direction="row">
-    <Text textIndent="15px">status:</Text>
-    <div>
-      <Badge
-        colorScheme={status === "healthy" ? "green" : "red"}
-        fontSize="0.9rem"
-      >
-        {status || "unknown"}
-      </Badge>
-    </div>
-  </Stack>
+const HealthSection = ({
+  title,
+  status,
+  latestHeartbeat,
+  ...rest
+}: {
+  title: string;
+  status?: API.HealthStatus;
+  latestHeartbeat?: string | null;
+} & FlexProps) => (
+  <Flex flexDirection="column" {...rest}>
+    <Text as="b" color="blue.600">
+      {title}
+    </Text>
+    <Stack direction="row">
+      <Text textIndent="15px">status:</Text>
+      <div>
+        <Badge
+          colorScheme={status === "healthy" ? "green" : "red"}
+          fontSize="0.9rem"
+        >
+          {status || "unknown"}
+        </Badge>
+      </div>
+    </Stack>
+    {latestHeartbeat && (
+      <Stack direction="row">
+        <Text textIndent="15px" whiteSpace="nowrap">
+          last heartbeat:{" "}
+        </Text>
+        <div>
+          <Badge
+            colorScheme={status === "healthy" ? "green" : "red"}
+            fontSize="0.9rem"
+          >
+            <Time dateTime={latestHeartbeat} />
+          </Badge>
+        </div>
+      </Stack>
+    )}
+  </Flex>
 );
 
-const Health = (props: BoxProps) => {
+const Health = (props: CenterProps) => {
   const { data, isError } = useHealth();
 
   return (
@@ -60,35 +90,22 @@ const Health = (props: BoxProps) => {
             <Heading size="md">Health</Heading>
           </CardHeader>
           <CardBody>
-            <Flex flexDirection="column" mb={3}>
-              <Text as="b" color="blue.600">
-                MetaDatabase
-              </Text>
-              <StatusRow status={data?.metadatabase?.status} />
-            </Flex>
-            <Flex flexDirection="column">
-              <Text as="b" color="blue.600">
-                Scheduler
-              </Text>
-              <StatusRow status={data?.scheduler?.status} />
-              <Stack direction="row">
-                <Text textIndent="15px" whiteSpace="nowrap">
-                  last heartbeat:{" "}
-                </Text>
-                <div>
-                  <Badge
-                    colorScheme={
-                      data?.scheduler?.status === "healthy" ? "green" : "red"
-                    }
-                    fontSize="0.9rem"
-                  >
-                    <Time
-                      dateTime={data?.scheduler?.latestSchedulerHeartbeat}
-                    />
-                  </Badge>
-                </div>
-              </Stack>
-            </Flex>
+            <HealthSection
+              title="MetaDatabase"
+              status={data?.metadatabase?.status}
+              mb={3}
+            />
+            <HealthSection
+              title="Scheduler"
+              status={data?.scheduler?.status}
+              latestHeartbeat={data?.scheduler?.latestSchedulerHeartbeat}
+              mb={3}
+            />
+            <HealthSection
+              title="Triggerer"
+              status={data?.triggerer?.status}
+              latestHeartbeat={data?.triggerer?.latestTriggererHeartbeat}
+            />
           </CardBody>
         </Card>
       </LoadingWrapper>
