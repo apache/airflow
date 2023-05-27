@@ -71,6 +71,7 @@ const Main = () => {
     string | null | undefined
   >();
   const { openGroupIds, onToggleGroups } = useToggleGroups();
+  const oldGridElX = useRef(0);
 
   // Add a debounced delay to not constantly trigger highlighting certain task states
   const onStatusHover = debounce(
@@ -100,14 +101,23 @@ const Main = () => {
   const resize = useCallback(
     (e: MouseEvent) => {
       const gridEl = gridRef.current;
-      if (
-        gridEl &&
-        e.x > minPanelWidth &&
-        e.x < window.innerWidth - minPanelWidth
-      ) {
-        const width = `${e.x}px`;
-        gridEl.style.width = width;
-        saveWidth(width);
+      let isMovementRight = false;
+
+      if (oldGridElX && oldGridElX.current && oldGridElX.current < e.x) {
+        isMovementRight = true;
+      } else {
+        isMovementRight = false;
+      }
+      oldGridElX.current = e.x;
+
+      if (gridEl) {
+        if (e.x > minPanelWidth && e.x < window.innerWidth - minPanelWidth) {
+          const width = `${e.x}px`;
+          gridEl.style.width = width;
+          saveWidth(width);
+        } else if (e.x < minPanelWidth && isMovementRight) {
+          setIsGridCollapsed(false);
+        }
       }
     },
     [gridRef]
