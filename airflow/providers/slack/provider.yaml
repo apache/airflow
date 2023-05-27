@@ -80,4 +80,6 @@ connection-types:
     connection-type: slackwebhook
 
 notifications:
-  - airflow.providers.slack.notifications.slack_notifier.SlackNotifier
+  - integration-name: Slack
+    python-modules:
+      - airflow.providers.slack.notifications.slack

@@ -208,8 +208,8 @@
             "type": "string",
             "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
           },
-          "class-names": {
-            "description": "List of the trigger class name that implements trigger.",
+          "python-modules": {
+            "description": "List of python modules containing the triggers.",
             "type": "array",
             "items": {
               "type": "string"
@@ -219,7 +219,7 @@
         "additionalProperties": false,
         "required": [
           "integration-name",
-          "class-names"
+          "python-modules"
         ]
       }
     },
@@ -306,13 +306,30 @@
           "type": "string"
       }
     },
-      "notifications": {
-          "type": "array",
-          "description": "Notification class names",
-          "items": {
+    "notifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "integration-name": {
+            "type": "string",
+            "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
+          },
+          "python-modules": {
+            "description": "List of python modules containing the notifications.",
+            "type": "array",
+            "items": {
               "type": "string"
+            }
           }
-      },
+        },
+        "additionalProperties": false,
+        "required": [
+          "integration-name",
+          "python-modules"
+        ]
+      }
+    },
     "plugins": {
       "type": "array",
       "description": "Plugins exposed by the provider",
