@@ -97,6 +97,9 @@ class TestOtelMetrics:
         self.stats.incr(name, rate=0.5)
         # This one should not increment because random() will return a value higher than `rate`
         self.stats.incr(name, rate=0.5)
+        # This one should raise an exception for a negative `rate` value
+        with pytest.raises(ValueError):
+            self.stats.incr(name, rate=-0.5)
 
         assert mock_random.call_count == 2
         assert self.map[full_name(name)].add.call_count == 1
@@ -128,6 +131,9 @@ class TestOtelMetrics:
         self.stats.decr(name, rate=0.5)
         # This one should not decrement because random() will return a value higher than `rate`
         self.stats.decr(name, rate=0.5)
+        # This one should raise an exception for a negative `rate` value
+        with pytest.raises(ValueError):
+            self.stats.decr(name, rate=-0.5)
 
         assert mock_random.call_count == 2
         # add() is called once in the initial stats.incr and once for the decr that passed the rate check.
