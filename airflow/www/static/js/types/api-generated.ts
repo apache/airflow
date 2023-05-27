@@ -1191,6 +1191,7 @@ export interface components {
     HealthInfo: {
       metadatabase?: components["schemas"]["MetadatabaseStatus"];
       scheduler?: components["schemas"]["SchedulerStatus"];
+      triggerer?: components["schemas"]["TriggererStatus"];
     };
     /** @description The status of the metadatabase. */
     MetadatabaseStatus: {
@@ -1204,6 +1205,15 @@ export interface components {
        * @description The time the scheduler last do a heartbeat.
        */
       latest_scheduler_heartbeat?: string | null;
+    };
+    /** @description The status and the latest triggerer heartbeat. */
+    TriggererStatus: {
+      status?: components["schemas"]["HealthStatus"];
+      /**
+       * Format: datetime
+       * @description The time the triggerer last do a heartbeat.
+       */
+      latest_triggerer_heartbeat?: string | null;
     };
     /** @description The pool */
     Pool: {
@@ -4649,6 +4659,9 @@ export type MetadatabaseStatus = CamelCasedPropertiesDeep<
 >;
 export type SchedulerStatus = CamelCasedPropertiesDeep<
   components["schemas"]["SchedulerStatus"]
+>;
+export type TriggererStatus = CamelCasedPropertiesDeep<
+  components["schemas"]["TriggererStatus"]
 >;
 export type Pool = CamelCasedPropertiesDeep<components["schemas"]["Pool"]>;
 export type PoolCollection = CamelCasedPropertiesDeep<

@@ -3082,6 +3082,8 @@ components:
           $ref: '#/components/schemas/MetadatabaseStatus'
         scheduler:
           $ref: '#/components/schemas/SchedulerStatus'
+        triggerer:
+          $ref: '#/components/schemas/TriggererStatus'
 
     MetadatabaseStatus:
       type: object
@@ -3098,6 +3100,19 @@ components:
           $ref: '#/components/schemas/HealthStatus'
         latest_scheduler_heartbeat:
           description: The time the scheduler last do a heartbeat.
+          type: string
+          format: datetime
+          readOnly: true
+          nullable: true
+
+    TriggererStatus:
+      type: object
+      description: The status and the latest triggerer heartbeat.
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latest_triggerer_heartbeat:
+          description: The time the triggerer last do a heartbeat.
           type: string
           format: datetime
           readOnly: true
