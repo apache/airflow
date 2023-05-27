@@ -185,4 +185,3 @@ provide yet more context.
 ------------
 
 .. image:: img/code.png
-
