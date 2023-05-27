@@ -646,8 +646,8 @@ export interface paths {
   };
   "/health": {
     /**
-     * Get the status of Airflow's metadatabase and scheduler. It includes info about
-     * metadatabase and last heartbeat of scheduler.
+     * Get the status of Airflow's metadatabase, triggerer and scheduler. It includes info about
+     * metadatabase and last heartbeat of scheduler and triggerer.
      */
     get: operations["get_health"];
   };
@@ -1202,16 +1202,20 @@ export interface components {
       status?: components["schemas"]["HealthStatus"];
       /**
        * Format: datetime
-       * @description The time the scheduler last do a heartbeat.
+       * @description The time the scheduler last does a heartbeat.
        */
       latest_scheduler_heartbeat?: string | null;
     };
-    /** @description The status and the latest triggerer heartbeat. */
+    /**
+     * @description The status and the latest triggerer heartbeat.
+     *
+     * *New in version 2.6.2*
+     */
     TriggererStatus: {
       status?: components["schemas"]["HealthStatus"];
       /**
        * Format: datetime
-       * @description The time the triggerer last do a heartbeat.
+       * @description The time the triggerer last does a heartbeat.
        */
       latest_triggerer_heartbeat?: string | null;
     };
@@ -2164,9 +2168,9 @@ export interface components {
     WeightRule: "downstream" | "upstream" | "absolute";
     /**
      * @description Health status
-     * @enum {string}
+     * @enum {string|null}
      */
-    HealthStatus: "healthy" | "unhealthy";
+    HealthStatus: ("healthy" | "unhealthy") | null;
   };
   responses: {
     /** Client specified an invalid argument. */
@@ -4231,8 +4235,8 @@ export interface operations {
     };
   };
   /**
-   * Get the status of Airflow's metadatabase and scheduler. It includes info about
-   * metadatabase and last heartbeat of scheduler.
+   * Get the status of Airflow's metadatabase, triggerer and scheduler. It includes info about
+   * metadatabase and last heartbeat of scheduler and triggerer.
    */
   get_health: {
     responses: {
