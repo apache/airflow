@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-26T21:18:21Z
+# This constraints file was automatically generated on 2023-05-27T21:13:40Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -11,7 +11,7 @@
 Authlib==1.2.0
 Babel==2.12.1
 ConfigUpdater==3.1.1
-Deprecated==1.2.13
+Deprecated==1.2.14
 Flask-AppBuilder==4.3.1
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
@@ -59,14 +59,14 @@ aliyun-python-sdk-kms==2.16.0
 amqp==5.1.1
 analytics-python==1.4.post1
 ansiwrap==0.8.4
-anyio==3.6.2
+anyio==3.7.0
 apache-beam==2.47.0
 apispec==5.2.2
 appdirs==1.4.4
 argcomplete==3.0.8
 arrow==1.2.3
 asana==3.2.1
-asgiref==3.7.1
+asgiref==3.7.2
 asn1crypto==1.5.1
 astroid==2.15.5
 asttokens==2.2.1

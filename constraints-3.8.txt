@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-26T21:27:09Z
+# This constraints file was automatically generated on 2023-05-27T21:22:22Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -11,7 +11,7 @@
 Authlib==1.2.0
 Babel==2.12.1
 ConfigUpdater==3.1.1
-Deprecated==1.2.13
+Deprecated==1.2.14
 Flask-AppBuilder==4.3.1
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
@@ -59,7 +59,7 @@ aliyun-python-sdk-kms==2.16.0
 amqp==5.1.1
 analytics-python==1.4.post1
 ansiwrap==0.8.4
-anyio==3.6.2
+anyio==3.7.0
 apache-airflow-providers-airbyte==3.3.0
 apache-airflow-providers-alibaba==2.4.0
 apache-airflow-providers-amazon==8.1.0
@@ -84,8 +84,8 @@ apache-airflow-providers-atlassian-jira==2.1.0
 apache-airflow-providers-celery==3.2.0
 apache-airflow-providers-cloudant==3.2.0
 apache-airflow-providers-cncf-kubernetes==7.0.0
-apache-airflow-providers-common-sql==1.4.0
-apache-airflow-providers-databricks==4.1.0
+apache-airflow-providers-common-sql==1.5.1
+apache-airflow-providers-databricks==4.2.0
 apache-airflow-providers-datadog==3.3.0
 apache-airflow-providers-dbt-cloud==3.2.0
 apache-airflow-providers-dingding==3.2.0
@@ -94,17 +94,17 @@ apache-airflow-providers-docker==3.7.0
 apache-airflow-providers-elasticsearch==4.5.0
 apache-airflow-providers-exasol==4.2.0
 apache-airflow-providers-facebook==3.2.0
-apache-airflow-providers-ftp==3.3.1
+apache-airflow-providers-ftp==3.4.1
 apache-airflow-providers-github==2.3.0
-apache-airflow-providers-google==10.1.0
+apache-airflow-providers-google==10.1.1
 apache-airflow-providers-grpc==3.2.0
 apache-airflow-providers-hashicorp==3.4.0
-apache-airflow-providers-http==4.3.0
-apache-airflow-providers-imap==3.1.1
+apache-airflow-providers-http==4.4.1
+apache-airflow-providers-imap==3.2.1
 apache-airflow-providers-influxdb==2.2.0
 apache-airflow-providers-jdbc==3.4.0
 apache-airflow-providers-jenkins==3.3.0
-apache-airflow-providers-microsoft-azure==6.1.0
+apache-airflow-providers-microsoft-azure==6.1.1
 apache-airflow-providers-microsoft-mssql==3.4.0
 apache-airflow-providers-microsoft-psrp==2.3.0
 apache-airflow-providers-microsoft-winrm==3.2.0
@@ -131,7 +131,7 @@ apache-airflow-providers-singularity==3.2.0
 apache-airflow-providers-slack==7.3.0
 apache-airflow-providers-smtp==1.1.0
 apache-airflow-providers-snowflake==4.1.0
-apache-airflow-providers-sqlite==3.3.2
+apache-airflow-providers-sqlite==3.4.1
 apache-airflow-providers-ssh==3.7.0
 apache-airflow-providers-tableau==4.2.0
 apache-airflow-providers-tabular==1.2.0
@@ -145,7 +145,7 @@ appdirs==1.4.4
 argcomplete==3.0.8
 arrow==1.2.3
 asana==3.2.1
-asgiref==3.7.1
+asgiref==3.7.2
 asn1crypto==1.5.1
 astroid==2.15.5
 asttokens==2.2.1
@@ -193,7 +193,7 @@ boto==2.49.0
 botocore==1.29.76
 bowler==0.9.0
 cachelib==0.9.0
-cachetools==5.3.0
+cachetools==5.3.1
 cassandra-driver==3.27.0
 cattrs==22.2.0
 celery==5.2.7
