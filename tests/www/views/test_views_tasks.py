@@ -348,8 +348,8 @@ def test_tree_trigger_origin_tree_view(app, admin_client):
 
     url = "tree?dag_id=test_tree_view"
     resp = admin_client.get(url, follow_redirects=True)
-    params = {"dag_id": "test_tree_view", "origin": "/dags/test_tree_view/grid"}
-    href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    params = {"origin": "/dags/test_tree_view/grid"}
+    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
 
@@ -364,8 +364,8 @@ def test_graph_trigger_origin_graph_view(app, admin_client):
 
     url = "/dags/test_tree_view/graph"
     resp = admin_client.get(url, follow_redirects=True)
-    params = {"dag_id": "test_tree_view", "origin": "/dags/test_tree_view/graph"}
-    href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    params = {"origin": "/dags/test_tree_view/graph"}
+    href = f"/dags/test_tree_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
 
@@ -380,8 +380,8 @@ def test_dag_details_trigger_origin_dag_details_view(app, admin_client):
 
     url = "/dags/test_graph_view/details"
     resp = admin_client.get(url, follow_redirects=True)
-    params = {"dag_id": "test_graph_view", "origin": "/dags/test_graph_view/details"}
-    href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
+    params = {"origin": "/dags/test_graph_view/details"}
+    href = f"/dags/test_graph_view/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
 
