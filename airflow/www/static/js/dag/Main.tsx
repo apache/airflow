@@ -101,7 +101,6 @@ const Main = () => {
   const resize = useCallback(
     (e: MouseEvent) => {
       const gridEl = gridRef.current;
-
       if (gridEl) {
         if (e.x > minPanelWidth && e.x < window.innerWidth - minPanelWidth) {
           const width = `${e.x}px`;
