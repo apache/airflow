@@ -101,24 +101,22 @@ const Main = () => {
   const resize = useCallback(
     (e: MouseEvent) => {
       const gridEl = gridRef.current;
-      let isMovementRight = false;
-
-      if (oldGridElX && oldGridElX.current && oldGridElX.current < e.x) {
-        isMovementRight = true;
-      } else {
-        isMovementRight = false;
-      }
-      oldGridElX.current = e.x;
 
       if (gridEl) {
         if (e.x > minPanelWidth && e.x < window.innerWidth - minPanelWidth) {
           const width = `${e.x}px`;
           gridEl.style.width = width;
           saveWidth(width);
-        } else if (e.x < minPanelWidth && isMovementRight) {
+        } else if (
+          e.x < minPanelWidth &&
+          oldGridElX &&
+          oldGridElX.current &&
+          oldGridElX.current < e.x
+        ) {
           setIsGridCollapsed(false);
         }
       }
+      oldGridElX.current = e.x;
     },
     [gridRef]
   );
