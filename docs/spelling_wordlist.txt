@@ -766,6 +766,7 @@ InspectContentResponse
 InspectTemplate
 instafail
 installable
+InstanceGroupConfig
 instanceTemplates
 instantiation
 integrations
@@ -1128,6 +1129,9 @@ precheck
 Precommit
 preconfigured
 PredictionServiceClient
+Preemptibility
+preemptibility
+Preemptible
 preemptible
 prefetch
 prefetched
