@@ -60,7 +60,14 @@ def _is_up_down_counter(name):
 
 
 def _generate_key_name(name: str, attributes: Attributes = None):
-    return f"{name}{'_' + str(attributes) if attributes else ''}"
+    if attributes:
+        key = name
+        for item in attributes.items():
+            key += f"_{item[0]}_{item[1]}"
+    else:
+        key = name
+
+    return key
 
 
 def name_is_otel_safe(prefix: str, name: str) -> bool:
@@ -121,7 +128,7 @@ class SafeOtelLogger:
             return
 
         if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
-            counter = self.metrics_map.get_counter(f"{self.prefix}.{stat}")
+            counter = self.metrics_map.get_counter(f"{self.prefix}.{stat}", attributes=tags)
             counter.add(count, attributes=tags)
             return counter
 

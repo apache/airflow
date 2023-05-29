@@ -27,6 +27,7 @@ from airflow.metrics.otel_logger import (
     OTEL_NAME_MAX_LENGTH,
     UP_DOWN_COUNTERS,
     SafeOtelLogger,
+    _generate_key_name,
     _is_up_down_counter,
 )
 
@@ -77,11 +78,12 @@ class TestOtelMetrics:
 
     def test_incr_new_metric_with_tags(self, name):
         tags = {"hello": "world"}
+        key = _generate_key_name(full_name(name), tags)
 
         self.stats.incr(name, tags=tags)
 
         self.meter.get_meter().create_counter.assert_called_once_with(name=full_name(name))
-        self.map[full_name(name)].add.assert_called_once_with(1, attributes=tags)
+        self.map[key].add.assert_called_once_with(1, attributes=tags)
 
     def test_incr_existing_metric(self, name):
         # Create the metric and set value to 1
