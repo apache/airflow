@@ -39,7 +39,7 @@ if "visibility_timeout" not in broker_transport_options:
     if _broker_supports_visibility_timeout(broker_url):
         broker_transport_options["visibility_timeout"] = 21600
 
-broker_transport_options_for_celery = broker_transport_options.copy()
+broker_transport_options_for_celery: dict = broker_transport_options.copy()
 if "sentinel_kwargs" in broker_transport_options:
     try:
         sentinel_kwargs = broker_transport_options.get("sentinel_kwargs")
