@@ -1202,7 +1202,7 @@ export interface components {
       status?: components["schemas"]["HealthStatus"];
       /**
        * Format: datetime
-       * @description The time the scheduler last does a heartbeat.
+       * @description The time the scheduler last did a heartbeat.
        */
       latest_scheduler_heartbeat?: string | null;
     };
@@ -1215,7 +1215,7 @@ export interface components {
       status?: components["schemas"]["HealthStatus"];
       /**
        * Format: datetime
-       * @description The time the triggerer last does a heartbeat.
+       * @description The time the triggerer last did a heartbeat.
        */
       latest_triggerer_heartbeat?: string | null;
     };

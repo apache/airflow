@@ -3099,7 +3099,7 @@ components:
         status:
           $ref: '#/components/schemas/HealthStatus'
         latest_scheduler_heartbeat:
-          description: The time the scheduler last does a heartbeat.
+          description: The time the scheduler last did a heartbeat.
           type: string
           format: datetime
           readOnly: true
@@ -3115,7 +3115,7 @@ components:
         status:
           $ref: '#/components/schemas/HealthStatus'
         latest_triggerer_heartbeat:
-          description: The time the triggerer last does a heartbeat.
+          description: The time the triggerer last did a heartbeat.
           type: string
           format: datetime
           readOnly: true
