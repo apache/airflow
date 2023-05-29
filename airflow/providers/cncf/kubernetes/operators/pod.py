@@ -225,7 +225,7 @@ class KubernetesPodOperator(BaseOperator):
         container name to use.
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
-    :param log_pod_on_failure: If pod template should be logged in a case of task fail.
+    :param log_pod_spec_on_failure: If pod specification should be logged in a case of task fail.
     """
 
     # This field can be overloaded at the instance level via base_container_name
@@ -302,7 +302,7 @@ class KubernetesPodOperator(BaseOperator):
         base_container_name: str | None = None,
         deferrable: bool = False,
         poll_interval: float = 2,
-        log_pod_on_failure: bool = False,
+        log_pod_spec_on_failure: bool = True,
         **kwargs,
     ) -> None:
         # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
@@ -383,7 +383,7 @@ class KubernetesPodOperator(BaseOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.remote_pod: k8s.V1Pod | None = None
-        self.log_pod_on_failure = log_pod_on_failure
+        self.log_pod_spec_on_failure = log_pod_spec_on_failure
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
 
     @cached_property
