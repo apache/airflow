@@ -97,7 +97,7 @@ def create_job_queue(job_compute_environment_name, job_queue_name):
     )
 
 
-# Only describe the job if a previous task failed to help diagnose
+# Only describe the job if a previous task failed, to help diagnose
 @task(trigger_rule=TriggerRule.ONE_FAILED)
 def describe_job(job_id):
     client = boto3.client("batch")
@@ -221,8 +221,6 @@ with DAG(
     # [END howto_sensor_batch]
     wait_for_batch_job.poke_interval = 10
 
-    job = describe_job(submit_batch_job.output)
-
     wait_for_compute_environment_disabled = BatchComputeEnvironmentSensor(
         task_id="wait_for_compute_environment_disabled",
         compute_environment=batch_job_compute_environment_name,
@@ -264,7 +262,7 @@ with DAG(
         submit_batch_job,
         wait_for_batch_job,
         # TEST TEARDOWN
-        job,
+        describe_job(submit_batch_job.output),
         disable_job_queue(batch_job_queue_name),
         wait_for_job_queue_modified,
         delete_job_queue(batch_job_queue_name),
