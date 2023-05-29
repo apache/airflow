@@ -107,7 +107,7 @@ class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
         return messages, logs
 
     def _read(self, ti, try_number, metadata=None):
-        """Read logs of given task instance and try_number from S3 remote storage.
+        """Read logs of given task instance and try_number from HDFS.
         If failed, read the log from task instance host machine.
 
         todo: when min airflow version >= 2.6 then remove this method (``_read``)
