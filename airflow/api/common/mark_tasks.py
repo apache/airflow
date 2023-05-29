@@ -148,10 +148,10 @@ def set_state(
     qry_dag = get_all_dag_task_query(dag, session, state, task_id_map_index_list, dag_run_ids)
 
     if commit:
-        tis_altered = session.execute(qry_dag.with_for_update()).scalars().all()
+        tis_altered = session.scalars(qry_dag.with_for_update()).all()
         if sub_dag_run_ids:
             qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
-            tis_altered += session.execute(qry_sub_dag.with_for_update()).scalars().all()
+            tis_altered += session.scalars(qry_sub_dag.with_for_update()).all()
         for task_instance in tis_altered:
             # The try_number was decremented when setting to up_for_reschedule and deferred.
             # Increment it back when changing the state again
@@ -160,10 +160,10 @@ def set_state(
             task_instance.set_state(state, session=session)
         session.flush()
     else:
-        tis_altered = session.execute(qry_dag).scalars().all()
+        tis_altered = session.scalars(qry_dag).all()
         if sub_dag_run_ids:
             qry_sub_dag = all_subdag_tasks_query(sub_dag_run_ids, session, state, confirmed_dates)
-            tis_altered += session.execute(qry_sub_dag).scalars().all()
+            tis_altered += session.scalars(qry_sub_dag).all()
     return tis_altered
 
 

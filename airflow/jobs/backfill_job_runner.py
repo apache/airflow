@@ -975,20 +975,16 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
         resettable_states = [TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED]
         if filter_by_dag_run is None:
             resettable_tis = (
-                (
-                    session.execute(
-                        select(TaskInstance)
-                        .join(TaskInstance.dag_run)
-                        .where(
-                            DagRun.state == DagRunState.RUNNING,
-                            DagRun.run_type != DagRunType.BACKFILL_JOB,
-                            TaskInstance.state.in_(resettable_states),
-                        )
+                session.scalars(
+                    select(TaskInstance)
+                    .join(TaskInstance.dag_run)
+                    .where(
+                        DagRun.state == DagRunState.RUNNING,
+                        DagRun.run_type != DagRunType.BACKFILL_JOB,
+                        TaskInstance.state.in_(resettable_states),
                     )
                 )
-                .scalars()
-                .all()
-            )
+            ).all()
         else:
             resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states, session=session)
 
@@ -1001,15 +997,11 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
                 return result
 
             filter_for_tis = TaskInstance.filter_for_tis(items)
-            reset_tis = (
-                session.execute(
-                    select(TaskInstance)
-                    .where(filter_for_tis, TaskInstance.state.in_(resettable_states))
-                    .with_for_update()
-                )
-                .scalars()
-                .all()
-            )
+            reset_tis = session.scalars(
+                select(TaskInstance)
+                .where(filter_for_tis, TaskInstance.state.in_(resettable_states))
+                .with_for_update()
+            ).all()
 
             for ti in reset_tis:
                 ti.state = State.NONE

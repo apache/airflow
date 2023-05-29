@@ -395,7 +395,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     session=session,
                     **skip_locked(session=session),
                 )
-                task_instances_to_examine: list[TI] = session.execute(query).scalars().all()
+                task_instances_to_examine: list[TI] = session.scalars(query).all()
 
                 timer.stop(send=True)
             except OperationalError as e:
@@ -704,7 +704,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             session=session,
             **skip_locked(session=session),
         )
-        tis = session.execute(tis).scalars()
+        tis = session.scalars(tis)
         for ti in tis:
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
             buffer_key = ti.key.with_try_number(try_number)
@@ -879,7 +879,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
     @provide_session
     def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
         try:
-            paused_runs = session.execute(
+            paused_runs = session.scalars(
                 select(DagRun)
                 .join(DagRun.dag_model)
                 .join(TI)
@@ -890,7 +890,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 )
                 .having(DagRun.last_scheduling_decision <= func.max(TI.updated_at))
                 .group_by(DagRun)
-            ).scalars()
+            )
             for dag_run in paused_runs:
                 dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
                 if dag is None:
@@ -1611,7 +1611,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     tis_to_reset_or_adopt = with_row_locks(
                         query, of=TI, session=session, **skip_locked(session=session)
                     )
-                    tis_to_reset_or_adopt = session.execute(tis_to_reset_or_adopt).scalars().all()
+                    tis_to_reset_or_adopt = session.scalars(tis_to_reset_or_adopt).all()
                     to_reset = self.job.executor.try_adopt_task_instances(tis_to_reset_or_adopt)
 
                     reset_tis_message = []
@@ -1741,11 +1741,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         """
         self.log.debug("Checking dags not parsed within last %s seconds.", self._dag_stale_not_seen_duration)
         limit_lpt = timezone.utcnow() - timedelta(seconds=self._dag_stale_not_seen_duration)
-        stale_dags = (
-            session.execute(select(DagModel).where(DagModel.is_active, DagModel.last_parsed_time < limit_lpt))
-            .scalars()
-            .all()
-        )
+        stale_dags = session.scalars(
+            select(DagModel).where(DagModel.is_active, DagModel.last_parsed_time < limit_lpt)
+        ).all()
         if not stale_dags:
             self.log.debug("Not stale dags found.")
             return
@@ -1767,7 +1765,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         Detects datasets that are no longer referenced in any DAG schedule parameters or task outlets and
         sets the dataset is_orphaned flag to True.
         """
-        orphaned_dataset_query = session.execute(
+        orphaned_dataset_query = session.scalars(
             select(DatasetModel)
             .join(
                 DagScheduleDatasetReference,
@@ -1786,7 +1784,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     func.count(TaskOutletDatasetReference.dag_id) == 0,
                 )
             )
-        ).scalars()
+        )
 
         updated_count = sum(self._set_orphaned(dataset) for dataset in orphaned_dataset_query)
         Stats.gauge("dataset.orphaned", updated_count)
