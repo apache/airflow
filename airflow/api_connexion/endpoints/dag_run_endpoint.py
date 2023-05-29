@@ -74,7 +74,9 @@ RESOURCE_EVENT_PREFIX = "dag_run"
 @provide_session
 def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete a DAG Run."""
-    deleted_count = session.execute(delete(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)).rowcount
+    deleted_count = session.execute(
+        delete(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
+    ).rowcount
     if deleted_count == 0:
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
     return NoContent, HTTPStatus.NO_CONTENT
