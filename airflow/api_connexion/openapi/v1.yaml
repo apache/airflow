@@ -1970,8 +1970,8 @@ paths:
     get:
       summary: Get instance status
       description: |
-        Get the status of Airflow's metadatabase and scheduler. It includes info about
-        metadatabase and last heartbeat of scheduler.
+        Get the status of Airflow's metadatabase, triggerer and scheduler. It includes info about
+        metadatabase and last heartbeat of scheduler and triggerer.
       x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
       operationId: get_health
       tags: [Monitoring]
@@ -3002,6 +3002,8 @@ components:
           $ref: '#/components/schemas/MetadatabaseStatus'
         scheduler:
           $ref: '#/components/schemas/SchedulerStatus'
+        triggerer:
+          $ref: '#/components/schemas/TriggererStatus'
 
     MetadatabaseStatus:
       type: object
@@ -3017,7 +3019,23 @@ components:
         status:
           $ref: '#/components/schemas/HealthStatus'
         latest_scheduler_heartbeat:
-          description: The time the scheduler last do a heartbeat.
+          description: The time the scheduler last did a heartbeat.
+          type: string
+          format: datetime
+          readOnly: true
+          nullable: true
+
+    TriggererStatus:
+      type: object
+      description: |
+        The status and the latest triggerer heartbeat.
+
+        *New in version 2.6.2*
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latest_triggerer_heartbeat:
+          description: The time the triggerer last did a heartbeat.
           type: string
           format: datetime
           readOnly: true
@@ -4578,6 +4596,7 @@ components:
     HealthStatus:
       description: Health status
       type: string
+      nullable: true
       enum:
         - healthy
         - unhealthy
