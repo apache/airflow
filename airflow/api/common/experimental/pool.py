@@ -34,7 +34,7 @@ def get_pool(name, session: Session = NEW_SESSION):
     if not (name and name.strip()):
         raise AirflowBadRequest("Pool name shouldn't be empty")
 
-    pool = session.scalars(select(Pool).filter_by(pool=name).limit(1)).first()
+    pool = session.scalar(select(Pool).filter_by(pool=name))
     if pool is None:
         raise PoolNotFound(f"Pool '{name}' doesn't exist")
 
@@ -66,7 +66,7 @@ def create_pool(name, slots, description, session: Session = NEW_SESSION):
         raise AirflowBadRequest(f"Pool name can't be more than {pool_name_length} characters")
 
     session.expire_on_commit = False
-    pool = session.scalars(select(Pool).filter_by(pool=name).limit(1)).first()
+    pool = session.scalar(select(Pool).filter_by(pool=name))
     if pool is None:
         pool = Pool(pool=name, slots=slots, description=description)
         session.add(pool)
@@ -89,7 +89,7 @@ def delete_pool(name, session: Session = NEW_SESSION):
     if name == Pool.DEFAULT_POOL_NAME:
         raise AirflowBadRequest(f"{Pool.DEFAULT_POOL_NAME} cannot be deleted")
 
-    pool = session.scalars(select(Pool).filter_by(pool=name).limit(1)).first()
+    pool = session.scalar(select(Pool).filter_by(pool=name))
     if pool is None:
         raise PoolNotFound(f"Pool '{name}' doesn't exist")
 

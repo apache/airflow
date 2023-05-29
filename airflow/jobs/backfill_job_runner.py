@@ -594,9 +594,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
                         if task.task_id != ti.task_id:
                             continue
 
-                        pool = session.scalars(
-                            select(models.Pool).where(models.Pool.pool == task.pool).limit(1)
-                        ).first()
+                        pool = session.scalar(select(models.Pool).where(models.Pool.pool == task.pool))
                         if not pool:
                             raise PoolNotFound(f"Unknown pool: {task.pool}")
 

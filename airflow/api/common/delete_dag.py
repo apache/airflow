@@ -47,15 +47,14 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     :return count of deleted dags
     """
     log.info("Deleting DAG: %s", dag_id)
-    running_tis = session.scalars(
+    running_tis = session.scalar(
         select(models.TaskInstance.state)
         .where(models.TaskInstance.dag_id == dag_id)
         .where(models.TaskInstance.state == State.RUNNING)
-        .limit(1)
-    ).first()
+    )
     if running_tis:
         raise AirflowException("TaskInstances still running")
-    dag = session.scalars(select(DagModel).where(DagModel.dag_id == dag_id).limit(1)).first()
+    dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
     if dag is None:
         raise DagNotFound(f"Dag id {dag_id} not found")
 
