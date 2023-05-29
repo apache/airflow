@@ -111,6 +111,7 @@ class EmrAddStepsOperator(BaseOperator):
         job_flow_id = self.job_flow_id or emr_hook.get_cluster_id_by_name(
             str(self.job_flow_name), self.cluster_states
         )
+        self.log.info(f"Deferrable is {self.deferrable} and wait_for_completion is {self.wait_for_completion}.")
 
         if not job_flow_id:
             raise AirflowException(f"No cluster found for name: {self.job_flow_name}")

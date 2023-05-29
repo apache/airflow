@@ -16,23 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-import sys
+from unittest import mock
+from unittest.mock import AsyncMock
 
 import pytest
+from botocore.exceptions import WaiterError
 
+from airflow.providers.amazon.aws.hooks.emr import EmrHook
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
 from airflow.triggers.base import TriggerEvent
-
-if sys.version_info < (3, 8):
-    from asynctest import CoroutineMock as AsyncMock, mock as async_mock
-else:
-    from unittest import mock as async_mock
-    from unittest.mock import AsyncMock
 
 TEST_JOB_FLOW_ID = "test_job_flow_id"
 TEST_STEP_IDS = ["step1", "step2"]
 TEST_AWS_CONN_ID = "test-aws-id"
-TEST_MAX_ATTEMPT = 10
+TEST_MAX_ATTEMPTS = 10
 TEST_POLL_INTERVAL = 10
 
 
@@ -42,7 +39,7 @@ class TestEmrAddStepsTrigger:
             job_flow_id=TEST_JOB_FLOW_ID,
             step_ids=TEST_STEP_IDS,
             aws_conn_id=TEST_AWS_CONN_ID,
-            max_attempts=TEST_MAX_ATTEMPT,
+            max_attempts=TEST_MAX_ATTEMPTS,
             poll_interval=TEST_POLL_INTERVAL,
         )
         class_path, args = emr_add_steps_trigger.serialize()
@@ -50,21 +47,21 @@ class TestEmrAddStepsTrigger:
         assert args["job_flow_id"] == TEST_JOB_FLOW_ID
         assert args["step_ids"] == TEST_STEP_IDS
         assert args["poll_interval"] == str(TEST_POLL_INTERVAL)
-        assert args["max_attempts"] == str(TEST_MAX_ATTEMPT)
+        assert args["max_attempts"] == str(TEST_MAX_ATTEMPTS)
         assert args["aws_conn_id"] == TEST_AWS_CONN_ID
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.async_conn")
-    async def test_redshift_create_cluster_trigger_run(self, mock_async_conn):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
-        mock.get_waiter().wait = AsyncMock()
+    @mock.patch.object(EmrHook, "async_conn")
+    async def test_emr_add_steps_trigger_run(self, mock_async_conn):
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+        a_mock.get_waiter().wait = AsyncMock()
 
         emr_add_steps_trigger = EmrAddStepsTrigger(
             job_flow_id=TEST_JOB_FLOW_ID,
             step_ids=TEST_STEP_IDS,
             aws_conn_id=TEST_AWS_CONN_ID,
-            max_attempts=TEST_MAX_ATTEMPT,
+            max_attempts=TEST_MAX_ATTEMPTS,
             poll_interval=TEST_POLL_INTERVAL,
         )
 
@@ -73,4 +70,101 @@ class TestEmrAddStepsTrigger:
 
         assert response == TriggerEvent(
             {"status": "success", "message": "Steps completed", "step_ids": TEST_STEP_IDS}
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
+    @mock.patch.object(EmrHook, "async_conn")
+    async def test_emr_add_steps_trigger_run_multiple_attempts(self, mock_async_conn, mock_sleep):
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+        error = WaiterError(
+            name="test_name",
+            reason="test_reason",
+            last_response={"Step": {"Status": {"State": "Running", "StateChangeReason": "test_reason"}}},
+        )
+        a_mock.get_waiter().wait.side_effect = AsyncMock(side_effect=[error, error, True, error, error, True])
+        mock_sleep.return_value = True
+
+        emr_add_steps_trigger = EmrAddStepsTrigger(
+            job_flow_id=TEST_JOB_FLOW_ID,
+            step_ids=TEST_STEP_IDS,
+            aws_conn_id=TEST_AWS_CONN_ID,
+            max_attempts=TEST_MAX_ATTEMPTS,
+            poll_interval=TEST_POLL_INTERVAL,
+        )
+
+        generator = emr_add_steps_trigger.run()
+        response = await generator.asend(None)
+
+        assert a_mock.get_waiter().wait.call_count == 6
+        assert response == TriggerEvent(
+            {"status": "success", "message": "Steps completed", "step_ids": TEST_STEP_IDS}
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
+    @mock.patch.object(EmrHook, "async_conn")
+    async def test_emr_add_steps_trigger_run_attempts_exceeded(self, mock_async_conn, mock_sleep):
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+        error = WaiterError(
+            name="test_name",
+            reason="test_reason",
+            last_response={"Step": {"Status": {"State": "Running", "StateChangeReason": "test_reason"}}},
+        )
+        a_mock.get_waiter().wait.side_effect = AsyncMock(side_effect=[error, error, True])
+        mock_sleep.return_value = True
+
+        emr_add_steps_trigger = EmrAddStepsTrigger(
+            job_flow_id=TEST_JOB_FLOW_ID,
+            step_ids=[TEST_STEP_IDS[0]],
+            aws_conn_id=TEST_AWS_CONN_ID,
+            max_attempts=2,
+            poll_interval=TEST_POLL_INTERVAL,
+        )
+
+        generator = emr_add_steps_trigger.run()
+        response = await generator.asend(None)
+
+        assert a_mock.get_waiter().wait.call_count == 2
+        assert response == TriggerEvent(
+            {"status": "failure", "message": "Steps failed: max attempts reached"}
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
+    @mock.patch.object(EmrHook, "async_conn")
+    async def test_emr_add_steps_trigger_run_attempts_failed(self, mock_async_conn, mock_sleep):
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+        error_running = WaiterError(
+            name="test_name",
+            reason="test_reason",
+            last_response={"Step": {"Status": {"State": "Running", "StateChangeReason": "test_reason"}}},
+        )
+        error_failed = WaiterError(
+            name="test_name",
+            reason="Waiter encountered a terminal failure state:",
+            last_response={"Step": {"Status": {"State": "FAILED", "StateChangeReason": "test_reason"}}},
+        )
+        a_mock.get_waiter().wait.side_effect = AsyncMock(
+            side_effect=[error_running, error_running, error_failed]
+        )
+        mock_sleep.return_value = True
+
+        emr_add_steps_trigger = EmrAddStepsTrigger(
+            job_flow_id=TEST_JOB_FLOW_ID,
+            step_ids=[TEST_STEP_IDS[0]],
+            aws_conn_id=TEST_AWS_CONN_ID,
+            max_attempts=TEST_MAX_ATTEMPTS,
+            poll_interval=TEST_POLL_INTERVAL,
+        )
+
+        generator = emr_add_steps_trigger.run()
+        response = await generator.asend(None)
+
+        assert a_mock.get_waiter().wait.call_count == 3
+        assert response == TriggerEvent(
+            {"status": "failure", "message": f"Step {TEST_STEP_IDS[0]} failed: {error_failed}"}
         )

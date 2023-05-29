@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 import asyncio
+from functools import cached_property
 from typing import Any
 
 from botocore.exceptions import WaiterError
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -62,25 +62,33 @@ class EmrAddStepsTrigger(BaseTrigger):
     async def run(self):
         async with self.hook.async_conn as client:
             for step_id in self.step_ids:
+                attempt = 0
                 waiter = client.get_waiter("step_complete")
-                try:    
-                    await waiter.wait(
-                        ClusterId=self.job_flow_id,
-                        StepId=step_id,
-                        WaiterConfig={
-                            "Delay": int(self.poll_interval),
-                            "MaxAttempts": 1,
-                        },
-                    )
-                    break
-                except WaiterError as error:
-                    if "terminal failure" in str(error):
-                        yield TriggerEvent(
-                            {"status": "failure", "message": f"Steps failed: {error}"}
+                while attempt < int(self.max_attempts):
+                    attempt += 1
+                    try:
+                        await waiter.wait(
+                            ClusterId=self.job_flow_id,
+                            StepId=step_id,
+                            WaiterConfig={
+                                "Delay": int(self.poll_interval),
+                                "MaxAttempts": 1,
+                            },
                         )
                         break
-                    self.log.info(
-                        "Status of step is %s", error.last_response["Step"]["Status"]
-                    )
-                    await asyncio.sleep(int(self.poll_interval))
-        yield TriggerEvent({"status": "success", "message": "Steps completed", "step_ids": self.step_ids})
+                    except WaiterError as error:
+                        if "terminal failure" in str(error):
+                            yield TriggerEvent(
+                                {"status": "failure", "message": f"Step {step_id} failed: {error}"}
+                            )
+                            break
+                        self.log.info(
+                            "Status of step is %s - %s",
+                            error.last_response["Step"]["Status"]["State"],
+                            error.last_response["Step"]["Status"]["StateChangeReason"],
+                        )
+                        await asyncio.sleep(int(self.poll_interval))
+        if attempt >= int(self.max_attempts):
+            yield TriggerEvent({"status": "failure", "message": "Steps failed: max attempts reached"})
+        else:
+            yield TriggerEvent({"status": "success", "message": "Steps completed", "step_ids": self.step_ids})
