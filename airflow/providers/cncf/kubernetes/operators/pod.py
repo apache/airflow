@@ -701,7 +701,7 @@ class KubernetesPodOperator(BaseOperator):
             raise AirflowException('\n'.join(filter(None, [
                 f"Pod {pod and pod.metadata.name} returned a failure.",
                 error_message,
-                f"remote_pod: {remote_pod}" if self.log_pod_on_failure else None
+                f"remote_pod: {remote_pod}" if self.log_pod_spec_on_failure else None
             ])))
         else:
             self.process_pod_deletion(remote_pod, reraise=False)
