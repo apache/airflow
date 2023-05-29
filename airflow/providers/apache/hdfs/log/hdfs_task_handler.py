@@ -20,8 +20,8 @@ from __future__ import annotations
 import os
 import pathlib
 import shutil
-from urllib.parse import urlsplit
 from functools import cached_property
+from urllib.parse import urlsplit
 
 from airflow.configuration import conf
 from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
