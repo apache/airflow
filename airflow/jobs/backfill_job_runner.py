@@ -184,7 +184,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         filter_for_tis = TI.filter_for_tis(list(ti_status.running.values()))
         if filter_for_tis is not None:
-            refreshed_tis = session.execute(select(TI).where(filter_for_tis)).scalars().all()
+            refreshed_tis = session.scalars(select(TI).where(filter_for_tis)).all()
 
         for ti in refreshed_tis:
             # Use primary key to match in memory information
