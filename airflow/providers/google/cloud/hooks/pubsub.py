@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import warnings
 from base64 import b64decode
+from functools import cached_property
 from typing import Sequence
 from uuid import uuid4
 
@@ -46,7 +47,6 @@ from google.cloud.pubsub_v1.types import (
 )
 from googleapiclient.errors import HttpError
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook

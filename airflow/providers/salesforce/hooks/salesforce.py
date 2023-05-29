@@ -26,13 +26,13 @@ from __future__ import annotations
 
 import logging
 import time
+from functools import cached_property
 from typing import Any, Iterable
 
 import pandas as pd
 from requests import Session
 from simple_salesforce import Salesforce, api
 
-from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 
 log = logging.getLogger(__name__)
