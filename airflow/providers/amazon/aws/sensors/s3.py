@@ -20,9 +20,8 @@ from __future__ import annotations
 import fnmatch
 import os
 import re
-
-from datetime import datetime
-from functools import cached_property, timedelta
+from datetime import datetime, timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, List, Sequence, cast
 
 from deprecated import deprecated

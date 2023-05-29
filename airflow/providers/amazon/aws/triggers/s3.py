@@ -17,9 +17,10 @@
 from __future__ import annotations
 
 import asyncio
+from functools import cached_property
 from typing import Any, AsyncIterator, Callable
 
-from airflow.providers.amazon.aws.hooks.s3 import S3AsyncHook
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -74,17 +75,22 @@ class S3KeyTrigger(BaseTrigger):
             },
         )
 
+    @cached_property
+    def hook(self) -> S3Hook:
+        return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.hook_params.get("verify"))
+
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make an asynchronous connection using S3HookAsync."""
         try:
-            hook = self._get_async_hook()
-            async with await hook.get_client_async() as client:
+            async with self.hook.async_conn as client:
                 while True:
-                    if await hook.check_key(client, self.bucket_name, self.bucket_key, self.wildcard_match):
+                    if await self.hook.check_key_async(
+                        client, self.bucket_name, self.bucket_key, self.wildcard_match
+                    ):
                         if self.check_fn is None:
                             yield TriggerEvent({"status": "success"})
                         else:
-                            s3_objects = await hook.get_files(
+                            s3_objects = await self.hook.get_files_async(
                                 client, self.bucket_name, self.bucket_key, self.wildcard_match
                             )
                             yield TriggerEvent({"status": "success", "s3_objects": s3_objects})
@@ -92,6 +98,3 @@ class S3KeyTrigger(BaseTrigger):
 
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
-
-    def _get_async_hook(self) -> S3AsyncHook:
-        return S3AsyncHook(aws_conn_id=self.aws_conn_id, verify=self.hook_params.get("verify"))
