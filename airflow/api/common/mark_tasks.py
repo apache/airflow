@@ -463,7 +463,7 @@ def set_dag_run_state_to_failed(
 
     # Mark only RUNNING task instances.
     task_ids = [task.task_id for task in dag.tasks]
-    tis = session.execute(
+    tis = session.scalars(
         select(TaskInstance).where(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id == run_id,
@@ -472,7 +472,7 @@ def set_dag_run_state_to_failed(
         )
     )
 
-    task_ids_of_running_tis = [task_instance.task_id for task_instance, in tis]
+    task_ids_of_running_tis = [task_instance.task_id for task_instance in tis]
 
     tasks = []
     for task in dag.tasks:
@@ -482,7 +482,7 @@ def set_dag_run_state_to_failed(
         tasks.append(task)
 
     # Mark non-finished tasks as SKIPPED.
-    tis = session.execute(
+    tis = session.scalars(
         select(TaskInstance).filter(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id == run_id,
@@ -491,7 +491,7 @@ def set_dag_run_state_to_failed(
         )
     )
 
-    tis = [ti for ti, in tis]
+    tis = [ti for ti in tis]
     if commit:
         for ti in tis:
             ti.set_state(State.SKIPPED)
