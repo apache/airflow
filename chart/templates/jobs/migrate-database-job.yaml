@@ -120,7 +120,7 @@ spec:
               {{- tpl (toYaml .Values.migrateDatabaseJob.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
         {{- if .Values.migrateDatabaseJob.extraContainers }}
-          {{- toYaml .Values.migrateDatabaseJob.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.migrateDatabaseJob.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config

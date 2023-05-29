@@ -169,7 +169,7 @@ spec:
           {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.scheduler.extraInitContainers }}
-          {{- toYaml .Values.scheduler.extraInitContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.scheduler.extraInitContainers) . | nindent 8 }}
         {{- end }}
       containers:
         # Always run the main scheduler container.
@@ -282,7 +282,7 @@ spec:
             {{- end }}
           {{- end }}
         {{- if .Values.scheduler.extraContainers }}
-          {{- toYaml .Values.scheduler.extraContainers | nindent 8 }}
+          {{- tpl (toYaml .Values.scheduler.extraContainers) . | nindent 8 }}
         {{- end }}
       volumes:
         - name: config
