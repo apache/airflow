@@ -30,10 +30,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
-    """HdfsTaskHandler is a python log handler that handles and reads
-    task instance logs. It extends airflow FileTaskHandler and
-    uploads to and reads from HDFS.
-    """
+    """Logging handler to upload and read from HDFS."""
 
     def __init__(
         self, base_log_folder: str, hdfs_log_folder: str, filename_template: str | None = None, **kwargs
