@@ -307,17 +307,22 @@ you should do those steps:
    to (use correct image tag):
 
 ```
-#image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.5.1}
+#image: ${AIRFLOW_IMAGE_NAME:-apache/airflow:2.6.1}
 build: .
 ```
 
 2) Create ``Dockerfile`` in the same folder your ``docker-compose.yaml`` file is with content similar to:
 
 ```
-FROM apache/airflow:2.5.1
+FROM apache/airflow:2.6.1
 ADD requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install apache-airflow==${AIRFLOW_VERSION} -r requirements.txt
 ```
+
+It is the best practice to install apache-airflow in the same version as the one that comes from the
+original image. This way you can be sure that ``pip`` will not try to downgrade or upgrade apache
+airflow while installing other requirements, which might happen in case you try to add a dependency
+that conflicts with the version of apache-airflow that you are using.
 
 3) Place ``requirements.txt`` file in the same directory.
 

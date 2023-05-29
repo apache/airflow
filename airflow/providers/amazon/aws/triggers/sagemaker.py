@@ -17,9 +17,9 @@
 
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Any
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 

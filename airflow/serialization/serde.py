@@ -64,7 +64,7 @@ _builtin_collections = (frozenset, list, set, tuple)  # dict is treated speciall
 
 
 def encode(cls: str, version: int, data: T) -> dict[str, str | int | T]:
-    """Encodes o so it can be understood by the deserializer"""
+    """Encodes o so it can be understood by the deserializer."""
     return {CLASSNAME: cls, VERSION: version, DATA: data}
 
 
@@ -152,6 +152,12 @@ def serialize(o: object, depth: int = 0) -> U | None:
             data = serialize(data, depth + 1)
 
         dct[DATA] = data
+        return dct
+
+    # pydantic models are recursive
+    if _is_pydantic(cls):
+        data = o.dict()  # type: ignore[attr-defined]
+        dct[DATA] = serialize(data, depth + 1)
         return dct
 
     # dataclasses
@@ -250,8 +256,8 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     if hasattr(cls, "deserialize"):
         return getattr(cls, "deserialize")(deserialize(value), version)
 
-    # attr or dataclass
-    if attr.has(cls) or dataclasses.is_dataclass(cls):
+    # attr or dataclass or pydantic
+    if attr.has(cls) or dataclasses.is_dataclass(cls) or _is_pydantic(cls):
         class_version = getattr(cls, "__version__", 0)
         if int(version) > class_version:
             raise TypeError(
@@ -268,7 +274,7 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 
 
 def _convert(old: dict) -> dict:
-    """Converts an old style serialization to new style"""
+    """Converts an old style serialization to new style."""
     if OLD_TYPE in old and OLD_DATA in old:
         return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA][OLD_DATA]}
 
@@ -300,6 +306,15 @@ def _stringify(classname: str, version: int, value: T | None) -> str:
         s = s[:-1] + ")"
 
     return s
+
+
+def _is_pydantic(cls: Any) -> bool:
+    """Return True if the class is a pydantic model.
+
+    Checking is done by attributes as it is significantly faster than
+    using isinstance.
+    """
+    return hasattr(cls, "__validators__") and hasattr(cls, "__fields__") and hasattr(cls, "dict")
 
 
 def _register():

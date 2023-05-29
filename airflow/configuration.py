@@ -42,7 +42,6 @@ from urllib.parse import urlsplit
 
 from typing_extensions import overload
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
@@ -258,11 +257,11 @@ class AirflowConfigParser(ConfigParser):
 
     # Now build the inverse so we can go from old_section/old_key to new_section/new_key
     # if someone tries to retrieve it based on old_section/old_key
-    @cached_property
+    @functools.cached_property
     def inversed_deprecated_options(self):
         return {(sec, name): key for key, (sec, name, ver) in self.deprecated_options.items()}
 
-    @cached_property
+    @functools.cached_property
     def inversed_deprecated_sections(self):
         return {
             old_section: new_section for new_section, (old_section, ver) in self.deprecated_sections.items()
@@ -1483,7 +1482,7 @@ def initialize_config() -> AirflowConfigParser:
 
     Called for you automatically as part of the Airflow boot process.
     """
-    global FERNET_KEY, AIRFLOW_HOME
+    global FERNET_KEY, AIRFLOW_HOME, WEBSERVER_CONFIG
 
     default_config = _parameterized_config_from_template("default_airflow.cfg")
 
@@ -1548,10 +1547,7 @@ def initialize_config() -> AirflowConfigParser:
         if local_conf.getboolean("core", "unit_test_mode"):
             local_conf.load_test_config()
 
-    # Make it no longer a proxy variable, just set it to an actual string
-    global WEBSERVER_CONFIG
-    WEBSERVER_CONFIG = AIRFLOW_HOME + "/webserver_config.py"
-
+    WEBSERVER_CONFIG = local_conf.get("webserver", "config_file")
     if not os.path.isfile(WEBSERVER_CONFIG):
         import shutil
 
@@ -1786,7 +1782,6 @@ def __getattr__(name):
 AIRFLOW_HOME = get_airflow_home()
 AIRFLOW_CONFIG = get_airflow_config(AIRFLOW_HOME)
 
-
 # Set up dags folder for unit tests
 # this directory won't exist if users install via pip
 _TEST_DAGS_FOLDER = os.path.join(
@@ -1805,7 +1800,6 @@ if os.path.exists(_TEST_PLUGINS_FOLDER):
     TEST_PLUGINS_FOLDER = _TEST_PLUGINS_FOLDER
 else:
     TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, "plugins")
-
 
 TEST_CONFIG_FILE = get_airflow_test_config(AIRFLOW_HOME)
 

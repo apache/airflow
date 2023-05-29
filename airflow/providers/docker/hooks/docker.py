@@ -18,13 +18,13 @@
 from __future__ import annotations
 
 import json
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from docker import APIClient, TLSConfig
 from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 

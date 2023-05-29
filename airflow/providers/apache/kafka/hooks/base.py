@@ -16,11 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Any
 
 from confluent_kafka.admin import AdminClient
 
-from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 
 

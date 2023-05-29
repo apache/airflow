@@ -26,13 +26,16 @@ from __future__ import annotations
 
 import packaging.version
 
-import airflow
+__all__ = ["__version__"]
 
-__all__ = ["version"]
+__version__ = "1.0.0"
 
-version = "1.0.0"
+try:
+    from airflow import __version__ as airflow_version
+except ImportError:
+    from airflow.version import version as airflow_version
 
-if packaging.version.parse(airflow.version.version) < packaging.version.parse("2.6.0"):
+if packaging.version.parse(airflow_version) < packaging.version.parse("2.6.0"):
     raise RuntimeError(
-        f"The package `apache-airflow-providers-openlineage:{version}` requires Apache Airflow 2.6.0+"
+        f"The package `apache-airflow-providers-openlineage:{__version__}` requires Apache Airflow 2.6.0+"
     )

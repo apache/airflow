@@ -173,7 +173,7 @@ def create_minor_version_branch(version_branch):
     create_branch(version_branch)
     # Build ci image
     if confirm_action("Build latest breeze image?"):
-        run_command(["breeze", "ci-image", "build", "--python", "3.7"], dry_run_override=DRY_RUN, check=True)
+        run_command(["breeze", "ci-image", "build", "--python", "3.8"], dry_run_override=DRY_RUN, check=True)
     # Update default branches
     update_default_branch(version_branch)
     # Commit changes

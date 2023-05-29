@@ -18,9 +18,9 @@
 from __future__ import annotations
 
 import json
+from functools import cached_property
 from typing import Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 
 try:

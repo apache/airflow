@@ -37,7 +37,7 @@ runs:
       shell: bash
       run: breeze ci-image pull --tag-as-latest
       env:
-        PYTHON_MAJOR_MINOR_VERSION: "3.7"
+        PYTHON_MAJOR_MINOR_VERSION: "3.8"
     - name: "Cleanup dist and context file"
       shell: bash
       run: rm -fv ./dist/* ./docker-context-files/*

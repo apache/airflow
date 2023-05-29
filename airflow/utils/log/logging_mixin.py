@@ -32,7 +32,10 @@ ANSI_ESCAPE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
 
 # Private: A sentinel objects
 class SetContextPropagate(enum.Enum):
-    """:meta private:"""
+    """Sentinel objects for log propagation contexts.
+
+    :meta private:
+    """
 
     # If a `set_context` function wants to _keep_ propagation set on it's logger it needs to return this
     # special value.
@@ -61,7 +64,7 @@ _T = TypeVar("_T")
 
 
 class LoggingMixin:
-    """Convenience super-class to have a logger configured with the class name"""
+    """Convenience super-class to have a logger configured with the class name."""
 
     _log: logging.Logger | None = None
 
@@ -95,7 +98,7 @@ class ExternalLoggingMixin:
     @property
     @abc.abstractmethod
     def log_name(self) -> str:
-        """Return log name"""
+        """Return log name."""
 
     @abc.abstractmethod
     def get_external_log_url(self, task_instance, try_number) -> str:
@@ -114,7 +117,7 @@ class ExternalLoggingMixin:
 # IO generics (and apparently it has not even been intended)
 # See more: https://giters.com/python/typeshed/issues/6077
 class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
-    """Allows to redirect stdout and stderr to logger"""
+    """Allows to redirect stdout and stderr to logger."""
 
     encoding: None = None
 
@@ -150,7 +153,7 @@ class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
 
     def write(self, message):
         """
-        Do whatever it takes to actually log the specified logging record
+        Do whatever it takes to actually log the specified logging record.
 
         :param message: message to log
         """
@@ -161,7 +164,7 @@ class StreamLogWriter(IOBase, IO[str]):  # type: ignore[misc]
             self.flush()
 
     def flush(self):
-        """Ensure all logging output has been flushed"""
+        """Ensure all logging output has been flushed."""
         buf = self._buffer
         if len(buf) > 0:
             self._buffer = ""
@@ -213,7 +216,7 @@ class RedirectStdHandler(StreamHandler):
 
 def set_context(logger, value):
     """
-    Walks the tree of loggers and tries to set the context for each handler
+    Walks the tree of loggers and tries to set the context for each handler.
 
     :param logger: logger
     :param value: value to set
