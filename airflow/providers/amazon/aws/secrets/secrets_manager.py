@@ -21,10 +21,10 @@ from __future__ import annotations
 import json
 import re
 import warnings
+from functools import cached_property
 from typing import Any
 from urllib.parse import unquote
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.secrets import BaseSecretsBackend

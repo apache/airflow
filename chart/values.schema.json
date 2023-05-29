@@ -2076,7 +2076,7 @@
             "additionalProperties": false,
             "properties": {
                 "enabled": {
-                    "description": "Enable triggerer (requires Python 3.7+).",
+                    "description": "Enable triggerer",
                     "type": "boolean",
                     "default": true
                 },
