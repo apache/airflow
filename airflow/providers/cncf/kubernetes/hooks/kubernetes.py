@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import tempfile
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Generator
 
 from asgiref.sync import sync_to_async
@@ -27,7 +28,6 @@ from kubernetes.config import ConfigException
 from kubernetes_asyncio import client as async_client, config as async_config
 from urllib3.exceptions import HTTPError
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
