@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 import boto3
@@ -36,6 +37,8 @@ from tests.system.providers.amazon.aws.utils import (
     prune_logs,
     split_string,
 )
+
+log = logging.getLogger(__name__)
 
 DAG_ID = "example_batch"
 
@@ -92,6 +95,14 @@ def create_job_queue(job_compute_environment_name, job_queue_name):
         priority=1,
         state="ENABLED",
     )
+
+
+@task(trigger_rule=TriggerRule.ONE_FAILED)
+def get_describe_job(job_id):
+    client = boto3.client("batch")
+    response = client.describe_jobs(jobs=[job_id])
+    log.info("Describing the job %s for debugging purposes", job_id)
+    log.info(response["jobs"])
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -209,6 +220,9 @@ with DAG(
     # [END howto_sensor_batch]
     wait_for_batch_job.poke_interval = 10
 
+    # Only describe the job if the task above failed, to help diagnose
+    describe_job = get_describe_job(submit_batch_job.output)
+
     wait_for_compute_environment_disabled = BatchComputeEnvironmentSensor(
         task_id="wait_for_compute_environment_disabled",
         compute_environment=batch_job_compute_environment_name,
@@ -250,6 +264,7 @@ with DAG(
         submit_batch_job,
         wait_for_batch_job,
         # TEST TEARDOWN
+        describe_job,
         disable_job_queue(batch_job_queue_name),
         wait_for_job_queue_modified,
         delete_job_queue(batch_job_queue_name),
