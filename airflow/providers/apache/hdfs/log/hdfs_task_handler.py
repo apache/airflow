@@ -21,8 +21,8 @@ import os
 import pathlib
 import shutil
 from urllib.parse import urlsplit
+from functools import cached_property
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
 from airflow.utils.log.file_task_handler import FileTaskHandler
