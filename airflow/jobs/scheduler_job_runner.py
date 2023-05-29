@@ -389,13 +389,14 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             timer.start()
 
             try:
-                task_instances_to_examine: list[TI] = with_row_locks(
+                query = with_row_locks(
                     query,
                     of=TI,
                     session=session,
                     **skip_locked(session=session),
                 )
-                task_instances_to_examine = session.execute(task_instances_to_examine).scalars().all()
+                task_instances_to_examine: list[TI] = session.execute(query).scalars().all()
+
                 timer.stop(send=True)
             except OperationalError as e:
                 timer.stop(send=False)
@@ -1214,7 +1215,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 select(DagRun.dag_id, DagRun.execution_date).where(
                     tuple_in_condition((DagRun.dag_id, DagRun.execution_date), exec_dates.items())
                 )
-            ).unique()
+            )
         )
 
         for dag_model in dag_models:
