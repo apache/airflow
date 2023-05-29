@@ -27,7 +27,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
-    ALLOWED_EXECUTORS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MSSQL_VERSIONS,
@@ -39,9 +38,10 @@ from airflow_breeze.global_constants import (
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
-    DEFAULT_ALLOWED_EXECUTORS,
     DEFAULT_CELERY_BROKER,
     SINGLE_PLATFORMS,
+    START_AIRFLOW_ALLOWED_EXECUTORS,
+    START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
     get_available_documentation_packages,
 )
 from airflow_breeze.utils.custom_param_types import (
@@ -541,9 +541,9 @@ option_debug_resources = click.option(
 )
 option_executor = click.option(
     "--executor",
-    type=click.Choice(ALLOWED_EXECUTORS, case_sensitive=False),
+    type=click.Choice(START_AIRFLOW_ALLOWED_EXECUTORS, case_sensitive=False),
     help="Specify the executor to use with airflow.",
-    default=DEFAULT_ALLOWED_EXECUTORS,
+    default=START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
     show_default=True,
 )
 option_celery_broker = click.option(

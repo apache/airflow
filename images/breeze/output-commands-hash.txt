@@ -55,7 +55,7 @@ setup:self-upgrade:d02f70c7a230eae3463ceec2056b63fa
 setup:version:123b462a421884dc2320ffc5e54b2478
 setup:f576a6309f2be7a4507304eb7700ad82
 shell:bd3e004a92ebcec8feb40fc5cd95872d
-start-airflow:8cb333e7a2286032074f07ec63b51fcf
+start-airflow:63ec94cf7b21ff21f17cba992ada97b5
 static-checks:9985d1db64592e29ab71b8a000ce302e
 testing:docker-compose-tests:fb26a48e083b0a5c6eae2ebd052eaf72
 testing:helm-tests:936cf28fd84ce4ff5113795fdae9624b

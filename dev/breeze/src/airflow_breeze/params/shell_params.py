@@ -32,13 +32,13 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
-    DEFAULT_ALLOWED_EXECUTORS,
     DEFAULT_CELERY_BROKER,
     DOCKER_DEFAULT_PLATFORM,
     MOUNT_ALL,
     MOUNT_REMOVE,
     MOUNT_SELECTED,
     MOUNT_SKIP,
+    START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
     TESTABLE_INTEGRATIONS,
     get_airflow_version,
 )
@@ -119,7 +119,7 @@ class ShellParams:
     dry_run: bool = False
     verbose: bool = False
     upgrade_boto: bool = False
-    executor: str = DEFAULT_ALLOWED_EXECUTORS
+    executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS
     celery_broker: str = DEFAULT_CELERY_BROKER
     celery_flower: bool = False
     only_min_version_update: bool = False
