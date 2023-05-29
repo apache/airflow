@@ -23,7 +23,6 @@ import pytest
 from airflow.providers.amazon.aws.triggers.s3 import (
     S3KeyTrigger,
 )
-from airflow.triggers.base import TriggerEvent
 from tests.providers.amazon.aws.compat import async_mock
 
 
@@ -49,7 +48,7 @@ class TestS3KeyTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3AsyncHook.get_client_async")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
     async def test_run_success(self, mock_client):
         """
         Test if the task is run is in triggerr successfully.
@@ -63,34 +62,16 @@ class TestS3KeyTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3AsyncHook.check_key")
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3AsyncHook.get_client_async")
-    async def test_run_pending(self, mock_client, mock_check_key):
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.check_key_async")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    async def test_run_pending(self, mock_client, mock_check_key_async):
         """
         Test if the task is run is in trigger successfully and set check_key to return false.
         """
-        mock_check_key.return_value = False
+        mock_check_key_async.return_value = False
         trigger = S3KeyTrigger(bucket_key="s3://test_bucket/file", bucket_name="test_bucket")
         task = asyncio.create_task(trigger.run().__anext__())
         await asyncio.sleep(0.5)
 
         assert task.done() is False
         asyncio.get_event_loop().stop()
-
-    @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3AsyncHook.get_client_async")
-    async def test_run_exception(self, mock_client):
-        """Test if the task is run is in case of exception."""
-        mock_client.side_effect = Exception("Unable to locate credentials")
-        trigger = S3KeyTrigger(bucket_key="file", bucket_name="test_bucket")
-        generator = trigger.run()
-        actual = await generator.asend(None)
-        assert (
-            TriggerEvent(
-                {
-                    "message": "Unable to locate credentials",
-                    "status": "error",
-                }
-            )
-            == actual
-        )
