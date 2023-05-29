@@ -28,14 +28,44 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.5.1
+.....
+
+Latest change: 2023-05-23
+
+=================================================================================================  ===========  ======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================
+`547e352578 <https://github.com/apache/airflow/commit/547e352578fac92f072b269dc257d21cdc279d97>`_  2023-05-23   ``Bring back min-airflow-version for preinstalled providers (#31469)``
+=================================================================================================  ===========  ======================================================================
+
+1.5.0
+.....
+
+Latest change: 2023-05-19
+
+=================================================================================================  ===========  ======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================
+`45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
+`abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
+`f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
+`edd7133a13 <https://github.com/apache/airflow/commit/edd7133a1336c9553d77ba13c83bc7f48d4c63f0>`_  2023-05-09   ``Add conditional output processing in SQL operators (#31136)``
+`00a527f671 <https://github.com/apache/airflow/commit/00a527f67111cc4f2bb03ff374f21b9f4930727c>`_  2023-05-08   ``Remove noisy log from SQL table check (#31037)``
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+=================================================================================================  ===========  ======================================================================================
+
 1.4.0
 .....
 
-Latest change: 2023-03-08
+Latest change: 2023-04-02
 
 =================================================================================================  ===========  ==============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================
+`55dbf1ff1f <https://github.com/apache/airflow/commit/55dbf1ff1fb0b22714f695a66f6108b3249d1199>`_  2023-04-02   ``Prepare docs for April 2023 wave of Providers (#30378)``
 `a9b79a27b2 <https://github.com/apache/airflow/commit/a9b79a27b25a47c7e0390c139b517f229fdacd12>`_  2023-03-08   ``Add option to show output of 'SQLExecuteQueryOperator' in the log (#29954)``
 `95710e0cdd <https://github.com/apache/airflow/commit/95710e0cdd54d3ac37d0148466705a81b31bcb7f>`_  2023-03-03   ``Fix Python API docs formatting for Common SQL provider (#29863)``
 =================================================================================================  ===========  ==============================================================================

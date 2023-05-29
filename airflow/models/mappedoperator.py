@@ -289,6 +289,10 @@ class MappedOperator(AbstractOperator):
     """
 
     subdag: None = None  # Since we don't support SubDagOperator, this is always None.
+    supports_lineage: bool = False
+    is_setup: bool = False
+    is_teardown: bool = False
+    on_failure_fail_dagrun: bool = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
         (
@@ -334,6 +338,10 @@ class MappedOperator(AbstractOperator):
             "subdag",
             "task_group",
             "upstream_task_ids",
+            "supports_lineage",
+            "is_setup",
+            "is_teardown",
+            "on_failure_fail_dagrun",
         }
 
     @staticmethod
@@ -541,7 +549,7 @@ class MappedOperator(AbstractOperator):
 
     @property
     def output(self) -> XComArg:
-        """Returns reference to XCom pushed by current operator"""
+        """Returns reference to XCom pushed by current operator."""
         from airflow.models.xcom_arg import XComArg
 
         return XComArg(operator=self)

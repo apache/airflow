@@ -135,7 +135,7 @@ class Param:
         return final_val
 
     def dump(self) -> dict:
-        """Dump the Param as a dictionary"""
+        """Dump the Param as a dictionary."""
         out_dict = {self.CLASS_IDENTIFIER: f"{self.__module__}.{self.__class__.__name__}"}
         out_dict.update(self.__dict__)
         return out_dict
@@ -245,7 +245,7 @@ class ParamsDict(MutableMapping[str, Any]):
         return param.resolve(suppress_exception=self.suppress_exception)
 
     def get_param(self, key: str) -> Param:
-        """Get the internal :class:`.Param` object for this key"""
+        """Get the internal :class:`.Param` object for this key."""
         return self.__dict[key]
 
     def items(self):
@@ -260,11 +260,11 @@ class ParamsDict(MutableMapping[str, Any]):
         super().update(*args, **kwargs)
 
     def dump(self) -> dict[str, Any]:
-        """Dumps the ParamsDict object as a dictionary, while suppressing exceptions"""
+        """Dumps the ParamsDict object as a dictionary, while suppressing exceptions."""
         return {k: v.resolve(suppress_exception=True) for k, v in self.items()}
 
     def validate(self) -> dict[str, Any]:
-        """Validates & returns all the Params object stored in the dictionary"""
+        """Validates & returns all the Params object stored in the dictionary."""
         resolved_dict = {}
         try:
             for k, v in self.items():

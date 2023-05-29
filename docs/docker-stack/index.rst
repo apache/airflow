@@ -125,13 +125,13 @@ The reference Docker Image supports the following platforms and database:
 
 
 * Intel platform (x86_64)
-  * Postgres Client
-  * MySQL Client
-  * MSSQL Client
+   * Postgres Client
+   * MySQL Client
+   * MSSQL Client
 
 * ARM platform (aarch64) - experimental support, might change any time
-  * Postgres Client
-  * MSSQL Client
+   * Postgres Client
+   * MSSQL Client
 
 Usage
 =====

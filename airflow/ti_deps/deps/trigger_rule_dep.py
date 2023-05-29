@@ -69,7 +69,7 @@ class _UpstreamTIStates(NamedTuple):
             curr_state = {ti.state: 1}
             counter.update(curr_state)
             # setup task cannot be mapped
-            if not isinstance(ti.task, MappedOperator) and ti.task._is_setup:
+            if not isinstance(ti.task, MappedOperator) and ti.task.is_setup:
                 setup_counter.update(curr_state)
         return _UpstreamTIStates(
             success=counter.get(TaskInstanceState.SUCCESS, 0),
@@ -231,7 +231,7 @@ class TriggerRuleDep(BaseTIDep):
         if not any(needs_expansion(t) for t in upstream_tasks.values()):
             upstream = len(upstream_tasks)
             upstream_setup = len(
-                [x for x in upstream_tasks.values() if not isinstance(x, MappedOperator) and x._is_setup]
+                [x for x in upstream_tasks.values() if not isinstance(x, MappedOperator) and x.is_setup]
             )
         else:
             upstream = (

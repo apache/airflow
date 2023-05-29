@@ -78,12 +78,12 @@ class DependencyMixin:
         """
 
     def __lshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
-        """Implements Task << Task"""
+        """Implements Task << Task."""
         self.set_upstream(other)
         return other
 
     def __rshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
-        """Implements Task >> Task"""
+        """Implements Task >> Task."""
         self.set_downstream(other)
         return other
 
@@ -99,7 +99,10 @@ class DependencyMixin:
 
 
 class TaskMixin(DependencyMixin):
-    """:meta private:"""
+    """Mixin to provide task-related things.
+
+    :meta private:
+    """
 
     def __init_subclass__(cls) -> None:
         warnings.warn(
@@ -143,7 +146,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
     @property
     def dag_id(self) -> str:
-        """Returns dag id if it has one or an adhoc/meaningless ID"""
+        """Returns dag id if it has one or an adhoc/meaningless ID."""
         if self.dag:
             return self.dag.dag_id
         return "_in_memory_dag_"
@@ -205,25 +208,18 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
             # If this task does not yet have a dag, add it to the same dag as the other task.
             self.dag = dag
 
-        def add_only_new(obj, item_set: set[str], item: str) -> None:
-            """Adds only new items to item set"""
-            if item in item_set:
-                self.log.warning("Dependency %s, %s already registered for DAG: %s", obj, item, dag.dag_id)
-            else:
-                item_set.add(item)
-
         for task in task_list:
             if dag and not task.has_dag():
                 # If the other task does not yet have a dag, add it to the same dag as this task and
                 dag.add_task(task)
             if upstream:
-                add_only_new(task, task.downstream_task_ids, self.node_id)
-                add_only_new(self, self.upstream_task_ids, task.node_id)
+                task.downstream_task_ids.add(self.node_id)
+                self.upstream_task_ids.add(task.node_id)
                 if edge_modifier:
                     edge_modifier.add_edge_info(self.dag, task.node_id, self.node_id)
             else:
-                add_only_new(self, self.downstream_task_ids, task.node_id)
-                add_only_new(task, task.upstream_task_ids, self.node_id)
+                self.downstream_task_ids.add(task.node_id)
+                task.upstream_task_ids.add(self.node_id)
                 if edge_modifier:
                     edge_modifier.add_edge_info(self.dag, self.node_id, task.node_id)
 
@@ -245,14 +241,14 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
 
     @property
     def downstream_list(self) -> Iterable[Operator]:
-        """List of nodes directly downstream"""
+        """List of nodes directly downstream."""
         if not self.dag:
             raise AirflowException(f"Operator {self} has not been assigned to a DAG yet")
         return [self.dag.get_task(tid) for tid in self.downstream_task_ids]
 
     @property
     def upstream_list(self) -> Iterable[Operator]:
-        """List of nodes directly upstream"""
+        """List of nodes directly upstream."""
         if not self.dag:
             raise AirflowException(f"Operator {self} has not been assigned to a DAG yet")
         return [self.dag.get_task(tid) for tid in self.upstream_task_ids]
