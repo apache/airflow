@@ -66,6 +66,8 @@ SnowflakeSqlApiOperator
 Use the :class:`SnowflakeSqlApiHook <airflow.providers.snowflake.operators.snowflake>` to execute
 SQL commands in a `Snowflake <https://docs.snowflake.com/en/>`__ database.
 
+You can also run this operator in deferrable mode by setting ``deferrable`` param to ``True``.
+This will ensure that the task is deferred from the Airflow worker slot and polling for the task status happens on the trigger.
 
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
