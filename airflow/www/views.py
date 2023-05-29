@@ -77,6 +77,7 @@ from wtforms import SelectField, validators
 
 import airflow
 from airflow import models, plugins_manager, settings
+from airflow.api.common.airflow_health import get_airflow_health
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
     set_dag_run_state_to_queued,
@@ -650,29 +651,11 @@ class Airflow(AirflowBaseView):
     def health(self):
         """
         An endpoint helping check the health status of the Airflow instance,
-        including metadatabase and scheduler.
+        including metadatabase, scheduler and triggerer.
         """
-        payload = {"metadatabase": {"status": "unhealthy"}}
+        airflow_health_status = get_airflow_health()
 
-        latest_scheduler_heartbeat = None
-        scheduler_status = "unhealthy"
-        payload["metadatabase"] = {"status": "healthy"}
-        try:
-            scheduler_job = SchedulerJobRunner.most_recent_job()
-
-            if scheduler_job:
-                latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
-                if scheduler_job.is_alive():
-                    scheduler_status = "healthy"
-        except Exception:
-            payload["metadatabase"]["status"] = "unhealthy"
-
-        payload["scheduler"] = {
-            "status": scheduler_status,
-            "latest_scheduler_heartbeat": latest_scheduler_heartbeat,
-        }
-
-        return flask.json.jsonify(payload)
+        return flask.json.jsonify(airflow_health_status)
 
     @expose("/home")
     @auth.has_access(
@@ -756,13 +739,48 @@ class Airflow(AirflowBaseView):
             active_dags = dags_query.filter(~DagModel.is_paused)
             paused_dags = dags_query.filter(DagModel.is_paused)
 
+            # find DAGs which have a RUNNING DagRun
+            running_dags = dags_query.join(DagRun, DagModel.dag_id == DagRun.dag_id).filter(
+                DagRun.state == State.RUNNING
+            )
+
+            # find DAGs for which the latest DagRun is FAILED
+            subq_all = (
+                session.query(DagRun.dag_id, func.max(DagRun.start_date).label("start_date"))
+                .group_by(DagRun.dag_id)
+                .subquery()
+            )
+            subq_failed = (
+                session.query(DagRun.dag_id, func.max(DagRun.start_date).label("start_date"))
+                .filter(DagRun.state == State.FAILED)
+                .group_by(DagRun.dag_id)
+                .subquery()
+            )
+            subq_join = (
+                session.query(subq_all.c.dag_id, subq_all.c.start_date)
+                .join(
+                    subq_failed,
+                    and_(
+                        subq_all.c.dag_id == subq_failed.c.dag_id,
+                        subq_all.c.start_date == subq_failed.c.start_date,
+                    ),
+                )
+                .subquery()
+            )
+            failed_dags = dags_query.join(subq_join, DagModel.dag_id == subq_join.c.dag_id)
+
             is_paused_count = dict(
                 all_dags.with_entities(DagModel.is_paused, func.count(DagModel.dag_id))
                 .group_by(DagModel.is_paused)
                 .all()
             )
+
             status_count_active = is_paused_count.get(False, 0)
             status_count_paused = is_paused_count.get(True, 0)
+
+            status_count_running = running_dags.count()
+            status_count_failed = failed_dags.count()
+
             all_dags_count = status_count_active + status_count_paused
             if arg_status_filter == "active":
                 current_dags = active_dags
@@ -770,6 +788,12 @@ class Airflow(AirflowBaseView):
             elif arg_status_filter == "paused":
                 current_dags = paused_dags
                 num_of_all_dags = status_count_paused
+            elif arg_status_filter == "running":
+                current_dags = running_dags
+                num_of_all_dags = status_count_running
+            elif arg_status_filter == "failed":
+                current_dags = failed_dags
+                num_of_all_dags = status_count_failed
             else:
                 current_dags = all_dags
                 num_of_all_dags = all_dags_count
@@ -824,7 +848,7 @@ class Airflow(AirflowBaseView):
                 dag.can_trigger = dag.can_edit and can_create_dag_run
                 dag.can_delete = get_airflow_app().appbuilder.sm.can_delete_dag(dag.dag_id, g.user)
 
-            dagtags = session.query(func.distinct(DagTag.name)).all()
+            dagtags = session.query(func.distinct(DagTag.name)).order_by(DagTag.name).all()
             tags = [
                 {"name": name, "selected": bool(arg_tags_filter and name in arg_tags_filter)}
                 for name, in dagtags
@@ -931,6 +955,8 @@ class Airflow(AirflowBaseView):
             status_count_all=all_dags_count,
             status_count_active=status_count_active,
             status_count_paused=status_count_paused,
+            status_count_running=status_count_running,
+            status_count_failed=status_count_failed,
             tags_filter=arg_tags_filter,
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
@@ -5150,7 +5176,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "run_type",
         "start_date",
         "end_date",
-        # "note",  # todo: maybe figure out how to re-enable this
+        "note",
         "external_trigger",
     ]
     label_columns = {
@@ -5531,7 +5557,15 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     ]
 
     order_columns = [
-        item for item in list_columns if item not in ["try_number", "log_url", "external_executor_id"]
+        item
+        for item in list_columns
+        if item
+        not in [
+            "try_number",
+            "log_url",
+            "external_executor_id",
+            "note",  # todo: maybe figure out how to re-enable this
+        ]
     ]
 
     label_columns = {
@@ -5548,7 +5582,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
         "operator",
         "start_date",
         "end_date",
-        # "note",  # todo: maybe make note work with TI search?
+        "note",
         "hostname",
         "priority_weight",
         "queue",

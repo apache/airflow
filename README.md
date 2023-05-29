@@ -88,7 +88,7 @@ Apache Airflow is tested with:
 
 |            | Main version (dev)           | Stable version (2.6.1) |
 |------------|------------------------------|------------------------|
-| Python     | 3.7, 3.8, 3.9, 3.10          | 3.7, 3.8, 3.9, 3.10    |
+| Python     | 3.7, 3.8, 3.9, 3.10, 3.11    | 3.7, 3.8, 3.9, 3.10    |
 | Platform   | AMD64/ARM64(\*)              | AMD64/ARM64(\*)        |
 | Kubernetes | 1.23, 1.24, 1.25, 1.26, 1.27 | 1.23, 1.24, 1.25, 1.26 |
 | PostgreSQL | 11, 12, 13, 14, 15           | 11, 12, 13, 14, 15     |
@@ -152,6 +152,11 @@ While it is possible to install Airflow with tools like [Poetry](https://python-
 [pip-tools](https://pypi.org/project/pip-tools), they do not share the same workflow as
 `pip` - especially when it comes to constraint vs. requirements management.
 Installing via `Poetry` or `pip-tools` is not currently supported.
+
+There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
+Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
+the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
+newer versions of ``bazel`` will handle it.
 
 If you wish to install Airflow using those tools, you should use the constraint files and convert
 them to the appropriate format and workflow that your tool requires.
@@ -312,6 +317,9 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 3. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
    make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
    new versions of Python mostly) we release new images/support in Airflow based on the working CI setup.
+
+4. This policy is best-effort which means there may be situations where we might terminate support earlier
+   if circumstances require it.
 
 ## Base OS support for reference Airflow images
 

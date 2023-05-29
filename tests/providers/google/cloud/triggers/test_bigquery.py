@@ -224,6 +224,7 @@ class TestBigQueryGetDataTrigger:
         classpath, kwargs = get_data_trigger.serialize()
         assert classpath == "airflow.providers.google.cloud.triggers.bigquery.BigQueryGetDataTrigger"
         assert kwargs == {
+            "as_dict": False,
             "conn_id": TEST_CONN_ID,
             "job_id": TEST_JOB_ID,
             "dataset_id": TEST_DATASET_ID,
