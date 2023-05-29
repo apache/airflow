@@ -104,9 +104,9 @@ class RedshiftSQLHook(DbApiHook):
         port = conn.port or 5439
         # Pull the custer-identifier from the beginning of the Redshift URL
         # ex. my-cluster.ccdre4hpd39h.us-east-1.redshift.amazonaws.com returns my-cluster
-        cluster_identifier = conn.extra_dejson.get("cluster_identifier", None)
-        if conn.host and not cluster_identifier:
-            cluster_identifier = conn.host.split(".")[0]
+        cluster_identifier = conn.extra_dejson.get("cluster_identifier")
+        if not cluster_identifier and conn.host:
+            cluster_identifier = conn.host.split(".", 1)[0]
         if not cluster_identifier:
             raise Exception("Please set cluster_identifier or host in redshift connection.")
         redshift_client = AwsBaseHook(aws_conn_id=self.aws_conn_id, client_type="redshift").conn
