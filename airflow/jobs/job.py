@@ -142,7 +142,7 @@ class Job(Base, LoggingMixin):
     @provide_session
     def kill(self, session: Session = NEW_SESSION) -> NoReturn:
         """Handles on_kill callback and updates state in database."""
-        job = session.scalar(select(Job).where(Job.id == self.id))
+        job = session.scalars(select(Job).where(Job.id == self.id).limit(1)).first()
         job.end_date = timezone.utcnow()
         try:
             self.on_kill()
@@ -252,7 +252,7 @@ def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None
     :param job_type: job type to query for to get the most recent job for
     :param session: Database session
     """
-    return session.scalar(
+    return session.scalars(
         select(Job)
         .where(Job.job_type == job_type)
         .order_by(
@@ -260,7 +260,8 @@ def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None
             case({State.RUNNING: 0}, value=Job.state, else_=1),
             Job.latest_heartbeat.desc(),
         )
-    )
+        .limit(1)
+    ).first()
 
 
 @provide_session

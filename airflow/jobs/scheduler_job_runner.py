@@ -1243,7 +1243,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             # instead of falling in a loop of Integrity Error.
             exec_date = exec_dates[dag.dag_id]
             if (dag.dag_id, exec_date) not in existing_dagruns:
-                previous_dag_run = session.scalar(
+                previous_dag_run = session.scalars(
                     select(DagRun)
                     .where(
                         DagRun.dag_id == dag.dag_id,
@@ -1251,7 +1251,8 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         DagRun.run_type == DagRunType.DATASET_TRIGGERED,
                     )
                     .order_by(DagRun.execution_date.desc())
-                )
+                    .limit(1)
+                ).first()
                 dataset_event_filters = [
                     DagScheduleDatasetReference.dag_id == dag.dag_id,
                     DatasetEvent.timestamp <= exec_date,
