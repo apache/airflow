@@ -20,7 +20,9 @@ from __future__ import annotations
 import fnmatch
 import os
 import re
-from datetime import datetime, timedelta
+
+from datetime import datetime
+from functools import cached_property, timedelta
 from typing import TYPE_CHECKING, Any, Callable, List, Sequence, cast
 
 from deprecated import deprecated
@@ -28,7 +30,6 @@ from deprecated import deprecated
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.triggers.s3 import S3KeyTrigger

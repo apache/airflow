@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import time
 from enum import Enum
-from functools import wraps
+from functools import cached_property, wraps
 from inspect import signature
 from typing import TYPE_CHECKING, Any, Callable, Sequence, Set, TypeVar, cast
 
@@ -29,7 +29,6 @@ from asgiref.sync import sync_to_async
 from requests.auth import AuthBase
 from requests.sessions import Session
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.typing_compat import TypedDict

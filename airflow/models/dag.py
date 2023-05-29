@@ -64,7 +64,6 @@ from sqlalchemy.sql import expression
 import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowDagInconsistent,
@@ -961,7 +960,7 @@ class DAG(LoggingMixin):
             return None
         return info.run_after
 
-    @cached_property
+    @functools.cached_property
     def _time_restriction(self) -> TimeRestriction:
         start_dates = [t.start_date for t in self.tasks if t.start_date]
         if self.start_date is not None:
@@ -2417,7 +2416,7 @@ class DAG(LoggingMixin):
     def has_task_group(self, task_group_id: str) -> bool:
         return task_group_id in self.task_group_dict
 
-    @cached_property
+    @functools.cached_property
     def task_group_dict(self):
         return {k: v for k, v in self._task_group.get_task_group_dict().items() if k is not None}
 
