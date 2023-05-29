@@ -21,7 +21,6 @@ implementation for BigQuery.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import re
@@ -62,6 +61,12 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
+
+try:
+    from airflow.utils.hashlib_wrapper import md5
+except ModuleNotFoundError:
+    # Remove when Airflow providers min Airflow version is "2.7.0"
+    from hashlib import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -1527,7 +1532,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     @staticmethod
     def _custom_job_id(configuration: dict[str, Any]) -> str:
         hash_base = json.dumps(configuration, sort_keys=True)
-        uniqueness_suffix = hashlib.md5(hash_base.encode()).hexdigest()
+        uniqueness_suffix = md5(hash_base.encode()).hexdigest()
         microseconds_from_epoch = int(
             (datetime.now() - datetime.fromtimestamp(0)) / timedelta(microseconds=1)
         )
@@ -2258,7 +2263,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         else:
             hash_base = json.dumps(configuration, sort_keys=True)
 
-        uniqueness_suffix = hashlib.md5(hash_base.encode()).hexdigest()
+        uniqueness_suffix = md5(hash_base.encode()).hexdigest()
 
         if job_id:
             return f"{job_id}_{uniqueness_suffix}"
