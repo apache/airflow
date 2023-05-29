@@ -49,7 +49,6 @@ if "sentinel_kwargs" in broker_transport_options:
     except Exception:
         raise AirflowException("sentinel_kwargs should be written in the correct dictionary format.")
 
-
 if conf.has_option("celery", "RESULT_BACKEND"):
     result_backend = conf.get_mandatory_value("celery", "RESULT_BACKEND")
 else:
