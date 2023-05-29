@@ -225,6 +225,7 @@ class KubernetesPodOperator(BaseOperator):
         container name to use.
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
+    :param log_pod_on_failure: If pod template should be logged in a case of task fail.
     """
 
     # This field can be overloaded at the instance level via base_container_name
@@ -301,6 +302,7 @@ class KubernetesPodOperator(BaseOperator):
         base_container_name: str | None = None,
         deferrable: bool = False,
         poll_interval: float = 2,
+        log_pod_on_failure: bool = False,
         **kwargs,
     ) -> None:
         # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
@@ -381,6 +383,7 @@ class KubernetesPodOperator(BaseOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.remote_pod: k8s.V1Pod | None = None
+        self.log_pod_on_failure = log_pod_on_failure
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
 
     @cached_property
@@ -676,7 +679,6 @@ class KubernetesPodOperator(BaseOperator):
             self.process_pod_deletion(remote_pod, reraise=False)
 
             error_message = get_container_termination_message(remote_pod, self.base_container_name)
-            error_message = "\n" + error_message if error_message else ""
             if self.skip_on_exit_code is not None:
                 container_statuses = (
                     remote_pod.status.container_statuses if remote_pod and remote_pod.status else None
@@ -696,10 +698,11 @@ class KubernetesPodOperator(BaseOperator):
                         f"Pod {pod and pod.metadata.name} returned exit code "
                         f"{self.skip_on_exit_code}. Skipping."
                     )
-            raise AirflowException(
-                f"Pod {pod and pod.metadata.name} returned a failure:\n{error_message}\n"
-                f"remote_pod: {remote_pod}"
-            )
+            raise AirflowException('\n'.join(filter(None, [
+                f"Pod {pod and pod.metadata.name} returned a failure.",
+                error_message,
+                f"remote_pod: {remote_pod}" if self.log_pod_on_failure else None
+            ])))
         else:
             self.process_pod_deletion(remote_pod, reraise=False)
 
