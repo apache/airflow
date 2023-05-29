@@ -21,20 +21,15 @@ import logging
 import math
 import pickle
 import re
-import sys
 import textwrap
 from datetime import datetime
+from functools import cached_property
 
 import pendulum
 import rich_click as click
 from github import Github
 from github.PullRequest import PullRequest
 from rich.console import Console
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 logger = logging.getLogger(__name__)
 

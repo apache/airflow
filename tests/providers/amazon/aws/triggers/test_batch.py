@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+from unittest.mock import AsyncMock
+
 import pytest
 
 from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger
 from airflow.triggers.base import TriggerEvent
-from tests.providers.amazon.aws.utils.compat import AsyncMock, async_mock
 
 BATCH_JOB_ID = "job_id"
 POLL_INTERVAL = 5
@@ -47,11 +49,11 @@ class TestBatchOperatorTrigger:
         assert args["region_name"] == AWS_REGION
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.get_waiter")
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.async_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.async_conn")
     async def test_batch_job_trigger_run(self, mock_async_conn, mock_get_waiter):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        the_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = the_mock
 
         mock_get_waiter().wait = AsyncMock()
 

@@ -21,6 +21,7 @@ import fnmatch
 import os
 import re
 from datetime import datetime
+from functools import cached_property
 from typing import TYPE_CHECKING, Callable, Sequence
 
 from deprecated import deprecated
@@ -28,7 +29,6 @@ from deprecated import deprecated
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only

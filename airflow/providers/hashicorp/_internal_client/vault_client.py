@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
+
 import hvac
 from hvac.api.auth_methods import Kubernetes
 from hvac.exceptions import InvalidPath, VaultError
 from requests import Response
 
-from airflow.compat.functools import cached_property
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 DEFAULT_KUBERNETES_JWT_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
