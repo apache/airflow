@@ -949,7 +949,8 @@ def _deploy_helm_chart(
     extra_options: tuple[str, ...] | None = None,
 ) -> RunCommandResult:
     cluster_name = get_kubectl_cluster_name(python=python, kubernetes_version=kubernetes_version)
-    get_console(output=output).print(f"[info]Deploying {cluster_name} with airflow Helm Chart.")
+    action = "Deploying" if not upgrade else "Upgrading"
+    get_console(output=output).print(f"[info]{action} {cluster_name} with airflow Helm Chart.")
     with tempfile.TemporaryDirectory(prefix="chart_") as tmp_dir:
         tmp_chart_path = Path(tmp_dir).resolve() / "chart"
         shutil.copytree(CHART_PATH, os.fspath(tmp_chart_path), ignore_dangling_symlinks=True)
