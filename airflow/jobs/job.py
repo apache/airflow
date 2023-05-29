@@ -142,7 +142,7 @@ class Job(Base, LoggingMixin):
     @provide_session
     def kill(self, session: Session = NEW_SESSION) -> NoReturn:
         """Handles on_kill callback and updates state in database."""
-        job = session.scalars(select(Job).where(Job.id == self.id).limit(1)).first()
+        job = session.scalar(select(Job).where(Job.id == self.id).limit(1))
         job.end_date = timezone.utcnow()
         try:
             self.on_kill()

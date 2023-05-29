@@ -324,9 +324,9 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     """Return DAG executions' run_ids."""
     last_dagrun = dag.get_last_dagrun(include_externally_triggered=True, session=session)
     current_dagrun = dag.get_dagrun(run_id=run_id, session=session)
-    first_dagrun = session.scalars(
+    first_dagrun = session.scalar(
         select(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.execution_date.asc()).limit(1)
-    ).first()
+    )
 
     if last_dagrun is None:
         raise ValueError(f"DagRun for {dag.dag_id} not found")
