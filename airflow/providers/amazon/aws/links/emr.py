@@ -41,6 +41,11 @@ class EmrLogsLink(BaseAwsLink):
     key = "emr_logs"
     format_str = BASE_AWS_CONSOLE_LINK + "/s3/buckets/{log_uri}?region={region_name}&prefix={job_flow_id}/"
 
+    def format_link(self, **kwargs) -> str:
+        if not kwargs["log_uri"]:
+            return ""
+        return super().format_link(**kwargs)
+
 
 def get_log_uri(
     *, cluster: dict[str, Any] | None = None, emr_client: boto3.client = None, job_flow_id: str | None = None
