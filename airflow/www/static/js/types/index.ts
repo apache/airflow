@@ -130,16 +130,33 @@ interface DatasetListItem extends API.Dataset {
   totalUpdates: number;
 }
 
+type MinimalTaskInstance = Pick<TaskInstance, "taskId" | "mapIndex" | "runId">;
+
+type PrimaryShortcutKey = "ctrlKey" | "shiftKey" | "altKey" | "metaKey";
+
+interface KeyboardShortcutKeys {
+  primaryKey: PrimaryShortcutKey;
+  secondaryKey: Array<string>;
+  detail: string;
+}
+
+interface KeyboardShortcutIdentifier {
+  [name: string]: KeyboardShortcutKeys;
+}
+
 export type {
+  API,
+  MinimalTaskInstance,
   Dag,
   DagRun,
-  RunState,
-  TaskState,
-  TaskInstance,
-  Task,
-  DepNode,
-  DepEdge,
-  API,
-  RunOrdering,
   DatasetListItem,
+  DepEdge,
+  DepNode,
+  RunOrdering,
+  RunState,
+  Task,
+  TaskInstance,
+  TaskState,
+  KeyboardShortcutKeys,
+  KeyboardShortcutIdentifier,
 };

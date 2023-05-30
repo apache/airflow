@@ -149,7 +149,7 @@ class LocalKubernetesExecutor(LoggingMixin):
         )
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
-        """Fetch task log from kubernetes executor"""
+        """Fetch task log from kubernetes executor."""
         if ti.queue == self.kubernetes_executor.kubernetes_queue:
             return self.kubernetes_executor.get_task_log(ti=ti, try_number=try_number)
         return [], []
@@ -197,6 +197,12 @@ class LocalKubernetesExecutor(LoggingMixin):
             *self.local_executor.try_adopt_task_instances(local_tis),
             *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
         ]
+
+    def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
+        # LocalExecutor doesn't have a cleanup_stuck_queued_tasks method, so we
+        # will only run KubernetesExecutor's
+        kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
+        return self.kubernetes_executor.cleanup_stuck_queued_tasks(kubernetes_tis)
 
     def end(self) -> None:
         """End local and kubernetes executor."""

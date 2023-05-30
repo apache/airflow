@@ -24,6 +24,74 @@
 Changelog
 ---------
 
+
+
+7.0.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. note::
+  Return None when namespace is not defined in the Kubernetes connection
+
+* ``Remove deprecated features from KubernetesHook (#31402)``
+
+Features
+~~~~~~~~
+
+.. note::
+  If ``kubernetes_default`` connection is not defined, then KubernetesHook / KubernetesPodOperator will behave as though given ``conn_id=None``.
+  This should make it easier to mitigate breaking change introduced in 6.0.0
+
+* ``K8s hook should still work with missing default conn (#31187)``
+* ``Add protocol to define methods relied upon by KubernetesPodOperator (#31298)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix kubernetes task decorator pickle error (#31110)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+* ``Empty xcom result file log message more specific (#31228)``
+* ``Add options to KubernetesPodOperator (#30992)``
+* ``add missing read for K8S config file from conn in deferred 'KubernetesPodOperator'  (#29498)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``Upgrade ruff to 0.0.262 (#30809)``
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Add cli cmd to list the provider trigger info (#30822)``
+   * ``Fix pod describing on system test failure (#31191)``
+   * ``Docstring improvements (#31375)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+
+6.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add multiple exit code handling in skip logic for 'DockerOperator' and 'KubernetesPodOperator' (#30769)``
+* ``Skip KubernetesPodOperator task when it returns a provided exit code (#29000)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Deprecate 'skip_exit_code' in 'DockerOperator' and 'KubernetesPodOperator' (#30733)``
+  * ``Remove skip_exit_code from KubernetesPodOperator (#30788)``
+
 6.0.0
 .....
 
@@ -145,8 +213,9 @@ Misc
 5.0.0
 .....
 
-This release of provider is only available for Airflow 2.3+ as explained in the
-`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~

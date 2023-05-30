@@ -24,6 +24,7 @@ from typing import ClassVar
 
 import attr
 import pytest
+from pydantic import BaseModel
 
 from airflow.datasets import Dataset
 from airflow.serialization.serde import (
@@ -60,6 +61,9 @@ class Z:
             raise TypeError("version != 1")
         return Z(data["x"])
 
+    def __eq__(self, other):
+        return self.x == other.x
+
 
 @attr.define
 class Y:
@@ -87,6 +91,13 @@ class V:
     s: list
     t: tuple
     c: int
+
+
+class U(BaseModel):
+    __version__: ClassVar[int] = 1
+    x: int
+    v: V
+    u: tuple
 
 
 @pytest.mark.usefixtures("recalculate_patterns")
@@ -309,3 +320,14 @@ class TestSerDe:
     )
     def test_serialized_data(self, obj, expected):
         assert expected == serialize(obj)
+
+    def test_deserialize_non_serialized_data(self):
+        i = Z(10)
+        e = deserialize(i)
+        assert i == e
+
+    def test_pydantic(self):
+        i = U(x=10, v=V(W(10), ["l1", "l2"], (1, 2), 10), u=(1, 2))
+        e = serialize(i)
+        s = deserialize(e)
+        assert i == s

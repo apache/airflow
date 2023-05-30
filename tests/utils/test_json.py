@@ -30,6 +30,25 @@ from airflow.datasets import Dataset
 from airflow.utils import json as utils_json
 
 
+class Z:
+    __version__: ClassVar[int] = 1
+
+    def __init__(self, x):
+        self.x = x
+
+    def serialize(self) -> dict:
+        return dict({"x": self.x})
+
+    @staticmethod
+    def deserialize(data: dict, version: int):
+        if version != 1:
+            raise TypeError("version != 1")
+        return Z(data["x"])
+
+    def __eq__(self, other):
+        return self.x == other.x
+
+
 @dataclass
 class U:
     __version__: ClassVar[int] = 2
@@ -71,6 +90,26 @@ class TestXComEncoder:
         s = json.dumps(dataset, cls=utils_json.XComEncoder)
         obj = json.loads(s, cls=utils_json.XComDecoder)
         assert dataset.uri == obj.uri
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            ({"foo": 1, "bar": 2},),
+            ({"foo": 1, "bar": 2, "baz": Z(1)},),
+            (
+                {"foo": 1, "bar": 2},
+                {"foo": 1, "bar": 2, "baz": Z(1)},
+            ),
+            ({"d1": {"d2": 3}},),
+            ({"d1": {"d2": Z(1)}},),
+            ({"d1": {"d2": {"d3": 4}}},),
+            ({"d1": {"d2": {"d3": Z(1)}}},),
+        ],
+    )
+    def test_encode_xcom_with_nested_dict(self, data):
+        i = json.dumps(data, cls=utils_json.XComEncoder)
+        e = json.loads(i, cls=utils_json.XComDecoder)
+        assert data == e
 
     def test_orm_deserialize(self):
         x = 14

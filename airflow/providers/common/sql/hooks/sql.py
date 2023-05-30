@@ -18,12 +18,11 @@ from __future__ import annotations
 
 from contextlib import closing
 from datetime import datetime
-from typing import Any, Callable, Iterable, Mapping, Sequence, cast
+from typing import Any, Callable, Iterable, Mapping, Protocol, Sequence, cast
 
 import sqlparse
 from packaging.version import Version
 from sqlalchemy import create_engine
-from typing_extensions import Protocol
 
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook

@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.sensors.base import BaseSensorOperator

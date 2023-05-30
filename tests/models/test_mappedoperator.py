@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
+from unittest.mock import patch
 
 import pendulum
 import pytest
@@ -29,7 +31,9 @@ from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
+from airflow.utils.context import Context
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.models import DEFAULT_DATE
@@ -54,6 +58,38 @@ def test_task_mapping_with_dag():
 
     assert finish.upstream_list == [mapped]
     assert mapped.downstream_list == [finish]
+
+
+@patch("airflow.models.abstractoperator.AbstractOperator.render_template")
+def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
+    caplog.set_level(logging.INFO)
+
+    class UnrenderableClass:
+        def __bool__(self):
+            raise ValueError("Similar to Pandas DataFrames, this class raises an exception.")
+
+    class CustomOperator(BaseOperator):
+        template_fields = ("arg",)
+
+        def __init__(self, arg, **kwargs):
+            super().__init__(**kwargs)
+            self.arg = arg
+
+        def execute(self, context: Context):
+            pass
+
+    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+        task1 = CustomOperator(task_id="op1", arg=None)
+        unrenderable_values = [UnrenderableClass(), UnrenderableClass()]
+        mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
+        task1 >> mapped
+    dag.test()
+    assert caplog.text.count("task_2 ran successfully") == 2
+    assert (
+        "Unable to check if the value of type 'UnrenderableClass' is False for task 'task_2', field 'arg'"
+        in caplog.text
+    )
+    mock_render_template.assert_called()
 
 
 def test_task_mapping_without_dag_context():
@@ -83,6 +119,20 @@ def test_task_mapping_default_args():
 
     assert mapped.partial_kwargs["owner"] == "test"
     assert mapped.start_date == pendulum.instance(default_args["start_date"])
+
+
+def test_task_mapping_override_default_args():
+    default_args = {"retries": 2, "start_date": DEFAULT_DATE.now()}
+    with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
+        literal = ["a", "b", "c"]
+        mapped = MockOperator.partial(task_id="task", retries=1).expand(arg2=literal)
+
+    # retries should be 1 because it is provided as a partial arg
+    assert mapped.partial_kwargs["retries"] == 1
+    # start_date should be equal to default_args["start_date"] because it is not provided as partial arg
+    assert mapped.start_date == pendulum.instance(default_args["start_date"])
+    # owner should be equal to Airflow default owner (airflow) because it is not provided at all
+    assert mapped.owner == "airflow"
 
 
 def test_map_unknown_arg_raises():
@@ -559,3 +609,45 @@ def test_all_xcomargs_from_mapped_tasks_are_consumable(dag_maker, session):
     tis = dr.get_task_instances(session=session)
     for ti in tis:
         ti.run()
+
+
+def test_task_mapping_with_task_group_context():
+    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+        task1 = BaseOperator(task_id="op1")
+        finish = MockOperator(task_id="finish")
+
+        with TaskGroup("test-group") as group:
+            literal = ["a", "b", "c"]
+            mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
+
+            task1 >> group >> finish
+
+    assert task1.downstream_list == [mapped]
+    assert mapped.upstream_list == [task1]
+
+    assert mapped in dag.tasks
+    assert mapped.task_group == group
+
+    assert finish.upstream_list == [mapped]
+    assert mapped.downstream_list == [finish]
+
+
+def test_task_mapping_with_explicit_task_group():
+    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+        task1 = BaseOperator(task_id="op1")
+        finish = MockOperator(task_id="finish")
+
+        group = TaskGroup("test-group")
+        literal = ["a", "b", "c"]
+        mapped = MockOperator.partial(task_id="task_2", task_group=group).expand(arg2=literal)
+
+        task1 >> group >> finish
+
+    assert task1.downstream_list == [mapped]
+    assert mapped.upstream_list == [task1]
+
+    assert mapped in dag.tasks
+    assert mapped.task_group == group
+
+    assert finish.upstream_list == [mapped]
+    assert mapped.downstream_list == [finish]

@@ -34,8 +34,9 @@ from sqlalchemy import func
 
 from airflow.configuration import conf
 from airflow.jobs.base_job_runner import BaseJobRunner
-from airflow.jobs.job import perform_heartbeat
+from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models.trigger import Trigger
+from airflow.serialization.pydantic.job import JobPydantic
 from airflow.stats import Stats
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.typing_compat import TypedDict
@@ -233,7 +234,7 @@ def setup_queue_listener():
         return None
 
 
-class TriggererJobRunner(BaseJobRunner, LoggingMixin):
+class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
     """
     TriggererJobRunner continuously runs active triggers in asyncio, watching
     for them to fire off their events and then dispatching that information
@@ -246,10 +247,12 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
 
     job_type = "TriggererJob"
 
-    def __init__(self, capacity=None, *args, **kwargs):
-        # Call superclass
-        super().__init__(*args, **kwargs)
-
+    def __init__(
+        self,
+        job: Job | JobPydantic,
+        capacity=None,
+    ):
+        super().__init__(job)
         if capacity is None:
             self.capacity = conf.getint("triggerer", "default_capacity", fallback=1000)
         elif isinstance(capacity, int) and capacity > 0:
@@ -296,7 +299,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
     def on_kill(self):
         """
         Called when there is an external kill command (via the heartbeat
-        mechanism, for example)
+        mechanism, for example).
         """
         self.trigger_runner.stop = True
 
@@ -355,7 +358,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             self.handle_events()
             # Handle failed triggers
             self.handle_failed_triggers()
-            perform_heartbeat(self.job, only_if_necessary=True)
+            perform_heartbeat(self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=True)
             # Collect stats
             self.emit_metrics()
             # Idle sleep
@@ -674,7 +677,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
 
     def set_trigger_logging_metadata(self, ti: TaskInstance, trigger_id, trigger):
         """
-        Set up logging for triggers
+        Set up logging for triggers.
 
         We want to ensure that each trigger logs to its own file and that the log messages are not
         propagated to parent loggers.

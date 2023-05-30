@@ -25,6 +25,8 @@ import pytest
 from dateutil.tz import tzlocal
 
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink
 from airflow.providers.amazon.aws.sensors.emr import EmrStepSensor
 
 DESCRIBE_JOB_STEP_RUNNING_RETURN = {
@@ -159,13 +161,19 @@ class TestEmrStepSensor:
         # Mock out the emr_client creator
         self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
 
-    def test_step_completed(self):
+    @patch.object(EmrClusterLink, "persist")
+    @patch.object(EmrLogsLink, "persist")
+    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
+    def test_step_completed(self, *_):
         self.emr_client_mock.describe_step.side_effect = [
             DESCRIBE_JOB_STEP_RUNNING_RETURN,
             DESCRIBE_JOB_STEP_COMPLETED_RETURN,
         ]
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             self.sensor.execute(None)
 
             assert self.emr_client_mock.describe_step.call_count == 2
@@ -175,32 +183,50 @@ class TestEmrStepSensor:
             ]
             self.emr_client_mock.describe_step.assert_has_calls(calls)
 
-    def test_step_cancelled(self):
+    @patch.object(EmrClusterLink, "persist")
+    @patch.object(EmrLogsLink, "persist")
+    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
+    def test_step_cancelled(self, *_):
         self.emr_client_mock.describe_step.side_effect = [
             DESCRIBE_JOB_STEP_RUNNING_RETURN,
             DESCRIBE_JOB_STEP_CANCELLED_RETURN,
         ]
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             with pytest.raises(AirflowException):
                 self.sensor.execute(None)
 
-    def test_step_failed(self):
+    @patch.object(EmrClusterLink, "persist")
+    @patch.object(EmrLogsLink, "persist")
+    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
+    def test_step_failed(self, *_):
         self.emr_client_mock.describe_step.side_effect = [
             DESCRIBE_JOB_STEP_RUNNING_RETURN,
             DESCRIBE_JOB_STEP_FAILED_RETURN,
         ]
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             with pytest.raises(AirflowException):
                 self.sensor.execute(None)
 
-    def test_step_interrupted(self):
+    @patch.object(EmrClusterLink, "persist")
+    @patch.object(EmrLogsLink, "persist")
+    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
+    def test_step_interrupted(self, *_):
         self.emr_client_mock.describe_step.side_effect = [
             DESCRIBE_JOB_STEP_RUNNING_RETURN,
             DESCRIBE_JOB_STEP_INTERRUPTED_RETURN,
         ]
 
-        with patch("boto3.session.Session", self.boto3_session_mock):
+        with patch("boto3.session.Session", self.boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
             with pytest.raises(AirflowException):
                 self.sensor.execute(None)

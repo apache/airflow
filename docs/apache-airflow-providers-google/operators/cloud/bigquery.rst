@@ -208,10 +208,11 @@ To fetch data from a BigQuery table you can use
 Alternatively you can fetch data for selected columns if you pass fields to
 ``selected_fields``.
 
-This operator returns data in a Python list where the number of elements in the
-returned list will be equal to the number of rows fetched. Each element in the
-list will again be a list where elements would represent the column values for
+The result of this operator can be retrieved in two different formats based on the value of the ``as_dict`` parameter:
+``False`` (default) - A Python list of lists, where the number of elements in the nesting list will be equal to the number of rows fetched. Each element in the
+nesting will a nested list where elements would represent the column values for
 that row.
+``True`` - A Python list of dictionaries, where each dictionary represents a row. In each dictionary, the keys are the column names and the values are the corresponding values for those columns.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_queries.py
     :language: python

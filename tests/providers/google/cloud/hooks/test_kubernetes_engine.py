@@ -26,7 +26,11 @@ from google.cloud.container_v1 import ClusterManagerAsyncClient
 from google.cloud.container_v1.types import Cluster
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEAsyncHook, GKEHook, GKEPodAsyncHook
+from airflow.providers.google.cloud.hooks.kubernetes_engine import (
+    GKEAsyncHook,
+    GKEHook,
+    GKEPodAsyncHook,
+)
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
@@ -47,12 +51,15 @@ POD_NAME = "test-pod-name"
 POD_NAMESPACE = "test"
 ASYNC_HOOK_STRING = GKE_STRING.format("GKEAsyncHook")
 GCP_CONN_ID = "test-gcp-conn-id"
-DELEGATE_TO = "test-delegate-to"
 IMPERSONATE_CHAIN = ["impersonate", "this", "test"]
 OPERATION_NAME = "test-operation-name"
 
 
 class TestGKEHookClient:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            GKEHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         self.gke_hook = GKEHook(location=GKE_ZONE)
 
@@ -366,7 +373,6 @@ class TestGKEPodAsyncHook:
 def async_gke_hook():
     return GKEAsyncHook(
         gcp_conn_id=GCP_CONN_ID,
-        delegate_to=DELEGATE_TO,
         location=GKE_ZONE,
         impersonation_chain=IMPERSONATE_CHAIN,
     )

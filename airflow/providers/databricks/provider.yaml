@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 4.2.0
+  - 4.1.0
   - 4.0.1
   - 4.0.0
   - 3.4.0
@@ -44,8 +46,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
-  - apache-airflow-providers-common-sql>=1.3.1
+  - apache-airflow>=2.4.0
+  - apache-airflow-providers-common-sql>=1.5.0
   - requests>=2.27,<3
   - databricks-sql-connector>=2.0.0, <3.0.0
   - aiohttp>=3.6.3, <4
@@ -96,9 +98,14 @@ hooks:
 
 triggers:
   - integration-name: Databricks
-    python-modules:
-      - airflow.providers.databricks.triggers.databricks
+    class-names:
+      - airflow.providers.databricks.triggers.databricks.DatabricksExecutionTrigger
 
+sensors:
+  - integration-name: Databricks
+    python-modules:
+      - airflow.providers.databricks.sensors.databricks_sql
+      - airflow.providers.databricks.sensors.databricks_partition
 
 connection-types:
   - hook-class-name: airflow.providers.databricks.hooks.databricks.DatabricksHook

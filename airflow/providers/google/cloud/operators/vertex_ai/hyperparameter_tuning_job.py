@@ -27,7 +27,6 @@
 """
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import NotFound
@@ -134,9 +133,6 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     :param sync: Whether to execute this method synchronously. If False, this method will unblock and it
         will be executed in a concurrent Future.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -186,7 +182,6 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         sync: bool = True,
         # END: run param
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -218,11 +213,6 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         self.tensorboard = tensorboard
         self.sync = sync
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.hook: HyperparameterTuningJobHook | None = None
 
@@ -230,7 +220,6 @@ class CreateHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         self.log.info("Creating Hyperparameter Tuning job")
         self.hook = HyperparameterTuningJobHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         result = self.hook.create_hyperparameter_tuning_job(
@@ -294,9 +283,6 @@ class GetHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -320,7 +306,6 @@ class GetHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -332,17 +317,11 @@ class GetHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook = HyperparameterTuningJobHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 
@@ -392,7 +371,6 @@ class DeleteHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -404,17 +382,11 @@ class DeleteHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook = HyperparameterTuningJobHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         try:
@@ -479,7 +451,6 @@ class ListHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -494,17 +465,11 @@ class ListHyperparameterTuningJobOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
         hook = HyperparameterTuningJobHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         results = hook.list_hyperparameter_tuning_jobs(

@@ -45,10 +45,6 @@ sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT))  # make sure setup is imported fro
 warnings: list[str] = []
 errors: list[str] = []
 
-CROSS_PROVIDERS_DEPS = "cross-providers-deps"
-DEPS = "deps"
-SUSPENDED = "suspended"
-
 suspended_paths: list[str] = []
 
 ALL_DEPENDENCIES: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
@@ -114,6 +110,8 @@ def get_provider_id_from_relative_import_or_file(relative_path_or_file: str) -> 
     provider_candidate = relative_path_or_file.replace(os.sep, ".").split(".")
     while len(provider_candidate) > 0:
         candidate_provider_id = ".".join(provider_candidate)
+        if "google_vendor" in candidate_provider_id:
+            candidate_provider_id = candidate_provider_id.replace("google_vendor", "google")
         if candidate_provider_id in ALL_PROVIDERS:
             return candidate_provider_id
         provider_candidate = provider_candidate[:-1]
@@ -173,7 +171,7 @@ def check_if_different_provider_used(file_path: Path) -> None:
         if imported_provider is not None and imported_provider not in ALL_PROVIDERS:
             warnings.append(f"The provider {imported_provider} from {file_path} cannot be found.")
         elif imported_provider and file_provider != imported_provider:
-            ALL_DEPENDENCIES[file_provider][CROSS_PROVIDERS_DEPS].append(imported_provider)
+            ALL_DEPENDENCIES[file_provider]["cross-providers-deps"].append(imported_provider)
 
 
 if __name__ == "__main__":
@@ -185,7 +183,7 @@ if __name__ == "__main__":
         check_if_different_provider_used(file)
     for provider, provider_yaml_content in ALL_PROVIDERS.items():
         if not provider_yaml_content.get("suspended"):
-            ALL_DEPENDENCIES[provider][DEPS].extend(provider_yaml_content["dependencies"])
+            ALL_DEPENDENCIES[provider]["deps"].extend(provider_yaml_content["dependencies"])
     if warnings:
         console.print("[yellow]Warnings!\n")
         for warning in warnings:
@@ -198,9 +196,13 @@ if __name__ == "__main__":
         console.print(f"[bright_blue]Total: {len(errors)} errors.")
     unique_sorted_dependencies: dict[str, dict[str, list[str]]] = defaultdict(dict)
     for key in sorted(ALL_DEPENDENCIES.keys()):
-        unique_sorted_dependencies[key][DEPS] = sorted(ALL_DEPENDENCIES[key][DEPS])
-        unique_sorted_dependencies[key][CROSS_PROVIDERS_DEPS] = sorted(
-            set(ALL_DEPENDENCIES[key][CROSS_PROVIDERS_DEPS])
+        unique_sorted_dependencies[key]["deps"] = sorted(ALL_DEPENDENCIES[key]["deps"])
+        unique_sorted_dependencies[key]["cross-providers-deps"] = sorted(
+            set(ALL_DEPENDENCIES[key]["cross-providers-deps"])
+        )
+        excluded_versions = ALL_PROVIDERS[key].get("excluded-python-versions")
+        unique_sorted_dependencies[key]["excluded-python-versions"] = (
+            excluded_versions if excluded_versions else []
         )
     if errors:
         console.print()

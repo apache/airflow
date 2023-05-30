@@ -23,12 +23,13 @@ description: |
 
 suspended: false
 versions:
+  - 1.2.0
   - 1.1.0
   - 1.0.1
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
 
 integrations:
   - integration-name: Tabular

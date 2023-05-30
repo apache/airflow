@@ -38,10 +38,10 @@ class TestGetTaskRunner:
         ti = mock.MagicMock(map_index=-1, run_as_user=None)
         ti.get_template_context.return_value = {"ti": ti}
         ti.get_dagrun.return_value.get_log_template.return_value.filename = "blah"
-        base_job = mock.MagicMock(task_instance=ti)
-        base_job.job_runner = LocalTaskJobRunner(ti)
-        base_job.job_runner.job = base_job
-        task_runner = get_task_runner(base_job.job_runner)
+        Job = mock.MagicMock(task_instance=ti)
+        Job.job_type = None
+        job_runner = LocalTaskJobRunner(job=Job, task_instance=ti)
+        task_runner = get_task_runner(job_runner)
 
         assert "StandardTaskRunner" == task_runner.__class__.__name__
 
@@ -50,13 +50,11 @@ class TestGetTaskRunner:
         "tests.task.task_runner.test_task_runner.custom_task_runner",
     )
     def test_should_support_custom_legacy_task_runner(self):
-        base_job = mock.MagicMock(
-            **{"task_instance.get_template_context.return_value": {"ti": mock.MagicMock()}}
-        )
+        mock.MagicMock(**{"task_instance.get_template_context.return_value": {"ti": mock.MagicMock()}})
         custom_task_runner.reset_mock()
 
-        task_runner = get_task_runner(base_job)
+        task_runner = get_task_runner(custom_task_runner)
 
-        custom_task_runner.assert_called_once_with(base_job.job)
+        custom_task_runner.assert_called_once_with(custom_task_runner)
 
         assert custom_task_runner.return_value == task_runner

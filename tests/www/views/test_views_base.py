@@ -63,11 +63,10 @@ def heartbeat_healthy():
     # case-1: healthy scheduler status
     last_heartbeat = timezone.utcnow()
     job = Job(
-        job_type="SchedulerJob",
         state="running",
         latest_heartbeat=last_heartbeat,
-        job_runner=SchedulerJobRunner(),
     )
+    SchedulerJobRunner(job=job),
     with create_session() as session:
         session.add(job)
     yield "healthy", last_heartbeat.isoformat()
@@ -84,11 +83,10 @@ def heartbeat_too_slow():
     # case-2: unhealthy scheduler status - scenario 1 (SchedulerJob is running too slowly)
     last_heartbeat = timezone.utcnow() - datetime.timedelta(minutes=1)
     job = Job(
-        job_type="SchedulerJob",
         state="running",
         latest_heartbeat=last_heartbeat,
-        job_runner=SchedulerJobRunner(),
     )
+    SchedulerJobRunner(job=job),
     with create_session() as session:
         session.query(Job).filter(
             Job.job_type == "SchedulerJob",

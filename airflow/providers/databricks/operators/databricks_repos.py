@@ -19,10 +19,10 @@
 from __future__ import annotations
 
 import re
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 from urllib.parse import urlsplit
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook

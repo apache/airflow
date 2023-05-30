@@ -408,13 +408,13 @@ these guidelines:
     Sphinx compatible standards.
 
 -   Make sure your code fulfills all the
-    `static code checks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__ we have in our code. The easiest way
+    `static code checks <STATIC_CODE_CHECKS.rst#static-code-checks>`__ we have in our code. The easiest way
     to make sure of that is to use `pre-commit hooks <STATIC_CODE_CHECKS.rst#pre-commit-hooks>`__
 
 -   Run tests locally before opening PR.
 
 -   You can use any supported python version to run the tests, but the best is to check
-    if it works for the oldest supported version (Python 3.7 currently). In rare cases
+    if it works for the oldest supported version (Python 3.8 currently). In rare cases
     tests might fail with the oldest version when you use features that are available in newer Python
     versions. For that purpose we have ``airflow.compat`` package where we keep back-ported
     useful features from newer versions.
@@ -593,6 +593,11 @@ Airflow dependencies
    ``pip`` - especially when it comes to constraint vs. requirements management.
    Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
 
+   There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
+   Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
+   the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
+   newer versions of ``bazel`` will handle it.
+
    If you wish to install airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
 
@@ -610,18 +615,18 @@ This is the full list of those extras:
 
   .. START EXTRAS HERE
 aiobotocore, airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra,
-apache.drill, apache.druid, apache.flink, apache.hdfs, apache.hive, apache.impala, apache.kylin,
-apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana,
-async, atlas, atlassian.jira, aws, azure, cassandra, celery, cgroups, cloudant, cncf.kubernetes,
-common.sql, crypto, dask, databricks, datadog, dbt.cloud, deprecated_api, devel, devel_all,
-devel_ci, devel_hadoop, dingding, discord, doc, doc_gen, docker, druid, elasticsearch, exasol,
-facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth, grpc, hashicorp, hdfs,
-hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes, ldap, leveldb, microsoft.azure,
-microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc, openfaas,
-opsgenie, oracle, otel, pagerduty, pandas, papermill, password, pinot, plexus, postgres, presto,
-qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry, sftp, singularity,
-slack, smtp, snowflake, spark, sqlite, ssh, statsd, tableau, tabular, telegram, trino, vertica,
-virtualenv, webhdfs, winrm, yandex, zendesk
+apache.drill, apache.druid, apache.flink, apache.hdfs, apache.hive, apache.impala, apache.kafka,
+apache.kylin, apache.livy, apache.pig, apache.pinot, apache.spark, apache.sqoop, apache.webhdfs,
+arangodb, asana, async, atlas, atlassian.jira, aws, azure, cassandra, celery, cgroups, cloudant,
+cncf.kubernetes, common.sql, crypto, dask, databricks, datadog, dbt.cloud, deprecated_api, devel,
+devel_all, devel_ci, devel_hadoop, dingding, discord, doc, doc_gen, docker, druid, elasticsearch,
+exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth, grpc,
+hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes, ldap, leveldb,
+microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql, neo4j, odbc,
+openfaas, openlineage, opsgenie, oracle, otel, pagerduty, pandas, papermill, password, pinot,
+plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid,
+sentry, sftp, singularity, slack, smtp, snowflake, spark, sqlite, ssh, statsd, tableau, tabular,
+telegram, trino, vertica, virtualenv, webhdfs, winrm, zendesk
   .. END EXTRAS HERE
 
 Provider packages
@@ -796,6 +801,11 @@ Pinned constraint files
    ``pip`` - especially when it comes to constraint vs. requirements management.
    Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
 
+   There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
+   Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
+   the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
+   newer versions of ``bazel`` will handle it.
+
    If you wish to install airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
 
@@ -830,7 +840,7 @@ from the PyPI package:
 .. code-block:: bash
 
   pip install apache-airflow[google,amazon,async]==2.2.5 \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.7.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.8.txt"
 
 The last one can be used to install Airflow in "minimal" mode - i.e when bare Airflow is installed without
 extras.
@@ -842,7 +852,7 @@ requirements).
 .. code-block:: bash
 
   pip install -e . \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.7.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
 
 
 This works also with extras - for example:
@@ -850,7 +860,7 @@ This works also with extras - for example:
 .. code-block:: bash
 
   pip install ".[ssh]" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.7.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.8.txt"
 
 
 There are different set of fixed constraint files for different python major/minor versions and you should
@@ -862,7 +872,7 @@ If you want to update just airflow dependencies, without paying attention to pro
 .. code-block:: bash
 
   pip install . --upgrade \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.7.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.8.txt"
 
 
 The ``constraints-<PYTHON_MAJOR_MINOR_VERSION>.txt`` and ``constraints-no-providers-<PYTHON_MAJOR_MINOR_VERSION>.txt``
@@ -1160,7 +1170,11 @@ To install yarn on macOS:
 
     export PATH="$HOME/.yarn/bin:$PATH"
 
-4.  Install third-party libraries defined in ``package.json`` by running the
+4.  Install third-party libraries defined in ``package.json`` by running the following command
+
+.. code-block:: bash
+
+    yarn install
 
 Generate Bundled Files with yarn
 --------------------------------

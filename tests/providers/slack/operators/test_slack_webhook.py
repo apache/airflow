@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookOperator
 
 
@@ -59,7 +59,7 @@ class TestSlackWebhookOperator:
         """
         kw = {simple_http_op_attr: "foo-bar"}
         warning_message = rf"Provide '{simple_http_op_attr}' is deprecated and as has no affect"
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             SlackWebhookOperator(task_id="test_unused_args", **kw)
 
     def test_deprecated_http_conn_id(self):
@@ -67,7 +67,7 @@ class TestSlackWebhookOperator:
         warning_message = (
             r"Parameter `http_conn_id` is deprecated. Please use `slack_webhook_conn_id` instead."
         )
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             op = SlackWebhookOperator(
                 task_id="test_deprecated_http_conn_id", slack_webhook_conn_id=None, http_conn_id="http_conn"
             )
@@ -75,7 +75,7 @@ class TestSlackWebhookOperator:
 
         error_message = "You cannot provide both `slack_webhook_conn_id` and `http_conn_id`."
         with pytest.raises(AirflowException, match=error_message):
-            with pytest.warns(DeprecationWarning, match=warning_message):
+            with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
                 SlackWebhookOperator(
                     task_id="test_both_conn_ids",
                     slack_webhook_conn_id="slack_webhook_conn_id",
