@@ -49,3 +49,63 @@ class TestPodLauncher:
                 assert f"release-name-airflow-{suffix}" == jmespath.search(f"subjects[{idx}].name", docs[0])
         else:
             assert [] == docs
+
+    @pytest.mark.parametrize(
+        "multiNamespaceMode, namespace, expectedRole, expectedRoleBinding",
+        [
+            (True, "namespace", "release-name-namespace-pod-launcher-role", "release-name-namespace-pod-launcher-rolebinding"),
+            (True, "other-ns", "release-name-other-ns-pod-launcher-role", "release-name-other-ns-pod-launcher-rolebinding"),
+            (False, "namespace", "release-name-pod-launcher-role", "release-name-pod-launcher-rolebinding"),
+        ],
+    )
+    def test_pod_launcher_rolebinding_multi_namespace(self, multiNamespaceMode, namespace, expectedRole, expectedRoleBinding):
+        docs = render_chart(
+            namespace = namespace,
+            values={
+                "webserver": {"allowPodLogReading": True},
+                "multiNamespaceMode": multiNamespaceMode
+            },
+            show_only=["templates/rbac/pod-launcher-rolebinding.yaml"],
+        )
+
+        actualRoleBinding = jmespath.search("metadata.name", docs[0]) if docs else []
+        assert actualRoleBinding == expectedRoleBinding
+
+        actualRoleRef = jmespath.search("roleRef.name", docs[0]) if docs else []
+        assert actualRoleRef == expectedRole
+
+        actualKind = jmespath.search("kind", docs[0]) if docs else []
+        actualRoleRefKind = jmespath.search("roleRef.kind", docs[0]) if docs else []
+        if multiNamespaceMode:
+            assert actualKind == "ClusterRoleBinding"
+            assert actualRoleRefKind == "ClusterRole"
+        else:
+            assert actualKind == "RoleBinding"
+            assert actualRoleRefKind == "Role"
+
+    @pytest.mark.parametrize(
+        "multiNamespaceMode, namespace, expectedRole",
+        [
+            (True, "namespace", "release-name-namespace-pod-launcher-role"),
+            (True, "other-ns", "release-name-other-ns-pod-launcher-role"),
+            (False, "namespace", "release-name-pod-launcher-role"),
+        ],
+    )
+    def test_pod_launcher_role_multi_namespace(self, multiNamespaceMode, namespace, expectedRole):
+        docs = render_chart(
+            namespace = namespace,
+            values={
+                "webserver": {"allowPodLogReading": True},
+                "multiNamespaceMode": multiNamespaceMode
+            },
+            show_only=["templates/rbac/pod-launcher-role.yaml"],
+        )
+
+        actualRole = jmespath.search("metadata.name", docs[0]) if docs else []
+        assert actualRole == expectedRole
+
+        actualKind = jmespath.search("kind", docs[0]) if docs else []
+        if multiNamespaceMode:
+            assert actualKind == "ClusterRole"
+        else:
+            assert actualKind == "Role"
