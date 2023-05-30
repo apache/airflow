@@ -222,11 +222,11 @@ class _VaultClient(LoggingMixin):
 
     def _auth_userpass(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
-            _client.auth_userpass(
+            _client.auth.userpass.login(
                 username=self.username, password=self.password, mount_point=self.auth_mount_point
             )
         else:
-            _client.auth_userpass(username=self.username, password=self.password)
+            _client.auth.userpass.login(username=self.username, password=self.password)
 
     def _auth_radius(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
@@ -301,14 +301,14 @@ class _VaultClient(LoggingMixin):
 
     def _auth_aws_iam(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
-            _client.auth_aws_iam(
+            _client.auth.aws.iam_login(
                 access_key=self.key_id,
                 secret_key=self.secret_id,
                 role=self.role_id,
                 mount_point=self.auth_mount_point,
             )
         else:
-            _client.auth_aws_iam(access_key=self.key_id, secret_key=self.secret_id, role=self.role_id)
+            _client.auth.aws.iam_login(access_key=self.key_id, secret_key=self.secret_id, role=self.role_id)
 
     def _auth_approle(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
