@@ -2705,7 +2705,8 @@ class DAG(LoggingMixin):
             except Exception:
                 self.log.info(
                     "Task failed. DAG will continue to run until finished "
-                    "and be marked as failed."
+                    "and be marked as failed.",
+                    exc_info=True,
                 )
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
