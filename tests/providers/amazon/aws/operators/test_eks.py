@@ -583,6 +583,7 @@ class TestResolveWaitForCompletion:
         self.fargate_logging_params: dict[str, str] = {
             "log_group_name": "log_group_name",
             "log_stream_prefix": "log_stream_prefix",
+            "log_retention_days": 7,
         }
 
     @pytest.mark.parametrize(
