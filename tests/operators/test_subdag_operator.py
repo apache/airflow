@@ -337,7 +337,7 @@ class TestSubDagOperator:
             "execution_date": DEFAULT_DATE,
             "dag_run": dag_run,
             "task": subdag_task,
-            "ti": mock.MagicMock(**{"map_index": -1}),
+            "ti": mock.MagicMock(map_index=-1),
         }
         subdag_task.post_execute(context)
 
