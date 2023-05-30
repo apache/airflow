@@ -306,7 +306,7 @@ def get_execution_dates(
     else:
         start_date = execution_date
     start_date = execution_date if not past else start_date
-    if not dag.timetable.can_run:
+    if not dag.timetable.can_be_scheduled:
         # If the DAG never schedules, need to look at existing DagRun if the user wants future or
         # past runs.
         dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date)
@@ -338,7 +338,7 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     # determine run_id range of dag runs and tasks to consider
     end_date = last_dagrun.logical_date if future else current_dagrun.logical_date
     start_date = current_dagrun.logical_date if not past else first_dagrun.logical_date
-    if not dag.timetable.can_run:
+    if not dag.timetable.can_be_scheduled:
         # If the DAG never schedules, need to look at existing DagRun if the user wants future or
         # past runs.
         dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date, session=session)
