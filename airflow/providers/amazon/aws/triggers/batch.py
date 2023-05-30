@@ -187,4 +187,10 @@ class BatchSensorTrigger(BaseTrigger):
             if attempt >= self.max_retries:
                 yield TriggerEvent({"status": "failure", "message": "Job Failed - max attempts reached."})
             else:
-                yield TriggerEvent({"status": "success", "job_id": self.job_id})
+                yield TriggerEvent(
+                    {
+                        "status": "success",
+                        "job_id": self.job_id,
+                        "message": f"Job {self.job_id} Succeeded",
+                    }
+                )
