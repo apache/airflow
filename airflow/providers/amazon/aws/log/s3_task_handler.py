@@ -20,10 +20,10 @@ from __future__ import annotations
 import os
 import pathlib
 import shutil
+from functools import cached_property
 
 from packaging.version import Version
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.log.file_task_handler import FileTaskHandler

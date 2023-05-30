@@ -3395,6 +3395,42 @@ class TestSchedulerJob:
             self.job_runner._send_sla_callbacks_to_processor(dag)
             scheduler_job.executor.callback_sink.send.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "schedule, number_running, excepted",
+        [
+            (None, None, False),
+            ("*/1 * * * *", None, False),
+            ("*/1 * * * *", 1, True),
+        ],
+        ids=["no_dag_schedule", "dag_schedule_too_many_runs", "dag_schedule_less_runs"],
+    )
+    def test_should_update_dag_next_dagruns(self, schedule, number_running, excepted, session, dag_maker):
+        """Test if really required to update next dagrun or possible to save run time"""
+
+        with dag_maker(
+            dag_id="test_should_update_dag_next_dagruns", schedule=schedule, max_active_runs=2
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        dag_model = dag_maker.dag_model
+
+        for index in range(2):
+            dag_maker.create_dagrun(
+                run_id=f"run_{index}",
+                execution_date=(DEFAULT_DATE + timedelta(days=index)),
+                start_date=timezone.utcnow(),
+                state=State.RUNNING,
+                session=session,
+            )
+
+        session.flush()
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        assert excepted is self.job_runner._should_update_dag_next_dagruns(
+            dag, dag_model, number_running, session=session
+        )
+
     def test_create_dag_runs(self, dag_maker):
         """
         Test various invariants of _create_dag_runs.

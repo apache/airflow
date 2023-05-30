@@ -24,6 +24,7 @@ This module contains a Google AutoML hook.
 """
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -49,7 +50,6 @@ from google.cloud.automl_v1beta1.services.auto_ml.pagers import (
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 

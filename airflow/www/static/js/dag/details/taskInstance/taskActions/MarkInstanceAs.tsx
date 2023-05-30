@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Alert,
   AlertIcon,
@@ -37,7 +37,9 @@ import { MdArrowDropDown } from "react-icons/md";
 import { capitalize } from "lodash";
 
 import { getMetaValue } from "src/utils";
+import { useKeysPress } from "src/utils/useKeysPress";
 import type { TaskState } from "src/types";
+import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
 import {
   useMarkFailedTask,
   useMarkSuccessTask,
@@ -84,6 +86,8 @@ const MarkInstanceAs = ({
 
   const [downstream, setDownstream] = useState(false);
   const onToggleDownstream = () => setDownstream(!downstream);
+
+  const initialMarkAsButtonFocusRef = useRef<HTMLButtonElement>(null);
 
   const markAsFailed = () => {
     setNewState("failed");
@@ -161,6 +165,16 @@ const MarkInstanceAs = ({
   const markLabel = "Manually set task instance state";
   const isMappedSummary = isMapped && mapIndex === undefined;
 
+  useKeysPress(keyboardShortcutIdentifier.taskMarkSuccess, () => {
+    if (1 - Number(!isMappedSummary && currentState === "success"))
+      markAsSuccess();
+  });
+
+  useKeysPress(keyboardShortcutIdentifier.taskMarkFailed, () => {
+    if (1 - Number(!isMappedSummary && currentState === "failed"))
+      markAsFailed();
+  });
+
   return (
     <>
       <Menu>
@@ -226,6 +240,7 @@ const MarkInstanceAs = ({
         affectedTasks={affectedTasks}
         submitButton={
           <Button
+            ref={initialMarkAsButtonFocusRef}
             colorScheme={
               (newState === "success" && "green") ||
               (newState === "failed" && "red") ||
@@ -240,6 +255,7 @@ const MarkInstanceAs = ({
             Mark as {newState}
           </Button>
         }
+        initialFocusRef={initialMarkAsButtonFocusRef}
       >
         <Box>
           <Text>Include: </Text>
