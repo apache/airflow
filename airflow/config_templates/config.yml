@@ -2043,7 +2043,7 @@ celery:
       default: ~
     result_backend_engine_options:
       description: |
-        Optional options dictionary to pass to the Celery result backend SQLAlchemy engine.
+        Optional configuration dictionary to pass to the Celery result backend SQLAlchemy engine.
       version_added: 2.6.0
       type: string
       example: '{"pool_recycle": 1800}'

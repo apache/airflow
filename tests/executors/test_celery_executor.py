@@ -256,7 +256,7 @@ class TestCeleryExecutor:
 
         from airflow.config_templates import default_celery
 
-        # relaod celery conf to apply the new config
+        # reload celery conf to apply the new config
         importlib.reload(default_celery)
         # reload celery_executor to recreate the celery app with new config
         importlib.reload(celery_executor)
