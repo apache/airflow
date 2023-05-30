@@ -252,7 +252,7 @@ def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None
     :param job_type: job type to query for to get the most recent job for
     :param session: Database session
     """
-    return session.scalars(
+    return session.scalar(
         select(Job)
         .where(Job.job_type == job_type)
         .order_by(
@@ -261,7 +261,7 @@ def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None
             Job.latest_heartbeat.desc(),
         )
         .limit(1)
-    ).first()
+    )
 
 
 @provide_session
