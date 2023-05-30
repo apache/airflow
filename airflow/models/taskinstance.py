@@ -51,6 +51,7 @@ from sqlalchemy import (
     String,
     Text,
     and_,
+    delete,
     false,
     func,
     inspect,
@@ -2835,12 +2836,14 @@ class TaskInstance(Base, LoggingMixin):
 
         tables = [TaskFail, XCom, RenderedTaskInstanceFields]
         for table in tables:
-            session.query(table).filter(
-                table.dag_id == self.dag_id,
-                table.task_id == self.task_id,
-                table.run_id == self.run_id,
-                table.map_index == self.map_index,
-            ).delete()
+            session.execute(
+                delete(table).where(
+                    table.dag_id == self.dag_id,
+                    table.task_id == self.task_id,
+                    table.run_id == self.run_id,
+                    table.map_index == self.map_index,
+                )
+            )
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:

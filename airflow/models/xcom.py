@@ -39,6 +39,7 @@ from sqlalchemy import (
     LargeBinary,
     PrimaryKeyConstraint,
     String,
+    delete,
     text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -249,13 +250,15 @@ class BaseXCom(Base, LoggingMixin):
         )
 
         # Remove duplicate XComs and insert a new one.
-        session.query(cls).filter(
-            cls.key == key,
-            cls.run_id == run_id,
-            cls.task_id == task_id,
-            cls.dag_id == dag_id,
-            cls.map_index == map_index,
-        ).delete()
+        session.execute(
+            delete(cls).where(
+                cls.key == key,
+                cls.run_id == run_id,
+                cls.task_id == task_id,
+                cls.dag_id == dag_id,
+                cls.map_index == map_index,
+            )
+        )
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
             dag_run_id=dag_run_id,
             key=key,
