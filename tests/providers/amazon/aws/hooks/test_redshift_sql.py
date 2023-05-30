@@ -168,6 +168,9 @@ class TestRedshiftSQLHookConnectionScenario:
     def test_get_conn_iam_with_cluster_identifier_without_host(
         self, mock_connect, mock_aws_hook_conn, aws_conn_id
     ):
+        """
+        Tests if the redshift connection is set with cluster_identifier but without host.
+        """
         self.connection = Connection(
             conn_type="redshift",
             login=LOGIN_USER,
@@ -219,6 +222,9 @@ class TestRedshiftSQLHookConnectionScenario:
     def test_get_conn_iam_without_cluster_identifier_with_host(
         self, mock_connect, mock_aws_hook_conn, aws_conn_id
     ):
+        """
+        Tests if the redshift connection is set without cluster_identifier but with host.
+        """
         self.connection = Connection(
             conn_type="redshift",
             login=LOGIN_USER,
