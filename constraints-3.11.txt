@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-30T08:12:51Z
+# This constraints file was automatically generated on 2023-05-30T14:19:23Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -265,7 +265,7 @@ gevent==22.10.2
 gitdb==4.0.10
 google-ads==21.1.0
 google-api-core==2.11.0
-google-api-python-client==2.87.0
+google-api-python-client==2.88.0
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==1.0.0
 google-auth==2.19.0
@@ -600,7 +600,7 @@ tornado==6.3.2
 towncrier==22.12.0
 tqdm==4.65.0
 traitlets==5.9.0
-trino==0.325.0
+trino==0.326.0
 twine==4.0.2
 types-Deprecated==1.2.9.2
 types-Markdown==3.4.2.9
