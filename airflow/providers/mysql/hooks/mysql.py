@@ -298,3 +298,28 @@ class MySqlHook(DbApiHook):
         cursor.close()
         conn.commit()
         conn.close()  # type: ignore[misc]
+
+    def get_openlineage_database_info(self, connection):
+        """Returns MySQL specific information for OpenLineage."""
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(connection),
+            authority=DbApiHook.get_openlineage_authority_part(connection),
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "column_type",
+            ],
+            normalize_name_method=lambda name: name.upper(),
+        )
+
+    def get_openlineage_database_dialect(self, _):
+        """Returns database dialect."""
+        return "mysql"
+
+    def get_openlineage_default_schema(self):
+        """MySQL has no concept of schema."""
+        return None
