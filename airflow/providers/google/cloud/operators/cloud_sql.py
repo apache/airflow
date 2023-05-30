@@ -215,8 +215,7 @@ CLOUD_SQL_DATABASE_PATCH_VALIDATION = [
 
 
 class CloudSQLBaseOperator(GoogleCloudBaseOperator):
-    """
-    Abstract base operator for Google Cloud SQL operators to inherit from.
+    """Abstract base operator for Google Cloud SQL operators.
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :param project_id: Optional, Google Cloud Project ID.  f set to None or missing,
@@ -284,8 +283,8 @@ class CloudSQLBaseOperator(GoogleCloudBaseOperator):
 
 
 class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
-    """
-    Creates a new Cloud SQL instance.
+    """Create a new Cloud SQL instance.
+
     If an instance with the same name exists, no action will be taken and
     the operator will succeed.
 
@@ -385,8 +384,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
-    """
-    Updates settings of a Cloud SQL instance.
+    """Update settings of a Cloud SQL instance.
 
     Caution: This is a partial update, so only included values for the settings will be
     updated.
@@ -478,8 +476,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
-    """
-    Deletes a Cloud SQL instance.
+    """Delete a Cloud SQL instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -525,8 +522,7 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
-    """
-    Clones an instance to a target instance.
+    """Clone an instance to a target instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -617,8 +613,7 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
-    """
-    Creates a new database inside a Cloud SQL instance.
+    """Create a new database inside a Cloud SQL instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -722,9 +717,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
-    """
-    Updates a resource containing information about a database inside a Cloud SQL
-    instance using patch semantics.
+    """Update resource containing information about a database using patch semantics.
 
     See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
 
@@ -827,8 +820,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
-    """
-    Deletes a database from a Cloud SQL instance.
+    """Delete a database from a Cloud SQL instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -907,9 +899,9 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
-    """
-    Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
-    or CSV file.
+    """Export data from a Cloud SQL instance to a Cloud Storage bucket.
+
+    The exported format can be a SQL dump or CSV file.
 
     Note: This operator is idempotent. If executed multiple times with the same
     export file URI, the export file in GCS will simply be overridden.
@@ -1006,17 +998,18 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
-    """
-    Imports data into a Cloud SQL instance from a SQL dump or CSV file in Cloud Storage.
+    """Import data into a Cloud SQL instance from Cloud Storage.
 
-    CSV IMPORT:
+    CSV IMPORT
+    ``````````
 
     This operator is NOT idempotent for a CSV import. If the same file is imported
     multiple times, the imported data will be duplicated in the database.
     Moreover, if there are any unique constraints the duplicate import may result in an
     error.
 
-    SQL IMPORT:
+    SQL IMPORT
+    ``````````
 
     This operator is idempotent for a SQL import if it was also exported by Cloud SQL.
     The exported SQL contains 'DROP TABLE IF EXISTS' statements for all tables
@@ -1117,9 +1110,10 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
-    """
-    Performs DML or DDL query on an existing Cloud Sql instance. It optionally uses
-    cloud-sql-proxy to establish secure connection with the database.
+    """Perform DML or DDL query on an existing Cloud Sql instance.
+
+    It optionally uses cloud-sql-proxy to establish secure connection with the
+    database.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
