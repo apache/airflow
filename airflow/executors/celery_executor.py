@@ -99,9 +99,8 @@ class CeleryExecutor(BaseExecutor):
         self._sync_parallelism = conf.getint("celery", "SYNC_PARALLELISM")
         if self._sync_parallelism == 0:
             self._sync_parallelism = max(1, cpu_count() - 1)
-        from airflow.executors.celery_executor_utils import BulkStateFetcher, execute_command
+        from airflow.executors.celery_executor_utils import BulkStateFetcher
 
-        self.execute_command = execute_command
         self.bulk_state_fetcher = BulkStateFetcher(self._sync_parallelism)
         self.tasks = {}
         self.task_publish_retries: Counter[TaskInstanceKey] = Counter()
@@ -119,7 +118,9 @@ class CeleryExecutor(BaseExecutor):
         return max(1, int(math.ceil(1.0 * to_send_count / self._sync_parallelism)))
 
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
-        task_tuples_to_send = [task_tuple[:3] + (self.execute_command,) for task_tuple in task_tuples]
+        from airflow.executors.celery_executor_utils import execute_command
+
+        task_tuples_to_send = [task_tuple[:3] + (execute_command,) for task_tuple in task_tuples]
         first_task = next(t[3] for t in task_tuples_to_send)
 
         # Celery state queries will stuck if we do not use one same backend

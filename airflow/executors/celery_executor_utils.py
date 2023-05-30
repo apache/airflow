@@ -14,6 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Utilities and classes used by the Celery Executor.
+Much of this code is expensive to import/load, be careful where this module is imported.
+"""
 
 from __future__ import annotations
 
