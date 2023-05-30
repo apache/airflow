@@ -218,3 +218,45 @@ def test_override_dag_default_args():
     assert test_task.retries == 1
     assert test_task.owner == "y"
     assert test_task.execution_timeout == timedelta(seconds=10)
+
+
+def test_override_dag_default_args_nested_tg():
+    @dag(
+        dag_id="test_dag",
+        start_date=pendulum.parse("20200101"),
+        default_args={
+            "retries": 1,
+            "owner": "x",
+        },
+    )
+    def pipeline():
+        @task_group(
+            group_id="task_group",
+            default_args={
+                "owner": "y",
+                "execution_timeout": timedelta(seconds=10),
+            },
+        )
+        def tg():
+            @task_group(group_id="nested_task_group")
+            def nested_tg():
+                @task_group(group_id="another_task_group")
+                def another_tg():
+                    EmptyOperator(task_id="task")
+
+                another_tg()
+
+            nested_tg()
+
+        tg()
+
+    test_dag = pipeline()
+    test_task = (
+        test_dag.task_group_dict["task_group"]
+        .children["task_group.nested_task_group"]
+        .children["task_group.nested_task_group.another_task_group"]
+        .children["task_group.nested_task_group.another_task_group.task"]
+    )
+    assert test_task.retries == 1
+    assert test_task.owner == "y"
+    assert test_task.execution_timeout == timedelta(seconds=10)

@@ -1326,3 +1326,53 @@ def test_override_dag_default_args():
     assert task.retries == 1
     assert task.owner == "y"
     assert task.execution_timeout == timedelta(seconds=10)
+
+
+def test_override_dag_default_args_in_nested_tg():
+    with DAG(
+        dag_id="test_dag",
+        start_date=pendulum.parse("20200101"),
+        default_args={
+            "retries": 1,
+            "owner": "x",
+        },
+    ):
+        with TaskGroup(
+            group_id="task_group",
+            default_args={
+                "owner": "y",
+                "execution_timeout": timedelta(seconds=10),
+            },
+        ):
+            with TaskGroup(group_id="nested_task_group"):
+                task = EmptyOperator(task_id="task")
+
+    assert task.retries == 1
+    assert task.owner == "y"
+    assert task.execution_timeout == timedelta(seconds=10)
+
+
+def test_override_dag_default_args_in_multi_level_nested_tg():
+    with DAG(
+        dag_id="test_dag",
+        start_date=pendulum.parse("20200101"),
+        default_args={
+            "retries": 1,
+            "owner": "x",
+        },
+    ):
+        with TaskGroup(
+            group_id="task_group",
+            default_args={
+                "owner": "y",
+                "execution_timeout": timedelta(seconds=10),
+            },
+        ):
+            with TaskGroup(group_id="first_nested_task_group"):
+                with TaskGroup(group_id="second_nested_task_group"):
+                    with TaskGroup(group_id="third_nested_task_group"):
+                        task = EmptyOperator(task_id="task")
+
+    assert task.retries == 1
+    assert task.owner == "y"
+    assert task.execution_timeout == timedelta(seconds=10)
