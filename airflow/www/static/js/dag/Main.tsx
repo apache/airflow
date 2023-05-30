@@ -98,6 +98,18 @@ const Main = () => {
     onToggle();
   };
 
+  const onToggleGridCollapse = useCallback(() => {
+    const gridElement = gridRef.current;
+    if (gridElement) {
+      if (isGridCollapsed) {
+        gridElement.style.width = localStorage.getItem(gridWidthKey) || "";
+      } else {
+        gridElement.style.width = collapsedWidth;
+      }
+      setIsGridCollapsed(!isGridCollapsed);
+    }
+  }, [isGridCollapsed]);
+
   const resize = useCallback(
     (e: MouseEvent) => {
       const gridEl = gridRef.current;
@@ -113,11 +125,18 @@ const Main = () => {
           oldGridElX.current < e.x
         ) {
           setIsGridCollapsed(false);
+        } else if (
+          e.x < minPanelWidth / 2 &&
+          oldGridElX &&
+          oldGridElX.current &&
+          oldGridElX.current > e.x
+        ) {
+          onToggleGridCollapse();
         }
       }
       oldGridElX.current = e.x;
     },
-    [gridRef]
+    [gridRef, onToggleGridCollapse]
   );
 
   useEffect(() => {
@@ -139,18 +158,6 @@ const Main = () => {
     }
     return () => {};
   }, [resize, isLoading, isOpen]);
-
-  const onToggleGridCollapse = () => {
-    const gridElement = gridRef.current;
-    if (gridElement) {
-      if (isGridCollapsed) {
-        gridElement.style.width = localStorage.getItem(gridWidthKey) || "";
-      } else {
-        gridElement.style.width = collapsedWidth;
-      }
-      setIsGridCollapsed(!isGridCollapsed);
-    }
-  };
 
   return (
     <Box
