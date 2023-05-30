@@ -58,7 +58,7 @@ class BatchSensor(BaseSensorOperator):
         region_name: str | None = None,
         deferrable: bool = False,
         poke_interval: float = 5,
-        max_retries: int | None = None,
+        max_retries: int = 5,
         **kwargs,
     ):
         super().__init__(**kwargs)
