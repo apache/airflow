@@ -287,10 +287,8 @@ class PrStat:
         # Weight PRs with protm tags more heavily:
         # If there is at least one protm tag, multiply the interaction score by the number of tags, up to 3.
         interaction_score = self.interaction_score
-        try:
-            interaction_score *= min(self.protm_score + 1, 3)
-        except AttributeError:
-            interaction_score = 1.0
+        interaction_score *= min(self.protm_score + 1, 3)
+
         return round(
             1.0
             * interaction_score
