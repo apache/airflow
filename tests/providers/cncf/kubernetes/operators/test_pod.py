@@ -1540,8 +1540,8 @@ class TestKubernetesPodOperatorAsync:
             mock_manager.return_value.read_pod_logs.assert_not_called()
 
     @pytest.mark.parametrize("log_pod_spec_on_failure,expect_match", [
-        (True, r'Pod task-.* returned a failure.\nremote_pod:.*'),
-        (False, r'Pod task-.* returned a failure.(?!\nremote_pod:)')
+        (True, r"Pod task-.* returned a failure.\nremote_pod:.*"),
+        (False, r"Pod task-.* returned a failure.(?!\nremote_pod:)")
     ])
     def test_cleanup_log_pod_spec_on_failure(self, log_pod_spec_on_failure, expect_match):
         k = KubernetesPodOperator(task_id="task", log_pod_spec_on_failure=log_pod_spec_on_failure)
