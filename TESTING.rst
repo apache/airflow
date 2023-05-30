@@ -310,6 +310,19 @@ You can also run all providers but exclude the providers you would like to skip
     breeze testing tests --test-type "Providers[-amazon,google]"
 
 
+Inspecting docker compose after test commands
+---------------------------------------------
+
+Sometimes you need to inspect docker compose after tests command complete,
+for example when test environment could not be properly set due to
+failed healthchecks. This can be achieved with ``--skip-docker-compose-down``
+flag:
+
+.. code-block:: bash
+
+    breeze testing tests --skip--docker-compose-down
+
+
 Running full Airflow unit test suite in parallel
 ------------------------------------------------
 

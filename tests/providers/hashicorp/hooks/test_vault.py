@@ -298,7 +298,7 @@ class TestVaultHook:
         mock_get_connection.assert_called_with("vault_conn_id")
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url="http://localhost:8180")
-        test_client.auth_aws_iam.assert_called_with(
+        test_client.auth.aws.iam_login.assert_called_with(
             access_key="user",
             secret_key="pass",
             role="role",
@@ -325,7 +325,7 @@ class TestVaultHook:
         mock_get_connection.assert_called_with("vault_conn_id")
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url="http://localhost:8180")
-        test_client.auth_aws_iam.assert_called_with(
+        test_client.auth.aws.iam_login.assert_called_with(
             access_key="user",
             secret_key="pass",
             role="role",
@@ -340,7 +340,7 @@ class TestVaultHook:
         test_hook = VaultHook(vault_conn_id="vault_conn_id")
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url="https://vault.example.com")
-        test_client.auth_aws_iam.assert_called_with(
+        test_client.auth.aws.iam_login.assert_called_with(
             access_key="login",
             secret_key="pass",
             role="role",
@@ -896,7 +896,7 @@ class TestVaultHook:
         mock_get_connection.assert_called_with("vault_conn_id")
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url="http://localhost:8180")
-        test_client.auth_userpass.assert_called_with(username="user", password="pass")
+        test_client.auth.userpass.login.assert_called_with(username="user", password="pass")
         test_client.is_authenticated.assert_called_with()
         assert 2 == test_hook.vault_client.kv_engine_version
 
@@ -921,7 +921,7 @@ class TestVaultHook:
         mock_get_connection.assert_called_with("vault_conn_id")
         test_client = test_hook.get_conn()
         mock_hvac.Client.assert_called_with(url="http://localhost:8180")
-        test_client.auth_userpass.assert_called_with(username="user", password="pass")
+        test_client.auth.userpass.login.assert_called_with(username="user", password="pass")
         test_client.is_authenticated.assert_called_with()
         assert 2 == test_hook.vault_client.kv_engine_version
 
