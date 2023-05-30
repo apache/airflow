@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
-from kubernetes.client import ApiClient, models as k8s, V1PodStatus
+from kubernetes.client import ApiClient, V1PodStatus, models as k8s
 from pytest import param
 from urllib3 import HTTPResponse
 from urllib3.packages.six import BytesIO
@@ -1539,10 +1539,13 @@ class TestKubernetesPodOperatorAsync:
         else:
             mock_manager.return_value.read_pod_logs.assert_not_called()
 
-    @pytest.mark.parametrize("log_pod_spec_on_failure,expect_match", [
-        (True, r"Pod task-.* returned a failure.\nremote_pod:.*"),
-        (False, r"Pod task-.* returned a failure.(?!\nremote_pod:)")
-    ])
+    @pytest.mark.parametrize(
+        "log_pod_spec_on_failure,expect_match",
+        [
+            (True, r"Pod task-.* returned a failure.\nremote_pod:.*"),
+            (False, r"Pod task-.* returned a failure.(?!\nremote_pod:)"),
+        ],
+    )
     def test_cleanup_log_pod_spec_on_failure(self, log_pod_spec_on_failure, expect_match):
         k = KubernetesPodOperator(task_id="task", log_pod_spec_on_failure=log_pod_spec_on_failure)
         pod = k.build_pod_request_obj(create_context(k))
