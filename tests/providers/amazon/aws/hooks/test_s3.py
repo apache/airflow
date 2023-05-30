@@ -24,7 +24,7 @@ import re
 import tempfile
 import unittest
 from pathlib import Path
-from unittest import mock
+from unittest import mock, mock as async_mock
 from unittest.mock import MagicMock, Mock, patch
 
 import boto3
@@ -40,7 +40,6 @@ from airflow.providers.amazon.aws.hooks.s3 import (
     unify_bucket_name_and_key,
 )
 from airflow.utils.timezone import datetime
-from tests.providers.amazon.aws.compat import async_mock
 
 
 @pytest.fixture

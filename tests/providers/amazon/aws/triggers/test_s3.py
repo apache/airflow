@@ -17,13 +17,13 @@
 from __future__ import annotations
 
 import asyncio
+from unittest import mock as async_mock
 
 import pytest
 
 from airflow.providers.amazon.aws.triggers.s3 import (
     S3KeyTrigger,
 )
-from tests.providers.amazon.aws.compat import async_mock
 
 
 class TestS3KeyTrigger:

@@ -193,6 +193,17 @@ with DAG(
 
     # [START howto_sensor_s3_key_function]
     # Check if a file exists and match a certain pattern defined in check_fn
+    sensor_key_with_function_deferrable = S3KeySensor(
+        task_id="sensor_key_with_function_deferrable",
+        bucket_name=bucket_name,
+        bucket_key=key,
+        check_fn=check_fn,
+        deferrable=True,
+    )
+    # [END howto_sensor_s3_key_function]
+
+    # [START howto_sensor_s3_key_function]
+    # Check if a file exists and match a certain pattern defined in check_fn
     sensor_key_with_function = S3KeySensor(
         task_id="sensor_key_with_function",
         bucket_name=bucket_name,
@@ -276,7 +287,7 @@ with DAG(
         list_prefixes,
         list_keys,
         [sensor_one_key, sensor_two_keys, sensor_key_with_function],
-        [sensor_one_key_deferrable, sensor_two_keys_deferrable],
+        [sensor_one_key_deferrable, sensor_two_keys_deferrable, sensor_key_with_function_deferrable],
         copy_object,
         file_transform,
         branching,
