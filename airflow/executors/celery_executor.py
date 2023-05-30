@@ -61,7 +61,7 @@ if TYPE_CHECKING:
 # PEP562
 def __getattr__(name):
     # This allows us to make the Celery app accessible through the
-    # celery_executor module without the time cost of it's import and
+    # celery_executor module without the time cost of its import and
     # construction
     if name == "app":
         from airflow.executors.celery_executor_utils import app
