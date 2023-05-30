@@ -57,29 +57,25 @@ T = TypeVar("T", bound=Callable)
 def process_line_and_extract_dataflow_job_id_callback(
     on_new_job_id_callback: Callable[[str], None] | None
 ) -> Callable[[str], None]:
-    """
-    Returns callback which triggers function passed as `on_new_job_id_callback` when Dataflow job_id is found.
-    To be used for `process_line_callback` in
+    """Build callback that triggers the specified function.
+
+    The returned callback is intended to be used as ``process_line_callback`` in
     :py:class:`~airflow.providers.apache.beam.hooks.beam.BeamCommandRunner`.
 
     :param on_new_job_id_callback: Callback called when the job ID is known
     """
 
-    def _process_line_and_extract_job_id(
-        line: str,
-        # on_new_job_id_callback: Callable[[str], None] | None
-    ) -> None:
+    def _process_line_and_extract_job_id(line: str) -> None:
         # Job id info: https://goo.gl/SE29y9.
+        if on_new_job_id_callback is None:
+            return
         matched_job = JOB_ID_PATTERN.search(line)
-        if matched_job:
-            job_id = matched_job.group("job_id_java") or matched_job.group("job_id_python")
-            if on_new_job_id_callback:
-                on_new_job_id_callback(job_id)
+        if matched_job is None:
+            return
+        job_id = matched_job.group("job_id_java") or matched_job.group("job_id_python")
+        on_new_job_id_callback(job_id)
 
-    def wrap(line: str):
-        return _process_line_and_extract_job_id(line)
-
-    return wrap
+    return _process_line_and_extract_job_id
 
 
 def _fallback_variable_parameter(parameter_name: str, variable_key_name: str) -> Callable[[T], T]:
