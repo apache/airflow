@@ -307,9 +307,7 @@ class GlueJobHook(AwsBaseHook):
         verbose: bool,
         next_log_tokens: GlueJobHook.LogContinuationTokens,
     ) -> dict | None:
-        """
-        Helper function to process Glue Job state while polling. Used by both sync and async methods.
-        """
+        """Helper function to process Glue Job state while polling. Used by both sync and async methods."""
         failed_states = ["FAILED", "TIMEOUT"]
         finished_states = ["SUCCEEDED", "STOPPED"]
 
