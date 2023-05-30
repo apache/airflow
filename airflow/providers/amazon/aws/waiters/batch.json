@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "waiters": {
+    "batch_job_complete": {
+      "delay": 300,
+      "operation": "DescribeJobs",
+      "maxAttempts": 100,
+      "description": "Wait until job is SUCCEEDED",
+      "acceptors": [
+        {
+          "argument": "jobs[].status",
+          "expected": "SUCCEEDED",
+          "matcher": "pathAll",
+          "state": "success"
+        },
+        {
+          "argument": "jobs[].status",
+          "expected": "FAILED",
+          "matcher": "pathAll",
+          "state": "failed"
+        }
+      ]
+    }
+  }
+}

@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.compat.functools import cached_property
+from functools import cached_property
+
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 

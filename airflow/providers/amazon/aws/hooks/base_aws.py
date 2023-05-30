@@ -31,7 +31,7 @@ import logging
 import os
 import uuid
 from copy import deepcopy
-from functools import wraps
+from functools import cached_property, wraps
 from os import PathLike
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
@@ -49,7 +49,6 @@ from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
 from slugify import slugify
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,

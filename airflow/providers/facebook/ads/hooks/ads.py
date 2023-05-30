@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import time
 from enum import Enum
+from functools import cached_property
 from typing import Any
 
 from facebook_business.adobjects.adaccount import AdAccount
@@ -27,7 +28,6 @@ from facebook_business.adobjects.adreportrun import AdReportRun
 from facebook_business.adobjects.adsinsights import AdsInsights
 from facebook_business.api import FacebookAdsApi
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 

@@ -19,8 +19,8 @@
 from __future__ import annotations
 
 import re
+from functools import cached_property
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin

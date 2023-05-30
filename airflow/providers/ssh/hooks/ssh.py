@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 import warnings
 from base64 import decodebytes
+from functools import cached_property
 from io import StringIO
 from select import select
 from typing import Any, Sequence
@@ -30,7 +31,6 @@ from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.utils.platform import getuser
