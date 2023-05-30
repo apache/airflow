@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import datetime
 import inspect
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
-from airflow.compat.functools import cache, cached_property
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.expandinput import NotFullyPopulated

@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from functools import cached_property
 from os import path
 
 from connexion import FlaskApi, ProblemException, Resolver
@@ -26,7 +27,6 @@ from connexion.exceptions import BadRequestProblem
 from flask import Flask, request
 
 from airflow.api_connexion.exceptions import common_error_handler
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.security import permissions
