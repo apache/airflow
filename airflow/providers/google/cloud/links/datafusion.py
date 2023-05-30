@@ -35,9 +35,10 @@ DATAFUSION_PIPELINE_LINK = "{uri}/pipelines/ns/default/view/{pipeline_name}"
 
 
 class BaseGoogleLink(BaseOperatorLink):
-    """
-    Override the base logic to prevent adding 'https://console.cloud.google.com'
-    in front of every link where uri is used.
+    """Link for Google operators.
+
+    Prevent adding ``https://console.cloud.google.com`` in front of every link
+    where URI is used.
     """
 
     name: ClassVar[str]
