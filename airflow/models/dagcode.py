@@ -22,7 +22,7 @@ import struct
 from datetime import datetime
 from typing import Iterable
 
-from sqlalchemy import BigInteger, Column, String, Text
+from sqlalchemy import BigInteger, Column, String, Text, delete
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import literal
@@ -136,9 +136,11 @@ class DagCode(Base):
 
         log.debug("Deleting code from %s table ", cls.__tablename__)
 
-        session.query(cls).filter(
-            cls.fileloc_hash.notin_(alive_fileloc_hashes), cls.fileloc.notin_(alive_dag_filelocs)
-        ).delete(synchronize_session="fetch")
+        session.execute(
+            delete(cls)
+            .where(cls.fileloc_hash.notin_(alive_fileloc_hashes), cls.fileloc.notin_(alive_dag_filelocs))
+            .execution_options(synchronize_session="fetch")
+        )
 
     @classmethod
     @provide_session

@@ -32,7 +32,7 @@ If you have pre-commit installed, pre-commit will be run automatically on commit
 manually after commit, you can run it via ``breeze static-checks --last-commit`` some of the tests might fail
 because suspension of the provider might cause changes in the dependencies, so if you see errors about
 missing dependencies imports, non-usable classes etc., you will need to build the CI image locally
-via ``breeze build-image --python 3.7 --upgrade-to-newer-dependencies`` after the first pre-commit run
+via ``breeze build-image --python 3.8 --upgrade-to-newer-dependencies`` after the first pre-commit run
 and then run the static checks again.
 
 If you want to be absolutely sure to run all static checks you can always do this via
@@ -73,7 +73,7 @@ Example failing collection after ``google`` provider has been suspended:
     ImportError while importing test module '/opt/airflow/tests/providers/apache/beam/operators/test_beam.py'.
     Hint: make sure your test modules/packages have valid Python names.
     Traceback:
-    /usr/local/lib/python3.7/importlib/__init__.py:127: in import_module
+    /usr/local/lib/python3.8/importlib/__init__.py:127: in import_module
         return _bootstrap._gcd_import(name[level:], package, level)
     tests/providers/apache/beam/operators/test_beam.py:25: in <module>
         from airflow.providers.apache.beam.operators.beam import (
@@ -101,7 +101,7 @@ The fix is to add this line at the top of the ``tests/providers/apache/beam/oper
       Traceback (most recent call last):
         File "/opt/airflow/scripts/in_container/verify_providers.py", line 266, in import_all_classes
           _module = importlib.import_module(modinfo.name)
-        File "/usr/local/lib/python3.7/importlib/__init__.py", line 127, in import_module
+        File "/usr/local/lib/python3.8/importlib/__init__.py", line 127, in import_module
           return _bootstrap._gcd_import(name, package, level)
         File "<frozen importlib._bootstrap>", line 1006, in _gcd_import
         File "<frozen importlib._bootstrap>", line 983, in _find_and_load
@@ -109,7 +109,7 @@ The fix is to add this line at the top of the ``tests/providers/apache/beam/oper
         File "<frozen importlib._bootstrap>", line 677, in _load_unlocked
         File "<frozen importlib._bootstrap_external>", line 728, in exec_module
         File "<frozen importlib._bootstrap>", line 219, in _call_with_frames_removed
-        File "/usr/local/lib/python3.7/site-packages/airflow/providers/mysql/transfers/s3_to_mysql.py", line 23, in <module>
+        File "/usr/local/lib/python3.8/site-packages/airflow/providers/mysql/transfers/s3_to_mysql.py", line 23, in <module>
           from airflow.providers.amazon.aws.hooks.s3 import S3Hook
       ModuleNotFoundError: No module named 'airflow.providers.amazon'
 

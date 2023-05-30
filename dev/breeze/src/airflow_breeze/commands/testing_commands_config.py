@@ -56,6 +56,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--mount-sources",
                 "--upgrade-boto",
                 "--remove-arm-packages",
+                "--skip-docker-compose-down",
             ],
         },
     ],

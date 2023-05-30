@@ -23,6 +23,7 @@ import datetime
 import json
 import logging
 import re
+from functools import cached_property
 from typing import Any
 from uuid import uuid4
 
@@ -72,7 +73,6 @@ from flask_limiter.util import get_remote_address
 from flask_login import AnonymousUserMixin, LoginManager, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
 
