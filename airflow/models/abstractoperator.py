@@ -156,10 +156,7 @@ class AbstractOperator(Templater, DAGNode):
         return self.downstream_task_ids
 
     def get_flat_relative_ids(
-        self,
-        upstream: bool = False,
-        setup_only: bool = False,
-        teardown_only: bool = False,
+        self, *, upstream: bool = False, setup_only: bool = False, teardown_only: bool = False
     ) -> set[str]:
         """
         Get a flat set of relative IDs, upstream or downstream.
