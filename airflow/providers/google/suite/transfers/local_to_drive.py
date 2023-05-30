@@ -30,43 +30,45 @@ if TYPE_CHECKING:
 
 
 class LocalFilesystemToGoogleDriveOperator(BaseOperator):
-    """
-    Upload a list of files to a Google Drive folder.
+    """Upload a list of files to a Google Drive folder.
+
     This operator uploads a list of local files to a Google Drive folder.
-    The local files can be deleted after upload (optional).
+    The local files can optionally be deleted after upload.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:LocalFilesystemToGoogleDriveOperator`
 
     :param local_paths: Python list of local file paths
-    :param drive_folder: path of the Drive folder, if folder_id param is given then drive_folder is a
-        sub path of folder_id.
-    :param gcp_conn_id: Airflow Connection ID for GCP
-    :param delete: should the local files be deleted after upload?
-    :param ignore_if_missing: if True, then don't fail even if all files
-        can't be uploaded.
+    :param drive_folder: path of the Drive folder, if *folder_id* is given,
+        *drive_folder* is a sub path of the folder.
+    :param gcp_conn_id: Airflow Connection ID for GCP.
+    :param delete: Should the local files be deleted after upload?
+    :param ignore_if_missing: If *True*, don't fail even if some files can't be
+        uploaded.
     :param chunk_size: File will be uploaded in chunks of this many bytes. Only
-        used if resumable=True. Pass in a value of -1 if the file is to be
-        uploaded as a single chunk. Note that Google App Engine has a 5MB limit
-        on request size, so you should never set your chunk size larger than 5MB,
-        or to -1.
+        used when *resumable* is set to *True*. Pass in a value of -1 if the
+        file is to be uploaded as a single chunk. Note that Google App Engine
+        has a 5MB limit on request size, so you should never set your chunk size
+        larger than 5MB, or to -1.
     :param resumable: True if this is a resumable upload. False means upload
         in a single request.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or chained list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
+    :param delegate_to: The account to impersonate using domain-wide delegation
+        of authority, if any. For this to work, the service account making the
+        request must have domain-wide delegation enabled.
+    :param impersonation_chain: Optional service account to impersonate using
+        short-term credentials, or chained list of accounts required to get the
+        access token of the last account in the list, which will be impersonated
+        in the request. If set as a string, the account must grant the
+        originating account the Service Account Token Creator IAM role. If set
+        as a sequence, the identities from the list must grant Service Account
+        Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account
-    :param folder_id: The base/root folder id for each local path in the Drive folder
-    :param show_full_target_path: If true then it reveals full available file path in the logs.
-    :return: Remote file ids after upload
+    :param folder_id: The base/root folder id for each local path in the Drive
+        folder.
+    :param show_full_target_path: If true then it reveals full available file
+        path in the logs.
+    :return: Remote file ids after upload.
     """
 
     template_fields = (
