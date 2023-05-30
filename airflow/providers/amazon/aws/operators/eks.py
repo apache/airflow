@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.utils.fargate_logging import (
+    FargateLoggingConfig,
     enable_fargate_logging,
     resolve_wait_for_completion,
 )
@@ -150,7 +151,7 @@ class EksCreateClusterOperator(BaseOperator):
         fargate_profile_name: str = DEFAULT_FARGATE_PROFILE_NAME,
         fargate_pod_execution_role_arn: str | None = None,
         fargate_selectors: list | None = None,
-        fargate_logging_config: dict | None = None,
+        fargate_logging_config: FargateLoggingConfig | None = None,
         create_fargate_profile_kwargs: dict | None = None,
         wait_for_completion: bool | ArgNotSet = NOTSET,
         aws_conn_id: str = DEFAULT_CONN_ID,

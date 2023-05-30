@@ -16,14 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 import subprocess
 import tempfile
 from functools import wraps
 from inspect import signature
-from typing import Callable, cast
+from typing import Callable, TypedDict, cast
 
 from airflow.exceptions import AirflowException
 from airflow.utils.types import NOTSET
+
+log = logging.getLogger(__name__)
 
 NAMESPACE_TEMPLATE = """
 kind: Namespace
@@ -74,16 +77,29 @@ data:
 """
 
 
+class FargateLoggingConfig(TypedDict, total=False):
+    """
+    Config needed to enable Fargate logging.
+
+    See: https://docs.aws.amazon.com/eks/latest/userguide/fargate-logging.html
+    """
+
+    log_group_name: str
+    log_stream_prefix: str
+    log_retention_days: int
+    auto_create_group: bool
+
+
 def enable_fargate_logging(
-    *,
     region: str,
     log_group_name: str,
-    log_stream_prefix: str = "",
-    log_retention_days: int = 60,
+    log_stream_prefix: str,
+    log_retention_days: int,
     auto_create_group: bool = True,
 ) -> subprocess.CompletedProcess:
     """
     Creates the required ConfigMap and pushes it to the kubernetes cluster.
+
     See: https://docs.aws.amazon.com/eks/latest/userguide/fargate-logging.html
 
     :param region: Which AWS region the kubernetes cluster exists in.
@@ -98,8 +114,10 @@ def enable_fargate_logging(
         namespace.write(NAMESPACE_TEMPLATE)
         namespace.flush()
 
+        cmd = ["kubectl", "apply", "-f", namespace.name]
+        log.info("Executing command %s", " ".join(cmd))
         result = subprocess.run(
-            ["kubectl", "apply", "-f", namespace.name],
+            cmd,
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -108,6 +126,8 @@ def enable_fargate_logging(
         if result.returncode != 0:
             # If the process did not complete successfully, return the stdout string. No point continuing.
             return result
+
+        log.info("Result of the command: %s", result.stdout)
 
     configmap_text = CONFIGMAP_TEMPLATE.format(
         region=region,
@@ -121,12 +141,17 @@ def enable_fargate_logging(
         configmap.write(configmap_text)
         configmap.flush()
 
-        return subprocess.run(
-            ["kubectl", "apply", "-f", configmap],
+        cmd = ["kubectl", "apply", "-f", configmap.name]
+        log.info("Executing command %s", " ".join(cmd))
+        result = subprocess.run(
+            cmd,
             text=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
         )
+
+        log.info("Result of the command: %s", result.stdout)
+        return result
 
 
 def resolve_wait_for_completion(func: Callable) -> Callable:
@@ -144,9 +169,6 @@ def resolve_wait_for_completion(func: Callable) -> Callable:
         if "fargate_logging_config" in bound_args.arguments:
             wait = bound_args.arguments.get("wait_for_completion", NOTSET)
 
-            if wait is True:
-                # We have to wait and the user asked us to wait; no action required.
-                pass
             if wait is False:
                 raise AirflowException(
                     "A Fargate profile logging configuration has been provided but "
