@@ -17,12 +17,11 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Sequence
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from deprecated import deprecated
 
-from functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.triggers.batch import BatchSensorTrigger
@@ -59,6 +58,7 @@ class BatchSensor(BaseSensorOperator):
         region_name: str | None = None,
         deferrable: bool = False,
         poke_interval: float = 5,
+        max_retries: int | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -67,6 +67,7 @@ class BatchSensor(BaseSensorOperator):
         self.region_name = region_name
         self.deferrable = deferrable
         self.poke_interval = poke_interval
+        self.max_retries = max_retries
 
     def poke(self, context: Context) -> bool:
         job_description = self.hook.get_job_description(self.job_id)
@@ -94,6 +95,7 @@ class BatchSensor(BaseSensorOperator):
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
                     poke_interval=self.poke_interval,
+                    max_retries=self.max_retries,
                 ),
                 method_name="execute_complete",
             )
