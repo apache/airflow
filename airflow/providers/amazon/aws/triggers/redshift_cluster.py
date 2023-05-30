@@ -18,77 +18,12 @@ from __future__ import annotations
 
 import asyncio
 from functools import cached_property
-from typing import Any, AsyncIterator
+from typing import Any
 
 from botocore.exceptions import WaiterError
 
-from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftAsyncHook, RedshiftHook
+from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-
-class RedshiftClusterTrigger(BaseTrigger):
-    """AWS Redshift trigger"""
-
-    def __init__(
-        self,
-        task_id: str,
-        aws_conn_id: str,
-        cluster_identifier: str,
-        operation_type: str,
-        attempts: int,
-        poll_interval: float = 5.0,
-    ):
-        super().__init__()
-        self.task_id = task_id
-        self.poll_interval = poll_interval
-        self.aws_conn_id = aws_conn_id
-        self.cluster_identifier = cluster_identifier
-        self.operation_type = operation_type
-        self.attempts = attempts
-
-    def serialize(self) -> tuple[str, dict[str, Any]]:
-        return (
-            "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftClusterTrigger",
-            {
-                "task_id": self.task_id,
-                "poll_interval": self.poll_interval,
-                "aws_conn_id": self.aws_conn_id,
-                "cluster_identifier": self.cluster_identifier,
-                "attempts": self.attempts,
-                "operation_type": self.operation_type,
-            },
-        )
-
-    async def run(self) -> AsyncIterator[TriggerEvent]:
-        hook = RedshiftAsyncHook(aws_conn_id=self.aws_conn_id)
-        while self.attempts >= 1:
-            self.attempts = self.attempts - 1
-            try:
-                if self.operation_type == "pause_cluster":
-                    response = await hook.pause_cluster(
-                        cluster_identifier=self.cluster_identifier,
-                        poll_interval=self.poll_interval,
-                    )
-                    if response.get("status") == "success":
-                        yield TriggerEvent(response)
-                    else:
-                        if self.attempts < 1:
-                            yield TriggerEvent({"status": "error", "message": f"{self.task_id} failed"})
-                elif self.operation_type == "resume_cluster":
-                    response = await hook.resume_cluster(
-                        cluster_identifier=self.cluster_identifier,
-                        polling_period_seconds=self.poll_interval,
-                    )
-                    if response:
-                        yield TriggerEvent(response)
-                    else:
-                        error_message = f"{self.task_id} failed"
-                        yield TriggerEvent({"status": "error", "message": error_message})
-                else:
-                    yield TriggerEvent(f"{self.operation_type} is not supported")
-            except Exception as e:
-                if self.attempts < 1:
-                    yield TriggerEvent({"status": "error", "message": str(e)})
 
 
 class RedshiftCreateClusterTrigger(BaseTrigger):
