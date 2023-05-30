@@ -24,12 +24,12 @@ from airflow.utils.process_utils import execute_in_subprocess
 
 
 def init_module(go_module_name: str, go_module_path: str) -> None:
-    """Initialize a Go module. If a ``go.mod`` file already exists, this function
-    will do nothing.
+    """Initialize a Go module.
+
+    If a ``go.mod`` file already exists, this function will do nothing.
 
     :param go_module_name: The name of the Go module to initialize.
     :param go_module_path: The path to the directory containing the Go module.
-    :return:
     """
     if os.path.isfile(os.path.join(go_module_path, "go.mod")):
         return
@@ -41,7 +41,6 @@ def install_dependencies(go_module_path: str) -> None:
     """Install dependencies for a Go module.
 
     :param go_module_path: The path to the directory containing the Go module.
-    :return:
     """
     go_mod_tidy = ["go", "mod", "tidy"]
     execute_in_subprocess(go_mod_tidy, cwd=go_module_path)

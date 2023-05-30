@@ -17,10 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 from urllib.parse import urlsplit
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.sensors.base import BaseSensorOperator

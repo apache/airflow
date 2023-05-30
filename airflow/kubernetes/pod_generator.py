@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import copy
 import datetime
-import hashlib
 import logging
 import os
 import re
@@ -46,6 +45,7 @@ from airflow.exceptions import (
 from airflow.kubernetes.kubernetes_helper_functions import add_pod_suffix, rand_str
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
 from airflow.utils import yaml
+from airflow.utils.hashlib_wrapper import md5
 from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ def make_safe_label_value(string: str) -> str:
     safe_label = re.sub(r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$", "", string)
 
     if len(safe_label) > MAX_LABEL_LEN or string != safe_label:
-        safe_hash = hashlib.md5(string.encode()).hexdigest()[:9]
+        safe_hash = md5(string.encode()).hexdigest()[:9]
         safe_label = safe_label[: MAX_LABEL_LEN - len(safe_hash) - 1] + "-" + safe_hash
 
     return safe_label
@@ -449,7 +449,7 @@ class PodGenerator:
         airflow_worker=None,
     ):
         """
-        Generate selector for kubernetes executor pod
+        Generate selector for kubernetes executor pod.
 
         :meta private:
         """
@@ -481,7 +481,7 @@ class PodGenerator:
         run_id=None,
     ):
         """
-        Generate labels for kubernetes executor pod
+        Generate labels for kubernetes executor pod.
 
         :meta private:
         """

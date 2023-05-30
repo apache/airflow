@@ -16,9 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 import boto3
+import tenacity
+from tenacity import before_log, before_sleep_log
 
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
@@ -27,6 +30,8 @@ from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+
+log = logging.getLogger(__name__)
 
 DAG_ID = "example_dynamodb_to_s3"
 
@@ -44,6 +49,24 @@ TABLE_THROUGHPUT = {"ReadCapacityUnits": 1, "WriteCapacityUnits": 1}
 S3_KEY_PREFIX = "dynamodb-segmented-file"
 
 
+# UpdateContinuousBackups API might need multiple attempts to succeed
+# Sometimes the API returns the error "Backups are being enabled for the table: <...>. Please retry later"
+# Using a retry strategy with exponential backoff to remediate that
+@tenacity.retry(
+    stop=tenacity.stop_after_attempt(5),
+    wait=tenacity.wait_exponential(min=5),
+    before=before_log(log, logging.INFO),
+    before_sleep=before_sleep_log(log, logging.WARNING),
+)
+def enable_point_in_time_recovery(table_name: str):
+    boto3.client("dynamodb").update_continuous_backups(
+        TableName=table_name,
+        PointInTimeRecoverySpecification={
+            "PointInTimeRecoveryEnabled": True,
+        },
+    )
+
+
 @task
 def set_up_table(table_name: str):
     dynamo_resource = boto3.resource("dynamodb")
@@ -56,12 +79,7 @@ def set_up_table(table_name: str):
     boto3.client("dynamodb").get_waiter("table_exists").wait(
         TableName=table_name, WaiterConfig={"Delay": 10, "MaxAttempts": 10}
     )
-    boto3.client("dynamodb").update_continuous_backups(
-        TableName=table_name,
-        PointInTimeRecoverySpecification={
-            "PointInTimeRecoveryEnabled": True,
-        },
-    )
+    enable_point_in_time_recovery(table_name)
     table.put_item(Item={"ID": "123", "Value": "Testing"})
 
 

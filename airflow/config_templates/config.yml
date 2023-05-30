@@ -452,6 +452,14 @@ core:
 database:
   description: ~
   options:
+    alembic_ini_file_path:
+      description: |
+        Path to the ``alembic.ini`` file. You can either provide the file path relative
+        to the Airflow home directory or the absolute path if it is located elsewhere.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "alembic.ini"
     sql_alchemy_conn:
       description: |
         The SqlAlchemy connection string to the metadata database.
@@ -1334,6 +1342,13 @@ hive:
 webserver:
   description: ~
   options:
+    config_file:
+      description: |
+        Path of webserver config file used for configuring the webserver parameters
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "{AIRFLOW_HOME}/webserver_config.py"
     base_url:
       description: |
         The base url of your website as airflow cannot guess what domain or
@@ -2671,6 +2686,13 @@ kubernetes_executor:
       type: string
       example: '{ "total": 3, "backoff_factor": 0.5 }'
       default: ""
+    logs_task_metadata:
+      description: |
+        Flag to control the information added to kubernetes executor logs for better traceability
+      version_added: 2.7.0
+      type: boolean
+      example: ~
+      default: "False"
     pod_template_file:
       description: |
         Path to the YAML pod file that forms the basis for KubernetesExecutor workers.

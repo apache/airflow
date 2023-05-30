@@ -58,6 +58,7 @@ PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
 CROSS_PROVIDERS_DEPS = "cross-providers-deps"
 DEPS = "deps"
+CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 
 
 #
@@ -67,7 +68,13 @@ DEPS = "deps"
 #
 def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
     try:
-        return json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+        with AIRFLOW_SOURCES_ROOT.joinpath("generated", "provider_dependencies.json").open() as f:
+            dependencies = json.load(f)
+        return {
+            key: value
+            for key, value in dependencies.items()
+            if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"]
+        }
     except Exception as e:
         print(f"Exception while loading provider dependencies {e}")
         # we can ignore loading dependencies when they are missing - they are only used to generate
@@ -80,7 +87,7 @@ PROVIDER_DEPENDENCIES = fill_provider_dependencies()
 
 
 def airflow_test_suite() -> unittest.TestSuite:
-    """Test suite for Airflow tests"""
+    """Test suite for Airflow tests."""
     test_loader = unittest.TestLoader()
     test_suite = test_loader.discover(str(AIRFLOW_SOURCES_ROOT / "tests"), pattern="test_*.py")
     return test_suite
@@ -103,7 +110,7 @@ class CleanCommand(Command):
 
     @staticmethod
     def rm_all_files(files: list[str]) -> None:
-        """Remove all files from the list"""
+        """Remove all files from the list."""
         for file in files:
             try:
                 os.remove(file)
@@ -261,9 +268,6 @@ doc = [
     # <section> tags for sections
     "docutils<0.17.0",
     "eralchemy2",
-    # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
-    # even though Sphinx 4.4.0 has this but with python_version<3.10.
-    'importlib-metadata>=4.4; python_version < "3.8"',
     "sphinx-airflow-theme",
     "sphinx-argparse>=0.1.13",
     "sphinx-autoapi>=2.0.0",
@@ -490,6 +494,17 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "statsd": statsd,
     "virtualenv": virtualenv,
 }
+
+
+def filter_out_excluded_extras() -> Iterable[tuple[str, list[str]]]:
+    for key, value in CORE_EXTRAS_DEPENDENCIES.items():
+        if value:
+            yield key, value
+        else:
+            print(f"Removing extra {key} as it has been excluded")
+
+
+CORE_EXTRAS_DEPENDENCIES = dict(filter_out_excluded_extras())
 
 EXTRAS_DEPENDENCIES: dict[str, list[str]] = deepcopy(CORE_EXTRAS_DEPENDENCIES)
 
@@ -719,7 +734,7 @@ PREINSTALLED_PROVIDERS = [
 
 def get_provider_package_name_from_package_id(package_id: str) -> str:
     """
-    Builds the name of provider package out of the package id provided/
+    Builds the name of provider package out of the package id provided/.
 
     :param package_id: id of the package (like amazon or microsoft.azure)
     :return: full name of package in PyPI
@@ -734,7 +749,7 @@ def get_excluded_providers() -> list[str]:
 
 
 def get_all_provider_packages() -> str:
-    """Returns all provider packages configured in setup.py"""
+    """Returns all provider packages configured in setup.py."""
     excluded_providers = get_excluded_providers()
     return " ".join(
         get_provider_package_name_from_package_id(package)
@@ -744,7 +759,7 @@ def get_all_provider_packages() -> str:
 
 
 class AirflowDistribution(Distribution):
-    """The setuptools.Distribution subclass with Airflow specific behaviour"""
+    """The setuptools.Distribution subclass with Airflow specific behaviour."""
 
     def __init__(self, attrs=None):
         super().__init__(attrs)

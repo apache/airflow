@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import datetime
 import inspect
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
-from airflow.compat.functools import cache, cached_property
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.expandinput import NotFullyPopulated
@@ -138,7 +139,7 @@ class AbstractOperator(Templater, DAGNode):
 
     @property
     def dag_id(self) -> str:
-        """Returns dag id if it has one or an adhoc + owner"""
+        """Returns dag id if it has one or an adhoc + owner."""
         dag = self.get_dag()
         if dag:
             return dag.dag_id
@@ -243,7 +244,7 @@ class AbstractOperator(Templater, DAGNode):
     def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
         """Return mapped task groups this task belongs to.
 
-        Groups are returned from the closest to the outmost.
+        Groups are returned from the innermost to the outmost.
 
         :meta private:
         """
@@ -254,7 +255,10 @@ class AbstractOperator(Templater, DAGNode):
             parent = parent.task_group
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
-        """:meta private:"""
+        """Get the mapped task group "closest" to this task in the DAG.
+
+        :meta private:
+        """
         return next(self.iter_mapped_task_groups(), None)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
@@ -296,7 +300,7 @@ class AbstractOperator(Templater, DAGNode):
 
     @cached_property
     def operator_extra_link_dict(self) -> dict[str, Any]:
-        """Returns dictionary of all extra links for the operator"""
+        """Returns dictionary of all extra links for the operator."""
         op_extra_links_from_plugin: dict[str, Any] = {}
         from airflow import plugins_manager
 
@@ -315,7 +319,7 @@ class AbstractOperator(Templater, DAGNode):
 
     @cached_property
     def global_operator_extra_link_dict(self) -> dict[str, Any]:
-        """Returns dictionary of all global extra links"""
+        """Returns dictionary of all global extra links."""
         from airflow import plugins_manager
 
         plugins_manager.initialize_extra_operators_links_plugins()
