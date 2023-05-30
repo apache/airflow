@@ -876,7 +876,7 @@ class DAG(LoggingMixin):
         DO NOT use this method is there is a known data interval.
         """
         timetable_type = type(self.timetable)
-        if issubclass(timetable_type, (NullTimetable, OnceTimetable)):
+        if issubclass(timetable_type, (NullTimetable, OnceTimetable, DatasetTriggeredTimetable)):
             return DataInterval.exact(timezone.coerce_datetime(logical_date))
         start = timezone.coerce_datetime(logical_date)
         if issubclass(timetable_type, CronDataIntervalTimetable):
@@ -1271,7 +1271,7 @@ class DAG(LoggingMixin):
 
     @property
     def allow_future_exec_dates(self) -> bool:
-        return settings.ALLOW_FUTURE_EXEC_DATES and not self.timetable.can_run
+        return settings.ALLOW_FUTURE_EXEC_DATES and not self.timetable.can_be_scheduled
 
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
@@ -3216,7 +3216,7 @@ class DAG(LoggingMixin):
         Validates & raise exception if there are any Params in the DAG which neither have a default value nor
         have the null in schema['type'] list, but the DAG have a schedule_interval which is not None.
         """
-        if not self.timetable.can_run:
+        if not self.timetable.can_be_scheduled:
             return
 
         for k, v in self.params.items():
