@@ -628,6 +628,7 @@ class S3ListOperator(BaseOperator):
     :param delimiter: the delimiter marks key hierarchy. (templated)
     :param aws_conn_id: The connection ID to use when connecting to S3 storage.
     :param verify: Whether or not to verify SSL certificates for S3 connection.
+    :param apply_wildcard: whether to treat '*' as a wildcard or a plain symbol in the prefix.
         By default SSL certificates are verified.
         You can provide the following values:
 
@@ -664,6 +665,7 @@ class S3ListOperator(BaseOperator):
         delimiter: str = "",
         aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
+        apply_wildcard: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -672,6 +674,7 @@ class S3ListOperator(BaseOperator):
         self.delimiter = delimiter
         self.aws_conn_id = aws_conn_id
         self.verify = verify
+        self.apply_wildcard = apply_wildcard
 
     def execute(self, context: Context):
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
@@ -683,7 +686,12 @@ class S3ListOperator(BaseOperator):
             self.delimiter,
         )
 
-        return hook.list_keys(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
+        return hook.list_keys(
+            bucket_name=self.bucket,
+            prefix=self.prefix,
+            delimiter=self.delimiter,
+            apply_wildcard=self.apply_wildcard,
+        )
 
 
 class S3ListPrefixesOperator(BaseOperator):
