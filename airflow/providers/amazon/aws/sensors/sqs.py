@@ -19,13 +19,12 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, Collection, Sequence
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Collection, Literal, Sequence
 
 from deprecated import deprecated
 from jsonpath_ng import parse
-from typing_extensions import Literal
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
