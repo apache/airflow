@@ -308,8 +308,7 @@ class GlueJobHook(AwsBaseHook):
         next_log_tokens: GlueJobHook.LogContinuationTokens,
     ) -> dict | None:
         """
-        This method is here mostly to avoid duplicating code between the sync and async methods calling it.
-        It doesn't really have a business logic.
+        Helper function to process Glue Job state while polling. Used by both sync and async methods.
         """
         failed_states = ["FAILED", "TIMEOUT"]
         finished_states = ["SUCCEEDED", "STOPPED"]
