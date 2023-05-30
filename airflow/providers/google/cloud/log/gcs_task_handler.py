@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+from functools import cached_property
 from pathlib import Path
 from typing import Collection
 
@@ -27,7 +28,6 @@ from typing import Collection
 from google.cloud import storage  # type: ignore[attr-defined]
 from packaging.version import Version
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url

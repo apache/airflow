@@ -18,6 +18,7 @@
 """This module contains Google Ad hook."""
 from __future__ import annotations
 
+from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import IO, Any
 
@@ -30,7 +31,6 @@ from google.api_core.page_iterator import GRPCIterator
 from google.auth.exceptions import GoogleAuthError
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.common.hooks.base_google import get_field
 

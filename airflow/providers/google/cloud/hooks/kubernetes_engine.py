@@ -29,6 +29,7 @@ import contextlib
 import json
 import time
 import warnings
+from functools import cached_property
 from typing import Sequence
 
 import google.auth.credentials
@@ -49,7 +50,6 @@ from kubernetes_asyncio.config.kube_config import FileOrData
 from urllib3.exceptions import HTTPError
 
 from airflow import version
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.providers.google.common.consts import CLIENT_INFO

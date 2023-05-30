@@ -65,7 +65,7 @@ jobs:
     # to find the list of authors and replace them, so any changes to the
     # formatting of the contains(fromJSON()) structure below will need to be
     # reflected in that workflow too.
-    runs-on: "ubuntu-20.04"
+    runs-on: "ubuntu-22.04"
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
@@ -468,7 +468,7 @@ jobs:
   wait-for-ci-images:
     timeout-minutes: 120
     name: "Wait for CI images"
-    runs-on: "ubuntu-20.04"
+    runs-on: "ubuntu-22.04"
     needs: [build-info, build-ci-images]
     if: needs.build-info.outputs.image-build == 'true'
     env:
@@ -503,6 +503,7 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      UPGRADE_TO_NEWER_DEPENDENCIES: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
     if: needs.build-info.outputs.basic-checks-only == 'false'
     steps:
       - name: Cleanup repo
@@ -1431,6 +1432,7 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        id: breeze
       - name: Pull PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
         run: breeze prod-image pull --run-in-parallel --tag-as-latest
         env:
@@ -1440,7 +1442,8 @@ jobs:
         with:
           path: ".build/.k8s-env"
           key: "\
-            k8s-env-${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','setup.cfg',\
+            k8s-env-${{steps.breeze.outputs.host-python-version}}-\
+            ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','setup.cfg',\
             'setup.py','pyproject.toml','generated/provider_dependencies.json') }}"
       - name: Run complete K8S tests ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
         run: breeze k8s run-complete-tests --run-in-parallel --upgrade

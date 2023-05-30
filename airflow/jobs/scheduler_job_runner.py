@@ -639,7 +639,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         There are three steps:
         1. Pick TIs by priority with the constraint that they are in the expected states
-        and that we do exceed max_active_runs or pool limits.
+        and that we do not exceed max_active_runs or pool limits.
         2. Change the state for the TIs above atomically.
         3. Enqueue the TIs in the executor.
 
@@ -1178,7 +1178,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     creating_job_id=self.job.id,
                 )
                 active_runs_of_dags[dag.dag_id] += 1
-            if self._should_update_dag_next_dagruns(dag, dag_model, active_runs_of_dags[dag.dag_id]):
+            if self._should_update_dag_next_dagruns(
+                dag, dag_model, active_runs_of_dags[dag.dag_id], session=session
+            ):
                 dag_model.calculate_dagrun_date_fields(dag, data_interval)
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()
@@ -1283,9 +1285,19 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     DatasetDagRunQueue.target_dag_id == dag_run.dag_id
                 ).delete()
 
-    def _should_update_dag_next_dagruns(self, dag: DAG, dag_model: DagModel, total_active_runs: int) -> bool:
+    def _should_update_dag_next_dagruns(
+        self, dag: DAG, dag_model: DagModel, total_active_runs: int | None = None, *, session: Session
+    ) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
-        if total_active_runs >= dag.max_active_runs:
+        # If the DAG never schedules skip save runtime
+        if not dag.timetable.can_be_scheduled:
+            return False
+
+        # get active dag runs from DB if not available
+        if not total_active_runs:
+            total_active_runs = dag.get_num_active_runs(only_running=False, session=session)
+
+        if total_active_runs and total_active_runs >= dag.max_active_runs:
             self.log.info(
                 "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
                 dag_model.dag_id,
@@ -1298,7 +1310,8 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
-        dag_runs: Collection[DagRun] = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session)
+        # added all() to save runtime, otherwise query is executed more than once
+        dag_runs: Collection[DagRun] = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session).all()
 
         active_runs_of_dags = Counter(
             DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),
@@ -1397,9 +1410,8 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 session.merge(task_instance)
             session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
-            active_runs = dag.get_num_active_runs(only_running=False, session=session)
             # Work out if we should allow creating a new DagRun now?
-            if self._should_update_dag_next_dagruns(dag, dag_model, active_runs):
+            if self._should_update_dag_next_dagruns(dag, dag_model, session=session):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
 
             callback_to_execute = DagCallbackRequest(
@@ -1426,10 +1438,10 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             return callback
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
+        # Check if DAG not scheduled then skip interval calculation to same scheduler runtime
         if dag_run.state in State.finished:
-            active_runs = dag.get_num_active_runs(only_running=False, session=session)
             # Work out if we should allow creating a new DagRun now?
-            if self._should_update_dag_next_dagruns(dag, dag_model, active_runs):
+            if self._should_update_dag_next_dagruns(dag, dag_model, session=session):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag

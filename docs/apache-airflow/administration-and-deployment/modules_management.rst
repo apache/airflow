@@ -56,10 +56,10 @@ by running an interactive terminal as in the example below:
     >>> from pprint import pprint
     >>> pprint(sys.path)
     ['',
-     '/home/arch/.pyenv/versions/3.7.4/lib/python37.zip',
-     '/home/arch/.pyenv/versions/3.7.4/lib/python3.7',
-     '/home/arch/.pyenv/versions/3.7.4/lib/python3.7/lib-dynload',
-     '/home/arch/venvs/airflow/lib/python3.7/site-packages']
+     '/home/arch/.pyenv/versions/3.8.4/lib/python37.zip',
+     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8',
+     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8/lib-dynload',
+     '/home/arch/venvs/airflow/lib/python3.8/site-packages']
 
 ``sys.path`` is initialized during program startup. The first precedence is
 given to the current directory, i.e, ``path[0]`` is the directory containing
@@ -290,10 +290,10 @@ The ``sys.path`` variable will look like below:
     >>> pprint(sys.path)
     ['',
      '/home/arch/projects/airflow_operators'
-     '/home/arch/.pyenv/versions/3.7.4/lib/python37.zip',
-     '/home/arch/.pyenv/versions/3.7.4/lib/python3.7',
-     '/home/arch/.pyenv/versions/3.7.4/lib/python3.7/lib-dynload',
-     '/home/arch/venvs/airflow/lib/python3.7/site-packages']
+     '/home/arch/.pyenv/versions/3.8.4/lib/python37.zip',
+     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8',
+     '/home/arch/.pyenv/versions/3.8.4/lib/python3.8/lib-dynload',
+     '/home/arch/venvs/airflow/lib/python3.8/site-packages']
 
 As we can see that our provided directory is now added to the path, let's
 try to import the package now:

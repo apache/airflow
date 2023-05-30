@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from contextvars import ContextVar
+from functools import cached_property
 from typing import Collection
 from urllib.parse import urlencode
 
@@ -29,7 +30,6 @@ from google.cloud.logging.handlers.transports import BackgroundThreadTransport, 
 from google.cloud.logging_v2.services.logging_service_v2 import LoggingServiceV2Client
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse
 
-from airflow.compat.functools import cached_property
 from airflow.models import TaskInstance
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO

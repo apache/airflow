@@ -24,10 +24,10 @@ import uuid
 import warnings
 from contextlib import ExitStack
 from enum import Enum
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.google.cloud.hooks.dataflow import (
