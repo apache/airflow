@@ -128,6 +128,7 @@ const Main = () => {
           gridEl.style.width = width;
           saveWidth(width);
         } else if (
+          // expand grid if cursor moves right
           e.x < minPanelWidth &&
           oldGridElX &&
           oldGridElX.current &&
@@ -135,6 +136,7 @@ const Main = () => {
         ) {
           setIsGridCollapsed(false);
         } else if (
+          // collapse grid if cursor moves left 
           e.x < minPanelWidth / 2 &&
           oldGridElX &&
           oldGridElX.current &&
