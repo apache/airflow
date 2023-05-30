@@ -31,7 +31,8 @@ from unittest import mock
 import pytest
 from slugify import slugify
 
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.decorators import task_group
+from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import clear_task_instances, set_current_context
@@ -603,6 +604,53 @@ class TestShortCircuitOperator(BasePythonTest):
         tis = dr.get_task_instances()
         assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="return_value") == "signature"
         assert tis[0].xcom_pull(task_ids=short_op_no_push_xcom.task_id, key="return_value") is None
+
+    def test_xcom_push_skipped_tasks(self):
+        with self.dag:
+            short_op_push_xcom = ShortCircuitOperator(
+                task_id="push_xcom_from_shortcircuit", python_callable=lambda: False
+            )
+            empty_task = EmptyOperator(task_id="empty_task")
+            short_op_push_xcom >> empty_task
+        dr = self.create_dag_run()
+        short_op_push_xcom.run(start_date=self.default_date, end_date=self.default_date)
+        tis = dr.get_task_instances()
+        assert tis[0].xcom_pull(task_ids=short_op_push_xcom.task_id, key="skipmixin_key") == {
+            "skipped": ["empty_task"]
+        }
+
+    def test_mapped_xcom_push_skipped_tasks(self, session):
+        with self.dag:
+
+            @task_group
+            def group(x):
+                short_op_push_xcom = ShortCircuitOperator(
+                    task_id="push_xcom_from_shortcircuit",
+                    python_callable=lambda arg: arg % 2 == 0,
+                    op_kwargs={"arg": x},
+                )
+                empty_task = EmptyOperator(task_id="empty_task")
+                short_op_push_xcom >> empty_task
+
+            group.expand(x=[0, 1])
+        dr = self.create_dag_run()
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        for ti in decision.schedulable_tis:
+            ti.run()
+        # dr.run(start_date=self.default_date, end_date=self.default_date)
+        tis = dr.get_task_instances()
+
+        assert (
+            tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="return_value", map_indexes=0)
+            is True
+        )
+        assert (
+            tis[0].xcom_pull(task_ids="group.push_xcom_from_shortcircuit", key="skipmixin_key", map_indexes=0)
+            is None
+        )
+        assert tis[0].xcom_pull(
+            task_ids="group.push_xcom_from_shortcircuit", key="skipmixin_key", map_indexes=1
+        ) == {"skipped": ["group.empty_task"]}
 
 
 virtualenv_string_args: list[str] = []

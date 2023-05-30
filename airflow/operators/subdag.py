@@ -226,6 +226,11 @@ class SubDagOperator(BaseSensorOperator):
         self.log.debug("Downstream task_ids %s", downstream_tasks)
 
         if downstream_tasks:
-            self.skip(context["dag_run"], context["execution_date"], downstream_tasks)
+            self.skip(
+                context["dag_run"],
+                context["execution_date"],
+                downstream_tasks,
+                map_index=context["ti"].map_index,
+            )
 
         self.log.info("Done.")
