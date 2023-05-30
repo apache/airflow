@@ -2709,16 +2709,19 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
             self._handle_job_error(job)
 
             return self.job_id
-        self.defer(
-            timeout=self.execution_timeout,
-            trigger=BigQueryInsertJobTrigger(
-                conn_id=self.gcp_conn_id,
-                job_id=self.job_id,
-                project_id=self.project_id,
-                poll_interval=self.poll_interval,
-            ),
-            method_name="execute_complete",
-        )
+        else:
+            if job.running():
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=BigQueryInsertJobTrigger(
+                        conn_id=self.gcp_conn_id,
+                        job_id=self.job_id,
+                        project_id=self.project_id,
+                        poll_interval=self.poll_interval,
+                    ),
+                    method_name="execute_complete",
+                )
+            self.log.info("Current state of job %s is %s", job.job_id, job.state)
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """

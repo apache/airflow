@@ -182,7 +182,7 @@ class ShellParams:
 
     @property
     def sqlite_url(self) -> str:
-        sqlite_url = "sqlite:////root/airflow/airflow.db"
+        sqlite_url = "sqlite:////root/airflow/sqlite/airflow.db"
         return sqlite_url
 
     def print_badge_info(self):

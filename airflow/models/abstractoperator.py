@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import datetime
 import inspect
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
-from airflow.compat.functools import cache, cached_property
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.expandinput import NotFullyPopulated
@@ -157,48 +158,56 @@ class AbstractOperator(Templater, DAGNode):
     def get_flat_relative_ids(
         self,
         upstream: bool = False,
-        found_descendants: set[str] | None = None,
         setup_only: bool = False,
         teardown_only: bool = False,
     ) -> set[str]:
-        """Get a flat set of relative IDs, upstream or downstream."""
+        """
+        Get a flat set of relative IDs, upstream or downstream.
+
+        Will recurse each relative found in the direction specified.
+
+        :param upstream: Whether to look for upstream or downstream relatives.
+        """
         if setup_only and not upstream:
             raise RuntimeError("Unexpected combination: downstream and setup only.")
         if teardown_only and upstream:
             raise RuntimeError("Unexpected combination: upstream and teardown only.")
+
         dag = self.get_dag()
         if not dag:
             return set()
 
-        if found_descendants is None:
-            found_descendants = set()
         # todo: shall we be smart about inferring setups.... i.e. don't clear it if not connected to
         #    a downstream teardown
+
         downstream_teardowns = set()
         if not teardown_only:
             downstream_teardowns.update(self.get_flat_relative_ids(teardown_only=True))
+
+        relatives: set[str] = set()
+
         task_ids_to_trace = self.get_direct_relative_ids(upstream)
         while task_ids_to_trace:
             task_ids_to_trace_next: set[str] = set()
             for task_id in task_ids_to_trace:
-                if task_id in found_descendants:
+                if task_id in relatives:
                     continue
                 task = dag.task_dict[task_id]
                 if teardown_only and task.is_teardown:
-                    found_descendants.add(task_id)
+                    relatives.add(task_id)
                 task_ids_to_trace_next |= task.get_direct_relative_ids(upstream)
                 if task.is_setup:
                     is_relevant_setup = not task.downstream_task_ids.isdisjoint(downstream_teardowns)
                     if setup_only and not is_relevant_setup:
                         continue
-                    found_descendants.add(task_id)  # add the setup task
-                    found_descendants.update(  # add the setup's teardowns
+                    relatives.add(task_id)  # add the setup task
+                    relatives.update(  # add the setup's teardowns
                         [x.task_id for x in task.downstream_list if x.is_teardown and not x == self]
                     )
                 elif not setup_only:
-                    found_descendants.add(task_id)
+                    relatives.add(task_id)
             task_ids_to_trace = task_ids_to_trace_next
-        return found_descendants
+        return relatives
 
     def get_flat_relatives(self, upstream: bool = False, setup_only: bool = False) -> Collection[Operator]:
         """Get a flat list of relatives, either upstream or downstream."""
