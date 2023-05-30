@@ -1,0 +1,6 @@
+Helm chart only fix: `ClusterRole`s and `ClusterRoleBinding`s created when `multiNamespaceMode` is enabled now have unique names.
+* `{{ .Release.Name }}-pod-launcher-role` has been renamed to `{{ .Release.Name }}-{{ .Release.Namespace }}-pod-launcher-role`
+* `{{ .Release.Name }}-pod-launcher-rolebinding` has been renamed to `{{ .Release.Name }}-{{ .Release.Namespace }}-pod-launcher-rolebinding`
+* `{{ .Release.Name }}-pod-log-reader-role` has been renamed to `{{ .Release.Name }}-{{ .Release.Namespace }}-pod-log-reader-role`
+* `{{ .Release.Name }}-pod-log-reader-rolebinding` has been renamed to `{{ .Release.Name }}-{{ .Release.Namespace }}-pod-log-reader-rolebinding`
+* `{{ .Release.Name }}-scc-rolebinding` has been renamed to `{{ .Release.Name }}-{{ .Release.Namespace }}-scc-rolebinding`
