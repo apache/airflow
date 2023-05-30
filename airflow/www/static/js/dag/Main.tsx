@@ -136,7 +136,7 @@ const Main = () => {
         ) {
           setIsGridCollapsed(false);
         } else if (
-          // collapse grid if cursor moves left 
+          // collapse grid if cursor moves left
           e.x < minPanelWidth / 2 &&
           oldGridElX &&
           oldGridElX.current &&
