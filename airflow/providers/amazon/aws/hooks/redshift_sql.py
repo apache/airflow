@@ -23,6 +23,7 @@ from redshift_connector import Connection as RedshiftConnection
 from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL
 
+from airflow import AirflowException
 from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -109,7 +110,7 @@ class RedshiftSQLHook(DbApiHook):
             if conn.host:
                 cluster_identifier = conn.host.split(".", 1)[0]
             else:
-                raise Exception("Please set cluster_identifier or host in redshift connection.")
+                raise AirflowException("Please set cluster_identifier or host in redshift connection.")
         redshift_client = AwsBaseHook(aws_conn_id=self.aws_conn_id, client_type="redshift").conn
         # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html#Redshift.Client.get_cluster_credentials
         cluster_creds = redshift_client.get_cluster_credentials(
