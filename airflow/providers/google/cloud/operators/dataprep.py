@@ -66,6 +66,7 @@ class DataprepGetJobsForJobGroupOperator(GoogleCloudBaseOperator):
 class DataprepGetJobGroupOperator(GoogleCloudBaseOperator):
     """
     Get the specified job group.
+
     A job group is a job that is executed from a specific node in a flow.
 
     API documentation: https://clouddataprep.com/documentation/api#section/Overview.
@@ -126,6 +127,7 @@ class DataprepGetJobGroupOperator(GoogleCloudBaseOperator):
 class DataprepRunJobGroupOperator(GoogleCloudBaseOperator):
     """
     Create a ``jobGroup``, which launches the specified job as the authenticated user.
+
     This performs the same action as clicking on the Run Job button in the application.
 
     To get recipe_id please follow the Dataprep API documentation:

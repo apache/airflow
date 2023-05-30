@@ -132,6 +132,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
 class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
     """
     Checks for the existence of a file in Google Cloud Storage.
+
     Class `GCSObjectExistenceAsyncSensor` is deprecated and will be removed in a future release.
     Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead.
 
