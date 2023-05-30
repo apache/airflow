@@ -43,6 +43,7 @@ class GlueCrawlerCompleteTrigger(BaseTrigger):
 
     def serialize(self) -> tuple[str, dict]:
         return (
+            # dynamically generate the fully qualified name of the class
             self.__class__.__module__ + "." + self.__class__.__qualname__,
             {
                 "crawler_name": self.crawler_name,
