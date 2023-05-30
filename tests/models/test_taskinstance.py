@@ -82,7 +82,7 @@ from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State, TaskInstanceState, DagRunState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -1773,55 +1773,51 @@ class TestTaskInstance:
     def test_get_num_running_task_instances_per_dagrun(self, create_task_instance, dag_maker):
         session = settings.Session()
 
-        @task
-        def dummy_mapped_task(x: int):
-            return x
+        with dag_maker(dag_id="test_dag"):
+            MockOperator.partial(task_id="task_1").expand_kwargs([{"a": 1, "b": 2}, {"a": 3, "b": 4}])
+            MockOperator.partial(task_id="task_2").expand_kwargs([{"a": 1, "b": 2}])
+            MockOperator.partial(task_id="task_3").expand_kwargs([{"a": 1, "b": 2}])
 
-        with dag_maker(dag_id="test_dag") as dag:
-            dummy_mapped_task.expand(x=[1, 2])
-            dagrun1 = dag.create_dagrun(execution_date=timezone.utcnow(),
-                                       state=DagRunState.RUNNING,
-                                       run_id="run_id_1",
-                                       session=session)
+        dr1 = dag_maker.create_dagrun(
+            execution_date=timezone.utcnow(), state=DagRunState.RUNNING, run_id="run_id_1", session=session
+        )
+        tis1 = {(ti.task_id, ti.map_index): ti for ti in dr1.task_instances}
+        print(f"tis1: {tis1}")
 
-            ti1 = dagrun1.task_instances[0]
-            ti2 = dagrun1.task_instances[1]
+        dr2 = dag_maker.create_dagrun(
+            execution_date=timezone.utcnow(), state=DagRunState.RUNNING, run_id="run_id_2", session=session
+        )
+        tis2 = {(ti.task_id, ti.map_index): ti for ti in dr2.task_instances}
 
-        with dag_maker(dag_id="test_dag") as dag:
-            dummy_mapped_task.expand(x=[3])
-            dagrun2 = dag.create_dagrun(execution_date=timezone.utcnow(),
-                                       state=DagRunState.RUNNING,
-                                       run_id="run_id_2",
-                                       session=session)
+        assert tis1[("task_1", 0)] in session
+        assert tis1[("task_1", 1)] in session
+        assert tis1[("task_2", 0)] in session
+        assert tis1[("task_3", 0)] in session
+        assert tis2[("task_1", 0)] in session
+        assert tis2[("task_1", 1)] in session
+        assert tis2[("task_2", 0)] in session
+        assert tis2[("task_3", 0)] in session
 
-            ti3 = dagrun2.task_instances[0]
-
-        with dag_maker(dag_id="test_dag") as dag:
-            dummy_mapped_task.expand(x=[4])
-            dagrun3 = dag.create_dagrun(execution_date=timezone.utcnow(),
-                                       state=DagRunState.RUNNING,
-                                       run_id="run_id_3",
-                                       session=session)
-
-            ti4 = dagrun3.task_instances[0]
-
-        assert ti1 in session
-        assert ti2 in session
-        assert ti3 in session
-        assert ti4 in session
-
-        ti1.state = State.RUNNING
-        ti2.state = State.QUEUED
-        ti3.state = State.RUNNING
-        ti4.state = State.RUNNING
+        tis1[("task_1", 0)].state = State.RUNNING
+        tis1[("task_1", 1)].state = State.QUEUED
+        tis1[("task_2", 0)].state = State.RUNNING
+        tis1[("task_3", 0)].state = State.RUNNING
+        tis2[("task_1", 0)].state = State.RUNNING
+        tis2[("task_1", 1)].state = State.QUEUED
+        tis2[("task_2", 0)].state = State.RUNNING
+        tis2[("task_3", 0)].state = State.RUNNING
 
         session.commit()
 
-        assert 1 == ti1.get_num_running_task_instances(session=session, same_dagrun=True)
-        assert 1 == ti2.get_num_running_task_instances(session=session, same_dagrun=True)
-        assert 3 == ti3.get_num_running_task_instances(session=session)
-        assert 1 == ti4.get_num_running_task_instances(session=session, same_dagrun=True)
+        assert 1 == tis1[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
+        assert 1 == tis1[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True)
+        assert 2 == tis1[("task_2", 0)].get_num_running_task_instances(session=session)
+        assert 1 == tis1[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
 
+        assert 1 == tis2[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
+        assert 1 == tis2[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True)
+        assert 2 == tis2[("task_2", 0)].get_num_running_task_instances(session=session)
+        assert 1 == tis2[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
 
     def test_log_url(self, create_task_instance):
         ti = create_task_instance(dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1))
@@ -1956,6 +1952,7 @@ class TestTaskInstance:
     @patch("airflow.models.taskinstance.send_email")
     def test_failure_mapped_taskflow(self, mock_send_email, dag_maker, session, task_id):
         with dag_maker(session=session) as dag:
+
             @dag.task(email="to")
             def test_email_alert(x):
                 raise RuntimeError("Fail please")
@@ -2057,10 +2054,10 @@ class TestTaskInstance:
         assert session.query(DatasetDagRunQueue.target_dag_id).filter_by(
             dataset_id=event.dataset.id
         ).order_by(DatasetDagRunQueue.target_dag_id).all() == [
-                   ("dataset_consumes_1",),
-                   ("dataset_consumes_1_and_2",),
-                   ("dataset_consumes_1_never_scheduled",),
-               ]
+            ("dataset_consumes_1",),
+            ("dataset_consumes_1_and_2",),
+            ("dataset_consumes_1_never_scheduled",),
+        ]
 
         # check that one event record created for dataset1 and this TI
         assert session.query(DatasetModel.uri).join(DatasetEvent.dataset).filter(
@@ -2165,6 +2162,7 @@ class TestTaskInstance:
         from airflow import Dataset
 
         with dag_maker(schedule=None, serialized=True) as dag1:
+
             @task(outlets=Dataset("test/1"))
             def test_task1():
                 print(1)
@@ -2175,6 +2173,7 @@ class TestTaskInstance:
         test_task1 = dag1.get_task("test_task1")
 
         with dag_maker(dag_id="testdag", schedule=[Dataset("test/1")], serialized=True):
+
             @task
             def test_task2():
                 print(1)
@@ -2185,6 +2184,7 @@ class TestTaskInstance:
         ti.run()
         # Change the dataset.
         with dag_maker(dag_id="testdag", schedule=[Dataset("test2/1")], serialized=True):
+
             @task
             def test_task2():
                 print(1)
@@ -3314,6 +3314,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     def test_not_recorded_if_leaf(self, dag_maker, xcom_value):
         """Return value should not be recorded if there are no downstreams."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
             @dag.task()
             def push_something():
                 return xcom_value
@@ -3329,6 +3330,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     def test_not_recorded_if_not_used(self, dag_maker, xcom_value):
         """Return value should not be recorded if no downstreams are mapped."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
             @dag.task()
             def push_something():
                 return xcom_value
@@ -3349,6 +3351,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     def test_not_recorded_if_irrelevant(self, dag_maker, xcom_1, xcom_4):
         """Return value should only be recorded if a mapped downstream uses the it."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
             @dag.task()
             def push_1():
                 return xcom_1
@@ -3401,6 +3404,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     def test_expand_error_if_unmappable_type(self, dag_maker, return_value, exception_type, error_message):
         """If an unmappable return value is used for expand(), fail the task that pushed the XCom."""
         with dag_maker(dag_id="test_expand_error_if_unmappable_type") as dag:
+
             @dag.task()
             def push_something():
                 return return_value
@@ -3435,6 +3439,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     ):
         """If an unmappable return value is used for expand_kwargs(), fail the task that pushed the XCom."""
         with dag_maker(dag_id="test_expand_kwargs_error_if_unmappable_type") as dag:
+
             @dag.task()
             def push():
                 return return_value
@@ -3465,6 +3470,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     ):
         """If an unmappable return value is used , fail the task that pushed the XCom."""
         with dag_maker(dag_id="test_task_group_expand_error_if_unmappable_type") as dag:
+
             @dag.task()
             def push():
                 return return_value
@@ -3499,6 +3505,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     ):
         """If an unmappable return value is used, fail the task that pushed the XCom."""
         with dag_maker(dag_id="test_task_group_expand_kwargs_error_if_unmappable_type") as dag:
+
             @dag.task()
             def push():
                 return return_value
@@ -3610,6 +3617,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     def test_error_if_upstream_does_not_push(self, dag_maker):
         """Fail the upstream task if it fails to push the XCom used for task mapping."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
             @dag.task(do_xcom_push=False)
             def push_something():
                 return [1, 2]
@@ -3632,6 +3640,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     def test_error_if_unmappable_length(self, dag_maker):
         """If an unmappable return value is used to map, fail the task that pushed the XCom."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+
             @dag.task()
             def push_something():
                 return [1, 2]
@@ -3660,6 +3669,7 @@ class TestTaskInstanceRecordTaskMapXComPush:
     def test_written_task_map(self, dag_maker, xcom_value, expected_length, expected_keys):
         """Return value should be recorded in TaskMap if it's used by a downstream to map."""
         with dag_maker(dag_id="test_written_task_map") as dag:
+
             @dag.task()
             def push_something():
                 return xcom_value
@@ -3695,6 +3705,7 @@ class TestMappedTaskInstanceReceiveValue:
         outputs = []
 
         with dag_maker(dag_id="literal", session=session) as dag:
+
             @dag.task
             def show(value):
                 outputs.append(value)
@@ -3727,6 +3738,7 @@ class TestMappedTaskInstanceReceiveValue:
         outputs = []
 
         with dag_maker(dag_id="xcom", session=session) as dag:
+
             @dag.task
             def emit():
                 return upstream_return
@@ -3797,6 +3809,7 @@ class TestMappedTaskInstanceReceiveValue:
         outputs = []
 
         with dag_maker(dag_id="product_same", session=session) as dag:
+
             @dag.task
             def emit_numbers():
                 return [1, 2]
@@ -3829,6 +3842,7 @@ class TestMappedTaskInstanceReceiveValue:
         outputs = []
 
         with dag_maker(dag_id="product_same_types", session=session) as dag:
+
             @dag.task
             def show(a, b):
                 outputs.append((a, b))
@@ -4063,6 +4077,7 @@ def test_expand_non_templated_field(dag_maker, session):
         template_fields = ()
 
     with dag_maker(dag_id="product_same_types", session=session) as dag:
+
         @dag.task
         def get_extra_env():
             return [{"foo": "bar"}, {"foo": "biz"}]
@@ -4082,6 +4097,7 @@ def test_mapped_task_does_not_error_in_mini_scheduler_if_upstreams_are_not_done(
     not marked as `upstream_failed'
     """
     with dag_maker() as dag:
+
         @dag.task
         def second_task():
             return [0, 1, 2]
@@ -4123,6 +4139,7 @@ def test_empty_operator_is_not_considered_in_mini_scheduler(dag_maker, caplog, s
     submit them directly to worker.
     """
     with dag_maker() as dag:
+
         @dag.task
         def first_task():
             print(2)
@@ -4162,6 +4179,7 @@ def test_empty_operator_is_not_considered_in_mini_scheduler(dag_maker, caplog, s
 def test_mapped_task_expands_in_mini_scheduler_if_upstreams_are_done(dag_maker, caplog, session):
     """Test that mini scheduler expands mapped task"""
     with dag_maker() as dag:
+
         @dag.task
         def second_task():
             return [0, 1, 2]
@@ -4201,6 +4219,7 @@ def test_mapped_task_expands_in_mini_scheduler_if_upstreams_are_done(dag_maker, 
 
 def test_mini_scheduler_not_skip_mapped_downstream_until_all_upstreams_finish(dag_maker, session):
     with dag_maker(session=session):
+
         @task
         def generate() -> list[list[int]]:
             return []
