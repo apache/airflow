@@ -16,7 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import sys
+from unittest import mock
+from unittest.mock import AsyncMock
 
 import pytest
 from botocore.exceptions import WaiterError
@@ -29,13 +30,6 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftResumeClusterTrigger,
 )
 from airflow.triggers.base import TriggerEvent
-
-if sys.version_info < (3, 8):
-    from asynctest import CoroutineMock as AsyncMock, mock as async_mock
-else:
-    from unittest import mock as async_mock
-    from unittest.mock import AsyncMock
-
 
 TEST_CLUSTER_IDENTIFIER = "test-cluster"
 TEST_POLL_INTERVAL = 10
@@ -62,11 +56,11 @@ class TestRedshiftCreateClusterTrigger:
         assert args["aws_conn_id"] == TEST_AWS_CONN_ID
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.async_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.async_conn")
     async def test_redshift_create_cluster_trigger_run(self, mock_async_conn):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
-        mock.get_waiter().wait = AsyncMock()
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+        a_mock.get_waiter().wait = AsyncMock()
 
         redshift_create_cluster_trigger = RedshiftCreateClusterTrigger(
             cluster_identifier=TEST_CLUSTER_IDENTIFIER,
@@ -99,11 +93,11 @@ class TestRedshiftPauseClusterTrigger:
         assert args["aws_conn_id"] == TEST_AWS_CONN_ID
 
     @pytest.mark.asyncio
-    @async_mock.patch.object(RedshiftHook, "get_waiter")
-    @async_mock.patch.object(RedshiftHook, "async_conn")
+    @mock.patch.object(RedshiftHook, "get_waiter")
+    @mock.patch.object(RedshiftHook, "async_conn")
     async def test_redshift_pause_cluster_trigger_run(self, mock_async_conn, mock_get_waiter):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
 
         mock_get_waiter().wait = AsyncMock()
 
@@ -120,14 +114,14 @@ class TestRedshiftPauseClusterTrigger:
         assert response == TriggerEvent({"status": "success", "message": "Cluster paused"})
 
     @pytest.mark.asyncio
-    @async_mock.patch("asyncio.sleep")
-    @async_mock.patch.object(RedshiftHook, "get_waiter")
-    @async_mock.patch.object(RedshiftHook, "async_conn")
+    @mock.patch("asyncio.sleep")
+    @mock.patch.object(RedshiftHook, "get_waiter")
+    @mock.patch.object(RedshiftHook, "async_conn")
     async def test_redshift_pause_cluster_trigger_run_multiple_attempts(
         self, mock_async_conn, mock_get_waiter, mock_sleep
     ):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
         error = WaiterError(
             name="test_name",
             reason="test_reason",
@@ -150,14 +144,14 @@ class TestRedshiftPauseClusterTrigger:
         assert response == TriggerEvent({"status": "success", "message": "Cluster paused"})
 
     @pytest.mark.asyncio
-    @async_mock.patch("asyncio.sleep")
-    @async_mock.patch.object(RedshiftHook, "get_waiter")
-    @async_mock.patch.object(RedshiftHook, "async_conn")
+    @mock.patch("asyncio.sleep")
+    @mock.patch.object(RedshiftHook, "get_waiter")
+    @mock.patch.object(RedshiftHook, "async_conn")
     async def test_redshift_pause_cluster_trigger_run_attempts_exceeded(
         self, mock_async_conn, mock_get_waiter, mock_sleep
     ):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
         error = WaiterError(
             name="test_name",
             reason="test_reason",
@@ -182,14 +176,14 @@ class TestRedshiftPauseClusterTrigger:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch("asyncio.sleep")
-    @async_mock.patch.object(RedshiftHook, "get_waiter")
-    @async_mock.patch.object(RedshiftHook, "async_conn")
+    @mock.patch("asyncio.sleep")
+    @mock.patch.object(RedshiftHook, "get_waiter")
+    @mock.patch.object(RedshiftHook, "async_conn")
     async def test_redshift_pause_cluster_trigger_run_attempts_failed(
         self, mock_async_conn, mock_get_waiter, mock_sleep
     ):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
         error_available = WaiterError(
             name="test_name",
             reason="Max attempts exceeded",
@@ -240,11 +234,11 @@ class TestRedshiftCreateClusterSnapshotTrigger:
         assert args["aws_conn_id"] == TEST_AWS_CONN_ID
 
     @pytest.mark.asyncio
-    @async_mock.patch.object(RedshiftHook, "async_conn")
+    @mock.patch.object(RedshiftHook, "async_conn")
     async def test_redshift_create_cluster_snapshot_trigger_run(self, mock_async_conn):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
-        mock.get_waiter().wait = AsyncMock()
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+        a_mock.get_waiter().wait = AsyncMock()
 
         redshift_create_cluster_trigger = RedshiftCreateClusterSnapshotTrigger(
             cluster_identifier=TEST_CLUSTER_IDENTIFIER,
@@ -259,22 +253,22 @@ class TestRedshiftCreateClusterSnapshotTrigger:
         assert response == TriggerEvent({"status": "success", "message": "Cluster Snapshot Created"})
 
     @pytest.mark.asyncio
-    @async_mock.patch("asyncio.sleep")
-    @async_mock.patch.object(RedshiftHook, "async_conn")
+    @mock.patch("asyncio.sleep")
+    @mock.patch.object(RedshiftHook, "async_conn")
     async def test_redshift_create_cluster_snapshot_trigger_run_multiple_attempts(
         self, mock_async_conn, mock_sleep
     ):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
 
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
         error = WaiterError(
             name="test_name",
             reason="test_reason",
             last_response={"Snapshots": [{"Status": "available"}]},
         )
-        mock.get_waiter().wait.side_effect = AsyncMock(side_effect=[error, error, True])
+        a_mock.get_waiter().wait.side_effect = AsyncMock(side_effect=[error, error, True])
         mock_sleep.return_value = True
 
         redshift_create_cluster_snapshot_trigger = RedshiftCreateClusterSnapshotTrigger(
@@ -287,26 +281,26 @@ class TestRedshiftCreateClusterSnapshotTrigger:
         generator = redshift_create_cluster_snapshot_trigger.run()
         response = await generator.asend(None)
 
-        assert mock.get_waiter().wait.call_count == 3
+        assert a_mock.get_waiter().wait.call_count == 3
         assert response == TriggerEvent({"status": "success", "message": "Cluster Snapshot Created"})
 
     @pytest.mark.asyncio
-    @async_mock.patch("asyncio.sleep")
-    @async_mock.patch.object(RedshiftHook, "async_conn")
+    @mock.patch("asyncio.sleep")
+    @mock.patch.object(RedshiftHook, "async_conn")
     async def test_redshift_create_cluster_snapshot_trigger_run_attempts_exceeded(
         self, mock_async_conn, mock_sleep
     ):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
 
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
         error = WaiterError(
             name="test_name",
             reason="test_reason",
             last_response={"Snapshots": [{"Status": "available"}]},
         )
-        mock.get_waiter().wait.side_effect = AsyncMock(side_effect=[error, error, True])
+        a_mock.get_waiter().wait.side_effect = AsyncMock(side_effect=[error, error, True])
         mock_sleep.return_value = True
 
         redshift_create_cluster_snapshot_trigger = RedshiftCreateClusterSnapshotTrigger(
@@ -319,22 +313,22 @@ class TestRedshiftCreateClusterSnapshotTrigger:
         generator = redshift_create_cluster_snapshot_trigger.run()
         response = await generator.asend(None)
 
-        assert mock.get_waiter().wait.call_count == 2
+        assert a_mock.get_waiter().wait.call_count == 2
         assert response == TriggerEvent(
             {"status": "failure", "message": "Create Cluster Snapshot Cluster Failed - max attempts reached."}
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch("asyncio.sleep")
-    @async_mock.patch.object(RedshiftHook, "async_conn")
+    @mock.patch("asyncio.sleep")
+    @mock.patch.object(RedshiftHook, "async_conn")
     async def test_redshift_create_cluster_snapshot_trigger_run_attempts_failed(
         self, mock_async_conn, mock_sleep
     ):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
 
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
         error_available = WaiterError(
             name="test_name",
             reason="test_reason",
@@ -346,7 +340,7 @@ class TestRedshiftCreateClusterSnapshotTrigger:
             reason="Waiter encountered a terminal failure state:",
             last_response={"Snapshots": [{"Status": "available"}]},
         )
-        mock.get_waiter().wait.side_effect = AsyncMock(
+        a_mock.get_waiter().wait.side_effect = AsyncMock(
             side_effect=[error_available, error_available, error_failed]
         )
         mock_sleep.return_value = True
@@ -361,7 +355,7 @@ class TestRedshiftCreateClusterSnapshotTrigger:
         generator = redshift_create_cluster_snapshot_trigger.run()
         response = await generator.asend(None)
 
-        assert mock.get_waiter().wait.call_count == 3
+        assert a_mock.get_waiter().wait.call_count == 3
         assert response == TriggerEvent(
             {"status": "failure", "message": f"Create Cluster Snapshot Failed: {error_failed}"}
         )
@@ -386,11 +380,11 @@ class TestRedshiftResumeClusterTrigger:
         assert args["aws_conn_id"] == TEST_AWS_CONN_ID
 
     @pytest.mark.asyncio
-    @async_mock.patch.object(RedshiftHook, "get_waiter")
-    @async_mock.patch.object(RedshiftHook, "async_conn")
+    @mock.patch.object(RedshiftHook, "get_waiter")
+    @mock.patch.object(RedshiftHook, "async_conn")
     async def test_redshift_resume_cluster_trigger_run(self, mock_async_conn, mock_get_waiter):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
 
         mock_get_waiter().wait = AsyncMock()
 
@@ -407,14 +401,14 @@ class TestRedshiftResumeClusterTrigger:
         assert response == TriggerEvent({"status": "success", "message": "Cluster resumed"})
 
     @pytest.mark.asyncio
-    @async_mock.patch("asyncio.sleep")
-    @async_mock.patch.object(RedshiftHook, "get_waiter")
-    @async_mock.patch.object(RedshiftHook, "async_conn")
+    @mock.patch("asyncio.sleep")
+    @mock.patch.object(RedshiftHook, "get_waiter")
+    @mock.patch.object(RedshiftHook, "async_conn")
     async def test_redshift_resume_cluster_trigger_run_multiple_attempts(
         self, mock_async_conn, mock_get_waiter, mock_sleep
     ):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
         error = WaiterError(
             name="test_name",
             reason="test_reason",
@@ -437,14 +431,14 @@ class TestRedshiftResumeClusterTrigger:
         assert response == TriggerEvent({"status": "success", "message": "Cluster resumed"})
 
     @pytest.mark.asyncio
-    @async_mock.patch("asyncio.sleep")
-    @async_mock.patch.object(RedshiftHook, "get_waiter")
-    @async_mock.patch.object(RedshiftHook, "async_conn")
+    @mock.patch("asyncio.sleep")
+    @mock.patch.object(RedshiftHook, "get_waiter")
+    @mock.patch.object(RedshiftHook, "async_conn")
     async def test_redshift_resume_cluster_trigger_run_attempts_exceeded(
         self, mock_async_conn, mock_get_waiter, mock_sleep
     ):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
         error = WaiterError(
             name="test_name",
             reason="test_reason",
@@ -469,14 +463,14 @@ class TestRedshiftResumeClusterTrigger:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch("asyncio.sleep")
-    @async_mock.patch.object(RedshiftHook, "get_waiter")
-    @async_mock.patch.object(RedshiftHook, "async_conn")
+    @mock.patch("asyncio.sleep")
+    @mock.patch.object(RedshiftHook, "get_waiter")
+    @mock.patch.object(RedshiftHook, "async_conn")
     async def test_redshift_resume_cluster_trigger_run_attempts_failed(
         self, mock_async_conn, mock_get_waiter, mock_sleep
     ):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
         error_available = WaiterError(
             name="test_name",
             reason="Max attempts exceeded",
