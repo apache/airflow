@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABCMeta, abstractmethod
+from itertools import chain
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 import pendulum
@@ -77,15 +78,28 @@ class DependencyMixin:
         Override if necessary.
         """
 
+    def _get_deps_depth(self, other):
+        if isinstance(other, DependencyMixin):
+            depth = max(getattr(self, '_deps_depth', 0), getattr(other, '_deps_depth', 0)) + 1
+            other._deps_depth = depth
+            self._deps_depth = depth
+            return other
+        else:
+            depth = max(getattr(x, '_deps_depth', 0) for x in chain(other, (self,))) + 1
+            for elem in other:
+                elem._deps_depth = depth
+            self._deps_depth = depth
+            return other
+
     def __lshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Implements Task << Task."""
         self.set_upstream(other)
-        return other
+        return self._get_deps_depth(other)
 
     def __rshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Implements Task >> Task."""
         self.set_downstream(other)
-        return other
+        return self._get_deps_depth(other)
 
     def __rrshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Called for Task >> [Task] because list don't have __rshift__ operators."""

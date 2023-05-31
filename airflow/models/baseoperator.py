@@ -994,6 +994,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def __enter__(self):
         if not self.is_setup and not self.is_teardown:
             raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+        if self._deps_depth > 1:
+            raise RuntimeError("May only set one level of deps in context mgr")
         SetupTeardownContext.push_setup_teardown_task(self)
         return self
 
