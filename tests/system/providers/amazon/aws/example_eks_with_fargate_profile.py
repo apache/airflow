@@ -71,7 +71,6 @@ with DAG(
     cluster_name = f"{env_id}-cluster"
     fargate_profile_name = f"{env_id}-profile"
     test_name = f"{env_id}_{DAG_ID}"
-    log_group_name = f"{env_id}-log-group"
 
     # Create an Amazon EKS Cluster control plane without attaching a compute service.
     create_cluster = EksCreateClusterOperator(
@@ -82,11 +81,6 @@ with DAG(
             "subnetIds": subnets,
             "endpointPublicAccess": True,
             "endpointPrivateAccess": False,
-        },
-        fargate_logging_config={
-            "log_group_name": log_group_name,
-            "log_stream_prefix": "fargate-logging-",
-            "log_retention_days": 7,
         },
         compute=None,
     )

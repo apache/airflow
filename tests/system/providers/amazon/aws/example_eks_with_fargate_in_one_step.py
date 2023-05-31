@@ -64,7 +64,6 @@ with DAG(
     cluster_name = f"{env_id}-cluster"
     fargate_profile_name = f"{env_id}-profile"
     test_name = f"{env_id}_{DAG_ID}"
-    log_group_name = f"{env_id}-log-group"
 
     # [START howto_operator_eks_create_cluster_with_fargate_profile]
     # Create an Amazon EKS cluster control plane and an AWS Fargate compute platform in one step.
@@ -79,11 +78,6 @@ with DAG(
         },
         compute="fargate",
         fargate_profile_name=fargate_profile_name,
-        fargate_logging_config={
-            "log_group_name": log_group_name,
-            "log_stream_prefix": "fargate-logging-",
-            "log_retention_days": 7,
-        },
         # Opting to use the same ARN for the cluster and the pod here,
         # but a different ARN could be configured and passed if desired.
         fargate_pod_execution_role_arn=fargate_pod_role_arn,
