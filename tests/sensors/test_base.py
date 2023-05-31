@@ -523,6 +523,41 @@ class TestBaseSensor:
             assert interval2 >= sensor.poke_interval
             assert interval2 > interval1
 
+    @pytest.mark.parametrize("poke_interval", [0, 0.1, 0.9, 1, 2, 3])
+    def test_sensor_with_exponential_backoff_on_and_small_poke_interval(self, poke_interval):
+        """Test that sensor works correctly when poke_interval is small and exponential_backoff is on"""
+
+        sensor = DummySensor(
+            task_id=SENSOR_OP,
+            return_value=None,
+            poke_interval=poke_interval,
+            timeout=60,
+            exponential_backoff=True,
+        )
+
+        with patch("airflow.utils.timezone.utcnow") as mock_utctime:
+            mock_utctime.return_value = DEFAULT_DATE
+
+            started_at = timezone.utcnow() - timedelta(seconds=10)
+
+            def run_duration():
+                return (timezone.utcnow - started_at).total_seconds()
+
+            intervals = [
+                sensor._get_next_poke_interval(started_at, run_duration, retry_number)
+                for retry_number in range(1, 10)
+            ]
+
+            for i in range(0, len(intervals) - 1):
+                # intervals should be increasing or equals
+                assert intervals[i] <= intervals[i + 1]
+            if poke_interval > 0:
+                # check if the intervals are increasing after some retries when poke_interval > 0
+                assert intervals[0] < intervals[-1]
+            else:
+                # check if the intervals are equal after some retries when poke_interval == 0
+                assert intervals[0] == intervals[-1]
+
     def test_sensor_with_exponential_backoff_on_and_max_wait(self):
 
         sensor = DummySensor(
@@ -862,14 +897,14 @@ class TestPokeModeOnly:
 
     def test_poke_mode_only_bad_class_method(self):
         sensor = DummyPokeOnlySensor(task_id="foo", mode="poke", poke_changes_mode=False)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Cannot set mode to 'reschedule'. Only 'poke' is acceptable"):
             sensor.change_mode("reschedule")
 
     def test_poke_mode_only_bad_init(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Cannot set mode to 'reschedule'. Only 'poke' is acceptable"):
             DummyPokeOnlySensor(task_id="foo", mode="reschedule", poke_changes_mode=False)
 
     def test_poke_mode_only_bad_poke(self):
         sensor = DummyPokeOnlySensor(task_id="foo", mode="poke", poke_changes_mode=True)
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Cannot set mode to 'reschedule'. Only 'poke' is acceptable"):
             sensor.poke({})

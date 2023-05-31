@@ -17,6 +17,13 @@
 # under the License.
 """
 Example Airflow DAG that show how to create a Dataproc cluster in Google Kubernetes Engine.
+
+Required environment variables:
+GKE_NAMESPACE = os.environ.get("GKE_NAMESPACE", f"{CLUSTER_NAME}")
+A GKE cluster can support multiple DP clusters running in different namespaces.
+Define a namespace or assign a default one.
+Notice: optional kubernetes_namespace parameter in VIRTUAL_CLUSTER_CONFIG should be the same as GKE_NAMESPACE
+
 """
 from __future__ import annotations
 
@@ -24,6 +31,7 @@ import os
 from datetime import datetime
 
 from airflow import models
+from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
     DataprocDeleteClusterOperator,
@@ -41,14 +49,15 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 REGION = "us-central1"
 CLUSTER_NAME = f"cluster-test-build-in-gke{ENV_ID}"
 GKE_CLUSTER_NAME = f"test-dataproc-gke-cluster-{ENV_ID}"
+WORKLOAD_POOL = f"{PROJECT_ID}.svc.id.goog"
 GKE_CLUSTER_CONFIG = {
     "name": GKE_CLUSTER_NAME,
     "workload_identity_config": {
-        "workload_pool": f"{PROJECT_ID}.svc.id.goog",
+        "workload_pool": WORKLOAD_POOL,
     },
     "initial_node_count": 1,
 }
-
+GKE_NAMESPACE = os.environ.get("GKE_NAMESPACE", f"{CLUSTER_NAME}")
 # [START how_to_cloud_dataproc_create_cluster_in_gke_config]
 
 VIRTUAL_CLUSTER_CONFIG = {
@@ -84,6 +93,13 @@ with models.DAG(
         body=GKE_CLUSTER_CONFIG,
     )
 
+    add_iam_policy_binding = BashOperator(
+        task_id="add_iam_policy_binding",
+        bash_command=f"gcloud projects add-iam-policy-binding {PROJECT_ID} "
+        f"--member=serviceAccount:{WORKLOAD_POOL}[{GKE_NAMESPACE}/agent] "
+        "--role=roles/iam.workloadIdentityUser",
+    )
+
     # [START how_to_cloud_dataproc_create_cluster_operator_in_gke]
     create_cluster_in_gke = DataprocCreateClusterOperator(
         task_id="create_cluster_in_gke",
@@ -110,7 +126,13 @@ with models.DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    create_gke_cluster >> create_cluster_in_gke >> [delete_dataproc_cluster, delete_gke_cluster]
+    (
+        create_gke_cluster
+        >> add_iam_policy_binding
+        >> create_cluster_in_gke
+        >> delete_gke_cluster
+        >> delete_dataproc_cluster
+    )
 
     from tests.system.utils.watcher import watcher
 

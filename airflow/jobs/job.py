@@ -17,15 +17,15 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from time import sleep
 from typing import Callable, NoReturn
 
-from sqlalchemy import Column, Index, Integer, String, case
+from sqlalchemy import Column, Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import Session, make_transient
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -130,16 +130,19 @@ class Job(Base, LoggingMixin):
         :param grace_multiplier: multiplier of heartrate to require heart beat
             within
         """
+        if self.job_type == "SchedulerJob":
+            health_check_threshold: int = conf.getint("scheduler", "scheduler_health_check_threshold")
+        else:
+            health_check_threshold: int = self.heartrate * grace_multiplier
         return (
             self.state == State.RUNNING
-            and (timezone.utcnow() - self.latest_heartbeat).total_seconds()
-            < self.heartrate * grace_multiplier
+            and (timezone.utcnow() - self.latest_heartbeat).total_seconds() < health_check_threshold
         )
 
     @provide_session
     def kill(self, session: Session = NEW_SESSION) -> NoReturn:
         """Handles on_kill callback and updates state in database."""
-        job = session.query(Job).filter(Job.id == self.id).first()
+        job = session.scalar(select(Job).where(Job.id == self.id).limit(1))
         job.end_date = timezone.utcnow()
         try:
             self.on_kill()
@@ -249,15 +252,15 @@ def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None
     :param job_type: job type to query for to get the most recent job for
     :param session: Database session
     """
-    return (
-        session.query(Job)
-        .filter(Job.job_type == job_type)
+    return session.scalar(
+        select(Job)
+        .where(Job.job_type == job_type)
         .order_by(
             # Put "running" jobs at the front.
             case({State.RUNNING: 0}, value=Job.state, else_=1),
             Job.latest_heartbeat.desc(),
         )
-        .first()
+        .limit(1)
     )
 
 
@@ -266,8 +269,10 @@ def run_job(
     job: Job | JobPydantic, execute_callable: Callable[[], int | None], session: Session = NEW_SESSION
 ) -> int | None:
     """
-    Runs the job. The Job is always an ORM object and setting the state is happening within the
-    same DB session and the session is kept open throughout the whole execution
+    Runs the job.
+
+    The Job is always an ORM object and setting the state is happening within the
+    same DB session and the session is kept open throughout the whole execution.
 
     :meta private:
 

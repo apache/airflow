@@ -24,6 +24,64 @@
 Changelog
 ---------
 
+6.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable mode execution in WasbPrefixSensor (#31411)``
+
+Misc
+~~~~
+
+* ``Optimize deferred mode execution for wasb sensors (#31009)``
+
+6.1.0
+.....
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add deferrable mode to 'WasbPrefixSensor' (#30252)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+* ``Optimize deferrable execution mode 'AzureDataFactoryPipelineRunStatusSensor' (#30983)``
+* ``Optimize deferred execution for AzureDataFactoryRunPipelineOperator (#31214)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move TaskInstanceKey to a separate file (#31033)``
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``Upgrade ruff to 0.0.262 (#30809)``
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+
+6.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of the provider, deprecated GCS hook's param ``delegate_to`` is removed from ``AzureBlobStorageToGCSOperator``.
+  Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+
+Misc
+~~~~
+
+* ``Merge WasbBlobAsyncSensor to WasbBlobSensor (#30488)``
+
 5.3.1
 .....
 
@@ -56,6 +114,7 @@ Bug Fixes
 
 Misc
 ~~~~
+
 * ``merge AzureDataFactoryPipelineRunStatusAsyncSensor to AzureDataFactoryPipelineRunStatusSensor (#30250)``
 * ``Expose missing params in AzureSynapseHook API docs (#30099)``
 
@@ -135,8 +194,9 @@ Bug Fixes
 5.0.0
 .....
 
-This release of provider is only available for Airflow 2.3+ as explained in the
-`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -238,8 +298,9 @@ Bug Fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Features
 ~~~~~~~~

@@ -57,9 +57,9 @@ CUSTOM_PYTHON_GCS_BUCKET_NAME = f"bucket_python_{DAG_ID}_{ENV_ID}"
 
 DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/california_housing_train.csv"
 RESOURCES_PATH = Path(__file__).parent / "resources"
-CSV_ZIP_FILE_LOCAL_PATH = str(RESOURCES_PATH / "California-housing.zip")
-CSV_FILE_LOCAL_PATH = "/custom-job/california_housing_train.csv"
-TAR_FILE_LOCAL_PATH = "/custom-job/custom_trainer_script-0.1.tar"
+CSV_ZIP_FILE_LOCAL_PATH = str(RESOURCES_PATH / "California-housing-python-package.zip")
+CSV_FILE_LOCAL_PATH = "/custom-job-python/california_housing_train.csv"
+TAR_FILE_LOCAL_PATH = "/custom-job-python/custom_trainer_script-0.1.tar"
 FILES_TO_UPLOAD = [
     CSV_FILE_LOCAL_PATH,
     TAR_FILE_LOCAL_PATH,
@@ -103,7 +103,7 @@ with models.DAG(
     )
     unzip_file = BashOperator(
         task_id="unzip_csv_data_file",
-        bash_command=f"mkdir -p /custom-job && unzip {CSV_ZIP_FILE_LOCAL_PATH} -d /custom-job/",
+        bash_command=f"mkdir -p /custom-job-python && unzip {CSV_ZIP_FILE_LOCAL_PATH} -d /custom-job-python/",
     )
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
@@ -166,7 +166,7 @@ with models.DAG(
     )
     clear_folder = BashOperator(
         task_id="clear_folder",
-        bash_command="rm -r /custom-job/*",
+        bash_command="rm -r /custom-job-python/*",
     )
 
     (

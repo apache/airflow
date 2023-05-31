@@ -115,8 +115,17 @@ repos:
           - license-templates/LICENSE.txt
           - --fuzzy-match-generates-todo
       - id: insert-license
-        name: Add license for all YAML files
-        exclude: ^\.github/.*$|^.*/.*_vendor/
+        name: Add license for all Helm template files
+        files: ^chart/templates/.*
+        args:
+          - --comment-style
+          - "{{/*||*/}}"
+          - --license-filepath
+          - license-templates/LICENSE.txt
+          - --fuzzy-match-generates-todo
+      - id: insert-license
+        name: Add license for all YAML files except Helm templates
+        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -160,7 +169,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_update_common_sql_api_stubs.py
         language: python
         files: ^scripts/ci/pre_commit/pre_commit_update_common_sql_api\.py|^airflow/providers/common/sql/.*\.pyi?$
-        additional_dependencies: ['rich>=12.4.4', 'mypy==1.0.0', 'black==22.12.0', 'jinja2']
+        additional_dependencies: ['rich>=12.4.4', 'mypy==1.2.0', 'black==22.12.0', 'jinja2']
         pass_filenames: false
         require_serial: true
       - id: update-black-version
@@ -179,9 +188,9 @@ repos:
         # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
         # host CPU to it's fullest
         entry: ruff --fix --no-update-check --force-exclude
-        additional_dependencies: ['ruff==0.0.226']
+        additional_dependencies: ['ruff==0.0.265']
         files: \.pyi?$
-        exclude: ^.*/.*_vendor/
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.13.0
     hooks:
@@ -203,7 +212,7 @@ repos:
       - id: debug-statements
         name: Detect accidentally committed debug statements
       - id: check-builtin-literals
-        name: Require literal syntax when initializing Python builtin types
+        name: Require literal syntax when initializing builtin types
         exclude: ^.*/.*_vendor/
       - id: detect-private-key
         name: Detect if private key is added to the repository
@@ -284,6 +293,13 @@ repos:
           - --skip=airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
   - repo: local
+    # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
+    # we try to minimise the number of passes that must happen in order to apply some of the changes
+    # done by pre-commits. Some of the pre-commits not only check for errors but also fix them. This means
+    # that output from an earlier pre-commit becomes input to another pre-commit. Splitting the local
+    # scripts of our and adding some other non-local pre-commit in-between allows us to handle such
+    # changes quickly - especially when we want the early modifications from the first local group
+    # to be applied before the non-local pre-commits are run
     hooks:
       - id: replace-bad-characters
         name: Replace bad characters
@@ -386,7 +402,7 @@ repos:
         pass_filenames: true
         files: \.py$
       - id: check-links-to-example-dags-do-not-use-hardcoded-versions
-        name: Check that example dags do not use hard-coded version numbers
+        name: Verify example dags do not use hard-coded version numbers
         description: The links to example dags should use |version| as version specification
         language: pygrep
         entry: >
@@ -412,6 +428,13 @@ repos:
         entry: "^\\s*from airflow\\.providers.*"
         pass_filenames: true
         files: ^airflow/example_dags/.*\.py$
+      - id: check-no-airflow-deprecation-in-providers
+        language: pygrep
+        name: Do not use DeprecationWarning in providers
+        description: Use AirflowProviderDeprecationWarning in providers
+        entry: "^\\s*DeprecationWarning*"
+        pass_filenames: true
+        files: ^airflow/providers/.*\.py$
       - id: check-no-relative-imports
         language: pygrep
         name: No relative imports
@@ -488,6 +511,7 @@ repos:
           ^docs/README.rst$|
           ^docs/apache-airflow-providers-amazon/secrets-backends/aws-ssm-parameter-store.rst$|
           ^docs/apache-airflow-providers-apache-hdfs/connections.rst$|
+          ^docs/apache-airflow-providers-apache-kafka/connections/kafka.rst$|
           ^docs/apache-airflow-providers-google/operators/cloud/kubernetes_engine.rst$|
           ^docs/apache-airflow-providers-microsoft-azure/connections/azure_cosmos.rst$|
           ^docs/conf.py$|
@@ -545,7 +569,7 @@ repos:
         files: ^airflow/.*\.py$
       - id: check-core-deprecation-classes
         language: pygrep
-        name: Verify using of dedicated Airflow deprecation classes in core
+        name: Verify usage of Airflow deprecation classes in core
         entry: category=DeprecationWarning|category=PendingDeprecationWarning
         files: \.py$
         exclude: ^airflow/configuration\.py$|^airflow/providers|^scripts/in_container/verify_providers\.py$
@@ -575,7 +599,7 @@ repos:
         pass_filenames: true
       - id: check-start-date-not-used-in-defaults
         language: pygrep
-        name: "'start_date' not to be defined in default_args in example_dags"
+        name: start_date not to be defined in default_args in example_dags
         entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
         files: \.*example_dags.*\.py$
         exclude: ^.*/.*_vendor/
@@ -586,8 +610,16 @@ repos:
         language: python
         files: ^.*LICENSE.*$|^.*LICENCE.*$
         pass_filenames: false
+      - id: check-aiobotocore-optional
+        name: Check if aiobotocore is an optional dependency only
+        entry: ./scripts/ci/pre_commit/pre_commit_check_aiobotocore_optional.py
+        language: python
+        files: ^airflow/providers/.*/provider\.yaml$
+        pass_filenames: true
+        additional_dependencies: ['click', 'rich>=12.4.4', 'pyyaml']
+        require_serial: true
       - id: check-airflow-config-yaml-consistent
-        name: Checks for consistency between config.yml and default_config.cfg
+        name: Check consistency between config.yml and default_config.cfg
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_yaml_to_cfg.py
         files: config\.yml$|default_airflow\.cfg$|default\.cfg$
@@ -675,10 +707,10 @@ repos:
         language: python
         require_serial: true
       - id: check-pre-commit-information-consistent
-        name: Update information re pre-commit hooks and verify ids and names
+        name: Validate hook IDs & names and sync with docs
         entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commit_hooks.py
         args:
-          - --max-length=64
+          - --max-length=60
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
         additional_dependencies: ['pyyaml', 'jinja2', 'black==22.12.0', 'tabulate', 'rich>=12.4.4']
@@ -785,7 +817,7 @@ repos:
         require_serial: true
         additional_dependencies: ['jsonschema>=3.2.0,<5.0', 'PyYAML==5.3.1', 'requests==2.25.0']
       - id: lint-json-schema
-        name: Lint airflow/config_templates/config.yml file with JSON Schema
+        name: Lint config_templates/config.yml file with JSON Schema
         entry: ./scripts/ci/pre_commit/pre_commit_json_schema.py
         args:
           - --spec-file
@@ -852,7 +884,7 @@ repos:
           ^generated/provider_dependencies.json$
         require_serial: true
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout', 'pyyaml']
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5', 'inputimeout', 'pyyaml', 'packaging']
       - id: check-example-dags-urls
         name: Check that example dags url include provider versions
         entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py
@@ -884,13 +916,19 @@ repos:
         pass_filenames: false
         files: ^tests/.*\.py$
       - id: ts-compile-format-lint-www
-        name: TS types generation and ESLint/Prettier against current UI files
+        name: TS types generation / ESLint / Prettier against UI files
         language: node
         'types_or': [javascript, ts, tsx, yaml, css, json]
         files: ^airflow/www/static/js/|^airflow/api_connexion/openapi/v1\.yaml$
         entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
         additional_dependencies: ['yarn@1.22.19']
         pass_filenames: false
+      - id: check-tests-unittest-testcase
+        name: Check that unit tests do not inherit from unittest.TestCase
+        entry: ./scripts/ci/pre_commit/pre_commit_unittest_testcase.py
+        language: python
+        pass_filenames: true
+        files: ^tests/.*\.py$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
@@ -905,7 +943,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
-        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers
+        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
       - id: mypy-providers

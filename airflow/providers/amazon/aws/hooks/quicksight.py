@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 import time
+from functools import cached_property
 
 from botocore.exceptions import ClientError
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 

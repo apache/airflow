@@ -27,6 +27,7 @@ from __future__ import annotations
 import copy
 import platform
 import time
+from functools import cached_property
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -45,7 +46,6 @@ from tenacity import (
 )
 
 from airflow import __version__
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection

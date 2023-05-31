@@ -19,6 +19,7 @@
 
 import React from "react";
 import { Text, Flex, Table, Tbody, Tr, Td, Divider } from "@chakra-ui/react";
+import { snakeCase } from "lodash";
 
 import { getGroupAndMapSummary } from "src/utils";
 import { getDuration, formatDuration } from "src/datetime_utils";
@@ -59,15 +60,15 @@ const Details = ({ instance, group, dagId }: Props) => {
   });
 
   childTaskMap.forEach((key, val) => {
+    const childState = snakeCase(val);
     if (key > 0) {
       summary.push(
-        // eslint-disable-next-line react/no-array-index-key
-        <Tr key={val}>
+        <Tr key={childState}>
           <Td />
           <Td>
             <Flex alignItems="center">
-              <SimpleStatus state={val as TaskState} mx={2} />
-              {val}
+              <SimpleStatus state={childState as TaskState} mx={2} />
+              {childState}
               {": "}
               {key}
             </Flex>

@@ -19,6 +19,8 @@
 
 /* global document, moment */
 
+import validator from "validator";
+
 // reformat task details to be more human-readable
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".js-ti-attr").forEach((attr) => {
@@ -31,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const textNode = document.createTextNode(value);
       timeElement.appendChild(textNode);
       attr.appendChild(timeElement);
-    } else if (value.includes("http")) {
+    } else if (validator.isURL(value)) {
       // very basic url detection
       attr.innerHTML = "";
       const linkElement = document.createElement("a");

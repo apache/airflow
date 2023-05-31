@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""json_formatter module stores all related to ElasticSearch specific logger classes"""
+"""json_formatter module stores all related to ElasticSearch specific logger classes."""
 from __future__ import annotations
 
 import json

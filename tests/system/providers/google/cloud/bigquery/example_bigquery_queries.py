@@ -105,6 +105,7 @@ for index, location in enumerate(locations, 1):
                 "query": {
                     "query": INSERT_ROWS_QUERY,
                     "useLegacySql": False,
+                    "priority": "BATCH",
                 }
             },
             location=location,
@@ -241,6 +242,7 @@ for index, location in enumerate(locations, 1):
         execute_insert_query >> get_data >> get_data_result >> delete_dataset
         execute_insert_query >> execute_query_save >> bigquery_execute_multi_query >> delete_dataset
         execute_insert_query >> [check_count, check_value, check_interval] >> delete_dataset
+        execute_insert_query >> [column_check, table_check] >> delete_dataset
 
         from tests.system.utils.watcher import watcher
 

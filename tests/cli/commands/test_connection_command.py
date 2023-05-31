@@ -635,6 +635,16 @@ class TestCliAddConnections:
                 )
             )
 
+    def test_cli_connections_add_invalid_conn_id(self):
+        with pytest.raises(SystemExit) as e:
+            connection_command.connections_add(
+                self.parser.parse_args(["connections", "add", "Test$", f"--conn-uri={TEST_URL}"])
+            )
+        assert (
+            e.value.args[0] == "Could not create connection. The key 'Test$' has to be made of "
+            "alphanumeric characters, dashes, dots and underscores exclusively"
+        )
+
 
 class TestCliDeleteConnections:
     parser = cli_parser.get_parser()

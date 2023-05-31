@@ -19,7 +19,6 @@ from __future__ import annotations
 import asyncio
 import datetime
 import typing
-from typing import Any
 
 from asgiref.sync import sync_to_async
 from sqlalchemy import func
@@ -27,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from airflow.models import DagRun, TaskInstance
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-from airflow.utils.session import provide_session
+from airflow.utils.session import NEW_SESSION, provide_session
 
 
 class TaskStateTrigger(BaseTrigger):
@@ -59,7 +58,7 @@ class TaskStateTrigger(BaseTrigger):
         self.execution_dates = execution_dates
         self.poll_interval = poll_interval
 
-    def serialize(self) -> tuple[str, dict[str, Any]]:
+    def serialize(self) -> tuple[str, dict[str, typing.Any]]:
         """Serializes TaskStateTrigger arguments and classpath."""
         return (
             "airflow.triggers.external_task.TaskStateTrigger",
@@ -72,20 +71,21 @@ class TaskStateTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> typing.AsyncIterator["TriggerEvent"]:
+    async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """
         Checks periodically in the database to see if the task exists, and has
         hit one of the states yet, or not.
         """
         while True:
-            num_tasks = await self.count_tasks()
+            # mypy confuses typing here
+            num_tasks = await self.count_tasks()  # type: ignore[call-arg]
             if num_tasks == len(self.execution_dates):
                 yield TriggerEvent(True)
             await asyncio.sleep(self.poll_interval)
 
     @sync_to_async
     @provide_session
-    def count_tasks(self, session: Session) -> int | None:
+    def count_tasks(self, *, session: Session = NEW_SESSION) -> int | None:
         """Count how many task instances in the database match our criteria."""
         count = (
             session.query(func.count("*"))  # .count() is inefficient
@@ -124,7 +124,7 @@ class DagStateTrigger(BaseTrigger):
         self.execution_dates = execution_dates
         self.poll_interval = poll_interval
 
-    def serialize(self) -> tuple[str, dict[str, Any]]:
+    def serialize(self) -> tuple[str, dict[str, typing.Any]]:
         """Serializes DagStateTrigger arguments and classpath."""
         return (
             "airflow.triggers.external_task.DagStateTrigger",
@@ -136,20 +136,21 @@ class DagStateTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> typing.AsyncIterator["TriggerEvent"]:
+    async def run(self) -> typing.AsyncIterator[TriggerEvent]:
         """
         Checks periodically in the database to see if the dag run exists, and has
         hit one of the states yet, or not.
         """
         while True:
-            num_dags = await self.count_dags()
+            # mypy confuses typing here
+            num_dags = await self.count_dags()  # type: ignore[call-arg]
             if num_dags == len(self.execution_dates):
                 yield TriggerEvent(self.serialize())
             await asyncio.sleep(self.poll_interval)
 
     @sync_to_async
     @provide_session
-    def count_dags(self, session: Session) -> int | None:
+    def count_dags(self, *, session: Session = NEW_SESSION) -> int | None:
         """Count how many dag runs in the database match our criteria."""
         count = (
             session.query(func.count("*"))  # .count() is inefficient

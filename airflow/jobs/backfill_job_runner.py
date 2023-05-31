@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Iterator, Mapping, Sequence
 
 import attr
 import pendulum
+from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
@@ -57,7 +58,7 @@ if TYPE_CHECKING:
     from airflow.models.abstractoperator import AbstractOperator
 
 
-class BackfillJobRunner(BaseJobRunner, LoggingMixin):
+class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
     """
     A backfill job runner consists of a dag or subdag for a specific time range.
 
@@ -148,14 +149,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         :param args:
         :param kwargs:
         """
-        super().__init__()
-        if job.job_type and job.job_type != self.job_type:
-            raise Exception(
-                f"The job is already assigned a different job_type: {job.job_type}."
-                f"This is a bug and should be reported."
-            )
-        self.job = job
-        self.job.job_type = self.job_type
+        super().__init__(job)
         self.dag = dag
         self.dag_id = dag.dag_id
         self.bf_start_date = start_date
@@ -186,39 +180,39 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         refreshed_tis = []
         TI = TaskInstance
 
+        ti_primary_key_to_ti_key = {ti_key.primary: ti_key for ti_key in ti_status.running.keys()}
+
         filter_for_tis = TI.filter_for_tis(list(ti_status.running.values()))
         if filter_for_tis is not None:
-            refreshed_tis = session.query(TI).filter(filter_for_tis).all()
+            refreshed_tis = session.scalars(select(TI).where(filter_for_tis)).all()
 
         for ti in refreshed_tis:
-            # Here we remake the key by subtracting 1 to match in memory information
-            reduced_key = ti.key.reduced
+            # Use primary key to match in memory information
+            ti_key = ti_primary_key_to_ti_key[ti.key.primary]
             if ti.state == TaskInstanceState.SUCCESS:
-                ti_status.succeeded.add(reduced_key)
+                ti_status.succeeded.add(ti_key)
                 self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
-                ti_status.running.pop(reduced_key)
+                ti_status.running.pop(ti_key)
                 continue
             if ti.state == TaskInstanceState.SKIPPED:
-                ti_status.skipped.add(reduced_key)
+                ti_status.skipped.add(ti_key)
                 self.log.debug("Task instance %s skipped. Don't rerun.", ti)
-                ti_status.running.pop(reduced_key)
+                ti_status.running.pop(ti_key)
                 continue
             if ti.state == TaskInstanceState.FAILED:
                 self.log.error("Task instance %s failed", ti)
-                ti_status.failed.add(reduced_key)
-                ti_status.running.pop(reduced_key)
+                ti_status.failed.add(ti_key)
+                ti_status.running.pop(ti_key)
                 continue
             # special case: if the task needs to run again put it back
             if ti.state == TaskInstanceState.UP_FOR_RETRY:
                 self.log.warning("Task instance %s is up for retry", ti)
-                ti_status.running.pop(reduced_key)
+                ti_status.running.pop(ti_key)
                 ti_status.to_run[ti.key] = ti
             # special case: if the task needs to be rescheduled put it back
             elif ti.state == TaskInstanceState.UP_FOR_RESCHEDULE:
                 self.log.warning("Task instance %s is up for reschedule", ti)
-                # During handling of reschedule state in ti._handle_reschedule, try number is reduced
-                # by one, so we should not use reduced_key to avoid key error
-                ti_status.running.pop(ti.key)
+                ti_status.running.pop(ti_key)
                 ti_status.to_run[ti.key] = ti
             # special case: The state of the task can be set to NONE by the task itself
             # when it reaches concurrency limits. It could also happen when the state
@@ -232,20 +226,23 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                     ti,
                 )
                 tis_to_be_scheduled.append(ti)
-                ti_status.running.pop(reduced_key)
+                ti_status.running.pop(ti_key)
                 ti_status.to_run[ti.key] = ti
             # special case: Deferrable task can go from DEFERRED to SCHEDULED;
             # when that happens, we need to put it back as in UP_FOR_RESCHEDULE
             elif ti.state == TaskInstanceState.SCHEDULED:
                 self.log.debug("Task instance %s is resumed from deferred state", ti)
-                ti_status.running.pop(ti.key)
+                ti_status.running.pop(ti_key)
                 ti_status.to_run[ti.key] = ti
 
         # Batch schedule of task instances
         if tis_to_be_scheduled:
             filter_for_tis = TI.filter_for_tis(tis_to_be_scheduled)
-            session.query(TI).filter(filter_for_tis).update(
-                values={TI.state: TaskInstanceState.SCHEDULED}, synchronize_session=False
+            session.execute(
+                update(TI)
+                .where(filter_for_tis)
+                .values(state=TaskInstanceState.SCHEDULED)
+                .execution_options(synchronize_session=False)
             )
             session.flush()
 
@@ -324,7 +321,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         run_date = dagrun_info.logical_date
 
         # consider max_active_runs but ignore when running subdags
-        respect_dag_max_active_limit = bool(dag.timetable.can_run and not dag.is_subdag)
+        respect_dag_max_active_limit = bool(dag.timetable.can_be_scheduled and not dag.is_subdag)
 
         current_active_dag_count = dag.get_num_active_runs(external_trigger=False)
 
@@ -597,7 +594,9 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                         if task.task_id != ti.task_id:
                             continue
 
-                        pool = session.query(models.Pool).filter(models.Pool.pool == task.pool).first()
+                        pool = session.scalar(
+                            select(models.Pool).where(models.Pool.pool == task.pool).limit(1)
+                        )
                         if not pool:
                             raise PoolNotFound(f"Unknown pool: {task.pool}")
 
@@ -976,12 +975,14 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         resettable_states = [TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED]
         if filter_by_dag_run is None:
             resettable_tis = (
-                session.query(TaskInstance)
-                .join(TaskInstance.dag_run)
-                .filter(
-                    DagRun.state == DagRunState.RUNNING,
-                    DagRun.run_type != DagRunType.BACKFILL_JOB,
-                    TaskInstance.state.in_(resettable_states),
+                session.scalars(
+                    select(TaskInstance)
+                    .join(TaskInstance.dag_run)
+                    .where(
+                        DagRun.state == DagRunState.RUNNING,
+                        DagRun.run_type != DagRunType.BACKFILL_JOB,
+                        TaskInstance.state.in_(resettable_states),
+                    )
                 )
             ).all()
         else:
@@ -996,12 +997,11 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 return result
 
             filter_for_tis = TaskInstance.filter_for_tis(items)
-            reset_tis = (
-                session.query(TaskInstance)
-                .filter(filter_for_tis, TaskInstance.state.in_(resettable_states))
+            reset_tis = session.scalars(
+                select(TaskInstance)
+                .where(filter_for_tis, TaskInstance.state.in_(resettable_states))
                 .with_for_update()
-                .all()
-            )
+            ).all()
 
             for ti in reset_tis:
                 ti.state = State.NONE

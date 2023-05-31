@@ -26,9 +26,9 @@ from functools import lru_cache
 from pathlib import Path
 
 from airflow_breeze.utils.host_info_utils import Architecture
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DEPENDENCIES_JSON_FILE_PATH
 
-RUNS_ON_PUBLIC_RUNNER = "ubuntu-20.04"
+RUNS_ON_PUBLIC_RUNNER = "ubuntu-22.04"
 RUNS_ON_SELF_HOSTED_RUNNER = "self-hosted"
 
 ANSWER = ""
@@ -36,20 +36,13 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres", "mssql"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
-TESTABLE_INTEGRATIONS = [
-    "cassandra",
-    "celery",
-    "kerberos",
-    "mongo",
-    "pinot",
-    "trino",
-]
+TESTABLE_INTEGRATIONS = ["cassandra", "celery", "kerberos", "mongo", "pinot", "trino", "kafka"]
 OTHER_INTEGRATIONS = ["statsd"]
 ALL_INTEGRATIONS = sorted(
     [
@@ -72,7 +65,7 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.23.13", "v1.24.7", "v1.25.3", "v1.26.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.23.17", "v1.24.13", "v1.25.9", "v1.26.4", "v1.27.1"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
@@ -88,7 +81,7 @@ ALLOWED_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
 ALLOWED_MYSQL_VERSIONS = ["5.7", "8"]
 ALLOWED_MSSQL_VERSIONS = ["2017-latest", "2019-latest"]
 
-PIP_VERSION = "23.0.1"
+PIP_VERSION = "23.1.2"
 
 
 @lru_cache(maxsize=None)
@@ -115,6 +108,23 @@ ALLOWED_TEST_TYPE_CHOICES = [
     "Quarantine",
 ]
 
+
+@lru_cache(maxsize=None)
+def all_helm_test_packages() -> list[str]:
+    return sorted(
+        [
+            candidate.name
+            for candidate in (AIRFLOW_SOURCES_ROOT / "tests" / "charts").iterdir()
+            if candidate.is_dir()
+        ]
+    )
+
+
+ALLOWED_HELM_TEST_PACKAGES = [
+    "all",
+    *all_helm_test_packages(),
+]
+
 ALLOWED_PACKAGE_FORMATS = ["wheel", "sdist", "both"]
 ALLOWED_INSTALLATION_PACKAGE_FORMATS = ["wheel", "sdist"]
 ALLOWED_INSTALLATION_METHODS = [".", "apache-airflow"]
@@ -124,11 +134,9 @@ SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
 
-PROVIDER_PACKAGE_JSON_FILE = AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json"
-
 
 def get_available_documentation_packages(short_version=False) -> list[str]:
-    provider_names: list[str] = list(json.loads(PROVIDER_PACKAGE_JSON_FILE.read_text()).keys())
+    provider_names: list[str] = list(json.loads(DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
     doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
     available_packages = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
     available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])
@@ -162,11 +170,11 @@ MSSQL_HOST_PORT = "21433"
 FLOWER_HOST_PORT = "25555"
 REDIS_HOST_PORT = "26379"
 
-SQLITE_URL = "sqlite:////root/airflow/airflow.db"
+SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
 PYTHONDONTWRITEBYTECODE = True
 
 PRODUCTION_IMAGE = False
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 CURRENT_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
@@ -185,7 +193,59 @@ INIT_SCRIPT_FILE = ""
 BREEZE_INIT_COMMAND = ""
 DRY_RUN_DOCKER = False
 INSTALL_AIRFLOW_VERSION = ""
-SQLITE_URL = "sqlite:////root/airflow/airflow.db"
+
+
+COMMITTERS = [
+    "BasPH",
+    "Fokko",
+    "KevinYang21",
+    "Taragolis",
+    "XD-DENG",
+    "aijamalnk",
+    "alexvanboxel",
+    "aoen",
+    "artwr",
+    "ashb",
+    "bbovenzi",
+    "bolkedebruin",
+    "criccomini",
+    "dimberman",
+    "dstandish",
+    "eladkal",
+    "ephraimbuddy",
+    "feluelle",
+    "feng-tao",
+    "houqp",
+    "hussein-awala",
+    "jedcunningham",
+    "jgao54",
+    "jghoman",
+    "jhtimmins",
+    "jmcarp",
+    "josh-fell",
+    "kaxil",
+    "leahecole",
+    "malthe",
+    "mik-laj",
+    "milton0825",
+    "mistercrunch",
+    "msumit",
+    "o-nikolas",
+    "pierrejeambrun",
+    "pingzh",
+    "potiuk",
+    "r39132",
+    "ryanahamilton",
+    "ryw",
+    "saguziel",
+    "sekikn",
+    "turbaszek",
+    "uranusjr",
+    "vikramkoka",
+    "xinbinhuang",
+    "yuqian90",
+    "zhongjiajie",
+]
 
 
 def get_airflow_version():
@@ -239,7 +299,7 @@ CURRENT_EXECUTORS = ["KubernetesExecutor"]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.17.0"
+KIND_VERSION = "v0.19.0"
 HELM_VERSION = "v3.9.4"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass

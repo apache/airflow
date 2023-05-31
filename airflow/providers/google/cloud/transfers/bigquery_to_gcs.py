@@ -18,12 +18,11 @@
 """This module contains Google BigQuery to Google Cloud Storage operator."""
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
-from google.cloud.bigquery import DEFAULT_RETRY, ExtractJob
+from google.cloud.bigquery import DEFAULT_RETRY, UnknownJob
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
@@ -60,9 +59,6 @@ class BigQueryToGCSOperator(BaseOperator):
     :param field_delimiter: The delimiter to use when extracting to a CSV.
     :param print_header: Whether to print a header for a CSV file extract.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
     :param location: The location used for the operation.
@@ -110,7 +106,6 @@ class BigQueryToGCSOperator(BaseOperator):
         field_delimiter: str = ",",
         print_header: bool = True,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         labels: dict | None = None,
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -131,11 +126,6 @@ class BigQueryToGCSOperator(BaseOperator):
         self.field_delimiter = field_delimiter
         self.print_header = print_header
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.labels = labels
         self.location = location
         self.impersonation_chain = impersonation_chain
@@ -148,7 +138,7 @@ class BigQueryToGCSOperator(BaseOperator):
         self.deferrable = deferrable
 
     @staticmethod
-    def _handle_job_error(job: ExtractJob) -> None:
+    def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
         if job.error_result:
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
@@ -209,7 +199,6 @@ class BigQueryToGCSOperator(BaseOperator):
         )
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
@@ -227,7 +216,9 @@ class BigQueryToGCSOperator(BaseOperator):
 
         try:
             self.log.info("Executing: %s", configuration)
-            job: ExtractJob = self._submit_job(hook=hook, job_id=job_id, configuration=configuration)
+            job: BigQueryJob | UnknownJob = self._submit_job(
+                hook=hook, job_id=job_id, configuration=configuration
+            )
         except Conflict:
             # If the job already exists retrieve it
             job = hook.get_job(

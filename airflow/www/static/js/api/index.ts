@@ -28,7 +28,7 @@ import useClearTask from "./useClearTask";
 import useMarkFailedTask from "./useMarkFailedTask";
 import useMarkSuccessTask from "./useMarkSuccessTask";
 import useExtraLinks from "./useExtraLinks";
-import useConfirmMarkTask from "./useConfirmMarkTask";
+import useMarkTaskDryRun from "./useMarkTaskDryRun";
 import useGraphData from "./useGraphData";
 import useGridData from "./useGridData";
 import useMappedInstances from "./useMappedInstances";
@@ -40,6 +40,8 @@ import useSetDagRunNote from "./useSetDagRunNote";
 import useSetTaskInstanceNote from "./useSetTaskInstanceNote";
 import useUpstreamDatasetEvents from "./useUpstreamDatasetEvents";
 import useTaskInstance from "./useTaskInstance";
+import useDag from "./useDag";
+import useDagCode from "./useDagCode";
 
 axios.interceptors.response.use((res: AxiosResponse) =>
   res.data ? camelcaseKeys(res.data, { deep: true }) : res
@@ -50,7 +52,7 @@ axios.defaults.headers.common.Accept = "application/json";
 export {
   useClearRun,
   useClearTask,
-  useConfirmMarkTask,
+  useMarkTaskDryRun,
   useDataset,
   useDatasetDependencies,
   useDatasetEvents,
@@ -68,4 +70,6 @@ export {
   useSetTaskInstanceNote,
   useTaskInstance,
   useUpstreamDatasetEvents,
+  useDag,
+  useDagCode,
 };

@@ -29,7 +29,7 @@ from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, CloudBuildClient, GetBuildRequest
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
@@ -42,9 +42,6 @@ class CloudBuildHook(GoogleBaseHook):
     Hook for the Google Cloud Build Service.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -58,16 +55,15 @@ class CloudBuildHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
             )
-        super().__init__(
-            gcp_conn_id=gcp_conn_id, delegate_to=delegate_to, impersonation_chain=impersonation_chain
-        )
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
         self._client: dict[str, CloudBuildClient] = {}
 
     def _get_build_id_from_operation(self, operation: Operation) -> str:
@@ -185,6 +181,8 @@ class CloudBuildHook(GoogleBaseHook):
             metadata=metadata,
         )
         id_ = self._get_build_id_from_operation(operation)
+        self.log.info("Build has been created: %s.", id_)
+
         return operation, id_
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -212,6 +210,11 @@ class CloudBuildHook(GoogleBaseHook):
         :param metadata: Optional, additional metadata that is provided to the method.
 
         """
+        warnings.warn(
+            "This method is deprecated. Please use `create_build_without_waiting_for_result`.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         client = self.get_conn()
 
         self.log.info("Start creating build...")
@@ -525,13 +528,12 @@ class CloudBuildHook(GoogleBaseHook):
         )
 
         id_ = self._get_build_id_from_operation(operation)
+        self.log.info("Build has been retried: %s.", id_)
 
         if not wait:
             return self.get_build(id_=id_, project_id=project_id, location=location)
 
-        operation.result()
-
-        self.log.info("Build has been retried: %s.", id_)
+        self.wait_for_operation(operation, timeout)
 
         return self.get_build(id_=id_, project_id=project_id, location=location)
 
@@ -572,14 +574,15 @@ class CloudBuildHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
+        self.log.info("Build trigger has been run: %s.", trigger_id)
 
         id_ = self._get_build_id_from_operation(operation)
+        self.log.info("Build has been created: %s.", id_)
 
         if not wait:
             return self.get_build(id_=id_, project_id=project_id, location=location)
-        operation.result()
 
-        self.log.info("Build trigger has been run: %s.", trigger_id)
+        self.wait_for_operation(operation, timeout)
 
         return self.get_build(id_=id_, project_id=project_id, location=location)
 
@@ -627,6 +630,14 @@ class CloudBuildHook(GoogleBaseHook):
 
 class CloudBuildAsyncHook(GoogleBaseHook):
     """Asynchronous Hook for the Google Cloud Build Service."""
+
+    def __init__(self, **kwargs):
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
+        super().__init__(**kwargs)
 
     @GoogleBaseHook.fallback_to_default_project_id
     async def get_cloud_build(

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyEventsHook
 from airflow.utils import db
@@ -54,3 +55,42 @@ class TestPagerdutyEventsHook:
             severity="error",
         )
         assert resp == mock_response_body
+
+    def test_create_change_event(self, requests_mock, events_connections):
+        hook = PagerdutyEventsHook(pagerduty_events_conn_id=DEFAULT_CONN_ID)
+        change_event_id = "change_event_id"
+        mock_response_body = {"id": change_event_id}
+        requests_mock.post("https://events.pagerduty.com/v2/change/enqueue", json=mock_response_body)
+        resp = hook.create_change_event(summary="test", source="airflow")
+        assert resp == change_event_id
+
+    def test_send_event(self, requests_mock, events_connections):
+        hook = PagerdutyEventsHook(pagerduty_events_conn_id=DEFAULT_CONN_ID)
+        dedup_key = "samplekeyhere"
+        mock_response_body = {
+            "status": "success",
+            "message": "Event processed",
+            "dedup_key": dedup_key,
+        }
+        requests_mock.post("https://events.pagerduty.com/v2/enqueue", json=mock_response_body)
+        resp = hook.send_event(summary="test", source="airflow_test", severity="error", dedup_key=dedup_key)
+        assert resp == dedup_key
+
+    def test_create_event_deprecation_warning(self, requests_mock, events_connections):
+        hook = PagerdutyEventsHook(pagerduty_events_conn_id=DEFAULT_CONN_ID)
+        mock_response_body = {
+            "status": "success",
+            "message": "Event processed",
+            "dedup_key": "samplekeyhere",
+        }
+        requests_mock.post("https://events.pagerduty.com/v2/enqueue", json=mock_response_body)
+        warning = (
+            "This method will be deprecated. Please use the `PagerdutyEventsHook.send_event`"
+            " to interact with the Events API"
+        )
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning):
+            hook.create_event(
+                summary="test",
+                source="airflow_test",
+                severity="error",
+            )

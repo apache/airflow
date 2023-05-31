@@ -19,8 +19,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
 from google.api_core.exceptions import NotFound
-from google.cloud.secretmanager_v1.proto.service_pb2 import AccessSecretVersionResponse
+from google.cloud.secretmanager_v1.types.service import AccessSecretVersionResponse
 
 from airflow.providers.google.cloud.hooks.secret_manager import SecretsManagerHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
@@ -34,6 +35,10 @@ INTERNAL_CLIENT_PACKAGE = "airflow.providers.google.cloud._internal_client.secre
 
 
 class TestSecretsManagerHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            SecretsManagerHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     @patch(INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock())
     @patch(
         SECRETS_HOOK_PACKAGE + "SecretsManagerHook.get_credentials_and_project_id",
@@ -47,7 +52,7 @@ class TestSecretsManagerHook:
         mock_get_credentials.assert_called_once_with()
         secret = secrets_manager_hook.get_secret(secret_id="secret")
         mock_client.secret_version_path.assert_called_once_with("example-project", "secret", "latest")
-        mock_client.access_secret_version.assert_called_once_with("full-path")
+        mock_client.access_secret_version.assert_called_once_with(request={"name": "full-path"})
         assert secret is None
 
     @patch(INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock())
@@ -65,5 +70,5 @@ class TestSecretsManagerHook:
         mock_get_credentials.assert_called_once_with()
         secret = secrets_manager_hook.get_secret(secret_id="secret")
         mock_client.secret_version_path.assert_called_once_with("example-project", "secret", "latest")
-        mock_client.access_secret_version.assert_called_once_with("full-path")
+        mock_client.access_secret_version.assert_called_once_with(request={"name": "full-path"})
         assert "result" == secret

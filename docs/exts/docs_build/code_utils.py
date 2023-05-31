@@ -36,12 +36,11 @@ CONSOLE_WIDTH = 180
 
 
 def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int = 5) -> str:
-    """
-    Prepares code snippet.
+    """Prepares code snippet.
+
     :param file_path: file path
     :param line_no: line number
     :param context_lines_count: number of lines of context.
-    :return:
     """
 
     def guess_lexer_for_filename(filename):

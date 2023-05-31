@@ -23,13 +23,13 @@ import os
 import warnings
 from contextlib import suppress
 from enum import Enum
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 from urllib.parse import urljoin
 
 import pendulum
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
@@ -96,7 +96,7 @@ def _fetch_logs_from_service(url, log_relative_path):
     return response
 
 
-_parse_timestamp = conf.getimport("core", "interleave_timestamp_parser", fallback=None)
+_parse_timestamp = conf.getimport("logging", "interleave_timestamp_parser", fallback=None)
 
 if not _parse_timestamp:
 
@@ -201,7 +201,7 @@ class FileTaskHandler(logging.Handler):
         triggerer instances.
         """
         full_path = Path(full_path).as_posix()
-        full_path += f".{LogType.TRIGGER}"
+        full_path += f".{LogType.TRIGGER.value}"
         if job_id:
             full_path += f".{job_id}.log"
         return full_path
@@ -303,7 +303,6 @@ class FileTaskHandler(logging.Handler):
         worker_log_rel_path = self._render_filename(ti, try_number)
         messages_list: list[str] = []
         remote_logs: list[str] = []
-        running_logs: list[str] = []
         local_logs: list[str] = []
         executor_messages: list[str] = []
         executor_logs: list[str] = []
@@ -316,19 +315,25 @@ class FileTaskHandler(logging.Handler):
             if response:
                 executor_messages, executor_logs = response
             if executor_messages:
-                messages_list.extend(messages_list)
-        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not executor_messages:
-            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
-            messages_list.extend(served_messages)
+                messages_list.extend(executor_messages)
         if not (remote_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
+        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not executor_messages:
+            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            messages_list.extend(served_messages)
+        elif ti.state not in State.unfinished and not (local_logs or remote_logs):
+            # ordinarily we don't check served logs, with the assumption that users set up
+            # remote logging or shared drive for logs for persistence, but that's not always true
+            # so even if task is done, if no local logs or remote logs are found, we'll check the worker
+            served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
+            messages_list.extend(served_messages)
+
         logs = "\n".join(
             _interleave_logs(
                 *local_logs,
-                *running_logs,
                 *remote_logs,
                 *(executor_logs or []),
                 *served_logs,
@@ -517,6 +522,14 @@ class FileTaskHandler(logging.Handler):
             logger.exception("Could not read served logs")
         return messages, logs
 
-    def _read_remote_logs(self, ti, try_number, metadata=None):
-        """Implement in subclasses to read from the remote service"""
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
+        """
+        Implement in subclasses to read from the remote service.
+
+        This method should return two lists, messages and logs.
+
+        * Each element in the messages list should be a single message,
+          such as, "reading from x file".
+        * Each element in the logs list should be the content of one file.
+        """
         raise NotImplementedError

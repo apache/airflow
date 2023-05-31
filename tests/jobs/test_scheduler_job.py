@@ -269,12 +269,10 @@ class TestSchedulerJob:
             [
                 mock.call(
                     "scheduler.tasks.killed_externally",
-                    tags={"dag_id": dag_id, "run_id": ti1.run_id, "task_id": ti1.task_id},
+                    tags={"dag_id": dag_id, "task_id": ti1.task_id},
                 ),
-                mock.call("operator_failures_EmptyOperator"),
-                mock.call(
-                    "ti_failures", tags={"dag_id": dag_id, "run_id": ti1.run_id, "task_id": ti1.task_id}
-                ),
+                mock.call("operator_failures_EmptyOperator", tags={"dag_id": dag_id, "task_id": ti1.task_id}),
+                mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": ti1.task_id}),
             ],
             any_order=True,
         )
@@ -283,7 +281,8 @@ class TestSchedulerJob:
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.incr")
     def test_process_executor_events_with_no_callback(self, mock_stats_incr, mock_task_callback, dag_maker):
         dag_id = "test_process_executor_events_with_no_callback"
-        task_id_1 = "dummy_task"
+        task_id = "test_task"
+        run_id = "test_run"
 
         mock_stats_incr.reset_mock()
         executor = MockExecutor(do_update=False)
@@ -295,9 +294,9 @@ class TestSchedulerJob:
 
         session = settings.Session()
         with dag_maker(dag_id=dag_id, fileloc="/test_path1/"):
-            task1 = EmptyOperator(task_id=task_id_1, retries=1)
+            task1 = EmptyOperator(task_id=task_id, retries=1)
         ti1 = dag_maker.create_dagrun(
-            run_id="dr2", execution_date=DEFAULT_DATE + timedelta(hours=1)
+            run_id=run_id, execution_date=DEFAULT_DATE + timedelta(hours=1)
         ).get_task_instance(task1.task_id)
 
         mock_stats_incr.reset_mock()
@@ -333,10 +332,10 @@ class TestSchedulerJob:
             [
                 mock.call(
                     "scheduler.tasks.killed_externally",
-                    tags={"dag_id": dag_id, "run_id": "dr2", "task_id": task_id_1},
+                    tags={"dag_id": dag_id, "task_id": task_id},
                 ),
-                mock.call("operator_failures_EmptyOperator"),
-                mock.call("ti_failures", tags={"dag_id": dag_id, "run_id": "dr2", "task_id": task_id_1}),
+                mock.call("operator_failures_EmptyOperator", tags={"dag_id": dag_id, "task_id": task_id}),
+                mock.call("ti_failures", tags={"dag_id": dag_id, "task_id": task_id}),
             ],
             any_order=True,
         )
@@ -387,7 +386,6 @@ class TestSchedulerJob:
             "scheduler.tasks.killed_externally",
             tags={
                 "dag_id": "test_process_executor_events_with_callback",
-                "run_id": "test",
                 "task_id": "dummy_task",
             },
         )
@@ -3113,6 +3111,7 @@ class TestSchedulerJob:
             "test_ignore_this.py",
             "test_invalid_param.py",
             "test_nested_dag.py",
+            "test_imports.py",
             "__init__.py",
         }
         for root, _, files in os.walk(TEST_DAG_FOLDER):
@@ -3395,6 +3394,42 @@ class TestSchedulerJob:
             scheduler_job.executor = MockExecutor()
             self.job_runner._send_sla_callbacks_to_processor(dag)
             scheduler_job.executor.callback_sink.send.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "schedule, number_running, excepted",
+        [
+            (None, None, False),
+            ("*/1 * * * *", None, False),
+            ("*/1 * * * *", 1, True),
+        ],
+        ids=["no_dag_schedule", "dag_schedule_too_many_runs", "dag_schedule_less_runs"],
+    )
+    def test_should_update_dag_next_dagruns(self, schedule, number_running, excepted, session, dag_maker):
+        """Test if really required to update next dagrun or possible to save run time"""
+
+        with dag_maker(
+            dag_id="test_should_update_dag_next_dagruns", schedule=schedule, max_active_runs=2
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        dag_model = dag_maker.dag_model
+
+        for index in range(2):
+            dag_maker.create_dagrun(
+                run_id=f"run_{index}",
+                execution_date=(DEFAULT_DATE + timedelta(days=index)),
+                start_date=timezone.utcnow(),
+                state=State.RUNNING,
+                session=session,
+            )
+
+        session.flush()
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        assert excepted is self.job_runner._should_update_dag_next_dagruns(
+            dag, dag_model, number_running, session=session
+        )
 
     def test_create_dag_runs(self, dag_maker):
         """
@@ -5142,7 +5177,9 @@ class TestSchedulerJobQueriesCount:
 
             with assert_queries_count(expected_query_count, margin=15):
                 with mock.patch.object(DagRun, "next_dagruns_to_examine") as mock_dagruns:
-                    mock_dagruns.return_value = dagruns
+                    query = MagicMock()
+                    query.all.return_value = dagruns
+                    mock_dagruns.return_value = query
 
                     self.job_runner._run_scheduler_loop()
 

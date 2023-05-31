@@ -36,10 +36,11 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftResumeClusterOperator,
 )
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
-from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests.system.providers.amazon.aws.utils.ec2 import get_default_vpc_id
 
 DAG_ID = "example_redshift"
 DB_LOGIN = "adminuser"
@@ -75,9 +76,8 @@ def create_connection(conn_id_name: str, cluster_id: str):
 
 
 @task
-def setup_security_group(sec_group_name: str, ip_permissions: list[dict]):
+def setup_security_group(sec_group_name: str, ip_permissions: list[dict], vpc_id: str):
     client = boto3.client("ec2")
-    vpc_id = client.describe_vpcs()["Vpcs"][0]["VpcId"]
     security_group = client.create_security_group(
         Description="Redshift-system-test", GroupName=sec_group_name, VpcId=vpc_id
     )
@@ -111,7 +111,9 @@ with DAG(
     conn_id_name = f"{env_id}-conn-id"
     sg_name = f"{env_id}-sg"
 
-    set_up_sg = setup_security_group(sec_group_name=sg_name, ip_permissions=[IP_PERMISSION])
+    get_vpc_id = get_default_vpc_id()
+
+    set_up_sg = setup_security_group(sg_name, [IP_PERMISSION], get_vpc_id)
 
     # [START howto_operator_redshift_cluster]
     create_cluster = RedshiftCreateClusterOperator(
@@ -132,7 +134,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
         poke_interval=15,
-        timeout=60 * 15,
+        timeout=60 * 30,
     )
     # [END howto_sensor_redshift_cluster]
 
@@ -153,7 +155,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
         poke_interval=15,
-        timeout=60 * 15,
+        timeout=60 * 30,
     )
 
     # [START howto_operator_redshift_pause_cluster]
@@ -168,7 +170,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         target_status="paused",
         poke_interval=15,
-        timeout=60 * 15,
+        timeout=60 * 30,
     )
 
     # [START howto_operator_redshift_resume_cluster]
@@ -183,7 +185,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
         poke_interval=15,
-        timeout=60 * 15,
+        timeout=60 * 30,
     )
 
     set_up_connection = create_connection(conn_id_name, cluster_id=redshift_cluster_identifier)
@@ -223,26 +225,9 @@ with DAG(
         wait_for_completion=True,
     )
 
-    # [START howto_operator_redshift_sql]
-    select_data = RedshiftSQLOperator(
-        task_id="select_data",
-        redshift_conn_id=conn_id_name,
-        sql="""CREATE TABLE more_fruit AS SELECT * FROM fruit;""",
-    )
-    # [END howto_operator_redshift_sql]
-
-    # [START howto_operator_redshift_sql_with_params]
-    select_filtered_data = RedshiftSQLOperator(
-        task_id="select_filtered_data",
-        redshift_conn_id=conn_id_name,
-        sql="""CREATE TABLE filtered_fruit AS SELECT * FROM fruit WHERE color = '{{ params.color }}';""",
-        params={"color": "Red"},
-    )
-    # [END howto_operator_redshift_sql_with_params]
-
-    drop_table = RedshiftSQLOperator(
+    drop_table = SQLExecuteQueryOperator(
         task_id="drop_table",
-        redshift_conn_id=conn_id_name,
+        conn_id=conn_id_name,
         sql="DROP TABLE IF EXISTS fruit",
         trigger_rule=TriggerRule.ALL_DONE,
     )
@@ -283,7 +268,6 @@ with DAG(
         set_up_connection,
         create_table_redshift_data,
         insert_data,
-        [select_data, select_filtered_data],
         drop_table,
         delete_cluster_snapshot,
         delete_cluster,
