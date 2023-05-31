@@ -2041,7 +2041,7 @@ celery:
       sensitive: true
       example: "db+postgresql://postgres:airflow@postgres/airflow"
       default: ~
-    result_backend_engine_options:
+    result_backend_sqlalchemy_engine_options:
       description: |
         Optional configuration dictionary to pass to the Celery result backend SQLAlchemy engine.
       version_added: 2.6.0
