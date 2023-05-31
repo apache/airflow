@@ -698,11 +698,18 @@ class KubernetesPodOperator(BaseOperator):
                         f"Pod {pod and pod.metadata.name} returned exit code "
                         f"{self.skip_on_exit_code}. Skipping."
                     )
-            raise AirflowException('\n'.join(filter(None, [
-                f"Pod {pod and pod.metadata.name} returned a failure.",
-                error_message,
-                f"remote_pod: {remote_pod}" if self.log_pod_spec_on_failure else None
-            ])))
+            raise AirflowException(
+                "\n".join(
+                    filter(
+                        None,
+                        [
+                            f"Pod {pod and pod.metadata.name} returned a failure.",
+                            error_message,
+                            f"remote_pod: {remote_pod}" if self.log_pod_spec_on_failure else None,
+                        ],
+                    )
+                )
+            )
         else:
             self.process_pod_deletion(remote_pod, reraise=False)
 
