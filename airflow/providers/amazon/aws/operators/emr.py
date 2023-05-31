@@ -56,7 +56,10 @@ class EmrAddStepsOperator(BaseOperator):
     :param wait_for_completion: If True, the operator will wait for all the steps to be completed.
     :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
-    :param deferrable: if True, the operator will run in deferrable mode.
+    :param wait_for_completion: Whether to wait for job run completion. (default: True)
+    :param deferrable: If True, the operator will wait asynchronously for the job to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     template_fields: Sequence[str] = (
