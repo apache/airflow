@@ -225,7 +225,7 @@ class KubernetesPodOperator(BaseOperator):
         container name to use.
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
-    :param log_pod_spec_on_failure: If pod specification should be logged in a case of task fail.
+    :param log_pod_spec_on_failure: Log the pod's specification if a failure occurs
     """
 
     # This field can be overloaded at the instance level via base_container_name
