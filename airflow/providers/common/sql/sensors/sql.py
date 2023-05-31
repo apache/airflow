@@ -90,6 +90,8 @@ class SqlSensor(BaseSensorOperator):
 
         self.log.info("Poking: %s (with parameters %s)", self.sql, self.parameters)
         records = hook.get_records(self.sql, self.parameters)
+        if 'presto' in hook: 
+            records = hook.run(sql=self.sql, paramaters=self.parameters, handler==lambda cursor: cursor.fetchall())
         if not records:
             if self.fail_on_empty:
                 raise AirflowException("No rows returned, raising as per fail_on_empty flag")
