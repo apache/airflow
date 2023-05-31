@@ -310,6 +310,16 @@ class SnowflakeHook(DbApiHook):
         return create_engine(self._conn_params_to_sqlalchemy_uri(conn_params), **engine_kwargs)
 
     def set_autocommit(self, conn, autocommit: Any) -> None:
+        """
+        Set autocommit. If AUTOCOMMIT is set in the session_parameters, do not override it.
+
+        :param conn: The connection
+        :param autocommit: The value of the autocommit parameter.
+        """
+        session_parameters = self._get_conn_params()["session_parameters"]
+        if isinstance(session_parameters, dict) and "AUTOCOMMIT" in session_parameters:
+            autocommit = session_parameters["AUTOCOMMIT"]
+
         conn.autocommit(autocommit)
         conn.autocommit_mode = autocommit
 

@@ -603,3 +603,24 @@ class TestPytestSnowflakeHook:
             "extra__snowflake__private_key_content",
             "extra__snowflake__insecure_mode",
         ]
+
+    @pytest.mark.parametrize(
+        "session_parameters,run_autocommit,expected_autocommit",
+        [
+            ({"AUTOCOMMIT": True}, None, True),
+            ({"AUTOCOMMIT": True}, False, True),
+            ({"AUTOCOMMIT": False}, True, False),
+            (None, False, False),
+            (None, True, True),
+        ]
+    )
+    def test_set_autocommit_with_session_parameter(self, session_parameters, run_autocommit, expected_autocommit):
+        connection_kwargs = deepcopy(BASE_CONNECTION_KWARGS)
+        connection_kwargs["extra"]["session_parameters"] = session_parameters
+
+        with mock.patch.dict("os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            assert hook._get_conn_params()["session_parameters"] == session_parameters
+            mock_conn = mock.MagicMock()
+            hook.set_autocommit(mock_conn, run_autocommit)
+            mock_conn.autocommit.assert_called_with(expected_autocommit)
