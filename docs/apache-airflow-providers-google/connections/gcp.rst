@@ -125,6 +125,9 @@ Number of Retries
     represents the last request. If zero (default), we attempt the
     request only once.
 
+Lifetime (optional)
+    Integer, number of seconds token should be valid for.
+
     When specifying the connection in environment variable you should specify
     it using URI syntax, with the following requirements:
 

@@ -390,6 +390,29 @@ class TestGetGcpCredentialsAndProjectId:
             )
             assert not caplog.record_tuples
 
+    @mock.patch(
+        "airflow.providers.google.cloud.utils.credentials_provider.impersonated_credentials.Credentials"
+    )
+    @mock.patch("google.auth.default")
+    def test_get_credentials_and_project_id_with_default_auth_and_lifetime(
+        self, mock_auth_default, mock_impersonated_credentials
+    ):
+        mock_credentials = mock.MagicMock()
+        mock_auth_default.return_value = (mock_credentials, self.test_project_id)
+
+        result = get_credentials_and_project_id(
+            lifetime=7200,
+        )
+        mock_auth_default.assert_called_once_with(scopes=None)
+        mock_impersonated_credentials.assert_called_once_with(
+            source_credentials=mock_credentials.source_credentials,
+            target_principal=mock_credentials.target_principal,
+            delegates=mock_credentials.delegates,
+            target_scopes=mock_credentials.target_scopes,
+            lifetime=7200,
+        )
+        assert mock_impersonated_credentials.return_value == result[0]
+
 
 class TestGetScopes:
     def test_get_scopes_with_default(self):

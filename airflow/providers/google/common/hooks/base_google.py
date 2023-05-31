@@ -44,6 +44,7 @@ from google.auth.transport import _http_client
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
+from wtforms.validators import Optional
 
 from airflow import version
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -214,6 +215,11 @@ class GoogleBaseHook(BaseHook):
                 widget=BS3TextFieldWidget(),
                 default=5,
             ),
+            "lifetime": IntegerField(
+                lazy_gettext("Lifetime of a token in seconds"),
+                validators=[Optional(), NumberRange(min=0)],
+                widget=BS3TextFieldWidget(),
+            ),
         }
 
     @staticmethod
@@ -262,6 +268,8 @@ class GoogleBaseHook(BaseHook):
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
 
+        lifetime = self._get_field("lifetime", None)
+
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
             keyfile_dict=keyfile_dict_json,
@@ -272,6 +280,7 @@ class GoogleBaseHook(BaseHook):
             delegate_to=self.delegate_to,
             target_principal=target_principal,
             delegates=delegates,
+            lifetime=lifetime,
         )
 
         overridden_project_id = self._get_field("project")

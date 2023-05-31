@@ -205,6 +205,7 @@ class _CredentialProvider(LoggingMixin):
         disable_logging: bool = False,
         target_principal: str | None = None,
         delegates: Sequence[str] | None = None,
+        lifetime: int | None = None,
     ) -> None:
         super().__init__()
         key_options = [key_path, key_secret_name, keyfile_dict]
@@ -223,6 +224,7 @@ class _CredentialProvider(LoggingMixin):
         self.disable_logging = disable_logging
         self.target_principal = target_principal
         self.delegates = delegates
+        self.lifetime = lifetime
 
     def get_credentials_and_project(self) -> tuple[google.auth.credentials.Credentials, str]:
         """
@@ -260,6 +262,16 @@ class _CredentialProvider(LoggingMixin):
             )
 
             project_id = _get_project_id_from_service_account_email(self.target_principal)
+
+        if self.lifetime:
+            # Create new impersonated credentials with an extended expiration time
+            credentials = impersonated_credentials.Credentials(
+                source_credentials=credentials.source_credentials,
+                target_principal=credentials.target_principal,
+                delegates=credentials.delegates,
+                target_scopes=credentials.target_scopes,
+                lifetime=self.lifetime,
+            )
 
         return credentials, project_id
 
