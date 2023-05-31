@@ -220,7 +220,8 @@ def _find_path_from_directory(
     patterns_by_dir: Dict[Path, List[_IgnoreRule]] = {}
 
     # set this rather than import from lyft_etl to avoid any circular import errors
-    is_airflow_dev_env = "kyte" in os.environ.get("SERVICE", "") or "tars" in os.environ.get("SERVICE", "")
+    is_tars = "tars" in os.environ.get("SERVICE", "")
+    is_kyte = "kyte" in os.environ.get("SERVICE", "")
     is_loadtest_env = "loadtest" in os.environ.get("SERVICE_FACET", "").lower()
 
     for root, dirs, files in os.walk(base_dir_path, followlinks=True):
@@ -247,17 +248,19 @@ def _find_path_from_directory(
         dirs[:] = [subdir for subdir in dirs if not ignore_rule_type.match(Path(root) / subdir, patterns)]
 
         # explicit loop for infinite recursion detection since we are following symlinks in this walk
-        for sd in dirs:
-            dirpath = (Path(root) / sd).resolve()
-            if dirpath in patterns_by_dir:
-                # ignore symlinked test directories + hive_dags (DATAOR-942)
-                if 'etl/sql/hive' in str(dirpath) or '/tests/unit' in str(dirpath):
-                    continue
-                raise RuntimeError(
-                    "Detected recursive loop when walking DAG directory "
-                    f"{base_dir_path}: {dirpath} has appeared more than once."
-                )
-            patterns_by_dir.update({dirpath: patterns.copy()})
+        # ignore on TARS due to symlinking
+        if not is_tars:
+            for sd in dirs:
+                dirpath = (Path(root) / sd).resolve()
+                if dirpath in patterns_by_dir:
+                    # ignore symlinked test directories + hive_dags (DATAOR-942)
+                    if 'etl/sql/hive' in str(dirpath) or '/tests/unit' in str(dirpath):
+                        continue
+                    raise RuntimeError(
+                        "Detected recursive loop when walking DAG directory "
+                        f"{base_dir_path}: {dirpath} has appeared more than once."
+                    )
+                patterns_by_dir.update({dirpath: patterns.copy()})
 
         for file in files:
             if file == ignore_file_name:
@@ -272,7 +275,7 @@ def _find_path_from_directory(
                 # temp patch to load new Flyte workflows into Airflow 2 to unblock initial migration users
                 # this will be replaced soon with look-up tables for mult-cluster Airflow
                 dag_repo = str(abs_file_path).split("/")[4]
-                if not (is_airflow_dev_env or is_loadtest_env) and \
+                if not (is_kyte or is_tars or is_loadtest_env) and \
                    dag_repo not in MIGRATED_FLYTE_REPOS and \
                    str(abs_file_path) not in MIGRATED_DAG_FILES:
                     continue
