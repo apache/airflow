@@ -349,6 +349,11 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             multiple_outputs=self.multiple_outputs,
             **self.kwargs,
         )
+        # If the operator is not in a DAG context, we assume it is being called from a test directly
+        # e.g. not from dag.test(). In this case, we just execute the wrapped function itself.
+        if op.get_dag() is None:
+            return self.function(*args, **kwargs)
+
         op.is_setup = self.is_setup
         op.is_teardown = self.is_teardown
         op.on_failure_fail_dagrun = self.on_failure_fail_dagrun
