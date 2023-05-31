@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 from opentelemetry.metrics import MeterProvider
+from pytest import param
 
 from airflow.metrics.otel_logger import (
     METRIC_NAME_PREFIX,
@@ -30,6 +31,13 @@ from airflow.metrics.otel_logger import (
     _generate_key_name,
     _is_up_down_counter,
 )
+
+INVALID_STAT_NAME_CASES = [
+    (None, "can not be None"),
+    (42, "is not a string"),
+    ("X" * OTEL_NAME_MAX_LENGTH, "too long"),
+    ("test/$tats", "contains invalid characters"),
+]
 
 
 def full_name(name: str):
@@ -57,19 +65,20 @@ class TestOtelMetrics:
         assert not _is_up_down_counter("this_is_not_a_udc")
 
     @pytest.mark.parametrize(
-        "invalid_stat_name",
+        "invalid_stat_combo",
         [
-            pytest.param(None, id="Stat name can not be none."),
-            pytest.param(42, id="Stat name is not a string."),
-            pytest.param("X" * OTEL_NAME_MAX_LENGTH, id="Stat name too long."),
-            pytest.param("test/$tats", id="Stat name contains invalid characters."),
+            *[param(("prefix", name), id=f"Stat name {msg}.") for (name, msg) in INVALID_STAT_NAME_CASES],
+            *[param((prefix, "name"), id=f"Stat prefix {msg}.") for (prefix, msg) in INVALID_STAT_NAME_CASES],
         ],
     )
-    def test_invalid_stat_names_are_caught(self, caplog, invalid_stat_name):
-        self.stats.incr(invalid_stat_name)
+    def test_invalid_stat_names_are_caught(self, caplog, invalid_stat_combo):
+        prefix = invalid_stat_combo[0]
+        name = invalid_stat_combo[1]
+        self.stats.prefix = prefix
+        self.stats.incr(name)
 
         self.meter.assert_not_called()
-        assert f"Invalid stat name: {METRIC_NAME_PREFIX}{invalid_stat_name}" in caplog.text
+        assert f"Invalid stat name: {prefix}.{name}" in caplog.text
 
     def test_incr_new_metric(self, name):
         self.stats.incr(name)

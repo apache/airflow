@@ -72,25 +72,28 @@ def _generate_key_name(name: str, attributes: Attributes = None):
 
 def name_is_otel_safe(prefix: str, name: str) -> bool:
     """
-    Returns true is the provided name and prefix would result in a name compatible with Open Telemetry.
+    Returns true if the provided name and prefix would result in a name compatible with Open Telemetry.
     Legal names are defined here:
     https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
     """
-
-    def test(value) -> bool:
-        return bool(stat_name_default_handler(value, max_length=OTEL_NAME_MAX_LENGTH))
-
+    proposed_stat_name = f"{prefix}.{name}"
     try:
-        if not name:
+        # This test case is here to enforce that the values can not be None and
+        # must be a valid String.  Without this test here, those values get cast
+        # to a string and pass when they should not, potentially resulting in
+        # metrics named "airflow.None", "airflow.42", or "None.42" for example.
+        if not (isinstance(name, str) and isinstance(prefix, str)):
             raise InvalidStatsNameException
-        test(name)
-        if prefix:
-            test(prefix)
-            test(f"{prefix}.{name}")
+
+        # `stat_name_default_handler` throws InvalidStatsNameException if the
+        # provided value is not valid or returns the value if it is.  We don't
+        # need the return value but will make use of the validation checks. If
+        # no exception is thrown, then the name is safe for OTel.
+        stat_name_default_handler(proposed_stat_name, max_length=OTEL_NAME_MAX_LENGTH)
         return True
     except InvalidStatsNameException:
         log.exception(
-            f"Invalid stat name: {prefix}.{name}.  Please see "
+            f"Invalid stat name: {proposed_stat_name}.  Please see "
             f"https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax"
         )
     return False
@@ -219,12 +222,12 @@ class MetricsMap:
             counter = self.meter.create_counter(name=otel_safe_name)
 
         counter_type = str(type(counter)).split(".")[-1][:-2]
-        logging.debug("--> created %s as type: %s", otel_safe_name, counter_type)
+        logging.debug("Created %s as type: %s", otel_safe_name, counter_type)
         return counter
 
     def get_counter(self, name: str, attributes: Attributes = None):
         """
-        Returns the counter and creates a new one if it does not exist.
+        Returns the counter; creates a new one if it did not exist.
 
         :param name: The name of the counter to fetch or create.
         :param attributes:  Counter attributes, used to generate a unique key to store the counter.
@@ -263,7 +266,7 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     # TODO:  figure out https instead of http ??
     endpoint = f"http://{host}:{port}/v1/metrics"
 
-    logging.info("[Metric Exporter] Connecting to OTLP at ---> %s", endpoint)
+    logging.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     readers = [
         PeriodicExportingMetricReader(
             OTLPMetricExporter(
