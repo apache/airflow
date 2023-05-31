@@ -72,7 +72,7 @@ def _generate_key_name(name: str, attributes: Attributes = None):
 
 def name_is_otel_safe(prefix: str, name: str) -> bool:
     """
-    Returns true if the provided name and prefix would result in a name compatible with Open Telemetry.
+    Returns True if the provided name and prefix would result in a name compatible with Open Telemetry.
     Legal names are defined here:
     https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
     """
@@ -88,7 +88,7 @@ def name_is_otel_safe(prefix: str, name: str) -> bool:
         # `stat_name_default_handler` throws InvalidStatsNameException if the
         # provided value is not valid or returns the value if it is.  We don't
         # need the return value but will make use of the validation checks. If
-        # no exception is thrown, then the name is safe for OTel.
+        # no exception is thrown, then the proposed name meets OTel requirements.
         stat_name_default_handler(proposed_stat_name, max_length=OTEL_NAME_MAX_LENGTH)
         return True
     except InvalidStatsNameException:
