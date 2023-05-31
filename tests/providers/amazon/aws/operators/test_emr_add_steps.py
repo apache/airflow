@@ -259,9 +259,11 @@ class TestEmrAddStepsOperator:
 
         assert operator.wait_for_completion is False
 
+    @patch("airflow.providers.amazon.aws.operators.emr.get_log_uri")
     @patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.add_job_flow_steps")
-    def test_emr_add_steps_deferrable(self, mock_add_job_flow_steps):
+    def test_emr_add_steps_deferrable(self, mock_add_job_flow_steps, mock_get_log_uri):
         mock_add_job_flow_steps.return_value = "test_step_id"
+        mock_get_log_uri.return_value = "test/log/uri"
         job_flow_id = "j-8989898989"
         operator = EmrAddStepsOperator(
             task_id="test_task",
