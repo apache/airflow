@@ -2888,6 +2888,8 @@ class TestTaskInstance:
     def test_clear_db_references(self, session, create_task_instance):
         tables = [TaskFail, RenderedTaskInstanceFields, XCom]
         ti = create_task_instance()
+        ti.note = "sample note"
+
         session.merge(ti)
         session.commit()
         for table in [TaskFail, RenderedTaskInstanceFields]:
@@ -2896,9 +2898,16 @@ class TestTaskInstance:
         session.commit()
         for table in tables:
             assert session.query(table).count() == 1
+
+        filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
+        ti_note = session.query(TaskInstanceNote).filter_by(**filter_kwargs).one()
+        assert ti_note.content == "sample note"
+
         ti.clear_db_references(session)
         for table in tables:
             assert session.query(table).count() == 0
+
+        assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
