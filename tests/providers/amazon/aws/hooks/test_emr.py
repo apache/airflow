@@ -34,7 +34,7 @@ class TestEmrHook:
         official_waiters = hook.conn.waiter_names
         custom_waiters = ["job_flow_waiting", "job_flow_terminated", "notebook_running", "notebook_stopped"]
 
-        assert hook.list_waiters() == [*official_waiters, *custom_waiters]
+        assert sorted(hook.list_waiters()) == sorted([*official_waiters, *custom_waiters])
 
     @mock_emr
     def test_get_conn_returns_a_boto3_connection(self):
