@@ -37,6 +37,7 @@ JOB_ID = "test-dataflow-pipeline-id"
 JAR_FILE = "gs://my-bucket/example/test.jar"
 JOB_CLASS = "com.test.NotMain"
 PY_FILE = "gs://my-bucket/my-object.py"
+REQURIEMENTS_FILE = "gs://my-bucket/my-requirements.txt"
 PY_INTERPRETER = "python3"
 PY_OPTIONS = ["-m"]
 GO_FILE = "gs://my-bucket/example/main.go"
@@ -45,6 +46,10 @@ WORKER_BINARY = "gs://my-bucket/example/worker"
 DEFAULT_OPTIONS = {
     "project": "test",
     "stagingLocation": "gs://test/staging",
+}
+PY_DEFAULT_OPTIONS = {
+    **DEFAULT_OPTIONS,
+    "requirements_file": REQURIEMENTS_FILE,
 }
 ADDITIONAL_OPTIONS = {"output": "gs://test/output", "labels": {"foo": "bar"}}
 TEST_VERSION = f"v{version.replace('.', '-').replace('+', '-')}"
@@ -61,7 +66,7 @@ class TestBeamRunPythonPipelineOperator:
             task_id=TASK_ID,
             py_file=PY_FILE,
             py_options=PY_OPTIONS,
-            default_pipeline_options=DEFAULT_OPTIONS,
+            default_pipeline_options=PY_DEFAULT_OPTIONS,
             pipeline_options=ADDITIONAL_OPTIONS,
         )
 
@@ -72,7 +77,7 @@ class TestBeamRunPythonPipelineOperator:
         assert self.operator.runner == DEFAULT_RUNNER
         assert self.operator.py_options == PY_OPTIONS
         assert self.operator.py_interpreter == PY_INTERPRETER
-        assert self.operator.default_pipeline_options == DEFAULT_OPTIONS
+        assert self.operator.default_pipeline_options == PY_DEFAULT_OPTIONS
         assert self.operator.pipeline_options == EXPECTED_ADDITIONAL_OPTIONS
 
     @mock.patch("airflow.providers.apache.beam.operators.beam.BeamHook")
@@ -91,7 +96,8 @@ class TestBeamRunPythonPipelineOperator:
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": TEST_VERSION},
         }
-        gcs_provide_file.assert_called_once_with(object_url=PY_FILE)
+        gcs_provide_file.assert_called_with(object_url=PY_FILE)
+        gcs_provide_file.assert_called_with(object_url=REQURIEMENTS_FILE)
         start_python_hook.assert_called_once_with(
             variables=expected_options,
             py_file=gcs_provide_file.return_value.__enter__.return_value.name,
@@ -133,7 +139,8 @@ class TestBeamRunPythonPipelineOperator:
             "region": "us-central1",
             "impersonate_service_account": TEST_IMPERSONATION_ACCOUNT,
         }
-        gcs_provide_file.assert_called_once_with(object_url=PY_FILE)
+        gcs_provide_file.assert_called_with(object_url=PY_FILE)
+        gcs_provide_file.assert_called_with(object_url=REQURIEMENTS_FILE)
         persist_link_mock.assert_called_once_with(
             self.operator,
             None,
