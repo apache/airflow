@@ -2704,8 +2704,7 @@ class DAG(LoggingMixin):
                     _run_task(ti, session=session)
             except Exception:
                 self.log.info(
-                    "Task failed. DAG will continue to run until finished "
-                    "and be marked as failed.",
+                    "Task failed. DAG will continue to run until finished and be marked as failed.",
                     exc_info=True,
                 )
         if conn_file_path or variable_file_path:

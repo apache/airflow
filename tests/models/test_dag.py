@@ -1915,17 +1915,19 @@ class TestDag:
         mock_handle_object_1 = mock.MagicMock()
         mock_handle_object_2 = mock.MagicMock()
         def handle_task_failure(context):
-            ti = context['task_instance']
-            mock_handle_object_1(f'task {ti.task_id} failed...')
+            ti = context["task_instance"]
+            mock_handle_object_1(f"task {ti.task_id} failed...")
 
         def handle_dag_failure(context):
-            ti = context['task_instance']
+            ti = context["task_instance"]
             mock_handle_object_2(f"dag {ti.dag_id} run failed...")
 
-        dag = DAG(dag_id="test_local_testing_conn_file",
-                  default_args={"on_failure_callback": handle_task_failure},
-                  on_failure_callback=handle_dag_failure,
-                  start_date=DEFAULT_DATE)
+        dag = DAG(
+            dag_id="test_local_testing_conn_file",
+            default_args={"on_failure_callback": handle_task_failure},
+            on_failure_callback=handle_dag_failure,
+            start_date=DEFAULT_DATE,
+        )
 
         mock_task_object_1 = mock.MagicMock()
         mock_task_object_2 = mock.MagicMock()
@@ -1933,7 +1935,7 @@ class TestDag:
         @task_decorator
         def check_task():
             mock_task_object_1()
-            raise AirflowException('bigban')
+            raise AirflowException("boooom")
 
         @task_decorator
         def check_task_2(my_input):
@@ -1945,8 +1947,8 @@ class TestDag:
 
         dag.test()
 
-        mock_handle_object_1.assert_called_with('task check_task failed...')
-        mock_handle_object_2.assert_called_with('dag test_local_testing_conn_file run failed...')
+        mock_handle_object_1.assert_called_with("task check_task failed...")
+        mock_handle_object_2.assert_called_with("dag test_local_testing_conn_file run failed...")
         mock_task_object_1.assert_called()
         mock_task_object_2.assert_not_called()
 
