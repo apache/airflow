@@ -2826,7 +2826,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def clear_db_references(self, session):
         """
-        Clear db tables what have a reference to this instance.
+        Clear db tables that have a reference to this instance.
 
         :param session: ORM Session
 
