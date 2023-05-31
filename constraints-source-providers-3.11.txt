@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-05-31T06:37:05Z
+# This constraints file was automatically generated on 2023-05-31T19:44:00Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -59,7 +59,7 @@ amqp==5.1.1
 analytics-python==1.4.post1
 ansiwrap==0.8.4
 anyio==3.7.0
-apache-beam==2.47.0
+apache-beam==2.48.0
 apispec==5.2.2
 appdirs==1.4.4
 argcomplete==3.0.8
@@ -203,7 +203,7 @@ google-cloud-build==3.16.0
 google-cloud-compute==1.11.0
 google-cloud-container==2.21.0
 google-cloud-core==2.3.2
-google-cloud-datacatalog==3.12.0
+google-cloud-datacatalog==3.13.0
 google-cloud-dataflow-client==0.8.3
 google-cloud-dataform==0.5.1
 google-cloud-dataplex==1.4.3
@@ -215,10 +215,10 @@ google-cloud-language==2.9.1
 google-cloud-logging==3.5.0
 google-cloud-memcache==1.7.1
 google-cloud-monitoring==2.15.0
-google-cloud-orchestration-airflow==1.7.1
+google-cloud-orchestration-airflow==1.8.0
 google-cloud-os-login==2.9.1
 google-cloud-pubsub==2.17.1
-google-cloud-redis==2.12.1
+google-cloud-redis==2.13.0
 google-cloud-resource-manager==1.10.1
 google-cloud-secret-manager==2.16.1
 google-cloud-spanner==3.35.1
@@ -245,7 +245,7 @@ gunicorn==20.1.0
 h11==0.14.0
 hdfs==2.7.0
 httpcore==0.16.3
-httplib2==0.21.0
+httplib2==0.22.0
 httpx==0.23.3
 humanize==4.6.0
 hvac==1.1.0
@@ -325,7 +325,7 @@ mypy-extensions==1.0.0
 mypy==1.2.0
 mysqlclient==2.1.1
 nbclient==0.8.0
-nbformat==5.8.0
+nbformat==5.9.0
 neo4j==5.9.0
 networkx==3.1
 nodeenv==1.8.0
@@ -381,7 +381,7 @@ prison==0.2.1
 prometheus-client==0.17.0
 prompt-toolkit==3.0.38
 proto-plus==1.22.2
-protobuf==4.22.5
+protobuf==4.23.2
 psutil==5.9.5
 psycopg2-binary==2.9.6
 ptyprocess==0.7.0
@@ -456,7 +456,7 @@ responses==0.23.1
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
 rich-click==1.6.1
-rich==13.3.5
+rich==13.4.1
 rich_argparse==1.1.1
 rsa==4.9
 ruff==0.0.270
