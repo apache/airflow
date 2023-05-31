@@ -248,19 +248,18 @@ def _find_path_from_directory(
         dirs[:] = [subdir for subdir in dirs if not ignore_rule_type.match(Path(root) / subdir, patterns)]
 
         # explicit loop for infinite recursion detection since we are following symlinks in this walk
-        # ignore on TARS due to symlinking
-        if not is_tars:
-            for sd in dirs:
-                dirpath = (Path(root) / sd).resolve()
-                if dirpath in patterns_by_dir:
-                    # ignore symlinked test directories + hive_dags (DATAOR-942)
-                    if 'etl/sql/hive' in str(dirpath) or '/tests/unit' in str(dirpath):
-                        continue
-                    raise RuntimeError(
-                        "Detected recursive loop when walking DAG directory "
-                        f"{base_dir_path}: {dirpath} has appeared more than once."
-                    )
-                patterns_by_dir.update({dirpath: patterns.copy()})
+        for sd in dirs:
+            dirpath = (Path(root) / sd).resolve()
+            # ignore on TARS due to symlinking
+            if dirpath in patterns_by_dir and not is_tars:
+                # ignore symlinked test directories + hive_dags (DATAOR-942)
+                if 'etl/sql/hive' in str(dirpath) or '/tests/unit' in str(dirpath):
+                    continue
+                raise RuntimeError(
+                    "Detected recursive loop when walking DAG directory "
+                    f"{base_dir_path}: {dirpath} has appeared more than once."
+                )
+            patterns_by_dir.update({dirpath: patterns.copy()})
 
         for file in files:
             if file == ignore_file_name:
