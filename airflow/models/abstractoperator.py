@@ -162,8 +162,11 @@ class AbstractOperator(Templater, DAGNode):
         Get a flat set of relative IDs, upstream or downstream.
 
         Will recurse each relative found in the direction specified.
+        Whenever a setup is found, its teardowns are always returned.
 
         :param upstream: Whether to look for upstream or downstream relatives.
+        :param setup_only: If true, will only return upstream setups and their teardowns.
+        :param teardown_only: If true, will only return teardown tasks.
         """
         if setup_only and not upstream:
             raise RuntimeError("Unexpected combination: downstream and setup only.")
@@ -207,12 +210,19 @@ class AbstractOperator(Templater, DAGNode):
         return relatives
 
     def get_flat_relatives(self, upstream: bool = False, setup_only: bool = False) -> Collection[Operator]:
-        """Get a flat list of relatives, either upstream or downstream."""
+        """
+        Get a flat list of relatives, either upstream or downstream.
+
+        :param upstream: If True will look upstream else downstream.
+        :param setup_only: If true, will only return upstream setups and their teardowns.
+        """
         dag = self.get_dag()
+
         if not dag:
             return set()
         return [
-            dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream, setup_only=setup_only)
+            dag.task_dict[task_id]
+            for task_id in self.get_flat_relative_ids(upstream=upstream, setup_only=setup_only)
         ]
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
