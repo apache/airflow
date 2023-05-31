@@ -704,7 +704,7 @@ class KubernetesPodOperator(BaseOperator):
                         None,
                         [
                             f"Pod {pod and pod.metadata.name} returned a failure.",
-                            error_message,
+                            error_message if isinstance(error_message, str) else None,
                             f"remote_pod: {remote_pod}" if self.log_pod_spec_on_failure else None,
                         ],
                     )
