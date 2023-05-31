@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import ast
 import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 from uuid import uuid4
 
@@ -32,8 +33,6 @@ from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-from airflow.compat.functools import cached_property
 
 
 class EmrAddStepsOperator(BaseOperator):

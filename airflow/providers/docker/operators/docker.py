@@ -23,6 +23,7 @@ import pickle
 import tarfile
 import warnings
 from collections.abc import Container
+from functools import cached_property
 from io import BytesIO, StringIO
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Iterable, Sequence
@@ -32,7 +33,6 @@ from docker.errors import APIError
 from docker.types import LogConfig, Mount
 from dotenv import dotenv_values
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator
 from airflow.providers.docker.hooks.docker import DockerHook

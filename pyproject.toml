@@ -26,6 +26,9 @@ target-version = ['py37', 'py38', 'py39', 'py310']
 requires = ['setuptools==67.2.0']
 build-backend = "setuptools.build_meta"
 
+[project]
+requires-python = ">=3.8"
+
 [tool.ruff]
 typing-modules = ["airflow.typing_compat"]
 line-length = 110
@@ -37,9 +40,6 @@ extend-exclude = [
     # ignore them in ruff
     "airflow/providers/common/sql/*/*.pyi"
 ]
-
-# TODO: Bump to Python 3.8 when support for Python 3.7 is dropped in Airflow.
-target-version = "py37"
 
 extend-select = [
     "I", # Missing required import (auto-fixable)

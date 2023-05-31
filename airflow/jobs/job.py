@@ -17,15 +17,15 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from time import sleep
 from typing import Callable, NoReturn
 
-from sqlalchemy import Column, Index, Integer, String, case
+from sqlalchemy import Column, Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import Session, make_transient
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
@@ -142,7 +142,7 @@ class Job(Base, LoggingMixin):
     @provide_session
     def kill(self, session: Session = NEW_SESSION) -> NoReturn:
         """Handles on_kill callback and updates state in database."""
-        job = session.query(Job).filter(Job.id == self.id).first()
+        job = session.scalar(select(Job).where(Job.id == self.id).limit(1))
         job.end_date = timezone.utcnow()
         try:
             self.on_kill()
@@ -252,15 +252,15 @@ def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None
     :param job_type: job type to query for to get the most recent job for
     :param session: Database session
     """
-    return (
-        session.query(Job)
-        .filter(Job.job_type == job_type)
+    return session.scalar(
+        select(Job)
+        .where(Job.job_type == job_type)
         .order_by(
             # Put "running" jobs at the front.
             case({State.RUNNING: 0}, value=Job.state, else_=1),
             Job.latest_heartbeat.desc(),
         )
-        .first()
+        .limit(1)
     )
 
 

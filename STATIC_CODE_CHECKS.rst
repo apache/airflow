@@ -41,7 +41,7 @@ use. So, you can be sure your modifications will also work for CI if they pass
 pre-commit hooks.
 
 We have integrated the fantastic `pre-commit <https://pre-commit.com>`__ framework
-in our development workflow. To install and use it, you need at least Python 3.7 locally.
+in our development workflow. To install and use it, you need at least Python 3.8 locally.
 
 Installing pre-commit hooks
 ...........................

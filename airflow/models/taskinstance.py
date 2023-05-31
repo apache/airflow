@@ -51,6 +51,7 @@ from sqlalchemy import (
     String,
     Text,
     and_,
+    delete,
     false,
     func,
     inspect,
@@ -993,7 +994,7 @@ class TaskInstance(Base, LoggingMixin):
         # or the DAG is never scheduled. For legacy reasons, when
         # `catchup=True`, we use `get_previous_scheduled_dagrun` unless
         # `ignore_schedule` is `True`.
-        ignore_schedule = state is not None or not dag.timetable.can_run
+        ignore_schedule = state is not None or not dag.timetable.can_be_scheduled
         if dag.catchup is True and not ignore_schedule:
             last_dagrun = dr.get_previous_scheduled_dagrun(session=session)
         else:
@@ -2825,7 +2826,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def clear_db_references(self, session):
         """
-        Clear DB references to XCom, TaskFail and RenderedTaskInstanceFields.
+        Clear db tables that have a reference to this instance.
 
         :param session: ORM Session
 
@@ -2833,14 +2834,16 @@ class TaskInstance(Base, LoggingMixin):
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        tables = [TaskFail, XCom, RenderedTaskInstanceFields]
+        tables = [TaskFail, TaskInstanceNote, TaskReschedule, XCom, RenderedTaskInstanceFields]
         for table in tables:
-            session.query(table).filter(
-                table.dag_id == self.dag_id,
-                table.task_id == self.task_id,
-                table.run_id == self.run_id,
-                table.map_index == self.map_index,
-            ).delete()
+            session.execute(
+                delete(table).where(
+                    table.dag_id == self.dag_id,
+                    table.task_id == self.task_id,
+                    table.run_id == self.run_id,
+                    table.map_index == self.map_index,
+                )
+            )
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
