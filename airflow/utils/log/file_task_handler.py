@@ -522,6 +522,14 @@ class FileTaskHandler(logging.Handler):
             logger.exception("Could not read served logs")
         return messages, logs
 
-    def _read_remote_logs(self, ti, try_number, metadata=None):
-        """Implement in subclasses to read from the remote service"""
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
+        """
+        Implement in subclasses to read from the remote service.
+
+        This method should return two lists, messages and logs.
+
+        * Each element in the messages list should be a single message,
+          such as, "reading from x file".
+        * Each element in the logs list should be the content of one file.
+        """
         raise NotImplementedError
