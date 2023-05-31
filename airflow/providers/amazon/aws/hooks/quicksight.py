@@ -153,7 +153,6 @@ class QuickSightHook(AwsBaseHook):
             will check the status of QuickSight Ingestion
         :return: response of describe_ingestion call after Ingestion is is done
         """
-        sec = 0
         while True:
             status = self.get_status(aws_account_id, data_set_id, ingestion_id)
             self.log.info("Current status is %s", status)
@@ -165,9 +164,6 @@ class QuickSightHook(AwsBaseHook):
             if status not in self.NON_TERMINAL_STATES or status == target_state:
                 break
             time.sleep(check_interval)
-        # wait and try again
-        sec += check_interval
-        status = self.get_status(aws_account_id, data_set_id, ingestion_id)
 
         self.log.info("QuickSight Ingestion completed")
         return status
