@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import warnings
 from abc import ABCMeta, abstractmethod
-from itertools import chain
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 import pendulum
@@ -33,6 +33,37 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.utils.edgemodifier import EdgeModifier
     from airflow.utils.task_group import TaskGroup
+
+
+@dataclass
+class DepthTracker:
+    """
+    Shim class to track depth of dependencies
+
+    Used for disallowing greater than one level of deps depth when used in context manager.
+
+    :meta private:
+    """
+
+    depth: int
+    obj: DependencyMixin | Sequence[DependencyMixin]
+
+    def __post_init__(self):
+        self.cw = None
+
+    def __enter__(self):
+        if isinstance(self.obj, DependencyMixin):
+            self.obj._deps_depth = self.depth
+            self.cm = self.obj
+        else:
+            from airflow.decorators.setup_teardown import ContextWrapper
+
+            self.cm = ContextWrapper(self.obj)
+            self.cm._deps_depth = self.depth
+        return self.cm.__enter__()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return self.cm.__exit__(exc_type, exc_val, exc_tb)
 
 
 class DependencyMixin:
@@ -78,38 +109,39 @@ class DependencyMixin:
         Override if necessary.
         """
 
-    def _get_deps_depth(self, other):
+    def _get_depth(self, depth, other):
         if isinstance(other, DependencyMixin):
-            depth = max(getattr(self, '_deps_depth', 0), getattr(other, '_deps_depth', 0)) + 1
-            other._deps_depth = depth
-            self._deps_depth = depth
-            return other
-        else:
-            depth = max(getattr(x, '_deps_depth', 0) for x in chain(other, (self,))) + 1
-            for elem in other:
-                elem._deps_depth = depth
-            self._deps_depth = depth
-            return other
+            return depth, other
+        sequence_depth = max(x.depth if isinstance(x, DepthTracker) else 0 for x in other)
+        return max(sequence_depth, depth), list(x.obj if isinstance(x, DepthTracker) else x for x in other)
 
     def __lshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Implements Task << Task."""
+        depth = 0
+        if isinstance(other, DepthTracker):
+            depth, other = other.depth, other.obj
+        depth, other = self._get_depth(depth, other)
         self.set_upstream(other)
-        return self._get_deps_depth(other)
+        return DepthTracker(depth=depth + 1, obj=other)
 
     def __rshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Implements Task >> Task."""
+        depth = 0
+        if isinstance(other, DepthTracker):
+            depth, other = other.depth, other.obj
+        depth, other = self._get_depth(depth, other)
         self.set_downstream(other)
-        return self._get_deps_depth(other)
+        return DepthTracker(depth=depth + 1, obj=other)
 
     def __rrshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Called for Task >> [Task] because list don't have __rshift__ operators."""
-        self.__lshift__(other)
-        return self
+        ret = self.__lshift__(other)
+        return DepthTracker(depth=ret.depth, obj=self)
 
     def __rlshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Called for Task << [Task] because list don't have __lshift__ operators."""
-        self.__rshift__(other)
-        return self
+        ret = self.__rshift__(other)
+        return DepthTracker(depth=ret.depth, obj=self)
 
 
 class TaskMixin(DependencyMixin):

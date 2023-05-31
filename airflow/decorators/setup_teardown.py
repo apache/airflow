@@ -60,6 +60,8 @@ class ContextWrapper(list):
         super().__init__(tasks)
 
     def __enter__(self):
+        if getattr(self, "_deps_depth", 0) > 1:
+            raise RuntimeError("May only set one level of deps in context mgr")
         operators = []
         for task in self.tasks:
             if isinstance(task, BaseOperator):
