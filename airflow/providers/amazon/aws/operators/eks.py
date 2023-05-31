@@ -26,7 +26,6 @@ from botocore.exceptions import ClientError, WaiterError
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import EksHook
-from airflow.utils.types import NOTSET, ArgNotSet
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -108,6 +107,7 @@ class EksCreateClusterOperator(BaseOperator):
     :param fargate_selectors: The selectors to match for pods to use this AWS Fargate profile. (templated)
     :param create_fargate_profile_kwargs: Optional parameters to pass to the CreateFargateProfile API
          (templated)
+
     """
 
     template_fields: Sequence[str] = (
@@ -142,7 +142,7 @@ class EksCreateClusterOperator(BaseOperator):
         fargate_pod_execution_role_arn: str | None = None,
         fargate_selectors: list | None = None,
         create_fargate_profile_kwargs: dict | None = None,
-        wait_for_completion: bool | ArgNotSet = NOTSET,
+        wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
         **kwargs,
@@ -229,7 +229,6 @@ class EksCreateClusterOperator(BaseOperator):
                 selectors=self.fargate_selectors,
                 **self.create_fargate_profile_kwargs,
             )
-
             if self.wait_for_completion:
                 self.log.info("Waiting for Fargate profile to provision.  This will take some time.")
                 client.get_waiter("fargate_profile_active").wait(
@@ -374,7 +373,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
         selectors: list,
         fargate_profile_name: str | None = DEFAULT_FARGATE_PROFILE_NAME,
         create_fargate_profile_kwargs: dict | None = None,
-        wait_for_completion: bool | ArgNotSet = NOTSET,
+        wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
         **kwargs,
@@ -387,7 +386,6 @@ class EksCreateFargateProfileOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
-
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
