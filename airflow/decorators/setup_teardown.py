@@ -19,11 +19,10 @@ from __future__ import annotations
 import types
 from typing import Callable
 
-from airflow import AirflowException
+from airflow import AirflowException, XComArg
 from airflow.decorators import python_task
 from airflow.decorators.task_group import _TaskGroupFactory
 from airflow.models import BaseOperator
-from airflow.models.taskmixin import DAGNode
 from airflow.utils.setup_teardown import SetupTeardownContext
 
 
@@ -56,7 +55,7 @@ def teardown_task(_func=None, *, on_failure_fail_dagrun: bool = False) -> Callab
 class ContextWrapper(list):
     """A list subclass that has a context manager that pushes setup/teardown tasks to the context."""
 
-    def __init__(self, tasks: list[DAGNode]):
+    def __init__(self, tasks: list[BaseOperator | XComArg]):
         self.tasks = tasks
         super().__init__(tasks)
 
@@ -70,6 +69,7 @@ class ContextWrapper(list):
             elif not task.operator.is_setup and not task.operator.is_teardown:
                 raise AirflowException("Only setup/teardown tasks can be used as context managers.")
         if not operators:
+            # means we have XComArgs
             operators = [task.operator for task in self.tasks]
         SetupTeardownContext.push_setup_teardown_task(operators)
         return self
