@@ -249,9 +249,9 @@ class TestCeleryExecutor:
         assert app.control.revoke.called_with("231")
         assert mock_fail.called_once()
 
-    @conf_vars({("celery", "result_backend_engine_options"): '{"pool_recycle": 1800}'})
+    @conf_vars({("celery", "result_backend_sqlalchemy_engine_options"): '{"pool_recycle": 1800}'})
     @mock.patch("celery.Celery")
-    def test_result_backend_engine_options(self, mock_celery):
+    def test_result_backend_sqlalchemy_engine_options(self, mock_celery):
         import importlib
 
         from airflow.config_templates import default_celery
