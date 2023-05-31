@@ -18,9 +18,9 @@
 from __future__ import annotations
 
 import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook

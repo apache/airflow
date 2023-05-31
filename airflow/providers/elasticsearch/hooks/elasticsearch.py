@@ -18,12 +18,12 @@
 from __future__ import annotations
 
 import warnings
+from functools import cached_property
 from typing import Any
 
 from elasticsearch import Elasticsearch
 from es.elastic.api import Connection as ESConnection, connect
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection as AirflowConnection

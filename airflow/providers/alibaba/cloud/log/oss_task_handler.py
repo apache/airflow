@@ -21,10 +21,10 @@ import contextlib
 import os
 import pathlib
 import shutil
+from functools import cached_property
 
 from packaging.version import Version
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.utils.log.file_task_handler import FileTaskHandler
