@@ -22,7 +22,8 @@ from contextlib import closing, contextmanager
 from functools import wraps
 from io import StringIO
 from pathlib import Path
-from typing import Any, Callable, Iterable, Mapping, TypeVar, overload
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload
+from urllib.parse import urlparse
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -36,6 +37,9 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_quer
 from airflow.utils.strings import to_boolean
 
 T = TypeVar("T")
+if TYPE_CHECKING:
+    from airflow.providers.openlineage.extractors import OperatorLineage
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 
 def _try_to_boolean(value: Any):
@@ -448,3 +452,54 @@ class SnowflakeHook(DbApiHook):
         finally:
             if cursor is not None:
                 cursor.close()
+
+    def get_openlineage_database_info(self, connection) -> DatabaseInfo:
+        from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+        database = self.database or self._get_field(connection.extra_dejson, "database")
+
+        return DatabaseInfo(
+            scheme=self.get_openlineage_database_dialect(connection),
+            authority=self._get_openlineage_authority(connection),
+            information_schema_columns=[
+                "table_schema",
+                "table_name",
+                "column_name",
+                "ordinal_position",
+                "data_type",
+            ],
+            database=database,
+            is_information_schema_cross_db=True,
+            is_uppercase_names=True,
+        )
+
+    def get_openlineage_database_dialect(self, _) -> str:
+        return "snowflake"
+
+    def get_openlineage_default_schema(self) -> str | None:
+        return self.get_first("SELECT current_schema();")[0]
+
+    def _get_openlineage_authority(self, _) -> str:
+        from openlineage.common.provider.snowflake import fix_snowflake_sqlalchemy_uri
+
+        uri = fix_snowflake_sqlalchemy_uri(self.get_uri())
+        return urlparse(uri).hostname
+
+    def get_openlineage_database_specific_lineage(self, _) -> OperatorLineage | None:
+        from openlineage.client.facet import ExternalQueryRunFacet
+
+        from airflow.providers.openlineage.extractors import OperatorLineage
+        from airflow.providers.openlineage.sqlparser import SQLParser
+
+        connection = self.get_connection(getattr(self, self.conn_name_attr))
+        namespace = SQLParser.create_namespace(self.get_database_info(connection))
+
+        if self.query_ids:
+            return OperatorLineage(
+                run_facets={
+                    "externalQuery": ExternalQueryRunFacet(
+                        externalQueryId=self.query_ids[0], source=namespace
+                    )
+                }
+            )
+        return None

@@ -813,6 +813,7 @@
     ],
     "cross-providers-deps": [
       "common.sql",
+      "openlineage",
       "slack"
     ],
     "excluded-python-versions": []
