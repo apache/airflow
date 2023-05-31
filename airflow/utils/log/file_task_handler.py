@@ -527,8 +527,9 @@ class FileTaskHandler(logging.Handler):
         Implement in subclasses to read from the remote service.
 
         This method should return two lists, messages and logs.
-            * Each element in the messages list should be a single message,
-                such as, "reading from x file".
-            * Each element in the logs list should be the content of one file.
+
+        * Each element in the messages list should be a single message,
+          such as, "reading from x file".
+        * Each element in the logs list should be the content of one file.
         """
         raise NotImplementedError
