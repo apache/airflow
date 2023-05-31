@@ -602,12 +602,11 @@ class DagRun(Base, LoggingMixin):
             # will be computed as if the teardown task simply didn't exist.
             teardown_task_ids = {t.task_id for t in dag.teardowns}
             upstream_of_teardowns = {t.task_id for t in dag.tasks_upstream_of_teardowns}
-            teardown_tis = {ti for ti in tis if ti.task_id in teardown_task_ids}
-            on_failure_fail_tis = {ti for ti in teardown_tis if ti.task.on_failure_fail_dagrun}
-            tis_upstream_of_teardowns = {ti for ti in tis if ti.task_id in upstream_of_teardowns}
-            leaf_tis -= teardown_tis
-            leaf_tis |= on_failure_fail_tis
-            leaf_tis |= tis_upstream_of_teardowns
+            leaf_tis.difference_update(ti for ti in tis if ti.task_id in teardown_task_ids)
+            leaf_tis.update(
+                (ti for ti in teardown_tis if ti.task.on_failure_fail_dagrun),
+                (ti for ti in tis if ti.task_id in upstream_of_teardowns),
+            )
 
         # if all roots finished and at least one failed, the run failed
         if not unfinished.tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
