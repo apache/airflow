@@ -58,19 +58,19 @@
             "acceptors": [
                 {
                     "matcher": "path",
-                    "argument": "cluster.status",
+                    "argument": "Cluster.Status.State",
                     "expected": "WAITING",
                     "state": "success"
                 },
                 {
                     "matcher": "path",
-                    "argument": "cluster.status",
+                    "argument": "Cluster.Status.State",
                     "expected": "TERMINATED",
                     "state": "success"
                 },
                 {
                     "matcher": "path",
-                    "argument": "cluster.status",
+                    "argument": "Cluster.Status.State",
                     "expected": "TERMINATED_WITH_ERRORS",
                     "state": "failure"
                 }
