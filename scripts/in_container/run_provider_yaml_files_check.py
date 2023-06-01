@@ -44,7 +44,6 @@ from airflow.cli.commands.info_command import Architecture
 EXCLUDED_MODULES = [
     "airflow.providers.apache.hdfs.sensors.hdfs",
     "airflow.providers.apache.hdfs.hooks.hdfs",
-    "airflow.providers.slack.notifications.slack_notifier",
     "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
 ]
 
@@ -231,13 +230,10 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
 
 
 def check_correctness_of_list_of_sensors_operators_hook_modules(yaml_files: dict[str, dict]):
-    print("Checking completeness of list of {sensors, hooks, operators, notifications, triggers}")
-    print(
-        " -- {sensors, hooks, operators, notifications, triggers} "
-        "- Expected modules (left) : Current modules (right)"
-    )
+    print("Checking completeness of list of {sensors, hooks, operators, triggers}")
+    print(" -- {sensors, hooks, operators, triggers} - Expected modules (left) : Current modules (right)")
     for (yaml_file_path, provider_data), resource_type in product(
-        yaml_files.items(), ["sensors", "operators", "hooks", "notifications", "triggers"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
     ):
         expected_modules, provider_package, resource_data = parse_module_data(
             provider_data, resource_type, yaml_file_path
@@ -259,9 +255,9 @@ def check_correctness_of_list_of_sensors_operators_hook_modules(yaml_files: dict
 
 
 def check_duplicates_in_integrations_names_of_hooks_sensors_operators(yaml_files: dict[str, dict]):
-    print("Checking for duplicates in list of {sensors, hooks, operators, notifications, triggers}")
+    print("Checking for duplicates in list of {sensors, hooks, operators, triggers}")
     for (yaml_file_path, provider_data), resource_type in product(
-        yaml_files.items(), ["sensors", "operators", "hooks", "notifications", "triggers"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
     ):
         resource_data = provider_data.get(resource_type, [])
         current_integrations = [r.get("integration-name", "") for r in resource_data]
@@ -366,7 +362,7 @@ def check_invalid_integration(yaml_files: dict[str, dict]):
     all_integration_names = set(get_all_integration_names(yaml_files))
 
     for (yaml_file_path, provider_data), resource_type in product(
-        yaml_files.items(), ["sensors", "operators", "hooks", "notifications", "triggers"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
     ):
         resource_data = provider_data.get(resource_type, [])
         current_names = {r["integration-name"] for r in resource_data}
