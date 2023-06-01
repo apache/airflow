@@ -3062,7 +3062,7 @@ class Airflow(AirflowBaseView):
         tasks = {
             t.task_id: {
                 "dag_id": t.dag_id,
-                "task_type": t.task_type,
+                "operator_name": t.operator_name,
                 "extra_links": t.extra_links,
                 "is_mapped": isinstance(t, MappedOperator),
                 "trigger_rule": t.trigger_rule,
@@ -3091,7 +3091,9 @@ class Airflow(AirflowBaseView):
             state_token=wwwutils.state_token(dt_nr_dr_data["dr_state"]),
             doc_md=doc_md,
             arrange=arrange,
-            operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
+            operators=sorted(
+                {op.operator_name: op for op in dag.tasks}.values(), key=lambda x: x.operator_name
+            ),
             root=root or "",
             task_instances=task_instances,
             tasks=tasks,
