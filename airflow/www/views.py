@@ -144,14 +144,6 @@ LINECHART_X_AXIS_TICKFORMAT = (
 )
 
 
-def truncate_task_duration(task_duration):
-    """
-    Cast the task_duration to an int was for optimization for large/huge dags if task_duration > 10s
-    otherwise we keep it as a float with 3dp.
-    """
-    return int(task_duration) if task_duration > 10.0 else round(task_duration, 3)
-
-
 def sanitize_args(args: dict[str, str]) -> dict[str, str]:
     """
     Remove all parameters starting with `_`.
