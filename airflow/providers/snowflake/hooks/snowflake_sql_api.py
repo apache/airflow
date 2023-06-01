@@ -27,7 +27,7 @@ from cryptography.hazmat.primitives import serialization
 
 from airflow import AirflowException
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-from airflow.providers.snowflake.hooks.sql_api_generate_jwt import JWTGenerator
+from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
 
 
 class SnowflakeSqlApiHook(SnowflakeHook):

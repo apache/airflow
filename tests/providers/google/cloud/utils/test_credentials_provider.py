@@ -21,12 +21,14 @@ import logging
 import os
 import re
 from io import StringIO
+from tempfile import NamedTemporaryFile
 from unittest import mock
 from unittest.mock import ANY
 from uuid import uuid4
 
 import pytest
 from google.auth.environment_vars import CREDENTIALS
+from google.auth.exceptions import DefaultCredentialsError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.credentials_provider import (
@@ -141,7 +143,7 @@ class TestGetGcpCredentialsAndProjectId:
         mock_auth_default.assert_called_once_with(scopes=None)
         assert ("CREDENTIALS", "PROJECT_ID") == result
         assert (
-            "Getting connection using `google.auth.default()` since no key file is defined for hook."
+            "Getting connection using `google.auth.default()` since no explicit credentials are provided."
         ) in caplog.messages
 
     @mock.patch("google.auth.default")
@@ -267,6 +269,45 @@ class TestGetGcpCredentialsAndProjectId:
         mock_from_service_account_info.assert_called_once_with(service_account, scopes=None)
         assert (mock_from_service_account_info.return_value, self.test_project_id) == result
         assert "Getting connection using JSON Dict" in caplog.messages
+
+    @mock.patch("google.auth.load_credentials_from_file", return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_using_credential_config_file(self, mock_load_credentials_from_file, caplog):
+        with caplog.at_level(
+            level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME
+        ), NamedTemporaryFile() as temp_file:
+            caplog.clear()
+            result = get_credentials_and_project_id(credential_config_file=temp_file.name)
+        mock_load_credentials_from_file.assert_called_once_with(temp_file.name, scopes=None)
+        assert mock_load_credentials_from_file.return_value == result
+        assert (
+            f"Getting connection using credential configuration file: `{temp_file.name}`" in caplog.messages
+        )
+
+    @mock.patch("google.auth.load_credentials_from_file", return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_using_credential_config_dict(self, mock_load_credentials_from_file, caplog):
+        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
+            caplog.clear()
+            result = get_credentials_and_project_id(credential_config_file={"type": "external_account"})
+        mock_load_credentials_from_file.assert_called_once()
+        assert mock_load_credentials_from_file.return_value == result
+        assert "Getting connection using credential configuration dict." in caplog.messages
+
+    @mock.patch("google.auth.load_credentials_from_file", return_value=("CREDENTIALS", "PROJECT_ID"))
+    def test_get_credentials_using_credential_config_string(self, mock_load_credentials_from_file, caplog):
+        with caplog.at_level(level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME):
+            caplog.clear()
+            result = get_credentials_and_project_id(credential_config_file='{"type": "external_account"}')
+        mock_load_credentials_from_file.assert_called_once()
+        assert mock_load_credentials_from_file.return_value == result
+        assert "Getting connection using credential configuration string." in caplog.messages
+
+    def test_get_credentials_using_credential_config_invalid_string(self, caplog):
+        with pytest.raises(DefaultCredentialsError), caplog.at_level(
+            level=logging.DEBUG, logger=CRED_PROVIDER_LOGGER_NAME
+        ):
+            caplog.clear()
+            get_credentials_and_project_id(credential_config_file="invalid json}}}}")
+        assert "Getting connection using credential configuration string." in caplog.messages
 
     @mock.patch("google.auth.default", return_value=("CREDENTIALS", "PROJECT_ID"))
     @mock.patch("google.oauth2.service_account.Credentials.from_service_account_info")

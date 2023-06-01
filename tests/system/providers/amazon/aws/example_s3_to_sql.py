@@ -40,6 +40,7 @@ from airflow.providers.amazon.aws.transfers.s3_to_sql import S3ToSqlOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator, SQLTableCheckOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
+from tests.system.providers.amazon.aws.utils.ec2 import get_default_vpc_id
 from tests.system.utils.watcher import watcher
 
 sys_test_context_task = SystemTestContextBuilder().build()
@@ -82,12 +83,10 @@ def create_connection(conn_id_name: str, cluster_id: str):
 
 
 @task
-def setup_security_group(sec_group_name: str, ip_permissions: list[dict]):
+def setup_security_group(sec_group_name: str, ip_permissions: list[dict], vpc_id: str):
     client = boto3.client("ec2")
-    default_vpc = client.describe_vpcs(Filters=[{"Name": "is-default", "Values": ["true"]}])["Vpcs"][0]
-
     security_group = client.create_security_group(
-        Description="Redshift-system-test", GroupName=sec_group_name, VpcId=default_vpc["VpcId"]
+        Description="Redshift-system-test", GroupName=sec_group_name, VpcId=vpc_id
     )
     client.get_waiter("security_group_exists").wait(
         GroupIds=[security_group["GroupId"]], GroupNames=[sec_group_name]
@@ -119,7 +118,9 @@ with DAG(
     s3_bucket_name = f"{env_id}-bucket"
     s3_key = f"{env_id}/files/cocktail_list.csv"
 
-    set_up_sg = setup_security_group(sec_group_name=sg_name, ip_permissions=[IP_PERMISSION])
+    get_vpc_id = get_default_vpc_id()
+
+    set_up_sg = setup_security_group(sg_name, [IP_PERMISSION], get_vpc_id)
 
     create_cluster = RedshiftCreateClusterOperator(
         task_id="create_cluster",
@@ -137,6 +138,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
         poke_interval=5,
+        timeout=60 * 30,
     )
 
     set_up_connection = create_connection(conn_id_name, cluster_id=redshift_cluster_identifier)

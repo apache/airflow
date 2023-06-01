@@ -20,11 +20,11 @@ from __future__ import annotations
 import re
 import sys
 from datetime import timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 import boto3
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, XCom
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
