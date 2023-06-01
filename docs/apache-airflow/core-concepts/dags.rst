@@ -190,9 +190,9 @@ DAGs do not *require* a schedule, but it's very common to define one. You define
     with DAG("my_daily_dag", schedule="@daily"):
         ...
 
-The ``schedule`` argument takes any value that is a valid `Crontab <https://en.wikipedia.org/wiki/Cron>`_ schedule value, so you could also do::
+The ``schedule`` argument takes any value that is a valid `Crontab <https://en.wikipedia.org/wiki/Cron>`_ schedule value, so for a daily run at 00:00, you could also do::
 
-    with DAG("my_daily_dag", schedule="0 * * * *"):
+    with DAG("my_daily_dag", schedule="0 0 * * *"):
         ...
 
 .. tip::
