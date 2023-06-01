@@ -115,7 +115,7 @@ with DAG(
         cluster_name=cluster_name,
         pod_name="run_pod",
         image="amazon/aws-cli:latest",
-        cmds=["sh", "-c", "echo Test Airflow; date"],
+        cmds=["sh", "-c", "echo Test Airflow; sleep 30; date"],
         labels={"demo": "hello_world"},
         get_logs=True,
         # Keep the pod alive, so we can describe it in case of trouble. It's deleted with the cluster anyway.
