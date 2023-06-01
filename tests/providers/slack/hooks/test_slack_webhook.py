@@ -30,7 +30,7 @@ from pytest import param
 from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, RateLimitErrorRetryHandler
 from slack_sdk.webhook.webhook_response import WebhookResponse
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook, check_webhook_response
 from tests.test_utils.providers import get_provider_min_airflow_version, object_exists
@@ -188,7 +188,7 @@ class TestSlackWebhookHook:
             r"Provide `webhook_token` as hook argument deprecated by security reason and will be removed "
             r"in a future releases. Please specify it in `Slack Webhook` connection\."
         )
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             SlackWebhookHook(webhook_token=webhook_token)
         mock_mask_secret.assert_called_once_with(webhook_token)
 
@@ -237,7 +237,7 @@ class TestSlackWebhookHook:
         warning_message = (
             r"Found Slack Webhook Token URL in Connection .* `host` and `password` field is empty\."
         )
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             conn_params = hook._get_conn_params()
         mock_mask_secret.assert_called_once_with(mock.ANY)
         assert "url" in conn_params
@@ -505,7 +505,7 @@ class TestSlackWebhookHook:
             r"Provide .* as hook argument\(s\) is deprecated and will be removed in a future releases\. "
             r"Please specify attributes in `SlackWebhookHook\.send` method instead\."
         )
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             hook = SlackWebhookHook(slack_webhook_conn_id=TEST_CONN_ID, **send_params)
         assert getattr(hook, deprecated_hook_attr) == "test-value"
         if deprecated_hook_attr == "message":
@@ -521,7 +521,7 @@ class TestSlackWebhookHook:
             "Please use `SlackWebhookHook.send` or `SlackWebhookHook.send_dict` or "
             "`SlackWebhookHook.send_text` methods instead."
         )
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             hook.execute()
         mock_hook_send_dict.assert_called_once_with(body=expected_body, headers=None)
 
@@ -537,7 +537,7 @@ class TestSlackWebhookHook:
         assert str(recwarn.pop(UserWarning).message).startswith(
             "`link_names` has no affect, if you want to mention user see:"
         )
-        assert str(recwarn.pop(DeprecationWarning).message).startswith(
+        assert str(recwarn.pop(AirflowProviderDeprecationWarning).message).startswith(
             "Provide 'link_names' as hook argument(s) is deprecated and will be removed in a future releases."
         )
         hook.send()

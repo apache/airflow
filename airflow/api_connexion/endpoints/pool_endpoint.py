@@ -20,7 +20,7 @@ from http import HTTPStatus
 
 from flask import Response
 from marshmallow import ValidationError
-from sqlalchemy import func
+from sqlalchemy import delete, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -41,7 +41,8 @@ def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIRespons
     """Delete a pool."""
     if pool_name == "default_pool":
         raise BadRequest(detail="Default Pool can't be deleted")
-    affected_count = session.query(Pool).filter(Pool.pool == pool_name).delete()
+    affected_count = session.execute(delete(Pool).where(Pool.pool == pool_name)).rowcount
+
     if affected_count == 0:
         raise NotFound(detail=f"Pool with name:'{pool_name}' not found")
     return Response(status=HTTPStatus.NO_CONTENT)

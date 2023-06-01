@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import datetime
 import inspect
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
-from airflow.compat.functools import cache, cached_property
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.expandinput import NotFullyPopulated
@@ -138,7 +139,7 @@ class AbstractOperator(Templater, DAGNode):
 
     @property
     def dag_id(self) -> str:
-        """Returns dag id if it has one or an adhoc + owner"""
+        """Returns dag id if it has one or an adhoc + owner."""
         dag = self.get_dag()
         if dag:
             return dag.dag_id
@@ -154,37 +155,38 @@ class AbstractOperator(Templater, DAGNode):
             return self.upstream_task_ids
         return self.downstream_task_ids
 
-    def get_flat_relative_ids(
-        self,
-        upstream: bool = False,
-        found_descendants: set[str] | None = None,
-    ) -> set[str]:
-        """Get a flat set of relative IDs, upstream or downstream."""
+    def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
+        """
+        Get a flat set of relative IDs, upstream or downstream.
+
+        Will recurse each relative found in the direction specified.
+
+        :param upstream: Whether to look for upstream or downstream relatives.
+        """
         dag = self.get_dag()
         if not dag:
             return set()
 
-        if found_descendants is None:
-            found_descendants = set()
+        relatives: set[str] = set()
 
         task_ids_to_trace = self.get_direct_relative_ids(upstream)
         while task_ids_to_trace:
             task_ids_to_trace_next: set[str] = set()
             for task_id in task_ids_to_trace:
-                if task_id in found_descendants:
+                if task_id in relatives:
                     continue
                 task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
-                found_descendants.add(task_id)
+                relatives.add(task_id)
             task_ids_to_trace = task_ids_to_trace_next
 
-        return found_descendants
+        return relatives
 
     def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
         """Get a flat list of relatives, either upstream or downstream."""
         dag = self.get_dag()
         if not dag:
             return set()
-        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream)]
+        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that are direct dependencies of the current task.
@@ -243,7 +245,7 @@ class AbstractOperator(Templater, DAGNode):
     def iter_mapped_task_groups(self) -> Iterator[MappedTaskGroup]:
         """Return mapped task groups this task belongs to.
 
-        Groups are returned from the closest to the outmost.
+        Groups are returned from the innermost to the outmost.
 
         :meta private:
         """
@@ -254,7 +256,10 @@ class AbstractOperator(Templater, DAGNode):
             parent = parent.task_group
 
     def get_closest_mapped_task_group(self) -> MappedTaskGroup | None:
-        """:meta private:"""
+        """Get the mapped task group "closest" to this task in the DAG.
+
+        :meta private:
+        """
         return next(self.iter_mapped_task_groups(), None)
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
@@ -296,7 +301,7 @@ class AbstractOperator(Templater, DAGNode):
 
     @cached_property
     def operator_extra_link_dict(self) -> dict[str, Any]:
-        """Returns dictionary of all extra links for the operator"""
+        """Returns dictionary of all extra links for the operator."""
         op_extra_links_from_plugin: dict[str, Any] = {}
         from airflow import plugins_manager
 
@@ -315,7 +320,7 @@ class AbstractOperator(Templater, DAGNode):
 
     @cached_property
     def global_operator_extra_link_dict(self) -> dict[str, Any]:
-        """Returns dictionary of all global extra links"""
+        """Returns dictionary of all global extra links."""
         from airflow import plugins_manager
 
         plugins_manager.initialize_extra_operators_links_plugins()
@@ -564,8 +569,23 @@ class AbstractOperator(Templater, DAGNode):
                     f"{attr_name!r} is configured as a template field "
                     f"but {parent.task_type} does not have this attribute."
                 )
-            if not value:
-                continue
+
+            try:
+                if not value:
+                    continue
+            except Exception:
+                # This may happen if the templated field points to a class which does not support `__bool__`,
+                # such as Pandas DataFrames:
+                # https://github.com/pandas-dev/pandas/blob/9135c3aaf12d26f857fcc787a5b64d521c51e379/pandas/core/generic.py#L1465
+                self.log.info(
+                    "Unable to check if the value of type '%s' is False for task '%s', field '%s'.",
+                    type(value).__name__,
+                    self.task_id,
+                    attr_name,
+                )
+                # We may still want to render custom classes which do not support __bool__
+                pass
+
             try:
                 rendered_content = self.render_template(
                     value,

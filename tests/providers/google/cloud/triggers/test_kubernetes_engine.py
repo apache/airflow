@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
 from asyncio import CancelledError, Future
 from datetime import datetime
+from unittest import mock
 
 import pytest
 import pytz
@@ -31,11 +31,6 @@ from kubernetes.client import models as k8s
 from airflow.providers.cncf.kubernetes.triggers.kubernetes_pod import ContainerState
 from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEStartPodTrigger
 from airflow.triggers.base import TriggerEvent
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
 
 TRIGGER_GKE_PATH = "airflow.providers.google.cloud.triggers.kubernetes_engine.GKEStartPodTrigger"
 TRIGGER_KUB_PATH = "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod.KubernetesPodTrigger"
@@ -58,7 +53,6 @@ OPERATION_NAME = "test-operation-name"
 PROJECT_ID = "test-project-id"
 LOCATION = "us-central1-c"
 GCP_CONN_ID = "test-non-existing-project-id"
-DELEGATE_TO = "test-delegate-to"
 IMPERSONATION_CHAIN = ["impersonate", "this", "test"]
 TRIGGER_PATH = "airflow.providers.google.cloud.triggers.kubernetes_engine.GKEOperationTrigger"
 EXC_MSG = "test error msg"
@@ -302,7 +296,6 @@ def operation_trigger():
         project_id=PROJECT_ID,
         location=LOCATION,
         gcp_conn_id=GCP_CONN_ID,
-        delegate_to=DELEGATE_TO,
         impersonation_chain=IMPERSONATION_CHAIN,
         poll_interval=POLL_INTERVAL,
     )
@@ -329,7 +322,6 @@ class TestGKEOperationTrigger:
             "project_id": PROJECT_ID,
             "location": LOCATION,
             "gcp_conn_id": GCP_CONN_ID,
-            "delegate_to": DELEGATE_TO,
             "impersonation_chain": IMPERSONATION_CHAIN,
             "poll_interval": POLL_INTERVAL,
         }

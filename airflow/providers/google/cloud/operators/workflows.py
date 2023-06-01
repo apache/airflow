@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import uuid
@@ -41,6 +40,11 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+try:
+    from airflow.utils.hashlib_wrapper import md5
+except ModuleNotFoundError:
+    # Remove when Airflow providers min Airflow version is "2.7.0"
+    from hashlib import md5
 
 
 class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
@@ -112,7 +116,7 @@ class WorkflowsCreateWorkflowOperator(GoogleCloudBaseOperator):
         # we use hash of whole information
         exec_date = context["execution_date"].isoformat()
         base = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{hash_base}"
-        workflow_id = hashlib.md5(base.encode()).hexdigest()
+        workflow_id = md5(base.encode()).hexdigest()
         return re.sub(r"[:\-+.]", "_", workflow_id)
 
     def execute(self, context: Context):
@@ -664,7 +668,11 @@ class WorkflowsListExecutionsOperator(GoogleCloudBaseOperator):
             project_id=self.project_id or hook.project_id,
         )
 
-        return [Execution.to_dict(e) for e in execution_iter if e.start_time > self.start_date_filter]
+        return [
+            Execution.to_dict(e)
+            for e in execution_iter
+            if e.start_time.ToDatetime(tzinfo=pytz.UTC) > self.start_date_filter
+        ]
 
 
 class WorkflowsGetExecutionOperator(GoogleCloudBaseOperator):

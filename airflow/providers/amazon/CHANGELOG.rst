@@ -24,6 +24,138 @@
 Changelog
 ---------
 
+8.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``DynamoDBToS3Operator - Add a feature to export the table to a point in time. (#31142)``
+* ``Add deferrable param in SageMakerTransformOperator (#31063)``
+* ``Add deferrable param in SageMakerTrainingOperator (#31042)``
+* ``Add deferrable param in SageMakerProcessingOperator (#31062)``
+* ``Add IAM authentication to Amazon Redshift Connection by AWS Connection (#28187)``
+* ``'StepFunctionStartExecutionOperator': get logs in case of failure (#31072)``
+* ``Add on_kill to EMR Serverless Job Operator (#31169)``
+* ``Add Deferrable Mode for EC2StateSensor (#31130)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``bigfix: EMRHook  Loop through paginated response to check for cluster id (#29732)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+* ``Add template field to S3ToRedshiftOperator (#30781)``
+* ``Add extras links to some more EMR Operators and Sensors (#31032)``
+* ``Add retries to S3 delete_bucket (#31192)``
+* ``Add tags param in RedshiftCreateClusterSnapshotOperator (#31006)``
+* ``improve/fix glue job logs printing (#30886)``
+* ``Import aiobotocore only if deferrable is true (#31094)``
+* ``Update return types of 'get_key' methods on 'S3Hook' (#30923)``
+* ``Support 'shareIdentifier' in BatchOperator (#30829)``
+* ``BaseAWS - Override client when resource_type is user to get custom waiters (#30897)``
+* ``Add future-compatible mongo Hook typing (#31289)``
+* ``Handle temporary credentials when resource_type is used to get custom waiters (#31333)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move TaskInstanceKey to a separate file (#31033)``
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``DynamoDBToS3Operator - Add feature to export table to a point in time (#30501)``
+   * ``Revert "DynamoDBToS3Operator - Add feature to export table to a point in time (#30501)" (#31139)``
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Bring back detection of implicit single-line string concatenation (#31270)``
+   * ``Fix AWS system test example_dynamodb (#31395)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Fix AWS system test example_dynamodb_to_s3 (#31362)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+
+8.0.0
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In this version of the provider, deprecated GCS hook's parameter ``delegate_to`` is removed from the following operators: ``GCSToS3Operator``, ``GlacierToGCSOperator`` and ``GoogleApiToS3Operator``.
+  Impersonation can be achieved instead by utilizing the ``impersonation_chain`` param.
+
+  Removed deprecated parameter ``google_cloud_storage_conn_id`` from ``GCSToS3Operator``, ``gcp_conn_id`` should be used instead.
+
+  Removed deprecated parameter ``max_tries`` from the Athena & EMR hook & operators in favor of ``max_polling_attempts``.
+
+  Removed deprecated method ``waiter`` from emr hook in favor of the more generic ``airflow.providers.amazon.aws.utils.waiter.waiter``
+
+  Removed deprecated unused parameter ``cluster_identifier`` from Redshift Cluster's hook method ``get_cluster_snapshot_status``
+
+  Removed deprecated method ``find_processing_job_by_name`` from Sagemaker hook, use ``count_processing_jobs_by_name`` instead.
+
+  Removed deprecated module ``airflow.providers.amazon.aws.operators.aws_lambda`` in favor of ``airflow.providers.amazon.aws.operators.lambda_function``
+
+  Removed EcsOperator in favor of EcsRunTaskOperator.
+  EcsTaskLogFetcher and EcsProtocol should be imported from the hook.
+
+  Removed AwsLambdaInvokeFunctionOperator in favor of LambdaInvokeFunctionOperator.
+
+  Removed deprecated param ``await_result`` from RedshiftDataOperator in favor of ``wait_for_completion``.
+  Some methods from this operator should be imported from the hook instead.
+
+  Removed deprecated ``RedshiftSQLOperator`` in favor of the generic ``SQLExecuteQueryOperator``.
+  The parameter that was passed as ``redshift_conn_id`` needs to be changed to ``conn_id``, and the behavior should stay the same.
+
+  Removed deprecated method ``get_conn_uri`` from secrets manager in favor of ``get_conn_value``
+  Also removed deprecated method ``get_conn_uri`` from systems manager. ``deserialize_connection(...).get_uri()`` should be used instead.
+
+  Removed deprecated and unused param ``s3_conn_id`` from ``ImapAttachmentToS3Operator``, ``MongoToS3Operator`` and ``S3ToSFTPOperator``.
+
+* ``remove delegate_to from GCP operators and hooks (#30748)``
+* ``Remove deprecated code from Amazon provider (#30755)``
+
+Features
+~~~~~~~~
+
+* ``add a stop operator to emr serverless (#30720)``
+* ``SqlToS3Operator - Add feature to partition SQL table (#30460)``
+* ``New AWS sensor — DynamoDBValueSensor (#28338)``
+* ``Add a "force" option to emr serverless stop/delete operator (#30757)``
+* ``Add support for deferrable operators in AMPP (#30032)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixed logging issue (#30703)``
+* ``DynamoDBHook - waiter_path() to consider 'resource_type' or 'client_type' (#30595)``
+* ``Add ability to override waiter delay in EcsRunTaskOperator (#30586)``
+* ``Add support in AWS Batch Operator for multinode jobs (#29522)``
+* ``AWS logs. Exit fast when 3 consecutive responses are returned from AWS Cloudwatch logs (#30756)``
+* ``Fix async conn for none aws_session_token (#30868)``
+
+Misc
+~~~~
+
+* ``Remove @poke_mode_only from EmrStepSensor (#30774)``
+* ``Organize Amazon providers docs index (#30541)``
+* ``Remove duplicate param docstring in EksPodOperator (#30634)``
+* ``Update AWS EMR Cluster Link to use the new dashboard (#30844)``
+* ``Restore aiobotocore as optional dependency of amazon provider (#30874)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Decouple "job runner" from BaseJob ORM model (#30255)``
+   * ``Upgrade ruff to 0.0.262 (#30809)``
+   * ``fixes to system tests following obsolete cleanup (#30804)``
+   * ``restore fallback to empty connection behavior (#30806)``
+   * ``Prepare docs for adhoc release of providers (#30787)``
+   * ``Prepare docs for ad-hoc release of Amazon provider (#30848)``
+
 7.4.1
 .....
 
@@ -268,8 +400,9 @@ Bug Fixes
 6.1.0
 .....
 
-This release of provider is only available for Airflow 2.3+ as explained in the
-`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Misc
 ~~~~
@@ -508,8 +641,9 @@ Bug Fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Features
 ~~~~~~~~

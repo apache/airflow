@@ -43,7 +43,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Session, declared_attr, joinedload, relationship, synonym
+from sqlalchemy.orm import Query, Session, declared_attr, joinedload, relationship, synonym
 from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
@@ -61,7 +61,7 @@ from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
-from airflow.utils.helpers import is_container
+from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, tuple_in_condition, with_row_locks
@@ -77,7 +77,7 @@ if TYPE_CHECKING:
 
 
 class TISchedulingDecision(NamedTuple):
-    """Type of return for DagRun.task_instance_scheduling_decisions"""
+    """Type of return for DagRun.task_instance_scheduling_decisions."""
 
     tis: list[TI]
     schedulable_tis: list[TI]
@@ -97,9 +97,10 @@ def _creator_note(val):
 
 
 class DagRun(Base, LoggingMixin):
-    """
-    DagRun describes an instance of a Dag. It can be created
-    by the scheduler (for regular runs) or by an external trigger
+    """Invocation instance of a DAG.
+
+    A DAG run can be created by the scheduler (i.e. scheduled runs), or by an
+    external trigger (i.e. manual runs).
     """
 
     __tablename__ = "dag_run"
@@ -173,7 +174,12 @@ class DagRun(Base, LoggingMixin):
         uselist=False,
         viewonly=True,
     )
-    dag_run_note = relationship("DagRunNote", back_populates="dag_run", uselist=False)
+    dag_run_note = relationship(
+        "DagRunNote",
+        back_populates="dag_run",
+        uselist=False,
+        cascade="all, delete, delete-orphan",
+    )
     note = association_proxy("dag_run_note", "content", creator=_creator_note)
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
@@ -234,6 +240,10 @@ class DagRun(Base, LoggingMixin):
         )
 
     @property
+    def stats_tags(self) -> dict[str, str]:
+        return prune_dict({"dag_id": self.dag_id, "run_type": self.run_type})
+
+    @property
     def logical_date(self) -> datetime:
         return self.execution_date
 
@@ -256,7 +266,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION) -> None:
         """
-        Reloads the current dagrun from the database
+        Reloads the current dagrun from the database.
 
         :param session: database session
         """
@@ -291,7 +301,7 @@ class DagRun(Base, LoggingMixin):
         state: DagRunState,
         session: Session,
         max_number: int | None = None,
-    ) -> list[DagRun]:
+    ) -> Query:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
 
@@ -427,7 +437,7 @@ class DagRun(Base, LoggingMixin):
 
     @staticmethod
     def generate_run_id(run_type: DagRunType, execution_date: datetime) -> str:
-        """Generate Run ID based on Run Type and Execution Date"""
+        """Generate Run ID based on Run Type and Execution Date."""
         # _Ensure_ run_type is a DagRunType, not just a string from user code
         return DagRunType(run_type).generate_run_id(execution_date)
 
@@ -437,7 +447,7 @@ class DagRun(Base, LoggingMixin):
         state: Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
     ) -> list[TI]:
-        """Returns the task instances for this dag run"""
+        """Returns the task instances for this dag run."""
         tis = (
             session.query(TI)
             .options(joinedload(TI.dag_run))
@@ -474,7 +484,7 @@ class DagRun(Base, LoggingMixin):
         map_index: int = -1,
     ) -> TI | None:
         """
-        Returns the task instance specified by task_id for this dag run
+        Returns the task instance specified by task_id for this dag run.
 
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
@@ -500,7 +510,7 @@ class DagRun(Base, LoggingMixin):
     def get_previous_dagrun(
         self, state: DagRunState | None = None, session: Session = NEW_SESSION
     ) -> DagRun | None:
-        """The previous DagRun, if there is one"""
+        """The previous DagRun, if there is one."""
         filters = [
             DagRun.dag_id == self.dag_id,
             DagRun.execution_date < self.execution_date,
@@ -511,7 +521,7 @@ class DagRun(Base, LoggingMixin):
 
     @provide_session
     def get_previous_scheduled_dagrun(self, session: Session = NEW_SESSION) -> DagRun | None:
-        """The previous, SCHEDULED DagRun, if there is one"""
+        """The previous, SCHEDULED DagRun, if there is one."""
         return (
             session.query(DagRun)
             .filter(
@@ -562,7 +572,10 @@ class DagRun(Base, LoggingMixin):
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
-        with Stats.timer(f"dagrun.dependency-check.{self.dag_id}"):
+        with Stats.timer(
+            f"dagrun.dependency-check.{self.dag_id}",
+            tags=self.stats_tags,
+        ):
             dag = self.get_dag()
             info = self.task_instance_scheduling_decisions(session)
 
@@ -583,7 +596,17 @@ class DagRun(Base, LoggingMixin):
                         unfinished = unfinished.recalculate()
 
         leaf_task_ids = {t.task_id for t in dag.leaves}
-        leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED]
+        leaf_tis = {ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED}
+        if dag.teardowns:
+            # when on_failure_fail_dagrun is `False`, the final state of the DagRun
+            # will be computed as if the teardown task simply didn't exist.
+            teardown_task_ids = {t.task_id for t in dag.teardowns}
+            upstream_of_teardowns = {t.task_id for t in dag.tasks_upstream_of_teardowns}
+            teardown_tis = {ti for ti in tis if ti.task_id in teardown_task_ids}
+            on_failure_fail_tis = (ti for ti in teardown_tis if ti.task.on_failure_fail_dagrun)
+            tis_upstream_of_teardowns = (ti for ti in tis if ti.task_id in upstream_of_teardowns)
+            leaf_tis -= teardown_tis
+            leaf_tis.update(on_failure_fail_tis, tis_upstream_of_teardowns)
 
         # if all roots finished and at least one failed, the run failed
         if not unfinished.tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
@@ -800,6 +823,8 @@ class DagRun(Base, LoggingMixin):
 
         # Check dependencies.
         expansion_happened = False
+        # Set of task ids for which was already done _revise_map_indexes_if_mapped
+        revised_map_index_task_ids = set()
         for schedulable in itertools.chain(schedulable_tis, additional_tis):
             old_state = schedulable.state
             if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
@@ -818,7 +843,11 @@ class DagRun(Base, LoggingMixin):
                     additional_tis.extend(new_tis)
                     expansion_happened = True
             if new_tis is None and schedulable.state in SCHEDULEABLE_STATES:
-                ready_tis.extend(self._revise_map_indexes_if_mapped(schedulable.task, session=session))
+                # It's enough to revise map index once per task id,
+                # checking the map index for each mapped task significantly slows down scheduling
+                if schedulable.task.task_id not in revised_map_index_task_ids:
+                    ready_tis.extend(self._revise_map_indexes_if_mapped(schedulable.task, session=session))
+                    revised_map_index_task_ids.add(schedulable.task.task_id)
                 ready_tis.append(schedulable)
 
         # Check if any ti changed state
@@ -894,12 +923,10 @@ class DagRun(Base, LoggingMixin):
                 data_interval_end = dag.get_run_data_interval(self).end
                 true_delay = first_start_date - data_interval_end
                 if true_delay.total_seconds() > 0:
-                    Stats.timing(f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay)
                     Stats.timing(
-                        "dagrun.first_task_scheduling_delay",
-                        true_delay,
-                        tags={"dag_id": dag.dag_id},
+                        f"dagrun.{dag.dag_id}.first_task_scheduling_delay", true_delay, tags=self.stats_tags
                     )
+                    Stats.timing("dagrun.first_task_scheduling_delay", true_delay, tags=self.stats_tags)
         except Exception:
             self.log.warning("Failed to record first_task_scheduling_delay metric:", exc_info=True)
 
@@ -914,12 +941,9 @@ class DagRun(Base, LoggingMixin):
             return
 
         duration = self.end_date - self.start_date
-        if self.state == State.SUCCESS:
-            Stats.timing(f"dagrun.duration.success.{self.dag_id}", duration)
-            Stats.timing("dagrun.duration.success", duration, tags={"dag_id": self.dag_id})
-        elif self.state == State.FAILED:
-            Stats.timing(f"dagrun.duration.failed.{self.dag_id}", duration)
-            Stats.timing("dagrun.duration.failed", duration, tags={"dag_id": self.dag_id})
+        timer_params = {"dt": duration, "tags": self.stats_tags}
+        Stats.timing(f"dagrun.duration.{self.state.value}.{self.dag_id}", **timer_params)
+        Stats.timing(f"dagrun.duration.{self.state.value}", **timer_params)
 
     @provide_session
     def verify_integrity(self, *, session: Session = NEW_SESSION) -> None:
@@ -982,14 +1006,14 @@ class DagRun(Base, LoggingMixin):
                 should_restore_task = (task is not None) and ti.state == State.REMOVED
                 if should_restore_task:
                     self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
-                    Stats.incr(f"task_restored_to_dag.{dag.dag_id}", 1, 1)
+                    Stats.incr(f"task_restored_to_dag.{dag.dag_id}", tags=self.stats_tags)
                     ti.state = State.NONE
             except AirflowException:
                 if ti.state == State.REMOVED:
                     pass  # ti has already been removed, just ignore it
                 elif self.state != State.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
-                    Stats.incr(f"task_removed_from_dag.{dag.dag_id}", 1, 1)
+                    Stats.incr(f"task_removed_from_dag.{dag.dag_id}", tags=self.stats_tags)
                     ti.state = State.REMOVED
                 continue
 
@@ -1095,7 +1119,7 @@ class DagRun(Base, LoggingMixin):
         session: Session,
     ) -> CreatedTasks:
         """
-        Create missing tasks -- and expand any MappedOperator that _only_ have literals as input
+        Create missing tasks -- and expand any MappedOperator that _only_ have literals as input.
 
         :param tasks: Tasks to create jobs for in the DAG run
         :param task_creator: Function to create task instances
@@ -1145,7 +1169,7 @@ class DagRun(Base, LoggingMixin):
                 session.bulk_save_objects(tasks)
 
             for task_type, count in created_counts.items():
-                Stats.incr(f"task_instance_created-{task_type}", count)
+                Stats.incr(f"task_instance_created-{task_type}", count, tags=self.stats_tags)
             session.flush()
         except IntegrityError:
             self.log.info(
@@ -1206,7 +1230,7 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     def get_run(session: Session, dag_id: str, execution_date: datetime) -> DagRun | None:
         """
-        Get a single DAG Run
+        Get a single DAG Run.
 
         :meta private:
         :param session: Sqlalchemy ORM Session
@@ -1237,7 +1261,7 @@ class DagRun(Base, LoggingMixin):
     @classmethod
     @provide_session
     def get_latest_runs(cls, session: Session = NEW_SESSION) -> list[DagRun]:
-        """Returns the latest DagRun for each DAG"""
+        """Returns the latest DagRun for each DAG."""
         subquery = (
             session.query(cls.dag_id, func.max(cls.execution_date).label("execution_date"))
             .group_by(cls.dag_id)
@@ -1253,7 +1277,12 @@ class DagRun(Base, LoggingMixin):
         )
 
     @provide_session
-    def schedule_tis(self, schedulable_tis: Iterable[TI], session: Session = NEW_SESSION) -> int:
+    def schedule_tis(
+        self,
+        schedulable_tis: Iterable[TI],
+        session: Session = NEW_SESSION,
+        max_tis_per_query: int | None = None,
+    ) -> int:
         """
         Set the given task instances in to the scheduled state.
 
@@ -1282,35 +1311,41 @@ class DagRun(Base, LoggingMixin):
         count = 0
 
         if schedulable_ti_ids:
-            count += (
-                session.query(TI)
-                .filter(
-                    TI.dag_id == self.dag_id,
-                    TI.run_id == self.run_id,
-                    tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids),
-                )
-                .update({TI.state: State.SCHEDULED}, synchronize_session=False)
+            schedulable_ti_ids_chunks = chunks(
+                schedulable_ti_ids, max_tis_per_query or len(schedulable_ti_ids)
             )
+            for schedulable_ti_ids_chunk in schedulable_ti_ids_chunks:
+                count += (
+                    session.query(TI)
+                    .filter(
+                        TI.dag_id == self.dag_id,
+                        TI.run_id == self.run_id,
+                        tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids_chunk),
+                    )
+                    .update({TI.state: State.SCHEDULED}, synchronize_session=False)
+                )
 
         # Tasks using EmptyOperator should not be executed, mark them as success
         if dummy_ti_ids:
-            count += (
-                session.query(TI)
-                .filter(
-                    TI.dag_id == self.dag_id,
-                    TI.run_id == self.run_id,
-                    TI.task_id.in_(dummy_ti_ids),
+            dummy_ti_ids_chunks = chunks(dummy_ti_ids, max_tis_per_query or len(dummy_ti_ids))
+            for dummy_ti_ids_chunk in dummy_ti_ids_chunks:
+                count += (
+                    session.query(TI)
+                    .filter(
+                        TI.dag_id == self.dag_id,
+                        TI.run_id == self.run_id,
+                        TI.task_id.in_(dummy_ti_ids_chunk),
+                    )
+                    .update(
+                        {
+                            TI.state: State.SUCCESS,
+                            TI.start_date: timezone.utcnow(),
+                            TI.end_date: timezone.utcnow(),
+                            TI.duration: 0,
+                        },
+                        synchronize_session=False,
+                    )
                 )
-                .update(
-                    {
-                        TI.state: State.SUCCESS,
-                        TI.start_date: timezone.utcnow(),
-                        TI.end_date: timezone.utcnow(),
-                        TI.duration: 0,
-                    },
-                    synchronize_session=False,
-                )
-            )
 
         return count
 

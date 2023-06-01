@@ -18,10 +18,11 @@
 from __future__ import annotations
 
 import json
-import warnings
 from typing import TYPE_CHECKING, Any, Iterable, Sequence, cast
 
 from bson import json_util
+from pymongo.command_cursor import CommandCursor
+from pymongo.cursor import Cursor
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -29,11 +30,6 @@ from airflow.providers.mongo.hooks.mongo import MongoHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-_DEPRECATION_MSG = (
-    "The s3_conn_id parameter has been deprecated. You should pass instead the aws_conn_id parameter."
-)
 
 
 class MongoToS3Operator(BaseOperator):
@@ -66,7 +62,6 @@ class MongoToS3Operator(BaseOperator):
     def __init__(
         self,
         *,
-        s3_conn_id: str | None = None,
         mongo_conn_id: str = "mongo_default",
         aws_conn_id: str = "aws_default",
         mongo_collection: str,
@@ -81,10 +76,6 @@ class MongoToS3Operator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if s3_conn_id:
-            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
-            aws_conn_id = s3_conn_id
-
         self.mongo_conn_id = mongo_conn_id
         self.aws_conn_id = aws_conn_id
         self.mongo_db = mongo_db
@@ -107,7 +98,7 @@ class MongoToS3Operator(BaseOperator):
 
         # Grab collection and execute query according to whether or not it is a pipeline
         if self.is_pipeline:
-            results = MongoHook(self.mongo_conn_id).aggregate(
+            results: CommandCursor[Any] | Cursor = MongoHook(self.mongo_conn_id).aggregate(
                 mongo_collection=self.mongo_collection,
                 aggregate_query=cast(list, self.mongo_query),
                 mongo_db=self.mongo_db,
@@ -120,6 +111,7 @@ class MongoToS3Operator(BaseOperator):
                 query=cast(dict, self.mongo_query),
                 projection=self.mongo_projection,
                 mongo_db=self.mongo_db,
+                find_one=False,
             )
 
         # Performs transform then stringifies the docs results into json format

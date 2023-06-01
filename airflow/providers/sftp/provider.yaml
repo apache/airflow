@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 4.3.0
   - 4.2.4
   - 4.2.3
   - 4.2.2
@@ -48,7 +49,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - apache-airflow-providers-ssh>=2.1.0
 
 integrations:

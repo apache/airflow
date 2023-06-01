@@ -58,6 +58,6 @@ if __name__ == "__main__":
     if cmd_result.returncode != 0:
         get_console().print(
             "[warning]If you see strange stacktraces above, "
-            "run `breeze ci-image build --python 3.7` and try again."
+            "run `breeze ci-image build --python 3.8` and try again."
         )
     sys.exit(cmd_result.returncode)

@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import warnings
 from typing import Any, AsyncIterator, Sequence
 
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionAsyncHook
@@ -36,9 +35,6 @@ class DataFusionStartPipelineTrigger(BaseTrigger):
        can create a namespace.
     :param gcp_conn_id: Reference to google cloud connection id
     :param poll_interval: polling period in seconds to check for the status
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -58,7 +54,6 @@ class DataFusionStartPipelineTrigger(BaseTrigger):
         poll_interval: float = 3.0,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        delegate_to: str | None = None,
         success_states: list[str] | None = None,
     ):
         super().__init__()
@@ -69,11 +64,6 @@ class DataFusionStartPipelineTrigger(BaseTrigger):
         self.poll_interval = poll_interval
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.success_states = success_states
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -90,7 +80,7 @@ class DataFusionStartPipelineTrigger(BaseTrigger):
             },
         )
 
-    async def run(self) -> AsyncIterator["TriggerEvent"]:  # type: ignore[override]
+    async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Gets current pipeline status and yields a TriggerEvent"""
         hook = self._get_async_hook()
         while True:
@@ -131,6 +121,5 @@ class DataFusionStartPipelineTrigger(BaseTrigger):
             pipeline_name=self.pipeline_name,
             pipeline_id=self.pipeline_id,
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )

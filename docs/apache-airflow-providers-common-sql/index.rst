@@ -64,7 +64,7 @@ Package apache-airflow-providers-common-sql
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 
-Release: 1.4.0
+Release: 1.5.1
 
 Provider package
 ----------------
@@ -82,10 +82,13 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-=============  ==================
-PIP package    Version required
-=============  ==================
-``sqlparse``   ``>=0.4.2``
-=============  ==================
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.4.0``
+``sqlparse``        ``>=0.4.2``
+==================  ==================
 
 .. include:: ../../airflow/providers/common/sql/CHANGELOG.rst

@@ -113,7 +113,7 @@ class TestWasbTaskHandler:
                 [
                     (
                         "localhost",
-                        "*** Found remote logs:\n" "***   * wasb://wasb-container/abc/hello.log\n" "Log line",
+                        "*** Found remote logs:\n***   * wasb://wasb-container/abc/hello.log\nLog line",
                     )
                 ]
             ],

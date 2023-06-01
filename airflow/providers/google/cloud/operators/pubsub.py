@@ -24,7 +24,6 @@ This module contains Google PubSub operators.
 """
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -85,9 +84,6 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         ``{topic}``. (templated)
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param labels: Client-assigned labels; see
         https://cloud.google.com/pubsub/docs/labels
     :param message_storage_policy: Policy constraining the set
@@ -130,7 +126,6 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         project_id: str | None = None,
         fail_if_exists: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         labels: dict[str, str] | None = None,
         message_storage_policy: dict | MessageStoragePolicy = None,
         kms_key_name: str | None = None,
@@ -146,11 +141,6 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         self.topic = topic
         self.fail_if_exists = fail_if_exists
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.labels = labels
         self.message_storage_policy = message_storage_policy
         self.kms_key_name = kms_key_name
@@ -162,7 +152,6 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context) -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 
@@ -256,9 +245,6 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         acknowledge each message pulled from the subscription
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param push_config: If push delivery is used with this subscription,
         this field is used to configure it. An empty ``pushConfig`` signifies
         that the subscriber will pull and ack messages using API methods.
@@ -332,7 +318,6 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         ack_deadline_secs: int = 10,
         fail_if_exists: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         push_config: dict | PushConfig | None = None,
         retain_acked_messages: bool | None = None,
         message_retention_duration: dict | Duration | None = None,
@@ -356,11 +341,6 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         self.ack_deadline_secs = ack_deadline_secs
         self.fail_if_exists = fail_if_exists
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.push_config = push_config
         self.retain_acked_messages = retain_acked_messages
         self.message_retention_duration = message_retention_duration
@@ -378,7 +358,6 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context) -> str:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 
@@ -446,9 +425,6 @@ class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
         the task
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
@@ -479,7 +455,6 @@ class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
         project_id: str | None = None,
         fail_if_not_exists: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -491,11 +466,6 @@ class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
         self.topic = topic
         self.fail_if_not_exists = fail_if_not_exists
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
@@ -504,7 +474,6 @@ class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context) -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 
@@ -554,9 +523,6 @@ class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
         fail the task
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
@@ -587,7 +553,6 @@ class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
         project_id: str | None = None,
         fail_if_not_exists: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -599,11 +564,6 @@ class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
         self.subscription = subscription
         self.fail_if_not_exists = fail_if_not_exists
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
@@ -612,7 +572,6 @@ class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context) -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 
@@ -672,9 +631,6 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -700,7 +656,6 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         messages: list,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -709,17 +664,11 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         self.topic = topic
         self.messages = messages
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 
@@ -757,9 +706,6 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         immediately rather than by any downstream tasks
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param messages_callback: (Optional) Callback to process received messages.
         It's return value will be saved to XCom.
         If you are pulling large messages, you probably want to provide a custom callback.
@@ -790,17 +736,11 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
         ack_messages: bool = False,
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.project_id = project_id
         self.subscription = subscription
         self.max_messages = max_messages
@@ -811,7 +751,6 @@ class PubSubPullOperator(GoogleCloudBaseOperator):
     def execute(self, context: Context) -> list:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 

@@ -21,13 +21,15 @@ from airflow.utils.docs import get_docs_url
 
 
 def init_appbuilder_links(app):
-    """Add links to the navbar"""
+    """Add links to the navbar."""
     appbuilder = app.appbuilder
 
     appbuilder.add_link(name="DAGs", href="Airflow.index")
     appbuilder.menu.menu.insert(0, appbuilder.menu.menu.pop())  # Place in the first menu slot
-    appbuilder.add_link(name="Datasets", href="Airflow.datasets")
+    appbuilder.add_link(name="Cluster Activity", href="Airflow.cluster_activity")
     appbuilder.menu.menu.insert(1, appbuilder.menu.menu.pop())  # Place in the second menu slot
+    appbuilder.add_link(name="Datasets", href="Airflow.datasets")
+    appbuilder.menu.menu.insert(2, appbuilder.menu.menu.pop())  # Place in the third menu slot
 
     # Docs links
     appbuilder.add_link(name="Documentation", label="Documentation", href=get_docs_url(), category="Docs")

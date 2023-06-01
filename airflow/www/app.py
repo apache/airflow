@@ -19,11 +19,9 @@ from __future__ import annotations
 
 import warnings
 from datetime import timedelta
-from tempfile import gettempdir
 
 from flask import Flask
 from flask_appbuilder import SQLA
-from flask_caching import Cache
 from flask_wtf.csrf import CSRFProtect
 from markupsafe import Markup
 from sqlalchemy.engine.url import make_url
@@ -38,6 +36,7 @@ from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.json import AirflowJsonProvider
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
+from airflow.www.extensions.init_cache import init_cache
 from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
@@ -67,7 +66,7 @@ csrf = CSRFProtect()
 
 
 def sync_appbuilder_roles(flask_app):
-    """Sync appbuilder roles to DB"""
+    """Sync appbuilder roles to DB."""
     # Garbage collect old permissions/views after they have been modified.
     # Otherwise, when the name of a view or menu is changed, the framework
     # will add the new Views and Menus names to the backend, but will not
@@ -77,7 +76,7 @@ def sync_appbuilder_roles(flask_app):
 
 
 def create_app(config=None, testing=False):
-    """Create a new instance of Airflow WWW app"""
+    """Create a new instance of Airflow WWW app."""
     flask_app = Flask(__name__)
     flask_app.secret_key = conf.get("webserver", "SECRET_KEY")
 
@@ -143,8 +142,7 @@ def create_app(config=None, testing=False):
 
     init_robots(flask_app)
 
-    cache_config = {"CACHE_TYPE": "flask_caching.backends.filesystem", "CACHE_DIR": gettempdir()}
-    Cache(app=flask_app, config=cache_config)
+    init_cache(flask_app)
 
     init_flash_views(flask_app)
 
@@ -177,7 +175,7 @@ def create_app(config=None, testing=False):
 
 
 def cached_app(config=None, testing=False):
-    """Return cached instance of Airflow WWW app"""
+    """Return cached instance of Airflow WWW app."""
     global app
     if not app:
         app = create_app(config=config, testing=testing)

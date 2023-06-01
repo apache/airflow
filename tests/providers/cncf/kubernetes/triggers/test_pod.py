@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
 from asyncio import CancelledError, Future
 from datetime import datetime
+from unittest import mock
 
 import pytest
 import pytz
@@ -30,11 +30,6 @@ from kubernetes.client import models as k8s
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.triggers.base import TriggerEvent
 
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
-
 TRIGGER_PATH = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
 HOOK_PATH = "airflow.providers.cncf.kubernetes.hooks.kubernetes.AsyncKubernetesHook"
 POD_NAME = "test-pod-name"
@@ -42,7 +37,7 @@ NAMESPACE = "default"
 CONN_ID = "test_kubernetes_conn_id"
 POLL_INTERVAL = 2
 CLUSTER_CONTEXT = "test-context"
-CONFIG_DICT = {"a": "b"}
+CONFIG_FILE = "/path/to/config/file"
 IN_CLUSTER = False
 SHOULD_DELETE_POD = True
 GET_LOGS = True
@@ -61,7 +56,7 @@ def trigger():
         kubernetes_conn_id=CONN_ID,
         poll_interval=POLL_INTERVAL,
         cluster_context=CLUSTER_CONTEXT,
-        config_dict=CONFIG_DICT,
+        config_file=CONFIG_FILE,
         in_cluster=IN_CLUSTER,
         should_delete_pod=SHOULD_DELETE_POD,
         get_logs=GET_LOGS,
@@ -88,7 +83,7 @@ class TestKubernetesPodTrigger:
             "kubernetes_conn_id": CONN_ID,
             "poll_interval": POLL_INTERVAL,
             "cluster_context": CLUSTER_CONTEXT,
-            "config_dict": CONFIG_DICT,
+            "config_file": CONFIG_FILE,
             "in_cluster": IN_CLUSTER,
             "should_delete_pod": SHOULD_DELETE_POD,
             "get_logs": GET_LOGS,

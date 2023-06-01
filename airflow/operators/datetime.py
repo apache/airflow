@@ -27,10 +27,10 @@ from airflow.utils.context import Context
 
 
 class BranchDateTimeOperator(BaseBranchOperator):
-    """
-    Branches into one of two lists of tasks depending on the current datetime.
+    """Branches into one of two lists of tasks depending on the current datetime.
+
     For more information on how to use this operator, take a look at the guide:
-    :ref:`howto/operator:BranchDateTimeOperator`
+    :ref:`howto/operator:BranchDateTimeOperator`.
 
     True branch will be returned when ``datetime.datetime.now()`` falls below
     ``target_upper`` and above ``target_lower``.

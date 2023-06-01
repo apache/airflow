@@ -21,6 +21,7 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Sequence
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
@@ -50,9 +51,6 @@ class BigQueryToBigQueryOperator(BaseOperator):
     :param write_disposition: The write disposition if the table already exists.
     :param create_disposition: The create disposition if the table doesn't exist.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
@@ -94,7 +92,6 @@ class BigQueryToBigQueryOperator(BaseOperator):
         write_disposition: str = "WRITE_EMPTY",
         create_disposition: str = "CREATE_IF_NEEDED",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         labels: dict | None = None,
         encryption_configuration: dict | None = None,
         location: str | None = None,
@@ -108,11 +105,6 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.write_disposition = write_disposition
         self.create_disposition = create_disposition
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
         self.labels = labels
         self.encryption_configuration = encryption_configuration
         self.location = location
@@ -126,13 +118,12 @@ class BigQueryToBigQueryOperator(BaseOperator):
         )
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
 
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
+            warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
             job_id = hook.run_copy(
                 source_project_dataset_tables=self.source_project_dataset_tables,
                 destination_project_dataset_table=self.destination_project_dataset_table,

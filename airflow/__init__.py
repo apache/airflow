@@ -26,7 +26,7 @@ isort:skip_file
 """
 from __future__ import annotations
 
-__version__ = "2.6.0.dev0"
+__version__ = "2.7.0.dev0"
 
 # flake8: noqa: F401
 
@@ -72,6 +72,7 @@ PY37 = sys.version_info >= (3, 7)
 PY38 = sys.version_info >= (3, 8)
 PY39 = sys.version_info >= (3, 9)
 PY310 = sys.version_info >= (3, 10)
+PY311 = sys.version_info >= (3, 11)
 
 # Things to lazy import in form {local_name: ('target_module', 'target_name')}
 __lazy_imports: dict[str, tuple[str, str]] = {

@@ -100,7 +100,7 @@ with a consistent set of dependencies based on constraint files provided by Airf
     :substitutions:
 
     pip install apache-airflow[google,amazon,apache.spark]==|version| \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.7.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
 
 Note, that this will install providers in the versions that were released at the time of Airflow |version| release. You can later
 upgrade those providers manually if you want to use latest versions of the providers.
@@ -133,6 +133,8 @@ custom bash/python providers).
 | apache.hive         | ``pip install 'apache-airflow[apache.hive]'``       | All Hive related operators                     |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.impala       | ``pip install 'apache-airflow[apache.impala]'``     | All Impala related operators & hooks           |
++---------------------+-----------------------------------------------------+------------------------------------------------+
+| apache.kafka        | ``pip install 'apache-airflow[apache.kafka]'``      | All Kafka related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
 | apache.kylin        | ``pip install 'apache-airflow[apache.kylin]'``      | All Kylin related operators & hooks            |
 +---------------------+-----------------------------------------------------+------------------------------------------------+
@@ -213,8 +215,6 @@ These are extras that add dependencies needed for integration with external serv
 | telegram            | ``pip install 'apache-airflow[telegram]'``          | Telegram hooks and operators                        |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | vertica             | ``pip install 'apache-airflow[vertica]'``           | Vertica hook support as an Airflow backend          |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------+
-| yandex              | ``pip install 'apache-airflow[yandex]'``            | Yandex.cloud hooks and operators                    |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | zendesk             | ``pip install 'apache-airflow[zendesk]'``           | Zendesk hooks                                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+

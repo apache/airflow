@@ -28,6 +28,7 @@ import sys
 import warnings
 
 from graphviz.dot import Dot
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -153,7 +154,6 @@ def dag_trigger(args) -> None:
             execution_date=args.exec_date,
             replace_microseconds=args.replace_microseconds,
         )
-        print(message)
         AirflowConsole().print_as(
             data=[message] if message is not None else [],
             output=args.output,
@@ -270,6 +270,7 @@ def _save_dot_to_file(dot: Dot, filename: str) -> None:
 def dag_state(args, session: Session = NEW_SESSION) -> None:
     """
     Returns the state (and conf if exists) of a DagRun at the command line.
+
     >>> airflow dags state tutorial 2015-01-01T00:00:00.000000
     running
     >>> airflow dags state a_dag_with_conf_passed 2015-01-01T00:00:00.000000
@@ -291,6 +292,7 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
 def dag_next_execution(args) -> None:
     """
     Returns the next execution datetime of a DAG at the command line.
+
     >>> airflow dags next-execution tutorial
     2018-08-31 10:38:00
     """
@@ -351,7 +353,7 @@ def dag_list_dags(args) -> None:
 @suppress_logs_and_warning
 @provide_session
 def dag_details(args, session=NEW_SESSION):
-    """Get DAG details given a DAG id"""
+    """Get DAG details given a DAG id."""
     dag = DagModel.get_dagmodel(args.dag_id, session=session)
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
@@ -506,7 +508,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 @cli_utils.action_cli
 def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
     """Serialize a DAG instance."""
-    session.query(SerializedDagModel).delete(synchronize_session=False)
+    session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
 
     if not args.clear_only:
         dagbag = DagBag(process_subdir(args.subdir))

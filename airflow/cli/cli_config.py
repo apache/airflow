@@ -37,6 +37,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.cli import ColorMode
 from airflow.utils.module_loading import import_string
+from airflow.utils.state import DagRunState
 from airflow.utils.timezone import parse as parsedate
 
 BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
@@ -277,7 +278,13 @@ ARG_DAG_ID_REQ_FLAG = Arg(
 ARG_NO_BACKFILL = Arg(
     ("--no-backfill",), help="filter all the backfill dagruns given the dag id", action="store_true"
 )
-ARG_STATE = Arg(("--state",), help="Only list the dag runs corresponding to the state")
+dagrun_states = tuple(state.value for state in DagRunState)
+ARG_STATE = Arg(
+    ("--state",),
+    help="Only list the dag runs corresponding to the state",
+    metavar=", ".join(dagrun_states),
+    choices=dagrun_states,
+)
 
 # list_jobs
 ARG_DAG_ID_OPT = Arg(("-d", "--dag-id"), help="The id of the dag")
@@ -1752,6 +1759,12 @@ PROVIDERS_COMMANDS = (
         name="hooks",
         help="List registered provider hooks",
         func=lazy_load_command("airflow.cli.commands.provider_command.hooks_list"),
+        args=(ARG_OUTPUT, ARG_VERBOSE),
+    ),
+    ActionCommand(
+        name="triggers",
+        help="List registered provider triggers",
+        func=lazy_load_command("airflow.cli.commands.provider_command.triggers_list"),
         args=(ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(

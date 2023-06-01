@@ -21,14 +21,17 @@ from unittest import mock
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
-from google.cloud.vision import enums
-from google.cloud.vision_v1 import ProductSearchClient
-from google.cloud.vision_v1.proto.image_annotator_pb2 import (
+from google.cloud.vision_v1 import (
+    AnnotateImageRequest,
     AnnotateImageResponse,
     EntityAnnotation,
+    Feature,
+    Product,
+    ProductSearchClient,
+    ProductSet,
+    ReferenceImage,
     SafeSearchAnnotation,
 )
-from google.cloud.vision_v1.proto.product_search_service_pb2 import Product, ProductSet, ReferenceImage
 from google.protobuf.json_format import MessageToDict
 
 from airflow.exceptions import AirflowException
@@ -51,16 +54,16 @@ REFERENCE_IMAGE_ID_TEST = "ri-id"
 REFERENCE_IMAGE_GEN_ID_TEST = "ri-id"
 ANNOTATE_IMAGE_REQUEST = {
     "image": {"source": {"image_uri": "gs://bucket-name/object-name"}},
-    "features": [{"type": enums.Feature.Type.LOGO_DETECTION}],
+    "features": [{"type": Feature.Type.LOGO_DETECTION}],
 }
 BATCH_ANNOTATE_IMAGE_REQUEST = [
     {
         "image": {"source": {"image_uri": "gs://bucket-name/object-name"}},
-        "features": [{"type": enums.Feature.Type.LOGO_DETECTION}],
+        "features": [{"type_": Feature.Type.LOGO_DETECTION}],
     },
     {
         "image": {"source": {"image_uri": "gs://bucket-name/object-name"}},
-        "features": [{"type": enums.Feature.Type.LOGO_DETECTION}],
+        "features": [{"type_": Feature.Type.LOGO_DETECTION}],
     },
 ]
 REFERENCE_IMAGE_NAME_TEST = (
@@ -84,6 +87,10 @@ LOCATION_PRODUCT_ID_TEST_PARAMS = [
 
 
 class TestGcpVisionHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            CloudVisionHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
+
     def setup_method(self):
         with mock.patch(
             "airflow.providers.google.cloud.hooks.vision.CloudVisionHook.__init__",
@@ -104,7 +111,7 @@ class TestGcpVisionHook:
         # Given
         create_product_set_method = get_conn.return_value.create_product_set
         create_product_set_method.return_value = None
-        parent = ProductSearchClient.location_path(PROJECT_ID_TEST, LOC_ID_TEST)
+        parent = f"projects/{PROJECT_ID_TEST}/locations/{LOC_ID_TEST}"
         product_set = ProductSet()
         # When
         result = self.hook.create_product_set(
@@ -138,7 +145,7 @@ class TestGcpVisionHook:
         )
         create_product_set_method = get_conn.return_value.create_product_set
         create_product_set_method.return_value = response_product_set
-        parent = ProductSearchClient.location_path(PROJECT_ID_TEST, LOC_ID_TEST)
+        parent = f"projects/{PROJECT_ID_TEST}/locations/{LOC_ID_TEST}"
         product_set = ProductSet()
         # When
         result = self.hook.create_product_set(
@@ -163,7 +170,7 @@ class TestGcpVisionHook:
         response_product_set = None
         create_product_set_method = get_conn.return_value.create_product_set
         create_product_set_method.return_value = response_product_set
-        parent = ProductSearchClient.location_path(PROJECT_ID_TEST, LOC_ID_TEST)
+        parent = f"projects/{PROJECT_ID_TEST}/locations/{LOC_ID_TEST}"
         product_set = ProductSet()
         # When
         with pytest.raises(AirflowException) as ctx:
@@ -202,7 +209,7 @@ class TestGcpVisionHook:
         )
         # Then
         assert response
-        assert response == MessageToDict(response_product_set)
+        assert response == MessageToDict(response_product_set._pb)
         get_product_set_method.assert_called_once_with(name=name, retry=DEFAULT, timeout=None, metadata=())
 
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn")
@@ -226,7 +233,7 @@ class TestGcpVisionHook:
             metadata=(),
         )
         # Then
-        assert result == MessageToDict(product_set)
+        assert result == MessageToDict(product_set._pb)
         update_product_set_method.assert_called_once_with(
             product_set=ProductSet(name=productset_name),
             metadata=(),
@@ -288,7 +295,7 @@ class TestGcpVisionHook:
             metadata=(),
         )
         # Then
-        assert result == MessageToDict(product_set)
+        assert result == MessageToDict(product_set._pb)
         update_product_set_method.assert_called_once_with(
             product_set=ProductSet(name=explicit_ps_name),
             metadata=(),
@@ -465,7 +472,9 @@ class TestGcpVisionHook:
         # Then
         # Product ID was provided explicitly in the method call above, should be returned from the method
         batch_annotate_images_method.assert_called_once_with(
-            requests=BATCH_ANNOTATE_IMAGE_REQUEST, retry=DEFAULT, timeout=None
+            requests=list(map(AnnotateImageRequest, BATCH_ANNOTATE_IMAGE_REQUEST)),
+            retry=DEFAULT,
+            timeout=None,
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn")
@@ -473,7 +482,7 @@ class TestGcpVisionHook:
         # Given
         create_product_method = get_conn.return_value.create_product
         create_product_method.return_value = None
-        parent = ProductSearchClient.location_path(PROJECT_ID_TEST, LOC_ID_TEST)
+        parent = f"projects/{PROJECT_ID_TEST}/locations/{LOC_ID_TEST}"
         product = Product()
         # When
         result = self.hook.create_product(
@@ -500,7 +509,7 @@ class TestGcpVisionHook:
         )
         create_product_method = get_conn.return_value.create_product
         create_product_method.return_value = response_product
-        parent = ProductSearchClient.location_path(PROJECT_ID_TEST, LOC_ID_TEST)
+        parent = f"projects/{PROJECT_ID_TEST}/locations/{LOC_ID_TEST}"
         product = Product()
         # When
         result = self.hook.create_product(
@@ -521,7 +530,7 @@ class TestGcpVisionHook:
         response_product = Product(name=wrong_name)
         create_product_method = get_conn.return_value.create_product
         create_product_method.return_value = response_product
-        parent = ProductSearchClient.location_path(PROJECT_ID_TEST, LOC_ID_TEST)
+        parent = f"projects/{PROJECT_ID_TEST}/locations/{LOC_ID_TEST}"
         product = Product()
         # When
         with pytest.raises(AirflowException) as ctx:
@@ -542,7 +551,7 @@ class TestGcpVisionHook:
         response_product = None
         create_product_method = get_conn.return_value.create_product
         create_product_method.return_value = response_product
-        parent = ProductSearchClient.location_path(PROJECT_ID_TEST, LOC_ID_TEST)
+        parent = f"projects/{PROJECT_ID_TEST}/locations/{LOC_ID_TEST}"
         product = Product()
         # When
         with pytest.raises(AirflowException) as ctx:
@@ -576,7 +585,7 @@ class TestGcpVisionHook:
             metadata=(),
         )
         # Then
-        assert result == MessageToDict(product)
+        assert result == MessageToDict(product._pb)
         update_product_method.assert_called_once_with(
             product=Product(name=product_name), metadata=(), retry=DEFAULT, timeout=None, update_mask=None
         )
@@ -631,7 +640,7 @@ class TestGcpVisionHook:
             metadata=(),
         )
         # Then
-        assert result == MessageToDict(product)
+        assert result == MessageToDict(product._pb)
         update_product_method.assert_called_once_with(
             product=Product(name=explicit_p_name), metadata=(), retry=DEFAULT, timeout=None, update_mask=None
         )

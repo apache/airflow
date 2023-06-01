@@ -19,7 +19,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import BadRequest, Conflict
@@ -32,6 +31,7 @@ from google.cloud.bigquery import (
     LoadJob,
     QueryJob,
     SchemaField,
+    UnknownJob,
 )
 from google.cloud.bigquery.table import EncryptionConfiguration, Table, TableReference
 
@@ -128,9 +128,6 @@ class GCSToBigQueryOperator(BaseOperator):
         execute() command, which in turn gets stored in XCom for future
         operators to use. This can be helpful with incremental loads--during
         future executions, you can pick up from the max ID.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
     :param src_fmt_configs: configure optional fields specific to the source format
@@ -208,7 +205,6 @@ class GCSToBigQueryOperator(BaseOperator):
         encoding="UTF-8",
         max_id_key=None,
         gcp_conn_id="google_cloud_default",
-        delegate_to=None,
         schema_update_options=(),
         src_fmt_configs=None,
         external_table=False,
@@ -274,11 +270,6 @@ class GCSToBigQueryOperator(BaseOperator):
 
         self.max_id_key = max_id_key
         self.gcp_conn_id = gcp_conn_id
-        if delegate_to:
-            warnings.warn(
-                "'delegate_to' parameter is deprecated, please use 'impersonation_chain'", DeprecationWarning
-            )
-        self.delegate_to = delegate_to
 
         self.schema_update_options = schema_update_options
         self.src_fmt_configs = src_fmt_configs
@@ -317,14 +308,13 @@ class GCSToBigQueryOperator(BaseOperator):
         )
 
     @staticmethod
-    def _handle_job_error(job: BigQueryJob) -> None:
+    def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
         if job.error_result:
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
     def execute(self, context: Context):
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
@@ -356,7 +346,6 @@ class GCSToBigQueryOperator(BaseOperator):
             if self.schema_object and self.source_format != "DATASTORE_BACKUP":
                 gcs_hook = GCSHook(
                     gcp_conn_id=self.gcp_conn_id,
-                    delegate_to=self.delegate_to,
                     impersonation_chain=self.impersonation_chain,
                 )
                 self.schema_fields = json.loads(
@@ -386,7 +375,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
             try:
                 self.log.info("Executing: %s", self.configuration)
-                job = self._submit_job(self.hook, job_id)
+                job: BigQueryJob | UnknownJob = self._submit_job(self.hook, job_id)
             except Conflict:
                 # If the job already exists retrieve it
                 job = self.hook.get_job(
@@ -467,7 +456,6 @@ class GCSToBigQueryOperator(BaseOperator):
     def _find_max_value_in_column(self):
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
@@ -540,6 +528,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "skipLeadingRows",
                 "quote",
                 "encoding",
+                "preserveAsciiControlCharacters",
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
         }

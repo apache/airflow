@@ -104,7 +104,7 @@ For more information on updateMask and other parameters take a look at `Dataproc
 
 An example of a new cluster config and the updateMask:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_update.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_update.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_updatemask_cluster_operator]
@@ -113,7 +113,7 @@ An example of a new cluster config and the updateMask:
 To update a cluster you can use:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocUpdateClusterOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_update.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_update.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_update_cluster_operator]
@@ -264,7 +264,7 @@ Once a workflow is created users can trigger it using
 
 Also for all this action you can use operator in the deferrable mode:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_workflow.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_workflow_deferrable.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_trigger_workflow_template_async]
@@ -278,6 +278,15 @@ The inline operator is an alternative. It creates a workflow, run it, and delete
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_instantiate_inline_workflow_template]
     :end-before: [END how_to_cloud_dataproc_instantiate_inline_workflow_template]
+
+Also for all this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_workflow_deferrable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_instantiate_inline_workflow_template_async]
+    :end-before: [END how_to_cloud_dataproc_instantiate_inline_workflow_template_async]
+
 
 Create a Batch
 --------------

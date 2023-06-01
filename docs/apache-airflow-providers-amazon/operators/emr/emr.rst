@@ -188,6 +188,23 @@ To monitor the state of an EMR job flow you can use
 Wait on an Amazon EMR step state
 ================================
 
+To monitor the state of an EMR job step you can use
+:class:`~airflow.providers.amazon.aws.sensors.emr.EmrStepSensor`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_emr_step]
+    :end-before: [END howto_sensor_emr_step]
+
+Throttling
+----------
+
+Amazon EMR has relatively low service quotas, which can be viewed in detail `here <https://docs.aws.amazon.com/general/latest/gr/emr.html#limits_emr>`__.
+As a consequence, you might experience throttling issues when using any of the operators and sensors listed in this
+page. To circumvent this limitation, consider customizing the AWS connection configuration to modify the default Boto3
+retry strategy. `See AWS connection configuration documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/connections/aws.html#avoid-throttling-exceptions>`__.
+
 Reference
 ---------
 
