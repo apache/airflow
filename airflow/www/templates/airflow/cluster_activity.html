@@ -18,17 +18,16 @@
  #}
 
 {% extends base_template %}
-{% block page_title %}Datasets - {{ appbuilder.app_name }}{% endblock %}
+{% block page_title %}Cluster Activity - {{ appbuilder.app_name }}{% endblock %}
 {% from 'appbuilder/loading_dots.html' import loading_dots %}
 
 {% block head_meta %}
   {{ super() }}
-  <meta name="datasets_api" content="{{ url_for('Airflow.datasets_summary') }}">
-  <meta name="dataset_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dataset_endpoint_get_dataset', uri='__URI__') }}">
-  <meta name="dataset_events_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dataset_endpoint_get_dataset_events') }}">
-  <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id='__DAG_ID__') }}">
-  <meta name="datasets_docs" content="{{ get_docs_url('concepts/datasets.html') }}">
-  <meta name="dataset_dependencies_url" content="{{ url_for('Airflow.dataset_dependencies') }}">
+  <meta name="health_url" content="{{ url_for('Airflow.health')}}">
+  <meta name="pools_url" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_pool_endpoint_get_pools') }}">
+  <meta name="dags_url" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dags') }}">
+  <meta name="dag_runs_url" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_get_dag_runs', dag_id='__DAG_ID__') }}">
+  <meta name="historical_metrics_data_url" content="{{ url_for('Airflow.historical_metrics_data') }}">
 {% endblock %}
 
 {% block content %}
@@ -43,6 +42,7 @@
   {{ super()}}
   <script>
     const stateColors = {{ state_color_mapping|tojson }};
+    const autoRefreshInterval = {{ auto_refresh_interval }};
   </script>
-  <script src="{{ url_for_asset('datasets.js') }}"></script>
+  <script src="{{ url_for_asset('clusterActivity.js') }}"></script>
 {% endblock %}
