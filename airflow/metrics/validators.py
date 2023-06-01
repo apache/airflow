@@ -25,13 +25,10 @@ import re
 import string
 import warnings
 from functools import partial, wraps
-from typing import Callable, Iterable, Pattern, TypeVar, cast
+from typing import Callable, Iterable, Pattern, cast
 
 from airflow.configuration import conf
 from airflow.exceptions import InvalidStatsNameException
-
-# TODO: replace
-T = TypeVar("T", bound=Callable)
 
 log = logging.getLogger(__name__)
 
@@ -83,14 +80,14 @@ BACK_COMPAT_METRIC_NAMES: set[Pattern[str]] = {re.compile(name) for name in BACK
 OTEL_NAME_MAX_LENGTH = 63
 
 
-def validate_stat(fn: T) -> T:
+def validate_stat(fn: Callable) -> Callable:
     """
     Check if stat name contains invalid characters.
     Log and not emit stats if name is invalid.
     """
 
     @wraps(fn)
-    def wrapper(self, stat: str | None = None, *args, **kwargs) -> T | None:
+    def wrapper(self, stat: str | None = None, *args, **kwargs) -> Callable | None:
         try:
             if stat is not None:
                 handler_stat_name_func = get_current_handler_stat_name_func()
@@ -100,7 +97,7 @@ def validate_stat(fn: T) -> T:
             log.exception("Invalid stat name: %s.", stat)
             return None
 
-    return cast(T, wrapper)
+    return cast(Callable, wrapper)
 
 
 def stat_name_otel_handler(
