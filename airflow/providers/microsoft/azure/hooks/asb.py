@@ -57,17 +57,17 @@ class BaseAzureServiceBusHook(BaseHook):
 
 
 class AdminClientHook(BaseAzureServiceBusHook):
-    """
-    Interacts with ServiceBusAdministrationClient client
-    to create, update, list, and delete resources of a
-    Service Bus namespace.  This hook uses the same Azure Service Bus client connection inherited
-    from the base class.
+    """Interact with the ServiceBusAdministrationClient.
+
+    This can create, update, list, and delete resources of a Service Bus
+    namespace. This hook uses the same Azure Service Bus client connection
+    inherited from the base class.
     """
 
     def get_conn(self) -> ServiceBusAdministrationClient:
-        """
-        Create and returns ServiceBusAdministrationClient by using the connection
-        string in connection details.
+        """Create a ServiceBusAdministrationClient instance.
+
+        This uses the connection string in connection details.
         """
         conn = self.get_connection(self.conn_id)
 
@@ -134,9 +134,9 @@ class AdminClientHook(BaseAzureServiceBusHook):
 
 
 class MessageHook(BaseAzureServiceBusHook):
-    """
-    Interacts with ServiceBusClient and acts as a high level interface
-    for getting ServiceBusSender and ServiceBusReceiver.
+    """Interact with ServiceBusClient.
+
+    This acts as a high level interface for getting ServiceBusSender and ServiceBusReceiver.
     """
 
     def get_conn(self) -> ServiceBusClient:
@@ -148,9 +148,9 @@ class MessageHook(BaseAzureServiceBusHook):
         return ServiceBusClient.from_connection_string(conn_str=connection_string, logging_enable=True)
 
     def send_message(self, queue_name: str, messages: str | list[str], batch_message_flag: bool = False):
-        """
-        By using ServiceBusClient Send message(s) to a Service Bus Queue. By using
-        batch_message_flag it enables and send message as batch message.
+        """Use ServiceBusClient Send to send message(s) to a Service Bus Queue.
+
+        By using ``batch_message_flag``, it enables and send message as batch message.
 
         :param queue_name: The name of the queue or a QueueProperties with name.
         :param messages: Message which needs to be sent to the queue. It can be string or list of string.
@@ -220,9 +220,10 @@ class MessageHook(BaseAzureServiceBusHook):
         max_message_count: int | None,
         max_wait_time: float | None,
     ):
-        """
-        Receive a batch of subscription message at once. This approach is optimal if you wish
-        to process multiple messages simultaneously, or perform an ad-hoc receive as a single call.
+        """Receive a batch of subscription message at once.
+
+        This approach is optimal if you wish to process multiple messages
+        simultaneously, or perform an ad-hoc receive as a single call.
 
         :param subscription_name: The subscription name that will own the rule in topic
         :param topic_name: The topic that will own the subscription rule.
