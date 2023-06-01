@@ -146,8 +146,7 @@ class SetupTeardownContext:
             if upstream_setup:
                 SetupTeardownContext.push_context_managed_setup_task(upstream_setup)
         elif operator.is_setup:
-            upstream_tasks = operator.upstream_list
-            for task in upstream_tasks:
+            for task in operator.upstream_list:
                 if not task.is_setup and not task.is_teardown:
                     raise ValueError(
                         "All upstream tasks in the context manager must be a setup or teardown task"
