@@ -49,7 +49,7 @@ class DepthTracker:
     obj: DependencyMixin | Sequence[DependencyMixin]
 
     def __post_init__(self):
-        self.cw = None
+        self.cm = None
 
     def __enter__(self):
         if isinstance(self.obj, DependencyMixin):
