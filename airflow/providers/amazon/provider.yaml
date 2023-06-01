@@ -518,6 +518,10 @@ triggers:
   - integration-name: Amazon SageMaker
     python-modules:
       - airflow.providers.amazon.aws.triggers.sagemaker
+  - integration-name: AWS Glue
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.glue
+      - airflow.providers.amazon.aws.triggers.glue_crawler
 
 transfers:
   - source-integration-name: Amazon DynamoDB
