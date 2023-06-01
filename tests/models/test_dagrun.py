@@ -2489,7 +2489,7 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
 
     t<num> -- teardown task
     t<num>_ -- teardown task with on_failure_fail_dagrun = True
-    s<num>_ -- setup task
+    s<num> -- setup task
     w<num> -- work task (a.k.a. normal task)
 
     In the test input, each line is a statement. We'll automatically create the tasks and wire them up
