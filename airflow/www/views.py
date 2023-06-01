@@ -70,7 +70,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, case, desc, func, inspect, union_all
+from sqlalchemy import Date, and_, case, desc, func, inspect, or_, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
@@ -971,6 +971,22 @@ class Airflow(AirflowBaseView):
         state_color_mapping["null"] = state_color_mapping.pop(None)
         return self.render_template(
             "airflow/datasets.html",
+            state_color_mapping=state_color_mapping,
+        )
+
+    @expose("/cluster_activity")
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
+        ]
+    )
+    def cluster_activity(self):
+        """Cluster Activity view."""
+        state_color_mapping = State.state_color.copy()
+        state_color_mapping["no_status"] = state_color_mapping.pop(None)
+        return self.render_template(
+            "airflow/cluster_activity.html",
+            auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             state_color_mapping=state_color_mapping,
         )
 
@@ -3786,6 +3802,71 @@ class Airflow(AirflowBaseView):
                 "ordering": dag.timetable.run_ordering,
             }
         # avoid spaces to reduce payload size
+        return (
+            htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
+            {"Content-Type": "application/json; charset=utf-8"},
+        )
+
+    @expose("/object/historical_metrics_data")
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
+        ]
+    )
+    def historical_metrics_data(self):
+        """Returns cluster activity historical metrics"""
+        start_date = _safe_parse_datetime(request.args.get("start_date"))
+        end_date = _safe_parse_datetime(request.args.get("end_date"))
+        with create_session() as session:
+            # DagRuns
+            dag_runs_type = (
+                session.query(DagRun.run_type, func.count(DagRun.run_id))
+                .filter(
+                    DagRun.start_date >= start_date,
+                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                )
+                .group_by(DagRun.run_type)
+                .all()
+            )
+
+            dag_run_states = (
+                session.query(DagRun.state, func.count(DagRun.run_id))
+                .filter(
+                    DagRun.start_date >= start_date,
+                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                )
+                .group_by(DagRun.state)
+                .all()
+            )
+
+            # TaskInstances
+            task_instance_states = (
+                session.query(TaskInstance.state, func.count(TaskInstance.run_id))
+                .join(TaskInstance.dag_run)
+                .filter(
+                    DagRun.start_date >= start_date,
+                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                )
+                .group_by(TaskInstance.state)
+                .all()
+            )
+
+            data = {
+                "dag_run_types": {
+                    **{dag_run_type.value: 0 for dag_run_type in DagRunType},
+                    **{run_type: sum_value for run_type, sum_value in dag_runs_type},
+                },
+                "dag_run_states": {
+                    **{dag_run_state.value: 0 for dag_run_state in DagRunState},
+                    **{run_state: sum_value for run_state, sum_value in dag_run_states},
+                },
+                "task_instance_states": {
+                    "no_status": 0,
+                    **{ti_state.value: 0 for ti_state in TaskInstanceState},
+                    **{ti_state or "no_status": sum_value for ti_state, sum_value in task_instance_states},
+                },
+            }
+
         return (
             htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
             {"Content-Type": "application/json; charset=utf-8"},
