@@ -365,7 +365,6 @@ mypy_dependencies = [
 
 # Dependencies needed for development only
 devel_only = [
-    "asynctest~=0.13",
     "aws_xray_sdk",
     "beautifulsoup4>=4.7.1",
     "black",
