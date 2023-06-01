@@ -19,6 +19,7 @@ from __future__ import annotations
 import inspect
 import re
 import warnings
+from functools import cached_property
 from itertools import chain
 from textwrap import dedent
 from typing import (
@@ -41,7 +42,6 @@ import typing_extensions
 from sqlalchemy.orm import Session
 
 from airflow import Dataset
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (

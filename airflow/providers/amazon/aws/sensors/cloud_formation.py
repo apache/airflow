@@ -18,12 +18,12 @@
 """This module contains sensors for AWS CloudFormation."""
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
 from airflow.sensors.base import BaseSensorOperator
 

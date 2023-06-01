@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class DruidOperator(BaseOperator):
     """
-    Allows to submit a task directly to druid
+    Allows to submit a task directly to druid.
 
     :param json_index_file: The filepath to the druid index specification
     :param druid_ingest_conn_id: The connection id of the Druid overlord which

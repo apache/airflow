@@ -646,6 +646,8 @@ workers:
     #   memory: 128Mi
 
   waitForMigrations:
+    # Whether to create init container to wait for db migrations
+    enabled: true
     env: []
 
   env: []

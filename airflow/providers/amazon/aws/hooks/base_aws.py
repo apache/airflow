@@ -31,7 +31,7 @@ import logging
 import os
 import uuid
 from copy import deepcopy
-from functools import wraps
+from functools import cached_property, wraps
 from os import PathLike
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
@@ -49,7 +49,6 @@ from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
 from slugify import slugify
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -837,7 +836,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             corresponding value. If a custom waiter has such keys to be expanded, they need to be provided
             here.
         :param deferrable: If True, the waiter is going to be an async custom waiter.
-
+            An async client must be provided in that case.
+        :param client: The client to use for the waiter's operations
         """
         from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
 
