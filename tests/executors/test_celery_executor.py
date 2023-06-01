@@ -34,7 +34,7 @@ from celery.result import AsyncResult
 from kombu.asynchronous import set_event_loop
 
 from airflow.configuration import conf
-from airflow.executors import celery_executor
+from airflow.executors import celery_executor, celery_executor_utils
 from airflow.executors.celery_executor import CeleryExecutor
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
@@ -64,14 +64,14 @@ class FakeCeleryResult:
 @contextlib.contextmanager
 def _prepare_app(broker_url=None, execute=None):
     broker_url = broker_url or conf.get("celery", "BROKER_URL")
-    execute = execute or celery_executor.execute_command.__wrapped__
+    execute = execute or celery_executor_utils.execute_command.__wrapped__
 
-    test_config = dict(celery_executor.celery_configuration)
+    test_config = dict(celery_executor_utils.celery_configuration)
     test_config.update({"broker_url": broker_url})
     test_app = Celery(broker_url, config_source=test_config)
     test_execute = test_app.task(execute)
     patch_app = mock.patch("airflow.executors.celery_executor.app", test_app)
-    patch_execute = mock.patch("airflow.executors.celery_executor.execute_command", test_execute)
+    patch_execute = mock.patch("airflow.executors.celery_executor_utils.execute_command", test_execute)
 
     backend = test_app.backend
 
@@ -109,12 +109,12 @@ class TestCeleryExecutor:
 
     @pytest.mark.backend("mysql", "postgres")
     def test_exception_propagation(self, caplog):
-        caplog.set_level(logging.ERROR, logger="airflow.executors.celery_executor.BulkStateFetcher")
+        caplog.set_level(logging.ERROR, logger="airflow.executors.celery_executor_utils.BulkStateFetcher")
         with _prepare_app():
             executor = celery_executor.CeleryExecutor()
             executor.tasks = {"key": FakeCeleryResult()}
             executor.bulk_state_fetcher._get_many_using_multiprocessing(executor.tasks.values())
-        assert celery_executor.CELERY_FETCH_ERR_MSG_HEADER in caplog.text, caplog.record_tuples
+        assert celery_executor_utils.CELERY_FETCH_ERR_MSG_HEADER in caplog.text, caplog.record_tuples
         assert FAKE_EXCEPTION_MSG in caplog.text, caplog.record_tuples
 
     @mock.patch("airflow.executors.celery_executor.CeleryExecutor.sync")
@@ -153,15 +153,15 @@ class TestCeleryExecutor:
             )
 
         with mock.patch(
-            "airflow.executors.celery_executor._execute_in_subprocess"
+            "airflow.executors.celery_executor_utils._execute_in_subprocess"
         ) as mock_subproc, mock.patch(
-            "airflow.executors.celery_executor._execute_in_fork"
+            "airflow.executors.celery_executor_utils._execute_in_fork"
         ) as mock_fork, mock.patch(
             "celery.app.task.Task.request"
         ) as mock_task:
             mock_task.id = "abcdef-124215-abcdef"
             with expected_context:
-                celery_executor.execute_command(command)
+                celery_executor_utils.execute_command(command)
             if raise_exception:
                 mock_subproc.assert_not_called()
                 mock_fork.assert_not_called()
@@ -250,7 +250,7 @@ class TestCeleryExecutor:
 
 
 def test_operation_timeout_config():
-    assert celery_executor.OPERATION_TIMEOUT == 1
+    assert celery_executor_utils.OPERATION_TIMEOUT == 1
 
 
 class MockTask:
