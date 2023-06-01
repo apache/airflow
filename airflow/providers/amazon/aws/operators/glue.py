@@ -21,7 +21,6 @@ import os.path
 import urllib.parse
 from typing import TYPE_CHECKING, Sequence
 
-from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -183,7 +182,6 @@ class GlueJobOperator(BaseOperator):
                     verbose=self.verbose,
                     aws_conn_id=self.aws_conn_id,
                 ),
-                method_name="execute_complete",
             )
         elif self.wait_for_completion:
             glue_job_run = glue_job.job_completion(self.job_name, glue_job_run["JobRunId"], self.verbose)
@@ -196,8 +194,3 @@ class GlueJobOperator(BaseOperator):
         else:
             self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, glue_job_run["JobRunId"])
         return glue_job_run["JobRunId"]
-
-    def execute_complete(self, context, event=None):
-        if event["status"] != "success":
-            raise AirflowException(f"Error in glue job: {event}")
-        return

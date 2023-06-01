@@ -81,7 +81,7 @@ from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.not_previously_skipped_dep import NotPreviouslySkippedDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
-from airflow.triggers.base import BaseTrigger
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.decorators import fixup_decorator_warning_stack
@@ -1574,7 +1574,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self,
         *,
         trigger: BaseTrigger,
-        method_name: str,
+        method_name: str = "execute_complete",
         kwargs: dict[str, Any] | None = None,
         timeout: timedelta | None = None,
     ):
@@ -1586,6 +1586,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         which is caught in the main _execute_task wrapper.
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
+
+    def execute_complete(self, context, event=None):
+        """The default method for handling the event returned after the deferred operation completes."""
+        op_name = type(self).__name__
+        if event is None or event["status"] != TriggerEvent.STATUS_SUCCESS:
+            raise AirflowException(f"{op_name}'s deferred operation was not completed successfully: {event}")
+        else:
+            self.log.info("% completed successfully", op_name)
+        return event.get("value")
 
     def unmap(self, resolve: None | dict[str, Any] | tuple[Context, Session]) -> BaseOperator:
         """Get the "normal" operator from the current operator.

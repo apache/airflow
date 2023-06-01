@@ -109,8 +109,19 @@ class TriggerEvent:
     events.
     """
 
+    STATUS_SUCCESS = "success"
+
     def __init__(self, payload: Any):
         self.payload = payload
+
+    @classmethod
+    def success(cls, value: Any = None) -> TriggerEvent:
+        """
+        Creates a TriggerEvent to be returned by a deferred operation that completed successfully
+
+        :param value: the value to be returned by the operator on completion
+        """
+        return TriggerEvent({"status": cls.STATUS_SUCCESS, "value": value})
 
     def __repr__(self) -> str:
         return f"TriggerEvent<{self.payload!r}>"
