@@ -143,7 +143,6 @@ Name                                                Description
 ``dag_processing.total_parse_time``                 Seconds taken to scan and import ``dag_processing.file_path_queue_size`` DAG files
 ``dag_processing.file_path_queue_size``             Number of DAG files to be considered for the next scan
 ``dag_processing.last_run.seconds_ago.<dag_file>``  Seconds since ``<dag_file>`` was last processed
-``dag_processing.file_path_queue_size``             Size of the dag file queue.
 ``scheduler.tasks.starving``                        Number of tasks that cannot be scheduled because of no open slot in pool
 ``scheduler.tasks.executable``                      Number of tasks that are ready for execution (set to queued)
                                                     with respect to pool limits, DAG concurrency, executor state,
