@@ -59,6 +59,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     get_container_termination_message,
 )
 from airflow.settings import pod_mutation_hook
+from airflow.typing_compat import Literal
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
 from airflow.utils.timezone import utcnow
@@ -275,7 +276,7 @@ class KubernetesPodOperator(BaseOperator):
         reattach_on_restart: bool = True,
         startup_timeout_seconds: int = 120,
         get_logs: bool = True,
-        container_logs: list[str] | str | bool = BASE_CONTAINER_NAME,
+        container_logs: list[str] | str | Literal[True] = BASE_CONTAINER_NAME,
         image_pull_policy: str | None = None,
         annotations: dict | None = None,
         container_resources: k8s.V1ResourceRequirements | None = None,

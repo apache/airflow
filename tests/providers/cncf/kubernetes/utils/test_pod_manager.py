@@ -336,7 +336,7 @@ class TestPodManager:
             assert ret.running is False
 
     # adds all valid types for container_logs
-    @pytest.mark.parametrize("container_logs", [1, None, dict()])
+    @pytest.mark.parametrize("container_logs", [1, None, 6.8])
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_fetch_requested_container_logs_invalid(self, container_running, container_logs):
         mock_pod = MagicMock()
