@@ -93,13 +93,15 @@ class TaskStateTrigger(BaseTrigger):
             try:
                 delta = utcnow() - self.trigger_start_time
                 if delta.total_seconds() < self._timeout_sec:
-                    if await self.count_running_dags() == 0:
+                    # mypy confuses typing here
+                    if await self.count_running_dags() == 0:  # type: ignore[call-arg]
                         self.log.info("Waiting for DAG to start execution...")
                         await asyncio.sleep(self.poll_interval)
                 else:
                     yield TriggerEvent({"status": "timeout"})
                     return
-                if await self.count_tasks() == len(self.execution_dates):
+                # mypy confuses typing here
+                if await self.count_tasks() == len(self.execution_dates):  # type: ignore[call-arg]
                     yield TriggerEvent({"status": "success"})
                     return
                 self.log.info("Task is still running, sleeping for %s seconds...", self.poll_interval)
