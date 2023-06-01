@@ -341,7 +341,7 @@ class PodManager(LoggingMixin):
 
         Returns when container exits.
 
-        Between when the pod starts and logs being available, there might a delay due to CSR not approved
+        Between when the pod starts and logs being available, there might be a delay due to CSR not approved
         and signed yet. In such situation, ApiException is thrown. This is why we are retrying on this
         specific exception.
         """
