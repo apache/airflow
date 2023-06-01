@@ -979,9 +979,7 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
         super().__init__(*args, **kwargs)
 
     async def get_role_credentials(self) -> dict:
-        """Get the role_arn, method credentials from connection details and get the role credentials
-        detail.
-        """
+        """Get the role_arn, method credentials from connection and get the role credentials."""
         async with self._basic_session.create_client("sts", region_name=self.region_name) as client:
             response = await client.assume_role(
                 RoleArn=self.role_arn,
@@ -1009,7 +1007,6 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
         return credentials
 
     def _get_session_with_assume_role(self) -> AioSession:
-
         assume_role_method = self.conn.assume_role_method
         if assume_role_method != "assume_role":
             raise NotImplementedError(f"assume_role_method={assume_role_method} not expected")
