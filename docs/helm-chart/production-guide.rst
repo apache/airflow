@@ -338,12 +338,12 @@ The same way one can configure the global :ref:`securityContexts <parameters:Kub
 .. code-block:: yaml
 
   workers:
-    securityContext:
-    pod:
-      runAsUser: 5000
-      fsGroup: 0
-    containers:
-      allowPrivilegeEscalation: false
+    securityContexts:
+      pod:
+        runAsUser: 5000
+        fsGroup: 0
+      containers:
+        allowPrivilegeEscalation: false
 
 
 In the example above, the workers Pod ``securityContexts`` will be set to ``runAsUser: 5000`` and ``runAsGroup: 0``.  The containers pod will be set to ``allowPrivilegeEscalation: false``.
