@@ -346,7 +346,7 @@ The same way one can configure the global :ref:`securityContexts <parameters:Kub
         allowPrivilegeEscalation: false
 
 
-In the example above, the workers Pod ``securityContexts`` will be set to ``runAsUser: 5000`` and ``runAsGroup: 0``.  The containers pod will be set to ``allowPrivilegeEscalation: false``.
+In the example above, the workers Pod ``securityContexts`` will be set to ``runAsUser: 5000`` and ``fsGroup: 0``.  The containers pod will be set to ``allowPrivilegeEscalation: false``.
 
 As one can see, the local setting will take precedence over the global setting when defined. The following explains the precedence rule for ``securityContexts`` options in this chart:
 
