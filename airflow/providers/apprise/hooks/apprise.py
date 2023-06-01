@@ -40,7 +40,7 @@ class AppriseHook(BaseHook):
     conn_type = "apprise"
     hook_name = "Apprise"
 
-    def __init__(self, apprise_conn_id: str = default_conn_name):
+    def __init__(self, apprise_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.apprise_conn_id = apprise_conn_id
 
