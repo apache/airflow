@@ -64,7 +64,7 @@ class DrillHook(DbApiHook):
 
     def get_uri(self) -> str:
         """
-        Returns the connection URI
+        Returns the connection URI.
 
         e.g: ``drill://localhost:8047/dfs``
         """

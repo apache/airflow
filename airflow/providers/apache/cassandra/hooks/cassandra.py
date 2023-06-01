@@ -37,7 +37,7 @@ Policy = Union[DCAwareRoundRobinPolicy, RoundRobinPolicy, TokenAwarePolicy, Whit
 
 class CassandraHook(BaseHook, LoggingMixin):
     """
-    Hook used to interact with Cassandra
+    Hook used to interact with Cassandra.
 
     Contact points can be specified as a comma-separated string in the 'hosts'
     field of the connection.
@@ -125,7 +125,7 @@ class CassandraHook(BaseHook, LoggingMixin):
         self.session = None
 
     def get_conn(self) -> Session:
-        """Returns a cassandra Session object"""
+        """Returns a cassandra Session object."""
         if self.session and not self.session.is_shutdown:
             return self.session
         self.session = self.cluster.connect(self.keyspace)
@@ -177,7 +177,7 @@ class CassandraHook(BaseHook, LoggingMixin):
 
     def table_exists(self, table: str) -> bool:
         """
-        Checks if a table exists in Cassandra
+        Checks if a table exists in Cassandra.
 
         :param table: Target Cassandra table.
                       Use dot notation to target a specific keyspace.
@@ -190,7 +190,7 @@ class CassandraHook(BaseHook, LoggingMixin):
 
     def record_exists(self, table: str, keys: dict[str, str]) -> bool:
         """
-        Checks if a record exists in Cassandra
+        Checks if a record exists in Cassandra.
 
         :param table: Target Cassandra table.
                       Use dot notation to target a specific keyspace.
