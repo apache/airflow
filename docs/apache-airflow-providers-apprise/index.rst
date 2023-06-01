@@ -55,8 +55,8 @@ Release: 1.0.0
 Provider package
 ----------------
 
-This is a provider package for ``apprise`` provider. All classes for this provider package
-are in ``airflow.providers.apprise`` python package.
+This is a provider package for ``apprise`` notification library. All classes for this provider package
+are in ``airflow.providers.apprise`` python module.
 
 
 Requirements
