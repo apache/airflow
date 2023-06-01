@@ -3067,7 +3067,7 @@ class Airflow(AirflowBaseView):
         tasks = {
             t.task_id: {
                 "dag_id": t.dag_id,
-                "operator_name": t.operator_name,
+                "task_type": t.task_type,
                 "extra_links": t.extra_links,
                 "is_mapped": isinstance(t, MappedOperator),
                 "trigger_rule": t.trigger_rule,
