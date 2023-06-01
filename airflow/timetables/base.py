@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, NamedTuple, Sequence
+from warnings import warn
 
 from pendulum import DateTime
 
@@ -122,11 +123,24 @@ class Timetable(Protocol):
     like ``schedule=None`` and ``"@once"`` set it to *False*.
     """
 
-    can_run: bool = True
-    """Whether this timetable can actually schedule runs.
+    _can_be_scheduled: bool = True
 
-    This defaults to and should generally be *True*, but ``NullTimetable`` sets
-    this to *False*.
+    @property
+    def can_be_scheduled(self):
+        if hasattr(self, "can_run"):
+            warn(
+                'can_run class variable is deprecated. Use "can_be_scheduled" instead.',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return self.can_run
+        return self._can_be_scheduled
+
+    """Whether this timetable can actually schedule runs in an automated manner.
+
+    This defaults to and should generally be *True* (including non periodic
+    execution types like *@once* and data triggered tables), but
+    ``NullTimetable`` sets this to *False*.
     """
 
     run_ordering: Sequence[str] = ("data_interval_end", "execution_date")

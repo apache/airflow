@@ -21,20 +21,15 @@ import logging
 import math
 import pickle
 import re
-import sys
 import textwrap
 from datetime import datetime
+from functools import cached_property
 
 import pendulum
 import rich_click as click
-from github import Github
+from github import Github, UnknownObjectException
 from github.PullRequest import PullRequest
 from rich.console import Console
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 logger = logging.getLogger(__name__)
 
@@ -156,7 +151,10 @@ class PrStat:
             repo = self.g.get_repo("apache/airflow")
             issue_reactions = 0
             for num in self.issue_nums:
-                issue = repo.get_issue(number=num)
+                try:
+                    issue = repo.get_issue(num)
+                except UnknownObjectException:
+                    continue
                 for reaction in issue.get_reactions():
                     self._users.add(reaction.user.login)
                     issue_reactions += 1
@@ -172,9 +170,11 @@ class PrStat:
             issue_comments = 0
             len_issue_comments = 0
             for num in self.issue_nums:
-                issue = repo.get_issue(number=num)
-                issues = issue.get_comments()
-                for issue_comment in issues:
+                try:
+                    issue = repo.get_issue(num)
+                except UnknownObjectException:
+                    continue
+                for issue_comment in issue.get_comments():
                     issue_comments += 1
                     self._users.add(issue_comment.user.login)
                     if issue_comment.body is not None:
@@ -283,6 +283,7 @@ class PrStat:
         # If there is at least one protm tag, multiply the interaction score by the number of tags, up to 3.
         interaction_score = self.interaction_score
         interaction_score *= min(self.protm_score + 1, 3)
+
         return round(
             1.0
             * interaction_score
@@ -297,13 +298,15 @@ class PrStat:
         if self.protm_score > 0:
             return (
                 "[magenta]##Tagged PR## [/]"
-                f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
+                f"Score: {self.score:.2f}: PR{self.pull_request.number}"
+                f"by @{self.pull_request.user.login}: "
                 f'"{self.pull_request.title}". '
                 f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
             )
         else:
             return (
-                f"Score: {self.score:.2f}: PR{self.pull_request.number} by @{self.pull_request.user.login}: "
+                f"Score: {self.score:.2f}: PR{self.pull_request.number}"
+                f"by @{self.pull_request.user.login}: "
                 f'"{self.pull_request.title}". '
                 f"Merged at {self.pull_request.merged_at}: {self.pull_request.html_url}"
             )

@@ -18,13 +18,12 @@
 """Connect to Asana."""
 from __future__ import annotations
 
-from functools import wraps
+from functools import cached_property, wraps
 from typing import Any
 
 from asana import Client  # type: ignore[attr-defined]
 from asana.error import NotFoundError  # type: ignore[attr-defined]
 
-from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 
 

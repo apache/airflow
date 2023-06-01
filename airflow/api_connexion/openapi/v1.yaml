@@ -2050,8 +2050,8 @@ paths:
     get:
       summary: Get instance status
       description: |
-        Get the status of Airflow's metadatabase and scheduler. It includes info about
-        metadatabase and last heartbeat of scheduler.
+        Get the status of Airflow's metadatabase, triggerer and scheduler. It includes info about
+        metadatabase and last heartbeat of scheduler and triggerer.
       x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
       operationId: get_health
       tags: [Monitoring]
@@ -3082,6 +3082,8 @@ components:
           $ref: '#/components/schemas/MetadatabaseStatus'
         scheduler:
           $ref: '#/components/schemas/SchedulerStatus'
+        triggerer:
+          $ref: '#/components/schemas/TriggererStatus'
 
     MetadatabaseStatus:
       type: object
@@ -3097,7 +3099,23 @@ components:
         status:
           $ref: '#/components/schemas/HealthStatus'
         latest_scheduler_heartbeat:
-          description: The time the scheduler last do a heartbeat.
+          description: The time the scheduler last did a heartbeat.
+          type: string
+          format: datetime
+          readOnly: true
+          nullable: true
+
+    TriggererStatus:
+      type: object
+      description: |
+        The status and the latest triggerer heartbeat.
+
+        *New in version 2.6.2*
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latest_triggerer_heartbeat:
+          description: The time the triggerer last did a heartbeat.
           type: string
           format: datetime
           readOnly: true
@@ -3492,7 +3510,7 @@ components:
         DAG details.
 
         For details see:
-        [airflow.models.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.DAG)
+        [airflow.models.dag.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/dag/index.html#airflow.models.dag.DAG)
       allOf:
         - $ref: '#/components/schemas/DAG'
         - type: object
@@ -3603,7 +3621,7 @@ components:
       type: object
       description: |
         For details see:
-        [airflow.models.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.BaseOperator)
+        [airflow.models.baseoperator.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/baseoperator/index.html#airflow.models.baseoperator.BaseOperator)
       properties:
         class_ref:
           $ref: '#/components/schemas/ClassReference'
@@ -4658,6 +4676,7 @@ components:
     HealthStatus:
       description: Health status
       type: string
+      nullable: true
       enum:
         - healthy
         - unhealthy
