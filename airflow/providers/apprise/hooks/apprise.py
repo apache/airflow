@@ -30,6 +30,9 @@ class AppriseHook(BaseHook):
     Use Apprise(https://github.com/caronc/apprise) to interact with notification services.
     The complete list of notification services supported by Apprise can be found at:
     https://github.com/caronc/apprise/wiki#notification-services
+    
+    :param apprise_conn_id: :ref:`Apprise connection id <howto/connection:apprise>`
+        that has services configured in the `config` field.
     """
 
     conn_name_attr = "apprise_conn_id"
