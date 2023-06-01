@@ -46,6 +46,7 @@ class OpenLineageListener:
         self.log = logging.getLogger(__name__)
         self.extractor_manager = ExtractorManager()
         self.adapter = OpenLineageAdapter()
+        self.current_ti: TaskInstance | None = None
 
     @hookimpl
     def on_task_instance_running(
@@ -59,6 +60,7 @@ class OpenLineageListener:
             return
 
         self.log.debug("OpenLineage listener got notification about task instance start")
+        self.current_ti = task_instance
         dagrun = task_instance.dag_run
         task = task_instance.task
         dag = task.dag
@@ -101,12 +103,13 @@ class OpenLineageListener:
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
                 },
             )
-
         on_running()
+
 
     @hookimpl
     def on_task_instance_success(self, previous_state, task_instance: TaskInstance, session):
         self.log.debug("OpenLineage listener got notification about task instance success")
+        self.current_ti = task_instance
 
         dagrun = task_instance.dag_run
         task = task_instance.task
@@ -135,6 +138,7 @@ class OpenLineageListener:
     @hookimpl
     def on_task_instance_failed(self, previous_state, task_instance: TaskInstance, session):
         self.log.debug("OpenLineage listener got notification about task instance failure")
+        self.current_ti = task_instance
 
         dagrun = task_instance.dag_run
         task = task_instance.task
@@ -174,8 +178,9 @@ class OpenLineageListener:
     def before_stopping(self, component):
         self.log.debug("before_stopping: %s", component.__class__.__name__)
         # TODO: configure this with Airflow config
-        with timeout(30):
-            self.executor.shutdown(wait=True)
+        if self._executor:
+            with timeout(30):
+                self.executor.shutdown(wait=True)
 
     @hookimpl
     def on_dag_run_running(self, dag_run: DagRun, msg: str):

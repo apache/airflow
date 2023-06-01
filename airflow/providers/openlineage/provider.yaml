@@ -31,8 +31,8 @@ dependencies:
   - apache-airflow>=2.7.0
   - apache-airflow-providers-common-sql>=1.6.0
   - attrs>=22.2
-  - openlineage-integration-common>=0.28.0
-  - openlineage-python>=0.28.0
+  - openlineage-integration-common>=0.29.2
+  - openlineage-python>=0.29.2
 
 integrations:
   - integration-name: OpenLineage

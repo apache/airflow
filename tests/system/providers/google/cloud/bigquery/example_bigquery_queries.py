@@ -38,6 +38,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryValueCheckOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+from tests.test_utils.openlineage import OpenlineageTestOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
@@ -235,11 +236,21 @@ for index, location in enumerate(locations, 1):
             trigger_rule=TriggerRule.ALL_DONE,
         )
 
+        openlineage_test = OpenlineageTestOperator(
+            task_id="openlineage_test",
+            event_templates={
+                f"{DAG_ID}.get_data.event.start": {
+                    "eventType": "START",
+                    "inputs": [{"namespace": "bigquery", "name": f"{PROJECT_ID}.{DATASET}.{TABLE_1}"}],
+                }
+            },
+        )
+
         # TEST SETUP
         create_dataset >> [create_table_1, create_table_2]
         # TEST BODY
         [create_table_1, create_table_2] >> insert_query_job >> [select_query_job, execute_insert_query]
-        execute_insert_query >> get_data >> get_data_result >> delete_dataset
+        execute_insert_query >> get_data >> get_data_result >> delete_dataset >> openlineage_test
         execute_insert_query >> execute_query_save >> bigquery_execute_multi_query >> delete_dataset
         execute_insert_query >> [check_count, check_value, check_interval] >> delete_dataset
         execute_insert_query >> [column_check, table_check] >> delete_dataset

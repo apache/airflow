@@ -24,7 +24,21 @@ from unittest import mock
 
 import pytest
 
+from airflow import plugins_manager
+from airflow.providers.openlineage.plugins.openlineage import OpenLineageProviderPlugin
+
 REQUIRED_ENV_VARS = ("SYSTEM_TESTS_ENV_ID",)
+
+
+@pytest.fixture(scope="package", autouse=True)
+def setup_openlineage():
+    with mock.patch.dict(
+        "os.environ",
+        AIRFLOW__OPENLINEAGE__TRANSPORT='{"type": "airflow.providers.openlineage.transport.variable'
+        '.VariableTransport"}',
+    ):
+        plugins_manager.register_plugin(OpenLineageProviderPlugin())
+        yield
 
 
 @pytest.fixture(scope="package", autouse=True)
