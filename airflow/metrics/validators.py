@@ -50,6 +50,8 @@ ALLOWED_CHARACTERS = frozenset(string.ascii_letters + string.digits + "_.-")
 # OpenTelemetry and should be deprecated over time. This is implemented to
 # ensure that any new metrics we introduce have names which meet the OTel
 # standard while also allowing us time to deprecate the old names.
+# NOTE:  No new names should be added to this list.  This list should
+#        only ever shorten over time as we deprecate these names.
 BACK_COMPAT_METRIC_NAME_PATTERNS: set[str] = {
     r"^(?P<job_name>.*)_start$",
     r"^(?P<job_name>.*)_end$",

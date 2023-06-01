@@ -32,7 +32,7 @@ from airflow.metrics.otel_logger import (
     _generate_key_name,
     _is_up_down_counter,
 )
-from airflow.metrics.validators import MetricNameLengthExemptionWarning
+from airflow.metrics.validators import BACK_COMPAT_METRIC_NAMES, MetricNameLengthExemptionWarning
 
 INVALID_STAT_NAME_CASES = [
     (None, "can not be None"),
@@ -65,6 +65,14 @@ class TestOtelMetrics:
 
     def test_is_up_down_counter_negative(self):
         assert not _is_up_down_counter("this_is_not_a_udc")
+
+    def test_exemption_list_has_not_grown(self):
+        assert len(BACK_COMPAT_METRIC_NAMES) <= 23, (
+            "This test exists solely to ensure that nobody is adding names to the exemption list. "
+            "There are 23 names which are potentially too long for OTel and that number should "
+            "only ever go down as these names are deprecated.  If this test is failing, please "
+            "adjust your new stat's name; do not add as exemption without a very good reason."
+        )
 
     @pytest.mark.parametrize(
         "invalid_stat_combo",
