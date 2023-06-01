@@ -150,10 +150,11 @@ class RedshiftSQLHook(DbApiHook):
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
         """
-        Helper method that returns the table primary key
+        Helper method that returns the table primary key.
+
         :param table: Name of the target table
         :param schema: Name of the target schema, public by default
-        :return: Primary key columns list.
+        :return: Primary key columns list
         """
         sql = """
             select kcu.column_name

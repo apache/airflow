@@ -230,11 +230,11 @@ class BatchClientHook(AwsBaseHook):
 
     def check_job_success(self, job_id: str) -> bool:
         """
-        Check the final status of the Batch job; return True if the job
-        'SUCCEEDED', else raise an AirflowException.
+        Check the final status of the Batch job.
+
+        Return True if the job 'SUCCEEDED', else raise an AirflowException.
 
         :param job_id: a Batch job ID
-
 
         :raises: AirflowException
         """

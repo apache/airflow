@@ -583,6 +583,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     def _get_config(self, config: Config | None = None) -> Config:
         """
         No AWS Operators use the config argument to this method.
+
         Keep backward compatibility with other users who might use it.
         """
         if config is None:

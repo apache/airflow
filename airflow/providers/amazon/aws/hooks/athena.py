@@ -152,8 +152,9 @@ class AthenaHook(AwsBaseHook):
         self, query_execution_id: str, next_token_id: str | None = None, max_results: int = 1000
     ) -> dict | None:
         """
-        Fetch submitted athena query results. returns none if query is in intermediate state or
-        failed/cancelled state else dict of query output.
+        Fetch submitted athena query results.
+
+        Returns none if query is in intermediate state or failed/cancelled state else dict of query output.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.get_query_results`
@@ -227,6 +228,7 @@ class AthenaHook(AwsBaseHook):
     ) -> str | None:
         """
         Poll the status of submitted athena query until query state reaches final state.
+
         Returns one of the final states.
 
         :param query_execution_id: Id of submitted athena query

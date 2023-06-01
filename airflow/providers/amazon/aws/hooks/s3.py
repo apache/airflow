@@ -174,8 +174,9 @@ class S3Hook(AwsBaseHook):
     def parse_s3_url(s3url: str) -> tuple[str, str]:
         """
         Parses the S3 Url into a bucket name and key.
-            See https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
-            for valid url formats.
+
+        See https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
+        for valid url formats.
 
         :param s3url: The S3 Url to parse.
         :return: the parsed bucket name and key
@@ -206,7 +207,9 @@ class S3Hook(AwsBaseHook):
         bucket: str | None, key: str, bucket_param_name: str, key_param_name: str
     ) -> tuple[str, str]:
         """
-        Get the S3 bucket name and key from either:
+        Get the S3 bucket name and key.
+
+        From either:
         - bucket name and key. Return the info as it is after checking `key` is a relative path.
         - key. Must be a full s3:// url.
 
