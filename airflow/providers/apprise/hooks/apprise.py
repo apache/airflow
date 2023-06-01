@@ -57,7 +57,7 @@ class AppriseHook(BaseHook):
         elif isinstance(config_object, dict):
             apprise_obj.add(config_object["path"], tag=config_object.get("tag", None))
         else:
-            raise ValueError("only dict / list[dict] type of values are expected")
+            raise ValueError(f"Only types of dict or list[dict] are expected in Apprise connections, got {type(config_object)}")
 
     def notify(
         self,
