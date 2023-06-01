@@ -110,7 +110,7 @@ class SetupTeardownContext:
             if first_task.is_teardown:
                 if not all(task.is_teardown == first_task.is_teardown for task in operator):
                     raise ValueError("All tasks in the list must be either setup or teardown tasks")
-                upstream_tasks = [task for task in first_task.upstream_list]
+                upstream_tasks = first_task.upstream_list
                 for task in upstream_tasks:
                     if not task.is_setup and not task.is_teardown:
                         raise ValueError(
@@ -123,7 +123,7 @@ class SetupTeardownContext:
             elif first_task.is_setup:
                 if not all(task.is_setup == first_task.is_setup for task in operator):
                     raise ValueError("All tasks in the list must be either setup or teardown tasks")
-                upstream_tasks = [task for task in first_task.upstream_list]
+                upstream_tasks = first_task.upstream_list
                 for task in upstream_tasks:
                     if not task.is_setup and not task.is_teardown:
                         raise ValueError(
@@ -136,7 +136,7 @@ class SetupTeardownContext:
                 if downstream_teardown:
                     SetupTeardownContext.push_context_managed_teardown_task(downstream_teardown)
         elif operator.is_teardown:
-            upstream_tasks = [task for task in operator.upstream_list]
+            upstream_tasks = operator.upstream_list
             for task in upstream_tasks:
                 if not task.is_setup and not task.is_teardown:
                     raise ValueError(
@@ -147,7 +147,7 @@ class SetupTeardownContext:
             if upstream_setup:
                 SetupTeardownContext.push_context_managed_setup_task(upstream_setup)
         elif operator.is_setup:
-            upstream_tasks = [task for task in operator.upstream_list]
+            upstream_tasks = operator.upstream_list
             for task in upstream_tasks:
                 if not task.is_setup and not task.is_teardown:
                     raise ValueError(
