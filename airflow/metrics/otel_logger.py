@@ -29,9 +29,13 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.util.types import Attributes
 
 from airflow.configuration import conf
-from airflow.exceptions import InvalidStatsNameException
 from airflow.metrics.protocols import DeltaType, Timer, TimerProtocol
-from airflow.metrics.validators import AllowListValidator, stat_name_default_handler, validate_stat
+from airflow.metrics.validators import (
+    OTEL_NAME_MAX_LENGTH,
+    AllowListValidator,
+    stat_name_otel_handler,
+    validate_stat,
+)
 
 log = logging.getLogger(__name__)
 
@@ -49,9 +53,8 @@ log = logging.getLogger(__name__)
 # See:
 # https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#counter-creation
 # https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#updowncounter
-
 UP_DOWN_COUNTERS = {"airflow.dag_processing.processes"}
-OTEL_NAME_MAX_LENGTH = 63
+
 METRIC_NAME_PREFIX = "airflow."
 
 
@@ -72,31 +75,12 @@ def _generate_key_name(name: str, attributes: Attributes = None):
 
 def name_is_otel_safe(prefix: str, name: str) -> bool:
     """
-    Returns True if the provided name and prefix would result in a name compatible with Open Telemetry.
+    Returns True if the provided name and prefix would result in a name that meets the OpenTelemetry standard.
+
     Legal names are defined here:
     https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
     """
-    proposed_stat_name = f"{prefix}.{name}"
-    try:
-        # This test case is here to enforce that the values can not be None and
-        # must be a valid String.  Without this test here, those values get cast
-        # to a string and pass when they should not, potentially resulting in
-        # metrics named "airflow.None", "airflow.42", or "None.42" for example.
-        if not (isinstance(name, str) and isinstance(prefix, str)):
-            raise InvalidStatsNameException
-
-        # `stat_name_default_handler` throws InvalidStatsNameException if the
-        # provided value is not valid or returns the value if it is.  We don't
-        # need the return value but will make use of the validation checks. If
-        # no exception is thrown, then the proposed name meets OTel requirements.
-        stat_name_default_handler(proposed_stat_name, max_length=OTEL_NAME_MAX_LENGTH)
-        return True
-    except InvalidStatsNameException:
-        log.exception(
-            f"Invalid stat name: {proposed_stat_name}.  Please see "
-            f"https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax"
-        )
-    return False
+    return bool(stat_name_otel_handler(prefix, name, max_length=OTEL_NAME_MAX_LENGTH))
 
 
 class SafeOtelLogger:

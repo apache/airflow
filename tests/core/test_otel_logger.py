@@ -23,6 +23,7 @@ import pytest
 from opentelemetry.metrics import MeterProvider
 from pytest import param
 
+from airflow.exceptions import InvalidStatsNameException
 from airflow.metrics.otel_logger import (
     METRIC_NAME_PREFIX,
     OTEL_NAME_MAX_LENGTH,
@@ -31,6 +32,7 @@ from airflow.metrics.otel_logger import (
     _generate_key_name,
     _is_up_down_counter,
 )
+from airflow.metrics.validators import MetricNameLengthExemptionWarning
 
 INVALID_STAT_NAME_CASES = [
     (None, "can not be None"),
@@ -71,14 +73,26 @@ class TestOtelMetrics:
             *[param((prefix, "name"), id=f"Stat prefix {msg}.") for (prefix, msg) in INVALID_STAT_NAME_CASES],
         ],
     )
-    def test_invalid_stat_names_are_caught(self, caplog, invalid_stat_combo):
+    def test_invalid_stat_names_are_caught(self, invalid_stat_combo):
         prefix = invalid_stat_combo[0]
         name = invalid_stat_combo[1]
         self.stats.prefix = prefix
-        self.stats.incr(name)
+
+        with pytest.raises(InvalidStatsNameException):
+            self.stats.incr(name)
 
         self.meter.assert_not_called()
-        assert f"Invalid stat name: {prefix}.{name}" in caplog.text
+
+    def test_old_name_exception_works(self, caplog):
+        name = "task_instance_created-OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit"
+        assert len(name) > OTEL_NAME_MAX_LENGTH
+
+        with pytest.warns(MetricNameLengthExemptionWarning):
+            self.stats.incr(name)
+
+        self.meter.get_meter().create_counter.assert_called_once_with(
+            name=(full_name(name)[:OTEL_NAME_MAX_LENGTH])
+        )
 
     def test_incr_new_metric(self, name):
         self.stats.incr(name)
