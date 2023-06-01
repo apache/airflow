@@ -138,8 +138,8 @@ def _iter_member_names(klass: ast.ClassDef) -> typing.Iterator[str]:
         elif isinstance(node, ast.FunctionDef) and _is_property(node):
             yield node.name
         elif isinstance(node, ast.Assign):
-            if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-                yield node.targets[0].id
+            if len(node.targets) == 1 and isinstance(target := node.targets[0], ast.Name):
+                yield target.id
 
 
 def check_operator_member_parity() -> bool:
