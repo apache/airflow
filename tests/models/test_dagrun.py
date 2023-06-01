@@ -2475,12 +2475,12 @@ def test_failure_of_leaf_task_not_connected_to_teardown_task(dag_maker, session)
 @pytest.mark.parametrize(
     "input, expected",
     [
-        (["s1 >> w1 >> t1"], {"w1"}),
-        (["s1 >> w1 >> t1", "s1 >> t1"], {"w1", "s1"}),  # fixme: should only be w1
-        (["s1 >> w1"], {"w1"}),
-        (["s1 >> w1 >> t1_"], {"w1", "t1_"}),  # fixme: should only be t1_
-        (["s1 >> w1 >> t1_", "s1 >> t1_"], {"s1", "w1", "t1_"}),  # fixme: should only be t1_
-        (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"s1", "w1", "t1_", "w2"}),  # fixme: should only be w2
+        (["s1 >> w1 >> t1"], {"w1"}),  # t1 ignored
+        (["s1 >> w1 >> t1", "s1 >> t1"], {"w1"}),  # t1 ignored; properly wired to setup
+        (["s1 >> w1"], {"w1"}),  # no teardown
+        (["s1 >> w1 >> t1_"], {"t1_"}),  # t1_ is natural leaf and OFFD=True;
+        (["s1 >> w1 >> t1_", "s1 >> t1_"], {"t1_"}),  # t1_ is natural leaf and OFFD=True; wired to setup
+        (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"w2"}),  # t1_ is not a natural leaf so excluded anyway
     ],
 )
 def test_tis_considered_for_state(dag_maker, session, input, expected):

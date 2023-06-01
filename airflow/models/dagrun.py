@@ -540,16 +540,19 @@ class DagRun(Base, LoggingMixin):
         Teardown tasks by default are not considered for the purpose of dag run state.  But
         users may enable such consideration with on_failure_fail_dagrun.
         """
-        leaf_task_ids = {t.task_id for t in dag.leaves}
+
+        def is_effective_leaf(task):
+            for down_task_id in task.downstream_task_ids:
+                down_task = dag.get_task(down_task_id)
+                if not down_task.is_teardown or down_task.on_failure_fail_dagrun is True:
+                    # we found a down task that is not ignorable; not a leaf
+                    return False
+            # we found no ignorable downstreams
+            # evaluate whether task is itself ignorable
+            return not task.is_teardown or task.on_failure_fail_dagrun is True
+
+        leaf_task_ids = {x.task_id for x in dag.tasks if is_effective_leaf(x)}
         leaf_tis = {ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED}
-        if dag.teardowns:
-            teardown_task_ids = {t.task_id for t in dag.teardowns}
-            upstream_of_teardowns = {t.task_id for t in dag.tasks_upstream_of_teardowns}
-            teardown_tis = {ti for ti in tis if ti.task_id in teardown_task_ids}
-            on_failure_fail_tis = (ti for ti in teardown_tis if ti.task.on_failure_fail_dagrun)
-            tis_upstream_of_teardowns = (ti for ti in tis if ti.task_id in upstream_of_teardowns)
-            leaf_tis -= teardown_tis
-            leaf_tis.update(on_failure_fail_tis, tis_upstream_of_teardowns)
         return leaf_tis
 
     @provide_session
@@ -1256,7 +1259,7 @@ class DagRun(Base, LoggingMixin):
             session.query(DagRun)
             .filter(
                 DagRun.dag_id == dag_id,
-                DagRun.external_trigger == False,  # noqa
+                DagRun.external_trigger is False,
                 DagRun.execution_date == execution_date,
             )
             .first()
