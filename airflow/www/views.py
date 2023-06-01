@@ -3253,7 +3253,7 @@ class Airflow(AirflowBaseView):
         s_index = cum_chart.htmlcontent.rfind("});")
         cum_chart.htmlcontent = (
             f"{cum_chart.htmlcontent[:s_index]}"
-            f"$( document ).trigger('chartload')"
+            "$( document ).trigger('chartload')"
             f"{cum_chart.htmlcontent[s_index:]}"
         )
 
