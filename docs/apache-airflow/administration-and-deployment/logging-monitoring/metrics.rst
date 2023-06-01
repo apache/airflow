@@ -159,8 +159,6 @@ Name                                                Description
 
 Timers
 ------
-For a visual representation of what intervals some of those timers represent, you can take a look at
-`this page <https://github.com/apache/airflow/blob/main/airflow/METRICS.md>`_.
 
 =================================================== ========================================================================
 Name                                                Description
