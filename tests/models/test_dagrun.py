@@ -2478,11 +2478,24 @@ def test_failure_of_leaf_task_not_connected_to_teardown_task(dag_maker, session)
         (["s1 >> w1 >> t1"], {"w1"}),
         (["s1 >> w1 >> t1", "s1 >> t1"], {"w1", "s1"}),  # fixme: should only be w1
         (["s1 >> w1"], {"w1"}),
-        (["s1 >> w1 >> t1_"], {"w1", "t1"}),  # fixme: should only be t1
-        (["s1 >> w1 >> t1_", "s1 >> t1"], {"s1", "w1", "t1"}),  # fixme: should only be t1
+        (["s1 >> w1 >> t1_"], {"w1", "t1_"}),  # fixme: should only be t1
+        (["s1 >> w1 >> t1_", "s1 >> t1_"], {"s1", "w1", "t1_"}),  # fixme: should only be t1_
+        (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"s1", "w1", "t1_", "w2"}),  # fixme: should only be t1_
     ],
 )
 def test_tis_considered_for_state(dag_maker, session, input, expected):
+    """
+    We use a convenience notation to wire up test scenarios:
+
+    t<num> -- teardown task
+    t<num>_ -- teardown task with on_failure_fail_dagrun = True
+    s<num>_ -- setup task
+    w<num> -- work task (a.k.a. normal task)
+
+    In the test input, each line is a statement. We'll automatically create the tasks and wire them up
+    as indicated in the test input.
+    """
+
     @teardown()
     def teardown_task():
         print(1)
@@ -2500,19 +2513,17 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
     def setup_task():
         print(1)
 
-    def make_task(val, dag):
+    def make_task(task_id, dag):
         """
         Task factory helper.
 
         Will give a setup, teardown, work, or teardown-with-dagrun-failure task depending on input.
         """
-        task_id = val.strip("_")
-
-        if val.startswith("s"):
+        if task_id.startswith("s"):
             factory = setup_task
-        elif val.startswith("w"):
+        elif task_id.startswith("w"):
             factory = work_task
-        elif val.endswith("_"):
+        elif task_id.endswith("_"):
             factory = teardown_task_offd
         else:
             factory = teardown_task
