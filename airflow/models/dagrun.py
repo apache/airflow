@@ -544,7 +544,7 @@ class DagRun(Base, LoggingMixin):
         def is_effective_leaf(task):
             for down_task_id in task.downstream_task_ids:
                 down_task = dag.get_task(down_task_id)
-                if not down_task.is_teardown or down_task.on_failure_fail_dagrun is True:
+                if not down_task.is_teardown or down_task.on_failure_fail_dagrun:
                     # we found a down task that is not ignorable; not a leaf
                     return False
             # we found no ignorable downstreams
