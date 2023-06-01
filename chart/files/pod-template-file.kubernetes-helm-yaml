@@ -80,6 +80,9 @@ spec:
     {{- if .Values.workers.extraContainers }}
       {{- toYaml .Values.workers.extraContainers | nindent 4 }}
     {{- end }}
+  {{- if .Values.workers.priorityClassName }}
+  priorityClassName: {{ .Values.workers.priorityClassName }}
+  {{- end }}
   {{- if or .Values.registry.secretName .Values.registry.connection }}
   imagePullSecrets:
     - name: {{ template "registry_secret" . }}

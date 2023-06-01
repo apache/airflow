@@ -26,6 +26,7 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_glue, mock_iam
 
+from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 
@@ -349,3 +350,65 @@ class TestGlueJobHook:
         assert tokens.output_stream_continuation is None
         assert tokens.error_stream_continuation is None
         assert client_mock().get_paginator().paginate.call_count == 2
+
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    def test_job_completion_success(self, get_state_mock: MagicMock):
+        hook = GlueJobHook()
+        hook.JOB_POLL_INTERVAL = 0
+        get_state_mock.side_effect = [
+            "RUNNING",
+            "RUNNING",
+            "SUCCEEDED",
+        ]
+
+        hook.job_completion("job_name", "run_id")
+
+        assert get_state_mock.call_count == 3
+        get_state_mock.assert_called_with("job_name", "run_id")
+
+    @mock.patch.object(GlueJobHook, "get_job_state")
+    def test_job_completion_failure(self, get_state_mock: MagicMock):
+        hook = GlueJobHook()
+        hook.JOB_POLL_INTERVAL = 0
+        get_state_mock.side_effect = [
+            "RUNNING",
+            "RUNNING",
+            "FAILED",
+        ]
+
+        with pytest.raises(AirflowException):
+            hook.job_completion("job_name", "run_id")
+
+        assert get_state_mock.call_count == 3
+
+    @pytest.mark.asyncio
+    @mock.patch.object(GlueJobHook, "async_get_job_state")
+    async def test_async_job_completion_success(self, get_state_mock: MagicMock):
+        hook = GlueJobHook()
+        hook.JOB_POLL_INTERVAL = 0
+        get_state_mock.side_effect = [
+            "RUNNING",
+            "RUNNING",
+            "SUCCEEDED",
+        ]
+
+        await hook.async_job_completion("job_name", "run_id")
+
+        assert get_state_mock.call_count == 3
+        get_state_mock.assert_called_with("job_name", "run_id")
+
+    @pytest.mark.asyncio
+    @mock.patch.object(GlueJobHook, "async_get_job_state")
+    async def test_async_job_completion_failure(self, get_state_mock: MagicMock):
+        hook = GlueJobHook()
+        hook.JOB_POLL_INTERVAL = 0
+        get_state_mock.side_effect = [
+            "RUNNING",
+            "RUNNING",
+            "FAILED",
+        ]
+
+        with pytest.raises(AirflowException):
+            await hook.async_job_completion("job_name", "run_id")
+
+        assert get_state_mock.call_count == 3
