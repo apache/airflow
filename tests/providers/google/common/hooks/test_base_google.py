@@ -370,6 +370,7 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=None,
             delegates=None,
+            lifetime=None,
         )
         assert ("CREDENTIALS", "PROJECT_ID") == result
 
@@ -407,6 +408,7 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=None,
             delegates=None,
+            lifetime=None,
         )
         assert (mock_credentials, "PROJECT_ID") == result
 
@@ -437,6 +439,7 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=None,
             delegates=None,
+            lifetime=None,
         )
         assert (mock_credentials, "PROJECT_ID") == result
 
@@ -457,6 +460,7 @@ class TestGoogleBaseHook:
             delegate_to="USER",
             target_principal=None,
             delegates=None,
+            lifetime=None,
         )
         assert (mock_credentials, "PROJECT_ID") == result
 
@@ -493,6 +497,7 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=None,
             delegates=None,
+            lifetime=None,
         )
         assert ("CREDENTIALS", "SECOND_PROJECT_ID") == result
 
@@ -695,6 +700,7 @@ class TestGoogleBaseHook:
             delegate_to=None,
             target_principal=target_principal,
             delegates=delegates,
+            lifetime=None,
         )
         assert (mock_credentials, PROJECT_ID) == result
 
