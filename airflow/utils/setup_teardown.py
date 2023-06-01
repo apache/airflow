@@ -123,8 +123,7 @@ class SetupTeardownContext:
             elif first_task.is_setup:
                 if not all(task.is_setup == first_task.is_setup for task in operator):
                     raise ValueError("All tasks in the list must be either setup or teardown tasks")
-                upstream_tasks = first_task.upstream_list
-                for task in upstream_tasks:
+                for task in first_task.upstream_list:
                     if not task.is_setup and not task.is_teardown:
                         raise ValueError(
                             "All upstream tasks in the context manager must be a setup or teardown task"
