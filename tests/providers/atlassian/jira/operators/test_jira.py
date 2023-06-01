@@ -74,7 +74,7 @@ class TestJiraOperator:
         jira_ticket_search_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         assert jira_mock.called
-        assert jira_mock.return_value.jql_get_list_of_tickets.called
+        assert jira_mock.return_value.get_project_issues_count.called
 
     @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
     def test_issue_search(self, jira_mock):
