@@ -74,7 +74,7 @@ class AppriseHook(BaseHook):
         Send message to plugged-in services
 
         :param body: Specify the message body
-        :param title: Specify the message title. This field is complete optional
+        :param title: Specify the message title. (optional)
         :param notify_type: Specify the message type (default=info). Possible values are "info",
             "success", "failure", and "warning"
         :param body_format: Specify the input message format (default=text). Possible values are "text",
