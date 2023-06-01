@@ -255,13 +255,14 @@ class TestCeleryExecutor:
         import importlib
 
         from airflow.config_templates import default_celery
+        from airflow.executors import celery_executor_utils
 
         # reload celery conf to apply the new config
         importlib.reload(default_celery)
-        # reload celery_executor to recreate the celery app with new config
-        importlib.reload(celery_executor)
+        # reload celery_executor_utils to recreate the celery app with new config
+        importlib.reload(celery_executor_utils)
 
-        call_args = mock_celery.call_args[1]["config_source"]
+        call_args = mock_celery.call_args.kwargs.get("config_source")
         assert "database_engine_options" in call_args
         assert call_args["database_engine_options"] == {"pool_recycle": 1800}
 
