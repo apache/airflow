@@ -2478,9 +2478,9 @@ def test_failure_of_leaf_task_not_connected_to_teardown_task(dag_maker, session)
         (["s1 >> w1 >> t1"], {"w1"}),
         (["s1 >> w1 >> t1", "s1 >> t1"], {"w1", "s1"}),  # fixme: should only be w1
         (["s1 >> w1"], {"w1"}),
-        (["s1 >> w1 >> t1_"], {"w1", "t1_"}),  # fixme: should only be t1
+        (["s1 >> w1 >> t1_"], {"w1", "t1_"}),  # fixme: should only be t1_
         (["s1 >> w1 >> t1_", "s1 >> t1_"], {"s1", "w1", "t1_"}),  # fixme: should only be t1_
-        (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"s1", "w1", "t1_", "w2"}),  # fixme: should only be t1_
+        (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"s1", "w1", "t1_", "w2"}),  # fixme: should only be w2
     ],
 )
 def test_tis_considered_for_state(dag_maker, session, input, expected):
