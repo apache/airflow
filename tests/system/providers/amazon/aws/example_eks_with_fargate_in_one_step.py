@@ -96,7 +96,7 @@ with DAG(
         pod_name="run_pod",
         cluster_name=cluster_name,
         image="amazon/aws-cli:latest",
-        cmds=["sh", "-c", "echo Test Airflow; sleep 30; date"],
+        cmds=["sh", "-c", "echo Test Airflow; date"],
         labels={"demo": "hello_world"},
         get_logs=True,
         startup_timeout_seconds=600,
