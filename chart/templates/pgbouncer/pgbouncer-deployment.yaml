@@ -26,6 +26,8 @@
 {{- $tolerations := or .Values.pgbouncer.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.pgbouncer.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.pgbouncer.revisionHistoryLimit .Values.revisionHistoryLimit }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.pgbouncer) }}
+{{- $containerSecurityContextMetricsExporter := include "containerSecurityContext" (list . .Values.pgbouncer.metricsExporterSidecar) }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -91,6 +93,7 @@ spec:
         - name: pgbouncer
           image: {{ template "pgbouncer_image" . }}
           imagePullPolicy: {{ .Values.images.pgbouncer.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if .Values.pgbouncer.command }}
           command: {{ tpl (toYaml .Values.pgbouncer.command) . | nindent 12 }}
           {{- end }}
@@ -149,6 +152,7 @@ spec:
           resources: {{- toYaml .Values.pgbouncer.metricsExporterSidecar.resources | nindent 12 }}
           image: {{ template "pgbouncer_exporter_image" . }}
           imagePullPolicy: {{ .Values.images.pgbouncerExporter.pullPolicy }}
+          securityContext: {{ $containerSecurityContextMetricsExporter | nindent 12 }}
           env:
             - name: DATABASE_URL
               valueFrom:
