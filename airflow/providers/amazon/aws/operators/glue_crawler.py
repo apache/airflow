@@ -107,4 +107,4 @@ class GlueCrawlerOperator(BaseOperator):
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
             raise AirflowException(f"Error in glue crawl: {event}")
-        return
+        return self.config["Name"]
