@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useRef, ReactNode, useState } from "react";
+import React, { useRef, ReactNode, useState, useEffect } from "react";
 import {
   Table,
   Tbody,
@@ -104,8 +104,15 @@ const Dag = () => {
         ...dagDataExcludeFields,
       ]);
     }
-    refetchDagDetails();
   };
+
+  // ensures dag/{dag_id}/details is called only after data
+  // is excluded which is common in dags/{dag_id} and dag/{dag_id}/details
+  useEffect(() => {
+    if (excludeFromDagDetails.length > 0) {
+      refetchDagDetails();
+    }
+  }, [excludeFromDagDetails, refetchDagDetails]);
 
   dagRuns.forEach((dagRun) => {
     durations.push(getDuration(dagRun.startDate, dagRun.endDate));
