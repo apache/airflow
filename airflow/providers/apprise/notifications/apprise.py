@@ -34,7 +34,7 @@ from apprise import AppriseConfig, NotifyFormat, NotifyType
 
 
 class AppriseNotifier(BaseNotifier):
-    r"""
+    """
     Apprise BaseNotifier
 
     :param body: Specify the message body
@@ -49,7 +49,7 @@ class AppriseNotifier(BaseNotifier):
         sequences such as \n and \r to their respected ascii new-line and carriage
     :param config: Specify one or more configuration
     :param apprise_conn_id: connection that has Apprise configs setup
-    """
+    """  # noqa: D301
 
     template_fields = ("body", "title", "tag", "attach")
 

@@ -30,7 +30,7 @@ class AppriseHook(BaseHook):
     Use Apprise(https://github.com/caronc/apprise) to interact with notification services.
     The complete list of notification services supported by Apprise can be found at:
     https://github.com/caronc/apprise/wiki#notification-services
-    
+
     :param apprise_conn_id: :ref:`Apprise connection id <howto/connection:apprise>`
         that has services configured in the `config` field.
     """
@@ -66,11 +66,11 @@ class AppriseHook(BaseHook):
         notify_type: NotifyType = NotifyType.INFO,
         body_format: NotifyFormat = NotifyFormat.TEXT,
         tag: str | Iterable[str] | None = None,
-        attach: str | None = None,
+        attach: str | Iterable[str] | None = None,
         interpret_escapes: bool | None = None,
         config: AppriseConfig | None = None,
     ):
-        r"""
+        """
         Send message to plugged-in services
 
         :param body: Specify the message body
@@ -82,9 +82,9 @@ class AppriseHook(BaseHook):
         :param tag: Specify one or more tags to filter which services to notify
         :param attach: Specify one or more file attachment locations
         :param interpret_escapes: Enable interpretation of backslash escapes. For example, this would convert
-            sequences such as \n and \r to their respective ascii new-line and carriage return characters
+            sequences such as \\n and \\r to their respective ascii new-line and carriage return characters
         :param config: Specify one or more configuration
-        """
+        """  # noqa: D301
         title = title or ""
 
         apprise_obj = apprise.Apprise()
