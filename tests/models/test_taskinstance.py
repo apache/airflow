@@ -2597,7 +2597,7 @@ class TestTaskInstance:
         ti1.state = State.FAILED
         ti1.handle_failure("test failure handling")
 
-        context_arg_1 = mock_on_failure_1.call_args[0][0]
+        context_arg_1 = mock_on_failure_1.call_args.args[0]
         assert context_arg_1 and "task_instance" in context_arg_1
         mock_on_retry_1.assert_not_called()
 
@@ -2618,7 +2618,7 @@ class TestTaskInstance:
 
         mock_on_failure_2.assert_not_called()
 
-        context_arg_2 = mock_on_retry_2.call_args[0][0]
+        context_arg_2 = mock_on_retry_2.call_args.args[0]
         assert context_arg_2 and "task_instance" in context_arg_2
 
         # test the scenario where normally we would retry but have been asked to fail
@@ -2637,7 +2637,7 @@ class TestTaskInstance:
         ti3.state = State.FAILED
         ti3.handle_failure("test force_fail handling", force_fail=True)
 
-        context_arg_3 = mock_on_failure_3.call_args[0][0]
+        context_arg_3 = mock_on_failure_3.call_args.args[0]
         assert context_arg_3 and "task_instance" in context_arg_3
         mock_on_retry_3.assert_not_called()
 
@@ -2807,8 +2807,8 @@ class TestTaskInstance:
         with patch.object(TI, "log") as log, pytest.raises(AirflowException):
             ti.run()
         log.error.assert_called_once()
-        assert log.error.call_args[0] == ("Task failed with exception",)
-        exc_info = log.error.call_args[1]["exc_info"]
+        assert log.error.call_args.args == ("Task failed with exception",)
+        exc_info = log.error.call_args.kwargs["exc_info"]
         filename = exc_info[2].tb_frame.f_code.co_filename
         formatted_exc = format_exception(*exc_info)
         assert sys.modules[PythonOperator.__module__].__file__ == filename, "".join(formatted_exc)
