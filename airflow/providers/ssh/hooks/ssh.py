@@ -44,7 +44,7 @@ class SSHHook(BaseHook):
     """
     Hook for ssh remote execution using Paramiko.
     ref: https://github.com/paramiko/paramiko
-    This hook also lets you create ssh tunnel and serve as basis for SFTP file transfer
+    This hook also lets you create ssh tunnel and serve as basis for SFTP file transfer.
 
     :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>` from airflow
         Connections from where all the required parameters can be fetched like
@@ -94,7 +94,7 @@ class SSHHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema"],
             "relabeling": {
@@ -441,7 +441,7 @@ class SSHHook(BaseHook):
 
     def _pkey_from_private_key(self, private_key: str, passphrase: str | None = None) -> paramiko.PKey:
         """
-        Creates appropriate paramiko key for given private key
+        Creates appropriate paramiko key for given private key.
 
         :param private_key: string containing private key
         :return: ``paramiko.PKey`` appropriate for given key
@@ -551,7 +551,7 @@ class SSHHook(BaseHook):
         return exit_status, agg_stdout, agg_stderr
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test the ssh connection by execute remote bash commands"""
+        """Test the ssh connection by execute remote bash commands."""
         try:
             with self.get_conn() as conn:
                 conn.exec_command("pwd")

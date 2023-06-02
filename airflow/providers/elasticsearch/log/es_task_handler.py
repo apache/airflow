@@ -263,7 +263,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return message, metadata
 
     def _format_msg(self, log_line):
-        """Format ES Record to match settings.LOG_FORMAT when used with json_format"""
+        """Format ES Record to match settings.LOG_FORMAT when used with json_format."""
         # Using formatter._style.format makes it future proof i.e.
         # if we change the formatter style from '%' to '{' or '$', this will still work
         if self.json_format:
@@ -395,7 +395,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     @property
     def log_name(self) -> str:
-        """The log name"""
+        """The log name."""
         return self.LOG_NAME
 
     def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
@@ -412,13 +412,13 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     @property
     def supports_external_link(self) -> bool:
-        """Whether we can support external links"""
+        """Whether we can support external links."""
         return bool(self.frontend)
 
 
 def getattr_nested(obj, item, default):
     """
-    Get item from obj but return default if not found
+    Get item from obj but return default if not found.
 
     E.g. calling ``getattr_nested(a, 'b.c', "NA")`` will return
     ``a.b.c`` if such a value exists, and "NA" otherwise.

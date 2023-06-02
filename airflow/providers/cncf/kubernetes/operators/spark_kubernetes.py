@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 class SparkKubernetesOperator(BaseOperator):
     """
-    Creates sparkApplication object in kubernetes cluster:
+    Creates sparkApplication object in kubernetes cluster.
 
     .. seealso::
         For more detail about Spark Application Object have a look at the reference:

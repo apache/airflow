@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import datetime
+from functools import reduce
 from typing import Mapping
 from unittest import mock
 from unittest.mock import call
@@ -2364,7 +2365,7 @@ def test_teardown_failure_behaviour_on_dagrun(dag_maker, session, dag_run_state,
 @pytest.mark.parametrize(
     "dag_run_state, on_failure_fail_dagrun", [[DagRunState.SUCCESS, False], [DagRunState.FAILED, True]]
 )
-def test_teardown_failure_on_non_leave_behaviour_on_dagrun(
+def test_teardown_failure_on_non_leaf_behaviour_on_dagrun(
     dag_maker, session, dag_run_state, on_failure_fail_dagrun
 ):
     with dag_maker():
@@ -2435,7 +2436,7 @@ def test_work_task_failure_when_setup_teardown_are_successful(dag_maker, session
     assert dr.state == DagRunState.FAILED
 
 
-def test_failure_of_leave_task_not_connected_to_teardown_task(dag_maker, session):
+def test_failure_of_leaf_task_not_connected_to_teardown_task(dag_maker, session):
     with dag_maker():
 
         @setup
@@ -2469,3 +2470,69 @@ def test_failure_of_leave_task_not_connected_to_teardown_task(dag_maker, session
     session.flush()
     dr = session.query(DagRun).one()
     assert dr.state == DagRunState.FAILED
+
+
+@pytest.mark.parametrize(
+    "input, expected",
+    [
+        (["s1 >> w1 >> t1"], {"w1"}),  # t1 ignored
+        (["s1 >> w1 >> t1", "s1 >> t1"], {"w1"}),  # t1 ignored; properly wired to setup
+        (["s1 >> w1"], {"w1"}),  # no teardown
+        (["s1 >> w1 >> t1_"], {"t1_"}),  # t1_ is natural leaf and OFFD=True;
+        (["s1 >> w1 >> t1_", "s1 >> t1_"], {"t1_"}),  # t1_ is natural leaf and OFFD=True; wired to setup
+        (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"w2"}),  # t1_ is not a natural leaf so excluded anyway
+        (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"w2"}),  # t1_ is not a natural leaf so excluded anyway
+        (["t1 >> t2"], {"t2"}),  # all teardowns -- default to "leaves"
+        (["w1 >> t1_ >> t2"], {"t1_"}),  # teardown to teardown
+    ],
+)
+def test_tis_considered_for_state(dag_maker, session, input, expected):
+    """
+    We use a convenience notation to wire up test scenarios:
+
+    t<num> -- teardown task
+    t<num>_ -- teardown task with on_failure_fail_dagrun = True
+    s<num> -- setup task
+    w<num> -- work task (a.k.a. normal task)
+
+    In the test input, each line is a statement. We'll automatically create the tasks and wire them up
+    as indicated in the test input.
+    """
+
+    @teardown
+    def teardown_task():
+        print(1)
+
+    @task
+    def work_task():
+        print(1)
+
+    @task
+    def setup_task():
+        print(1)
+
+    def make_task(task_id, dag):
+        """
+        Task factory helper.
+
+        Will give a setup, teardown, work, or teardown-with-dagrun-failure task depending on input.
+        """
+        if task_id.startswith("s"):
+            factory = setup_task
+        elif task_id.startswith("w"):
+            factory = work_task
+        elif task_id.endswith("_"):
+            factory = teardown_task.override(on_failure_fail_dagrun=True)
+        else:
+            factory = teardown_task
+        return dag.task_dict.get(task_id) or factory.override(task_id=task_id)()
+
+    with dag_maker() as dag:
+        for line in input:
+            tasks = [make_task(x, dag) for x in line.split(" >> ")]
+            reduce(lambda x, y: x >> y, tasks)
+
+    dr = dag_maker.create_dagrun()
+    tis = dr.task_instance_scheduling_decisions(session).tis
+    tis_for_state = {x.task_id for x in dr._tis_for_dagrun_state(dag=dag, tis=tis)}
+    assert tis_for_state == expected

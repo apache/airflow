@@ -158,7 +158,7 @@
       <div style="min-width: 200px; padding: 0 10px;">
         <form id="tags_form">
           <div class="form-group search-input">
-            <select multiple name="tags" id="tags_filter" class="select2-drop-mask">
+            <select style="display: none;" multiple name="tags" id="tags_filter" class="select2-drop-mask">
               {% for tag in tags %}
                 <option value="{{ tag.name }}" {% if tag.selected %}selected{% endif %}>{{ tag.name }}</option>
               {% endfor %}

@@ -111,7 +111,7 @@ class SFTPHook(SSHHook):
         super().__init__(*args, **kwargs)
 
     def get_conn(self) -> paramiko.SFTPClient:  # type: ignore[override]
-        """Opens an SFTP connection to the remote host"""
+        """Opens an SFTP connection to the remote host."""
         if self.conn is None:
             # TODO: remove support for ssh_hook when it is removed from SFTPOperator
             if self.ssh_hook is not None:
@@ -121,7 +121,7 @@ class SFTPHook(SSHHook):
         return self.conn
 
     def close_conn(self) -> None:
-        """Closes the SFTP connection"""
+        """Closes the SFTP connection."""
         if self.conn is not None:
             self.conn.close()
             self.conn = None
@@ -227,7 +227,7 @@ class SFTPHook(SSHHook):
         """
         Transfers the remote file to a local location.
         If local_full_path is a string path, the file will be put
-        at that location
+        at that location.
 
         :param remote_full_path: full path to the remote file
         :param local_full_path: full path to the local file
@@ -239,7 +239,7 @@ class SFTPHook(SSHHook):
         """
         Transfers a local file to the remote location.
         If local_full_path_or_buffer is a string path, the file will be read
-        from that location
+        from that location.
 
         :param remote_full_path: full path to the remote file
         :param local_full_path: full path to the local file
@@ -249,7 +249,7 @@ class SFTPHook(SSHHook):
 
     def delete_file(self, path: str) -> None:
         """
-        Removes a file on the FTP Server
+        Removes a file on the FTP Server.
 
         :param path: full path to the remote file
         """
@@ -268,7 +268,7 @@ class SFTPHook(SSHHook):
 
     def path_exists(self, path: str) -> bool:
         """
-        Returns True if a remote entity exists
+        Returns True if a remote entity exists.
 
         :param path: full path to the remote file or directory
         """
@@ -370,7 +370,7 @@ class SFTPHook(SSHHook):
         return files, dirs, unknowns
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test the SFTP connection by calling path with directory"""
+        """Test the SFTP connection by calling path with directory."""
         try:
             conn = self.get_conn()
             conn.normalize(".")
@@ -380,7 +380,7 @@ class SFTPHook(SSHHook):
 
     def get_file_by_pattern(self, path, fnmatch_pattern) -> str:
         """
-        Returning the first matching file based on the given fnmatch type pattern
+        Returning the first matching file based on the given fnmatch type pattern.
 
         :param path: path to be checked
         :param fnmatch_pattern: The pattern that will be matched with `fnmatch`
@@ -394,7 +394,7 @@ class SFTPHook(SSHHook):
 
     def get_files_by_pattern(self, path, fnmatch_pattern) -> list[str]:
         """
-        Returning the list of matching files based on the given fnmatch type pattern
+        Returning the list of matching files based on the given fnmatch type pattern.
 
         :param path: path to be checked
         :param fnmatch_pattern: The pattern that will be matched with `fnmatch`

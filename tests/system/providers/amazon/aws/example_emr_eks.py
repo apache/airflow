@@ -238,6 +238,9 @@ with DAG(
         # but a different ARN could be configured and passed if desired.
         nodegroup_role_arn=role_arn,
         resources_vpc_config={"subnetIds": subnets},
+        # The launch template enforces IMDSv2 and is required for internal
+        # compliance when running these system tests on AWS infrastructure.
+        create_nodegroup_kwargs={"launchTemplate": {"name": launch_template_name}},
     )
 
     await_create_nodegroup = EksNodegroupStateSensor(
@@ -303,6 +306,7 @@ with DAG(
     chain(
         # TEST SETUP
         test_context,
+        create_launch_template(launch_template_name),
         create_bucket,
         upload_s3_file,
         create_launch_template(launch_template_name),
@@ -321,6 +325,7 @@ with DAG(
         await_delete_eks_cluster,
         delete_launch_template(launch_template_name),
         delete_bucket,
+        delete_launch_template(launch_template_name),
     )
 
     from tests.system.utils.watcher import watcher
