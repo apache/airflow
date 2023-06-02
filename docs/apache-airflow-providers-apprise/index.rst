@@ -67,7 +67,7 @@ The minimum Apache Airflow version supported by this provider package is ``2.4.0
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.2.0``
+``apache-airflow``  ``>=2.4.0``
 ==================  ==================
 
 .. toctree::
