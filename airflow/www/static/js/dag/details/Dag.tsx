@@ -37,6 +37,7 @@ import { mean, omit } from "lodash";
 
 import { getDuration, formatDuration } from "src/datetime_utils";
 import {
+  appendSearchParams,
   finalStatesMap,
   getMetaValue,
   getTaskSummary,
@@ -49,10 +50,14 @@ import ViewScheduleInterval from "src/components/ViewScheduleInterval";
 import type { TaskState } from "src/types";
 
 import type { DAG, DAGDetail } from "src/types/api-generated";
+import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
+import LinkButton from "src/components/LinkButton";
 import { SimpleStatus } from "../StatusBox";
 
+const dagId = getMetaValue("dag_id");
 const dagDetailsUrl = getMetaValue("dag_details_url");
 const tagIndexUrl = getMetaValue("tag_index_url");
+const taskInstancesUrl = getMetaValue("task_instances_list_url");
 
 const Dag = () => {
   const {
@@ -71,6 +76,15 @@ const Dag = () => {
     Array<string>
   >([]);
 
+  const listParams = new URLSearchParamsWrapper({
+    _flt_3_dag_id: dagId,
+  });
+
+  const getRedirectUri = (state: string): string => {
+    listParams.set("_flt_3_state", state);
+    return appendSearchParams(taskInstancesUrl, listParams);
+  };
+
   const taskSummary = getTaskSummary({ task: groups });
   const numMap = finalStatesMap();
   const durations: number[] = [];
@@ -81,7 +95,6 @@ const Dag = () => {
     "scheduleInterval",
     "tags",
     "owners",
-    // from dag details
     "params",
   ];
 
@@ -110,8 +123,13 @@ const Dag = () => {
         <Tr key={val}>
           <Td>
             <Flex alignItems="center">
-              <SimpleStatus state={val as TaskState} mr={2} />
-              <Text>Total {val}</Text>
+              <SimpleStatus state={val as TaskState} />
+              <LinkButton
+                href={getRedirectUri(val)}
+                title={`View all ${val} DAGS`}
+              >
+                Total {val}
+              </LinkButton>
             </Flex>
           </Td>
           <Td>{key}</Td>
