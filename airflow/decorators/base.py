@@ -488,6 +488,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         result = attr.evolve(self, kwargs={**self.kwargs, **kwargs})
         setattr(result, "is_setup", self.is_setup)
         setattr(result, "is_teardown", self.is_teardown)
+        setattr(result, "on_failure_fail_dagrun", self.on_failure_fail_dagrun)
         return result
 
 

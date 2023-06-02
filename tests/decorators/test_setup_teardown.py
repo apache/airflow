@@ -180,6 +180,18 @@ class TestSetupTearDownTask:
         assert teardown_task.is_teardown
         assert teardown_task.on_failure_fail_dagrun
 
+    def test_retain_on_failure_fail_dagrun_when_other_attrs_are_overriden(self, dag_maker):
+        @teardown(on_failure_fail_dagrun=True)
+        def mytask():
+            print("I am a teardown task")
+
+        with dag_maker() as dag:
+            mytask.override(task_id="mytask2")()
+        assert len(dag.task_group.children) == 1
+        teardown_task = dag.task_group.children["mytask2"]
+        assert teardown_task.is_teardown
+        assert teardown_task.on_failure_fail_dagrun
+
     def test_setup_teardown_mixed_up_in_a_dag(self, dag_maker):
         @setup
         def setuptask():
