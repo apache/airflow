@@ -2481,6 +2481,9 @@ def test_failure_of_leaf_task_not_connected_to_teardown_task(dag_maker, session)
         (["s1 >> w1 >> t1_"], {"t1_"}),  # t1_ is natural leaf and OFFD=True;
         (["s1 >> w1 >> t1_", "s1 >> t1_"], {"t1_"}),  # t1_ is natural leaf and OFFD=True; wired to setup
         (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"w2"}),  # t1_ is not a natural leaf so excluded anyway
+        (["s1 >> w1 >> t1_ >> w2", "s1 >> t1_"], {"w2"}),  # t1_ is not a natural leaf so excluded anyway
+        (["t1 >> t2"], {"t2"}),  # all teardowns -- default to "leaves"
+        (["w1 >> t1_ >> t2"], {"t1_"}),  # teardown to teardown
     ],
 )
 def test_tis_considered_for_state(dag_maker, session, input, expected):
@@ -2496,13 +2499,8 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
     as indicated in the test input.
     """
 
-    @teardown()
+    @teardown
     def teardown_task():
-        print(1)
-
-    # todo: should not have to do this; should be able to use override
-    @teardown(on_failure_fail_dagrun=True)
-    def teardown_task_offd():
         print(1)
 
     @task
@@ -2524,7 +2522,7 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
         elif task_id.startswith("w"):
             factory = work_task
         elif task_id.endswith("_"):
-            factory = teardown_task_offd
+            factory = teardown_task.override(on_failure_fail_dagrun=True)
         else:
             factory = teardown_task
         return dag.task_dict.get(task_id) or factory.override(task_id=task_id)()
