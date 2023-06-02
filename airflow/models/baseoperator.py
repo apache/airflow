@@ -1587,10 +1587,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any]):
         """The default method for handling the event returned after the deferred operation completes."""
         op_name = type(self).__name__
-        if event is None or event["status"] != TriggerEvent.STATUS_SUCCESS:
+        if event["status"] != TriggerEvent.STATUS_SUCCESS:
             raise AirflowException(f"{op_name}'s deferred operation was not completed successfully: {event}")
         else:
             self.log.info("% completed successfully", op_name)
