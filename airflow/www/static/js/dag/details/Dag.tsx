@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useRef, ReactNode } from "react";
+import React, { useRef, ReactNode, useState } from "react";
 import {
   Table,
   Tbody,
@@ -29,23 +29,30 @@ import {
   Heading,
   Text,
   Box,
+  Center,
+  Badge,
+  Code,
 } from "@chakra-ui/react";
-import { mean } from "lodash";
+import { mean, omit } from "lodash";
 
 import { getDuration, formatDuration } from "src/datetime_utils";
 import {
   finalStatesMap,
   getMetaValue,
   getTaskSummary,
+  toSentenceCase,
   useOffsetTop,
 } from "src/utils";
-import { useGridData } from "src/api";
+import { useGridData, useDag, useDagDetails } from "src/api";
 import Time from "src/components/Time";
+import ViewScheduleInterval from "src/components/ViewScheduleInterval";
 import type { TaskState } from "src/types";
 
+import type { DAG, DAGDetail } from "src/types/api-generated";
 import { SimpleStatus } from "../StatusBox";
 
 const dagDetailsUrl = getMetaValue("dag_details_url");
+const tagIndexUrl = getMetaValue("tag_index_url");
 
 const Dag = () => {
   const {
@@ -54,9 +61,40 @@ const Dag = () => {
   const detailsRef = useRef<HTMLDivElement>(null);
   const offsetTop = useOffsetTop(detailsRef);
 
+  const { data: dagData, isLoading: isLoadingDag } = useDag();
+  const {
+    data: dagDetailsData,
+    isLoading: isLoadingDagDetails,
+    refetch: refetchDagDetails,
+  } = useDagDetails();
+  const [excludeFromDagDetails, setExcludeFromDagDetials] = useState<
+    Array<string>
+  >([]);
+
   const taskSummary = getTaskSummary({ task: groups });
   const numMap = finalStatesMap();
   const durations: number[] = [];
+
+  const dagDataExcludeFields = [
+    "defaultView",
+    "fileToken",
+    "scheduleInterval",
+    "tags",
+    "owners",
+    // from dag details
+    "params",
+  ];
+
+  const fetchDagDetails = () => {
+    if (dagData) {
+      setExcludeFromDagDetials([
+        ...Object.keys(dagData),
+        ...dagDataExcludeFields,
+      ]);
+    }
+    refetchDagDetails();
+  };
+
   dagRuns.forEach((dagRun) => {
     durations.push(getDuration(dagRun.startDate, dagRun.endDate));
     const stateKey = dagRun.state == null ? "no_status" : dagRun.state;
@@ -88,6 +126,38 @@ const Dag = () => {
   const avg = mean(durations);
   const firstStart = dagRuns[0]?.startDate;
   const lastStart = dagRuns[dagRuns.length - 1]?.startDate;
+
+  // parse value for each key (string | null) and
+  const parseDagData = (value: string) => (
+    <>
+      {value !== "null" &&
+        // converting value to string since it could be bool or number
+        (Number.isNaN(Date.parse(String(value))) ? (
+          String(value)
+        ) : (
+          <Time dateTime={String(value)} />
+        ))}
+      {value === "null" && "None"}
+    </>
+  );
+
+  // render dag and dag_details data
+  const renderDagDetailsData = (
+    data: DAG | DAGDetail,
+    excludekeys: Array<string>
+  ) => (
+    <>
+      {Object.entries(data).map(
+        ([key, value]) =>
+          !excludekeys.includes(key) && (
+            <Tr key={key}>
+              <Td>{toSentenceCase(key)}</Td>
+              <Td>{parseDagData(String(value))}</Td>
+            </Tr>
+          )
+      )}
+    </>
+  );
 
   return (
     <Box
@@ -169,8 +239,97 @@ const Dag = () => {
               <Td>{value}</Td>
             </Tr>
           ))}
+          {!isLoadingDag && !!dagData && (
+            <>
+              <Tr borderBottomWidth={2} borderBottomColor="gray.300">
+                <Td>
+                  <Heading size="sm">DAG Details</Heading>
+                </Td>
+                <Td />
+              </Tr>
+              {renderDagDetailsData(dagData, dagDataExcludeFields)}
+              <Tr>
+                <Td>Owners</Td>
+                <Td>
+                  <Flex flexWrap="wrap">
+                    {dagData.owners?.map((owner) => (
+                      <Badge key={owner} colorScheme="blue">
+                        {owner}
+                      </Badge>
+                    ))}
+                  </Flex>
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Tags</Td>
+                <Td>
+                  {!!dagData.tags && dagData.tags?.length > 0 ? (
+                    <Flex flexWrap="wrap">
+                      {dagData.tags?.map((tag) => (
+                        <Button
+                          key={tag.name}
+                          as={Link}
+                          colorScheme="teal"
+                          size="xs"
+                          href={`${tagIndexUrl}${tag.name}`}
+                          mr={3}
+                        >
+                          {tag.name}
+                        </Button>
+                      ))}
+                    </Flex>
+                  ) : (
+                    "No tags"
+                  )}
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Schedule interval</Td>
+                <Td>
+                  {dagData.scheduleInterval?.type === "CronExpression" ? (
+                    <Text>{dagData.scheduleInterval?.value}</Text>
+                  ) : (
+                    // for TimeDelta and RelativeDelta
+                    <ViewScheduleInterval
+                      data={omit(dagData.scheduleInterval, ["type", "value"])}
+                    />
+                  )}
+                </Td>
+              </Tr>
+              {!isLoadingDagDetails && !!dagDetailsData && (
+                <>
+                  {renderDagDetailsData(dagDetailsData, excludeFromDagDetails)}
+                  <Tr>
+                    <Td>Params</Td>
+                    <Td>
+                      <Code width="100%">
+                        <pre>
+                          {JSON.stringify(dagDetailsData.params, null, 2)}
+                        </pre>
+                      </Code>
+                    </Td>
+                  </Tr>
+                </>
+              )}
+            </>
+          )}
         </Tbody>
       </Table>
+      {!isLoadingDag && !dagDetailsData && (
+        <Center>
+          <Button
+            isLoading={isLoadingDagDetails}
+            loadingText="Loading..."
+            colorScheme="teal"
+            variant="outline"
+            margin={5}
+            mt={5}
+            onClick={() => fetchDagDetails()}
+          >
+            More Details
+          </Button>
+        </Center>
+      )}
     </Box>
   );
 };

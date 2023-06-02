@@ -42,6 +42,7 @@ import useUpstreamDatasetEvents from "./useUpstreamDatasetEvents";
 import useTaskInstance from "./useTaskInstance";
 import useDag from "./useDag";
 import useDagCode from "./useDagCode";
+import useDagDetails from "./useDagDetails";
 
 axios.interceptors.response.use((res: AxiosResponse) =>
   res.data ? camelcaseKeys(res.data, { deep: true }) : res
@@ -72,4 +73,5 @@ export {
   useUpstreamDatasetEvents,
   useDag,
   useDagCode,
+  useDagDetails,
 };
