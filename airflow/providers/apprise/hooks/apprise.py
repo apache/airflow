@@ -103,7 +103,7 @@ class AppriseHook(BaseHook):
         )
 
     def get_conn(self) -> None:
-        pass
+        raise NotImplementedError()
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
