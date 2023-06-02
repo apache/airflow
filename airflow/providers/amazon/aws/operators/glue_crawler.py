@@ -20,6 +20,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
+from airflow import AirflowException
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
 
 if TYPE_CHECKING:
@@ -95,9 +96,15 @@ class GlueCrawlerOperator(BaseOperator):
                     poll_interval=self.poll_interval,
                     aws_conn_id=self.aws_conn_id,
                 ),
+                method_name="execute_complete",
             )
         elif self.wait_for_completion:
             self.log.info("Waiting for AWS Glue Crawler")
             self.hook.wait_for_crawler_completion(crawler_name=crawler_name, poll_interval=self.poll_interval)
 
         return crawler_name
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error in glue crawl: {event}")
+        return
