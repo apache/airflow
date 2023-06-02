@@ -17,8 +17,9 @@
 
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
-from asynctest import MagicMock, mock
 
 from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
@@ -28,7 +29,7 @@ from airflow.providers.amazon.aws.triggers.glue import GlueJobCompleteTrigger
 class TestGlueJobTrigger:
     @pytest.mark.asyncio
     @mock.patch.object(GlueJobHook, "async_get_job_state")
-    async def test_wait_job(self, get_state_mock: MagicMock):
+    async def test_wait_job(self, get_state_mock: mock.MagicMock):
         GlueJobHook.JOB_POLL_INTERVAL = 0.1
         trigger = GlueJobCompleteTrigger(
             job_name="job_name",
@@ -50,7 +51,7 @@ class TestGlueJobTrigger:
 
     @pytest.mark.asyncio
     @mock.patch.object(GlueJobHook, "async_get_job_state")
-    async def test_wait_job_failed(self, get_state_mock: MagicMock):
+    async def test_wait_job_failed(self, get_state_mock: mock.MagicMock):
         GlueJobHook.JOB_POLL_INTERVAL = 0.1
         trigger = GlueJobCompleteTrigger(
             job_name="job_name",

@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import sys
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -30,11 +29,6 @@ from moto import mock_glue, mock_iam
 from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
-
-if sys.version_info < (3, 8):
-    from asynctest import mock as async_mock
-else:
-    from unittest import mock as async_mock
 
 
 class TestGlueJobHook:
@@ -388,7 +382,7 @@ class TestGlueJobHook:
         assert get_state_mock.call_count == 3
 
     @pytest.mark.asyncio
-    @async_mock.patch.object(GlueJobHook, "async_get_job_state")
+    @mock.patch.object(GlueJobHook, "async_get_job_state")
     async def test_async_job_completion_success(self, get_state_mock: MagicMock):
         hook = GlueJobHook()
         hook.JOB_POLL_INTERVAL = 0
@@ -404,7 +398,7 @@ class TestGlueJobHook:
         get_state_mock.assert_called_with("job_name", "run_id")
 
     @pytest.mark.asyncio
-    @async_mock.patch.object(GlueJobHook, "async_get_job_state")
+    @mock.patch.object(GlueJobHook, "async_get_job_state")
     async def test_async_job_completion_failure(self, get_state_mock: MagicMock):
         hook = GlueJobHook()
         hook.JOB_POLL_INTERVAL = 0

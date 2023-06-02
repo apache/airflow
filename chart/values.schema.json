@@ -1645,6 +1645,11 @@
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        },
                         "env": {
                             "description": "Add additional env vars to wait-for-airflow-migrations init container.",
                             "type": "array",
