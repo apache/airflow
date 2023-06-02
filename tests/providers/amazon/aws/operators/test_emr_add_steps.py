@@ -27,6 +27,8 @@ from jinja2 import StrictUndefined
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.providers.amazon.aws.hooks.emr import EmrHook
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
 from airflow.utils import timezone
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
@@ -117,7 +119,8 @@ class TestEmrAddStepsOperator:
 
         assert self.operator.steps == expected_args
 
-    def test_render_template_from_file(self):
+    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
+    def test_render_template_from_file(self, _):
         dag = DAG(
             dag_id="test_file",
             default_args=self.args,
@@ -161,7 +164,8 @@ class TestEmrAddStepsOperator:
             JobFlowId="j-8989898989", Steps=file_steps
         )
 
-    def test_execute_returns_step_id(self):
+    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
+    def test_execute_returns_step_id(self, _):
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
         with patch("boto3.session.Session", self.boto3_session_mock), patch(
@@ -170,7 +174,8 @@ class TestEmrAddStepsOperator:
             mock_isinstance.return_value = True
             assert self.operator.execute(self.mock_context) == ["s-2LH3R5GW3A53T"]
 
-    def test_init_with_cluster_name(self):
+    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
+    def test_init_with_cluster_name(self, _):
         expected_job_flow_id = "j-1231231234"
 
         self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
@@ -217,8 +222,10 @@ class TestEmrAddStepsOperator:
                 operator.execute(self.mock_context)
             assert str(ctx.value) == f"No cluster found for name: {cluster_name}"
 
+    @patch.object(EmrHook, "conn")
+    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
     @patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.add_job_flow_steps")
-    def test_wait_for_completion(self, mock_add_job_flow_steps):
+    def test_wait_for_completion(self, mock_add_job_flow_steps, *_):
         job_flow_id = "j-8989898989"
         operator = EmrAddStepsOperator(
             task_id="test_task",

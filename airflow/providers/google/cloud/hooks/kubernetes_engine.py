@@ -29,6 +29,7 @@ import contextlib
 import json
 import time
 import warnings
+from functools import cached_property
 from typing import Sequence
 
 import google.auth.credentials
@@ -49,9 +50,8 @@ from kubernetes_asyncio.config.kube_config import FileOrData
 from urllib3.exceptions import HTTPError
 
 from airflow import version
-from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
-from airflow.kubernetes.pod_generator_deprecated import PodDefaults
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -100,7 +100,7 @@ class GKEHook(GoogleBaseHook):
     def get_conn(self) -> container_v1.ClusterManagerClient:
         warnings.warn(
             "The get_conn method has been deprecated. You should use the get_cluster_manager_client method.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         return self.get_cluster_manager_client()
 
@@ -109,7 +109,7 @@ class GKEHook(GoogleBaseHook):
     def get_client(self) -> ClusterManagerClient:
         warnings.warn(
             "The get_client method has been deprecated. You should use the get_conn method.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         return self.get_conn()
 
@@ -347,7 +347,7 @@ class GKEAsyncHook(GoogleBaseAsyncHook):
         )
 
 
-class GKEPodHook(GoogleBaseHook):
+class GKEPodHook(GoogleBaseHook, PodOperatorHookProtocol):
     """Hook for managing Google Kubernetes Engine pod APIs."""
 
     def __init__(
@@ -373,10 +373,25 @@ class GKEPodHook(GoogleBaseHook):
     def is_in_cluster(self) -> bool:
         return False
 
-    @staticmethod
-    def get_xcom_sidecar_container_image():
-        """Returns the xcom sidecar image that defined in the connection"""
-        return PodDefaults.SIDECAR_CONTAINER.image
+    def get_namespace(self):
+        """Get the namespace configured by the Airflow connection."""
+
+    def _get_namespace(self):
+        """Implemented for compatibility with KubernetesHook.  Deprecated; do not use."""
+
+    def get_xcom_sidecar_container_image(self):
+        """
+        Returns the xcom sidecar image defined in the connection.
+
+        Implemented for compatibility with KubernetesHook.
+        """
+
+    def get_xcom_sidecar_container_resources(self):
+        """
+        Returns the xcom sidecar resources defined in the connection.
+
+        Implemented for compatibility with KubernetesHook.
+        """
 
     def get_conn(self) -> client.ApiClient:
         configuration = self._get_config()

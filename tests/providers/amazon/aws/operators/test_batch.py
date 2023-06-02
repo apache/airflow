@@ -22,11 +22,13 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
 
 # Use dummy AWS credentials
+from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger
+
 AWS_REGION = "eu-west-1"
 AWS_ACCESS_KEY_ID = "airflow_dummy_key"
 AWS_SECRET_ACCESS_KEY = "airflow_dummy_secret"
@@ -95,6 +97,8 @@ class TestBatchOperator:
         assert self.batch.container_overrides == {}
         assert self.batch.array_properties is None
         assert self.batch.node_overrides is None
+        assert self.batch.share_identifier is None
+        assert self.batch.scheduling_priority_override is None
         assert self.batch.hook.region_name == "eu-west-1"
         assert self.batch.hook.aws_conn_id == "airflow_test"
         assert self.batch.hook.client == self.client_mock
@@ -233,7 +237,7 @@ class TestBatchOperator:
         client_mock().submit_job.assert_called_once_with(**expected_args)
 
     def test_deprecated_override_param(self):
-        with pytest.warns(DeprecationWarning):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             _ = BatchOperator(
                 task_id="task",
                 job_name=JOB_NAME,
@@ -253,6 +257,21 @@ class TestBatchOperator:
                 overrides={"a": "b"},
                 container_overrides={"a": "b"},
             )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.AwsBaseHook.get_client_type")
+    def test_defer_if_deferrable_param_set(self, mock_client):
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            do_xcom_push=False,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            batch.execute(context=None)
+        assert isinstance(exc.value.trigger, BatchOperatorTrigger), "Trigger is not a BatchOperatorTrigger"
 
 
 class TestBatchCreateComputeEnvironmentOperator:

@@ -17,8 +17,10 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
+  Alert,
+  AlertIcon,
   Flex,
   Button,
   Menu,
@@ -35,7 +37,9 @@ import { MdArrowDropDown } from "react-icons/md";
 import { capitalize } from "lodash";
 
 import { getMetaValue } from "src/utils";
+import { useKeysPress } from "src/utils/useKeysPress";
 import type { TaskState } from "src/types";
+import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
 import {
   useMarkFailedTask,
   useMarkSuccessTask,
@@ -53,6 +57,7 @@ interface Props extends MenuButtonProps {
   runId: string;
   taskId: string;
   state?: TaskState;
+  isGroup?: boolean;
   mapIndex?: number;
   isMapped?: boolean;
 }
@@ -60,6 +65,7 @@ interface Props extends MenuButtonProps {
 const MarkInstanceAs = ({
   runId,
   taskId,
+  isGroup,
   mapIndex,
   isMapped,
   state: currentState,
@@ -81,6 +87,8 @@ const MarkInstanceAs = ({
   const [downstream, setDownstream] = useState(false);
   const onToggleDownstream = () => setDownstream(!downstream);
 
+  const initialMarkAsButtonFocusRef = useRef<HTMLButtonElement>(null);
+
   const markAsFailed = () => {
     setNewState("failed");
     onOpen();
@@ -100,6 +108,7 @@ const MarkInstanceAs = ({
       runId,
       taskId,
       state: newState,
+      isGroup: !!isGroup,
       past,
       future,
       upstream,
@@ -113,6 +122,7 @@ const MarkInstanceAs = ({
       dagId,
       runId,
       taskId,
+      isGroup: !!isGroup,
     });
 
   const { mutateAsync: markSuccessMutation, isLoading: isMarkSuccessLoading } =
@@ -120,6 +130,7 @@ const MarkInstanceAs = ({
       dagId,
       runId,
       taskId,
+      isGroup: !!isGroup,
     });
 
   const resetModal = () => {
@@ -153,6 +164,16 @@ const MarkInstanceAs = ({
 
   const markLabel = "Manually set task instance state";
   const isMappedSummary = isMapped && mapIndex === undefined;
+
+  useKeysPress(keyboardShortcutIdentifier.taskMarkSuccess, () => {
+    if (1 - Number(!isMappedSummary && currentState === "success"))
+      markAsSuccess();
+  });
+
+  useKeysPress(keyboardShortcutIdentifier.taskMarkFailed, () => {
+    if (1 - Number(!isMappedSummary && currentState === "failed"))
+      markAsFailed();
+  });
 
   return (
     <>
@@ -219,6 +240,7 @@ const MarkInstanceAs = ({
         affectedTasks={affectedTasks}
         submitButton={
           <Button
+            ref={initialMarkAsButtonFocusRef}
             colorScheme={
               (newState === "success" && "green") ||
               (newState === "failed" && "red") ||
@@ -233,6 +255,7 @@ const MarkInstanceAs = ({
             Mark as {newState}
           </Button>
         }
+        initialFocusRef={initialMarkAsButtonFocusRef}
       >
         <Box>
           <Text>Include: </Text>
@@ -259,6 +282,16 @@ const MarkInstanceAs = ({
             />
           </ButtonGroup>
         </Box>
+        {isGroup && (past || future) && (
+          <Alert status="warning" my={3}>
+            <AlertIcon />
+            Marking a TaskGroup as {capitalize(newState)} in the future and/or
+            past will affect all the tasks of this group across multiple dag
+            runs.
+            <br />
+            This can take a while to complete.
+          </Alert>
+        )}
       </ActionModal>
     </>
   );

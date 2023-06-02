@@ -29,6 +29,7 @@ import psycopg2.extras
 from psycopg2.extensions import connection
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
@@ -72,7 +73,7 @@ class PostgresHook(DbApiHook):
             warnings.warn(
                 'The "schema" arg has been renamed to "database" as it contained the database name.'
                 'Please use "database" to set the database name.',
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             kwargs["database"] = kwargs["schema"]
@@ -86,7 +87,7 @@ class PostgresHook(DbApiHook):
         warnings.warn(
             'The "schema" variable has been renamed to "database" as it contained the database name.'
             'Please use "database" to get the database name.',
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         return self.database
@@ -96,7 +97,7 @@ class PostgresHook(DbApiHook):
         warnings.warn(
             'The "schema" variable has been renamed to "database" as it contained the database name.'
             'Please use "database" to set the database name.',
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         self.database = value
@@ -178,11 +179,11 @@ class PostgresHook(DbApiHook):
         return uri
 
     def bulk_load(self, table: str, tmp_file: str) -> None:
-        """Loads a tab-delimited file into a database table"""
+        """Loads a tab-delimited file into a database table."""
         self.copy_expert(f"COPY {table} FROM STDIN", tmp_file)
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
-        """Dumps a database table into a tab-delimited file"""
+        """Dumps a database table into a tab-delimited file."""
         self.copy_expert(f"COPY {table} TO STDOUT", tmp_file)
 
     @staticmethod
@@ -204,7 +205,7 @@ class PostgresHook(DbApiHook):
         """
         Uses AWSHook to retrieve a temporary password to connect to Postgres
         or Redshift. Port is required. If none is provided, default is used for
-        each service
+        each service.
         """
         try:
             from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -242,7 +243,7 @@ class PostgresHook(DbApiHook):
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
         """
-        Helper method that returns the table primary key
+        Helper method that returns the table primary key.
 
         :param table: Name of the target table
         :param schema: Name of the target schema, public by default

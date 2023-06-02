@@ -25,7 +25,9 @@
 {{- $tolerations := or .Values.webserver.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.webserver.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.webserver.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowSecurityContext" (list . .Values.webserver) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.webserver) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.webserver) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.webserver.waitForMigrations) }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -131,6 +133,7 @@ spec:
           resources: {{- toYaml .Values.webserver.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
@@ -161,6 +164,7 @@ spec:
         - name: webserver
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ or $containerSecurityContext .Values.webserver.securityContexts.container .Values.securityContexts.container | nindent 12 }}
           {{- if .Values.webserver.command }}
           command: {{ tpl (toYaml .Values.webserver.command) . | nindent 12 }}
           {{- end }}

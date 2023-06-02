@@ -82,7 +82,9 @@ class TestTriggerer:
             },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
-        actual = jmespath.search("spec.template.spec.initContainers", docs[0])
+        actual = jmespath.search(
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
+        )
         assert actual is None
 
     def test_should_add_extra_containers(self):
@@ -218,7 +220,7 @@ class TestTriggerer:
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert "Deployment" == jmespath.search("kind", docs[0])
+        assert "StatefulSet" == jmespath.search("kind", docs[0])
         assert "foo" == jmespath.search(
             "spec.template.spec.affinity.nodeAffinity."
             "requiredDuringSchedulingIgnoredDuringExecution."

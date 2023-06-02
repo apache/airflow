@@ -46,21 +46,21 @@ python setup.py install
 # There are different constraint files for different python versions. For example"
 
 pip install . \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt"
 
 
 By default `pip install` in Airflow 2.0 installs only the provider packages that are needed by the extras and
 install them as packages from PyPI rather than from local sources:
 
 pip install .[google,amazon] \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt"
 
 
 You can upgrade just airflow, without paying attention to provider's dependencies by using 'constraints-no-providers'
 constraint files. This allows you to keep installed provider packages.
 
 pip install . --upgrade \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.7.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-no-providers-3.8.txt"
 
 
 You can also install airflow in "editable mode" (with -e) flag and then provider packages are
@@ -75,7 +75,7 @@ and in ``CONTRIBUTING.rst`` for developing community maintained providers.
 This is useful if you want to develop providers:
 
 pip install -e . \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt"
 
 You can also skip installing provider packages from PyPI by setting INSTALL_PROVIDERS_FROM_SOURCE to "true".
 In this case Airflow will be installed in non-editable mode with all providers installed from the sources.
@@ -83,13 +83,13 @@ Additionally `provider.yaml` files will also be copied to providers folders whic
 discoverable by Airflow even if they are not installed from packages in this case.
 
 INSTALL_PROVIDERS_FROM_SOURCES="true" pip install . \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt"
 
 Airflow can be installed with extras to install some additional features (for example 'async' or 'doc' or
 to install automatically providers and all dependencies needed by that provider:
 
 pip install .[async,google,amazon] \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.8.txt"
 
 The list of available extras:
 

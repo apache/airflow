@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import json
 import warnings
+from functools import cached_property
 from typing import Any, Sequence
 
-from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.utils.log.secrets_masker import mask_secret
@@ -29,7 +30,7 @@ from airflow.utils.log.secrets_masker import mask_secret
 
 class SlackAPIOperator(BaseOperator):
     """
-    Base Slack Operator
+    Base Slack Operator.
     The SlackAPIPostOperator is derived from this operator.
     In the future additional Slack API Operators will be derived from this class as well.
     Only one of `slack_conn_id` and `token` is required.
@@ -68,7 +69,7 @@ class SlackAPIOperator(BaseOperator):
     def construct_api_call_params(self) -> Any:
         """
         Used by the execute function. Allows templating on the source fields
-        of the api_call_params dict before construction
+        of the api_call_params dict before construction.
 
         Override in child classes.
         Each SlackAPIOperator child class is responsible for
@@ -88,8 +89,7 @@ class SlackAPIOperator(BaseOperator):
 
 class SlackAPIPostOperator(SlackAPIOperator):
     """
-    Posts messages to a slack channel
-    Examples:
+    Posts messages to a Slack channel.
 
     .. code-block:: python
 
@@ -150,8 +150,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
 
 class SlackAPIFileOperator(SlackAPIOperator):
     """
-    Send a file to a slack channels
-    Examples:
+    Send a file to a Slack channel.
 
     .. code-block:: python
 
@@ -211,7 +210,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
             warnings.warn(
                 "Argument `channel` is deprecated and will removed in a future releases. "
                 "Please use `channels` instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             if channels:

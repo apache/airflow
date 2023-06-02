@@ -16,6 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Setup.py for the Airflow project."""
+# To make sure the CI build is using "upgrade to newer dependencies", which is useful when you want to check
+# if the dependencies are still compatible with the latest versions as they seem to break some unrelated
+# tests in main, you can modify this file. The modification can be simply modifying this particular comment.
+# e.g. you can modify the following number "00001" to something else to trigger it.
 from __future__ import annotations
 
 import glob
@@ -54,6 +58,7 @@ PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
 CROSS_PROVIDERS_DEPS = "cross-providers-deps"
 DEPS = "deps"
+CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 
 
 #
@@ -63,7 +68,13 @@ DEPS = "deps"
 #
 def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
     try:
-        return json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+        with AIRFLOW_SOURCES_ROOT.joinpath("generated", "provider_dependencies.json").open() as f:
+            dependencies = json.load(f)
+        return {
+            key: value
+            for key, value in dependencies.items()
+            if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"]
+        }
     except Exception as e:
         print(f"Exception while loading provider dependencies {e}")
         # we can ignore loading dependencies when they are missing - they are only used to generate
@@ -76,7 +87,7 @@ PROVIDER_DEPENDENCIES = fill_provider_dependencies()
 
 
 def airflow_test_suite() -> unittest.TestSuite:
-    """Test suite for Airflow tests"""
+    """Test suite for Airflow tests."""
     test_loader = unittest.TestLoader()
     test_suite = test_loader.discover(str(AIRFLOW_SOURCES_ROOT / "tests"), pattern="test_*.py")
     return test_suite
@@ -99,7 +110,7 @@ class CleanCommand(Command):
 
     @staticmethod
     def rm_all_files(files: list[str]) -> None:
-        """Remove all files from the list"""
+        """Remove all files from the list."""
         for file in files:
             try:
                 os.remove(file)
@@ -209,8 +220,8 @@ def write_version(filename: str = str(AIRFLOW_SOURCES_ROOT / "airflow" / "git_ve
 # NOTE! IN Airflow 2.4.+ dependencies for providers are maintained in `provider.yaml` files for each
 # provider separately. Before, the provider dependencies were kept here. THEY ARE NOT HERE ANYMORE.
 #
-# 'Start dependencies group' and 'Start dependencies group' are mark for ./scripts/ci/check_order_setup.py
-# If you change this mark you should also change ./scripts/ci/check_order_setup.py
+# 'Start dependencies group' and 'End dependencies group' are marks for ./scripts/ci/check_order_setup.py
+# If you change these marks you should also change ./scripts/ci/check_order_setup.py
 # Start dependencies group
 async_packages = [
     "eventlet>=0.33.3",
@@ -240,9 +251,10 @@ dask = [
     # Dask support is limited, we need Dask team to upgrade support for dask if we were to continue
     # Supporting it in the future
     "cloudpickle>=1.4.1",
-    # Dask in version 2022.10.1 removed `bokeh` support and we should avoid installing it
-    "dask>=2.9.0,!=2022.10.1",
-    "distributed>=2.11.1",
+    # Dask and distributed in version 2023.5.0 break our tests for Python > 3.7
+    # See https://github.com/dask/dask/issues/10279
+    "dask>=2.9.0,!=2022.10.1,!=2023.5.0",
+    "distributed>=2.11.1,!=2023.5.0",
 ]
 deprecated_api = [
     "requests>=2.26.0",
@@ -256,9 +268,6 @@ doc = [
     # <section> tags for sections
     "docutils<0.17.0",
     "eralchemy2",
-    # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
-    # even though Sphinx 4.4.0 has this but with python_version<3.10.
-    'importlib-metadata>=4.4; python_version < "3.8"',
     "sphinx-airflow-theme",
     "sphinx-argparse>=0.1.13",
     "sphinx-autoapi>=2.0.0",
@@ -276,7 +285,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.0",
+    "flask-appbuilder[oauth]==4.3.1",
 ]
 kerberos = [
     "pykerberos>=1.1.13",
@@ -356,7 +365,6 @@ mypy_dependencies = [
 
 # Dependencies needed for development only
 devel_only = [
-    "asynctest~=0.13",
     "aws_xray_sdk",
     "beautifulsoup4>=4.7.1",
     "black",
@@ -485,6 +493,17 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "statsd": statsd,
     "virtualenv": virtualenv,
 }
+
+
+def filter_out_excluded_extras() -> Iterable[tuple[str, list[str]]]:
+    for key, value in CORE_EXTRAS_DEPENDENCIES.items():
+        if value:
+            yield key, value
+        else:
+            print(f"Removing extra {key} as it has been excluded")
+
+
+CORE_EXTRAS_DEPENDENCIES = dict(filter_out_excluded_extras())
 
 EXTRAS_DEPENDENCIES: dict[str, list[str]] = deepcopy(CORE_EXTRAS_DEPENDENCIES)
 
@@ -637,8 +656,7 @@ devel_all = get_unique_dependency_list(
 )
 
 # Those are packages excluded for "all" dependencies
-PACKAGES_EXCLUDED_FOR_ALL = []
-PACKAGES_EXCLUDED_FOR_ALL.extend(["snakebite"])
+PACKAGES_EXCLUDED_FOR_ALL: list[str] = []
 
 
 def is_package_excluded(package: str, exclusion_list: list[str]) -> bool:
@@ -715,7 +733,7 @@ PREINSTALLED_PROVIDERS = [
 
 def get_provider_package_name_from_package_id(package_id: str) -> str:
     """
-    Builds the name of provider package out of the package id provided/
+    Builds the name of provider package out of the package id provided/.
 
     :param package_id: id of the package (like amazon or microsoft.azure)
     :return: full name of package in PyPI
@@ -730,7 +748,7 @@ def get_excluded_providers() -> list[str]:
 
 
 def get_all_provider_packages() -> str:
-    """Returns all provider packages configured in setup.py"""
+    """Returns all provider packages configured in setup.py."""
     excluded_providers = get_excluded_providers()
     return " ".join(
         get_provider_package_name_from_package_id(package)
@@ -740,7 +758,7 @@ def get_all_provider_packages() -> str:
 
 
 class AirflowDistribution(Distribution):
-    """The setuptools.Distribution subclass with Airflow specific behaviour"""
+    """The setuptools.Distribution subclass with Airflow specific behaviour."""
 
     def __init__(self, attrs=None):
         super().__init__(attrs)
@@ -815,7 +833,7 @@ def replace_extra_dependencies_with_provider_packages(extra: str, providers: lis
     elif extra == "apache.hive":
         # We moved the hive macros to the hive provider, and they are available in hive provider only as of
         # 5.1.0 version only, so we have to make sure minimum version is used
-        EXTRAS_DEPENDENCIES[extra] = ["apache-airflow-providers-hive>=5.1.0"]
+        EXTRAS_DEPENDENCIES[extra] = ["apache-airflow-providers-apache-hive>=5.1.0"]
     else:
         EXTRAS_DEPENDENCIES[extra] = [
             get_provider_package_name_from_package_id(package_name) for package_name in providers

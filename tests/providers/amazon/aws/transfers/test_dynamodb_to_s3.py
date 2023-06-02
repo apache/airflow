@@ -25,6 +25,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import DAG
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.amazon.aws.transfers.base import _DEPRECATION_MSG
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import (
@@ -69,7 +70,7 @@ class TestDynamodbToS3:
         ]
         table = MagicMock()
         table.return_value.scan.side_effect = responses
-        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
+        mock_aws_dynamodb_hook.return_value.conn.Table = table
 
         s3_client = MagicMock()
         s3_client.return_value.upload_file = self.mock_upload_file
@@ -98,7 +99,7 @@ class TestDynamodbToS3:
         ]
         table = MagicMock()
         table.return_value.scan.side_effect = responses
-        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
+        mock_aws_dynamodb_hook.return_value.conn.Table = table
 
         s3_client = MagicMock()
         s3_client.return_value.upload_file = self.mock_upload_file
@@ -169,7 +170,7 @@ class TestDynamodbToS3:
         mock_s3_hook.return_value.get_conn = s3_client
 
         aws_conn_id = "test-conn-id"
-        with pytest.warns(DeprecationWarning, match=_DEPRECATION_MSG):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=_DEPRECATION_MSG):
             dynamodb_to_s3_operator = DynamoDBToS3Operator(
                 task_id="dynamodb_to_s3",
                 dynamodb_table_name="airflow_rocks",
@@ -197,7 +198,7 @@ class TestDynamodbToS3:
         ]
         table = MagicMock()
         table.return_value.scan.side_effect = responses
-        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
+        mock_aws_dynamodb_hook.return_value.conn.Table = table
 
         s3_client = MagicMock()
         s3_client.return_value.upload_file = self.mock_upload_file
@@ -233,7 +234,7 @@ class TestDynamodbToS3:
         ]
         table = MagicMock()
         table.return_value.scan.side_effect = responses
-        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
+        mock_aws_dynamodb_hook.return_value.conn.Table = table
 
         s3_client = MagicMock()
         s3_client.return_value.upload_file = self.mock_upload_file
@@ -271,7 +272,7 @@ class TestDynamodbToS3:
         ]
         table = MagicMock()
         table.return_value.scan.side_effect = responses
-        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
+        mock_aws_dynamodb_hook.return_value.conn.Table = table
 
         s3_client = MagicMock()
         s3_client.return_value.upload_file = self.mock_upload_file
@@ -315,3 +316,44 @@ class TestDynamodbToS3:
         assert "2020-01-01" == getattr(operator, "s3_bucket_name")
         assert "2020-01-01" == getattr(operator, "dynamodb_table_name")
         assert "2020-01-01" == getattr(operator, "s3_key_prefix")
+
+    @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBToS3Operator._export_entire_data")
+    def test_dynamodb_execute_calling_export_entire_data(self, _export_entire_data):
+        """Test that DynamoDBToS3Operator when called without export_time will call _export_entire_data"""
+        dynamodb_to_s3_operator = DynamoDBToS3Operator(
+            task_id="dynamodb_to_s3",
+            dynamodb_table_name="airflow_rocks",
+            s3_bucket_name="airflow-bucket",
+            file_size=4000,
+        )
+        dynamodb_to_s3_operator.execute(context={})
+        _export_entire_data.assert_called()
+
+    @patch(
+        "airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBToS3Operator."
+        "_export_table_to_point_in_time"
+    )
+    def test_dynamodb_execute_calling_export_table_to_point_in_time(self, _export_table_to_point_in_time):
+        """Test that DynamoDBToS3Operator when called without export_time will call
+        _export_table_to_point_in_time. Which implements point in time recovery logic"""
+        dynamodb_to_s3_operator = DynamoDBToS3Operator(
+            task_id="dynamodb_to_s3",
+            dynamodb_table_name="airflow_rocks",
+            s3_bucket_name="airflow-bucket",
+            file_size=4000,
+            export_time=datetime(year=1983, month=1, day=1),
+        )
+        dynamodb_to_s3_operator.execute(context={})
+        _export_table_to_point_in_time.assert_called()
+
+    def test_dynamodb_with_future_date(self):
+        """Test that DynamoDBToS3Operator should raise a exception when future date is passed in
+        export_time parameter"""
+        with pytest.raises(ValueError, match="The export_time parameter cannot be a future time."):
+            DynamoDBToS3Operator(
+                task_id="dynamodb_to_s3",
+                dynamodb_table_name="airflow_rocks",
+                s3_bucket_name="airflow-bucket",
+                file_size=4000,
+                export_time=datetime(year=3000, month=1, day=1),
+            ).execute(context={})

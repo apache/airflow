@@ -71,7 +71,7 @@ Package apache-airflow-providers-ftp
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
 
-Release: 3.3.1
+Release: 3.4.1
 
 Provider package
 ----------------
@@ -85,5 +85,16 @@ Installation
 You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-ftp``
+
+Requirements
+------------
+
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.4.0``
+==================  ==================
 
 .. include:: ../../airflow/providers/ftp/CHANGELOG.rst

@@ -25,7 +25,7 @@ from zipfile import ZipFile
 
 import pytest
 
-from airflow import settings
+from airflow import PY311, settings
 from airflow.callbacks.callback_requests import TaskCallbackRequest
 from airflow.configuration import TEST_DAGS_FOLDER, conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
@@ -786,14 +786,25 @@ class TestDagFileProcessor:
             assert len(import_errors) == 1
             import_error = import_errors[0]
             assert import_error.filename == unparseable_filename
-            expected_stacktrace = (
-                "Traceback (most recent call last):\n"
-                '  File "{}", line 3, in <module>\n'
-                "    something()\n"
-                '  File "{}", line 2, in something\n'
-                "    return airflow_DAG\n"
-                "NameError: name 'airflow_DAG' is not defined\n"
-            )
+            if PY311:
+                expected_stacktrace = (
+                    "Traceback (most recent call last):\n"
+                    '  File "{}", line 3, in <module>\n'
+                    "    something()\n"
+                    '  File "{}", line 2, in something\n'
+                    "    return airflow_DAG\n"
+                    "           ^^^^^^^^^^^\n"
+                    "NameError: name 'airflow_DAG' is not defined\n"
+                )
+            else:
+                expected_stacktrace = (
+                    "Traceback (most recent call last):\n"
+                    '  File "{}", line 3, in <module>\n'
+                    "    something()\n"
+                    '  File "{}", line 2, in something\n'
+                    "    return airflow_DAG\n"
+                    "NameError: name 'airflow_DAG' is not defined\n"
+                )
             assert import_error.stacktrace == expected_stacktrace.format(
                 unparseable_filename, unparseable_filename
             )
@@ -812,12 +823,21 @@ class TestDagFileProcessor:
             assert len(import_errors) == 1
             import_error = import_errors[0]
             assert import_error.filename == unparseable_filename
-            expected_stacktrace = (
-                "Traceback (most recent call last):\n"
-                '  File "{}", line 2, in something\n'
-                "    return airflow_DAG\n"
-                "NameError: name 'airflow_DAG' is not defined\n"
-            )
+            if PY311:
+                expected_stacktrace = (
+                    "Traceback (most recent call last):\n"
+                    '  File "{}", line 2, in something\n'
+                    "    return airflow_DAG\n"
+                    "           ^^^^^^^^^^^\n"
+                    "NameError: name 'airflow_DAG' is not defined\n"
+                )
+            else:
+                expected_stacktrace = (
+                    "Traceback (most recent call last):\n"
+                    '  File "{}", line 2, in something\n'
+                    "    return airflow_DAG\n"
+                    "NameError: name 'airflow_DAG' is not defined\n"
+                )
             assert import_error.stacktrace == expected_stacktrace.format(unparseable_filename)
 
             session.rollback()
@@ -835,14 +855,25 @@ class TestDagFileProcessor:
             assert len(import_errors) == 1
             import_error = import_errors[0]
             assert import_error.filename == invalid_dag_filename
-            expected_stacktrace = (
-                "Traceback (most recent call last):\n"
-                '  File "{}", line 3, in <module>\n'
-                "    something()\n"
-                '  File "{}", line 2, in something\n'
-                "    return airflow_DAG\n"
-                "NameError: name 'airflow_DAG' is not defined\n"
-            )
+            if PY311:
+                expected_stacktrace = (
+                    "Traceback (most recent call last):\n"
+                    '  File "{}", line 3, in <module>\n'
+                    "    something()\n"
+                    '  File "{}", line 2, in something\n'
+                    "    return airflow_DAG\n"
+                    "           ^^^^^^^^^^^\n"
+                    "NameError: name 'airflow_DAG' is not defined\n"
+                )
+            else:
+                expected_stacktrace = (
+                    "Traceback (most recent call last):\n"
+                    '  File "{}", line 3, in <module>\n'
+                    "    something()\n"
+                    '  File "{}", line 2, in something\n'
+                    "    return airflow_DAG\n"
+                    "NameError: name 'airflow_DAG' is not defined\n"
+                )
             assert import_error.stacktrace == expected_stacktrace.format(
                 invalid_dag_filename, invalid_dag_filename
             )
@@ -862,12 +893,21 @@ class TestDagFileProcessor:
             assert len(import_errors) == 1
             import_error = import_errors[0]
             assert import_error.filename == invalid_dag_filename
-            expected_stacktrace = (
-                "Traceback (most recent call last):\n"
-                '  File "{}", line 2, in something\n'
-                "    return airflow_DAG\n"
-                "NameError: name 'airflow_DAG' is not defined\n"
-            )
+            if PY311:
+                expected_stacktrace = (
+                    "Traceback (most recent call last):\n"
+                    '  File "{}", line 2, in something\n'
+                    "    return airflow_DAG\n"
+                    "           ^^^^^^^^^^^\n"
+                    "NameError: name 'airflow_DAG' is not defined\n"
+                )
+            else:
+                expected_stacktrace = (
+                    "Traceback (most recent call last):\n"
+                    '  File "{}", line 2, in something\n'
+                    "    return airflow_DAG\n"
+                    "NameError: name 'airflow_DAG' is not defined\n"
+                )
             assert import_error.stacktrace == expected_stacktrace.format(invalid_dag_filename)
             session.rollback()
 
@@ -916,6 +956,40 @@ class TestDagFileProcessor:
             dag_directory=[],
         )
         mock_redirect_stdout_for_file.assert_called_once()
+
+    @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
+    @mock.patch.object(DagFileProcessorProcess, "_get_multiprocessing_context")
+    def test_no_valueerror_with_parseable_dag_in_zip(self, mock_context, tmpdir):
+        mock_context.return_value.Pipe.return_value = (MagicMock(), MagicMock())
+        zip_filename = os.path.join(tmpdir, "test_zip.zip")
+        with ZipFile(zip_filename, "w") as zip_file:
+            zip_file.writestr(TEMP_DAG_FILENAME, PARSEABLE_DAG_FILE_CONTENTS)
+
+        processor = DagFileProcessorProcess(
+            file_path=zip_filename,
+            pickle_dags=False,
+            dag_ids=[],
+            dag_directory=[],
+            callback_requests=[],
+        )
+        processor.start()
+
+    @mock.patch("airflow.dag_processing.processor.settings.dispose_orm", MagicMock)
+    @mock.patch.object(DagFileProcessorProcess, "_get_multiprocessing_context")
+    def test_nullbyte_exception_handling_when_preimporting_airflow(self, mock_context, tmpdir):
+        mock_context.return_value.Pipe.return_value = (MagicMock(), MagicMock())
+        dag_filename = os.path.join(tmpdir, "test_dag.py")
+        with open(dag_filename, "wb") as file:
+            file.write(b"hello\x00world")
+
+        processor = DagFileProcessorProcess(
+            file_path=dag_filename,
+            pickle_dags=False,
+            dag_ids=[],
+            dag_directory=[],
+            callback_requests=[],
+        )
+        processor.start()
 
 
 class TestProcessorAgent:

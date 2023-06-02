@@ -116,7 +116,7 @@ class SnowflakeHook(DbApiHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, StringField
@@ -139,7 +139,7 @@ class SnowflakeHook(DbApiHook):
     @staticmethod
     @_ensure_prefixes(conn_type="snowflake")
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         import json
 
         return {
@@ -203,7 +203,7 @@ class SnowflakeHook(DbApiHook):
     def _get_conn_params(self) -> dict[str, str | None]:
         """
         One method to fetch connection params as a dict
-        used in get_uri() and get_connection()
+        used in get_uri() and get_connection().
         """
         conn = self.get_connection(self.snowflake_conn_id)  # type: ignore[attr-defined]
         extra_dict = conn.extra_dejson
@@ -277,7 +277,7 @@ class SnowflakeHook(DbApiHook):
         return conn_config
 
     def get_uri(self) -> str:
-        """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
         conn_params = self._get_conn_params()
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
@@ -291,7 +291,7 @@ class SnowflakeHook(DbApiHook):
         )
 
     def get_conn(self) -> SnowflakeConnection:
-        """Returns a snowflake.connection object"""
+        """Returns a snowflake.connection object."""
         conn_config = self._get_conn_params()
         conn = connector.connect(**conn_config)
         return conn
@@ -337,7 +337,7 @@ class SnowflakeHook(DbApiHook):
         sequentially. The variable execution_info is returned so that
         it can be used in the Operators to modify the behavior
         depending on the result of the query (i.e fail the operator
-        if the copy has processed 0 files)
+        if the copy has processed 0 files).
 
         :param sql: the sql string to be executed with possibly multiple statements,
           or a list of sql statements to execute

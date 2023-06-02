@@ -27,6 +27,7 @@ from unittest.mock import MagicMock, PropertyMock, mock_open
 from uuid import UUID
 
 import boto3
+import botocore
 import jinja2
 import pytest
 from botocore.config import Config
@@ -245,6 +246,25 @@ class TestSessionFactory:
         session_profile = async_session.get_config_variable("profile")
 
         assert session_profile == profile_name
+
+    @pytest.mark.asyncio
+    async def test_async_create_a_session_from_credentials_without_token(self):
+        mock_conn = Connection(
+            conn_type=MOCK_CONN_TYPE,
+            conn_id=MOCK_AWS_CONN_ID,
+            extra={
+                "aws_access_key_id": "test_aws_access_key_id",
+                "aws_secret_access_key": "test_aws_secret_access_key",
+                "region_name": "eu-central-1",
+            },
+        )
+        mock_conn_config = AwsConnectionWrapper(conn=mock_conn)
+        sf = BaseSessionFactory(conn=mock_conn_config, config=None)
+        async_session = sf.create_session(deferrable=True)
+        cred = await async_session.get_credentials()
+        assert cred.access_key == "test_aws_access_key_id"
+        assert cred.secret_key == "test_aws_secret_access_key"
+        assert cred.token is None
 
     config_for_credentials_test = [
         (
@@ -1062,3 +1082,14 @@ def test_waiter_config_param_wrong_format(waiter_path_mock: MagicMock):
 
     with pytest.raises(jinja2.TemplateSyntaxError):
         hook.get_waiter("bad_param_wait")
+
+
+@mock.patch.object(AwsGenericHook, "waiter_path", new_callable=PropertyMock)
+def test_custom_waiter_with_resource_type(waiter_path_mock: MagicMock):
+    waiter_path_mock.return_value = TEST_WAITER_CONFIG_LOCATION
+    hook = AwsBaseHook(resource_type="dynamodb")  # needs to be a real client type
+
+    with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter") as BaseBotoWaiter:
+        hook.get_waiter("other_wait")
+
+    assert isinstance(BaseBotoWaiter.call_args[1]["client"], botocore.client.BaseClient)

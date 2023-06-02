@@ -29,7 +29,10 @@
 {{- $tolerations := or .Values.triggerer.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.triggerer.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.triggerer.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowSecurityContext" (list . .Values.triggerer) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.triggerer) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.triggerer) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.triggerer.waitForMigrations) }}
+{{- $containerSecurityContextLogGroomer := include "containerSecurityContext" (list . .Values.triggerer.logGroomerSidecar) }}
 kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
 metadata:
@@ -124,6 +127,7 @@ spec:
             {{- toYaml .Values.triggerer.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
@@ -154,6 +158,7 @@ spec:
         - name: triggerer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if .Values.triggerer.command }}
           command: {{ tpl (toYaml .Values.triggerer.command) . | nindent 12 }}
           {{- end }}
@@ -208,6 +213,7 @@ spec:
           resources: {{- toYaml .Values.triggerer.logGroomerSidecar.resources | nindent 12 }}
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContextLogGroomer | nindent 12 }}
           {{- if .Values.triggerer.logGroomerSidecar.command }}
           command: {{ tpl (toYaml .Values.triggerer.logGroomerSidecar.command) . | nindent 12 }}
           {{- end }}

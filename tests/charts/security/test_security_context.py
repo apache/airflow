@@ -209,3 +209,205 @@ class TestSecurityContext:
                 "spec.template.spec.containers[?name=='git-sync'].securityContext.runAsUser | [0]",
                 docs[index],
             )
+
+    # Test securityContexts for main containers
+    def test_main_container_setting(self):
+        ctx_value = {"allowPrivilegeEscalation": False}
+        security_context = {"securityContexts": {"container": ctx_value}}
+        docs = render_chart(
+            values={
+                "scheduler": {**security_context},
+                "webserver": {**security_context},
+                "workers": {**security_context},
+                "flower": {**security_context},
+                "statsd": {**security_context},
+                "createUserJob": {**security_context},
+                "migrateDatabaseJob": {**security_context},
+                "triggerer": {**security_context},
+                "pgbouncer": {**security_context},
+                "redis": {**security_context},
+            },
+            show_only=[
+                "templates/flower/flower-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/jobs/create-user-job.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
+            ],
+        )
+
+        for index in range(len(docs)):
+            assert ctx_value == jmespath.search(
+                "spec.template.spec.containers[0].securityContext", docs[index]
+            )
+
+    # Test securityContexts for log-groomer-sidecar main container
+    def test_log_groomer_sidecar_container_setting(self):
+        ctx_value = {"allowPrivilegeEscalation": False}
+        spec = {"logGroomerSidecar": {"securityContexts": {"container": ctx_value}}}
+        docs = render_chart(
+            values={
+                "scheduler": {**spec},
+                "workers": {**spec},
+            },
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        for index in range(len(docs)):
+            assert ctx_value == jmespath.search(
+                "spec.template.spec.containers[1].securityContext", docs[index]
+            )
+
+    # Test securityContexts for metrics-explorer main container
+    def test_metrics_explorer_container_setting(self):
+        ctx_value = {"allowPrivilegeEscalation": False}
+        docs = render_chart(
+            values={
+                "pgbouncer": {
+                    "enabled": True,
+                    "metricsExporterSidecar": {"securityContexts": {"container": ctx_value}},
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert ctx_value == jmespath.search("spec.template.spec.containers[1].securityContext", docs[0])
+
+    # Test securityContexts for worker-kerberos main container
+    def test_worker_kerberos_container_setting(self):
+        ctx_value = {"allowPrivilegeEscalation": False}
+        docs = render_chart(
+            values={
+                "workers": {
+                    "kerberosSidecar": {"enabled": True, "securityContexts": {"container": ctx_value}}
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert ctx_value == jmespath.search("spec.template.spec.containers[2].securityContext", docs[0])
+
+    # Test securityContexts for the wait-for-migrations init containers
+    def test_wait_for_migrations_init_container_setting(self):
+        ctx_value = {"allowPrivilegeEscalation": False}
+        spec = {
+            "waitForMigrations": {
+                "enabled": True,
+                "securityContexts": {"container": ctx_value},
+            }
+        }
+        docs = render_chart(
+            values={
+                "scheduler": {**spec},
+                "webserver": {**spec},
+                "triggerer": {**spec},
+                "workers": {"waitForMigrations": {"securityContexts": {"container": ctx_value}}},
+            },
+            show_only=[
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+            ],
+        )
+
+        for index in range(len(docs)):
+            assert ctx_value == jmespath.search(
+                "spec.template.spec.initContainers[0].securityContext", docs[index]
+            )
+
+    # Test securityContexts for volume-permissions init container
+    def test_volume_permissions_init_container_setting(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "persistence": {
+                        "enabled": True,
+                        "fixPermissions": True,
+                        "securityContexts": {"container": {"allowPrivilegeEscalation": False}},
+                    }
+                }
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        expected_ctx = {
+            "allowPrivilegeEscalation": False,
+        }
+
+        assert expected_ctx == jmespath.search(
+            "spec.template.spec.initContainers[0].securityContext", docs[0]
+        )
+
+    # Test securityContexts for main pods
+    def test_main_pod_setting(self):
+        ctx_value = {"runAsUser": 7000}
+        security_context = {"securityContexts": {"pod": ctx_value}}
+        docs = render_chart(
+            values={
+                "scheduler": {**security_context},
+                "webserver": {**security_context},
+                "workers": {**security_context},
+                "flower": {**security_context},
+                "statsd": {**security_context},
+                "createUserJob": {**security_context},
+                "migrateDatabaseJob": {**security_context},
+                "triggerer": {**security_context},
+                "pgbouncer": {**security_context},
+                "redis": {**security_context},
+            },
+            show_only=[
+                "templates/flower/flower-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/jobs/create-user-job.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/pgbouncer/pgbouncer-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
+            ],
+        )
+
+        for index in range(len(docs)):
+            assert ctx_value == jmespath.search("spec.template.spec.securityContext", docs[index])
+
+    # Test securityContexts for main pods
+    def test_main_pod_setting_legacy_security(self):
+        ctx_value = {"runAsUser": 7000}
+        security_context = {"securityContext": ctx_value}
+        docs = render_chart(
+            values={
+                "scheduler": {**security_context},
+                "webserver": {**security_context},
+                "workers": {**security_context},
+                "flower": {**security_context},
+                "statsd": {**security_context},
+                "createUserJob": {**security_context},
+                "migrateDatabaseJob": {**security_context},
+                "triggerer": {**security_context},
+                "redis": {**security_context},
+            },
+            show_only=[
+                "templates/flower/flower-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/jobs/create-user-job.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
+            ],
+        )
+
+        for index in range(len(docs)):
+            assert ctx_value == jmespath.search("spec.template.spec.securityContext", docs[index])

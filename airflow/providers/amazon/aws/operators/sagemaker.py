@@ -19,15 +19,16 @@ from __future__ import annotations
 import json
 import time
 import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from botocore.exceptions import ClientError
 
-from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
@@ -171,11 +172,15 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
     :param print_log: if the operator should print the cloudwatch log during processing
     :param check_interval: if wait is set to be true, this is the time interval
         in seconds which the operator will check the status of the processing job
+    :param max_attempts: Number of times to poll for query state before returning the current state,
+        defaults to None.
     :param max_ingestion_time: If wait is set to True, the operation fails if the processing job
         doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
         the operation does not timeout.
     :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "timestamp"
         (default), "increment" (deprecated) and "fail".
+    :param deferrable: Run operator in the deferrable mode. This is only effective if wait_for_completion is
+        set to True.
     :return Dict: Returns The ARN of the processing job created in Amazon SageMaker.
     """
 
@@ -187,8 +192,10 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         wait_for_completion: bool = True,
         print_log: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
+        max_attempts: int | None = None,
         max_ingestion_time: int | None = None,
         action_if_job_exists: str = "timestamp",
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -201,14 +208,16 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             warnings.warn(
                 "Action 'increment' on job name conflict has been deprecated for performance reasons."
                 "The alternative to 'fail' is now 'timestamp'.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         self.action_if_job_exists = action_if_job_exists
         self.wait_for_completion = wait_for_completion
         self.print_log = print_log
         self.check_interval = check_interval
+        self.max_attempts = max_attempts or 60
         self.max_ingestion_time = max_ingestion_time
+        self.deferrable = deferrable
 
     def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
@@ -234,14 +243,45 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             self.hook.describe_processing_job,
         )
 
+        if self.deferrable and not self.wait_for_completion:
+            self.log.warning(
+                "Setting deferrable to True does not have effect when wait_for_completion is set to False."
+            )
+
+        wait_for_completion = self.wait_for_completion
+        if self.deferrable and self.wait_for_completion:
+            # Set wait_for_completion to False so that it waits for the status in the deferred task.
+            wait_for_completion = False
+
         response = self.hook.create_processing_job(
             self.config,
-            wait_for_completion=self.wait_for_completion,
+            wait_for_completion=wait_for_completion,
             check_interval=self.check_interval,
             max_ingestion_time=self.max_ingestion_time,
         )
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker Processing Job creation failed: {response}")
+
+        if self.deferrable and self.wait_for_completion:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=SageMakerTrigger(
+                    job_name=self.config["ProcessingJobName"],
+                    job_type="Processing",
+                    poke_interval=self.check_interval,
+                    max_attempts=self.max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+
+        return {"Processing": serialize(self.hook.describe_processing_job(self.config["ProcessingJobName"]))}
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+        else:
+            self.log.info(event["message"])
         return {"Processing": serialize(self.hook.describe_processing_job(self.config["ProcessingJobName"]))}
 
 
@@ -453,6 +493,8 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     :param wait_for_completion: Set to True to wait until the transform job finishes.
     :param check_interval: If wait is set to True, the time interval, in seconds,
         that this operation waits to check the status of the transform job.
+    :param max_attempts: Number of times to poll for query state before returning the current state,
+        defaults to None.
     :param max_ingestion_time: If wait is set to True, the operation fails
         if the transform job doesn't finish within max_ingestion_time seconds. If you
         set this parameter to None, the operation does not timeout.
@@ -471,14 +513,17 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         aws_conn_id: str = DEFAULT_CONN_ID,
         wait_for_completion: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
+        max_attempts: int | None = None,
         max_ingestion_time: int | None = None,
         check_if_job_exists: bool = True,
         action_if_job_exists: str = "timestamp",
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
+        self.max_attempts = max_attempts or 60
         self.max_ingestion_time = max_ingestion_time
         self.check_if_job_exists = check_if_job_exists
         if action_if_job_exists in ("increment", "fail", "timestamp"):
@@ -486,7 +531,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                 warnings.warn(
                     "Action 'increment' on job name conflict has been deprecated for performance reasons."
                     "The alternative to 'fail' is now 'timestamp'.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
             self.action_if_job_exists = action_if_job_exists
@@ -495,6 +540,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
                 f"Argument action_if_job_exists accepts only 'timestamp', 'increment' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
             )
+        self.deferrable = deferrable
 
     def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
@@ -533,21 +579,54 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             self.hook.create_model(model_config)
 
         self.log.info("Creating SageMaker transform Job %s.", transform_config["TransformJobName"])
+
+        if self.deferrable and not self.wait_for_completion:
+            self.log.warning(
+                "Setting deferrable to True does not have effect when wait_for_completion is set to False."
+            )
+
+        wait_for_completion = self.wait_for_completion
+        if self.deferrable and self.wait_for_completion:
+            # Set wait_for_completion to False so that it waits for the status in the deferred task.
+            wait_for_completion = False
+
         response = self.hook.create_transform_job(
             transform_config,
-            wait_for_completion=self.wait_for_completion,
+            wait_for_completion=wait_for_completion,
             check_interval=self.check_interval,
             max_ingestion_time=self.max_ingestion_time,
         )
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker transform Job creation failed: {response}")
-        else:
-            return {
-                "Model": serialize(self.hook.describe_model(transform_config["ModelName"])),
-                "Transform": serialize(
-                    self.hook.describe_transform_job(transform_config["TransformJobName"])
+
+        if self.deferrable and self.wait_for_completion:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=SageMakerTrigger(
+                    job_name=transform_config["TransformJobName"],
+                    job_type="Transform",
+                    poke_interval=self.check_interval,
+                    max_attempts=self.max_attempts,
+                    aws_conn_id=self.aws_conn_id,
                 ),
-            }
+                method_name="execute_complete",
+            )
+
+        return {
+            "Model": serialize(self.hook.describe_model(transform_config["ModelName"])),
+            "Transform": serialize(self.hook.describe_transform_job(transform_config["TransformJobName"])),
+        }
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+        else:
+            self.log.info(event["message"])
+        transform_config = self.config.get("Transform", self.config)
+        return {
+            "Model": serialize(self.hook.describe_model(transform_config["ModelName"])),
+            "Transform": serialize(self.hook.describe_transform_job(transform_config["TransformJobName"])),
+        }
 
 
 class SageMakerTuningOperator(SageMakerBaseOperator):
@@ -683,6 +762,8 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     :param print_log: if the operator should print the cloudwatch log during training
     :param check_interval: if wait is set to be true, this is the time interval
         in seconds which the operator will check the status of the training job
+    :param max_attempts: Number of times to poll for query state before returning the current state,
+        defaults to None.
     :param max_ingestion_time: If wait is set to True, the operation fails if the training job
         doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
         the operation does not timeout.
@@ -691,6 +772,8 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "timestamp"
         (default), "increment" (deprecated) and "fail".
         This is only relevant if check_if_job_exists is True.
+    :param deferrable: Run operator in the deferrable mode. This is only effective if wait_for_completion is
+        set to True.
     :return Dict: Returns The ARN of the training job created in Amazon SageMaker.
     """
 
@@ -702,15 +785,18 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         wait_for_completion: bool = True,
         print_log: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
+        max_attempts: int | None = None,
         max_ingestion_time: int | None = None,
         check_if_job_exists: bool = True,
         action_if_job_exists: str = "timestamp",
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
         self.wait_for_completion = wait_for_completion
         self.print_log = print_log
         self.check_interval = check_interval
+        self.max_attempts = max_attempts or 60
         self.max_ingestion_time = max_ingestion_time
         self.check_if_job_exists = check_if_job_exists
         if action_if_job_exists in {"timestamp", "increment", "fail"}:
@@ -718,7 +804,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 warnings.warn(
                     "Action 'increment' on job name conflict has been deprecated for performance reasons."
                     "The alternative to 'fail' is now 'timestamp'.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
             self.action_if_job_exists = action_if_job_exists
@@ -727,6 +813,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
                 f"Argument action_if_job_exists accepts only 'timestamp', 'increment' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
             )
+        self.deferrable = deferrable
 
     def expand_role(self) -> None:
         """Expands an IAM role name into an ARN."""
@@ -753,17 +840,50 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             )
 
         self.log.info("Creating SageMaker training job %s.", self.config["TrainingJobName"])
+
+        if self.deferrable and not self.wait_for_completion:
+            self.log.warning(
+                "Setting deferrable to True does not have effect when wait_for_completion is set to False."
+            )
+
+        wait_for_completion = self.wait_for_completion
+        if self.deferrable and self.wait_for_completion:
+            # Set wait_for_completion to False so that it waits for the status in the deferred task.
+            wait_for_completion = False
+
         response = self.hook.create_training_job(
             self.config,
-            wait_for_completion=self.wait_for_completion,
+            wait_for_completion=wait_for_completion,
             print_log=self.print_log,
             check_interval=self.check_interval,
             max_ingestion_time=self.max_ingestion_time,
         )
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker Training Job creation failed: {response}")
+
+        if self.deferrable and self.wait_for_completion:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=SageMakerTrigger(
+                    job_name=self.config["TrainingJobName"],
+                    job_type="Training",
+                    poke_interval=self.check_interval,
+                    max_attempts=self.max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+
+        result = {"Training": serialize(self.hook.describe_training_job(self.config["TrainingJobName"]))}
+        return result
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
         else:
-            return {"Training": serialize(self.hook.describe_training_job(self.config["TrainingJobName"]))}
+            self.log.info(event["message"])
+        result = {"Training": serialize(self.hook.describe_training_job(self.config["TrainingJobName"]))}
+        return result
 
 
 class SageMakerDeleteModelOperator(SageMakerBaseOperator):

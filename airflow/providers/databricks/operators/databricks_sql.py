@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 class DatabricksSqlOperator(SQLExecuteQueryOperator):
     """
-    Executes SQL code in a Databricks SQL endpoint or a Databricks cluster
+    Executes SQL code in a Databricks SQL endpoint or a Databricks cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -119,6 +119,9 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
             **self.hook_params,
         }
         return DatabricksSqlHook(self.databricks_conn_id, **hook_params)
+
+    def _should_run_output_processing(self) -> bool:
+        return self.do_xcom_push or bool(self._output_path)
 
     def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
         if not self._output_path:

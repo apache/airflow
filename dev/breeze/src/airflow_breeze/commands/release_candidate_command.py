@@ -164,7 +164,11 @@ def push_artifacts_to_asf_repo(version, repo_root):
             check=True,
         )
         console_print("Files pushed to svn")
-        os.chdir(repo_root)
+
+
+def delete_asf_repo(repo_root):
+    os.chdir(repo_root)
+    if confirm_action("Do you want to remove the cloned asf repo?"):
         run_command(["rm", "-rf", "asf-dist"], dry_run_override=DRY_RUN, check=True)
 
 
@@ -267,7 +271,7 @@ def remove_old_releases(version, repo_root):
     if not confirm_action("Do you want to look for old RCs to remove?"):
         return
 
-    os.chdir("asf-dist/dev/airflow")
+    os.chdir(f"{repo_root}/asf-dist/dev/airflow")
 
     old_releases = []
     for entry in os.scandir():
@@ -343,7 +347,7 @@ def publish_release_candidate(version, previous_version, github_token):
     git_clean()
     # Build the latest image
     if confirm_action("Build latest breeze image?"):
-        run_command(["breeze", "ci-image", "build", "--python", "3.7"], dry_run_override=DRY_RUN, check=True)
+        run_command(["breeze", "ci-image", "build", "--python", "3.8"], dry_run_override=DRY_RUN, check=True)
     # Create the tarball
     tarball_release(version, version_without_rc)
     # Create the artifacts
@@ -361,6 +365,13 @@ def publish_release_candidate(version, previous_version, github_token):
     move_artifacts_to_svn(version, airflow_repo_root)
     # Push the artifacts to the asf repo
     push_artifacts_to_asf_repo(version, airflow_repo_root)
+
+    # Remove old releases
+    remove_old_releases(version, airflow_repo_root)
+
+    # Delete asf-dist directory
+    delete_asf_repo(airflow_repo_root)
+
     # Prepare the pypi packages
     prepare_pypi_packages(version, version_suffix, airflow_repo_root)
     # Push the packages to test pypi
@@ -374,9 +385,6 @@ def publish_release_candidate(version, previous_version, github_token):
     # Create issue for testing
     os.chdir(airflow_repo_root)
     create_issue_for_testing(version, previous_version, github_token)
-
-    # Remove old releases
-    remove_old_releases(version, airflow_repo_root)
 
     console_print()
     console_print("Done!")

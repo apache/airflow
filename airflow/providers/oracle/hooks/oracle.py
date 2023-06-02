@@ -23,6 +23,8 @@ from datetime import datetime
 
 import oracledb
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+
 try:
     import numpy
 except ImportError:
@@ -205,7 +207,7 @@ class OracleHook(DbApiHook):
                     warnings.warn(
                         """Using conn.schema to pass the Oracle Service Name is deprecated.
                         Please use conn.extra.service_name instead.""",
-                        DeprecationWarning,
+                        AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
                     dsn += "/" + conn.schema
@@ -262,7 +264,7 @@ class OracleHook(DbApiHook):
     ) -> None:
         """
         A generic way to insert a set of tuples into a table,
-        the whole set of inserts is treated as one transaction
+        the whole set of inserts is treated as one transaction.
         Changes from standard DbApiHook implementation:
 
         - Oracle SQL queries in oracledb can not be terminated with a semicolon (`;`)

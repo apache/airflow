@@ -32,7 +32,7 @@ from typing import Any, Callable, Generator, Sequence, TypeVar, cast
 from google.cloud.dataflow_v1beta3 import GetJobRequest, Job, JobState, JobsV1Beta3AsyncClient, JobView
 from googleapiclient.discovery import build
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
@@ -579,7 +579,7 @@ class DataflowHook(GoogleBaseHook):
             to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done`
             to wait for the required pipeline state.
             """,
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
 
@@ -679,7 +679,7 @@ class DataflowHook(GoogleBaseHook):
         if on_new_job_id_callback:
             warnings.warn(
                 "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
             on_new_job_id_callback(job.get("id"))
@@ -770,7 +770,7 @@ class DataflowHook(GoogleBaseHook):
         if on_new_job_id_callback:
             warnings.warn(
                 "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
             on_new_job_id_callback(job.get("id"))
@@ -844,7 +844,7 @@ class DataflowHook(GoogleBaseHook):
             to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done`
             to wait for the required pipeline state.
             """,
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
 
@@ -910,7 +910,7 @@ class DataflowHook(GoogleBaseHook):
             warnings.warn(
                 "The variables parameter has been deprecated. You should pass location using "
                 "the location parameter.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=4,
             )
         jobs_controller = _DataflowJobsController(
@@ -1039,7 +1039,7 @@ class DataflowHook(GoogleBaseHook):
         if on_new_job_id_callback:
             warnings.warn(
                 "on_new_job_id_callback is Deprecated. Please start using on_new_job_callback",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
             on_new_job_id_callback(cast(str, job.get("id")))

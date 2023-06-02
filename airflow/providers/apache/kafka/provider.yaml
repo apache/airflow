@@ -23,10 +23,11 @@ suspended: false
 description: |
   `Apache Kafka  <https://kafka.apache.org/>`__
 versions:
+  - 1.1.0
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.3.0
+  - apache-airflow>=2.4.0
   - asgiref
   - confluent-kafka>=1.8.2
 
@@ -57,8 +58,8 @@ sensors:
 
 triggers:
   - integration-name: Apache Kafka
-    class-names:
-      - airflow.providers.apache.kafka.triggers.await_message.AwaitMessageTrigger
+    python-modules:
+      - airflow.providers.apache.kafka.triggers.await_message
 
 connection-types:
   - hook-class-name: airflow.providers.apache.kafka.hooks.base.KafkaBaseHook

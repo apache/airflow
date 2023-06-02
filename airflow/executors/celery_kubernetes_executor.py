@@ -28,7 +28,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
-    from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
 
 class CeleryKubernetesExecutor(LoggingMixin):
@@ -148,7 +149,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         )
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
-        """Fetch task log from Kubernetes executor"""
+        """Fetch task log from Kubernetes executor."""
         if ti.queue == self.kubernetes_executor.kubernetes_queue:
             return self.kubernetes_executor.get_task_log(ti=ti, try_number=try_number)
         return [], []

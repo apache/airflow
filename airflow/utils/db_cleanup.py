@@ -50,7 +50,7 @@ ARCHIVE_TABLE_PREFIX = "_airflow_deleted__"
 @dataclass
 class _TableConfig:
     """
-    Config class for performing cleanup on a table
+    Config class for performing cleanup on a table.
 
     :param table_name: the table
     :param extra_columns: any columns besides recency_column_name that we'll need in queries
@@ -155,7 +155,7 @@ def _do_delete(*, query, orm_model, skip_archive, session):
     if dialect_name == "mysql":
         # MySQL with replication needs this split into two queries, so just do it for all MySQL
         # ERROR 1786 (HY000): Statement violates GTID consistency: CREATE TABLE ... SELECT.
-        session.execute(f"CREATE TABLE {target_table_name} LIKE {orm_model.name}")
+        session.execute(text(f"CREATE TABLE {target_table_name} LIKE {orm_model.name}"))
         metadata = reflect_tables([target_table_name], session)
         target_table = metadata.tables[target_table_name]
         insert_stm = target_table.insert().from_select(target_table.c, query)

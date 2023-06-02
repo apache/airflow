@@ -26,17 +26,25 @@ from airflow_breeze.utils.selective_checks import SelectiveChecks
 ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
 
 
+ALL_DOCS_SELECTED_FOR_BUILD = ""
+ALL_PROVIDERS_AFFECTED = ""
+
+
 def escape_ansi_colors(line):
     return ANSI_COLORS_MATCHER.sub("", line)
 
 
 def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
+    escaped_stderr = escape_ansi_colors(stderr)
     for name, value in expected_outputs.items():
-        search_string = rf"^{re.escape(name)}={re.escape(value)}$"
-        escaped_stderr = escape_ansi_colors(stderr)
-        assert re.search(
-            search_string, escaped_stderr, re.MULTILINE
-        ), f"Expected {name}={value} not found in {escaped_stderr}"
+        if value is None:
+            search_string = rf"^{re.escape(name)}="
+            if re.search(search_string, escaped_stderr, re.MULTILINE):
+                raise AssertionError(f"The {name} output should not be in {escaped_stderr}")
+        else:
+            search_string = rf"^{re.escape(name)}={re.escape(value)}$"
+            if not re.search(search_string, escaped_stderr, re.MULTILINE):
+                raise AssertionError(f"Expected {name}={value} not found in {escaped_stderr}")
 
 
 @pytest.mark.parametrize(
@@ -46,17 +54,18 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("INTHEWILD.md",),
                 {
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "affected-providers-list-as-string": None,
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "false",
                     "needs-helm-tests": "false",
                     "run-tests": "false",
                     "run-amazon-tests": "false",
                     "docs-build": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types": "",
+                    "parallel-test-types-list-as-string": None,
                 },
                 id="No tests on simple change",
             )
@@ -65,17 +74,18 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow/api/file.py",),
                 {
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "affected-providers-list-as-string": None,
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
                     "run-amazon-tests": "false",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types": "API Always",
+                    "parallel-test-types-list-as-string": "API Always",
                 },
                 id="Only API tests and DOCS should run",
             )
@@ -87,17 +97,18 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/postgres/file.py",
                 ),
                 {
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "affected-providers-list-as-string": "amazon common.sql google postgres",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types": "Providers[amazon] "
+                    "parallel-test-types-list-as-string": "Providers[amazon] "
                     "API Always Providers[common.sql,postgres] Providers[google]",
                 },
                 id="API and providers tests and docs should run",
@@ -107,10 +118,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("tests/providers/apache/beam/file.py",),
                 {
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "affected-providers-list-as-string": "apache.beam google",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "true",
@@ -118,7 +130,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "false",
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types": "Always Providers[apache.beam] Providers[google]",
+                    "parallel-test-types-list-as-string": "Always Providers[apache.beam] Providers[google]",
                 },
                 id="Selected Providers and docs should run",
             )
@@ -127,10 +139,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("docs/file.rst",),
                 {
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "affected-providers-list-as-string": None,
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "false",
                     "run-tests": "false",
@@ -138,7 +151,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types": "",
+                    "parallel-test-types-list-as-string": None,
                 },
                 id="Only docs builds should run - no tests needed",
             )
@@ -150,10 +163,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/postgres/file.py",
                 ),
                 {
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "affected-providers-list-as-string": "amazon common.sql google postgres",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -161,7 +175,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types": "Providers[amazon] "
+                    "parallel-test-types-list-as-string": "Providers[amazon] "
                     "Always Providers[common.sql,postgres] Providers[google]",
                 },
                 id="Helm tests, providers (both upstream and downstream),"
@@ -176,10 +190,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/http/file.py",
                 ),
                 {
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "affected-providers-list-as-string": "airbyte apache.livy "
+                    "dbt.cloud dingding discord http",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -187,7 +203,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types": "Always "
+                    "parallel-test-types-list-as-string": "Always "
                     "Providers[airbyte,apache.livy,dbt.cloud,dingding,discord,http]",
                 },
                 id="Helm tests, http and all relevant providers, kubernetes tests and "
@@ -202,10 +218,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/airbyte/file.py",
                 ),
                 {
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "affected-providers-list-as-string": "airbyte http",
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -213,7 +230,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types": "Always Providers[airbyte,http]",
+                    "parallel-test-types-list-as-string": "Always Providers[airbyte,http]",
                 },
                 id="Helm tests, airbyte/http providers, kubernetes tests and "
                 "docs should run even if unimportant files were added",
@@ -227,10 +244,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/system/utils/file.py",
                 ),
                 {
-                    "all-python-versions": "['3.7']",
-                    "all-python-versions-list-as-string": "3.7",
-                    "python-versions": "['3.7']",
-                    "python-versions-list-as-string": "3.7",
+                    "affected-providers-list-as-string": None,
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -238,7 +256,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-amazon-tests": "false",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types": "Always",
+                    "parallel-test-types-list-as-string": "Always",
                 },
                 id="Docs should run even if unimportant files were added",
             )
@@ -247,17 +265,19 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("setup.py",),
                 {
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "true",
-                    "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
+                    "Other Providers[amazon] WWW "
                     "API Always CLI Providers[google]",
                 },
                 id="Everything should run - including all providers and upgrading to "
@@ -268,17 +288,19 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("generated/provider_dependencies.json",),
                 {
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
                     "run-amazon-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "true",
-                    "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
+                    "Other Providers[amazon] WWW "
                     "API Always CLI Providers[google]",
                 },
                 id="Everything should run and upgrading to newer requirements as dependencies change",
@@ -287,10 +309,13 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("airflow/providers/amazon/__init__.py",),
             {
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
-                "python-versions": "['3.7']",
-                "python-versions-list-as-string": "3.7",
+                "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
+                "common.sql exasol ftp google imap "
+                "mongo mysql postgres salesforce ssh",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
+                "python-versions": "['3.8']",
+                "python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
@@ -298,7 +323,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "run-amazon-tests": "true",
-                "parallel-test-types": "Providers[amazon] Always "
+                "parallel-test-types-list-as-string": "Providers[amazon] Always "
                 "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,imap,"
                 "mongo,mysql,postgres,salesforce,ssh] Providers[google]",
             },
@@ -307,10 +332,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("tests/providers/airbyte/__init__.py",),
             {
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
-                "python-versions": "['3.7']",
-                "python-versions-list-as-string": "3.7",
+                "affected-providers-list-as-string": "airbyte http",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
+                "python-versions": "['3.8']",
+                "python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
@@ -318,17 +344,20 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "docs-build": "false",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types": "Always Providers[airbyte,http]",
+                "parallel-test-types-list-as-string": "Always Providers[airbyte,http]",
             },
             id="Providers tests tests run without amazon tests if no amazon file changed",
         ),
         pytest.param(
             ("airflow/providers/amazon/file.py",),
             {
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
-                "python-versions": "['3.7']",
-                "python-versions-list-as-string": "3.7",
+                "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
+                "common.sql exasol ftp google imap "
+                "mongo mysql postgres salesforce ssh",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
+                "python-versions": "['3.8']",
+                "python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
@@ -336,7 +365,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "docs-build": "true",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types": "Providers[amazon] Always "
+                "parallel-test-types-list-as-string": "Providers[amazon] Always "
                 "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,"
                 "imap,mongo,mysql,postgres,salesforce,ssh] Providers[google]",
             },
@@ -367,17 +396,19 @@ def test_expected_output_pull_request_main(
                 ("full tests needed",),
                 "main",
                 {
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter": "",
+                    "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
+                    "Other Providers[amazon] WWW "
                     "API Always CLI Providers[google]",
                 },
                 id="Everything should run including all providers when full tests are needed",
@@ -392,17 +423,19 @@ def test_expected_output_pull_request_main(
                 ),
                 "main",
                 {
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter": "",
+                    "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
+                    "Other Providers[amazon] WWW "
                     "API Always CLI Providers[google]",
                 },
                 id="Everything should run including full providers when full "
@@ -415,17 +448,19 @@ def test_expected_output_pull_request_main(
                 ("full tests needed",),
                 "main",
                 {
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
-                    "docs-filter": "",
+                    "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                    "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
+                    "Other Providers[amazon] WWW "
                     "API Always CLI Providers[google]",
                 },
                 id="Everything should run including full providers when"
@@ -438,16 +473,19 @@ def test_expected_output_pull_request_main(
                 ("full tests needed",),
                 "v2-3-stable",
                 {
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
+                    "docs-filter-list-as-string": "--package-filter apache-airflow "
+                    "--package-filter docker-stack",
                     "full-tests-needed": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types": "Core Other WWW API Always CLI",
+                    "parallel-test-types-list-as-string": "Core Other WWW API Always CLI",
                 },
                 id="Everything should run except Providers when full tests are needed for non-main branch",
             )
@@ -476,16 +514,18 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             ("INTHEWILD.md",),
             {
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "affected-providers-list-as-string": None,
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "false",
                 "needs-helm-tests": "false",
                 "run-tests": "false",
                 "docs-build": "false",
+                "docs-filter-list-as-string": None,
                 "full-tests-needed": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types": "",
+                "parallel-test-types-list-as-string": None,
             },
             id="Nothing should run if only non-important files changed",
         ),
@@ -495,17 +535,21 @@ def test_expected_output_full_tests_needed(
                 "tests/providers/google/file.py",
             ),
             {
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
+                "common.sql facebook google hashicorp microsoft.azure microsoft.mssql "
+                "mysql oracle postgres presto salesforce sftp ssh trino",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "needs-helm-tests": "false",
                 "image-build": "true",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types": "Always",
+                "parallel-test-types-list-as-string": "Always",
             },
             id="No Helm tests, No providers should run if only chart/providers changed in non-main",
         ),
@@ -516,17 +560,22 @@ def test_expected_output_full_tests_needed(
                 "tests/providers/google/file.py",
             ),
             {
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
+                "cncf.kubernetes common.sql facebook google "
+                "hashicorp microsoft.azure microsoft.mssql mysql oracle postgres presto "
+                "salesforce sftp ssh trino",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types": "Always CLI",
+                "parallel-test-types-list-as-string": "Always CLI",
             },
             id="Only CLI tests and Kubernetes tests should run if cli/chart files changed in non-main branch",
         ),
@@ -536,17 +585,19 @@ def test_expected_output_full_tests_needed(
                 "tests/providers/google/file.py",
             ),
             {
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
                 "full-tests-needed": "false",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "true",
-                "parallel-test-types": "Core Other WWW API Always CLI",
+                "parallel-test-types-list-as-string": "Core Other WWW API Always CLI",
             },
             id="All tests except Providers should run if core file changed in non-main branch",
         ),
@@ -572,30 +623,34 @@ def test_expected_output_pull_request_v2_3(
         pytest.param(
             ("INTHEWILD.md",),
             {
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "affected-providers-list-as-string": None,
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "false",
                 "needs-helm-tests": "false",
                 "run-tests": "false",
                 "docs-build": "false",
+                "docs-filter-list-as-string": None,
                 "upgrade-to-newer-dependencies": "false",
-                "skip-provider-tests": "false",
-                "parallel-test-types": "",
+                "skip-provider-tests": "true",
+                "parallel-test-types-list-as-string": None,
             },
             id="Nothing should run if only non-important files changed",
         ),
         pytest.param(
             ("tests/system/any_file.py",),
             {
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "affected-providers-list-as-string": None,
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "false",
-                "skip-provider-tests": "false",
-                "parallel-test-types": "Always",
+                "skip-provider-tests": "true",
+                "parallel-test-types-list-as-string": "Always",
             },
             id="Only Always and docs build should run if only system tests changed",
         ),
@@ -606,16 +661,39 @@ def test_expected_output_pull_request_v2_3(
                 "tests/providers/google/file.py",
             ),
             {
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
+                "cncf.kubernetes common.sql "
+                "facebook google hashicorp microsoft.azure microsoft.mssql mysql "
+                "oracle postgres presto salesforce sftp ssh trino",
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter helm-chart "
+                "--package-filter apache-airflow-providers-amazon "
+                "--package-filter apache-airflow-providers-apache-beam "
+                "--package-filter apache-airflow-providers-apache-cassandra "
+                "--package-filter apache-airflow-providers-cncf-kubernetes "
+                "--package-filter apache-airflow-providers-common-sql "
+                "--package-filter apache-airflow-providers-facebook "
+                "--package-filter apache-airflow-providers-google "
+                "--package-filter apache-airflow-providers-hashicorp "
+                "--package-filter apache-airflow-providers-microsoft-azure "
+                "--package-filter apache-airflow-providers-microsoft-mssql "
+                "--package-filter apache-airflow-providers-mysql "
+                "--package-filter apache-airflow-providers-oracle "
+                "--package-filter apache-airflow-providers-postgres "
+                "--package-filter apache-airflow-providers-presto "
+                "--package-filter apache-airflow-providers-salesforce "
+                "--package-filter apache-airflow-providers-sftp "
+                "--package-filter apache-airflow-providers-ssh "
+                "--package-filter apache-airflow-providers-trino",
                 "run-kubernetes-tests": "true",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
-                "parallel-test-types": "Providers[amazon] Always CLI "
+                "parallel-test-types-list-as-string": "Providers[amazon] Always CLI "
                 "Providers[apache.beam,apache.cassandra,cncf.kubernetes,common.sql,facebook,"
                 "hashicorp,microsoft.azure,microsoft.mssql,mysql,oracle,postgres,presto,"
                 "salesforce,sftp,ssh,trino] Providers[google]",
@@ -624,23 +702,65 @@ def test_expected_output_pull_request_v2_3(
         ),
         pytest.param(
             (
-                "airflow/file.py",
-                "tests/providers/google/file.py",
+                "airflow/cli/file.py",
+                "airflow/www/file.py",
+                "airflow/api/file.py",
             ),
             {
-                "all-python-versions": "['3.7']",
-                "all-python-versions-list-as-string": "3.7",
+                "affected-providers-list-as-string": None,
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
+                "docs-filter-list-as-string": "--package-filter apache-airflow",
+                "run-kubernetes-tests": "false",
+                "upgrade-to-newer-dependencies": "false",
+                "skip-provider-tests": "true",
+                "parallel-test-types-list-as-string": "WWW API Always CLI",
+            },
+            id="No providers tests should run if only CLI/API/WWW file changed",
+        ),
+        pytest.param(
+            ("airflow/models/test.py",),
+            {
+                "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
+                "image-build": "true",
+                "needs-helm-tests": "false",
+                "run-tests": "true",
+                "docs-build": "true",
+                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
-                "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                "parallel-test-types-list-as-string": "Core Providers[-amazon,google] Other "
+                "Providers[amazon] WWW "
                 "API Always CLI Providers[google]",
             },
-            id="All tests should run if core file changed",
+            id="Tests for all providers should run if model file changed",
+        ),
+        pytest.param(
+            ("airflow/file.py",),
+            {
+                "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                "all-python-versions": "['3.8']",
+                "all-python-versions-list-as-string": "3.8",
+                "image-build": "true",
+                "needs-helm-tests": "false",
+                "run-tests": "true",
+                "docs-build": "true",
+                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
+                "run-kubernetes-tests": "false",
+                "upgrade-to-newer-dependencies": "false",
+                "skip-provider-tests": "false",
+                "parallel-test-types-list-as-string": "Core Providers[-amazon,google] Other "
+                "Providers[amazon] WWW "
+                "API Always CLI Providers[google]",
+            },
+            id="Tests for all providers should run if any other than API/WWW/CLI file changed.",
         ),
     ],
 )
@@ -666,15 +786,17 @@ def test_expected_output_pull_request_target(
             (),
             "main",
             {
-                "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                 "image-build": "true",
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter": "",
+                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "true",
-                "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                "parallel-test-types-list-as-string": "Core Providers[-amazon,google] Other "
+                "Providers[amazon] WWW "
                 "API Always CLI Providers[google]",
             },
             id="All tests run on push even if unimportant file changed",
@@ -684,15 +806,16 @@ def test_expected_output_pull_request_target(
             (),
             "v2-3-stable",
             {
-                "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter": "--package-filter apache-airflow --package-filter docker-stack",
+                "docs-filter-list-as-string": "--package-filter apache-airflow --package-filter docker-stack",
                 "upgrade-to-newer-dependencies": "true",
-                "parallel-test-types": "Core Other WWW API Always CLI",
+                "parallel-test-types-list-as-string": "Core Other WWW API Always CLI",
             },
             id="All tests except Providers and Helm run on push"
             " even if unimportant file changed in non-main branch",
@@ -702,15 +825,17 @@ def test_expected_output_pull_request_target(
             (),
             "main",
             {
-                "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+                "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
                 "image-build": "true",
                 "needs-helm-tests": "true",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-filter": "",
+                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
                 "upgrade-to-newer-dependencies": "true",
-                "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+                "parallel-test-types-list-as-string": "Core Providers[-amazon,google] Other "
+                "Providers[amazon] WWW "
                 "API Always CLI Providers[google]",
             },
             id="All tests run on push if core file changed",
@@ -753,8 +878,8 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
     )
     assert_outputs_are_printed(
         {
-            "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-            "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+            "all-python-versions": "['3.8', '3.9', '3.10', '3.11']",
+            "all-python-versions-list-as-string": "3.8 3.9 3.10 3.11",
             "image-build": "true",
             "needs-helm-tests": "true",
             "run-tests": "true",
@@ -762,7 +887,8 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             "upgrade-to-newer-dependencies": "true"
             if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
             else "false",
-            "parallel-test-types": "Core Providers[-amazon,google] Other Providers[amazon] WWW "
+            "parallel-test-types-list-as-string": "Core Providers[-amazon,google] "
+            "Other Providers[amazon] WWW "
             "API Always CLI Providers[google]",
         },
         str(stderr),
@@ -826,7 +952,7 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
         pytest.param(
             ("docs/apache-airflow-providers-google/docs.rst",),
             {
-                "docs-filter": "--package-filter apache-airflow-providers-amazon "
+                "docs-filter-list-as-string": "--package-filter apache-airflow-providers-amazon "
                 "--package-filter apache-airflow-providers-apache-beam "
                 "--package-filter apache-airflow-providers-apache-cassandra "
                 "--package-filter apache-airflow-providers-cncf-kubernetes "
@@ -850,7 +976,7 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
         pytest.param(
             ("airflow/providers/common/sql/common_sql_python.py",),
             {
-                "docs-filter": "--package-filter apache-airflow "
+                "docs-filter-list-as-string": "--package-filter apache-airflow "
                 "--package-filter apache-airflow-providers-amazon "
                 "--package-filter apache-airflow-providers-apache-drill "
                 "--package-filter apache-airflow-providers-apache-druid "
@@ -881,7 +1007,7 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
         pytest.param(
             ("docs/apache-airflow-providers-airbyte/docs.rst",),
             {
-                "docs-filter": "--package-filter apache-airflow-providers-airbyte "
+                "docs-filter-list-as-string": "--package-filter apache-airflow-providers-airbyte "
                 "--package-filter apache-airflow-providers-http",
             },
             id="Airbyte provider docs changed",
@@ -889,7 +1015,7 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
         pytest.param(
             ("airflow/providers/celery/file.py",),
             {
-                "docs-filter": "--package-filter apache-airflow "
+                "docs-filter-list-as-string": "--package-filter apache-airflow "
                 "--package-filter apache-airflow-providers-celery",
             },
             id="Celery python files changed",
@@ -897,40 +1023,40 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
         pytest.param(
             ("docs/conf.py",),
             {
-                "docs-filter": "",
+                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
             },
             id="Docs conf.py changed",
         ),
         pytest.param(
             ("airflow/test.py",),
             {
-                "docs-filter": "--package-filter apache-airflow",
+                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
             },
-            id="Core files changed. No provider docs to build",
+            id="Core files changed. All provider docs should also be built",
         ),
         pytest.param(
             ("docs/docker-stack/test.rst",),
-            {"docs-filter": "--package-filter docker-stack"},
+            {"docs-filter-list-as-string": "--package-filter docker-stack"},
             id="Docker stack files changed. No provider docs to build",
         ),
         pytest.param(
             ("airflow/test.py", "chart/airflow/values.yaml"),
             {
-                "docs-filter": "--package-filter apache-airflow --package-filter helm-chart",
+                "docs-filter-list-as-string": ALL_DOCS_SELECTED_FOR_BUILD,
             },
-            id="Core files and helm chart files changed. No provider docs to build",
+            id="Core files and helm chart files changed. All provider docs should be built",
         ),
         pytest.param(
             ("chart/airflow/values.yaml",),
             {
-                "docs-filter": "--package-filter helm-chart",
+                "docs-filter-list-as-string": "--package-filter helm-chart",
             },
             id="Helm chart files changed. No provider, airflow docs to build",
         ),
         pytest.param(
             ("docs/helm-chart/airflow/values.yaml",),
             {
-                "docs-filter": "--package-filter helm-chart",
+                "docs-filter-list-as-string": "--package-filter helm-chart",
             },
             id="Docs helm chart files changed. No provider, airflow docs to build",
         ),
@@ -945,3 +1071,50 @@ def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "files, labels, expected_outputs, should_fail",
+    [
+        pytest.param(
+            ("airflow/providers/yandex/test.py",),
+            (),
+            None,
+            True,
+            id="Suspended provider changes should fail",
+        ),
+        pytest.param(
+            ("airflow/providers/yandex/test.py",),
+            ("allow suspended provider changes",),
+            {"affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED},
+            False,
+            id="Suspended provider changes should not fail if appropriate label is set",
+        ),
+        pytest.param(
+            ("airflow/providers/yandex/test.py", "airflow/providers/airbyte/test.py"),
+            ("allow suspended provider changes",),
+            {"affected-providers-list-as-string": "airbyte http"},
+            False,
+            id="Only non-suspended provider changes should be listed",
+        ),
+    ],
+)
+def test_suspended_providers(
+    files: tuple[str, ...], labels: tuple[str], expected_outputs: dict[str, str], should_fail: bool
+):
+    failed = False
+    try:
+        stderr = str(
+            SelectiveChecks(
+                files=files,
+                commit_ref="HEAD",
+                github_event=GithubEvents.PULL_REQUEST,
+                pr_labels=labels,
+                default_branch="main",
+            )
+        )
+    except SystemExit:
+        failed = True
+    assert failed == should_fail
+    if not failed:
+        assert_outputs_are_printed(expected_outputs, str(stderr))

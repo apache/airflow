@@ -64,7 +64,6 @@ from sqlalchemy.sql import expression
 import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowDagInconsistent,
@@ -78,6 +77,7 @@ from airflow.exceptions import (
 from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import Base, StringID
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
@@ -116,7 +116,6 @@ if TYPE_CHECKING:
     from airflow.models.slamiss import SlaMiss
     from airflow.utils.task_group import TaskGroup
 
-
 log = logging.getLogger(__name__)
 
 DEFAULT_VIEW_PRESETS = ["grid", "graph", "duration", "gantt", "landing_times"]
@@ -134,7 +133,6 @@ ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
 ScheduleArg = Union[ArgNotSet, ScheduleInterval, Timetable, Collection["Dataset"]]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
-
 
 # Backward compatibility: If neither schedule_interval nor timetable is
 # *provided by the user*, default to a one-day interval.
@@ -215,7 +213,7 @@ def get_dataset_triggered_next_run_info(
 ) -> dict[str, dict[str, int | str]]:
     """
     Given a list of dag_ids, get string representing how close any that are dataset triggered are
-    their next run, e.g. "1 of 2 datasets updated"
+    their next run, e.g. "1 of 2 datasets updated".
     """
     from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ, DatasetModel
 
@@ -878,7 +876,7 @@ class DAG(LoggingMixin):
         DO NOT use this method is there is a known data interval.
         """
         timetable_type = type(self.timetable)
-        if issubclass(timetable_type, (NullTimetable, OnceTimetable)):
+        if issubclass(timetable_type, (NullTimetable, OnceTimetable, DatasetTriggeredTimetable)):
             return DataInterval.exact(timezone.coerce_datetime(logical_date))
         start = timezone.coerce_datetime(logical_date)
         if issubclass(timetable_type, CronDataIntervalTimetable):
@@ -962,7 +960,7 @@ class DAG(LoggingMixin):
             return None
         return info.run_after
 
-    @cached_property
+    @functools.cached_property
     def _time_restriction(self) -> TimeRestriction:
         start_dates = [t.start_date for t in self.tasks if t.start_date]
         if self.start_date is not None:
@@ -1129,7 +1127,10 @@ class DAG(LoggingMixin):
 
     @property
     def full_filepath(self) -> str:
-        """:meta private:"""
+        """Full file path to the DAG.
+
+        :meta private:
+        """
         warnings.warn(
             "DAG.full_filepath is deprecated in favour of fileloc",
             RemovedInAirflow3Warning,
@@ -1215,12 +1216,24 @@ class DAG(LoggingMixin):
         return list(self.task_dict.keys())
 
     @property
+    def teardowns(self) -> list[Operator]:
+        return [task for task in self.tasks if getattr(task, "is_teardown", None)]
+
+    @property
+    def tasks_upstream_of_teardowns(self) -> list[Operator]:
+        upstream_tasks = [t.upstream_list for t in self.teardowns]
+        return [val for sublist in upstream_tasks for val in sublist if not getattr(val, "is_teardown", None)]
+
+    @property
     def task_group(self) -> TaskGroup:
         return self._task_group
 
     @property
     def filepath(self) -> str:
-        """:meta private:"""
+        """Relative file path to the DAG.
+
+        :meta private:
+        """
         warnings.warn(
             "filepath is deprecated, use relative_fileloc instead",
             RemovedInAirflow3Warning,
@@ -1258,13 +1271,13 @@ class DAG(LoggingMixin):
 
     @property
     def allow_future_exec_dates(self) -> bool:
-        return settings.ALLOW_FUTURE_EXEC_DATES and not self.timetable.can_run
+        return settings.ALLOW_FUTURE_EXEC_DATES and not self.timetable.can_be_scheduled
 
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
         """
         Returns a boolean indicating whether the max_active_tasks limit for this DAG
-        has been reached
+        has been reached.
         """
         TI = TaskInstance
         qry = session.query(func.count(TI.task_id)).filter(
@@ -1285,12 +1298,12 @@ class DAG(LoggingMixin):
 
     @provide_session
     def get_is_active(self, session=NEW_SESSION) -> None:
-        """Returns a boolean indicating whether this DAG is active"""
+        """Returns a boolean indicating whether this DAG is active."""
         return session.query(DagModel.is_active).filter(DagModel.dag_id == self.dag_id).scalar()
 
     @provide_session
     def get_is_paused(self, session=NEW_SESSION) -> None:
-        """Returns a boolean indicating whether this DAG is paused"""
+        """Returns a boolean indicating whether this DAG is paused."""
         return session.query(DagModel.is_paused).filter(DagModel.dag_id == self.dag_id).scalar()
 
     @property
@@ -1352,7 +1365,7 @@ class DAG(LoggingMixin):
 
     def get_active_runs(self):
         """
-        Returns a list of dag run execution dates currently running
+        Returns a list of dag run execution dates currently running.
 
         :return: List of execution dates
         """
@@ -1367,7 +1380,7 @@ class DAG(LoggingMixin):
     @provide_session
     def get_num_active_runs(self, external_trigger=None, only_running=True, session=NEW_SESSION):
         """
-        Returns the number of active "running" dag runs
+        Returns the number of active "running" dag runs.
 
         :param external_trigger: True for externally triggered active dag runs
         :param session:
@@ -1436,7 +1449,7 @@ class DAG(LoggingMixin):
 
     @provide_session
     def get_latest_execution_date(self, session: Session = NEW_SESSION) -> pendulum.DateTime | None:
-        """Returns the latest date for which at least one dag run exists"""
+        """Returns the latest date for which at least one dag run exists."""
         return session.query(func.max(DagRun.execution_date)).filter(DagRun.dag_id == self.dag_id).scalar()
 
     @property
@@ -1451,7 +1464,7 @@ class DAG(LoggingMixin):
 
     @property
     def subdags(self):
-        """Returns a list of the subdag objects associated to this DAG"""
+        """Returns a list of the subdag objects associated to this DAG."""
         # Check SubDag for class but don't check class directly
         from airflow.operators.subdag import SubDagOperator
 
@@ -1506,7 +1519,7 @@ class DAG(LoggingMixin):
     def set_dependency(self, upstream_task_id, downstream_task_id):
         """
         Simple utility method to set dependency between two tasks that
-        already have been added to the DAG using add_task()
+        already have been added to the DAG using add_task().
         """
         self.get_task(upstream_task_id).set_downstream(self.get_task(downstream_task_id))
 
@@ -1920,9 +1933,118 @@ class DAG(LoggingMixin):
             only_failed=True,
             session=session,
             # Exclude the task itself from being cleared
-            exclude_task_ids={task_id},
+            exclude_task_ids=frozenset({task_id}),
         )
 
+        return altered
+
+    @provide_session
+    def set_task_group_state(
+        self,
+        *,
+        group_id: str,
+        execution_date: datetime | None = None,
+        run_id: str | None = None,
+        state: TaskInstanceState,
+        upstream: bool = False,
+        downstream: bool = False,
+        future: bool = False,
+        past: bool = False,
+        commit: bool = True,
+        session: Session = NEW_SESSION,
+    ) -> list[TaskInstance]:
+        """
+        Set the state of the TaskGroup to the given state, and clear its downstream tasks that are
+        in failed or upstream_failed state.
+
+        :param group_id: The group_id of the TaskGroup
+        :param execution_date: Execution date of the TaskInstance
+        :param run_id: The run_id of the TaskInstance
+        :param state: State to set the TaskInstance to
+        :param upstream: Include all upstream tasks of the given task_id
+        :param downstream: Include all downstream tasks of the given task_id
+        :param future: Include all future TaskInstances of the given task_id
+        :param commit: Commit changes
+        :param past: Include all past TaskInstances of the given task_id
+        :param session: new session
+        """
+        from airflow.api.common.mark_tasks import set_state
+
+        if not exactly_one(execution_date, run_id):
+            raise ValueError("Exactly one of execution_date or run_id must be provided")
+
+        tasks_to_set_state: list[BaseOperator | tuple[BaseOperator, int]] = []
+        task_ids: list[str] = []
+        locked_dag_run_ids: list[int] = []
+
+        if execution_date is None:
+            dag_run = (
+                session.query(DagRun).filter(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id).one()
+            )  # Raises an error if not found
+            resolve_execution_date = dag_run.execution_date
+        else:
+            resolve_execution_date = execution_date
+
+        end_date = resolve_execution_date if not future else None
+        start_date = resolve_execution_date if not past else None
+
+        task_group_dict = self.task_group.get_task_group_dict()
+        task_group = task_group_dict.get(group_id)
+        if task_group is None:
+            raise ValueError("TaskGroup {group_id} could not be found")
+        tasks_to_set_state = [task for task in task_group.iter_tasks() if isinstance(task, BaseOperator)]
+        task_ids = [task.task_id for task in task_group.iter_tasks()]
+        dag_runs_query = session.query(DagRun.id).filter(DagRun.dag_id == self.dag_id).with_for_update()
+
+        if start_date is None and end_date is None:
+            dag_runs_query = dag_runs_query.filter(DagRun.execution_date == start_date)
+        else:
+            if start_date is not None:
+                dag_runs_query = dag_runs_query.filter(DagRun.execution_date >= start_date)
+
+            if end_date is not None:
+                dag_runs_query = dag_runs_query.filter(DagRun.execution_date <= end_date)
+
+        locked_dag_run_ids = dag_runs_query.all()
+
+        altered = set_state(
+            tasks=tasks_to_set_state,
+            execution_date=execution_date,
+            run_id=run_id,
+            upstream=upstream,
+            downstream=downstream,
+            future=future,
+            past=past,
+            state=state,
+            commit=commit,
+            session=session,
+        )
+
+        if not commit:
+            del locked_dag_run_ids
+            return altered
+
+        # Clear downstream tasks that are in failed/upstream_failed state to resume them.
+        # Flush the session so that the tasks marked success are reflected in the db.
+        session.flush()
+        task_subset = self.partial_subset(
+            task_ids_or_regex=task_ids,
+            include_downstream=True,
+            include_upstream=False,
+        )
+
+        task_subset.clear(
+            start_date=start_date,
+            end_date=end_date,
+            include_subdags=True,
+            include_parentdag=True,
+            only_failed=True,
+            session=session,
+            # Exclude the task from the current group from being cleared
+            exclude_task_ids=frozenset(task_ids),
+        )
+
+        del locked_dag_run_ids
         return altered
 
     @property
@@ -2164,7 +2286,7 @@ class DAG(LoggingMixin):
         return result
 
     def sub_dag(self, *args, **kwargs):
-        """This method is deprecated in favor of partial_subset"""
+        """This method is deprecated in favor of partial_subset."""
         warnings.warn(
             "This method is deprecated and will be removed in a future version. Please use partial_subset",
             RemovedInAirflow3Warning,
@@ -2294,7 +2416,7 @@ class DAG(LoggingMixin):
     def has_task_group(self, task_group_id: str) -> bool:
         return task_group_id in self.task_group_dict
 
-    @cached_property
+    @functools.cached_property
     def task_group_dict(self):
         return {k: v for k, v in self._task_group.get_task_group_dict().items() if k is not None}
 
@@ -2356,7 +2478,7 @@ class DAG(LoggingMixin):
 
     def add_task(self, task: Operator) -> None:
         """
-        Add a task to the DAG
+        Add a task to the DAG.
 
         :param task: the task you want to add
         """
@@ -2403,7 +2525,7 @@ class DAG(LoggingMixin):
 
     def add_tasks(self, tasks: Iterable[Operator]) -> None:
         """
-        Add a list of tasks to the DAG
+        Add a list of tasks to the DAG.
 
         :param tasks: a lit of tasks you want to add
         """
@@ -2497,7 +2619,7 @@ class DAG(LoggingMixin):
         run_job(job=job, execute_callable=job_runner._execute)
 
     def cli(self):
-        """Exposes a CLI specific to this DAG"""
+        """Exposes a CLI specific to this DAG."""
         check_cycle(self)
 
         from airflow.cli import cli_parser
@@ -2526,13 +2648,14 @@ class DAG(LoggingMixin):
         """
 
         def add_logger_if_needed(ti: TaskInstance):
-            """
-            Add a formatted logger to the taskinstance so all logs are surfaced to the command line instead
-            of into a task file. Since this is a local test run, it is much better for the user to see logs
-            in the command line, rather than needing to search for a log file.
-            Args:
-                ti: The taskinstance that will receive a logger
+            """Add a formatted logger to the task instance.
 
+            This allows all logs to surface to the command line, instead of into
+            a task file. Since this is a local test run, it is much better for
+            the user to see logs in the command line, rather than needing to
+            search for a log file.
+
+            :param ti: The task instance that will receive a logger.
             """
             format = logging.Formatter("[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s")
             handler = logging.StreamHandler(sys.stdout)
@@ -2702,7 +2825,7 @@ class DAG(LoggingMixin):
         dags: Collection[DAG],
         session=NEW_SESSION,
     ):
-        """This method is deprecated in favor of bulk_write_to_db"""
+        """This method is deprecated in favor of bulk_write_to_db."""
         warnings.warn(
             "This method is deprecated and will be removed in a future version. Please use bulk_write_to_db",
             RemovedInAirflow3Warning,
@@ -2950,7 +3073,7 @@ class DAG(LoggingMixin):
         self.bulk_write_to_db([self], processor_subdir=processor_subdir, session=session)
 
     def get_default_view(self):
-        """This is only there for backward compatible jinja2 templates"""
+        """This is only there for backward compatible jinja2 templates."""
         if self.default_view is None:
             return conf.get("webserver", "dag_default_view").lower()
         else:
@@ -2961,7 +3084,7 @@ class DAG(LoggingMixin):
     def deactivate_unknown_dags(active_dag_ids, session=NEW_SESSION):
         """
         Given a list of known DAGs, deactivate any other DAGs that are
-        marked as active in the ORM
+        marked as active in the ORM.
 
         :param active_dag_ids: list of DAG IDs that are active
         :return: None
@@ -3093,7 +3216,7 @@ class DAG(LoggingMixin):
         Validates & raise exception if there are any Params in the DAG which neither have a default value nor
         have the null in schema['type'] list, but the DAG have a schedule_interval which is not None.
         """
-        if not self.timetable.can_run:
+        if not self.timetable.can_be_scheduled:
             return
 
         for k, v in self.params.items():
@@ -3133,9 +3256,10 @@ class DagTag(Base):
 
 
 class DagOwnerAttributes(Base):
-    """
-    Table defining different owner attributes. For example, a link for an owner that will be passed as
-    a hyperlink to the DAGs view
+    """Table defining different owner attributes.
+
+    For example, a link for an owner that will be passed as a hyperlink to the
+    "DAGs" view.
     """
 
     __tablename__ = "dag_owner_attributes"
@@ -3160,7 +3284,7 @@ class DagOwnerAttributes(Base):
 
 
 class DagModel(Base):
-    """Table containing DAG properties"""
+    """Table containing DAG properties."""
 
     __tablename__ = "dag"
     """
@@ -3317,7 +3441,7 @@ class DagModel(Base):
     @provide_session
     def get_paused_dag_ids(dag_ids: list[str], session: Session = NEW_SESSION) -> set[str]:
         """
-        Given a list of dag_ids, get a set of Paused Dag Ids
+        Given a list of dag_ids, get a set of Paused Dag Ids.
 
         :param dag_ids: List of Dag ids
         :param session: ORM Session
@@ -3336,7 +3460,7 @@ class DagModel(Base):
     def get_default_view(self) -> str:
         """
         Get the Default DAG View, returns the default config value if DagModel does not
-        have a value
+        have a value.
         """
         # This is for backwards-compatibility with old dags that don't have None as default_view
         return self.default_view or conf.get_mandatory_value("webserver", "dag_default_view").lower()
@@ -3466,7 +3590,7 @@ class DagModel(Base):
         most_recent_dag_run: None | datetime | DataInterval,
     ) -> None:
         """
-        Calculate ``next_dagrun`` and `next_dagrun_create_after``
+        Calculate ``next_dagrun`` and `next_dagrun_create_after``.
 
         :param dag: The DAG object
         :param most_recent_dag_run: DataInterval (or datetime) of most recent run of this dag, or none
@@ -3712,16 +3836,17 @@ def _get_or_create_dagrun(
     run_id: str,
     session: Session,
 ) -> DagRun:
-    """
-    Create a DAGRun, but only after clearing the previous instance of said dagrun to prevent collisions.
-    This function is only meant for the `dag.test` function as a helper function.
-    :param dag: Dag to be used to find dagrun
-    :param conf: configuration to pass to newly created dagrun
-    :param start_date: start date of new dagrun, defaults to execution_date
-    :param execution_date: execution_date for finding the dagrun
-    :param run_id: run_id to pass to new dagrun
-    :param session: sqlalchemy session
-    :return:
+    """Create a DAG run, replacing an existing instance if needed to prevent collisions.
+
+    This function is only meant to be used by :meth:`DAG.test` as a helper function.
+
+    :param dag: DAG to be used to find run.
+    :param conf: Configuration to pass to newly created run.
+    :param start_date: Start date of new run.
+    :param execution_date: Logical date for finding an existing run.
+    :param run_id: Run ID for the new DAG run.
+
+    :return: The newly created DAG run.
     """
     log.info("dagrun id: %s", dag.dag_id)
     dr: DagRun = (
@@ -3738,7 +3863,7 @@ def _get_or_create_dagrun(
         run_id=run_id,
         start_date=start_date or execution_date,
         session=session,
-        conf=conf,  # type: ignore
+        conf=conf,
     )
-    log.info("created dagrun " + str(dr))
+    log.info("created dagrun %s", dr)
     return dr

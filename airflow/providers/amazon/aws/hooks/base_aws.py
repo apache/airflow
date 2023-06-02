@@ -31,7 +31,7 @@ import logging
 import os
 import uuid
 from copy import deepcopy
-from functools import wraps
+from functools import cached_property, wraps
 from os import PathLike
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, Union
@@ -49,7 +49,6 @@ from botocore.waiter import Waiter, WaiterModel
 from dateutil.tz import tzlocal
 from slugify import slugify
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
@@ -138,9 +137,9 @@ class BaseSessionFactory(LoggingMixin):
             or self.conn.session_kwargs.get("aws_session_token", None)
         ):
             session.set_credentials(
-                self.conn.session_kwargs["aws_access_key_id"],
-                self.conn.session_kwargs["aws_secret_access_key"],
-                self.conn.session_kwargs["aws_session_token"],
+                access_key=self.conn.session_kwargs.get("aws_access_key_id"),
+                secret_key=self.conn.session_kwargs.get("aws_secret_access_key"),
+                token=self.conn.session_kwargs.get("aws_session_token"),
             )
 
         if self.conn.session_kwargs.get("region_name", None) is not None:
@@ -194,7 +193,6 @@ class BaseSessionFactory(LoggingMixin):
     def _create_session_with_assume_role(
         self, session_kwargs: dict[str, Any], deferrable: bool = False
     ) -> boto3.session.Session:
-        from aiobotocore.session import get_session as async_get_session
 
         if self.conn.assume_role_method == "assume_role_with_web_identity":
             # Deferred credentials have no initial credentials
@@ -212,7 +210,12 @@ class BaseSessionFactory(LoggingMixin):
                 method="sts-assume-role",
             )
 
-        session = async_get_session() if deferrable else botocore.session.get_session()
+        if deferrable:
+            from aiobotocore.session import get_session as async_get_session
+
+            session = async_get_session()
+        else:
+            session = botocore.session.get_session()
 
         session._credentials = credentials
         session.set_config_variable("region", self.basic_session.region_name)
@@ -833,7 +836,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             corresponding value. If a custom waiter has such keys to be expanded, they need to be provided
             here.
         :param deferrable: If True, the waiter is going to be an async custom waiter.
-
+            An async client must be provided in that case.
+        :param client: The client to use for the waiter's operations
         """
         from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
 
@@ -841,6 +845,17 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             raise ValueError("client must be provided for a deferrable waiter.")
         client = client or self.conn
         if self.waiter_path and (waiter_name in self._list_custom_waiters()):
+            # Currently, the custom waiter doesn't work with resource_type, only client_type is supported.
+            if self.resource_type:
+                credentials = self.get_credentials()
+                client = boto3.client(
+                    self.resource_type,
+                    region_name=self.region_name,
+                    aws_access_key_id=credentials.access_key,
+                    aws_secret_access_key=credentials.secret_key,
+                    aws_session_token=credentials.token,
+                )
+
             # Technically if waiter_name is in custom_waiters then self.waiter_path must
             # exist but MyPy doesn't like the fact that self.waiter_path could be None.
             with open(self.waiter_path) as config_file:

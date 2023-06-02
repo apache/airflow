@@ -27,7 +27,8 @@
 {{- $tolerations := or .Values.dagProcessor.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.dagProcessor.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.dagProcessor.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowSecurityContext" (list . .Values.dagProcessor) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.dagProcessor) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.dagProcessor) }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -115,7 +116,14 @@ spec:
           resources: {{- toYaml .Values.dagProcessor.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          volumeMounts: {{- include "airflow_config_mount" . | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values.dagProcessor.extraVolumeMounts }}
+              {{- toYaml .Values.dagProcessor.extraVolumeMounts | nindent 12 }}
+            {{- end }}
+            {{- include "airflow_config_mount" . | nindent 12 }}
           args: {{- include "wait-for-migrations-command" . | indent 10 }}
           envFrom: {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
@@ -135,6 +143,7 @@ spec:
         - name: dag-processor
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if .Values.dagProcessor.command }}
           command: {{ tpl (toYaml .Values.dagProcessor.command) . | nindent 12 }}
           {{- end }}
@@ -175,6 +184,35 @@ spec:
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
           {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
+        {{- if .Values.dagProcessor.logGroomerSidecar.enabled }}
+        - name: dag-processor-log-groomer
+          resources: {{- toYaml .Values.dagProcessor.logGroomerSidecar.resources | nindent 12 }}
+          image: {{ template "airflow_image" . }}
+          imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          {{- if .Values.dagProcessor.logGroomerSidecar.command }}
+          command: {{ tpl (toYaml .Values.dagProcessor.logGroomerSidecar.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.dagProcessor.logGroomerSidecar.args }}
+          args: {{- tpl (toYaml .Values.dagProcessor.logGroomerSidecar.args) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.dagProcessor.logGroomerSidecar.retentionDays }}
+          env:
+            - name: AIRFLOW__LOG_RETENTION_DAYS
+              value: "{{ .Values.dagProcessor.logGroomerSidecar.retentionDays }}"
+          {{- end }}
+          volumeMounts:
+            - name: logs
+              mountPath: {{ template "airflow_logs" . }}
+            {{- if .Values.volumeMounts }}
+              {{- toYaml .Values.volumeMounts | nindent 12 }}
+            {{- end }}
+            {{- if .Values.dagProcessor.extraVolumeMounts }}
+              {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
+            {{- end }}
+            {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
+              {{- include "airflow_webserver_config_mount" . | nindent 12 }}
+            {{- end }}
+          {{- end }}
         {{- if .Values.dagProcessor.extraContainers }}
           {{- toYaml .Values.dagProcessor.extraContainers | nindent 8 }}
         {{- end }}

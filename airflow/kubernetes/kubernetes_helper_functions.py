@@ -23,7 +23,9 @@ import string
 import pendulum
 from slugify import slugify
 
-from airflow.models.taskinstance import TaskInstanceKey
+from airflow.compat.functools import cache
+from airflow.configuration import conf
+from airflow.models.taskinstancekey import TaskInstanceKey
 
 log = logging.getLogger(__name__)
 
@@ -119,3 +121,16 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
         try_number=try_number,
         map_index=map_index,
     )
+
+
+@cache
+def get_logs_task_metadata() -> bool:
+    return conf.getboolean("kubernetes_executor", "logs_task_metadata", fallback=False)
+
+
+def annotations_for_logging_task_metadata(annotation_set):
+    if get_logs_task_metadata():
+        annotations_for_logging = annotation_set
+    else:
+        annotations_for_logging = "<omitted>"
+    return annotations_for_logging

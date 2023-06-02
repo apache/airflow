@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import ast
 import re
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
@@ -112,7 +112,7 @@ _MIN_SUPPORTED_PROVIDERS_VERSION = {
 
 class BaseSQLOperator(BaseOperator):
     """
-    This is a base class for generic SQL Operator to get a DB Hook
+    This is a base class for generic SQL Operator to get a DB Hook.
 
     The provided method is .get_db_hook(). The default behavior will try to
     retrieve the DB hook based on connection type.
@@ -138,7 +138,7 @@ class BaseSQLOperator(BaseOperator):
 
     @cached_property
     def _hook(self):
-        """Get DB Hook based on connection type"""
+        """Get DB Hook based on connection type."""
         self.log.debug("Get connection for %s", self.conn_id)
         conn = BaseHook.get_connection(self.conn_id)
         hook = conn.get_hook(hook_params=self.hook_params)
@@ -188,7 +188,7 @@ class BaseSQLOperator(BaseOperator):
 
 class SQLExecuteQueryOperator(BaseSQLOperator):
     """
-    Executes SQL code in a specific database
+    Executes SQL code in a specific database.
 
     When implementing a specific Operator, you can also implement `_process_output` method in the
     hook to perform additional processing of values returned by the DB Hook of yours. For example, you
@@ -258,6 +258,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             self.log.info("Operator output is: %s", results)
         return results
 
+    def _should_run_output_processing(self) -> bool:
+        return self.do_xcom_push
+
     def execute(self, context):
         self.log.info("Executing: %s", self.sql)
         hook = self.get_db_hook()
@@ -269,11 +272,11 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             sql=self.sql,
             autocommit=self.autocommit,
             parameters=self.parameters,
-            handler=self.handler if self.do_xcom_push else None,
+            handler=self.handler if self._should_run_output_processing() else None,
             return_last=self.return_last,
             **extra_kwargs,
         )
-        if not self.do_xcom_push:
+        if not self._should_run_output_processing():
             return None
         if return_single_query_results(self.sql, self.return_last, self.split_statements):
             # For simplicity, we pass always list as input to _process_output, regardless if
@@ -622,7 +625,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.log.info("All tests have passed")
 
     def _generate_sql_query(self):
-        self.log.info("Partition clause: %s", self.partition_clause)
+        self.log.debug("Partition clause: %s", self.partition_clause)
 
         def _generate_partition_clause(check_name):
             if self.partition_clause and "partition_clause" not in self.checks[check_name]:

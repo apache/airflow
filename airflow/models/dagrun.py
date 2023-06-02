@@ -43,7 +43,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Session, declared_attr, joinedload, relationship, synonym
+from sqlalchemy.orm import Query, Session, declared_attr, joinedload, relationship, synonym
 from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
@@ -77,7 +77,7 @@ if TYPE_CHECKING:
 
 
 class TISchedulingDecision(NamedTuple):
-    """Type of return for DagRun.task_instance_scheduling_decisions"""
+    """Type of return for DagRun.task_instance_scheduling_decisions."""
 
     tis: list[TI]
     schedulable_tis: list[TI]
@@ -97,9 +97,10 @@ def _creator_note(val):
 
 
 class DagRun(Base, LoggingMixin):
-    """
-    DagRun describes an instance of a Dag. It can be created
-    by the scheduler (for regular runs) or by an external trigger
+    """Invocation instance of a DAG.
+
+    A DAG run can be created by the scheduler (i.e. scheduled runs), or by an
+    external trigger (i.e. manual runs).
     """
 
     __tablename__ = "dag_run"
@@ -173,7 +174,12 @@ class DagRun(Base, LoggingMixin):
         uselist=False,
         viewonly=True,
     )
-    dag_run_note = relationship("DagRunNote", back_populates="dag_run", uselist=False)
+    dag_run_note = relationship(
+        "DagRunNote",
+        back_populates="dag_run",
+        uselist=False,
+        cascade="all, delete, delete-orphan",
+    )
     note = association_proxy("dag_run_note", "content", creator=_creator_note)
 
     DEFAULT_DAGRUNS_TO_EXAMINE = airflow_conf.getint(
@@ -260,7 +266,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION) -> None:
         """
-        Reloads the current dagrun from the database
+        Reloads the current dagrun from the database.
 
         :param session: database session
         """
@@ -295,7 +301,7 @@ class DagRun(Base, LoggingMixin):
         state: DagRunState,
         session: Session,
         max_number: int | None = None,
-    ) -> list[DagRun]:
+    ) -> Query:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
 
@@ -431,7 +437,7 @@ class DagRun(Base, LoggingMixin):
 
     @staticmethod
     def generate_run_id(run_type: DagRunType, execution_date: datetime) -> str:
-        """Generate Run ID based on Run Type and Execution Date"""
+        """Generate Run ID based on Run Type and Execution Date."""
         # _Ensure_ run_type is a DagRunType, not just a string from user code
         return DagRunType(run_type).generate_run_id(execution_date)
 
@@ -441,7 +447,7 @@ class DagRun(Base, LoggingMixin):
         state: Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
     ) -> list[TI]:
-        """Returns the task instances for this dag run"""
+        """Returns the task instances for this dag run."""
         tis = (
             session.query(TI)
             .options(joinedload(TI.dag_run))
@@ -478,7 +484,7 @@ class DagRun(Base, LoggingMixin):
         map_index: int = -1,
     ) -> TI | None:
         """
-        Returns the task instance specified by task_id for this dag run
+        Returns the task instance specified by task_id for this dag run.
 
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
@@ -504,7 +510,7 @@ class DagRun(Base, LoggingMixin):
     def get_previous_dagrun(
         self, state: DagRunState | None = None, session: Session = NEW_SESSION
     ) -> DagRun | None:
-        """The previous DagRun, if there is one"""
+        """The previous DagRun, if there is one."""
         filters = [
             DagRun.dag_id == self.dag_id,
             DagRun.execution_date < self.execution_date,
@@ -515,7 +521,7 @@ class DagRun(Base, LoggingMixin):
 
     @provide_session
     def get_previous_scheduled_dagrun(self, session: Session = NEW_SESSION) -> DagRun | None:
-        """The previous, SCHEDULED DagRun, if there is one"""
+        """The previous, SCHEDULED DagRun, if there is one."""
         return (
             session.query(DagRun)
             .filter(
@@ -526,6 +532,31 @@ class DagRun(Base, LoggingMixin):
             .order_by(DagRun.execution_date.desc())
             .first()
         )
+
+    def _tis_for_dagrun_state(self, *, dag, tis):
+        """
+        Return the collection of tasks that should be considered for evaluation of terminal dag run state.
+
+        Teardown tasks by default are not considered for the purpose of dag run state.  But
+        users may enable such consideration with on_failure_fail_dagrun.
+        """
+
+        def is_effective_leaf(task):
+            for down_task_id in task.downstream_task_ids:
+                down_task = dag.get_task(down_task_id)
+                if not down_task.is_teardown or down_task.on_failure_fail_dagrun:
+                    # we found a down task that is not ignorable; not a leaf
+                    return False
+            # we found no ignorable downstreams
+            # evaluate whether task is itself ignorable
+            return not task.is_teardown or task.on_failure_fail_dagrun
+
+        leaf_task_ids = {x.task_id for x in dag.tasks if is_effective_leaf(x)}
+        if not leaf_task_ids:
+            # can happen if dag is exclusively teardown tasks
+            leaf_task_ids = {x.task_id for x in dag.tasks if not x.downstream_list}
+        leaf_tis = {ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED}
+        return leaf_tis
 
     @provide_session
     def update_state(
@@ -589,11 +620,10 @@ class DagRun(Base, LoggingMixin):
                     if changed_by_upstream:  # Something changed, we need to recalculate!
                         unfinished = unfinished.recalculate()
 
-        leaf_task_ids = {t.task_id for t in dag.leaves}
-        leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED]
+        tis_for_dagrun_state = self._tis_for_dagrun_state(dag=dag, tis=tis)
 
-        # if all roots finished and at least one failed, the run failed
-        if not unfinished.tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
+        # if all tasks finished and at least one failed, the run failed
+        if not unfinished.tis and any(x.state in State.failed_states for x in tis_for_dagrun_state):
             self.log.error("Marking run %s failed", self)
             self.set_state(DagRunState.FAILED)
             self.notify_dagrun_state_changed(msg="task_failure")
@@ -614,7 +644,7 @@ class DagRun(Base, LoggingMixin):
                 )
 
         # if all leaves succeeded and no unfinished tasks, the run succeeded
-        elif not unfinished.tis and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
+        elif not unfinished.tis and all(x.state in State.success_states for x in tis_for_dagrun_state):
             self.log.info("Marking run %s successful", self)
             self.set_state(DagRunState.SUCCESS)
             self.notify_dagrun_state_changed(msg="success")
@@ -1103,7 +1133,7 @@ class DagRun(Base, LoggingMixin):
         session: Session,
     ) -> CreatedTasks:
         """
-        Create missing tasks -- and expand any MappedOperator that _only_ have literals as input
+        Create missing tasks -- and expand any MappedOperator that _only_ have literals as input.
 
         :param tasks: Tasks to create jobs for in the DAG run
         :param task_creator: Function to create task instances
@@ -1214,7 +1244,7 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     def get_run(session: Session, dag_id: str, execution_date: datetime) -> DagRun | None:
         """
-        Get a single DAG Run
+        Get a single DAG Run.
 
         :meta private:
         :param session: Sqlalchemy ORM Session
@@ -1245,7 +1275,7 @@ class DagRun(Base, LoggingMixin):
     @classmethod
     @provide_session
     def get_latest_runs(cls, session: Session = NEW_SESSION) -> list[DagRun]:
-        """Returns the latest DagRun for each DAG"""
+        """Returns the latest DagRun for each DAG."""
         subquery = (
             session.query(cls.dag_id, func.max(cls.execution_date).label("execution_date"))
             .group_by(cls.dag_id)
