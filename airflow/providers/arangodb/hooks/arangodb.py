@@ -18,12 +18,12 @@
 """This module allows connecting to a ArangoDB."""
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 from arango import AQLQueryExecuteError, ArangoClient as ArangoDBClient
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:

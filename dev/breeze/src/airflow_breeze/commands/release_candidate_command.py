@@ -347,7 +347,7 @@ def publish_release_candidate(version, previous_version, github_token):
     git_clean()
     # Build the latest image
     if confirm_action("Build latest breeze image?"):
-        run_command(["breeze", "ci-image", "build", "--python", "3.7"], dry_run_override=DRY_RUN, check=True)
+        run_command(["breeze", "ci-image", "build", "--python", "3.8"], dry_run_override=DRY_RUN, check=True)
     # Create the tarball
     tarball_release(version, version_without_rc)
     # Create the artifacts

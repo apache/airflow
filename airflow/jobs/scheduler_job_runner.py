@@ -32,7 +32,8 @@ from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
-from sqlalchemy import and_, func, not_, or_, text
+from sqlalchemy import and_, delete, func, not_, or_, select, text, update
+from sqlalchemy.engine import Result
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Query, Session, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -271,9 +272,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         :param states: List of states to query for
         :return: Concurrency map
         """
-        ti_concurrency_query: list[tuple[str, str, str, int]] = (
-            session.query(TI.task_id, TI.run_id, TI.dag_id, func.count("*"))
-            .filter(TI.state.in_(states))
+        ti_concurrency_query: Result = session.execute(
+            select(TI.task_id, TI.run_id, TI.dag_id, func.count("*"))
+            .where(TI.state.in_(states))
             .group_by(TI.task_id, TI.run_id, TI.dag_id)
         )
         return ConcurrencyMap.from_concurrency_map(
@@ -354,33 +355,33 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             # DagRuns which are not backfilled, in the given states,
             # and the dag is not paused
             query = (
-                session.query(TI)
+                select(TI)
                 .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
                 .join(TI.dag_run)
-                .filter(DR.run_type != DagRunType.BACKFILL_JOB, DR.state == DagRunState.RUNNING)
+                .where(DR.run_type != DagRunType.BACKFILL_JOB, DR.state == DagRunState.RUNNING)
                 .join(TI.dag_model)
-                .filter(not_(DM.is_paused))
-                .filter(TI.state == TaskInstanceState.SCHEDULED)
-                .options(selectinload("dag_model"))
+                .where(not_(DM.is_paused))
+                .where(TI.state == TaskInstanceState.SCHEDULED)
+                .options(selectinload(TI.dag_model))
                 .order_by(-TI.priority_weight, DR.execution_date, TI.map_index)
             )
 
             if starved_pools:
-                query = query.filter(not_(TI.pool.in_(starved_pools)))
+                query = query.where(not_(TI.pool.in_(starved_pools)))
 
             if starved_dags:
-                query = query.filter(not_(TI.dag_id.in_(starved_dags)))
+                query = query.where(not_(TI.dag_id.in_(starved_dags)))
 
             if starved_tasks:
                 task_filter = tuple_in_condition((TI.dag_id, TI.task_id), starved_tasks)
-                query = query.filter(not_(task_filter))
+                query = query.where(not_(task_filter))
 
             if starved_tasks_task_dagrun_concurrency:
                 task_filter = tuple_in_condition(
                     (TI.dag_id, TI.run_id, TI.task_id),
                     starved_tasks_task_dagrun_concurrency,
                 )
-                query = query.filter(not_(task_filter))
+                query = query.where(not_(task_filter))
 
             query = query.limit(max_tis)
 
@@ -388,12 +389,14 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             timer.start()
 
             try:
-                task_instances_to_examine: list[TI] = with_row_locks(
+                query = with_row_locks(
                     query,
                     of=TI,
                     session=session,
                     **skip_locked(session=session),
-                ).all()
+                )
+                task_instances_to_examine: list[TI] = session.scalars(query).all()
+
                 timer.stop(send=True)
             except OperationalError as e:
                 timer.stop(send=False)
@@ -501,9 +504,12 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                             dag_id,
                             task_instance,
                         )
-                        session.query(TI).filter(
-                            TI.dag_id == dag_id, TI.state == TaskInstanceState.SCHEDULED
-                        ).update({TI.state: TaskInstanceState.FAILED}, synchronize_session="fetch")
+                        session.execute(
+                            update(TI)
+                            .where(TI.dag_id == dag_id, TI.state == TaskInstanceState.SCHEDULED)
+                            .values(state=TaskInstanceState.FAILED)
+                            .execution_options(synchronize_session="fetch")
+                        )
                         continue
 
                     task_concurrency_limit: int | None = None
@@ -588,16 +594,19 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
             # set TIs to queued state
             filter_for_tis = TI.filter_for_tis(executable_tis)
-            session.query(TI).filter(filter_for_tis).update(
-                # TODO[ha]: should we use func.now()? How does that work with DB timezone
-                # on mysql when it's not UTC?
-                {
-                    TI.state: TaskInstanceState.QUEUED,
-                    TI.queued_dttm: timezone.utcnow(),
-                    TI.queued_by_job_id: self.job.id,
-                },
-                synchronize_session=False,
+            session.execute(
+                update(TI)
+                .where(filter_for_tis)
+                .values(
+                    # TODO[ha]: should we use func.now()? How does that work with DB timezone
+                    # on mysql when it's not UTC?
+                    state=TaskInstanceState.QUEUED,
+                    queued_dttm=timezone.utcnow(),
+                    queued_by_job_id=self.job.id,
+                )
+                .execution_options(synchronize_session=False)
             )
+
             for ti in executable_tis:
                 ti.emit_state_change_metric(State.QUEUED)
 
@@ -686,7 +695,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         # Check state of finished tasks
         filter_for_tis = TI.filter_for_tis(tis_with_right_state)
-        query = session.query(TI).filter(filter_for_tis).options(selectinload("dag_model"))
+        query = select(TI).where(filter_for_tis).options(selectinload(TI.dag_model))
         # row lock this entire set of taskinstances to make sure the scheduler doesn't fail when we have
         # multi-schedulers
         tis: Iterator[TI] = with_row_locks(
@@ -695,6 +704,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             session=session,
             **skip_locked(session=session),
         )
+        tis = session.scalars(tis)
         for ti in tis:
             try_number = ti_primary_key_to_try_number_map[ti.key.primary]
             buffer_key = ti.key.with_try_number(try_number)
@@ -869,11 +879,11 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
     @provide_session
     def _update_dag_run_state_for_paused_dags(self, session: Session = NEW_SESSION) -> None:
         try:
-            paused_runs = (
-                session.query(DagRun)
+            paused_runs = session.scalars(
+                select(DagRun)
                 .join(DagRun.dag_model)
                 .join(TI)
-                .filter(
+                .where(
                     DagModel.is_paused == expression.true(),
                     DagRun.state == DagRunState.RUNNING,
                     DagRun.run_type != DagRunType.BACKFILL_JOB,
@@ -1135,13 +1145,15 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate dag runs
         existing_dagruns = (
-            session.query(DagRun.dag_id, DagRun.execution_date)
-            .filter(
-                tuple_in_condition(
-                    (DagRun.dag_id, DagRun.execution_date),
-                    ((dm.dag_id, dm.next_dagrun) for dm in dag_models),
-                ),
+            session.execute(
+                select(DagRun.dag_id, DagRun.execution_date).where(
+                    tuple_in_condition(
+                        (DagRun.dag_id, DagRun.execution_date),
+                        ((dm.dag_id, dm.next_dagrun) for dm in dag_models),
+                    ),
+                )
             )
+            .unique()
             .all()
         )
 
@@ -1178,7 +1190,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     creating_job_id=self.job.id,
                 )
                 active_runs_of_dags[dag.dag_id] += 1
-            if self._should_update_dag_next_dagruns(dag, dag_model, active_runs_of_dags[dag.dag_id]):
+            if self._should_update_dag_next_dagruns(
+                dag, dag_model, active_runs_of_dags[dag.dag_id], session=session
+            ):
                 dag_model.calculate_dagrun_date_fields(dag, data_interval)
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()
@@ -1199,8 +1213,10 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             for dag_id, (_, last_time) in dataset_triggered_dag_info.items()
         }
         existing_dagruns: set[tuple[str, timezone.DateTime]] = set(
-            session.query(DagRun.dag_id, DagRun.execution_date).filter(
-                tuple_in_condition((DagRun.dag_id, DagRun.execution_date), exec_dates.items())
+            session.execute(
+                select(DagRun.dag_id, DagRun.execution_date).where(
+                    tuple_in_condition((DagRun.dag_id, DagRun.execution_date), exec_dates.items())
+                )
             )
         )
 
@@ -1229,15 +1245,15 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             # instead of falling in a loop of Integrity Error.
             exec_date = exec_dates[dag.dag_id]
             if (dag.dag_id, exec_date) not in existing_dagruns:
-                previous_dag_run = (
-                    session.query(DagRun)
-                    .filter(
+                previous_dag_run = session.scalar(
+                    select(DagRun)
+                    .where(
                         DagRun.dag_id == dag.dag_id,
                         DagRun.execution_date < exec_date,
                         DagRun.run_type == DagRunType.DATASET_TRIGGERED,
                     )
                     .order_by(DagRun.execution_date.desc())
-                    .first()
+                    .limit(1)
                 )
                 dataset_event_filters = [
                     DagScheduleDatasetReference.dag_id == dag.dag_id,
@@ -1246,16 +1262,15 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 if previous_dag_run:
                     dataset_event_filters.append(DatasetEvent.timestamp > previous_dag_run.execution_date)
 
-                dataset_events = (
-                    session.query(DatasetEvent)
+                dataset_events = session.scalars(
+                    select(DatasetEvent)
                     .join(
                         DagScheduleDatasetReference,
                         DatasetEvent.dataset_id == DagScheduleDatasetReference.dataset_id,
                     )
                     .join(DatasetEvent.source_dag_run)
-                    .filter(*dataset_event_filters)
-                    .all()
-                )
+                    .where(*dataset_event_filters)
+                ).all()
 
                 data_interval = dag.timetable.data_interval_for_events(exec_date, dataset_events)
                 run_id = dag.timetable.generate_run_id(
@@ -1279,13 +1294,23 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 )
                 Stats.incr("dataset.triggered_dagruns")
                 dag_run.consumed_dataset_events.extend(dataset_events)
-                session.query(DatasetDagRunQueue).filter(
-                    DatasetDagRunQueue.target_dag_id == dag_run.dag_id
-                ).delete()
+                session.execute(
+                    delete(DatasetDagRunQueue).where(DatasetDagRunQueue.target_dag_id == dag_run.dag_id)
+                )
 
-    def _should_update_dag_next_dagruns(self, dag: DAG, dag_model: DagModel, total_active_runs: int) -> bool:
+    def _should_update_dag_next_dagruns(
+        self, dag: DAG, dag_model: DagModel, total_active_runs: int | None = None, *, session: Session
+    ) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
-        if total_active_runs >= dag.max_active_runs:
+        # If the DAG never schedules skip save runtime
+        if not dag.timetable.can_be_scheduled:
+            return False
+
+        # get active dag runs from DB if not available
+        if not total_active_runs:
+            total_active_runs = dag.get_num_active_runs(only_running=False, session=session)
+
+        if total_active_runs and total_active_runs >= dag.max_active_runs:
             self.log.info(
                 "DAG %s is at (or above) max_active_runs (%d of %d), not creating any more runs",
                 dag_model.dag_id,
@@ -1387,20 +1412,19 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             and dag_run.start_date < timezone.utcnow() - dag.dagrun_timeout
         ):
             dag_run.set_state(DagRunState.FAILED)
-            unfinished_task_instances = (
-                session.query(TI)
-                .filter(TI.dag_id == dag_run.dag_id)
-                .filter(TI.run_id == dag_run.run_id)
-                .filter(TI.state.in_(State.unfinished))
+            unfinished_task_instances = session.scalars(
+                select(TI)
+                .where(TI.dag_id == dag_run.dag_id)
+                .where(TI.run_id == dag_run.run_id)
+                .where(TI.state.in_(State.unfinished))
             )
             for task_instance in unfinished_task_instances:
                 task_instance.state = TaskInstanceState.SKIPPED
                 session.merge(task_instance)
             session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
-            active_runs = dag.get_num_active_runs(only_running=False, session=session)
             # Work out if we should allow creating a new DagRun now?
-            if self._should_update_dag_next_dagruns(dag, dag_model, active_runs):
+            if self._should_update_dag_next_dagruns(dag, dag_model, session=session):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
 
             callback_to_execute = DagCallbackRequest(
@@ -1427,10 +1451,10 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             return callback
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
+        # Check if DAG not scheduled then skip interval calculation to same scheduler runtime
         if dag_run.state in State.finished:
-            active_runs = dag.get_num_active_runs(only_running=False, session=session)
             # Work out if we should allow creating a new DagRun now?
-            if self._should_update_dag_next_dagruns(dag, dag_model, active_runs):
+            if self._should_update_dag_next_dagruns(dag, dag_model, session=session):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag
@@ -1507,15 +1531,13 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         """
         self.log.debug("Calling SchedulerJob._fail_tasks_stuck_in_queued method")
 
-        tasks_stuck_in_queued = (
-            session.query(TI)
-            .filter(
+        tasks_stuck_in_queued = session.scalars(
+            select(TI).where(
                 TI.state == State.QUEUED,
                 TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
                 TI.queued_by_job_id == self.job.id,
             )
-            .all()
-        )
+        ).all()
         try:
             tis_for_warning_message = self.job.executor.cleanup_stuck_queued_tasks(tis=tasks_stuck_in_queued)
             if tis_for_warning_message:
@@ -1564,15 +1586,15 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 )
                 self.log.debug("Calling SchedulerJob.adopt_or_reset_orphaned_tasks method")
                 try:
-                    num_failed = (
-                        session.query(Job)
-                        .filter(
+                    num_failed = session.execute(
+                        update(Job)
+                        .where(
                             Job.job_type == "SchedulerJob",
                             Job.state == State.RUNNING,
                             Job.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout)),
                         )
-                        .update({"state": State.FAILED})
-                    )
+                        .values(state=State.FAILED)
+                    ).rowcount
 
                     if num_failed:
                         self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
@@ -1580,16 +1602,16 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
                     resettable_states = [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING]
                     query = (
-                        session.query(TI)
-                        .filter(TI.state.in_(resettable_states))
+                        select(TI)
+                        .where(TI.state.in_(resettable_states))
                         # outerjoin is because we didn't use to have queued_by_job
                         # set, so we need to pick up anything pre upgrade. This (and the
                         # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
                         # released.
                         .outerjoin(TI.queued_by_job)
-                        .filter(or_(TI.queued_by_job_id.is_(None), Job.state != State.RUNNING))
+                        .where(or_(TI.queued_by_job_id.is_(None), Job.state != State.RUNNING))
                         .join(TI.dag_run)
-                        .filter(
+                        .where(
                             DagRun.run_type != DagRunType.BACKFILL_JOB,
                             DagRun.state == State.RUNNING,
                         )
@@ -1599,7 +1621,8 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     # Lock these rows, so that another scheduler can't try and adopt these too
                     tis_to_reset_or_adopt = with_row_locks(
                         query, of=TI, session=session, **skip_locked(session=session)
-                    ).all()
+                    )
+                    tis_to_reset_or_adopt = session.scalars(tis_to_reset_or_adopt).all()
                     to_reset = self.job.executor.try_adopt_task_instances(tis_to_reset_or_adopt)
 
                     reset_tis_message = []
@@ -1637,23 +1660,19 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         Looks at all tasks that are in the "deferred" state and whose trigger
         or execution timeout has passed, so they can be marked as failed.
         """
-        num_timed_out_tasks = (
-            session.query(TI)
-            .filter(
+        num_timed_out_tasks = session.execute(
+            update(TI)
+            .where(
                 TI.state == TaskInstanceState.DEFERRED,
                 TI.trigger_timeout < timezone.utcnow(),
             )
-            .update(
-                # We have to schedule these to fail themselves so it doesn't
-                # happen inside the scheduler.
-                {
-                    "state": TaskInstanceState.SCHEDULED,
-                    "next_method": "__fail__",
-                    "next_kwargs": {"error": "Trigger/execution timeout"},
-                    "trigger_id": None,
-                }
+            .values(
+                state=TaskInstanceState.SCHEDULED,
+                next_method="__fail__",
+                next_kwargs={"error": "Trigger/execution timeout"},
+                trigger_id=None,
             )
-        )
+        ).rowcount
         if num_timed_out_tasks:
             self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
 
@@ -1670,19 +1689,22 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         with create_session() as session:
             zombies: list[tuple[TI, str, str]] = (
-                session.query(TI, DM.fileloc, DM.processor_subdir)
-                .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
-                .join(Job, TI.job_id == Job.id)
-                .join(DM, TI.dag_id == DM.dag_id)
-                .filter(TI.state == TaskInstanceState.RUNNING)
-                .filter(
-                    or_(
-                        Job.state != State.RUNNING,
-                        Job.latest_heartbeat < limit_dttm,
+                session.execute(
+                    select(TI, DM.fileloc, DM.processor_subdir)
+                    .with_hint(TI, "USE INDEX (ti_state)", dialect_name="mysql")
+                    .join(Job, TI.job_id == Job.id)
+                    .join(DM, TI.dag_id == DM.dag_id)
+                    .where(TI.state == TaskInstanceState.RUNNING)
+                    .where(
+                        or_(
+                            Job.state != State.RUNNING,
+                            Job.latest_heartbeat < limit_dttm,
+                        )
                     )
+                    .where(Job.job_type == "LocalTaskJob")
+                    .where(TI.queued_by_job_id == self.job.id)
                 )
-                .filter(Job.job_type == "LocalTaskJob")
-                .filter(TI.queued_by_job_id == self.job.id)
+                .unique()
                 .all()
             )
 
@@ -1730,9 +1752,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         """
         self.log.debug("Checking dags not parsed within last %s seconds.", self._dag_stale_not_seen_duration)
         limit_lpt = timezone.utcnow() - timedelta(seconds=self._dag_stale_not_seen_duration)
-        stale_dags = (
-            session.query(DagModel).filter(DagModel.is_active, DagModel.last_parsed_time < limit_lpt).all()
-        )
+        stale_dags = session.scalars(
+            select(DagModel).where(DagModel.is_active, DagModel.last_parsed_time < limit_lpt)
+        ).all()
         if not stale_dags:
             self.log.debug("Not stale dags found.")
             return
@@ -1754,8 +1776,8 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         Detects datasets that are no longer referenced in any DAG schedule parameters or task outlets and
         sets the dataset is_orphaned flag to True.
         """
-        orphaned_dataset_query = (
-            session.query(DatasetModel)
+        orphaned_dataset_query = session.scalars(
+            select(DatasetModel)
             .join(
                 DagScheduleDatasetReference,
                 isouter=True,

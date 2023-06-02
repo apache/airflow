@@ -30,7 +30,7 @@ import traceback
 import warnings
 from bisect import insort_left
 from collections import defaultdict
-from functools import wraps
+from functools import cached_property, wraps
 from json import JSONDecodeError
 from typing import Any, Callable, Collection, Iterator, Mapping, MutableMapping, Sequence
 from urllib.parse import unquote, urljoin, urlsplit
@@ -70,20 +70,20 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, case, desc, func, inspect, union_all
+from sqlalchemy import Date, and_, case, desc, func, inspect, or_, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
 
 import airflow
 from airflow import models, plugins_manager, settings
+from airflow.api.common.airflow_health import get_airflow_health
 from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_failed,
     set_dag_run_state_to_queued,
     set_dag_run_state_to_success,
     set_state,
 )
-from airflow.compat.functools import cached_property
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
@@ -650,29 +650,11 @@ class Airflow(AirflowBaseView):
     def health(self):
         """
         An endpoint helping check the health status of the Airflow instance,
-        including metadatabase and scheduler.
+        including metadatabase, scheduler and triggerer.
         """
-        payload = {"metadatabase": {"status": "unhealthy"}}
+        airflow_health_status = get_airflow_health()
 
-        latest_scheduler_heartbeat = None
-        scheduler_status = "unhealthy"
-        payload["metadatabase"] = {"status": "healthy"}
-        try:
-            scheduler_job = SchedulerJobRunner.most_recent_job()
-
-            if scheduler_job:
-                latest_scheduler_heartbeat = scheduler_job.latest_heartbeat.isoformat()
-                if scheduler_job.is_alive():
-                    scheduler_status = "healthy"
-        except Exception:
-            payload["metadatabase"]["status"] = "unhealthy"
-
-        payload["scheduler"] = {
-            "status": scheduler_status,
-            "latest_scheduler_heartbeat": latest_scheduler_heartbeat,
-        }
-
-        return flask.json.jsonify(payload)
+        return flask.json.jsonify(airflow_health_status)
 
     @expose("/home")
     @auth.has_access(
@@ -865,7 +847,7 @@ class Airflow(AirflowBaseView):
                 dag.can_trigger = dag.can_edit and can_create_dag_run
                 dag.can_delete = get_airflow_app().appbuilder.sm.can_delete_dag(dag.dag_id, g.user)
 
-            dagtags = session.query(func.distinct(DagTag.name)).all()
+            dagtags = session.query(func.distinct(DagTag.name)).order_by(DagTag.name).all()
             tags = [
                 {"name": name, "selected": bool(arg_tags_filter and name in arg_tags_filter)}
                 for name, in dagtags
@@ -989,6 +971,22 @@ class Airflow(AirflowBaseView):
         state_color_mapping["null"] = state_color_mapping.pop(None)
         return self.render_template(
             "airflow/datasets.html",
+            state_color_mapping=state_color_mapping,
+        )
+
+    @expose("/cluster_activity")
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
+        ]
+    )
+    def cluster_activity(self):
+        """Cluster Activity view."""
+        state_color_mapping = State.state_color.copy()
+        state_color_mapping["no_status"] = state_color_mapping.pop(None)
+        return self.render_template(
+            "airflow/cluster_activity.html",
+            auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
             state_color_mapping=state_color_mapping,
         )
 
@@ -1933,7 +1931,7 @@ class Airflow(AirflowBaseView):
         # Upon success return to origin.
         return redirect(origin)
 
-    @expose("/trigger", methods=["POST", "GET"])
+    @expose("/dags/<string:dag_id>/trigger", methods=["POST", "GET"])
     @auth.has_access(
         [
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
@@ -1942,9 +1940,8 @@ class Airflow(AirflowBaseView):
     )
     @action_logging
     @provide_session
-    def trigger(self, session: Session = NEW_SESSION):
+    def trigger(self, dag_id: str, session: Session = NEW_SESSION):
         """Triggers DAG Run."""
-        dag_id = request.values["dag_id"]
         run_id = request.values.get("run_id", "")
         origin = get_safe_url(request.values.get("origin"))
         unpause = request.values.get("unpause")
@@ -1980,6 +1977,7 @@ class Airflow(AirflowBaseView):
                 form_fields[k]["schema"]["custom_html_form"] = Markup(
                     form_fields[k]["schema"]["custom_html_form"]
                 )
+        ui_fields_defined = any("const" not in f["schema"] for f in form_fields.values())
 
         if not dag_orm:
             flash(f"Cannot find dag {dag_id}")
@@ -2010,7 +2008,7 @@ class Airflow(AirflowBaseView):
             if isinstance(recent_conf, dict) and any(recent_conf):
                 recent_confs[getattr(run, "run_id")] = json.dumps(recent_conf)
 
-        if request.method == "GET":
+        if request.method == "GET" and ui_fields_defined:
             # Populate conf textarea with conf requests parameter, or dag.params
             default_conf = ""
 
@@ -2031,6 +2029,7 @@ class Airflow(AirflowBaseView):
             return self.render_template(
                 "airflow/trigger.html",
                 form_fields=form_fields,
+                dag=dag,
                 dag_id=dag_id,
                 origin=origin,
                 conf=default_conf,
@@ -2048,9 +2047,10 @@ class Airflow(AirflowBaseView):
             return self.render_template(
                 "airflow/trigger.html",
                 form_fields=form_fields,
+                dag=dag,
                 dag_id=dag_id,
                 origin=origin,
-                conf=request_conf,
+                conf=request_conf if request_conf else {},
                 form=form,
                 is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
                 recent_confs=recent_confs,
@@ -2083,6 +2083,7 @@ class Airflow(AirflowBaseView):
                     return self.render_template(
                         "airflow/trigger.html",
                         form_fields=form_fields,
+                        dag=dag,
                         dag_id=dag_id,
                         origin=origin,
                         conf=request_conf,
@@ -2096,6 +2097,7 @@ class Airflow(AirflowBaseView):
                 return self.render_template(
                     "airflow/trigger.html",
                     form_fields=form_fields,
+                    dag=dag,
                     dag_id=dag_id,
                     origin=origin,
                     conf=request_conf,
@@ -2129,6 +2131,7 @@ class Airflow(AirflowBaseView):
             return self.render_template(
                 "airflow/trigger.html",
                 form_fields=form_fields,
+                dag=dag,
                 dag_id=dag_id,
                 origin=origin,
                 conf=request_conf,
@@ -3799,6 +3802,71 @@ class Airflow(AirflowBaseView):
                 "ordering": dag.timetable.run_ordering,
             }
         # avoid spaces to reduce payload size
+        return (
+            htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
+            {"Content-Type": "application/json; charset=utf-8"},
+        )
+
+    @expose("/object/historical_metrics_data")
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
+        ]
+    )
+    def historical_metrics_data(self):
+        """Returns cluster activity historical metrics"""
+        start_date = _safe_parse_datetime(request.args.get("start_date"))
+        end_date = _safe_parse_datetime(request.args.get("end_date"))
+        with create_session() as session:
+            # DagRuns
+            dag_runs_type = (
+                session.query(DagRun.run_type, func.count(DagRun.run_id))
+                .filter(
+                    DagRun.start_date >= start_date,
+                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                )
+                .group_by(DagRun.run_type)
+                .all()
+            )
+
+            dag_run_states = (
+                session.query(DagRun.state, func.count(DagRun.run_id))
+                .filter(
+                    DagRun.start_date >= start_date,
+                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                )
+                .group_by(DagRun.state)
+                .all()
+            )
+
+            # TaskInstances
+            task_instance_states = (
+                session.query(TaskInstance.state, func.count(TaskInstance.run_id))
+                .join(TaskInstance.dag_run)
+                .filter(
+                    DagRun.start_date >= start_date,
+                    or_(DagRun.end_date.is_(None), DagRun.end_date <= end_date),
+                )
+                .group_by(TaskInstance.state)
+                .all()
+            )
+
+            data = {
+                "dag_run_types": {
+                    **{dag_run_type.value: 0 for dag_run_type in DagRunType},
+                    **{run_type: sum_value for run_type, sum_value in dag_runs_type},
+                },
+                "dag_run_states": {
+                    **{dag_run_state.value: 0 for dag_run_state in DagRunState},
+                    **{run_state: sum_value for run_state, sum_value in dag_run_states},
+                },
+                "task_instance_states": {
+                    "no_status": 0,
+                    **{ti_state.value: 0 for ti_state in TaskInstanceState},
+                    **{ti_state or "no_status": sum_value for ti_state, sum_value in task_instance_states},
+                },
+            }
+
         return (
             htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
             {"Content-Type": "application/json; charset=utf-8"},

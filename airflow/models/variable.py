@@ -21,7 +21,7 @@ import json
 import logging
 from typing import Any
 
-from sqlalchemy import Boolean, Column, Integer, String, Text
+from sqlalchemy import Boolean, Column, Integer, String, Text, delete
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Session, declared_attr, reconstructor, synonym
 
@@ -212,7 +212,7 @@ class Variable(Base, LoggingMixin):
 
         :param key: Variable Keys
         """
-        return session.query(Variable).filter(Variable.key == key).delete()
+        return session.execute(delete(Variable).where(Variable.key == key)).rowcount
 
     def rotate_fernet_key(self):
         """Rotate Fernet Key."""
