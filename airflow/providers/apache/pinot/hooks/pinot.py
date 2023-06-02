@@ -84,7 +84,7 @@ class PinotAdminHook(BaseHook):
 
     def add_schema(self, schema_file: str, with_exec: bool = True) -> Any:
         """
-        Add Pinot schema by run AddSchema command
+        Add Pinot schema by run AddSchema command.
 
         :param schema_file: Pinot schema file
         :param with_exec: bool
@@ -99,7 +99,7 @@ class PinotAdminHook(BaseHook):
 
     def add_table(self, file_path: str, with_exec: bool = True) -> Any:
         """
-        Add Pinot table with run AddTable command
+        Add Pinot table with run AddTable command.
 
         :param file_path: Pinot table configure file
         :param with_exec: bool
@@ -133,7 +133,7 @@ class PinotAdminHook(BaseHook):
         post_creation_verification: str | None = None,
         retry: str | None = None,
     ) -> Any:
-        """Create Pinot segment by run CreateSegment command"""
+        """Create Pinot segment by run CreateSegment command."""
         cmd = ["CreateSegment"]
 
         if generator_config_file:
@@ -194,7 +194,7 @@ class PinotAdminHook(BaseHook):
 
     def upload_segment(self, segment_dir: str, table_name: str | None = None) -> Any:
         """
-        Upload Segment with run UploadSegment command
+        Upload Segment with run UploadSegment command.
 
         :param segment_dir:
         :param table_name:
@@ -210,7 +210,7 @@ class PinotAdminHook(BaseHook):
 
     def run_cli(self, cmd: list[str], verbose: bool = True) -> str:
         """
-        Run command with pinot-admin.sh
+        Run command with pinot-admin.sh.
 
         :param cmd: List of command going to be run by pinot-admin.sh script
         :param verbose:
@@ -249,7 +249,7 @@ class PinotAdminHook(BaseHook):
 
 class PinotDbApiHook(DbApiHook):
     """
-    Interact with Pinot Broker Query API
+    Interact with Pinot Broker Query API.
 
     This hook uses standard-SQL endpoint since PQL endpoint is soon to be deprecated.
     https://docs.pinot.apache.org/users/api/querying-pinot-using-standard-sql

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a sqoop 1.x hook"""
+"""This module contains a sqoop 1.x hook."""
 from __future__ import annotations
 
 import subprocess
@@ -85,7 +85,7 @@ class SqoopHook(BaseHook):
         return self.conn
 
     def cmd_mask_password(self, cmd_orig: list[str]) -> list[str]:
-        """Mask command password for safety"""
+        """Mask command password for safety."""
         cmd = deepcopy(cmd_orig)
         try:
             password_index = cmd.index("--password")
@@ -96,7 +96,7 @@ class SqoopHook(BaseHook):
 
     def popen(self, cmd: list[str], **kwargs: Any) -> None:
         """
-        Remote Popen
+        Remote Popen.
 
         :param cmd: command to remotely execute
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
@@ -225,7 +225,7 @@ class SqoopHook(BaseHook):
     ) -> Any:
         """
         Imports table from remote location to target dir. Arguments are
-        copies of direct sqoop command line arguments
+        copies of direct sqoop command line arguments.
 
         :param table: Table to read
         :param schema: Schema name
@@ -267,7 +267,7 @@ class SqoopHook(BaseHook):
         extra_import_options: dict[str, Any] | None = None,
     ) -> Any:
         """
-        Imports a specific query from the rdbms to hdfs
+        Imports a specific query from the rdbms to hdfs.
 
         :param query: Free format query to run
         :param target_dir: HDFS destination dir
@@ -377,7 +377,7 @@ class SqoopHook(BaseHook):
     ) -> None:
         """
         Exports Hive table to remote location. Arguments are copies of direct
-        sqoop command line Arguments
+        sqoop command line Arguments.
 
         :param table: Table remote destination
         :param schema: Schema name

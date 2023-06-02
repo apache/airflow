@@ -165,6 +165,59 @@ class TestStatsd:
         )
         assert "300m" == jmespath.search("spec.template.spec.containers[0].resources.requests.cpu", docs[0])
 
+    def test_statsd_security_contexts_are_configurable(self):
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "securityContexts": {
+                        "pod": {
+                            "fsGroup": 1000,
+                            "runAsGroup": 1001,
+                            "runAsNonRoot": True,
+                            "runAsUser": 2000,
+                        },
+                        "container": {
+                            "allowPrivilegeEscalation": False,
+                            "readOnlyRootFilesystem": True,
+                        },
+                    }
+                },
+            },
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+        assert {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True} == jmespath.search(
+            "spec.template.spec.containers[0].securityContext", docs[0]
+        )
+
+        assert {
+            "runAsUser": 2000,
+            "runAsGroup": 1001,
+            "fsGroup": 1000,
+            "runAsNonRoot": True,
+        } == jmespath.search("spec.template.spec.securityContext", docs[0])
+
+    def test_statsd_security_context_legacy(self):
+        docs = render_chart(
+            values={
+                "statsd": {
+                    "securityContext": {
+                        "fsGroup": 1000,
+                        "runAsGroup": 1001,
+                        "runAsNonRoot": True,
+                        "runAsUser": 2000,
+                    }
+                },
+            },
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+
+        assert {
+            "runAsUser": 2000,
+            "runAsGroup": 1001,
+            "fsGroup": 1000,
+            "runAsNonRoot": True,
+        } == jmespath.search("spec.template.spec.securityContext", docs[0])
+
     def test_statsd_resources_are_not_added_by_default(self):
         docs = render_chart(
             show_only=["templates/statsd/statsd-deployment.yaml"],

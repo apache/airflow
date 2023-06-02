@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from unittest import mock
+from unittest.mock import MagicMock
 
 from moto import mock_sts
 from moto.core import DEFAULT_ACCOUNT_ID
@@ -198,10 +199,11 @@ class TestGlueCrawlerHook:
 
     @mock.patch.object(GlueCrawlerHook, "get_crawler")
     @mock.patch.object(GlueCrawlerHook, "get_conn")
-    def test_wait_for_crawler_completion_instant_ready(self, mock_get_conn, mock_get_crawler):
-        mock_get_crawler.side_effect = [
-            {"State": "READY", "LastCrawl": {"Status": "MOCK_STATUS"}},
-        ]
+    @mock.patch.object(GlueCrawlerHook, "get_waiter")
+    def test_wait_for_crawler_completion_instant_ready(
+        self, _, mock_get_conn: MagicMock, mock_get_crawler: MagicMock
+    ):
+        mock_get_crawler.return_value = {"State": "READY", "LastCrawl": {"Status": "MOCK_STATUS"}}
         mock_get_conn.return_value.get_crawler_metrics.return_value = {
             "CrawlerMetricsList": [
                 {
@@ -220,44 +222,4 @@ class TestGlueCrawlerHook:
                 mock.call().get_crawler_metrics(CrawlerNameList=[mock_crawler_name]),
             ]
         )
-        mock_get_crawler.assert_has_calls(
-            [
-                mock.call(mock_crawler_name),
-            ]
-        )
-
-    @mock.patch.object(GlueCrawlerHook, "get_conn")
-    @mock.patch.object(GlueCrawlerHook, "get_crawler")
-    @mock.patch("airflow.providers.amazon.aws.hooks.glue_crawler.sleep")
-    def test_wait_for_crawler_completion_retry_two_times(self, mock_sleep, mock_get_crawler, mock_get_conn):
-        mock_get_crawler.side_effect = [
-            {"State": "RUNNING"},
-            {"State": "READY", "LastCrawl": {"Status": "MOCK_STATUS"}},
-        ]
-        mock_get_conn.return_value.get_crawler_metrics.side_effect = [
-            {"CrawlerMetricsList": [{"TimeLeftSeconds": 12}]},
-            {
-                "CrawlerMetricsList": [
-                    {
-                        "LastRuntimeSeconds": "TEST-A",
-                        "MedianRuntimeSeconds": "TEST-B",
-                        "TablesCreated": "TEST-C",
-                        "TablesUpdated": "TEST-D",
-                        "TablesDeleted": "TEST-E",
-                    }
-                ]
-            },
-        ]
-        assert self.hook.wait_for_crawler_completion(mock_crawler_name) == "MOCK_STATUS"
-        mock_get_conn.assert_has_calls(
-            [
-                mock.call(),
-                mock.call().get_crawler_metrics(CrawlerNameList=[mock_crawler_name]),
-            ]
-        )
-        mock_get_crawler.assert_has_calls(
-            [
-                mock.call(mock_crawler_name),
-                mock.call(mock_crawler_name),
-            ]
-        )
+        mock_get_crawler.assert_called_once_with(mock_crawler_name)

@@ -83,7 +83,7 @@ def parse_config_template_old_format(config_content: str) -> set[tuple[str, str,
     }
 
 
-@functools.lru_cache()
+@functools.lru_cache
 def fetch_config_options_for_version(version_str: str) -> set[tuple[str, str]]:
     r = requests.get(
         f"https://raw.githubusercontent.com/apache/airflow/{version_str}/airflow/config_templates/config.yml"

@@ -60,7 +60,7 @@ class FTPSensor(BaseSensorOperator):
         return FTPHook(ftp_conn_id=self.ftp_conn_id)
 
     def _get_error_code(self, e):
-        """Extract error code from ftp exception"""
+        """Extract error code from ftp exception."""
         try:
             matches = self.error_code_pattern.match(str(e))
             code = int(matches.group(0))

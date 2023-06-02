@@ -264,7 +264,7 @@ class OracleHook(DbApiHook):
     ) -> None:
         """
         A generic way to insert a set of tuples into a table,
-        the whole set of inserts is treated as one transaction
+        the whole set of inserts is treated as one transaction.
         Changes from standard DbApiHook implementation:
 
         - Oracle SQL queries in oracledb can not be terminated with a semicolon (`;`)

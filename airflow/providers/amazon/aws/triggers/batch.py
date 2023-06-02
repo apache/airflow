@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 import asyncio
+from functools import cached_property
 from typing import Any
 
 from botocore.exceptions import WaiterError
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 

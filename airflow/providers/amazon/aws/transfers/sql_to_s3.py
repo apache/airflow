@@ -20,9 +20,7 @@ from __future__ import annotations
 import enum
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
-
-from typing_extensions import Literal
+from typing import TYPE_CHECKING, Iterable, Literal, Mapping, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -157,11 +155,15 @@ class SqlToS3Operator(BaseOperator):
                 notna_series = df[col].dropna().values
                 if np.equal(notna_series, notna_series.astype(int)).all():
                     # set to dtype that retains integers and supports NaNs
-                    df[col] = np.where(df[col].isnull(), None, df[col])
+                    # The type ignore can be removed here if https://github.com/numpy/numpy/pull/23690
+                    # is merged and released as currently NumPy does not consider None as valid for x/y.
+                    df[col] = np.where(df[col].isnull(), None, df[col])  # type: ignore[call-overload]
                     df[col] = df[col].astype(Int64Dtype())
                 elif np.isclose(notna_series, notna_series.astype(int)).all():
                     # set to float dtype that retains floats and supports NaNs
-                    df[col] = np.where(df[col].isnull(), None, df[col])
+                    # The type ignore can be removed here if https://github.com/numpy/numpy/pull/23690
+                    # is merged and released
+                    df[col] = np.where(df[col].isnull(), None, df[col])  # type: ignore[call-overload]
                     df[col] = df[col].astype(Float64Dtype())
 
     def execute(self, context: Context) -> None:

@@ -61,7 +61,7 @@ class CommonBuildParams:
     prepare_buildx_cache: bool = False
     python_image: str | None = None
     push: bool = False
-    python: str = "3.7"
+    python: str = "3.8"
     tag_as_latest: bool = False
     upgrade_to_newer_dependencies: bool = False
     upgrade_on_failure: bool = False

@@ -16,13 +16,14 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftClusterTrigger,
 )
 from airflow.triggers.base import TriggerEvent
-from tests.providers.amazon.aws.utils.compat import async_mock
 
 pytest.importorskip("aiobotocore")
 
@@ -56,7 +57,7 @@ class TestRedshiftClusterTrigger:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.pause_cluster")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.pause_cluster")
     async def test_pause_trigger_run(self, mock_pause_cluster):
         """
         Test trigger event for the pause_cluster response
@@ -76,7 +77,7 @@ class TestRedshiftClusterTrigger:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.pause_cluster")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.pause_cluster")
     async def test_pause_trigger_failure(self, mock_pause_cluster):
         """Test trigger event when pause cluster raise exception"""
         mock_pause_cluster.side_effect = Exception("Test exception")
@@ -102,7 +103,7 @@ class TestRedshiftClusterTrigger:
             ),
         ],
     )
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.resume_cluster")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.resume_cluster")
     async def test_resume_trigger_run_error(
         self, mock_resume_cluster, operation_type, return_value, response
     ):
@@ -131,7 +132,7 @@ class TestRedshiftClusterTrigger:
             ),
         ],
     )
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.resume_cluster")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.resume_cluster")
     async def test_resume_trigger_run_success(
         self, mock_resume_cluster, operation_type, return_value, response
     ):
@@ -150,7 +151,7 @@ class TestRedshiftClusterTrigger:
         assert response == actual
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.resume_cluster")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.resume_cluster")
     async def test_resume_trigger_failure(self, mock_resume_cluster):
         """Test RedshiftClusterTrigger resume cluster with failure status"""
         mock_resume_cluster.side_effect = Exception("Test exception")
