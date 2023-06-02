@@ -36,7 +36,9 @@ class HiveStatsCollectionOperator(BaseOperator):
     """
     Gathers partition statistics using a dynamically generated Presto
     query, inserts the stats into a MySql table with this format. Stats
-    overwrite themselves if you rerun the same date/partition. ::
+    overwrite themselves if you rerun the same date/partition.
+
+    ::
 
         CREATE TABLE hive_stats (
             ds VARCHAR(16),
@@ -98,7 +100,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         self.dttm = "{{ execution_date.isoformat() }}"
 
     def get_default_exprs(self, col: str, col_type: str) -> dict[Any, Any]:
-        """Get default expressions"""
+        """Get default expressions."""
         if col in self.excluded_columns:
             return {}
         exp = {(col, "non_null"): f"COUNT({col})"}

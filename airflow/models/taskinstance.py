@@ -2826,7 +2826,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def clear_db_references(self, session):
         """
-        Clear DB references to XCom, TaskFail and RenderedTaskInstanceFields.
+        Clear db tables that have a reference to this instance.
 
         :param session: ORM Session
 
@@ -2834,7 +2834,7 @@ class TaskInstance(Base, LoggingMixin):
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        tables = [TaskFail, XCom, RenderedTaskInstanceFields]
+        tables = [TaskFail, TaskInstanceNote, TaskReschedule, XCom, RenderedTaskInstanceFields]
         for table in tables:
             session.execute(
                 delete(table).where(

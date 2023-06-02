@@ -528,6 +528,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "skipLeadingRows",
                 "quote",
                 "encoding",
+                "preserveAsciiControlCharacters",
             ],
             "googleSheetsOptions": ["skipLeadingRows"],
         }
