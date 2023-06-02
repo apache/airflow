@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""RedisHook module"""
+"""RedisHook module."""
 from __future__ import annotations
 
 from redis import Redis
@@ -25,7 +25,7 @@ from airflow.hooks.base import BaseHook
 
 class RedisHook(BaseHook):
     """
-    Wrapper for connection to interact with Redis in-memory data structure store
+    Wrapper for connection to interact with Redis in-memory data structure store.
 
     You can set your db in the extra field of your connection as ``{"db": 3}``.
     Also you can set ssl parameters as:

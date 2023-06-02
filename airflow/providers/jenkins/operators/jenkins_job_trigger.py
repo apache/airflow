@@ -41,7 +41,7 @@ def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Jenki
     We need to get the headers in addition to the body answer
     to get the location from them
     This function uses jenkins_request method from python-jenkins library
-    with just the return call changed
+    with just the return call changed.
 
     :param jenkins_server: The server to query
     :param req: The request to execute
@@ -184,7 +184,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         )
 
     def get_hook(self) -> JenkinsHook:
-        """Instantiate jenkins hook"""
+        """Instantiate jenkins hook."""
         return JenkinsHook(self.jenkins_connection_id)
 
     def execute(self, context: Mapping[Any, Any]) -> str | None:

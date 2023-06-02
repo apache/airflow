@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class InfluxDBOperator(BaseOperator):
     """
-    Executes sql code in a specific InfluxDB database
+    Executes sql code in a specific InfluxDB database.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
