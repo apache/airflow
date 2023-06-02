@@ -16,13 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import csv
 import json
 from unittest import mock
 from unittest.mock import MagicMock, Mock
 
 import pandas as pd
 import pytest
-import unicodecsv as csv
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator

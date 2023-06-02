@@ -277,7 +277,7 @@ class TestTransfer:
                     )
                     conn.commit()
 
-            import unicodecsv as csv
+            import csv
 
             op = MySqlToHiveOperator(
                 task_id="test_m2h",
