@@ -1574,7 +1574,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self,
         *,
         trigger: BaseTrigger,
-        method_name: str = "execute_complete",
+        method_name: str = "execute_complete_default",
         kwargs: dict[str, Any] | None = None,
         timeout: timedelta | None = None,
     ):
@@ -1587,7 +1587,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
-    def execute_complete(self, context: Context, event: dict[str, Any]):
+    def execute_complete_default(self, context: Context, event: dict[str, Any]):
         """The default method for handling the event returned after the deferred operation completes."""
         op_name = type(self).__name__
         if event["status"] != TriggerEvent.STATUS_SUCCESS:
