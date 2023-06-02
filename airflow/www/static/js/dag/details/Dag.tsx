@@ -55,7 +55,6 @@ import LinkButton from "src/components/LinkButton";
 import { SimpleStatus } from "../StatusBox";
 
 const dagId = getMetaValue("dag_id");
-const dagDetailsUrl = getMetaValue("dag_details_url");
 const tagIndexUrl = getMetaValue("tag_index_url");
 const taskInstancesUrl = getMetaValue("task_instances_list_url");
 
@@ -184,9 +183,6 @@ const Dag = () => {
       ref={detailsRef}
       overflowY="auto"
     >
-      <Button as={Link} variant="ghost" colorScheme="blue" href={dagDetailsUrl}>
-        More Details
-      </Button>
       <Table variant="striped">
         <Tbody>
           {durations.length > 0 && (
