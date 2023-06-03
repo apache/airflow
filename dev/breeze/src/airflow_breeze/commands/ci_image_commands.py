@@ -49,7 +49,6 @@ from airflow_breeze.utils.common_options import (
     option_force_build,
     option_github_repository,
     option_github_token,
-    option_github_username,
     option_image_name,
     option_image_tag_for_building,
     option_image_tag_for_pulling,
@@ -114,8 +113,6 @@ def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Ou
     if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
         if not should_we_run_the_build(build_ci_params=ci_image_params):
             return False
-    if ci_image_params.prepare_buildx_cache or ci_image_params.push:
-        login_to_github_docker_registry(image_params=ci_image_params, output=output)
     return True
 
 
@@ -155,9 +152,13 @@ def run_build_in_parallel(
     )
 
 
-def start_building(params: BuildCiParams):
+def prepare_for_building_ci_image(params: BuildCiParams):
     check_if_image_building_is_needed(params, output=None)
     make_sure_builder_configured(params=params)
+    login_to_github_docker_registry(
+        github_token=params.github_token,
+        output=None,
+    )
 
 
 @ci_image.command(name="build")
@@ -172,7 +173,6 @@ def start_building(params: BuildCiParams):
 @option_upgrade_on_failure
 @option_platform_multiple
 @option_github_token
-@option_github_username
 @option_docker_cache
 @option_image_tag_for_building
 @option_prepare_buildx_cache
@@ -230,7 +230,7 @@ def build(
             params = BuildCiParams(**parameters_passed)
             params.python = python
             params_list.append(params)
-        start_building(params=params_list[0])
+        prepare_for_building_ci_image(params=params_list[0])
         run_build_in_parallel(
             image_params_list=params_list,
             python_version_list=python_version_list,
@@ -241,7 +241,7 @@ def build(
         )
     else:
         params = BuildCiParams(**parameters_passed)
-        start_building(params=params)
+        prepare_for_building_ci_image(params=params)
         run_build(ci_image_params=params)
 
 
@@ -281,6 +281,10 @@ def pull(
     """Pull and optionally verify CI images - possibly in parallel for all Python versions."""
     perform_environment_checks()
     check_remote_ghcr_io_commands()
+    login_to_github_docker_registry(
+        github_token=github_token,
+        output=None,
+    )
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
         ci_image_params_list = [
@@ -306,7 +310,10 @@ def pull(
         )
     else:
         image_params = BuildCiParams(
-            image_tag=image_tag, python=python, github_repository=github_repository, github_token=github_token
+            image_tag=image_tag,
+            python=python,
+            github_repository=github_repository,
+            github_token=github_token,
         )
         return_code, info = run_pull_image(
             image_params=image_params,
@@ -331,6 +338,7 @@ def pull(
 @option_image_tag_for_verifying
 @option_image_name
 @option_pull
+@option_github_token
 @option_verbose
 @option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
@@ -339,13 +347,23 @@ def verify(
     image_name: str,
     image_tag: str | None,
     pull: bool,
+    github_token: str,
     github_repository: str,
     extra_pytest_args: tuple,
 ):
     """Verify CI image."""
     perform_environment_checks()
+    login_to_github_docker_registry(
+        github_token=github_token,
+        output=None,
+    )
     if image_name is None:
-        build_params = BuildCiParams(python=python, image_tag=image_tag, github_repository=github_repository)
+        build_params = BuildCiParams(
+            python=python,
+            image_tag=image_tag,
+            github_repository=github_repository,
+            github_token=github_token,
+        )
         image_name = build_params.airflow_image_name_with_tag
     if pull:
         check_remote_ghcr_io_commands()
