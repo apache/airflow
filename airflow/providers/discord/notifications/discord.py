@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.compat.functools import cached_property
+from functools import cached_property
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 
 try:
