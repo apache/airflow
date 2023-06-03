@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from functools import cached_property
+
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 
 try:
