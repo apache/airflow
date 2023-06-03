@@ -93,7 +93,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
     def execute(self, context: Context) -> None:
         """
         Defers to Trigger class to poll for state of the job run until
-        it reaches a failure state or success state
+        it reaches a failure state or success state.
         """
         if not self.deferrable:
             super().execute(context)

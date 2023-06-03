@@ -58,7 +58,7 @@ def return_single_query_results(sql: str | Iterable[str], return_last: bool, spl
 
 
 def fetch_all_handler(cursor) -> list[tuple] | None:
-    """Handler for DbApiHook.run() to return results"""
+    """Handler for DbApiHook.run() to return results."""
     if not hasattr(cursor, "description"):
         raise RuntimeError(
             "The database we interact with does not support DBAPI 2.0. Use operator and "
@@ -71,7 +71,7 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
 
 
 def fetch_one_handler(cursor) -> list[tuple] | None:
-    """Handler for DbApiHook.run() to return first result"""
+    """Handler for DbApiHook.run() to return first result."""
     if not hasattr(cursor, "description"):
         raise RuntimeError(
             "The database we interact with does not support DBAPI 2.0. Use operator and "
@@ -154,7 +154,7 @@ class DbApiHook(BaseForDbApiHook):
         self.descriptions: list[Sequence[Sequence] | None] = []
 
     def get_conn(self):
-        """Returns a connection object"""
+        """Returns a connection object."""
         db = self.get_connection(getattr(self, cast(str, self.conn_name_attr)))
         return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
 
@@ -181,7 +181,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_pandas_df(self, sql, parameters=None, **kwargs):
         """
-        Executes the sql and returns a pandas dataframe
+        Executes the sql and returns a pandas dataframe.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -201,7 +201,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_pandas_df_by_chunks(self, sql, parameters=None, *, chunksize, **kwargs):
         """
-        Executes the sql and returns a generator
+        Executes the sql and returns a generator.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -249,7 +249,7 @@ class DbApiHook(BaseForDbApiHook):
     @staticmethod
     def split_sql_string(sql: str) -> list[str]:
         """
-        Splits string into multiple SQL expressions
+        Splits string into multiple SQL expressions.
 
         :param sql: SQL string potentially consisting of multiple expressions
         :return: list of individual expressions
@@ -383,7 +383,7 @@ class DbApiHook(BaseForDbApiHook):
             self.log.info("Rows affected: %s", cur.rowcount)
 
     def set_autocommit(self, conn, autocommit):
-        """Sets the autocommit flag on the connection"""
+        """Sets the autocommit flag on the connection."""
         if not self.supports_autocommit and autocommit:
             self.log.warning(
                 "%s connection doesn't support autocommit but autocommit activated.",
@@ -404,7 +404,7 @@ class DbApiHook(BaseForDbApiHook):
         return getattr(conn, "autocommit", False) and self.supports_autocommit
 
     def get_cursor(self):
-        """Returns a cursor"""
+        """Returns a cursor."""
         return self.get_conn().cursor()
 
     @classmethod
@@ -439,7 +439,7 @@ class DbApiHook(BaseForDbApiHook):
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000, replace=False, **kwargs):
         """
         A generic way to insert a set of tuples into a table,
-        a new transaction is created every commit_every rows
+        a new transaction is created every commit_every rows.
 
         :param table: Name of the target table
         :param rows: The rows to insert into the table
@@ -488,7 +488,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def bulk_dump(self, table, tmp_file):
         """
-        Dumps a database table into a tab-delimited file
+        Dumps a database table into a tab-delimited file.
 
         :param table: The name of the source table
         :param tmp_file: The path of the target file
@@ -497,7 +497,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def bulk_load(self, table, tmp_file):
         """
-        Loads a tab-delimited file into a database table
+        Loads a tab-delimited file into a database table.
 
         :param table: The name of the target table
         :param tmp_file: The path of the file to load into the table
@@ -505,7 +505,7 @@ class DbApiHook(BaseForDbApiHook):
         raise NotImplementedError()
 
     def test_connection(self):
-        """Tests the connection using db-specific query"""
+        """Tests the connection using db-specific query."""
         status, message = False, ""
         try:
             if self.get_first(self._test_connection_sql):

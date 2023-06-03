@@ -832,47 +832,35 @@ hooks:
 
 triggers:
   - integration-name: Google BigQuery Data Transfer Service
-    class-names:
-      - airflow.providers.google.cloud.triggers.bigquery_dts.BigQueryDataTransferRunTrigger
+    python-modules:
+      - airflow.providers.google.cloud.triggers.bigquery_dts
   - integration-name: Google BigQuery
-    class-names:
-      - airflow.providers.google.cloud.triggers.bigquery.BigQueryInsertJobTrigger
-      - airflow.providers.google.cloud.triggers.bigquery.BigQueryCheckTrigger
-      - airflow.providers.google.cloud.triggers.bigquery.BigQueryGetDataTrigger
-      - airflow.providers.google.cloud.triggers.bigquery.BigQueryIntervalCheckTrigger
-      - airflow.providers.google.cloud.triggers.bigquery.BigQueryValueCheckTrigger
-      - airflow.providers.google.cloud.triggers.bigquery.BigQueryTableExistenceTrigger
-      - airflow.providers.google.cloud.triggers.bigquery.BigQueryTablePartitionExistenceTrigger
+    python-modules:
+      - airflow.providers.google.cloud.triggers.bigquery
   - integration-name: Google Cloud Build
-    class-names:
-      - airflow.providers.google.cloud.triggers.cloud_build.CloudBuildCreateBuildTrigger
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_build
   - integration-name: Google Cloud Composer
-    class-names:
-      - airflow.providers.google.cloud.triggers.cloud_composer.CloudComposerExecutionTrigger
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_composer
   - integration-name: Google Dataflow
-    class-names:
-      - airflow.providers.google.cloud.triggers.dataflow.TemplateJobStartTrigger
+    python-modules:
+      - airflow.providers.google.cloud.triggers.dataflow
   - integration-name: Google Data Fusion
-    class-names:
-      - airflow.providers.google.cloud.triggers.datafusion.DataFusionStartPipelineTrigger
+    python-modules:
+      - airflow.providers.google.cloud.triggers.datafusion
   - integration-name: Google Dataproc
-    class-names:
-      - airflow.providers.google.cloud.triggers.dataproc.DataprocBaseTrigger
-      - airflow.providers.google.cloud.triggers.dataproc.DataprocSubmitTrigger
-      - airflow.providers.google.cloud.triggers.dataproc.DataprocClusterTrigger
-      - airflow.providers.google.cloud.triggers.dataproc.DataprocBatchTrigger
-      - airflow.providers.google.cloud.triggers.dataproc.DataprocDeleteClusterTrigger
-      - airflow.providers.google.cloud.triggers.dataproc.DataprocWorkflowTrigger
+    python-modules:
+      - airflow.providers.google.cloud.triggers.dataproc
   - integration-name: Google Cloud Storage (GCS)
-    class-names:
-      - airflow.providers.google.cloud.triggers.gcs.GCSBlobTrigger
+    python-modules:
+      - airflow.providers.google.cloud.triggers.gcs
   - integration-name: Google Kubernetes Engine
-    class-names:
-      - airflow.providers.google.cloud.triggers.kubernetes_engine.GKEStartPodTrigger
-      - airflow.providers.google.cloud.triggers.kubernetes_engine.GKEOperationTrigger
+    python-modules:
+      - airflow.providers.google.cloud.triggers.kubernetes_engine
   - integration-name: Google Machine Learning Engine
-    class-names:
-      - airflow.providers.google.cloud.triggers.mlengine.MLEngineStartTrainingJobTrigger
+    python-modules:
+      - airflow.providers.google.cloud.triggers.mlengine
 
 transfers:
   - source-integration-name: Presto

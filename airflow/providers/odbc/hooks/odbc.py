@@ -71,7 +71,7 @@ class OdbcHook(DbApiHook):
 
     @property
     def connection(self):
-        """``airflow.Connection`` object with connection id ``odbc_conn_id``"""
+        """``airflow.Connection`` object with connection id ``odbc_conn_id``."""
         if not self._connection:
             self._connection = self.get_connection(getattr(self, self.conn_name_attr))
         return self._connection
@@ -191,7 +191,7 @@ class OdbcHook(DbApiHook):
     def get_sqlalchemy_connection(
         self, connect_kwargs: dict | None = None, engine_kwargs: dict | None = None
     ) -> Any:
-        """Sqlalchemy connection object"""
+        """Sqlalchemy connection object."""
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         cnx = engine.connect(**(connect_kwargs or {}))
         return cnx

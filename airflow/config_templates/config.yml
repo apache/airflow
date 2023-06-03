@@ -2041,6 +2041,13 @@ celery:
       sensitive: true
       example: "db+postgresql://postgres:airflow@postgres/airflow"
       default: ~
+    result_backend_sqlalchemy_engine_options:
+      description: |
+        Optional configuration dictionary to pass to the Celery result backend SQLAlchemy engine.
+      version_added: 2.6.0
+      type: string
+      example: '{"pool_recycle": 1800}'
+      default: ""
     flower_host:
       description: |
         Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start
