@@ -240,7 +240,7 @@ class TestTransfer:
             ordered_dict["c3"] = "BIGINT"
             ordered_dict["c4"] = "DECIMAL(38,0)"
             ordered_dict["c5"] = "TIMESTAMP"
-            assert spy_on_hive.load_file.call_args[1]["field_dict"] == ordered_dict
+            assert spy_on_hive.load_file.call_args.kwargs["field_dict"] == ordered_dict
         finally:
             with closing(hook.get_conn()) as conn:
                 with closing(conn.cursor()) as cursor:

@@ -93,7 +93,7 @@ def test_basic_kubernetes(dag_maker, session, mock_create_pod: mock.Mock, mock_h
     )
     assert mock_create_pod.call_count == 1
 
-    containers = mock_create_pod.call_args[1]["pod"].spec.containers
+    containers = mock_create_pod.call_args.kwargs["pod"].spec.containers
     assert len(containers) == 1
     assert containers[0].command[0] == "bash"
     assert len(containers[0].args) == 0
@@ -135,7 +135,7 @@ def test_kubernetes_with_input_output(
     )
     assert mock_create_pod.call_count == 1
 
-    containers = mock_create_pod.call_args[1]["pod"].spec.containers
+    containers = mock_create_pod.call_args.kwargs["pod"].spec.containers
 
     # First container is Python script
     assert len(containers) == 2

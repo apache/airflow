@@ -2122,7 +2122,7 @@ class TestSchedulerJob:
 
         # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
         self.job_runner._send_dag_callbacks_to_processor.assert_called_once()
-        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args[0]
+        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args.args
         assert call_args[0].dag_id == dr.dag_id
         assert call_args[1] is None
 
@@ -2157,7 +2157,7 @@ class TestSchedulerJob:
 
         # Verify Callback is set (i.e is None) when no callbacks are set on DAG
         self.job_runner._send_dag_callbacks_to_processor.assert_called_once()
-        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args[0]
+        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args.args
         assert call_args[0].dag_id == dr.dag_id
         assert call_args[1] is not None
         assert call_args[1].msg == msg
@@ -4545,7 +4545,7 @@ class TestSchedulerJob:
             self.job_runner._find_zombies()
 
         scheduler_job.executor.callback_sink.send.assert_called_once()
-        requests = scheduler_job.executor.callback_sink.send.call_args[0]
+        requests = scheduler_job.executor.callback_sink.send.call_args.args
         assert 1 == len(requests)
         assert requests[0].full_filepath == dag.fileloc
         assert requests[0].msg == str(self.job_runner._generate_zombie_message_details(ti))
@@ -4680,7 +4680,7 @@ class TestSchedulerJob:
                 msg=str(self.job_runner._generate_zombie_message_details(ti)),
             )
         ]
-        callback_requests = scheduler_job.executor.callback_sink.send.call_args[0]
+        callback_requests = scheduler_job.executor.callback_sink.send.call_args.args
         assert len(callback_requests) == 1
         assert {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} == {
             result.simple_task_instance.key for result in callback_requests

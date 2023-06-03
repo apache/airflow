@@ -81,7 +81,7 @@ class TestPigCliHook:
         stdout = hook.run_cli("")
         assert stdout == ""
 
-        popen_first_arg = popen_mock.call_args[0][0]
+        popen_first_arg = popen_mock.call_args.args[0]
         for pig_prop in test_properties.split():
             assert pig_prop in popen_first_arg
 

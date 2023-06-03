@@ -69,7 +69,7 @@ class TestS3ToSnowflakeTransfer:
             copy_query += f"\npattern='{pattern}'"
 
         mock_run.assert_called_once()
-        assert mock_run.call_args[0][0] == copy_query
+        assert mock_run.call_args.args[0] == copy_query
 
     @pytest.mark.parametrize("pattern", [None, ".*[.]csv"])
     @pytest.mark.parametrize("files", [None, ["foo.csv", "bar.json", "spam.parquet", "egg.xml"]])
