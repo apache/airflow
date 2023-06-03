@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Iterator, Mapping, Sequence
 
 import attr
 import pendulum
+from sqlalchemy import select, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
@@ -57,7 +58,7 @@ if TYPE_CHECKING:
     from airflow.models.abstractoperator import AbstractOperator
 
 
-class BackfillJobRunner(BaseJobRunner, LoggingMixin):
+class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
     """
     A backfill job runner consists of a dag or subdag for a specific time range.
 
@@ -183,7 +184,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
 
         filter_for_tis = TI.filter_for_tis(list(ti_status.running.values()))
         if filter_for_tis is not None:
-            refreshed_tis = session.query(TI).filter(filter_for_tis).all()
+            refreshed_tis = session.scalars(select(TI).where(filter_for_tis)).all()
 
         for ti in refreshed_tis:
             # Use primary key to match in memory information
@@ -237,8 +238,11 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         # Batch schedule of task instances
         if tis_to_be_scheduled:
             filter_for_tis = TI.filter_for_tis(tis_to_be_scheduled)
-            session.query(TI).filter(filter_for_tis).update(
-                values={TI.state: TaskInstanceState.SCHEDULED}, synchronize_session=False
+            session.execute(
+                update(TI)
+                .where(filter_for_tis)
+                .values(state=TaskInstanceState.SCHEDULED)
+                .execution_options(synchronize_session=False)
             )
             session.flush()
 
@@ -317,7 +321,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         run_date = dagrun_info.logical_date
 
         # consider max_active_runs but ignore when running subdags
-        respect_dag_max_active_limit = bool(dag.timetable.can_run and not dag.is_subdag)
+        respect_dag_max_active_limit = bool(dag.timetable.can_be_scheduled and not dag.is_subdag)
 
         current_active_dag_count = dag.get_num_active_runs(external_trigger=False)
 
@@ -590,7 +594,9 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                         if task.task_id != ti.task_id:
                             continue
 
-                        pool = session.query(models.Pool).filter(models.Pool.pool == task.pool).first()
+                        pool = session.scalar(
+                            select(models.Pool).where(models.Pool.pool == task.pool).limit(1)
+                        )
                         if not pool:
                             raise PoolNotFound(f"Unknown pool: {task.pool}")
 
@@ -969,12 +975,14 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         resettable_states = [TaskInstanceState.SCHEDULED, TaskInstanceState.QUEUED]
         if filter_by_dag_run is None:
             resettable_tis = (
-                session.query(TaskInstance)
-                .join(TaskInstance.dag_run)
-                .filter(
-                    DagRun.state == DagRunState.RUNNING,
-                    DagRun.run_type != DagRunType.BACKFILL_JOB,
-                    TaskInstance.state.in_(resettable_states),
+                session.scalars(
+                    select(TaskInstance)
+                    .join(TaskInstance.dag_run)
+                    .where(
+                        DagRun.state == DagRunState.RUNNING,
+                        DagRun.run_type != DagRunType.BACKFILL_JOB,
+                        TaskInstance.state.in_(resettable_states),
+                    )
                 )
             ).all()
         else:
@@ -989,12 +997,11 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 return result
 
             filter_for_tis = TaskInstance.filter_for_tis(items)
-            reset_tis = (
-                session.query(TaskInstance)
-                .filter(filter_for_tis, TaskInstance.state.in_(resettable_states))
+            reset_tis = session.scalars(
+                select(TaskInstance)
+                .where(filter_for_tis, TaskInstance.state.in_(resettable_states))
                 .with_for_update()
-                .all()
-            )
+            ).all()
 
             for ti in reset_tis:
                 ti.state = State.NONE

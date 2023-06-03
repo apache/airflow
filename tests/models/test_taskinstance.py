@@ -70,7 +70,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.python import PythonSensor
-from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.serialization.serialized_objects import SerializedBaseOperator, SerializedDAG
 from airflow.settings import TIMEZONE
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
@@ -3105,6 +3105,8 @@ class TestTaskInstance:
     def test_clear_db_references(self, session, create_task_instance):
         tables = [TaskFail, RenderedTaskInstanceFields, XCom]
         ti = create_task_instance()
+        ti.note = "sample note"
+
         session.merge(ti)
         session.commit()
         for table in [TaskFail, RenderedTaskInstanceFields]:
@@ -3113,9 +3115,16 @@ class TestTaskInstance:
         session.commit()
         for table in tables:
             assert session.query(table).count() == 1
+
+        filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
+        ti_note = session.query(TaskInstanceNote).filter_by(**filter_kwargs).one()
+        assert ti_note.content == "sample note"
+
         ti.clear_db_references(session)
         for table in tables:
             assert session.query(table).count() == 0
+
+        assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])
@@ -3642,6 +3651,39 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert task_map.map_index == -1
         assert task_map.length == expected_length
         assert task_map.keys == expected_keys
+
+    def test_no_error_on_changing_from_non_mapped_to_mapped(self, dag_maker, session):
+        """If a task changes from non-mapped to mapped, don't fail on integrity error."""
+        with dag_maker(dag_id="test_no_error_on_changing_from_non_mapped_to_mapped") as dag:
+
+            @dag.task()
+            def add_one(x):
+                return [x + 1]
+
+            @dag.task()
+            def add_two(x):
+                return x + 2
+
+            task1 = add_one(2)
+            add_two.expand(x=task1)
+
+        dr = dag_maker.create_dagrun()
+        ti = dr.get_task_instance(task_id="add_one")
+        ti.run()
+        assert ti.state == TaskInstanceState.SUCCESS
+        dag._remove_task("add_one")
+        with dag:
+            task1 = add_one.expand(x=[1, 2, 3]).operator
+        serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+        dr.dag = serialized_dag
+        dr.verify_integrity(session=session)
+        ti = dr.get_task_instance(task_id="add_one")
+        assert ti.state == TaskInstanceState.REMOVED
+        dag.clear()
+        ti.refresh_from_task(task1)
+        # This should not raise an integrity error
+        dr.task_instance_scheduling_decisions()
 
 
 class TestMappedTaskInstanceReceiveValue:

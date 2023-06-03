@@ -76,9 +76,15 @@ if __name__ == "__main__":
         check=False,
     )
     if cmd_result.returncode != 0:
+        upgrading = os.environ.get("UPGRADE_TO_NEWER_DEPENDENCIES", "false") != "false"
+        if upgrading:
+            get_console().print(
+                "[warning]You are running mypy with the image that has dependencies upgraded automatically."
+            )
+        flag = " --upgrade-to-newer-dependencies" if upgrading else ""
         get_console().print(
             "[warning]If you see strange stacktraces above, "
-            "run `breeze ci-image build --python 3.7` and try again. "
-            "You can also run `breeze stop --cleanup-mypy-cache` to clean up the cache used."
+            f"run `breeze ci-image build --python 3.8{flag}` and try again. "
+            "You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used."
         )
     sys.exit(cmd_result.returncode)

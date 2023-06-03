@@ -28,7 +28,7 @@ from pathlib import Path
 from airflow_breeze.utils.host_info_utils import Architecture
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DEPENDENCIES_JSON_FILE_PATH
 
-RUNS_ON_PUBLIC_RUNNER = "ubuntu-20.04"
+RUNS_ON_PUBLIC_RUNNER = "ubuntu-22.04"
 RUNS_ON_SELF_HOSTED_RUNNER = "self-hosted"
 
 ANSWER = ""
@@ -36,7 +36,7 @@ ANSWER = ""
 APACHE_AIRFLOW_GITHUB_REPOSITORY = "apache/airflow"
 
 # Checked before putting in build cache
-ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
+ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "mssql"]
@@ -65,7 +65,7 @@ AUTOCOMPLETE_INTEGRATIONS = sorted(
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.23.17", "v1.24.12", "v1.25.8", "v1.26.3"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.23.17", "v1.24.13", "v1.25.9", "v1.26.4", "v1.27.1"]
 ALLOWED_EXECUTORS = ["KubernetesExecutor", "CeleryExecutor", "LocalExecutor", "CeleryKubernetesExecutor"]
 ALLOWED_KIND_OPERATIONS = ["start", "stop", "restart", "status", "deploy", "test", "shell", "k9s"]
 ALLOWED_CONSTRAINTS_MODES_CI = ["constraints-source-providers", "constraints", "constraints-no-providers"]
@@ -170,11 +170,11 @@ MSSQL_HOST_PORT = "21433"
 FLOWER_HOST_PORT = "25555"
 REDIS_HOST_PORT = "26379"
 
-SQLITE_URL = "sqlite:////root/airflow/airflow.db"
+SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
 PYTHONDONTWRITEBYTECODE = True
 
 PRODUCTION_IMAGE = False
-ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
+ALL_PYTHON_MAJOR_MINOR_VERSIONS = ["3.8", "3.9", "3.10", "3.11"]
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ALL_PYTHON_MAJOR_MINOR_VERSIONS
 CURRENT_POSTGRES_VERSIONS = ["11", "12", "13", "14", "15"]
 DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
@@ -193,7 +193,59 @@ INIT_SCRIPT_FILE = ""
 BREEZE_INIT_COMMAND = ""
 DRY_RUN_DOCKER = False
 INSTALL_AIRFLOW_VERSION = ""
-SQLITE_URL = "sqlite:////root/airflow/airflow.db"
+
+
+COMMITTERS = [
+    "BasPH",
+    "Fokko",
+    "KevinYang21",
+    "Taragolis",
+    "XD-DENG",
+    "aijamalnk",
+    "alexvanboxel",
+    "aoen",
+    "artwr",
+    "ashb",
+    "bbovenzi",
+    "bolkedebruin",
+    "criccomini",
+    "dimberman",
+    "dstandish",
+    "eladkal",
+    "ephraimbuddy",
+    "feluelle",
+    "feng-tao",
+    "houqp",
+    "hussein-awala",
+    "jedcunningham",
+    "jgao54",
+    "jghoman",
+    "jhtimmins",
+    "jmcarp",
+    "josh-fell",
+    "kaxil",
+    "leahecole",
+    "malthe",
+    "mik-laj",
+    "milton0825",
+    "mistercrunch",
+    "msumit",
+    "o-nikolas",
+    "pierrejeambrun",
+    "pingzh",
+    "potiuk",
+    "r39132",
+    "ryanahamilton",
+    "ryw",
+    "saguziel",
+    "sekikn",
+    "turbaszek",
+    "uranusjr",
+    "vikramkoka",
+    "xinbinhuang",
+    "yuqian90",
+    "zhongjiajie",
+]
 
 
 def get_airflow_version():
@@ -247,7 +299,7 @@ CURRENT_EXECUTORS = ["KubernetesExecutor"]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.18.0"
+KIND_VERSION = "v0.19.0"
 HELM_VERSION = "v3.9.4"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass

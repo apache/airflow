@@ -22,6 +22,8 @@ description: |
     `Microsoft Azure <https://azure.microsoft.com/>`__
 suspended: false
 versions:
+  - 6.1.1
+  - 6.1.0
   - 6.0.0
   - 5.3.1
   - 5.3.0
@@ -215,6 +217,14 @@ hooks:
   - integration-name: Microsoft Azure Synapse
     python-modules:
       - airflow.providers.microsoft.azure.hooks.synapse
+
+triggers:
+  - integration-name: Microsoft Azure Data Factory
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.data_factory
+  - integration-name: Microsoft Azure Blob Storage
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.wasb
 
 transfers:
   - source-integration-name: Local

@@ -63,7 +63,7 @@ class InfluxDBHook(BaseHook):
     def get_uri(self, conn: Connection):
         """
         Function to add additional parameters to the URI
-        based on SSL or other InfluxDB host requirements
+        based on SSL or other InfluxDB host requirements.
 
         """
         conn_scheme = "https" if conn.schema is None else conn.schema
@@ -73,7 +73,7 @@ class InfluxDBHook(BaseHook):
     def get_conn(self) -> InfluxDBClient:
         """
         Function that initiates a new InfluxDB connection
-        with token and organization name
+        with token and organization name.
         """
         self.connection = self.get_connection(self.influxdb_conn_id)
         self.extras = self.connection.extra_dejson.copy()
@@ -98,7 +98,7 @@ class InfluxDBHook(BaseHook):
         """
         Function to to run the query.
         Note: The bucket name
-        should be included in the query
+        should be included in the query.
 
         :param query: InfluxDB query
         :return: List
@@ -113,7 +113,7 @@ class InfluxDBHook(BaseHook):
         Function to run the query and
         return a pandas dataframe
         Note: The bucket name
-        should be included in the query
+        should be included in the query.
 
         :param query: InfluxDB query
         :return: pd.DataFrame
@@ -126,7 +126,7 @@ class InfluxDBHook(BaseHook):
     def write(self, bucket_name, point_name, tag_name, tag_value, field_name, field_value, synchronous=False):
         """
         Writes a Point to the bucket specified.
-        Example: Point("my_measurement").tag("location", "Prague").field("temperature", 25.3)
+        Example: Point("my_measurement").tag("location", "Prague").field("temperature", 25.3).
         """
         # By defaults its Batching
         if synchronous:
@@ -139,15 +139,15 @@ class InfluxDBHook(BaseHook):
         write_api.write(bucket=bucket_name, record=p)
 
     def create_organization(self, name):
-        """Function to create a new organization"""
+        """Function to create a new organization."""
         return self.client.organizations_api().create_organization(name=name)
 
     def delete_organization(self, org_id):
-        """Function to delete organization by organization id"""
+        """Function to delete organization by organization id."""
         return self.client.organizations_api().delete_organization(org_id=org_id)
 
     def create_bucket(self, bucket_name, description, org_id, retention_rules=None):
-        """Function to create a bucket for an organization"""
+        """Function to create a bucket for an organization."""
         return self.client.buckets_api().create_bucket(
             bucket_name=bucket_name, description=description, org_id=org_id, retention_rules=None
         )

@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 class KylinCubeOperator(BaseOperator):
     """
     This operator is used to submit request about kylin build/refresh/merge,
-    and can track job status . so users can easier to build kylin job
+    and can track job status . so users can easier to build kylin job.
 
     For more detail information in
     `Apache Kylin <http://kylin.apache.org/>`_

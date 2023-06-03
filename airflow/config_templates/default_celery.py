@@ -65,6 +65,9 @@ DEFAULT_CELERY_CONFIG = {
     "broker_url": broker_url,
     "broker_transport_options": broker_transport_options_for_celery,
     "result_backend": result_backend,
+    "database_engine_options": conf.getjson(
+        "celery", "result_backend_sqlalchemy_engine_options", fallback={}
+    ),
     "worker_concurrency": conf.getint("celery", "WORKER_CONCURRENCY"),
     "worker_enable_remote_control": conf.getboolean("celery", "worker_enable_remote_control"),
 }

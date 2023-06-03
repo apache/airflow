@@ -55,7 +55,7 @@ def _ensure_tasks(nodes: Iterable[DAGNode]) -> Sequence[Operator]:
 
 
 class SkipMixin(LoggingMixin):
-    """A Mixin to skip Tasks Instances"""
+    """A Mixin to skip Tasks Instances."""
 
     def _set_state_to_skipped(
         self,
@@ -86,6 +86,7 @@ class SkipMixin(LoggingMixin):
         execution_date: DateTime,
         tasks: Iterable[DAGNode],
         session: Session = NEW_SESSION,
+        map_index: int = -1,
     ):
         """
         Sets tasks instances to skipped from the same dag run.
@@ -98,6 +99,7 @@ class SkipMixin(LoggingMixin):
         :param execution_date: execution_date
         :param tasks: tasks to skip (not task_ids)
         :param session: db session to use
+        :param map_index: map_index of the current task instance
         """
         task_list = _ensure_tasks(tasks)
         if not task_list:
@@ -142,6 +144,7 @@ class SkipMixin(LoggingMixin):
                 task_id=task_id,
                 dag_id=dag_run.dag_id,
                 run_id=dag_run.run_id,
+                map_index=map_index,
                 session=session,
             )
 

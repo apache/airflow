@@ -19,13 +19,13 @@
 from __future__ import annotations
 
 import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster
 from kubernetes.client.models import V1Pod
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 
 try:
@@ -414,7 +414,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         *,
         location: str,
         cluster_name: str,
-        use_internal_ip: bool | None = None,
+        use_internal_ip: bool = False,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -433,15 +433,6 @@ class GKEStartPodOperator(KubernetesPodOperator):
             )
             is_delete_operator_pod = False
 
-        if use_internal_ip is not None:
-            warnings.warn(
-                f"You have set parameter use_internal_ip in class {self.__class__.__name__}. "
-                "In current implementation of the operator the parameter is not used and will "
-                "be deleted in future.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
         if regional is not None:
             warnings.warn(
                 f"You have set parameter regional in class {self.__class__.__name__}. "
@@ -457,6 +448,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.use_internal_ip = use_internal_ip
 
         self.pod: V1Pod | None = None
         self._ssl_ca_cert: str | None = None
@@ -491,7 +483,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         )
 
     @cached_property
-    def hook(self) -> GKEPodHook:  # type: ignore[override]
+    def hook(self) -> GKEPodHook:
         if self._cluster_url is None or self._ssl_ca_cert is None:
             raise AttributeError(
                 "Cluster url and ssl_ca_cert should be defined before using self.hook method. "
@@ -516,7 +508,10 @@ class GKEStartPodOperator(KubernetesPodOperator):
             project_id=self.project_id,
         )
 
-        self._cluster_url = f"https://{cluster.endpoint}"
+        if not self.use_internal_ip:
+            self._cluster_url = f"https://{cluster.endpoint}"
+        else:
+            self._cluster_url = f"https://{cluster.private_cluster_config.private_endpoint}"
         self._ssl_ca_cert = cluster.master_auth.cluster_ca_certificate
         return self._cluster_url, self._ssl_ca_cert
 

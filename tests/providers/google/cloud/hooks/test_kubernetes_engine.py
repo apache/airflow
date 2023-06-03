@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import sys
 from asyncio import Future
+from unittest import mock
 
 import kubernetes.client
 import pytest
@@ -26,14 +27,13 @@ from google.cloud.container_v1 import ClusterManagerAsyncClient
 from google.cloud.container_v1.types import Cluster
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEAsyncHook, GKEHook, GKEPodAsyncHook
+from airflow.providers.google.cloud.hooks.kubernetes_engine import (
+    GKEAsyncHook,
+    GKEHook,
+    GKEPodAsyncHook,
+)
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
 
 TASK_ID = "test-gke-cluster-operator"
 CLUSTER_NAME = "test-cluster"

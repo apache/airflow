@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from contextvars import ContextVar
+from functools import cached_property
 from typing import Collection
 from urllib.parse import urlencode
 
@@ -29,7 +30,6 @@ from google.cloud.logging.handlers.transports import BackgroundThreadTransport, 
 from google.cloud.logging_v2.services.logging_service_v2 import LoggingServiceV2Client
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse
 
-from airflow.compat.functools import cached_property
 from airflow.models import TaskInstance
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -315,10 +315,10 @@ class StackdriverTaskHandler(logging.Handler):
         )
         response = self._logging_service_client.list_log_entries(request=request)
         page: ListLogEntriesResponse = next(response.pages)
-        messages = []
+        messages: list[str] = []
         for entry in page.entries:
             if "message" in (entry.json_payload or {}):
-                messages.append(entry.json_payload["message"])
+                messages.append(entry.json_payload["message"])  # type: ignore
             elif entry.text_payload:
                 messages.append(entry.text_payload)
         return "\n".join(messages), page.next_page_token

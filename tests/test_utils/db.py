@@ -82,7 +82,7 @@ def drop_tables_with_prefix(prefix):
         metadata = reflect_tables(None, session)
         for table_name, table in metadata.tables.items():
             if table_name.startswith(prefix):
-                table.drop()
+                table.drop(session.bind)
 
 
 def clear_db_serialized_dags():

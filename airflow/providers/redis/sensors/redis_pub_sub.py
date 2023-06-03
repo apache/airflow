@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class RedisPubSubSensor(BaseSensorOperator):
     """
-    Redis sensor for reading a message from pub sub channels
+    Redis sensor for reading a message from pub sub channels.
 
     :param channels: The channels to be subscribed to (templated)
     :param redis_conn_id: the redis connection id
@@ -46,7 +46,7 @@ class RedisPubSubSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         """
-        Check for message on subscribed channels and write to xcom the message with key ``message``
+        Check for message on subscribed channels and write to xcom the message with key ``message``.
 
         An example of message ``{'type': 'message', 'pattern': None, 'channel': b'test', 'data': b'hello'}``
 

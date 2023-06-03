@@ -44,7 +44,8 @@ RESOURCES_METHODS = {
 
 class TableauOperator(BaseOperator):
     """
-    Execute a Tableau API Resource
+    Execute a Tableau API Resource.
+
     https://tableau.github.io/server-client-python/docs/api-ref
 
     .. seealso::
