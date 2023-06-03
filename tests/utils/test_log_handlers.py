@@ -407,7 +407,7 @@ class TestFileTaskLogHandler:
 
         # first we find pod name
         mock_list_pod.assert_called_once()
-        actual_kwargs = mock_list_pod.call_args[1]
+        actual_kwargs = mock_list_pod.call_args.kwargs
         assert actual_kwargs["namespace"] == namespace_to_call
         actual_selector = actual_kwargs["label_selector"]
         assert re.match(

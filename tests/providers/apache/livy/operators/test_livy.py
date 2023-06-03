@@ -116,7 +116,7 @@ class TestLivyOperator:
         )
         task.execute(context=self.mock_context)
 
-        call_args = {k: v for k, v in mock_post.call_args[1].items() if v}
+        call_args = {k: v for k, v in mock_post.call_args.kwargs.items() if v}
         assert call_args == {"file": "sparkapp"}
         mock_get.assert_called_once_with(BATCH_ID, retry_args=None)
         mock_dump_logs.assert_called_once_with(BATCH_ID)
@@ -257,7 +257,7 @@ class TestLivyOperator:
         with pytest.raises(TaskDeferred):
             task.execute(context=self.mock_context)
 
-            call_args = {k: v for k, v in mock_post.call_args[1].items() if v}
+            call_args = {k: v for k, v in mock_post.call_args.kwargs.items() if v}
             assert call_args == {"file": "sparkapp"}
             mock_get.assert_called_once_with(BATCH_ID, retry_args=None)
             mock_dump_logs.assert_called_once_with(BATCH_ID)
