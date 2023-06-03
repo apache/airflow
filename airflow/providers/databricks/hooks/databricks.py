@@ -85,7 +85,7 @@ class RunState:
 
     @property
     def is_successful(self) -> bool:
-        """True if the result state is SUCCESS"""
+        """True if the result state is SUCCESS."""
         return self.result_state == "SUCCESS"
 
     def __eq__(self, other: object) -> bool:
@@ -223,6 +223,7 @@ class DatabricksHook(BaseDatabricksHook):
     async def a_get_run_page_url(self, run_id: int) -> str:
         """
         Async version of `get_run_page_url()`.
+
         :param run_id: id of the run
         :return: URL of the run page
         """
@@ -264,6 +265,7 @@ class DatabricksHook(BaseDatabricksHook):
     async def a_get_run_state(self, run_id: int) -> RunState:
         """
         Async version of `get_run_state()`.
+
         :param run_id: id of the run
         :return: state of the run
         """
@@ -309,7 +311,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_run_state_lifecycle(self, run_id: int) -> str:
         """
-        Returns the lifecycle state of the run
+        Returns the lifecycle state of the run.
 
         :param run_id: id of the run
         :return: string with lifecycle state
@@ -318,7 +320,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_run_state_result(self, run_id: int) -> str:
         """
-        Returns the resulting state of the run
+        Returns the resulting state of the run.
 
         :param run_id: id of the run
         :return: string with resulting state
@@ -327,7 +329,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_run_state_message(self, run_id: int) -> str:
         """
-        Returns the state message for the run
+        Returns the state message for the run.
 
         :param run_id: id of the run
         :return: string with state message
@@ -426,7 +428,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def update_repo(self, repo_id: str, json: dict[str, Any]) -> dict:
         """
-        Updates given Databricks Repos
+        Updates given Databricks Repos.
 
         :param repo_id: ID of Databricks Repos
         :param json: payload
@@ -437,7 +439,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def delete_repo(self, repo_id: str):
         """
-        Deletes given Databricks Repos
+        Deletes given Databricks Repos.
 
         :param repo_id: ID of Databricks Repos
         :return:
@@ -447,7 +449,7 @@ class DatabricksHook(BaseDatabricksHook):
 
     def create_repo(self, json: dict[str, Any]) -> dict:
         """
-        Creates a Databricks Repos
+        Creates a Databricks Repos.
 
         :param json: payload
         :return:
@@ -472,7 +474,7 @@ class DatabricksHook(BaseDatabricksHook):
         return None
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test the Databricks connectivity from UI"""
+        """Test the Databricks connectivity from UI."""
         hook = DatabricksHook(databricks_conn_id=self.databricks_conn_id)
         try:
             hook._do_api_call(endpoint_info=SPARK_VERSIONS_ENDPOINT).get("versions")

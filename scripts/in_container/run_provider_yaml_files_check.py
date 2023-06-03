@@ -44,6 +44,7 @@ from airflow.cli.commands.info_command import Architecture
 EXCLUDED_MODULES = [
     "airflow.providers.apache.hdfs.sensors.hdfs",
     "airflow.providers.apache.hdfs.hooks.hdfs",
+    "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
 ]
 
 
@@ -229,10 +230,10 @@ def parse_module_data(provider_data, resource_type, yaml_file_path):
 
 
 def check_correctness_of_list_of_sensors_operators_hook_modules(yaml_files: dict[str, dict]):
-    print("Checking completeness of list of {sensors, hooks, operators}")
-    print(" -- {sensors, hooks, operators} - Expected modules (left) : Current modules (right)")
+    print("Checking completeness of list of {sensors, hooks, operators, triggers}")
+    print(" -- {sensors, hooks, operators, triggers} - Expected modules (left) : Current modules (right)")
     for (yaml_file_path, provider_data), resource_type in product(
-        yaml_files.items(), ["sensors", "operators", "hooks"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
     ):
         expected_modules, provider_package, resource_data = parse_module_data(
             provider_data, resource_type, yaml_file_path
@@ -254,9 +255,9 @@ def check_correctness_of_list_of_sensors_operators_hook_modules(yaml_files: dict
 
 
 def check_duplicates_in_integrations_names_of_hooks_sensors_operators(yaml_files: dict[str, dict]):
-    print("Checking for duplicates in list of {sensors, hooks, operators}")
+    print("Checking for duplicates in list of {sensors, hooks, operators, triggers}")
     for (yaml_file_path, provider_data), resource_type in product(
-        yaml_files.items(), ["sensors", "operators", "hooks"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
     ):
         resource_data = provider_data.get(resource_type, [])
         current_integrations = [r.get("integration-name", "") for r in resource_data]
@@ -294,7 +295,7 @@ def check_completeness_of_list_of_transfers(yaml_files: dict[str, dict]):
             )
 
 
-def check_hook_classes(yaml_files: dict[str, dict]):
+def check_hook_connection_classes(yaml_files: dict[str, dict]):
     print("Checking connection classes belong to package, exist and are classes")
     resource_type = "hook-class-names"
     for yaml_file_path, provider_data in yaml_files.items():
@@ -303,22 +304,6 @@ def check_hook_classes(yaml_files: dict[str, dict]):
         if hook_class_names:
             check_if_objects_exist_and_belong_to_package(
                 hook_class_names, provider_package, yaml_file_path, resource_type, ObjectType.CLASS
-            )
-
-
-def check_trigger_classes(yaml_files: dict[str, dict]):
-    print("Checking triggers classes belong to package, exist and are classes")
-    resource_type = "triggers"
-    for yaml_file_path, provider_data in yaml_files.items():
-        provider_package = pathlib.Path(yaml_file_path).parent.as_posix().replace("/", ".")
-        trigger_classes = {
-            name
-            for trigger_class in provider_data.get(resource_type, {})
-            for name in trigger_class["class-names"]
-        }
-        if trigger_classes:
-            check_if_objects_exist_and_belong_to_package(
-                trigger_classes, provider_package, yaml_file_path, resource_type, ObjectType.CLASS
             )
 
 
@@ -377,7 +362,7 @@ def check_invalid_integration(yaml_files: dict[str, dict]):
     all_integration_names = set(get_all_integration_names(yaml_files))
 
     for (yaml_file_path, provider_data), resource_type in product(
-        yaml_files.items(), ["sensors", "operators", "hooks"]
+        yaml_files.items(), ["sensors", "operators", "hooks", "triggers"]
     ):
         resource_data = provider_data.get(resource_type, [])
         current_names = {r["integration-name"] for r in resource_data}
@@ -522,10 +507,9 @@ if __name__ == "__main__":
 
     check_completeness_of_list_of_transfers(all_parsed_yaml_files)
     check_duplicates_in_list_of_transfers(all_parsed_yaml_files)
-    check_hook_classes(all_parsed_yaml_files)
+    check_hook_connection_classes(all_parsed_yaml_files)
     check_plugin_classes(all_parsed_yaml_files)
     check_extra_link_classes(all_parsed_yaml_files)
-    check_trigger_classes(all_parsed_yaml_files)
     check_correctness_of_list_of_sensors_operators_hook_modules(all_parsed_yaml_files)
     check_unique_provider_name(all_parsed_yaml_files)
     check_providers_have_all_documentation_files(all_parsed_yaml_files)

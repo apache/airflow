@@ -292,7 +292,7 @@ class TestPostgresHook:
             assert self.cur.close.call_count == 1
             assert self.conn.commit.call_count == 1
             self.cur.copy_expert.assert_called_once_with(statement, open_mock.return_value)
-            assert open_mock.call_args[0] == (filename, "r+")
+            assert open_mock.call_args.args == (filename, "r+")
 
     def test_bulk_load(self):
         hook = PostgresHook()

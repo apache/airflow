@@ -21,7 +21,8 @@
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $securityContext := include "airflowSecurityContext" (list . .Values.workers) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
 apiVersion: v1
 kind: Pod
 metadata:
@@ -62,6 +63,7 @@ spec:
         {{- include "container_extra_envs" (list . .Values.workers.env) | indent 6 }}
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.pod_template.pullPolicy }}
+      securityContext: {{ $containerSecurityContext | nindent 8 }}
       name: base
       resources: {{- toYaml .Values.workers.resources | nindent 8 }}
       volumeMounts:
@@ -80,6 +82,9 @@ spec:
     {{- if .Values.workers.extraContainers }}
       {{- toYaml .Values.workers.extraContainers | nindent 4 }}
     {{- end }}
+  {{- if .Values.workers.priorityClassName }}
+  priorityClassName: {{ .Values.workers.priorityClassName }}
+  {{- end }}
   {{- if or .Values.registry.secretName .Values.registry.connection }}
   imagePullSecrets:
     - name: {{ template "registry_secret" . }}

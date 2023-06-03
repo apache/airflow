@@ -90,7 +90,7 @@ class HttpHook(BaseHook):
     # definition
     def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
         """
-        Returns http session for use with requests
+        Returns http session for use with requests.
 
         :param headers: additional headers to be passed through as a dictionary
         """
@@ -132,7 +132,7 @@ class HttpHook(BaseHook):
         **request_kwargs: Any,
     ) -> Any:
         r"""
-        Performs the request
+        Performs the request.
 
         :param endpoint: the endpoint to be called i.e. resource/v1/query?
         :param data: payload to be uploaded or request parameters
@@ -171,7 +171,7 @@ class HttpHook(BaseHook):
     def check_response(self, response: requests.Response) -> None:
         """
         Checks the status code and raise an AirflowException exception on non 2XX or 3XX
-        status codes
+        status codes.
 
         :param response: A requests response object
         """
@@ -190,7 +190,7 @@ class HttpHook(BaseHook):
     ) -> Any:
         """
         Grabs extra options like timeout and actually runs the request,
-        checking for the result
+        checking for the result.
 
         :param session: the session to be used to execute the request
         :param prepped_request: the prepared request generated in run()
@@ -252,13 +252,13 @@ class HttpHook(BaseHook):
         return self._retry_obj(self.run, *args, **kwargs)
 
     def url_from_endpoint(self, endpoint: str | None) -> str:
-        """Combine base url with endpoint"""
+        """Combine base url with endpoint."""
         if self.base_url and not self.base_url.endswith("/") and endpoint and not endpoint.startswith("/"):
             return self.base_url + "/" + endpoint
         return (self.base_url or "") + (endpoint or "")
 
     def test_connection(self):
-        """Test HTTP Connection"""
+        """Test HTTP Connection."""
         try:
             self.run()
             return True, "Connection successfully tested"
@@ -308,7 +308,7 @@ class HttpAsyncHook(BaseHook):
         extra_options: dict[str, Any] | None = None,
     ) -> ClientResponse:
         r"""
-        Performs an asynchronous HTTP request call
+        Performs an asynchronous HTTP request call.
 
         :param endpoint: the endpoint to be called i.e. resource/v1/query?
         :param data: payload to be uploaded or request parameters

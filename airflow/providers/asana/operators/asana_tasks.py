@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 class AsanaCreateTaskOperator(BaseOperator):
     """
     This operator can be used to create Asana tasks. For more information on
-    Asana optional task parameters, see https://developers.asana.com/docs/create-a-task
+    Asana optional task parameters, see https://developers.asana.com/docs/create-a-task.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -68,7 +68,7 @@ class AsanaUpdateTaskOperator(BaseOperator):
     """
     This operator can be used to update Asana tasks.
     For more information on Asana optional task parameters, see
-    https://developers.asana.com/docs/update-a-task
+    https://developers.asana.com/docs/update-a-task.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

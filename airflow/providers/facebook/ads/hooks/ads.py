@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Facebook Ads Reporting hooks"""
+"""This module contains Facebook Ads Reporting hooks."""
 from __future__ import annotations
 
 import time
@@ -33,7 +33,7 @@ from airflow.hooks.base import BaseHook
 
 
 class JobStatus(Enum):
-    """Available options for facebook async task status"""
+    """Available options for facebook async task status."""
 
     COMPLETED = "Job Completed"
     STARTED = "Job Started"
@@ -44,7 +44,7 @@ class JobStatus(Enum):
 
 class FacebookAdsReportingHook(BaseHook):
     """
-    Hook for the Facebook Ads API
+    Hook for the Facebook Ads API.
 
     .. seealso::
         For more information on the Facebook Ads API, take a look at the API docs:
@@ -72,7 +72,7 @@ class FacebookAdsReportingHook(BaseHook):
         self.client_required_fields = ["app_id", "app_secret", "access_token", "account_id"]
 
     def _get_service(self) -> FacebookAdsApi:
-        """Returns Facebook Ads Client using a service account"""
+        """Returns Facebook Ads Client using a service account."""
         config = self.facebook_ads_config
         return FacebookAdsApi.init(
             app_id=config["app_id"],
@@ -83,14 +83,14 @@ class FacebookAdsReportingHook(BaseHook):
 
     @cached_property
     def multiple_accounts(self) -> bool:
-        """Checks whether provided account_id in the Facebook Ads Connection is provided as a list"""
+        """Checks whether provided account_id in the Facebook Ads Connection is provided as a list."""
         return isinstance(self.facebook_ads_config["account_id"], list)
 
     @cached_property
     def facebook_ads_config(self) -> dict:
         """
         Gets Facebook ads connection from meta db and sets
-        facebook_ads_config attribute with returned config file
+        facebook_ads_config attribute with returned config file.
         """
         self.log.info("Fetching fb connection: %s", self.facebook_conn_id)
         conn = self.get_connection(self.facebook_conn_id)
@@ -153,7 +153,7 @@ class FacebookAdsReportingHook(BaseHook):
         sleep_time: int = 5,
     ) -> list[AdsInsights]:
         """
-        Pulls data from the Facebook Ads API with given account_id
+        Pulls data from the Facebook Ads API with given account_id.
 
         :param account_id: Facebook Account ID that holds ads information
                 https://developers.facebook.com/docs/marketing-api/reference/ads-insights/
