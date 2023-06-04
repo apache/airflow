@@ -98,6 +98,7 @@ jobs:
       full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
       parallel-test-types-list-as-string: >-
         ${{ steps.selective-checks.outputs.parallel-test-types-list-as-string }}
+      mssql-parallelism: ${{ steps.selective-checks.outputs.mssql-parallelism }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mssql-exclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
@@ -1099,6 +1100,10 @@ jobs:
       BACKEND_VERSION: "${{matrix.mssql-version}}"
       JOB_ID: "mssql-${{matrix.mssql-version}}-${{matrix.python-version}}"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      # The below (and corresponding selective checks code) can be removed once
+      # https://github.com/apache/airflow/issues/31575 is fixed.
+      # This is a temporary workaround for flaky tests that occur in MSSQL tests for public runners
+      PARALLELISM: "${{needs.build-info.outputs.mssql-parallelism}}"
     if: >
       needs.build-info.outputs.run-tests == 'true' &&
       (needs.build-info.outputs.runs-on == 'self-hosted' ||
