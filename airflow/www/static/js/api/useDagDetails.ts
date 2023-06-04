@@ -22,16 +22,32 @@ import { useQuery } from "react-query";
 
 import { getMetaValue } from "src/utils";
 import type { API } from "src/types";
+import type { DAG, DAGDetail } from "src/types/api-generated";
+import useDag from "./useDag";
 
 const dagDetailsApiUrl = getMetaValue("dag_details_api");
 
-const useDagDetails = () =>
-  useQuery(
+const combineResults = (
+  dagData: DAG,
+  dagDetailsData: DAGDetail
+): Omit<DAG & DAGDetail, "defaultView"> => ({ ...dagData, ...dagDetailsData });
+
+const useDagDetails = () => {
+  const { data: dagData } = useDag();
+  const dagDetailsResult = useQuery(
     ["dagDetailsQuery"],
     () => axios.get<AxiosResponse, API.DAGDetail>(dagDetailsApiUrl),
     {
-      enabled: false,
+      enabled: !!dagData,
     }
   );
+  return {
+    ...dagDetailsResult,
+    data: combineResults(
+      dagData || {},
+      dagDetailsResult.data ? dagDetailsResult.data : {}
+    ),
+  };
+};
 
 export default useDagDetails;
