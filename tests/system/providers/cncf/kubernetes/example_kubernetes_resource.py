@@ -26,20 +26,11 @@ from __future__ import annotations
 import os
 from datetime import datetime, timedelta
 
-# [START import_module]
-# The DAG object; we'll need this to instantiate a DAG
 from airflow import DAG
-
-# Operators; we need this to operate!
 from airflow.providers.cncf.kubernetes.operators.resource import (
     KubernetesCreateResourceOperator,
     KubernetesDeleteResourceOperator,
 )
-
-# [END import_module]
-
-
-# [START instantiate_dag]
 
 pvc_name = "toto"
 
@@ -60,7 +51,6 @@ spec:
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_kubernetes_resource_operator"
 
-
 with DAG(
     DAG_ID,
     default_args={"max_active_runs": 1},
@@ -69,8 +59,6 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-    # [START KubernetesCreateResourceOperator_DAG]
-    # [START KubernetesDeleteResourceOperator_DAG]
     t1 = KubernetesCreateResourceOperator(
         task_id="create_pvc",
         yaml_conf=pvc_conf,
@@ -82,8 +70,6 @@ with DAG(
     )
 
     t1 >> t2
-    # [END KubernetesDeleteResourceOperator_DAG]
-    # [END KubernetesCreateResourceOperator_DAG]
 
     from tests.system.utils.watcher import watcher
 
