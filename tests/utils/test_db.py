@@ -40,6 +40,9 @@ from airflow.utils.db import (
     compare_server_default,
     compare_type,
     create_default_connections,
+    # The create_session is not used. It is imported here to
+    # guard against removing it from utils.db accidentally
+    create_session,  # noqa: F401
     downgrade,
     resetdb,
     upgradedb,
