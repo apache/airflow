@@ -18,11 +18,12 @@
 
 from __future__ import annotations
 
+from functools import cached_property
+
 import yaml
 from kubernetes.client import ApiClient
 from kubernetes.utils import create_from_yaml
 
-from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.utils.delete_from import delete_from_yaml
