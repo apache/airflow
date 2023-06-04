@@ -82,7 +82,6 @@ class GCSBlobTrigger(BaseTrigger):
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
-            return
 
     def _get_async_hook(self) -> GCSAsyncHook:
         return GCSAsyncHook(gcp_conn_id=self.google_cloud_conn_id, **self.hook_params)
@@ -266,7 +265,6 @@ class GCSPrefixBlobTrigger(GCSBlobTrigger):
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
-            return
 
     async def _list_blobs_with_prefix(self, hook: GCSAsyncHook, bucket_name: str, prefix: str) -> list[str]:
         """
@@ -369,7 +367,6 @@ class GCSUploadSessionTrigger(GCSPrefixBlobTrigger):
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
-            return
 
     def _get_time(self) -> datetime:
         """
