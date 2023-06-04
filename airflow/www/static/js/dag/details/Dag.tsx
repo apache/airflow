@@ -268,7 +268,10 @@ const Dag = () => {
                           as={Link}
                           colorScheme="teal"
                           size="xs"
-                          href={`${tagIndexUrl}${tag.name}`}
+                          href={tagIndexUrl.replace(
+                            "_TAG_NAME_",
+                            tag?.name || ""
+                          )}
                           mr={3}
                         >
                           {tag.name}
