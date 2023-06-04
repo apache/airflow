@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import time
 import warnings
@@ -35,6 +36,7 @@ from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
 from pendulum import DateTime
 from pendulum.parsing.exceptions import ParserError
+from tenacity import before_log
 from urllib3.exceptions import HTTPError as BaseHTTPError
 from urllib3.response import HTTPResponse
 
@@ -337,9 +339,20 @@ class PodManager(LoggingMixin):
     ) -> PodLoggingStatus:
         """
         Follows the logs of container and streams to airflow logging.
+
         Returns when container exits.
+
+        Between when the pod starts and logs being available, there might be a delay due to CSR not approved
+        and signed yet. In such situation, ApiException is thrown. This is why we are retrying on this
+        specific exception.
         """
 
+        @tenacity.retry(
+            retry=tenacity.retry_if_exception_type(ApiException),
+            stop=tenacity.stop_after_attempt(10),
+            wait=tenacity.wait_fixed(1),
+            before=before_log(self.log, logging.INFO),
+        )
         def consume_logs(
             *, since_time: DateTime | None = None, follow: bool = True, termination_timeout: int = 120
         ) -> DateTime | None:
