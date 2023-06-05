@@ -44,7 +44,7 @@ CLOUD_COMPOSER_ENVIRONMENTS_LINK = CLOUD_COMPOSER_BASE_LINK + "?project={project
 
 
 class CloudComposerEnvironmentLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Composer Environment Link"""
+    """Helper class for constructing Cloud Composer Environment Link."""
 
     name = "Cloud Composer Environment"
     key = "composer_conf"
@@ -71,7 +71,7 @@ class CloudComposerEnvironmentLink(BaseGoogleLink):
 
 
 class CloudComposerEnvironmentsLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Composer Environment Link"""
+    """Helper class for constructing Cloud Composer Environment Link."""
 
     name = "Cloud Composer Environment List"
     key = "composer_conf"

@@ -526,7 +526,7 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
 
 class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
     """
-    Clones an instance to a target instance
+    Clones an instance to a target instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -725,6 +725,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
     """
     Updates a resource containing information about a database inside a Cloud SQL
     instance using patch semantics.
+
     See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
 
     .. seealso::
