@@ -51,7 +51,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
 
     def create_or_update(self, resource_group: str, name: str, container_group: ContainerGroup) -> None:
         """
-        Create a new container group
+        Create a new container group.
 
         :param resource_group: the name of the resource group
         :param name: the name of the container group
@@ -61,7 +61,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
 
     def get_state_exitcode_details(self, resource_group: str, name: str) -> tuple:
         """
-        Get the state and exitcode of a container group
+        Get the state and exitcode of a container group.
 
         :param resource_group: the name of the resource group
         :param name: the name of the container group
@@ -79,7 +79,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
 
     def get_messages(self, resource_group: str, name: str) -> list:
         """
-        Get the messages of a container group
+        Get the messages of a container group.
 
         :param resource_group: the name of the resource group
         :param name: the name of the container group
@@ -96,7 +96,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
 
     def get_state(self, resource_group: str, name: str) -> ContainerGroup:
         """
-        Get the state of a container group
+        Get the state of a container group.
 
         :param resource_group: the name of the resource group
         :param name: the name of the container group
@@ -106,7 +106,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
 
     def get_logs(self, resource_group: str, name: str, tail: int = 1000) -> list:
         """
-        Get the tail from logs of a container group
+        Get the tail from logs of a container group.
 
         :param resource_group: the name of the resource group
         :param name: the name of the container group
@@ -118,7 +118,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
 
     def delete(self, resource_group: str, name: str) -> None:
         """
-        Delete a container group
+        Delete a container group.
 
         :param resource_group: the name of the resource group
         :param name: the name of the container group
@@ -127,7 +127,7 @@ class AzureContainerInstanceHook(AzureBaseHook):
 
     def exists(self, resource_group: str, name: str) -> bool:
         """
-        Test if a container group exists
+        Test if a container group exists.
 
         :param resource_group: the name of the resource group
         :param name: the name of the container group
