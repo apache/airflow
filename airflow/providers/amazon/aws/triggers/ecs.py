@@ -85,3 +85,59 @@ class ClusterActiveTrigger(BaseTrigger):
                     await asyncio.sleep(int(self.waiter_delay))
 
         yield TriggerEvent({"status": "success", "value": self.cluster_arn})
+
+
+class TaskDoneTrigger(BaseTrigger):
+    """
+    Waits for an ECS task to be done
+
+    :param cluster: short name or full ARN of the cluster where the task is running.
+    :param task_arn: ARN of the task to watch.
+    :param waiter_delay: The amount of time in seconds to wait between attempts.
+    :param waiter_max_attempts: The number of times to ping for status.
+        Will fail after that many unsuccessful attempts.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region: The AWS region where the cluster is located.
+    """
+
+    def __init__(
+        self,
+        cluster: str,
+        task_arn: str,
+        waiter_delay: int | None,
+        aws_conn_id: str | None,
+        region: str | None,
+    ):
+        self.cluster = cluster
+        self.task_arn = task_arn
+        self.waiter_delay = waiter_delay or 15
+        self.aws_conn_id = aws_conn_id
+        self.region = region
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            self.__class__.__module__ + "." + self.__class__.__qualname__,
+            {
+                "cluster": self.cluster,
+                "task_arn": self.task_arn,
+                "waiter_delay": self.waiter_delay,
+                "aws_conn_id": self.aws_conn_id,
+                "region": self.region,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        hook = EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
+        async with hook.async_conn as client:
+            waiter = hook.get_waiter("tasks_stopped", deferrable=True, client=client)
+            while True:
+                try:
+                    waiter.wait(cluster=self.cluster, tasks=[self.task_arn], WaiterConfig={"MaxAttempts": 1})
+                    break  # we reach this point only if the waiter met a success criteria
+                except WaiterError as error:
+                    if "terminal failure" in str(error):
+                        raise
+                    self.log.info("Status of the task is %s", error.last_response["tasks"][0]["lastStatus"])
+                    await asyncio.sleep(int(self.waiter_delay))
+
+        yield TriggerEvent({"status": "success", "task_arn": self.task_arn})

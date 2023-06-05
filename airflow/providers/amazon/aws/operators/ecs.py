@@ -36,7 +36,7 @@ from airflow.providers.amazon.aws.hooks.ecs import (
     EcsTaskLogFetcher,
     should_retry_eni,
 )
-from airflow.providers.amazon.aws.triggers.ecs import ClusterActiveTrigger
+from airflow.providers.amazon.aws.triggers.ecs import ClusterActiveTrigger, TaskDoneTrigger
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import provide_session
 
@@ -512,7 +512,22 @@ class EcsRunTaskOperator(EcsBaseOperator):
         if self.reattach:
             self._try_reattach_task(context)
 
-        self._start_wait_check_task(context)
+        self._start_wait_task(context)
+
+        self._after_execution(session)
+
+        return None
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error in task execution: {event}")
+        self.arn = event["task_arn"]  # restore arn to its updated value
+        self._after_execution()
+        return None
+
+    @provide_session
+    def _after_execution(self, session=None):
+        self._check_success_task()
 
         self.log.info("ECS Task has been successfully executed")
 
@@ -524,10 +539,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
         if self.do_xcom_push and self.task_log_fetcher:
             return self.task_log_fetcher.get_last_log_message()
 
-        return None
-
     @AwsBaseHook.retry(should_retry_eni)
-    def _start_wait_check_task(self, context):
+    def _start_wait_task(self, context):
 
         if not self.arn:
             self._start_task(context)
@@ -545,10 +558,19 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
             self.task_log_fetcher.join()
         else:
-            if self.wait_for_completion:
+            if self.deferrable:
+                self.defer(
+                    trigger=TaskDoneTrigger(
+                        cluster=self.cluster,
+                        task_arn=self.arn,
+                        waiter_delay=self.waiter_delay,
+                        aws_conn_id=self.aws_conn_id,
+                        region=self.region,
+                    ),
+                    method_name="execute_complete",
+                )
+            elif self.wait_for_completion:
                 self._wait_for_task_ended()
-
-        self._check_success_task()
 
     def _xcom_del(self, session, task_id):
         session.query(XCom).filter(XCom.dag_id == self.dag_id, XCom.task_id == task_id).delete()
@@ -653,6 +675,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
             logger=self.log,
         )
 
+    @AwsBaseHook.retry(should_retry_eni)
     def _check_success_task(self) -> None:
         if not self.client or not self.arn:
             return
