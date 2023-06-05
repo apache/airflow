@@ -38,7 +38,6 @@ from urllib.parse import unquote, urljoin, urlsplit
 import configupdater
 import flask.json
 import lazy_object_proxy
-import markupsafe
 import nvd3
 import sqlalchemy as sqla
 from croniter import croniter
@@ -4888,12 +4887,12 @@ class ProviderView(AirflowBaseView):
         def _build_link(match_obj):
             text = match_obj.group(1)
             url = match_obj.group(2)
-            return markupsafe.Markup(f'<a href="{url}">{text}</a>')
+            return Markup(f'<a href="{url}">{text}</a>')
 
-        cd = markupsafe.escape(description)
+        cd = escape(description)
         cd = re.sub(r"`(.*)[\s+]+&lt;(.*)&gt;`__", _build_link, cd)
         cd = re.sub(r"\n", r"<br>", cd)
-        return markupsafe.Markup(cd)
+        return Markup(cd)
 
 
 class PoolModelView(AirflowModelView):
