@@ -60,7 +60,14 @@ DEFAULT_GAUGE_VALUE = 0.0
 # https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/api.md#updowncounter
 UP_DOWN_COUNTERS = {"airflow.dag_processing.processes"}
 
-METRIC_NAME_PREFIX = "airflow."
+DEFAULT_METRIC_NAME_PREFIX = "airflow"
+# Delimiter is placed between the universal metric prefix and the unique metric name.
+DEFAULT_METRIC_NAME_DELIMITER = "."
+
+
+def full_name(name: str, *, prefix: str = DEFAULT_METRIC_NAME_PREFIX) -> str:
+    """Assembles the prefix, delimiter, and name and returns it as a string."""
+    return f"{prefix}{DEFAULT_METRIC_NAME_DELIMITER}{name}"
 
 
 def _is_up_down_counter(name):
@@ -121,7 +128,12 @@ def _get_otel_safe_name(name: str) -> str:
 class SafeOtelLogger:
     """Otel Logger"""
 
-    def __init__(self, otel_provider, prefix: str = "airflow", allow_list_validator=AllowListValidator()):
+    def __init__(
+        self,
+        otel_provider,
+        prefix: str = DEFAULT_METRIC_NAME_PREFIX,
+        allow_list_validator=AllowListValidator(),
+    ):
         self.otel: Callable = otel_provider
         self.prefix: str = prefix
         self.metrics_validator = allow_list_validator
@@ -150,7 +162,7 @@ class SafeOtelLogger:
             return
 
         if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
-            counter = self.metrics_map.get_counter(f"{self.prefix}.{stat}", attributes=tags)
+            counter = self.metrics_map.get_counter(full_name(prefix=self.prefix, name=stat), attributes=tags)
             counter.add(count, attributes=tags)
             return counter
 
@@ -176,7 +188,7 @@ class SafeOtelLogger:
             return
 
         if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
-            counter = self.metrics_map.get_counter(f"{self.prefix}.{stat}")
+            counter = self.metrics_map.get_counter(full_name(prefix=self.prefix, name=stat))
             counter.add(-count, attributes=tags)
             return counter
 
@@ -197,10 +209,12 @@ class SafeOtelLogger:
             return
 
         if back_compat_name and self.metrics_validator.test(back_compat_name):
-            self.metrics_map.set_value(f"{self.prefix}.{back_compat_name}", value, delta, tags)
+            self.metrics_map.set_value(
+                full_name(prefix=self.prefix, name=back_compat_name), value, delta, tags
+            )
 
         if self.metrics_validator.test(stat):
-            self.metrics_map.set_value(f"{self.prefix}.{stat}", value, delta, tags)
+            self.metrics_map.set_value(full_name(prefix=self.prefix, name=stat), value, delta, tags)
 
     @validate_stat
     def timing(

@@ -26,13 +26,13 @@ from pytest import param
 
 from airflow.exceptions import InvalidStatsNameException
 from airflow.metrics.otel_logger import (
-    METRIC_NAME_PREFIX,
     OTEL_NAME_MAX_LENGTH,
     UP_DOWN_COUNTERS,
     MetricsMap,
     SafeOtelLogger,
     _generate_key_name,
     _is_up_down_counter,
+    full_name,
 )
 from airflow.metrics.validators import BACK_COMPAT_METRIC_NAMES, MetricNameLengthExemptionWarning
 
@@ -42,10 +42,6 @@ INVALID_STAT_NAME_CASES = [
     ("X" * OTEL_NAME_MAX_LENGTH, "too long"),
     ("test/$tats", "contains invalid characters"),
 ]
-
-
-def full_name(name: str):
-    return f"{METRIC_NAME_PREFIX}{name}"
 
 
 @pytest.fixture
