@@ -177,9 +177,9 @@ class KubernetesPodOperator(BaseOperator):
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param get_logs: get the stdout of the base container as logs of the tasks.
     :param container_logs: list of containers whose logs will be published to stdout
-        Takes an array of containers, a single container name or ``True``. If True,
-        all the containers' logs are published. Works in conjunction
-        with get_logs param. (default: True)
+        Takes a sequence of containers, a single container name or True. If True,
+        all the containers logs are published. Works in conjunction with get_logs param.
+        The default value is the base container.
     :param image_pull_policy: Specify a policy to cache or always pull an image.
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
