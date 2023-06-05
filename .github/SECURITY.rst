@@ -103,6 +103,10 @@ There are certain expectations from the members of the security team:
   releasing the CVE information (announcement and publishing to security indexes) as part of the
   release process. This is facilitated by the security tool provided by the Apache Software Foundation.
 
+* Severity of the issue is determined based on the criteria described in the
+  `Severity Rating blog post <https://security.apache.org/blog/severityrating/>`_  by the Apache Software
+  Foundation Security team
+
 Releasing Airflow with security patches
 ---------------------------------------
 
