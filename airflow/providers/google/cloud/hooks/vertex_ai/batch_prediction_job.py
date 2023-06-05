@@ -85,7 +85,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         return obj["name"].rpartition("/")[-1]
 
     def cancel_batch_prediction_job(self) -> None:
-        """Cancel BatchPredictionJob"""
+        """Cancel BatchPredictionJob."""
         if self._batch_prediction_job:
             self._batch_prediction_job.cancel()
 
@@ -291,7 +291,7 @@ class BatchPredictionJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> BatchPredictionJob:
         """
-        Gets a BatchPredictionJob
+        Gets a BatchPredictionJob.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

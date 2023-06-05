@@ -147,7 +147,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Loop until the object updated time is greater than target datetime"""
+        """Loop until the object updated time is greater than target datetime."""
         try:
             hook = self._get_async_hook()
             while True:

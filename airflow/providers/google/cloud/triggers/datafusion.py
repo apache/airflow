@@ -81,7 +81,7 @@ class DataFusionStartPipelineTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current pipeline status and yields a TriggerEvent"""
+        """Gets current pipeline status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         while True:
             try:

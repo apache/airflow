@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This file contains Google Drive operators"""
+"""This file contains Google Drive operators."""
 from __future__ import annotations
 
 import os
@@ -33,7 +33,7 @@ class LocalFilesystemToGoogleDriveOperator(BaseOperator):
     """
     Upload a list of files to a Google Drive folder.
     This operator uploads a list of local files to a Google Drive folder.
-    The local files can be deleted after upload (optional)
+    The local files can be deleted after upload (optional).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
