@@ -499,7 +499,7 @@ class PodManager(LoggingMixin):
 
         :param pod: pod spec that will be monitored
         :param container_name: name of the container within the pod to monitor
-        :return if container has completed
+        :return: if container has completed
         """
         while True:
             remote_pod = self.read_pod(pod)
