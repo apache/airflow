@@ -127,7 +127,7 @@ class BatchSensorTrigger(BaseTrigger):
         job_id: str,
         region_name: str | None,
         aws_conn_id: str | None = "aws_default",
-        poke_interval: int = 5,
+        poke_interval: float = 5,
         max_retries: int = 5,
     ):
         super().__init__()
@@ -170,7 +170,7 @@ class BatchSensorTrigger(BaseTrigger):
                     await waiter.wait(
                         jobs=[self.job_id],
                         WaiterConfig={
-                            "Delay": self.poke_interval,
+                            "Delay": int(self.poke_interval),
                             "MaxAttempts": 1,
                         },
                     )

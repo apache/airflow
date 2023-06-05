@@ -57,7 +57,7 @@ class BatchSensor(BaseSensorOperator):
         aws_conn_id: str = "aws_default",
         region_name: str | None = None,
         deferrable: bool = False,
-        poke_interval: int = 5,  # type: ignore[arg-type]
+        poke_interval: float = 5,
         max_retries: int = 5,
         **kwargs,
     ):
