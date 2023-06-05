@@ -286,7 +286,7 @@ class BaseSQLToGCSOperator(BaseOperator):
                 row = self.convert_types(schema, col_type_dict, row)
                 row_dict = dict(zip(schema, row))
 
-                tmp_file_handle.write(json.dumps(row_dict, sort_keys=True, ensure_ascii=False))
+                json.dump(row_dict, tmp_file_handle, sort_keys=True, ensure_ascii=False)
 
                 # Append newline to make dumps BigQuery compatible.
                 tmp_file_handle.write("\n")
