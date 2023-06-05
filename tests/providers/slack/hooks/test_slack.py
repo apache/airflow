@@ -392,7 +392,7 @@ class TestSlackHook:
         )
 
         # Validate file properties
-        mock_file = mock_files_upload.call_args[1]["file"]
+        mock_file = mock_files_upload.call_args.kwargs["file"]
         assert mock_file.mode == "rb"
         assert mock_file.name == str(file)
 
@@ -411,7 +411,7 @@ class TestSlackHook:
         hook.send_file(file=file)
 
         assert mock_files_upload.call_count == 1
-        call_args = mock_files_upload.call_args[1]
+        call_args = mock_files_upload.call_args.kwargs
         assert "filename" in call_args
         assert call_args["filename"] == filename
 

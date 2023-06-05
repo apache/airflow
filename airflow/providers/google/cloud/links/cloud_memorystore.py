@@ -38,7 +38,7 @@ REDIS_LIST_LINK = BASE_LINK + "/redis/instances?project={project_id}"
 
 
 class MemcachedInstanceDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Memorystore Memcached Instance Link"""
+    """Helper class for constructing Memorystore Memcached Instance Link."""
 
     name = "Memorystore Memcached Instance"
     key = "memcached_instance"
@@ -60,7 +60,7 @@ class MemcachedInstanceDetailsLink(BaseGoogleLink):
 
 
 class MemcachedInstanceListLink(BaseGoogleLink):
-    """Helper class for constructing Memorystore Memcached List of Instances Link"""
+    """Helper class for constructing Memorystore Memcached List of Instances Link."""
 
     name = "Memorystore Memcached List of Instances"
     key = "memcached_instances"
@@ -80,7 +80,7 @@ class MemcachedInstanceListLink(BaseGoogleLink):
 
 
 class RedisInstanceDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Memorystore Redis Instance Link"""
+    """Helper class for constructing Memorystore Redis Instance Link."""
 
     name = "Memorystore Redis Instance"
     key = "redis_instance"
@@ -102,7 +102,7 @@ class RedisInstanceDetailsLink(BaseGoogleLink):
 
 
 class RedisInstanceListLink(BaseGoogleLink):
-    """Helper class for constructing Memorystore Redis List of Instances Link"""
+    """Helper class for constructing Memorystore Redis List of Instances Link."""
 
     name = "Memorystore Redis List of Instances"
     key = "redis_instances"

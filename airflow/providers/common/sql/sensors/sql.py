@@ -25,14 +25,18 @@ from airflow.sensors.base import BaseSensorOperator
 
 
 class SqlSensor(BaseSensorOperator):
-    """
-    Runs a sql statement repeatedly until a criteria is met. It will keep trying until
-    success or failure criteria are met, or if the first cell is not in (0, '0', '', None).
-    Optional success and failure callables are called with the first cell returned as the argument.
-    If success callable is defined the sensor will keep retrying until the criteria is met.
-    If failure callable is defined and the criteria is met the sensor will raise AirflowException.
-    Failure criteria is evaluated before success criteria. A fail_on_empty boolean can also
-    be passed to the sensor in which case it will fail if no rows have been returned
+    """Run a sql statement repeatedly until a criteria is met.
+
+    This will keep trying until success or failure criteria are met, or if the
+    first cell is not either ``0``, ``'0'``, ``''``, or ``None``. Optional
+    success and failure callables are called with the first cell returned as the
+    argument.
+
+    If success callable is defined, the sensor will keep retrying until the
+    criteria is met. If failure callable is defined, and the criteria is met,
+    the sensor will raise AirflowException. Failure criteria is evaluated before
+    success criteria. A fail_on_empty boolean can also be passed to the sensor
+    in which case it will fail if no rows have been returned.
 
     :param conn_id: The connection to run the sensor against
     :param sql: The sql to run. To pass, it needs to return at least one cell

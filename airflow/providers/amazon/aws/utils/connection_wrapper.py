@@ -23,6 +23,7 @@ from dataclasses import MISSING, InitVar, dataclass, field, fields
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from botocore import UNSIGNED
 from botocore.config import Config
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -236,6 +237,8 @@ class AwsConnectionWrapper(LoggingMixin):
         if not self.botocore_config and config_kwargs:
             # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
             self.log.debug("Retrieving botocore config=%s from %s extra.", config_kwargs, self.conn_repr)
+            if config_kwargs.get("signature_version") == "unsigned":
+                config_kwargs["signature_version"] = UNSIGNED
             self.botocore_config = Config(**config_kwargs)
 
         if conn.host:

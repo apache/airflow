@@ -76,6 +76,7 @@ const config = {
     taskInstances: `${JS_DIR}/task_instances.js`,
     tiLog: `${JS_DIR}/ti_log.js`,
     grid: `${JS_DIR}/dag/index.tsx`,
+    clusterActivity: `${JS_DIR}/cluster-activity/index.tsx`,
     datasets: `${JS_DIR}/datasets/index.tsx`,
     calendar: [`${CSS_DIR}/calendar.css`, `${JS_DIR}/calendar.js`],
     durationChart: `${JS_DIR}/duration_chart.js`,
