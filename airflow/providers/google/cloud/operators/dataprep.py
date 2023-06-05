@@ -31,7 +31,8 @@ if TYPE_CHECKING:
 class DataprepGetJobsForJobGroupOperator(GoogleCloudBaseOperator):
     """
     Get information about the batch jobs within a Cloud Dataprep job.
-    API documentation https://clouddataprep.com/documentation/api#section/Overview
+
+    API documentation: https://clouddataprep.com/documentation/api#section/Overview.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -65,8 +66,10 @@ class DataprepGetJobsForJobGroupOperator(GoogleCloudBaseOperator):
 class DataprepGetJobGroupOperator(GoogleCloudBaseOperator):
     """
     Get the specified job group.
+
     A job group is a job that is executed from a specific node in a flow.
-    API documentation https://clouddataprep.com/documentation/api#section/Overview
+
+    API documentation: https://clouddataprep.com/documentation/api#section/Overview.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -124,9 +127,11 @@ class DataprepGetJobGroupOperator(GoogleCloudBaseOperator):
 class DataprepRunJobGroupOperator(GoogleCloudBaseOperator):
     """
     Create a ``jobGroup``, which launches the specified job as the authenticated user.
+
     This performs the same action as clicking on the Run Job button in the application.
-    To get recipe_id please follow the Dataprep API documentation
-    https://clouddataprep.com/documentation/api#operation/runJobGroup
+
+    To get recipe_id please follow the Dataprep API documentation:
+    https://clouddataprep.com/documentation/api#operation/runJobGroup.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

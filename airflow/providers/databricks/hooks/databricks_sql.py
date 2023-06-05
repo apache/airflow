@@ -31,8 +31,7 @@ LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
 
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
-    """
-    Hook to interact with Databricks SQL.
+    """Hook to interact with Databricks SQL.
 
     :param databricks_conn_id: Reference to the
         :ref:`Databricks connection <howto/connection:databricks>`.
@@ -148,10 +147,10 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         split_statements: bool = True,
         return_last: bool = True,
     ) -> Any | list[Any] | None:
-        """
-        Runs a command or a list of commands. Pass a list of sql
-        statements to the sql parameter to get them to execute
-        sequentially.
+        """Runs a command or a list of commands.
+
+        Pass a list of SQL statements to the SQL parameter to get them to
+        execute sequentially.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute

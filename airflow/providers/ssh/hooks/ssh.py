@@ -41,9 +41,10 @@ CMD_TIMEOUT = 10
 
 
 class SSHHook(BaseHook):
-    """
-    Hook for ssh remote execution using Paramiko.
-    ref: https://github.com/paramiko/paramiko
+    """Execute remote commands with Paramiko.
+
+    .. seealso:: https://github.com/paramiko/paramiko
+
     This hook also lets you create ssh tunnel and serve as basis for SFTP file transfer.
 
     :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>` from airflow
@@ -281,7 +282,7 @@ class SSHHook(BaseHook):
         return paramiko.ProxyCommand(cmd) if cmd else None
 
     def get_conn(self) -> paramiko.SSHClient:
-        """Opens a ssh connection to the remote host."""
+        """Opens an SSH connection to the remote host."""
         self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
         client = paramiko.SSHClient()
 
@@ -380,8 +381,9 @@ class SSHHook(BaseHook):
     def get_tunnel(
         self, remote_port: int, remote_host: str = "localhost", local_port: int | None = None
     ) -> SSHTunnelForwarder:
-        """
-        Creates a tunnel between two hosts. Like ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>.
+        """Create a tunnel between two hosts.
+
+        This is conceptually similar to ``ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>``.
 
         :param remote_port: The remote port to create a tunnel to
         :param remote_host: The remote host to create a tunnel to (default localhost)
@@ -421,13 +423,11 @@ class SSHHook(BaseHook):
     def create_tunnel(
         self, local_port: int, remote_port: int, remote_host: str = "localhost"
     ) -> SSHTunnelForwarder:
-        """
-        Creates tunnel for SSH connection [Deprecated].
+        """Create a tunnel for SSH connection [Deprecated].
 
         :param local_port: local port number
         :param remote_port: remote port number
         :param remote_host: remote host
-        :return:
         """
         warnings.warn(
             "SSHHook.create_tunnel is deprecated, Please"
@@ -440,8 +440,7 @@ class SSHHook(BaseHook):
         return self.get_tunnel(remote_port, remote_host, local_port)
 
     def _pkey_from_private_key(self, private_key: str, passphrase: str | None = None) -> paramiko.PKey:
-        """
-        Creates appropriate paramiko key for given private key.
+        """Create an appropriate Paramiko key for a given private key.
 
         :param private_key: string containing private key
         :return: ``paramiko.PKey`` appropriate for given key

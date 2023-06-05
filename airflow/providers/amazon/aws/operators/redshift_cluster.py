@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftCreateClusterSnapshotTrigger,
     RedshiftCreateClusterTrigger,
+    RedshiftDeleteClusterTrigger,
     RedshiftPauseClusterTrigger,
     RedshiftResumeClusterTrigger,
 )
@@ -629,6 +630,8 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         The default value is ``True``
     :param aws_conn_id: aws connection to use
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
+    :param deferrable: Run operator in the deferrable mode.
+    :param max_attempts: (Deferrable mode only) The maximum number of attempts to be made
     """
 
     template_fields: Sequence[str] = ("cluster_identifier",)
@@ -643,7 +646,9 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         final_cluster_snapshot_identifier: str | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
-        poll_interval: float = 30.0,
+        poll_interval: int = 30,
+        deferrable: bool = False,
+        max_attempts: int = 30,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -658,8 +663,12 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         self._attempts = 10
         self._attempt_interval = 15
         self.redshift_hook = RedshiftHook(aws_conn_id=aws_conn_id)
+        self.aws_conn_id = aws_conn_id
+        self.deferrable = deferrable
+        self.max_attempts = max_attempts
 
     def execute(self, context: Context):
+
         while self._attempts >= 1:
             try:
                 self.redshift_hook.delete_cluster(
@@ -676,10 +685,26 @@ class RedshiftDeleteClusterOperator(BaseOperator):
                     time.sleep(self._attempt_interval)
                 else:
                     raise
-
-        if self.wait_for_completion:
+        if self.deferrable:
+            self.defer(
+                timeout=timedelta(seconds=self.max_attempts * self.poll_interval + 60),
+                trigger=RedshiftDeleteClusterTrigger(
+                    cluster_identifier=self.cluster_identifier,
+                    poll_interval=self.poll_interval,
+                    max_attempts=self.max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+        elif self.wait_for_completion:
             waiter = self.redshift_hook.get_conn().get_waiter("cluster_deleted")
             waiter.wait(
                 ClusterIdentifier=self.cluster_identifier,
-                WaiterConfig={"Delay": self.poll_interval, "MaxAttempts": 30},
+                WaiterConfig={"Delay": self.poll_interval, "MaxAttempts": self.max_attempts},
             )
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error deleting cluster: {event}")
+        else:
+            self.log.info("Cluster deleted successfully")

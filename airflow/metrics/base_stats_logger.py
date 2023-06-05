@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from airflow.metrics.protocols import DeltaType, Timer, TimerProtocol
 from airflow.typing_compat import Protocol
 
@@ -31,7 +33,7 @@ class StatsLogger(Protocol):
         count: int = 1,
         rate: int | float = 1,
         *,
-        tags: dict[str, str] | None = None,
+        tags: dict[str, Any] | None = None,
     ) -> None:
         """Increment stat."""
 
@@ -42,7 +44,7 @@ class StatsLogger(Protocol):
         count: int = 1,
         rate: int | float = 1,
         *,
-        tags: dict[str, str] | None = None,
+        tags: dict[str, Any] | None = None,
     ) -> None:
         """Decrement stat."""
 
@@ -54,7 +56,7 @@ class StatsLogger(Protocol):
         rate: int | float = 1,
         delta: bool = False,
         *,
-        tags: dict[str, str] | None = None,
+        tags: dict[str, Any] | None = None,
     ) -> None:
         """Gauge stat."""
 
@@ -64,7 +66,7 @@ class StatsLogger(Protocol):
         stat: str,
         dt: DeltaType | None,
         *,
-        tags: dict[str, str] | None = None,
+        tags: dict[str, Any] | None = None,
     ) -> None:
         """Stats timing."""
 

@@ -1021,6 +1021,8 @@ class DagRun(Base, LoggingMixin):
                 if should_restore_task:
                     self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
                     Stats.incr(f"task_restored_to_dag.{dag.dag_id}", tags=self.stats_tags)
+                    # Same metric with tagging
+                    Stats.incr("task_restored_to_dag", tags={**self.stats_tags, "dag_id": dag.dag_id})
                     ti.state = State.NONE
             except AirflowException:
                 if ti.state == State.REMOVED:
@@ -1028,6 +1030,8 @@ class DagRun(Base, LoggingMixin):
                 elif self.state != State.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
                     Stats.incr(f"task_removed_from_dag.{dag.dag_id}", tags=self.stats_tags)
+                    # Same metric with tagging
+                    Stats.incr("task_removed_from_dag", tags={**self.stats_tags, "dag_id": dag.dag_id})
                     ti.state = State.REMOVED
                 continue
 
@@ -1184,6 +1188,8 @@ class DagRun(Base, LoggingMixin):
 
             for task_type, count in created_counts.items():
                 Stats.incr(f"task_instance_created-{task_type}", count, tags=self.stats_tags)
+                # Same metric with tagging
+                Stats.incr("task_instance_created", count, tags={**self.stats_tags, "task_type": task_type})
             session.flush()
         except IntegrityError:
             self.log.info(
