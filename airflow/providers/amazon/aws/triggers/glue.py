@@ -60,4 +60,4 @@ class GlueJobCompleteTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         hook = GlueJobHook(aws_conn_id=self.aws_conn_id)
         await hook.async_job_completion(self.job_name, self.run_id, self.verbose)
-        yield TriggerEvent({"status": "success", "message": "Job done"})
+        yield TriggerEvent({"status": "success", "message": "Job done", "value": self.run_id})

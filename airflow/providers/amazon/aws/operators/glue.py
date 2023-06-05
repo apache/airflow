@@ -200,4 +200,4 @@ class GlueJobOperator(BaseOperator):
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
             raise AirflowException(f"Error in glue job: {event}")
-        return
+        return event["value"]
