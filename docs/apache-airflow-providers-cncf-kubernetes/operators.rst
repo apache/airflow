@@ -57,7 +57,7 @@ You can print out the Kubernetes manifest for the pod that would be created at r
 
 .. code-block:: python
 
-    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 
     k = KubernetesPodOperator(
         name="hello-dry-run",

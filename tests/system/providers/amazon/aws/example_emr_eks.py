@@ -43,12 +43,14 @@ DAG_ID = "example_emr_eks"
 # Externally fetched variables
 ROLE_ARN_KEY = "ROLE_ARN"
 JOB_ROLE_ARN_KEY = "JOB_ROLE_ARN"
+JOB_ROLE_NAME_KEY = "JOB_ROLE_NAME"
 SUBNETS_KEY = "SUBNETS"
 
 sys_test_context_task = (
     SystemTestContextBuilder()
     .add_variable(ROLE_ARN_KEY)
     .add_variable(JOB_ROLE_ARN_KEY)
+    .add_variable(JOB_ROLE_NAME_KEY)
     .add_variable(SUBNETS_KEY, split_string=True)
     .build()
 )
@@ -68,6 +70,22 @@ for i in range(1000000):
 
 print(s)
 """
+
+
+@task
+def create_launch_template(template_name: str):
+    # This launch template enables IMDSv2.
+    boto3.client("ec2").create_launch_template(
+        LaunchTemplateName=template_name,
+        LaunchTemplateData={
+            "MetadataOptions": {"HttpEndpoint": "enabled", "HttpTokens": "required"},
+        },
+    )
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def delete_launch_template(template_name: str):
+    boto3.client("ec2").delete_launch_template(LaunchTemplateName=template_name)
 
 
 @task
@@ -94,8 +112,34 @@ def enable_access_emr_on_eks(cluster, ns):
 
 
 @task
-def get_execution_role_name() -> str:
-    return boto3.client("sts").get_caller_identity()["Arn"].split("/")[-2]
+def create_iam_oidc_identity_provider(cluster_name):
+    # Create an IAM OIDC identity provider
+    # See https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html
+    command = f"eksctl utils associate-iam-oidc-provider --cluster {cluster_name} --approve"
+
+    build = subprocess.Popen(
+        command,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    _, err = build.communicate()
+
+    if build.returncode != 0:
+        raise RuntimeError(err)
+
+
+@task
+def delete_iam_oidc_identity_provider(cluster_name):
+    oidc_provider_issuer_url = boto3.client("eks").describe_cluster(name=cluster_name,)["cluster"][
+        "identity"
+    ]["oidc"]["issuer"]
+    oidc_provider_issuer_endpoint = oidc_provider_issuer_url.replace("https://", "")
+
+    account_id = boto3.client("sts").get_caller_identity()["Account"]
+    boto3.client("iam").delete_open_id_connect_provider(
+        OpenIDConnectProviderArn=f"arn:aws:iam::{account_id}:oidc-provider/{oidc_provider_issuer_endpoint}"
+    )
 
 
 @task
@@ -156,12 +200,14 @@ with DAG(
     role_arn = test_context[ROLE_ARN_KEY]
     subnets = test_context[SUBNETS_KEY]
     job_role_arn = test_context[JOB_ROLE_ARN_KEY]
+    job_role_name = test_context[JOB_ROLE_NAME_KEY]
 
     s3_bucket_name = f"{env_id}-bucket"
     eks_cluster_name = f"{env_id}-cluster"
     virtual_cluster_name = f"{env_id}-virtual-cluster"
     nodegroup_name = f"{env_id}-nodegroup"
     eks_namespace = "default"
+    launch_template_name = f"{env_id}-launch-template"
 
     # [START howto_operator_emr_eks_config]
     job_driver_arg = {
@@ -203,6 +249,9 @@ with DAG(
         # but a different ARN could be configured and passed if desired.
         nodegroup_role_arn=role_arn,
         resources_vpc_config={"subnetIds": subnets},
+        # The launch template enforces IMDSv2 and is required for internal
+        # compliance when running these system tests on AWS infrastructure.
+        create_nodegroup_kwargs={"launchTemplate": {"name": launch_template_name}},
     )
 
     await_create_nodegroup = EksNodegroupStateSensor(
@@ -213,8 +262,6 @@ with DAG(
         poke_interval=10,
     )
 
-    emr_access_on_eks = enable_access_emr_on_eks(eks_cluster_name, eks_namespace)
-
     # [START howto_operator_emr_eks_create_cluster]
     create_emr_eks_cluster = EmrEksCreateClusterOperator(
         task_id="create_emr_eks_cluster",
@@ -223,10 +270,6 @@ with DAG(
         eks_namespace=eks_namespace,
     )
     # [END howto_operator_emr_eks_create_cluster]
-
-    trust_policy_update = update_trust_policy_execution_role(
-        eks_cluster_name, eks_namespace, get_execution_role_name()
-    )
 
     # [START howto_operator_emr_container]
     job_starter = EmrContainerOperator(
@@ -276,18 +319,22 @@ with DAG(
         test_context,
         create_bucket,
         upload_s3_file,
+        create_launch_template(launch_template_name),
         create_cluster_and_nodegroup,
         await_create_nodegroup,
-        emr_access_on_eks,
-        trust_policy_update,
+        enable_access_emr_on_eks(eks_cluster_name, eks_namespace),
+        create_iam_oidc_identity_provider(eks_cluster_name),
+        update_trust_policy_execution_role(eks_cluster_name, eks_namespace, job_role_name),
         # TEST BODY
         create_emr_eks_cluster,
         job_starter,
         job_waiter,
         # TEST TEARDOWN
+        delete_iam_oidc_identity_provider(eks_cluster_name),
         delete_virtual_cluster(str(create_emr_eks_cluster.output)),
         delete_eks_cluster,
         await_delete_eks_cluster,
+        delete_launch_template(launch_template_name),
         delete_bucket,
     )
 

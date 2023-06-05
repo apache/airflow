@@ -17,11 +17,13 @@
 from __future__ import annotations
 
 import asyncio
+import warnings
 from typing import Any, Sequence
 
 import botocore.exceptions
 from botocore.exceptions import ClientError
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseAsyncHook, AwsBaseHook
 
 
@@ -204,7 +206,13 @@ class RedshiftHook(AwsBaseHook):
 class RedshiftAsyncHook(AwsBaseAsyncHook):
     """Interact with AWS Redshift using aiobotocore library"""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "airflow.providers.amazon.aws.hook.base_aws.RedshiftAsyncHook has been deprecated and "
+            "will be removed in future",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
         kwargs["client_type"] = "redshift"
         super().__init__(*args, **kwargs)
 

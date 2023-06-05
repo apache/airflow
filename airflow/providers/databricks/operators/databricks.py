@@ -42,7 +42,7 @@ XCOM_RUN_PAGE_URL_KEY = "run_page_url"
 
 def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
     """
-    Handles the Airflow + Databricks lifecycle logic for a Databricks operator
+    Handles the Airflow + Databricks lifecycle logic for a Databricks operator.
 
     :param operator: Databricks operator being handled
     :param context: Airflow context
@@ -100,7 +100,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
 
 def _handle_deferrable_databricks_operator_execution(operator, hook, log, context) -> None:
     """
-    Handles the Airflow + Databricks lifecycle logic for deferrable Databricks operators
+    Handles the Airflow + Databricks lifecycle logic for deferrable Databricks operators.
 
     :param operator: Databricks async operator being handled
     :param context: Airflow context
@@ -404,7 +404,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
 
 class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
-    """Deferrable version of ``DatabricksSubmitRunOperator``"""
+    """Deferrable version of ``DatabricksSubmitRunOperator``."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
@@ -683,7 +683,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
 
 class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
-    """Deferrable version of ``DatabricksRunNowOperator``"""
+    """Deferrable version of ``DatabricksRunNowOperator``."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(

@@ -42,7 +42,7 @@ CLOUD_STORAGE_TRANSFER_OPERATION_LINK = (
 
 
 class CloudStorageTransferLinkHelper:
-    """Helper class for Storage Transfer links"""
+    """Helper class for Storage Transfer links."""
 
     @staticmethod
     def extract_parts(operation_name: str | None):
@@ -54,7 +54,7 @@ class CloudStorageTransferLinkHelper:
 
 
 class CloudStorageTransferListLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Storage Transfer Link"""
+    """Helper class for constructing Cloud Storage Transfer Link."""
 
     name = "Cloud Storage Transfer"
     key = "cloud_storage_transfer"
@@ -74,7 +74,7 @@ class CloudStorageTransferListLink(BaseGoogleLink):
 
 
 class CloudStorageTransferJobLink(BaseGoogleLink):
-    """Helper class for constructing Storage Transfer Job Link"""
+    """Helper class for constructing Storage Transfer Job Link."""
 
     name = "Cloud Storage Transfer Job"
     key = "cloud_storage_transfer_job"
@@ -101,7 +101,7 @@ class CloudStorageTransferJobLink(BaseGoogleLink):
 
 
 class CloudStorageTransferDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Storage Transfer Operation Link"""
+    """Helper class for constructing Cloud Storage Transfer Operation Link."""
 
     name = "Cloud Storage Transfer Details"
     key = "cloud_storage_transfer_details"

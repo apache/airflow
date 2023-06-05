@@ -62,7 +62,7 @@ BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={jo
 
 
 class BigQueryUIColors(enum.Enum):
-    """Hex colors for BigQuery operators"""
+    """Hex colors for BigQuery operators."""
 
     CHECK = "#C0D7FF"
     QUERY = "#A1BBFF"
@@ -71,7 +71,7 @@ class BigQueryUIColors(enum.Enum):
 
 
 class IfExistAction(enum.Enum):
-    """Action to take if the resource exist"""
+    """Action to take if the resource exist."""
 
     IGNORE = "ignore"
     LOG = "log"
@@ -121,7 +121,7 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
 
 class _BigQueryDbHookMixin:
     def get_db_hook(self: BigQueryCheckOperator) -> BigQueryHook:  # type:ignore[misc]
-        """Get BigQuery DB Hook"""
+        """Get BigQuery DB Hook."""
         return BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             use_legacy_sql=self.use_legacy_sql,
@@ -886,7 +886,8 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     def generate_query(self, hook: BigQueryHook) -> str:
         """
         Generate a select query if selected fields are given or with *
-        for the given dataset and table id
+        for the given dataset and table id.
+
         :param hook BigQuery Hook
         """
         query = "select "
@@ -1066,7 +1067,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
 
     @property
     def operator_extra_links(self):
-        """Return operator extra links"""
+        """Return operator extra links."""
         if isinstance(self.sql, str):
             return (BigQueryConsoleLink(),)
         return (BigQueryConsoleIndexableLink(i) for i, _ in enumerate(self.sql))
@@ -1725,6 +1726,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
 class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator deletes an existing dataset from your Project in Big query.
+
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete
 
     .. seealso::
@@ -1799,6 +1801,7 @@ class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
 class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator is used to create new dataset for your Project in BigQuery.
+
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
 
     .. seealso::
@@ -2272,7 +2275,7 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
 
 class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
     """
-    Deletes BigQuery tables
+    Deletes BigQuery tables.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -2331,7 +2334,7 @@ class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
 
 class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
     """
-    Upsert BigQuery table
+    Upsert BigQuery table.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -2513,6 +2516,7 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
 class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
     """
     Executes a BigQuery job. Waits for the job to complete and returns job id.
+
     This operator work in the following way:
 
     - it calculates a unique hash of the job using job's configuration or uuid if ``force_rerun`` is True

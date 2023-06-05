@@ -64,7 +64,7 @@ class ADLSDeleteOperator(BaseOperator):
 
 class ADLSListOperator(BaseOperator):
     """
-    List all files from the specified path
+    List all files from the specified path.
 
     This operator returns a python list with the names of files which can be used by
      `xcom` in the downstream tasks.

@@ -30,6 +30,7 @@ import json
 import logging
 import os
 import uuid
+import warnings
 from copy import deepcopy
 from functools import cached_property, wraps
 from os import PathLike
@@ -53,6 +54,7 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowNotFoundException,
+    AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
@@ -836,7 +838,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             corresponding value. If a custom waiter has such keys to be expanded, they need to be provided
             here.
         :param deferrable: If True, the waiter is going to be an async custom waiter.
-
+            An async client must be provided in that case.
+        :param client: The client to use for the waiter's operations
         """
         from airflow.providers.amazon.aws.waiters.base_waiter import BaseBotoWaiter
 
@@ -965,6 +968,15 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
     provided in Airflow connection
     """
 
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "airflow.providers.amazon.aws.hook.base_aws.BaseAsyncSessionFactory has been deprecated and "
+            "will be removed in future",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
     async def get_role_credentials(self) -> dict:
         """Get the role_arn, method credentials from connection details and get the role credentials detail"""
         async with self._basic_session.create_client("sts", region_name=self.region_name) as client:
@@ -1057,6 +1069,15 @@ class AwsBaseAsyncHook(AwsBaseHook):
     :param resource_type: boto3.resource resource_type. Eg 'dynamodb' etc
     :param config: Configuration for botocore client.
     """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "airflow.providers.amazon.aws.hook.base_aws.AwsBaseAsyncHook has been deprecated and "
+            "will be removed in future",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
 
     def get_async_session(self) -> AioSession:
         """Get the underlying aiobotocore.session.AioSession(...)."""

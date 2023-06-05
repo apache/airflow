@@ -171,7 +171,7 @@ class TestKubernetesPodOperator:
         remote_pod_mock.status.phase = "Succeeded"
         self.await_pod_mock.return_value = remote_pod_mock
         operator.execute(context=context)
-        return self.await_start_mock.call_args[1]["pod"]
+        return self.await_start_mock.call_args.kwargs["pod"]
 
     def sanitize_for_serialization(self, obj):
         return ApiClient().sanitize_for_serialization(obj)

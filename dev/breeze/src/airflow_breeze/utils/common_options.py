@@ -213,11 +213,6 @@ option_github_token = click.option(
     help="The token used to authenticate to GitHub.",
     envvar="GITHUB_TOKEN",
 )
-option_github_username = click.option(
-    "--github-username",
-    help="The user name used to authenticate to GitHub.",
-    envvar="GITHUB_USERNAME",
-)
 option_image_tag_for_pulling = click.option(
     "-t",
     "--image-tag",

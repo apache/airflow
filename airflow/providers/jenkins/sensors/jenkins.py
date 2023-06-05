@@ -28,9 +28,9 @@ if TYPE_CHECKING:
 
 
 class JenkinsBuildSensor(BaseSensorOperator):
-    """
-    Monitor a jenkins job and pass when it is finished building. This is regardless of the build outcome.
-    This sensor depend on python-jenkins library,
+    """Monitor a Jenkins job and pass when it is finished building.
+
+    This is regardless of the build outcome.
 
     :param jenkins_connection_id: The jenkins connection to use for this job
     :param job_name: The name of the job to check

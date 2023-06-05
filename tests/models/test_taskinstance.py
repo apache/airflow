@@ -2597,7 +2597,7 @@ class TestTaskInstance:
         ti1.state = State.FAILED
         ti1.handle_failure("test failure handling")
 
-        context_arg_1 = mock_on_failure_1.call_args[0][0]
+        context_arg_1 = mock_on_failure_1.call_args.args[0]
         assert context_arg_1 and "task_instance" in context_arg_1
         mock_on_retry_1.assert_not_called()
 
@@ -2618,7 +2618,7 @@ class TestTaskInstance:
 
         mock_on_failure_2.assert_not_called()
 
-        context_arg_2 = mock_on_retry_2.call_args[0][0]
+        context_arg_2 = mock_on_retry_2.call_args.args[0]
         assert context_arg_2 and "task_instance" in context_arg_2
 
         # test the scenario where normally we would retry but have been asked to fail
@@ -2637,7 +2637,7 @@ class TestTaskInstance:
         ti3.state = State.FAILED
         ti3.handle_failure("test force_fail handling", force_fail=True)
 
-        context_arg_3 = mock_on_failure_3.call_args[0][0]
+        context_arg_3 = mock_on_failure_3.call_args.args[0]
         assert context_arg_3 and "task_instance" in context_arg_3
         mock_on_retry_3.assert_not_called()
 
@@ -2690,6 +2690,9 @@ class TestTaskInstance:
 
         Stats_incr.assert_any_call("ti_failures", tags=expected_stats_tags)
         Stats_incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
+        Stats_incr.assert_any_call(
+            "operator_failures", tags={**expected_stats_tags, "operator": "EmptyOperator"}
+        )
 
     def test_handle_failure_task_undefined(self, create_task_instance):
         """
@@ -2807,8 +2810,8 @@ class TestTaskInstance:
         with patch.object(TI, "log") as log, pytest.raises(AirflowException):
             ti.run()
         log.error.assert_called_once()
-        assert log.error.call_args[0] == ("Task failed with exception",)
-        exc_info = log.error.call_args[1]["exc_info"]
+        assert log.error.call_args.args == ("Task failed with exception",)
+        exc_info = log.error.call_args.kwargs["exc_info"]
         filename = exc_info[2].tb_frame.f_code.co_filename
         formatted_exc = format_exception(*exc_info)
         assert sys.modules[PythonOperator.__module__].__file__ == filename, "".join(formatted_exc)
@@ -2853,9 +2856,13 @@ class TestTaskInstance:
         session.commit()
         ti._run_raw_task()
         ti.refresh_from_db()
-        stats_mock.assert_called_with(
+        stats_mock.assert_any_call(
             f"ti.finish.{ti.dag_id}.{ti.task_id}.{ti.state}",
             tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
+        )
+        stats_mock.assert_any_call(
+            "ti.finish",
+            tags={"dag_id": ti.dag_id, "task_id": ti.task_id, "state": ti.state},
         )
         for state in State.task_states:
             assert (
@@ -2866,11 +2873,20 @@ class TestTaskInstance:
                 )
                 in stats_mock.mock_calls
             )
+            assert (
+                call(
+                    "ti.finish",
+                    count=0,
+                    tags={"dag_id": ti.dag_id, "task_id": ti.task_id, "state": str(state)},
+                )
+                in stats_mock.mock_calls
+            )
         assert (
             call(f"ti.start.{ti.dag_id}.{ti.task_id}", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
             in stats_mock.mock_calls
         )
-        assert stats_mock.call_count == len(State.task_states) + 4
+        assert call("ti.start", tags={"dag_id": ti.dag_id, "task_id": ti.task_id}) in stats_mock.mock_calls
+        assert stats_mock.call_count == (2 * len(State.task_states)) + 7
 
     def test_command_as_list(self, create_task_instance):
         ti = create_task_instance()
@@ -3105,6 +3121,8 @@ class TestTaskInstance:
     def test_clear_db_references(self, session, create_task_instance):
         tables = [TaskFail, RenderedTaskInstanceFields, XCom]
         ti = create_task_instance()
+        ti.note = "sample note"
+
         session.merge(ti)
         session.commit()
         for table in [TaskFail, RenderedTaskInstanceFields]:
@@ -3113,9 +3131,16 @@ class TestTaskInstance:
         session.commit()
         for table in tables:
             assert session.query(table).count() == 1
+
+        filter_kwargs = dict(dag_id=ti.dag_id, task_id=ti.task_id, run_id=ti.run_id, map_index=ti.map_index)
+        ti_note = session.query(TaskInstanceNote).filter_by(**filter_kwargs).one()
+        assert ti_note.content == "sample note"
+
         ti.clear_db_references(session)
         for table in tables:
             assert session.query(table).count() == 0
+
+        assert session.query(TaskInstanceNote).filter_by(**filter_kwargs).one_or_none() is None
 
 
 @pytest.mark.parametrize("pool_override", [None, "test_pool2"])

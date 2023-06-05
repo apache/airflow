@@ -26,7 +26,7 @@ from airflow.providers.http.hooks.http import HttpHook
 
 class AirbyteHook(HttpHook):
     """
-    Hook for Airbyte API
+    Hook for Airbyte API.
 
     :param airbyte_conn_id: Optional. The name of the Airflow connection to get
         connection information for Airbyte. Defaults to "airbyte_default".
@@ -109,7 +109,7 @@ class AirbyteHook(HttpHook):
 
     def cancel_job(self, job_id: int) -> Any:
         """
-        Cancel the job when task is cancelled
+        Cancel the job when task is cancelled.
 
         :param job_id: Required. Id of the Airbyte job
         """
@@ -120,7 +120,7 @@ class AirbyteHook(HttpHook):
         )
 
     def test_connection(self):
-        """Tests the Airbyte connection by hitting the health API"""
+        """Tests the Airbyte connection by hitting the health API."""
         self.method = "GET"
         try:
             res = self.run(

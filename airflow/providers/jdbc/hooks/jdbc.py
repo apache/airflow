@@ -26,8 +26,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class JdbcHook(DbApiHook):
-    """
-    General hook for jdbc db access.
+    """General hook for JDBC access.
 
     JDBC URL, username and password will be taken from the predefined connection.
     Note that the whole JDBC URL must be specified in the "host" field in the DB.
@@ -42,7 +41,7 @@ class JdbcHook(DbApiHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Get connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -54,14 +53,18 @@ class JdbcHook(DbApiHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Get custom field behaviour."""
         return {
             "hidden_fields": ["port", "schema", "extra"],
             "relabeling": {"host": "Connection URL"},
         }
 
     def _get_field(self, extras: dict, field_name: str):
-        """Get field from extra, first checking short name, then for backcompat we check for prefixed name."""
+        """Get field from extra.
+
+        This first checks the short name, then check for prefixed name for
+        backward compatibility.
+        """
         backcompat_prefix = "extra__jdbc__"
         if field_name.startswith("extra__"):
             raise ValueError(
@@ -91,8 +94,7 @@ class JdbcHook(DbApiHook):
         return conn
 
     def set_autocommit(self, conn: jaydebeapi.Connection, autocommit: bool) -> None:
-        """
-        Enable or disable autocommit for the given connection.
+        """Set autocommit for the given connection.
 
         :param conn: The connection.
         :param autocommit: The connection's autocommit setting.
@@ -100,12 +102,11 @@ class JdbcHook(DbApiHook):
         conn.jconn.setAutoCommit(autocommit)
 
     def get_autocommit(self, conn: jaydebeapi.Connection) -> bool:
-        """
-        Get autocommit setting for the provided connection.
-        Return True if conn.autocommit is set to True.
-        Return False if conn.autocommit is not set or set to False
+        """Get autocommit setting for the provided connection.
 
-        :param conn: The connection.
-        :return: connection autocommit setting.
+        :param conn: Connection to get autocommit setting from.
+        :return: connection autocommit setting. True if ``autocommit`` is set
+            to True on the connection. False if it is either not set, set to
+            False, or the connection does not support auto-commit.
         """
         return conn.jconn.getAutoCommit()

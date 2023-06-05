@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Implements Docker operator"""
+"""Implements Docker operator."""
 from __future__ import annotations
 
 import ast
@@ -54,8 +54,7 @@ def stringify(line: str | bytes):
 
 
 class DockerOperator(BaseOperator):
-    """
-    Execute a command inside a docker container.
+    """Execute a command inside a docker container.
 
     By default, a temporary directory is
     created on the host and mounted into a container to allow storing files
@@ -330,7 +329,7 @@ class DockerOperator(BaseOperator):
         return self.hook.api_client
 
     def _run_image(self) -> list[str] | str | None:
-        """Run a Docker container with the provided image"""
+        """Run a Docker container with the provided image."""
         self.log.info("Starting docker container from image %s", self.image)
         if self.mount_tmp_dir:
             with TemporaryDirectory(prefix="airflowtmp", dir=self.host_tmp_dir) as host_tmp_dir_generated:
@@ -432,11 +431,10 @@ class DockerOperator(BaseOperator):
                 self.cli.remove_container(self.container["Id"], force=True)
 
     def _attempt_to_retrieve_result(self):
-        """
-        Attempts to pull the result of the function from the expected file using docker's
-        get_archive function.
-        If the file is not yet ready, returns None
-        :return:
+        """Attempt to pull the result from the expected file.
+
+        This uses Docker's ``get_archive`` function. If the file is not yet
+        ready, *None* is returned.
         """
 
         def copy_from_docker(container_id, src):
@@ -479,8 +477,10 @@ class DockerOperator(BaseOperator):
 
     @staticmethod
     def format_command(command: list[str] | str | None) -> list[str] | str | None:
-        """
-        Retrieve command(s). if command string starts with [, it returns the command list)
+        """Retrieve command(s).
+
+        If command string starts with ``[``, the string is treated as a Python
+        literal and parsed into a list of commands.
 
         :param command: Docker command or entrypoint
 
@@ -500,11 +500,10 @@ class DockerOperator(BaseOperator):
 
     @staticmethod
     def unpack_environment_variables(env_str: str) -> dict:
-        r"""
-        Parse environment variables from the string
+        r"""Parse environment variables from the string
 
-        :param env_str: environment variables in key=value format separated by '\n'
-
+        :param env_str: environment variables in the ``{key}={value}`` format,
+            separated by a ``\n`` (newline)
         :return: dictionary containing parsed environment variables
         """
         return dotenv_values(stream=StringIO(env_str))

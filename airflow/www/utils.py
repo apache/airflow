@@ -36,7 +36,7 @@ from markupsafe import Markup
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import func, types
+from sqlalchemy import delete, func, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow.exceptions import RemovedInAirflow3Warning
@@ -821,13 +821,13 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
     """
 
     def delete(self, item: Model, raise_exception: bool = False) -> bool:
-        self.session.query(TaskInstance).where(TaskInstance.run_id == item.run_id).delete()
+        self.session.execute(delete(TaskInstance).where(TaskInstance.run_id == item.run_id))
         return super().delete(item, raise_exception=raise_exception)
 
     def delete_all(self, items: list[Model]) -> bool:
-        self.session.query(TaskInstance).where(
-            TaskInstance.run_id.in_(item.run_id for item in items)
-        ).delete()
+        self.session.execute(
+            delete(TaskInstance).where(TaskInstance.run_id.in_(item.run_id for item in items))
+        )
         return super().delete_all(items)
 
 

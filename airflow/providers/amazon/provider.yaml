@@ -505,6 +505,24 @@ hooks:
     python-modules:
       - airflow.providers.amazon.aws.hooks.appflow
 
+triggers:
+  - integration-name: AWS Batch
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.batch
+  - integration-name: Amazon EC2
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.ec2
+  - integration-name: Amazon Redshift
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.redshift_cluster
+  - integration-name: Amazon SageMaker
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.sagemaker
+  - integration-name: AWS Glue
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.glue
+      - airflow.providers.amazon.aws.triggers.glue_crawler
+
 transfers:
   - source-integration-name: Amazon DynamoDB
     target-integration-name: Amazon Simple Storage Service (S3)
