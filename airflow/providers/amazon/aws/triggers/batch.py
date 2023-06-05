@@ -127,7 +127,7 @@ class BatchSensorTrigger(BaseTrigger):
         job_id: str,
         region_name: str | None,
         aws_conn_id: str | None = "aws_default",
-        poke_interval: float = 5,
+        poke_interval: int = 5,
         max_retries: int = 5,
     ):
         super().__init__()

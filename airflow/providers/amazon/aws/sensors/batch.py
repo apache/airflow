@@ -57,7 +57,7 @@ class BatchSensor(BaseSensorOperator):
         aws_conn_id: str = "aws_default",
         region_name: str | None = None,
         deferrable: bool = False,
-        poke_interval: float = 5,
+        poke_interval: int = 5,
         max_retries: int = 5,
         **kwargs,
     ):
@@ -106,7 +106,7 @@ class BatchSensor(BaseSensorOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.
         """
-        if "status" in event and event["status"] == "error":
+        if "status" in event and event["status"] == "failure":
             raise AirflowException(event["message"])
         self.log.info(event["message"])
 
