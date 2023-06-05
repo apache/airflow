@@ -322,7 +322,6 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
                                 "message": operation.error.message,
                             }
                         )
-                        return
                     yield TriggerEvent(
                         {
                             "operation_name": operation.name,
@@ -331,7 +330,6 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
                             "message": "Operation is successfully ended.",
                         }
                     )
-                    return
                 else:
                     self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
                     await asyncio.sleep(self.polling_interval_seconds)

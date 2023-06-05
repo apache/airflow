@@ -98,8 +98,8 @@ hooks:
 
 triggers:
   - integration-name: Databricks
-    class-names:
-      - airflow.providers.databricks.triggers.databricks.DatabricksExecutionTrigger
+    python-modules:
+      - airflow.providers.databricks.triggers.databricks
 
 sensors:
   - integration-name: Databricks

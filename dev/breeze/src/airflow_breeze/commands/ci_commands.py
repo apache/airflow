@@ -298,7 +298,7 @@ class WorkflowInfo(NamedTuple):
         return RUNS_ON_SELF_HOSTED_RUNNER
 
     def in_workflow_build(self) -> str:
-        if self.event_name == "push" or self.head_repo == "apache/airflow":
+        if self.event_name == "push" or self.head_repo == self.target_repo:
             return "true"
         return "false"
 

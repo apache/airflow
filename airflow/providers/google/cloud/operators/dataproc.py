@@ -2030,6 +2030,14 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
 
         self.job_id = new_job_id
         if self.deferrable:
+            job = self.hook.get_job(project_id=self.project_id, region=self.region, job_id=self.job_id)
+            state = job.status.state
+            if state == JobStatus.State.DONE:
+                return self.job_id
+            elif state == JobStatus.State.ERROR:
+                raise AirflowException(f"Job failed:\n{job}")
+            elif state == JobStatus.State.CANCELLED:
+                raise AirflowException(f"Job was cancelled:\n{job}")
             self.defer(
                 trigger=DataprocSubmitTrigger(
                     job_id=self.job_id,

@@ -29,7 +29,7 @@ from airflow.providers.snowflake.utils.common import enclose_param
 
 class S3ToSnowflakeOperator(BaseOperator):
     """
-    Executes an COPY command to load files from s3 to Snowflake
+    Executes an COPY command to load files from s3 to Snowflake.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

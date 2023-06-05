@@ -218,6 +218,14 @@ hooks:
     python-modules:
       - airflow.providers.microsoft.azure.hooks.synapse
 
+triggers:
+  - integration-name: Microsoft Azure Data Factory
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.data_factory
+  - integration-name: Microsoft Azure Blob Storage
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.wasb
+
 transfers:
   - source-integration-name: Local
     target-integration-name: Microsoft Azure Data Lake Storage
