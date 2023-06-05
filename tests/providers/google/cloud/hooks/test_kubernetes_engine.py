@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 from asyncio import Future
 from unittest import mock
 
