@@ -26,17 +26,15 @@ A client for AWS Batch services.
 """
 from __future__ import annotations
 
-import asyncio
 from random import uniform
 from time import sleep
-from typing import Any
 
 import botocore.client
 import botocore.exceptions
 import botocore.waiter
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseAsyncHook, AwsBaseHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.typing_compat import Protocol, runtime_checkable
 
 
@@ -579,77 +577,3 @@ class BatchClientHook(AwsBaseHook):
         delay = 1 + pow(tries * 0.6, 2)
         delay = min(max_interval, delay)
         return uniform(delay / 3, delay)
-
-
-class BatchClientAsyncHook(BatchClientHook, AwsBaseAsyncHook):
-    """
-    Async client for AWS Batch services.
-
-    :param max_retries: exponential back-off retries, 4200 = 48 hours;
-        polling is only used when waiters is None
-    :param status_retries: number of HTTP retries to get job status, 10;
-        polling is only used when waiters is None
-    """
-
-    def __init__(self, job_id: str | None, waiters: Any = None, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.job_id = job_id
-        self.waiters = waiters
-
-    @staticmethod
-    async def delay(delay: int | float | None = None) -> None:  # type: ignore[override]
-        """
-        Pause execution for ``delay`` seconds.
-
-        :param delay: a delay to pause execution using ``time.sleep(delay)``;
-            a small 1 second jitter is applied to the delay.
-
-        .. note::
-            This method uses a default random delay, i.e.
-            ``random.sample()``;
-            using a random interval helps to avoid AWS API throttle limits
-            when many concurrent tasks request job-descriptions.
-        """
-        if delay is None:
-            delay = uniform(BatchClientAsyncHook.DEFAULT_DELAY_MIN, BatchClientAsyncHook.DEFAULT_DELAY_MAX)
-        else:
-            delay = BatchClientAsyncHook.add_jitter(delay)
-        await asyncio.sleep(delay)
-
-    async def get_job_description(self, job_id: str) -> dict[str, str]:  # type: ignore[override]
-        """
-        Get job description (using status_retries).
-
-        :param job_id: a Batch job ID
-        :raises: AirflowException
-        """
-        retries = 0
-        async with await self.get_client_async() as client:
-            while True:
-                try:
-                    response = await client.describe_jobs(jobs=[job_id])
-                    return self.parse_job_description(job_id, response)
-
-                except botocore.exceptions.ClientError as err:
-                    error = err.response.get("Error", {})
-                    if error.get("Code") == "TooManyRequestsException":
-                        pass  # allow it to retry, if possible
-                    else:
-                        raise AirflowException(f"AWS Batch job ({job_id}) description error: {err}")
-
-                retries += 1
-                if retries >= self.status_retries:
-                    raise AirflowException(
-                        f"AWS Batch job ({job_id}) description error: exceeded status_retries "
-                        f"({self.status_retries})"
-                    )
-
-                pause = self.exponential_delay(retries)
-                self.log.info(
-                    "AWS Batch job (%s) description retry (%d of %d) in the next %.2f seconds",
-                    job_id,
-                    retries,
-                    self.status_retries,
-                    pause,
-                )
-                await self.delay(pause)
