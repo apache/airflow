@@ -384,6 +384,7 @@ class S3Hook(AwsBaseHook):
         from_datetime: datetime | None = None,
         to_datetime: datetime | None = None,
         object_filter: Callable[..., list] | None = None,
+        apply_wildcard: bool = False,
     ) -> list:
         """
         Lists keys in a bucket under prefix and not containing delimiter
@@ -402,6 +403,7 @@ class S3Hook(AwsBaseHook):
         :param to_datetime: should return only keys with LastModified attr less than this to_datetime
         :param object_filter: Function that receives the list of the S3 objects, from_datetime and
             to_datetime and returns the List of matched key.
+        :param apply_wildcard: whether to treat '*' as a wildcard or a plain symbol in the prefix.
 
         **Example**: Returns the list of S3 object with LastModified attr greater than from_datetime
              and less than to_datetime:
@@ -425,7 +427,9 @@ class S3Hook(AwsBaseHook):
 
         :return: a list of matched keys
         """
-        prefix = prefix or ""
+        _original_prefix = prefix or ""
+        _apply_wildcard = bool(apply_wildcard and "*" in _original_prefix)
+        _prefix = _original_prefix.split("*", 1)[0] if _apply_wildcard else _original_prefix
         delimiter = delimiter or ""
         start_after_key = start_after_key or ""
         self.object_filter_usr = object_filter
@@ -437,7 +441,7 @@ class S3Hook(AwsBaseHook):
         paginator = self.get_conn().get_paginator("list_objects_v2")
         response = paginator.paginate(
             Bucket=bucket_name,
-            Prefix=prefix,
+            Prefix=_prefix,
             Delimiter=delimiter,
             PaginationConfig=config,
             StartAfter=start_after_key,
@@ -446,7 +450,10 @@ class S3Hook(AwsBaseHook):
         keys: list[str] = []
         for page in response:
             if "Contents" in page:
-                keys.extend(iter(page["Contents"]))
+                new_keys = page["Contents"]
+                if _apply_wildcard:
+                    new_keys = (k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix))
+                keys.extend(new_keys)
         if self.object_filter_usr is not None:
             return self.object_filter_usr(keys, from_datetime, to_datetime)
 
