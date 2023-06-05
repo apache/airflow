@@ -53,6 +53,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
 DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
+DEFAULT_DEFERRABLE: bool = conf.getboolean("operators", "default_deferrable", fallback=False)
 DEFAULT_POOL_SLOTS: int = 1
 DEFAULT_PRIORITY_WEIGHT: int = 1
 DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
@@ -110,6 +111,8 @@ class AbstractOperator(Templater, DAGNode):
     _is_setup = False
     _is_teardown = False
     _on_failure_fail_dagrun = False
+
+    deferrable: bool
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
         (

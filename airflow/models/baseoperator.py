@@ -57,6 +57,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagInvalidTriggerRule, RemovedInAirflow3Warning, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
+    DEFAULT_DEFERRABLE,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
@@ -189,6 +190,7 @@ class _PartialDescriptor:
 
 _PARTIAL_DEFAULTS = {
     "owner": DEFAULT_OWNER,
+    "deferrable": DEFAULT_DEFERRABLE,
     "trigger_rule": DEFAULT_TRIGGER_RULE,
     "depends_on_past": False,
     "ignore_first_depends_on_past": DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
@@ -217,6 +219,7 @@ def partial(
     start_date: datetime | ArgNotSet = NOTSET,
     end_date: datetime | ArgNotSet = NOTSET,
     owner: str | ArgNotSet = NOTSET,
+    deferrable: bool | ArgNotSet = NOTSET,
     email: None | str | Iterable[str] | ArgNotSet = NOTSET,
     params: collections.abc.MutableMapping | None = None,
     resources: dict[str, Any] | None | ArgNotSet = NOTSET,
@@ -483,6 +486,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param task_id: a unique, meaningful id for the task
     :param owner: the owner of the task. Using a meaningful description
         (e.g. user/person/team/role name) to clarify ownership is recommended.
+    :param deferrable: whether to run this task in deferrable mode.
     :param email: the 'to' email address(es) used in email alerts. This can be a
         single email or multiple ones. Multiple addresses can be specified as a
         comma or semicolon separated string or by passing a list of strings.
@@ -695,6 +699,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "on_success_callback",
         "on_retry_callback",
         "do_xcom_push",
+        "deferrable",
     }
 
     # Defines if the operator supports lineage without manual definitions
@@ -771,6 +776,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         doc_json: str | None = None,
         doc_yaml: str | None = None,
         doc_rst: str | None = None,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -809,6 +815,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
+        self.deferrable = deferrable
 
         if execution_timeout is not None and not isinstance(execution_timeout, timedelta):
             raise ValueError(

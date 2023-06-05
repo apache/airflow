@@ -33,6 +33,7 @@ from airflow import settings
 from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
+    DEFAULT_DEFERRABLE,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
@@ -397,6 +398,10 @@ class MappedOperator(AbstractOperator):
     @property
     def owner(self) -> str:  # type: ignore[override]
         return self.partial_kwargs.get("owner", DEFAULT_OWNER)
+
+    @property
+    def deferrable(self) -> str:  # type: ignore[override]
+        return self.partial_kwargs.get("deferrable", DEFAULT_DEFERRABLE)
 
     @property
     def email(self) -> None | str | Iterable[str]:
