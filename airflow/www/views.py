@@ -1402,10 +1402,11 @@ class Airflow(AirflowBaseView):
         try:
             ti.get_rendered_template_fields(session=session)
         except AirflowException as e:
-            msg = f"Error rendering template: {escape(e)}"
-            if e.__cause__:
-                msg += Markup("<br><br>OriginalError: {}").format(escape(e.__cause__))
-            flash(msg, "error")
+            if not e.__cause__:
+                flash(f"Error rendering template: {e}", "error")
+            else:
+                msg = Markup("Error rendering template: {0}<br><br>OriginalError: {0.__cause__}").format(e)
+                flash(msg, "error")
         except Exception as e:
             flash(f"Error rendering template: {e}", "error")
 
@@ -1496,10 +1497,11 @@ class Airflow(AirflowBaseView):
         try:
             pod_spec = ti.get_rendered_k8s_spec(session=session)
         except AirflowException as e:
-            msg = f"Error rendering Kubernetes POD Spec: {escape(e)}"
-            if e.__cause__:
-                msg += Markup("<br><br>OriginalError: {}").format(escape(e.__cause__))
-            flash(msg, "error")
+            if not e.__cause__:
+                flash(f"Error rendering Kubernetes POD Spec: {e}", "error")
+            else:
+                tmp = Markup("Error rendering Kubernetes POD Spec: {0}<br><br>Original error: {0.__cause__}")
+                flash(tmp.format(e), "error")
         except Exception as e:
             flash(f"Error rendering Kubernetes Pod Spec: {e}", "error")
         title = "Rendered K8s Pod Spec"
