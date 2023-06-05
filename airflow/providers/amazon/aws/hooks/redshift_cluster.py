@@ -54,7 +54,7 @@ class RedshiftHook(AwsBaseHook):
         params: dict[str, Any],
     ) -> dict[str, Any]:
         """
-        Creates a new cluster with the specified parameters
+        Creates a new cluster with the specified parameters.
 
         .. seealso::
             - :external+boto3:py:meth:`Redshift.Client.create_cluster`
@@ -85,7 +85,7 @@ class RedshiftHook(AwsBaseHook):
     # TODO: Wrap create_cluster_snapshot
     def cluster_status(self, cluster_identifier: str) -> str:
         """
-        Return status of a cluster
+        Return status of a cluster.
 
         .. seealso::
             - :external+boto3:py:meth:`Redshift.Client.describe_clusters`
@@ -107,7 +107,7 @@ class RedshiftHook(AwsBaseHook):
         final_cluster_snapshot_identifier: str | None = None,
     ):
         """
-        Delete a cluster and optionally create a snapshot
+        Delete a cluster and optionally create a snapshot.
 
         .. seealso::
             - :external+boto3:py:meth:`Redshift.Client.delete_cluster`
@@ -127,7 +127,7 @@ class RedshiftHook(AwsBaseHook):
 
     def describe_cluster_snapshots(self, cluster_identifier: str) -> list[str] | None:
         """
-        Gets a list of snapshots for a cluster
+        Gets a list of snapshots for a cluster.
 
         .. seealso::
             - :external+boto3:py:meth:`Redshift.Client.describe_cluster_snapshots`
@@ -144,7 +144,7 @@ class RedshiftHook(AwsBaseHook):
 
     def restore_from_cluster_snapshot(self, cluster_identifier: str, snapshot_identifier: str) -> str:
         """
-        Restores a cluster from its snapshot
+        Restores a cluster from its snapshot.
 
         .. seealso::
             - :external+boto3:py:meth:`Redshift.Client.restore_from_cluster_snapshot`
@@ -165,7 +165,7 @@ class RedshiftHook(AwsBaseHook):
         tags: list[Any] | None = None,
     ) -> str:
         """
-        Creates a snapshot of a cluster
+        Creates a snapshot of a cluster.
 
         .. seealso::
             - :external+boto3:py:meth:`Redshift.Client.create_cluster_snapshot`
@@ -188,7 +188,7 @@ class RedshiftHook(AwsBaseHook):
 
     def get_cluster_snapshot_status(self, snapshot_identifier: str):
         """
-        Return Redshift cluster snapshot status. If cluster snapshot not found return ``None``
+        Return Redshift cluster snapshot status. If cluster snapshot not found return ``None``.
 
         :param snapshot_identifier: A unique identifier for the snapshot that you are requesting
         """
@@ -204,7 +204,7 @@ class RedshiftHook(AwsBaseHook):
 
 
 class RedshiftAsyncHook(AwsBaseAsyncHook):
-    """Interact with AWS Redshift using aiobotocore library"""
+    """Interact with AWS Redshift using aiobotocore library."""
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
@@ -219,7 +219,7 @@ class RedshiftAsyncHook(AwsBaseAsyncHook):
     async def cluster_status(self, cluster_identifier: str, delete_operation: bool = False) -> dict[str, Any]:
         """
         Connects to the AWS redshift cluster via aiobotocore and get the status
-        and returns the status of the cluster based on the cluster_identifier passed
+        and returns the status of the cluster based on the cluster_identifier passed.
 
         :param cluster_identifier: unique identifier of a cluster
         :param delete_operation: whether the method has been called as part of delete cluster operation
@@ -239,7 +239,7 @@ class RedshiftAsyncHook(AwsBaseAsyncHook):
     async def pause_cluster(self, cluster_identifier: str, poll_interval: float = 5.0) -> dict[str, Any]:
         """
         Connects to the AWS redshift cluster via aiobotocore and
-        pause the cluster based on the cluster_identifier passed
+        pause the cluster based on the cluster_identifier passed.
 
         :param cluster_identifier: unique identifier of a cluster
         :param poll_interval: polling period in seconds to check for the status
@@ -268,7 +268,7 @@ class RedshiftAsyncHook(AwsBaseAsyncHook):
     ) -> dict[str, Any]:
         """
         Connects to the AWS redshift cluster via aiobotocore and
-        resume the cluster for the cluster_identifier passed
+        resume the cluster for the cluster_identifier passed.
 
         :param cluster_identifier: unique identifier of a cluster
         :param polling_period_seconds: polling period in seconds to check for the status
@@ -298,7 +298,7 @@ class RedshiftAsyncHook(AwsBaseAsyncHook):
         delete_operation: bool = False,
     ) -> dict[str, Any]:
         """
-        check for expected Redshift cluster state
+        check for expected Redshift cluster state.
 
         :param cluster_identifier: unique identifier of a cluster
         :param expected_state: expected_state example("available", "pausing", "paused"")

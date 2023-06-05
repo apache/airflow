@@ -414,7 +414,7 @@ class EmrEksCreateClusterOperator(BaseOperator):
         return EmrContainerHook(self.aws_conn_id)
 
     def execute(self, context: Context) -> str | None:
-        """Create EMR on EKS virtual Cluster"""
+        """Create EMR on EKS virtual Cluster."""
         self.virtual_cluster_id = self.hook.create_emr_on_eks_cluster(
             self.virtual_cluster_name, self.eks_cluster_name, self.eks_namespace, self.tags
         )
@@ -513,7 +513,7 @@ class EmrContainerOperator(BaseOperator):
         )
 
     def execute(self, context: Context) -> str | None:
-        """Run job on EMR Containers"""
+        """Run job on EMR Containers."""
         self.job_id = self.hook.submit_job(
             self.name,
             self.execution_role_arn,
@@ -545,7 +545,7 @@ class EmrContainerOperator(BaseOperator):
         return self.job_id
 
     def on_kill(self) -> None:
-        """Cancel the submitted job run"""
+        """Cancel the submitted job run."""
         if self.job_id:
             self.log.info("Stopping job run with jobId - %s", self.job_id)
             response = self.hook.stop_query(self.job_id)
@@ -838,7 +838,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
 
 class EmrServerlessCreateApplicationOperator(BaseOperator):
     """
-    Operator to create Serverless EMR Application
+    Operator to create Serverless EMR Application.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1056,7 +1056,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         return self.job_id
 
     def on_kill(self) -> None:
-        """Cancel the submitted job run"""
+        """Cancel the submitted job run."""
         if self.job_id:
             self.log.info("Stopping job run with jobId - %s", self.job_id)
             response = self.hook.conn.cancel_job_run(applicationId=self.application_id, jobRunId=self.job_id)
@@ -1089,7 +1089,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
 class EmrServerlessStopApplicationOperator(BaseOperator):
     """
-    Operator to stop an EMR Serverless application
+    Operator to stop an EMR Serverless application.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1167,7 +1167,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
 
 class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperator):
     """
-    Operator to delete EMR Serverless application
+    Operator to delete EMR Serverless application.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

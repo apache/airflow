@@ -91,7 +91,7 @@ class AthenaOperator(BaseOperator):
         return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time, log_query=self.log_query)
 
     def execute(self, context: Context) -> str | None:
-        """Run Presto Query on Athena"""
+        """Run Presto Query on Athena."""
         self.query_execution_context["Database"] = self.database
         self.result_configuration["OutputLocation"] = self.output_location
         self.query_execution_id = self.hook.run_query(
@@ -121,7 +121,7 @@ class AthenaOperator(BaseOperator):
         return self.query_execution_id
 
     def on_kill(self) -> None:
-        """Cancel the submitted athena query"""
+        """Cancel the submitted athena query."""
         if self.query_execution_id:
             self.log.info("Received a kill signal.")
             response = self.hook.stop_query(self.query_execution_id)

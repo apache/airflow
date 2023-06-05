@@ -93,7 +93,7 @@ class MongoToS3Operator(BaseOperator):
         self.compression = compression
 
     def execute(self, context: Context):
-        """Is written to depend on transform method"""
+        """Is written to depend on transform method."""
         s3_conn = S3Hook(self.aws_conn_id)
 
         # Grab collection and execute query according to whether or not it is a pipeline
@@ -129,7 +129,7 @@ class MongoToS3Operator(BaseOperator):
     def _stringify(iterable: Iterable, joinable: str = "\n") -> str:
         """
         Takes an iterable (pymongo Cursor or Array) containing dictionaries and
-        returns a stringified version using python join
+        returns a stringified version using python join.
         """
         return joinable.join([json.dumps(doc, default=json_util.default) for doc in iterable])
 
@@ -138,7 +138,7 @@ class MongoToS3Operator(BaseOperator):
         """This method is meant to be extended by child classes
         to perform transformations unique to those operators needs.
         Processes pyMongo cursor and returns an iterable with each element being
-        a JSON serializable dictionary
+        a JSON serializable dictionary.
 
         Base transform() assumes no processing is needed
         ie. docs is a pyMongo cursor of documents and cursor just

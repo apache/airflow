@@ -126,7 +126,7 @@ class BaseSessionFactory(LoggingMixin):
 
     @property
     def role_arn(self) -> str | None:
-        """Assume Role ARN from AWS Connection"""
+        """Assume Role ARN from AWS Connection."""
         return self.conn.role_arn
 
     def _apply_session_kwargs(self, session):
@@ -585,7 +585,8 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     def _get_config(self, config: Config | None = None) -> Config:
         """
         No AWS Operators use the config argument to this method.
-        Keep backward compatibility with other users who might use it
+
+        Keep backward compatibility with other users who might use it.
         """
         if config is None:
             config = deepcopy(self.config)
@@ -605,7 +606,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         config: Config | None = None,
         deferrable: bool = False,
     ) -> boto3.client:
-        """Get the underlying boto3 client using boto3 session"""
+        """Get the underlying boto3 client using boto3 session."""
         client_type = self.client_type
         session = self.get_session(region_name=region_name, deferrable=deferrable)
         if not isinstance(session, boto3.session.Session):
@@ -628,7 +629,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         region_name: str | None = None,
         config: Config | None = None,
     ) -> boto3.resource:
-        """Get the underlying boto3 resource using boto3 session"""
+        """Get the underlying boto3 resource using boto3 session."""
         resource_type = self.resource_type
         session = self.get_session(region_name=region_name)
         return session.resource(
@@ -641,7 +642,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     @cached_property
     def conn(self) -> BaseAwsConnection:
         """
-        Get the underlying boto3 client/resource (cached)
+        Get the underlying boto3 client/resource (cached).
 
         :return: boto3.client or boto3.resource
         """
@@ -683,7 +684,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     def get_conn(self) -> BaseAwsConnection:
         """
-        Get the underlying boto3 client/resource (cached)
+        Get the underlying boto3 client/resource (cached).
 
         Implemented so that caching works as intended. It exists for compatibility
         with subclasses that rely on a super().get_conn() method.
@@ -873,7 +874,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
 
     @staticmethod
     def _apply_parameters_value(config: dict, waiter_name: str, parameters: dict[str, str] | None) -> dict:
-        """Replaces potential jinja templates in acceptors definition"""
+        """Replaces potential jinja templates in acceptors definition."""
         # only process the waiter we're going to use to not raise errors for missing params for other waiters.
         acceptors = config["waiters"][waiter_name]["acceptors"]
         for a in acceptors:
@@ -927,7 +928,7 @@ class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):
 
 
 def resolve_session_factory() -> type[BaseSessionFactory]:
-    """Resolves custom SessionFactory class"""
+    """Resolves custom SessionFactory class."""
     clazz = conf.getimport("aws", "session_factory", fallback=None)
     if not clazz:
         return BaseSessionFactory
@@ -943,7 +944,7 @@ SessionFactory = resolve_session_factory()
 
 
 def _parse_s3_config(config_file_name: str, config_format: str | None = "boto", profile: str | None = None):
-    """For compatibility with airflow.contrib.hooks.aws_hook"""
+    """For compatibility with airflow.contrib.hooks.aws_hook."""
     from airflow.providers.amazon.aws.utils.connection_wrapper import _parse_s3_config
 
     return _parse_s3_config(
@@ -978,7 +979,9 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
         super().__init__(*args, **kwargs)
 
     async def get_role_credentials(self) -> dict:
-        """Get the role_arn, method credentials from connection details and get the role credentials detail"""
+        """Get the role_arn, method credentials from connection details and get the role credentials
+        detail.
+        """
         async with self._basic_session.create_client("sts", region_name=self.region_name) as client:
             response = await client.assume_role(
                 RoleArn=self.role_arn,
@@ -1086,7 +1089,7 @@ class AwsBaseAsyncHook(AwsBaseHook):
         ).create_session()
 
     async def get_client_async(self):
-        """Get the underlying aiobotocore client using aiobotocore session"""
+        """Get the underlying aiobotocore client using aiobotocore session."""
         return self.get_async_session().create_client(
             self.client_type,
             region_name=self.region_name,

@@ -77,7 +77,7 @@ class GlueCrawlerOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Executes AWS Glue Crawler from Airflow
+        Executes AWS Glue Crawler from Airflow.
 
         :return: the name of the current glue crawler.
         """
