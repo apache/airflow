@@ -43,8 +43,7 @@ class JobStatus(Enum):
 
 
 class FacebookAdsReportingHook(BaseHook):
-    """
-    Hook for the Facebook Ads API.
+    """Facebook Ads API.
 
     .. seealso::
         For more information on the Facebook Ads API, take a look at the API docs:
@@ -88,9 +87,10 @@ class FacebookAdsReportingHook(BaseHook):
 
     @cached_property
     def facebook_ads_config(self) -> dict:
-        """
-        Gets Facebook ads connection from meta db and sets
-        facebook_ads_config attribute with returned config file.
+        """Get the ``facebook_ads_config`` attribute.
+
+        This fetches Facebook Ads connection from meta database, and sets the
+        ``facebook_ads_config`` attribute with returned config file.
         """
         self.log.info("Fetching fb connection: %s", self.facebook_conn_id)
         conn = self.get_connection(self.facebook_conn_id)
@@ -107,7 +107,7 @@ class FacebookAdsReportingHook(BaseHook):
         fields: list[str],
         sleep_time: int = 5,
     ) -> list[AdsInsights] | dict[str, list[AdsInsights]]:
-        """Pulls data from the Facebook Ads API regarding Account ID with matching return type.
+        """Pull data from Facebook Ads API regarding Account ID with matching return type.
 
         The return type and value depends on the ``account_id`` configuration. If the
         configuration is a str representing a single Account ID, the return value is the
@@ -152,11 +152,10 @@ class FacebookAdsReportingHook(BaseHook):
         fields: list[str],
         sleep_time: int = 5,
     ) -> list[AdsInsights]:
-        """
-        Pulls data from the Facebook Ads API with given account_id.
+        """Pull data from the Facebook Ads API with given ``account_id``.
 
         :param account_id: Facebook Account ID that holds ads information
-                https://developers.facebook.com/docs/marketing-api/reference/ads-insights/
+            https://developers.facebook.com/docs/marketing-api/reference/ads-insights/
         :param api: FacebookAdsApi created in the hook
         :param fields: List of fields that is obtained from Facebook. Found in AdsInsights.Field class.
             https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0

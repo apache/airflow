@@ -1468,12 +1468,20 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
         actual_start_date = timezone.utcnow()
         Stats.incr(f"ti.start.{self.task.dag_id}.{self.task.task_id}", tags=self.stats_tags)
+        # Same metric with tagging
+        Stats.incr("ti.start", tags=self.stats_tags)
         # Initialize final state counters at zero
         for state in State.task_states:
             Stats.incr(
                 f"ti.finish.{self.task.dag_id}.{self.task.task_id}.{state}",
                 count=0,
                 tags=self.stats_tags,
+            )
+            # Same metric with tagging
+            Stats.incr(
+                "ti.finish",
+                count=0,
+                tags={**self.stats_tags, "state": str(state)},
             )
 
         self.task = self.task.prepare_for_execution()
@@ -1545,6 +1553,8 @@ class TaskInstance(Base, LoggingMixin):
             raise
         finally:
             Stats.incr(f"ti.finish.{self.dag_id}.{self.task_id}.{self.state}", tags=self.stats_tags)
+            # Same metric with tagging
+            Stats.incr("ti.finish", tags={**self.stats_tags, "state": str(self.state)})
 
         # Recording SKIPPED or SUCCESS
         self.clear_next_method_args()
@@ -1642,6 +1652,8 @@ class TaskInstance(Base, LoggingMixin):
             self.task.post_execute(context=context, result=result)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", tags=self.stats_tags)
+        # Same metric with tagging
+        Stats.incr("operator_successes", tags={**self.stats_tags, "task_type": self.task.task_type})
         Stats.incr("ti_successes", tags=self.stats_tags)
 
     def _run_finished_callback(
@@ -1911,6 +1923,8 @@ class TaskInstance(Base, LoggingMixin):
         self.set_duration()
 
         Stats.incr(f"operator_failures_{self.operator}", tags=self.stats_tags)
+        # Same metric with tagging
+        Stats.incr("operator_failures", tags={**self.stats_tags, "operator": self.operator})
         Stats.incr("ti_failures", tags=self.stats_tags)
 
         if not test_mode:

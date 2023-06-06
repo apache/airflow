@@ -42,7 +42,7 @@ class SecretsManagerHook(AwsBaseHook):
     def get_secret(self, secret_name: str) -> str | bytes:
         """
         Retrieve secret value from AWS Secrets Manager as a str or bytes
-        reflecting format it stored in the AWS Secrets Manager
+        reflecting format it stored in the AWS Secrets Manager.
 
         .. seealso::
             - :external+boto3:py:meth:`SecretsManager.Client.get_secret_value`
@@ -61,7 +61,7 @@ class SecretsManagerHook(AwsBaseHook):
 
     def get_secret_as_dict(self, secret_name: str) -> dict:
         """
-        Retrieve secret value from AWS Secrets Manager in a dict representation
+        Retrieve secret value from AWS Secrets Manager in a dict representation.
 
         :param secret_name: name of the secrets.
         :return: dict with the information about the secrets

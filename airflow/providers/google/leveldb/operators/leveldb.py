@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 class LevelDBOperator(BaseOperator):
     """
-    Execute command in LevelDB
+    Execute command in LevelDB.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -72,7 +72,7 @@ class LevelDBOperator(BaseOperator):
 
     def execute(self, context: Context) -> str | None:
         """
-        Execute command in LevelDB
+        Execute command in LevelDB.
 
         :returns: value from get(str, not bytes, to prevent error in json.dumps in serialize_value in xcom.py)
             or str | None

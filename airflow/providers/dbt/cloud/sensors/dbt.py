@@ -30,8 +30,7 @@ if TYPE_CHECKING:
 
 
 class DbtCloudJobRunSensor(BaseSensorOperator):
-    """
-    Checks the status of a dbt Cloud job run.
+    """Checks the status of a dbt Cloud job run.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -91,9 +90,11 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         return job_run_status == DbtCloudJobRunStatus.SUCCESS.value
 
     def execute(self, context: Context) -> None:
-        """
-        Defers to Trigger class to poll for state of the job run until
-        it reaches a failure state or success state.
+        """Run the sensor.
+
+        Depending on whether ``deferrable`` is set, this would either defer to
+        the triggerer or poll for states of the job run, until the job reaches a
+        failure state or success state.
         """
         if not self.deferrable:
             super().execute(context)
@@ -113,10 +114,10 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
                 )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+        """Callback for when the trigger fires - returns immediately.
+
+        This relies on trigger to throw an exception, otherwise it assumes
+        execution was successful.
         """
         if event["status"] in ["error", "cancelled"]:
             raise AirflowException("Error in dbt: " + event["message"])
@@ -125,10 +126,10 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
 
 
 class DbtCloudJobRunAsyncSensor(DbtCloudJobRunSensor):
-    """
-    This class is deprecated.
-    Please use
-    :class:`airflow.providers.dbt.cloud.sensor.dbt.DbtCloudJobRunSensor`.
+    """This class is deprecated.
+
+    Please use :class:`airflow.providers.dbt.cloud.sensor.dbt.DbtCloudJobRunSensor`
+    with ``deferrable=True``.
     """
 
     def __init__(self, **kwargs: Any) -> None:

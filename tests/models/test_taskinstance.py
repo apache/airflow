@@ -2690,6 +2690,9 @@ class TestTaskInstance:
 
         Stats_incr.assert_any_call("ti_failures", tags=expected_stats_tags)
         Stats_incr.assert_any_call("operator_failures_EmptyOperator", tags=expected_stats_tags)
+        Stats_incr.assert_any_call(
+            "operator_failures", tags={**expected_stats_tags, "operator": "EmptyOperator"}
+        )
 
     def test_handle_failure_task_undefined(self, create_task_instance):
         """
@@ -2853,9 +2856,13 @@ class TestTaskInstance:
         session.commit()
         ti._run_raw_task()
         ti.refresh_from_db()
-        stats_mock.assert_called_with(
+        stats_mock.assert_any_call(
             f"ti.finish.{ti.dag_id}.{ti.task_id}.{ti.state}",
             tags={"dag_id": ti.dag_id, "task_id": ti.task_id},
+        )
+        stats_mock.assert_any_call(
+            "ti.finish",
+            tags={"dag_id": ti.dag_id, "task_id": ti.task_id, "state": ti.state},
         )
         for state in State.task_states:
             assert (
@@ -2866,11 +2873,20 @@ class TestTaskInstance:
                 )
                 in stats_mock.mock_calls
             )
+            assert (
+                call(
+                    "ti.finish",
+                    count=0,
+                    tags={"dag_id": ti.dag_id, "task_id": ti.task_id, "state": str(state)},
+                )
+                in stats_mock.mock_calls
+            )
         assert (
             call(f"ti.start.{ti.dag_id}.{ti.task_id}", tags={"dag_id": ti.dag_id, "task_id": ti.task_id})
             in stats_mock.mock_calls
         )
-        assert stats_mock.call_count == len(State.task_states) + 4
+        assert call("ti.start", tags={"dag_id": ti.dag_id, "task_id": ti.task_id}) in stats_mock.mock_calls
+        assert stats_mock.call_count == (2 * len(State.task_states)) + 7
 
     def test_command_as_list(self, create_task_instance):
         ti = create_task_instance()

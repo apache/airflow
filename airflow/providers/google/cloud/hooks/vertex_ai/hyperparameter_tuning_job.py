@@ -88,7 +88,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         labels: dict[str, str] | None = None,
         encryption_spec_key_name: str | None = None,
     ) -> HyperparameterTuningJob:
-        """Returns HyperparameterTuningJob object"""
+        """Returns HyperparameterTuningJob object."""
         return HyperparameterTuningJob(
             display_name=display_name,
             custom_job=custom_job,
@@ -117,7 +117,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         encryption_spec_key_name: str | None = None,
         staging_bucket: str | None = None,
     ) -> CustomJob:
-        """Returns CustomJob object"""
+        """Returns CustomJob object."""
         return CustomJob(
             display_name=display_name,
             worker_pool_specs=worker_pool_specs,
@@ -144,7 +144,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
             raise AirflowException(error)
 
     def cancel_hyperparameter_tuning_job(self) -> None:
-        """Cancel HyperparameterTuningJob"""
+        """Cancel HyperparameterTuningJob."""
         if self._hyperparameter_tuning_job:
             self._hyperparameter_tuning_job.cancel()
 
@@ -313,7 +313,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> types.HyperparameterTuningJob:
         """
-        Gets a HyperparameterTuningJob
+        Gets a HyperparameterTuningJob.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

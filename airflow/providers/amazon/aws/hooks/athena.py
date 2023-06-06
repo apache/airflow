@@ -77,7 +77,7 @@ class AthenaHook(AwsBaseHook):
         workgroup: str = "primary",
     ) -> str:
         """
-        Run Presto query on athena with provided config and return submitted query_execution_id
+        Run Presto query on athena with provided config and return submitted query_execution_id.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.start_query_execution`
@@ -152,8 +152,9 @@ class AthenaHook(AwsBaseHook):
         self, query_execution_id: str, next_token_id: str | None = None, max_results: int = 1000
     ) -> dict | None:
         """
-        Fetch submitted athena query results. returns none if query is in intermediate state or
-        failed/cancelled state else dict of query output
+        Fetch submitted athena query results.
+
+        Returns none if query is in intermediate state or failed/cancelled state else dict of query output.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.get_query_results`
@@ -188,7 +189,7 @@ class AthenaHook(AwsBaseHook):
         """
         Fetch submitted athena query results. returns none if query is in intermediate state or
         failed/cancelled state else a paginator to iterate through pages of results. If you
-        wish to get all results at once, call build_full_result() on the returned PageIterator
+        wish to get all results at once, call build_full_result() on the returned PageIterator.
 
         .. seealso::
             - :external+boto3:py:class:`Athena.Paginator.GetQueryResults`
@@ -227,7 +228,8 @@ class AthenaHook(AwsBaseHook):
     ) -> str | None:
         """
         Poll the status of submitted athena query until query state reaches final state.
-        Returns one of the final states
+
+        Returns one of the final states.
 
         :param query_execution_id: Id of submitted athena query
         :param max_polling_attempts: Number of times to poll for query state before function exits
@@ -298,7 +300,7 @@ class AthenaHook(AwsBaseHook):
 
     def stop_query(self, query_execution_id: str) -> dict:
         """
-        Cancel the submitted athena query
+        Cancel the submitted athena query.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.stop_query_execution`

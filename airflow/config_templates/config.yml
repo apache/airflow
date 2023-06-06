@@ -1027,6 +1027,13 @@ metrics:
       type: integer
       example: ~
       default: "60000"
+    otel_debugging_on:
+      description: |
+        If True, all metrics are also emitted to the console.  Defaults to False.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "False"
 secrets:
   description: ~
   options:

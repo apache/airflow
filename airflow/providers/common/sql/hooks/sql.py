@@ -273,10 +273,10 @@ class DbApiHook(BaseForDbApiHook):
         split_statements: bool = False,
         return_last: bool = True,
     ) -> Any | list[Any] | None:
-        """
-        Runs a command or a list of commands. Pass a list of sql
-        statements to the sql parameter to get them to execute
-        sequentially.
+        """Run a command or a list of commands.
+
+        Pass a list of SQL statements to the sql parameter to get them to
+        execute sequentially.
 
         The method will return either single query results (typically list of rows) or list of those results
         where each element in the list are results of one of the queries (typically list of list of rows :D)
@@ -392,14 +392,12 @@ class DbApiHook(BaseForDbApiHook):
         conn.autocommit = autocommit
 
     def get_autocommit(self, conn) -> bool:
-        """
-        Get autocommit setting for the provided connection.
-        Return True if conn.autocommit is set to True.
-        Return False if conn.autocommit is not set or set to False or conn
-        does not support autocommit.
+        """Get autocommit setting for the provided connection.
 
         :param conn: Connection to get autocommit setting from.
-        :return: connection autocommit setting.
+        :return: connection autocommit setting. True if ``autocommit`` is set
+            to True on the connection. False if it is either not set, set to
+            False, or the connection does not support auto-commit.
         """
         return getattr(conn, "autocommit", False) and self.supports_autocommit
 
@@ -409,8 +407,8 @@ class DbApiHook(BaseForDbApiHook):
 
     @classmethod
     def _generate_insert_sql(cls, table, values, target_fields, replace, **kwargs) -> str:
-        """
-        Helper class method that generates the INSERT SQL statement.
+        """Helper class method that generates the INSERT SQL statement.
+
         The REPLACE variant is specific to MySQL syntax.
 
         :param table: Name of the target table
@@ -437,9 +435,10 @@ class DbApiHook(BaseForDbApiHook):
         return sql
 
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000, replace=False, **kwargs):
-        """
-        A generic way to insert a set of tuples into a table,
-        a new transaction is created every commit_every rows.
+        """Insert a collection of tuples into a table.
+
+        Rows are inserted in chunks, each chunk (of size ``commit_every``) is
+        done in a new transaction.
 
         :param table: Name of the target table
         :param rows: The rows to insert into the table

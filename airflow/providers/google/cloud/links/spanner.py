@@ -34,7 +34,7 @@ SPANNER_DATABASE_LINK = (
 
 
 class SpannerInstanceLink(BaseGoogleLink):
-    """Helper class for constructing Spanner Instance Link"""
+    """Helper class for constructing Spanner Instance Link."""
 
     name = "Spanner Instance"
     key = "spanner_instance"
@@ -55,7 +55,7 @@ class SpannerInstanceLink(BaseGoogleLink):
 
 
 class SpannerDatabaseLink(BaseGoogleLink):
-    """Helper class for constructing Spanner Database Link"""
+    """Helper class for constructing Spanner Database Link."""
 
     name = "Spanner Database"
     key = "spanner_database"
