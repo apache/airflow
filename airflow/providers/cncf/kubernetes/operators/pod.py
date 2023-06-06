@@ -38,7 +38,6 @@ from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 from airflow.models import BaseOperator
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
     convert_affinity,
     convert_configmap,
@@ -66,6 +65,13 @@ from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
 from airflow.utils.timezone import utcnow
 from airflow.version import version as airflow_version
+
+try:
+    from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
+except ImportError:
+    from airflow.configuration import conf
+
+    DEFAULT_DEFERRABLE = conf.getboolean("operators", "default_deferrable", fallback=False)
 
 if TYPE_CHECKING:
     import jinja2

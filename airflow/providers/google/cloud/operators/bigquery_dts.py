@@ -32,11 +32,17 @@ from google.cloud.bigquery_datatransfer_v1 import (
 )
 
 from airflow import AirflowException
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
 from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransferConfigLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.bigquery_dts import BigQueryDataTransferRunTrigger
+
+try:
+    from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
+except ImportError:
+    from airflow.configuration import conf
+
+    DEFAULT_DEFERRABLE = conf.getboolean("operators", "default_deferrable", fallback=False)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

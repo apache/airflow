@@ -21,10 +21,16 @@ import warnings
 from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.sensors.base import BaseSensorOperator
+
+try:
+    from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
+except ImportError:
+    from airflow.configuration import conf
+
+    DEFAULT_DEFERRABLE = conf.getboolean("operators", "default_deferrable", fallback=False)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

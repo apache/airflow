@@ -45,6 +45,19 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEStartPodTrigger
 from airflow.utils.timezone import utcnow
 
+try:
+    from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
+except ImportError:
+    from airflow.configuration import conf
+
+    DEFAULT_DEFERRABLE = conf.getboolean("operators", "default_deferrable", fallback=False)
+
+try:
+    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+except ImportError:
+    # preserve backward compatibility for older versions of cncf.kubernetes provider
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 

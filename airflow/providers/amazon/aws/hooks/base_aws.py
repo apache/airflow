@@ -53,12 +53,16 @@ from slugify import slugify
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
+
+try:
+    from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = conf.getboolean("operators", "default_deferrable", fallback=False)
 
 BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
 

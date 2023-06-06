@@ -20,7 +20,12 @@ from __future__ import annotations
 import boto3
 from botocore.waiter import Waiter, WaiterModel, create_waiter_with_client
 
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
+try:
+    from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
+except ImportError:
+    from airflow.configuration import conf
+
+    DEFAULT_DEFERRABLE = conf.getboolean("operators", "default_deferrable", fallback=False)
 
 
 class BaseBotoWaiter:

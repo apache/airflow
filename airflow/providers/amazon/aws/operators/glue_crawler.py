@@ -21,8 +21,14 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from airflow import AirflowException
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
+
+try:
+    from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
+except ImportError:
+    from airflow.configuration import conf
+
+    DEFAULT_DEFERRABLE = conf.getboolean("operators", "default_deferrable", fallback=False)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

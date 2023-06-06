@@ -31,7 +31,6 @@ from google.cloud.bigquery.table import RowIterator
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.models.xcom import XCom
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
@@ -53,6 +52,13 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
+
+try:
+    from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
+except ImportError:
+    from airflow.configuration import conf
+
+    DEFAULT_DEFERRABLE = conf.getboolean("operators", "default_deferrable", fallback=False)
 
 if TYPE_CHECKING:
     from google.cloud.bigquery import UnknownJob

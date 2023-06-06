@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING, Any, Sequence
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
 from airflow.providers.google.cloud.links.mlengine import (
     MLEngineJobDetailsLink,
@@ -39,6 +38,13 @@ from airflow.providers.google.cloud.links.mlengine import (
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.mlengine import MLEngineStartTrainingJobTrigger
+
+try:
+    from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
+except ImportError:
+    from airflow.configuration import conf
+
+    DEFAULT_DEFERRABLE = conf.getboolean("operators", "default_deferrable", fallback=False)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
