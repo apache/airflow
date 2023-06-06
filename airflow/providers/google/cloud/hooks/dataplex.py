@@ -17,19 +17,22 @@
 """This module contains Google Dataplex hook."""
 from __future__ import annotations
 
+import time
 from typing import Any, Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
-from google.cloud.dataplex_v1 import DataplexServiceClient
-from google.cloud.dataplex_v1.types import Lake, Task
+from google.cloud.dataplex_v1 import DataplexServiceClient, DataScanServiceClient
+from google.cloud.dataplex_v1.types import DataScanJob, Lake, Task, Zone
 from googleapiclient.discovery import Resource
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+OPERATIONAL_POLL_INTERVAL = 10
 
 
 class DataplexHook(GoogleBaseHook):
@@ -55,6 +58,7 @@ class DataplexHook(GoogleBaseHook):
         api_version: str = "v1",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        location: str | None = None,
         **kwargs,
     ) -> None:
         if kwargs.get("delegate_to") is not None:
@@ -67,12 +71,21 @@ class DataplexHook(GoogleBaseHook):
             impersonation_chain=impersonation_chain,
         )
         self.api_version = api_version
+        self.location = location
 
     def get_dataplex_client(self) -> DataplexServiceClient:
         """Returns DataplexServiceClient."""
         client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
 
         return DataplexServiceClient(
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+        )
+
+    def get_dataplex_data_scan_client(self) -> DataScanServiceClient:
+        """Returns DataScanServiceClient."""
+        client_options = ClientOptions(api_endpoint="dataplex.googleapis.com:443")
+
+        return DataScanServiceClient(
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
@@ -353,6 +366,362 @@ class DataplexHook(GoogleBaseHook):
         name = f"projects/{project_id}/locations/{region}/lakes/{lake_id}/"
         client = self.get_dataplex_client()
         result = client.get_lake(
+            request={
+                "name": name,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_zone(
+        self,
+        project_id: str,
+        region: str,
+        lake_id: str,
+        zone_id: str,
+        zone: dict[str, Any] | Zone,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Any:
+        """
+        Creates a zone resource within a lake.
+
+        :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param lake_id: Required. The ID of the Google Cloud lake to be retrieved.
+        :param zone: Required. Zone resource.
+        :param zone_id: Required. Zone identifier.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_client()
+
+        name = f"projects/{project_id}/locations/{region}/lakes/{lake_id}"
+        result = client.create_zone(
+            request={
+                "parent": name,
+                "zone": zone,
+                "zone_id": zone_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_zone(
+        self,
+        project_id: str,
+        region: str,
+        lake_id: str,
+        zone_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Any:
+        """
+        Deletes a zone resource. All assets within a zone must be deleted before the zone can be deleted.
+
+        :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param lake_id: Required. The ID of the Google Cloud lake to be retrieved.
+        :param zone_id: Required. Zone identifier.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_client()
+
+        name = f"projects/{project_id}/locations/{region}/lakes/{lake_id}/zones/{zone_id}"
+        operation = client.delete_zone(
+            request={"parent": name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return operation
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_asset(
+        self,
+        project_id: str,
+        region: str,
+        lake_id: str,
+        zone_id: str,
+        asset_id: str,
+        asset: dict[str, Any] | Zone,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Any:
+        """
+        Creates an asset resource.
+
+        :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param lake_id: Required. The ID of the Google Cloud lake to be retrieved.
+        :param zone_id: Required. Zone identifier.
+        :param asset_id: Required. Asset identifier.
+        :param asset: Required. Asset resource.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_client()
+
+        name = f"projects/{project_id}/locations/{region}/lakes/{lake_id}/zones/{zone_id}"
+        result = client.create_asset(
+            request={
+                "parent": name,
+                "asset": asset,
+                "asset_id": asset_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_asset(
+        self,
+        project_id: str,
+        region: str,
+        lake_id: str,
+        asset_id: str,
+        zone_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Any:
+        """
+        Deletes an asset resource.
+
+        :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param lake_id: Required. The ID of the Google Cloud lake to be retrieved.
+        :param zone_id: Required. Zone identifier.
+        :param asset_id: Required. Asset identifier.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_client()
+
+        name = f"projects/{project_id}/locations/{region}/lakes/{lake_id}/zones/{zone_id}/assets/{asset_id}"
+        result = client.delete_asset(
+            request={"parent": name},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_data_scan(
+        self,
+        project_id: str,
+        region: str,
+        data_scan_id: str | None = None,
+        data_scan: dict[str, Any] | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Any:
+        """
+        Creates a DataScan resource.
+
+        :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param data_scan_id: Required. DataScan identifier.
+        :param data_scan: Required. DataScan resource.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_data_scan_client()
+
+        parent = f"projects/{project_id}/locations/{region}"
+        result = client.create_data_scan(
+            request={
+                "parent": parent,
+                "data_scan": data_scan,
+                "data_scan_id": data_scan_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def run_data_scan(
+        self,
+        project_id: str,
+        region: str,
+        data_scan_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Any:
+        """
+        Runs an on-demand execution of a DataScan.
+
+        :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param data_scan_id: Required. Data scan identifier.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_data_scan_client()
+
+        name = f"projects/{project_id}/locations/{region}/dataScans/{data_scan_id}"
+        result = client.run_data_scan(
+            request={
+                "name": name,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_data_scan_job(
+        self,
+        project_id: str,
+        region: str,
+        name: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Any:
+        """
+        Gets a DataScan Job resource.
+
+        :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param name: Required. The resource name of the DataScanJob:
+            projects/{project_id}/locations/{region}/dataScans/{data_scan_id}/jobs/{data_scan_job_id}
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_data_scan_client()
+
+        result = client.get_data_scan_job(
+            request={"name": name, "view": "FULL"},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    def wait_for_job(
+        self,
+        job: DataScanJob,
+        project_id: str | None = None,
+        region: str | None = None,
+    ):
+        """
+        Given an operation, continuously fetches the status from Google Cloud until either
+        completion or an error occurring
+
+        :param job: The job to wait for
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param project_id: Google Cloud project ID
+        :return: A new, updated operation fetched from Google Cloud
+        """
+        time.sleep(OPERATIONAL_POLL_INTERVAL)
+        while job.state != DataScanJob.State.SUCCEEDED:
+            if job.state == DataScanJob.State.RUNNING or job.state == DataScanJob.State.PENDING:
+                time.sleep(OPERATIONAL_POLL_INTERVAL)
+            else:
+                raise AirflowException(f"DataScanJob has failed with status: {job.state}")
+            # To update state
+            job = self.get_data_scan_job(name=job.name, project_id=project_id, region=region)
+        return job
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_data_scan(
+        self,
+        project_id: str,
+        region: str,
+        data_scan_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Any:
+        """
+        Gets a DataScan resource.
+
+        :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param data_scan_id: Required. DataScan identifier.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_data_scan_client()
+
+        name = f"projects/{project_id}/locations/{region}/dataScans/{data_scan_id}"
+        result = client.get_data_scan(
+            request={"name": name, "view": "FULL"},
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_data_scan(
+        self,
+        project_id: str,
+        region: str,
+        data_scan_id: str,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> Any:
+        """
+        Deletes a DataScan resource.
+
+        :param project_id: Required. The ID of the Google Cloud project that the lake belongs to.
+        :param region: Required. The ID of the Google Cloud region that the lake belongs to.
+        :param data_scan_id: Required. DataScan identifier.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :param metadata: Additional metadata that is provided to the method.
+        """
+        client = self.get_dataplex_data_scan_client()
+
+        name = f"projects/{project_id}/locations/{region}/dataScans/{data_scan_id}"
+        result = client.delete_data_scan(
             request={
                 "name": name,
             },

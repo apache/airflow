@@ -142,3 +142,172 @@ To delete a lake you can use:
     :dedent: 4
     :start-after: [START howto_dataplex_delete_lake_operator]
     :end-before: [END howto_dataplex_delete_lake_operator]
+
+
+Create a asset
+--------------
+
+Before you create a dataplex asset you need to define its body.
+
+For more information about the available fields to pass when creating a asset, visit `Dataplex create asset API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes.zones.assets#Asset>`__
+
+A simple asset configuration can look as followed:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_dataplex_asset_configuration]
+    :end-before: [END howto_dataplex_asset_configuration]
+
+With this configuration we can create the asset:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateAssetOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_create_asset_operator]
+    :end-before: [END howto_dataplex_create_asset_operator]
+
+
+Delete a asset
+--------------
+
+To delete a asset you can use:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteAssetOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_delete_asset_operator]
+    :end-before: [END howto_dataplex_delete_asset_operator]
+
+
+Create a zone
+-------------
+
+Before you create a dataplex zone you need to define its body.
+
+For more information about the available fields to pass when creating a zone, visit `Dataplex create zone API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.lakes.zones#Zone>`__
+
+A simple zone configuration can look as followed:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_dataplex_zone_configuration]
+    :end-before: [END howto_dataplex_zone_configuration]
+
+With this configuration we can create the zone:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateZoneOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_create_zone_operator]
+    :end-before: [END howto_dataplex_create_zone_operator]
+
+
+Delete a zone
+-------------
+
+To delete a zone you can use:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteZoneOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_delete_zone_operator]
+    :end-before: [END howto_dataplex_delete_zone_operator]
+
+Create a data quality
+---------------------
+
+Before you create a dataplex data quality you need to define its body.
+For more information about the available fields to pass when creating a data quality, visit `Dataplex create data quality API. <https://cloud.google.com/dataplex/docs/reference/rest/v1/projects.locations.dataScans#DataScan>`__
+
+A simple data quality configuration can look as followed:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_dataplex_data_quality_configuration]
+    :end-before: [END howto_dataplex_data_quality_configuration]
+
+With this configuration we can create the data quality:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexCreateDataQualityOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_create_data_quality_operator]
+    :end-before: [END howto_dataplex_create_data_quality_operator]
+
+
+Delete a data quality
+---------------------
+
+To delete a data quality you can use:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexDeleteDataQualityOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_delete_data_quality_operator]
+    :end-before: [END howto_dataplex_delete_data_quality_operator]
+
+Run a data quality
+------------------
+
+To run Dataplex data quality using synchronous mode:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexRunDataQualityOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_run_data_quality_operator]
+    :end-before: [END howto_dataplex_run_data_quality_operator]
+
+To run Dataplex data quality using asynchronous mode:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexRunDataQualityOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_run_data_quality_async_operator]
+    :end-before: [END howto_dataplex_run_data_quality_async_operator]
+
+
+Wait for a data scan
+--------------------
+
+To wait for a data scan created asynchronously you can use:
+
+:class:`~airflow.providers.google.cloud.sensors.dataplex.DataplexJobStatusSensor`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_data_scan_job_state_sensor]
+    :end-before: [END howto_dataplex_data_scan_job_state_sensor]
+
+
+Get a data quality
+------------------
+
+To get a task you can use:
+
+:class:`~airflow.providers.google.cloud.operators.dataplex.DataplexGetDataQualityOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataplex/example_dataplex_dq.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_dataplex_get_data_quality_operator]
+    :end-before: [END howto_dataplex_get_data_quality_operator]
