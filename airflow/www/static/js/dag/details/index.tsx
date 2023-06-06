@@ -117,7 +117,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const isGroup = !!children;
   const isGroupOrMappedTaskSummary = isGroup || isMappedTaskSummary;
   const showLogs = !!(isTaskInstance && !isGroupOrMappedTaskSummary);
-  const showDagCode = !(isTaskInstance && !isGroupOrMappedTaskSummary);
+  const showDagCode = !taskId;
   const showMappedTasks = !!(isTaskInstance && isMappedTaskSummary && !isGroup);
 
   const [searchParams, setSearchParams] = useSearchParams();
