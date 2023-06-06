@@ -397,6 +397,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         finished.
     :param awslogs_fetch_interval: the interval that the ECS task log fetcher should wait
         in between each Cloudwatch logs fetches.
+        If deferrable is set to True, that parameter is ignored and waiter_delay is used instead.
     :param quota_retry: Config if and how to retry the launch of a new ECS task, to handle
         transient errors.
     :param reattach: If set to True, will check if the task previously launched by the task_instance
@@ -545,7 +546,20 @@ class EcsRunTaskOperator(EcsBaseOperator):
         if not self.arn:
             self._start_task(context)
 
-        if self._aws_logs_enabled():
+        if self.deferrable:
+            self.defer(
+                trigger=TaskDoneTrigger(
+                    cluster=self.cluster,
+                    task_arn=self.arn,
+                    waiter_delay=self.waiter_delay,
+                    aws_conn_id=self.aws_conn_id,
+                    region=self.region,
+                    log_group=self.awslogs_group,
+                    log_stream=f"{self.awslogs_stream_prefix}/{self.ecs_task_id}",
+                ),
+                method_name="execute_complete",
+            )
+        elif self._aws_logs_enabled():
             self.log.info("Starting ECS Task Log Fetcher")
             self.task_log_fetcher = self._get_task_log_fetcher()
             self.task_log_fetcher.start()
@@ -557,20 +571,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
                 self.task_log_fetcher.stop()
 
             self.task_log_fetcher.join()
-        else:
-            if self.deferrable:
-                self.defer(
-                    trigger=TaskDoneTrigger(
-                        cluster=self.cluster,
-                        task_arn=self.arn,
-                        waiter_delay=self.waiter_delay,
-                        aws_conn_id=self.aws_conn_id,
-                        region=self.region,
-                    ),
-                    method_name="execute_complete",
-                )
-            elif self.wait_for_completion:
-                self._wait_for_task_ended()
+        elif self.wait_for_completion:
+            self._wait_for_task_ended()
 
     def _xcom_del(self, session, task_id):
         session.query(XCom).filter(XCom.dag_id == self.dag_id, XCom.task_id == task_id).delete()

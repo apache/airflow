@@ -191,7 +191,8 @@ class EcsTaskLogFetcher(Thread):
             self.logger.warning("ConnectionClosedError on retrieving Cloudwatch log events", error)
             yield from ()
 
-    def _event_to_str(self, event: dict) -> str:
+    @staticmethod
+    def _event_to_str(event: dict) -> str:
         event_dt = datetime.utcfromtimestamp(event["timestamp"] / 1000.0)
         formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
         message = event["message"]

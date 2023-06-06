@@ -20,9 +20,10 @@ from __future__ import annotations
 import asyncio
 from typing import Any, AsyncIterator
 
-from botocore.exceptions import WaiterError
+from botocore.exceptions import ClientError, WaiterError
 
-from airflow.providers.amazon.aws.hooks.ecs import EcsHook
+from airflow.providers.amazon.aws.hooks.ecs import EcsHook, EcsTaskLogFetcher
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -65,13 +66,12 @@ class ClusterActiveTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        hook = EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
-        async with hook.async_conn as client:
-            waiter = hook.get_waiter("cluster_active", deferrable=True, client=client)
+        async with EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).async_conn as client:
+            waiter = client.get_waiter("cluster_active")
             while self.attempts >= 1:
                 self.attempts = self.attempts - 1
                 try:
-                    waiter.wait(
+                    await waiter.wait(
                         clusters=[self.cluster_arn],
                         WaiterConfig={
                             "MaxAttempts": 1,
@@ -107,12 +107,18 @@ class TaskDoneTrigger(BaseTrigger):
         waiter_delay: int | None,
         aws_conn_id: str | None,
         region: str | None,
+        log_group: str | None = None,
+        log_stream: str | None = None,
     ):
         self.cluster = cluster
         self.task_arn = task_arn
+
         self.waiter_delay = waiter_delay or 15
         self.aws_conn_id = aws_conn_id
         self.region = region
+
+        self.log_group = log_group
+        self.log_stream = log_stream
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -123,21 +129,67 @@ class TaskDoneTrigger(BaseTrigger):
                 "waiter_delay": self.waiter_delay,
                 "aws_conn_id": self.aws_conn_id,
                 "region": self.region,
+                "log_group": self.log_group,
+                "log_stream": self.log_stream,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        hook = EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
-        async with hook.async_conn as client:
-            waiter = hook.get_waiter("tasks_stopped", deferrable=True, client=client)
+        # fmt: off
+        async with EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).async_conn as ecs_client,\
+                AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).async_conn as logs_client:
+            # fmt: on
+            waiter = ecs_client.get_waiter("tasks_stopped")
+            logs_token = None
             while True:
                 try:
-                    waiter.wait(cluster=self.cluster, tasks=[self.task_arn], WaiterConfig={"MaxAttempts": 1})
+                    await waiter.wait(
+                        cluster=self.cluster, tasks=[self.task_arn], WaiterConfig={"MaxAttempts": 1}
+                    )
                     break  # we reach this point only if the waiter met a success criteria
                 except WaiterError as error:
                     if "terminal failure" in str(error):
                         raise
                     self.log.info("Status of the task is %s", error.last_response["tasks"][0]["lastStatus"])
                     await asyncio.sleep(int(self.waiter_delay))
+                finally:
+                    if self.log_group and self.log_stream:
+                        logs_token = await self._forward_logs(logs_client, logs_token)
 
         yield TriggerEvent({"status": "success", "task_arn": self.task_arn})
+
+    async def _forward_logs(self, logs_client, next_token: str | None = None) -> str | None:
+        """
+        Reads logs from the cloudwatch stream and prints them to the task logs.
+        :return: the token to pass to the next iteration to resume where we started
+        """
+        while True:
+            if next_token is not None:
+                token_arg: dict[str, str] = {"nextToken": next_token}
+            else:
+                token_arg = {}
+            try:
+                response = await logs_client.get_log_events(
+                    logGroupName=self.log_group,
+                    logStreamName=self.log_stream,
+                    startFromHead=True,
+                    **token_arg,
+                )
+            except ClientError as ce:
+                if ce.response["Error"]["Code"] == "ResourceNotFoundException":
+                    self.log.info(
+                        "Tried to get logs from stream %s in group %s but it didn't exist (yet). "
+                        "Will try again.",
+                        self.log_stream,
+                        self.log_group,
+                    )
+                    return None
+                raise
+
+            events = response["events"]
+            for log_event in events:
+                self.log.info(EcsTaskLogFetcher._event_to_str(log_event))
+
+            if len(events) == 0 or next_token == response["nextForwardToken"]:
+                return response["nextForwardToken"]
+            next_token = response["nextForwardToken"]
