@@ -20,10 +20,6 @@
 import React from "react";
 import { Flex, Text } from "@chakra-ui/react";
 
-interface Data {
-  [index: string]: number | null;
-}
-
 interface Props {
   data: Record<string, number | null>;
 }

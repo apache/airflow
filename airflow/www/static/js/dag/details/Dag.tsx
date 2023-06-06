@@ -108,6 +108,7 @@ const Dag = () => {
               <Link
                 href={getRedirectUri(val)}
                 title={`View all ${val} DAGS`}
+                color="blue"
                 ml="5px"
               >
                 Total {val}
@@ -127,18 +128,9 @@ const Dag = () => {
   const firstStart = dagRuns[0]?.startDate;
   const lastStart = dagRuns[dagRuns.length - 1]?.startDate;
 
-  // parse value for each key (string | null) and
-  const parseStringData = (value: string) => (
-    <>
-      {value !== "null" &&
-        // converting value to string since it could be bool or number
-        (Number.isNaN(Date.parse(String(value))) ? (
-          String(value)
-        ) : (
-          <Time dateTime={String(value)} />
-        ))}
-    </>
-  );
+  // parse value for each key if date or not
+  const parseStringData = (value: string) =>
+    Number.isNaN(Date.parse(value)) ? value : <Time dateTime={value} />;
 
   // render dag and dag_details data
   const renderDagDetailsData = (
