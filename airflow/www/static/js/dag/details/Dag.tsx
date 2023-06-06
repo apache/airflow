@@ -137,7 +137,6 @@ const Dag = () => {
         ) : (
           <Time dateTime={String(value)} />
         ))}
-      {value === "null" && "None"}
     </>
   );
 
