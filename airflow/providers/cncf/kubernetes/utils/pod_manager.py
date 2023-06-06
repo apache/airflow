@@ -131,13 +131,10 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
 
 def container_is_completed(pod: V1Pod, container_name: str) -> bool:
     """
-    Examines V1Pod ``pod`` to determine whether ``container_name`` is running.
+    Examines V1Pod ``pod`` to determine whether ``container_name`` is completed.
     If that container is present and completed, returns True.  Returns False otherwise.
     """
-    container_statuses = pod.status.container_statuses if pod and pod.status else None
-    if not container_statuses:
-        return False
-    container_status = next((status for status in container_statuses if status.name == container_name), None)
+    container_status = get_container_status(pod, container_name)
     if not container_status:
         return False
     return container_status.state.terminated is not None

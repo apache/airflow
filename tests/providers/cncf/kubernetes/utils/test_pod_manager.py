@@ -316,6 +316,7 @@ class TestPodManager:
         assert ret.last_log_time is None
         assert ret.running is False
 
+    # adds all valid types for container_logs
     @pytest.mark.parametrize("follow", [True, False])
     @pytest.mark.parametrize("container_logs", ["base", "alpine", True, ["base", "alpine"]])
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
@@ -335,8 +336,8 @@ class TestPodManager:
         for ret in ret_values:
             assert ret.running is False
 
-    # adds all valid types for container_logs
-    @pytest.mark.parametrize("container_logs", [1, None, 6.8])
+    # adds all invalid types for container_logs
+    @pytest.mark.parametrize("container_logs", [1, None, 6.8, False])
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     def test_fetch_requested_container_logs_invalid(self, container_running, container_logs):
         mock_pod = MagicMock()
