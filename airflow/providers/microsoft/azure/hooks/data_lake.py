@@ -210,7 +210,7 @@ class AzureDataLakeHook(BaseHook):
         )
 
     def list(self, path: str) -> list:
-        """List files in Azure Data Lake Storage
+        """List files in Azure Data Lake Storage.
 
         :param path: full path/globstring to use to list files in ADLS
         """
@@ -220,7 +220,7 @@ class AzureDataLakeHook(BaseHook):
             return self.get_conn().walk(path)
 
     def remove(self, path: str, recursive: bool = False, ignore_not_found: bool = True) -> None:
-        """Remove files in Azure Data Lake Storage
+        """Remove files in Azure Data Lake Storage.
 
         :param path: A directory or file to remove in ADLS
         :param recursive: Whether to loop into directories in the location and remove the files
