@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import logging
 import random
 import warnings
@@ -233,7 +234,6 @@ class SafeOtelLogger:
         if self.metrics_validator.test(stat):
             self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), value, delta, tags)
 
-    @validate_stat
     def timing(
         self,
         stat: str,
@@ -241,7 +241,14 @@ class SafeOtelLogger:
         *,
         tags: Attributes = None,
     ) -> None:
-        warnings.warn(f"Create timer {stat}: OpenTelemetry Timers are not yet implemented.")
+        """
+        OpenTelemetry does not have a native timer, we will store
+        them as a Gauge whose value represents the seconds elapsed.
+        """
+        if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
+            if isinstance(dt, datetime.timedelta):
+                dt = dt.total_seconds()
+            self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), float(dt), False, tags)
         return None
 
     @validate_stat

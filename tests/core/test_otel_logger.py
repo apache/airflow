@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from unittest import mock
 from unittest.mock import ANY
 
@@ -227,13 +228,29 @@ class TestOtelMetrics:
 
         assert self.map[full_name(name)].value == 1
 
-    @mock.patch("warnings.warn")
-    def test_timer_warns_not_implemented(self, mock_warn):
-        class MessageContaining(str):
-            def __eq__(self, other):
-                return self in other
+    def test_timing_new_metric(self, name):
+        self.stats.timing(name, dt=123)
 
-        with self.stats.timer():
-            mock_warn.assert_called_once_with(
-                MessageContaining("OpenTelemetry Timers are not yet implemented.")
-            )
+        self.meter.get_meter().create_observable_gauge.assert_called_once_with(
+            name=full_name(name), callbacks=ANY
+        )
+
+    def test_timing_new_metric_with_tags(self, name):
+        tags = {"hello": "world"}
+        key = _generate_key_name(full_name(name), tags)
+
+        self.stats.timing(name, dt=1, tags=tags)
+
+        self.meter.get_meter().create_observable_gauge.assert_called_once_with(
+            name=full_name(name), callbacks=ANY
+        )
+        self.map[key].attributes == tags
+
+    def test_timing_existing_metric(self, name):
+        self.stats.timing(name, dt=1)
+        self.stats.timing(name, dt=2)
+
+        self.meter.get_meter().create_observable_gauge.assert_called_once_with(
+            name=full_name(name), callbacks=ANY
+        )
+        assert self.map[full_name(name)].value == 2
