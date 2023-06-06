@@ -220,9 +220,9 @@ that row.
     :end-before: [END howto_operator_bigquery_get_data]
 
 The below example shows how to use
-:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryGetDataOperator`in async.
-Note that this is a deferrable operator which requires the Triggerer to be running on your Airflow
-deployment.
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryGetDataOperator`
+in async (deferrable) mode. Note that a deferrable task requires the Triggerer to be
+running on your Airflow
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_queries_async.py
     :language: python
@@ -318,9 +318,9 @@ with proper query job configuration that can be Jinja templated.
     :end-before: [END howto_operator_bigquery_insert_job]
 
 The below example shows how to use
-:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator` in async
-Note that this is a deferrable operator which requires the Triggerer to be running on your Airflow
-deployment.
+:class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator`
+in async (deferrable) mode. Note that a deferrable task requires the Triggerer to be
+running on your Airflow
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_queries_async.py
     :language: python
