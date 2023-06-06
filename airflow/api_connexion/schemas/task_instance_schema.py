@@ -30,7 +30,7 @@ from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
 from airflow.models import SlaMiss, TaskInstance
 from airflow.utils.helpers import exactly_one
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 
 class TaskInstanceSchema(SQLAlchemySchema):
@@ -158,7 +158,10 @@ class SetTaskInstanceStateFormSchema(Schema):
     include_downstream = fields.Boolean(required=True)
     include_future = fields.Boolean(required=True)
     include_past = fields.Boolean(required=True)
-    new_state = TaskInstanceStateField(required=True, validate=validate.OneOf([State.SUCCESS, State.FAILED]))
+    new_state = TaskInstanceStateField(
+        required=True,
+        validate=validate.OneOf([TaskInstanceState.SUCCESS, TaskInstanceState.FAILED]),
+    )
 
     @validates_schema
     def validate_form(self, data, **kwargs):
@@ -171,7 +174,10 @@ class SetSingleTaskInstanceStateFormSchema(Schema):
     """Schema for handling the request of updating state of a single task instance."""
 
     dry_run = fields.Boolean(dump_default=True)
-    new_state = TaskInstanceStateField(required=True, validate=validate.OneOf([State.SUCCESS, State.FAILED]))
+    new_state = TaskInstanceStateField(
+        required=True,
+        validate=validate.OneOf([TaskInstanceState.SUCCESS, TaskInstanceState.FAILED]),
+    )
 
 
 class TaskInstanceReferenceSchema(Schema):

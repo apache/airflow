@@ -36,7 +36,7 @@ from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 
 XCOM_EXECUTION_DATE_ISO = "trigger_execution_date_iso"
@@ -116,8 +116,8 @@ class TriggerDagRunOperator(BaseOperator):
         self.reset_dag_run = reset_dag_run
         self.wait_for_completion = wait_for_completion
         self.poke_interval = poke_interval
-        self.allowed_states = allowed_states or [State.SUCCESS]
-        self.failed_states = failed_states or [State.FAILED]
+        self.allowed_states = allowed_states or [DagRunState.SUCCESS]
+        self.failed_states = failed_states or [DagRunState.FAILED]
         self._defer = deferrable
 
         if execution_date is not None and not isinstance(execution_date, (str, datetime.datetime)):

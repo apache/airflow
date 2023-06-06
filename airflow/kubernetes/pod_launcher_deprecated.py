@@ -36,7 +36,7 @@ from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.pod_generator import PodDefaults
 from airflow.settings import pod_mutation_hook
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 warnings.warn(
     """
@@ -138,7 +138,7 @@ class PodLauncher(LoggingMixin):
                     raise AirflowException("Pod took too long to start")
                 time.sleep(1)
 
-    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> tuple[State, str | None]:
+    def monitor_pod(self, pod: V1Pod, get_logs: bool) -> tuple[TaskInstanceState, str | None]:
         """
         Monitors a pod and returns the final state.
 
@@ -168,13 +168,13 @@ class PodLauncher(LoggingMixin):
         result = None
         if self.extract_xcom:
             while self.base_container_is_running(pod):
-                self.log.info("Container %s has state %s", pod.metadata.name, State.RUNNING)
+                self.log.info("Container %s has state %s", pod.metadata.name, TaskInstanceState.RUNNING)
                 time.sleep(2)
             result = self._extract_xcom(pod)
             self.log.info(result)
             result = json.loads(result)
         while self.pod_is_running(pod):
-            self.log.info("Pod %s has state %s", pod.metadata.name, State.RUNNING)
+            self.log.info("Pod %s has state %s", pod.metadata.name, TaskInstanceState.RUNNING)
             time.sleep(2)
         return self._task_status(self.read_pod(pod)), result
 
@@ -205,12 +205,12 @@ class PodLauncher(LoggingMixin):
     def pod_not_started(self, pod: V1Pod):
         """Tests if pod has not started."""
         state = self._task_status(self.read_pod(pod))
-        return state == State.QUEUED
+        return state == TaskInstanceState.QUEUED
 
     def pod_is_running(self, pod: V1Pod):
         """Tests if pod is running."""
         state = self._task_status(self.read_pod(pod))
-        return state not in (State.SUCCESS, State.FAILED)
+        return state not in (TaskInstanceState.SUCCESS, TaskInstanceState.FAILED)
 
     def base_container_is_running(self, pod: V1Pod):
         """Tests if base container is running."""
@@ -306,15 +306,15 @@ class PodLauncher(LoggingMixin):
         """Process status information for the job."""
         status = status.lower()
         if status == PodStatus.PENDING:
-            return State.QUEUED
+            return TaskInstanceState.QUEUED
         elif status == PodStatus.FAILED:
             self.log.error("Event with job id %s Failed", job_id)
-            return State.FAILED
+            return TaskInstanceState.FAILED
         elif status == PodStatus.SUCCEEDED:
             self.log.info("Event with job id %s Succeeded", job_id)
-            return State.SUCCESS
+            return TaskInstanceState.SUCCESS
         elif status == PodStatus.RUNNING:
-            return State.RUNNING
+            return TaskInstanceState.RUNNING
         else:
             self.log.error("Event: Invalid state %s on job %s", status, job_id)
-            return State.FAILED
+            return TaskInstanceState.FAILED
