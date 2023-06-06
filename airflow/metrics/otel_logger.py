@@ -37,7 +37,6 @@ from airflow.metrics.validators import (
     OTEL_NAME_MAX_LENGTH,
     AllowListValidator,
     stat_name_otel_handler,
-    validate_stat,
 )
 
 log = logging.getLogger(__name__)
@@ -132,6 +131,29 @@ def _skip_due_to_rate(rate: float) -> bool:
     return rate < 1 and random.random() > rate
 
 
+class _OtelTimer(Timer):
+    """
+    An implementation of Stats.Timer() which records the result in the OTel Metrics Map.
+    OpenTelemetry does not have a native timer, we will store the values as a Gauge.
+
+    :param name: The name of the timer.
+    :param tags: Tags to append to the timer.
+    """
+
+    def __init__(self, otel_logger, name, tags):
+        super().__init__()
+        self.otel_logger = otel_logger
+        self.name = name
+        self.tags = tags
+
+    def stop(self, send: bool = True) -> None:
+        super().stop(send)
+        if self.name and send:
+            self.otel_logger.metrics_map.set_gauge_value(
+                full_name(prefix=self.otel_logger.prefix, name=self.name), self.duration, False, self.tags
+            )
+
+
 class SafeOtelLogger:
     """Otel Logger."""
 
@@ -199,7 +221,6 @@ class SafeOtelLogger:
             counter.add(-count, attributes=tags)
             return counter
 
-    @validate_stat
     def gauge(
         self,
         stat: str,
@@ -251,7 +272,6 @@ class SafeOtelLogger:
             self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), float(dt), False, tags)
         return None
 
-    @validate_stat
     def timer(
         self,
         stat: str | None = None,
@@ -259,8 +279,8 @@ class SafeOtelLogger:
         tags: Attributes = None,
         **kwargs,
     ) -> TimerProtocol:
-        warnings.warn(f"Create timer {stat}: OpenTelemetry Timers are not yet implemented.")
-        return Timer()
+        """Timer context manager returns the duration and can be cancelled."""
+        return _OtelTimer(self, stat, tags)
 
 
 class MetricsMap:
