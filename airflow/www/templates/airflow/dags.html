@@ -387,10 +387,6 @@
                       <span class="material-icons" aria-hidden="true">code</span>
                       Code
                     </a>
-                    <a href="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}" class="dags-table-more__link">
-                      <span class="material-icons" aria-hidden="true">details</span>
-                      Details
-                    </a>
                     <a href="{{ url_for('Airflow.gantt', dag_id=dag.dag_id) }}" class="dags-table-more__link">
                       <span class="material-icons" aria-hidden="true">vertical_distribute</span>
                       Gantt
