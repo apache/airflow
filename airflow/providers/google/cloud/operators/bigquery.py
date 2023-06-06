@@ -31,6 +31,7 @@ from google.cloud.bigquery.table import RowIterator
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator, BaseOperatorLink
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.models.xcom import XCom
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
@@ -200,7 +201,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
@@ -320,7 +321,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
@@ -460,7 +461,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
@@ -854,7 +855,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         poll_interval: float = 4.0,
         as_dict: bool = False,
         use_legacy_sql: bool = True,
@@ -2623,7 +2624,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
         cancel_on_kill: bool = True,
         result_retry: Retry = DEFAULT_RETRY,
         result_timeout: float | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:

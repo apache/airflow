@@ -26,6 +26,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
@@ -113,7 +114,7 @@ class TriggerDagRunOperator(BaseOperator):
         poke_interval: int = 60,
         allowed_states: list | None = None,
         failed_states: list | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

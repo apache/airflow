@@ -20,6 +20,8 @@ from __future__ import annotations
 import boto3
 from botocore.waiter import Waiter, WaiterModel, create_waiter_with_client
 
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
+
 
 class BaseBotoWaiter:
     """
@@ -28,7 +30,9 @@ class BaseBotoWaiter:
     For more details, see airflow/providers/amazon/aws/waiters/README.md
     """
 
-    def __init__(self, client: boto3.client, model_config: dict, deferrable: bool = False) -> None:
+    def __init__(
+        self, client: boto3.client, model_config: dict, deferrable: bool = DEFAULT_DEFERRABLE
+    ) -> None:
         self.model = WaiterModel(model_config)
         self.client = client
         self.deferrable = deferrable

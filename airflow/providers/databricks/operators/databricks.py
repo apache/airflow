@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
@@ -315,7 +316,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         access_control_list: list[dict[str, str]] | None = None,
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSubmitRunOperator``."""
@@ -605,7 +606,7 @@ class DatabricksRunNowOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         do_xcom_push: bool = True,
         wait_for_termination: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksRunNowOperator``."""

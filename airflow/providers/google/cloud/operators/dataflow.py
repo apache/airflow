@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow import AirflowException
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
@@ -611,7 +612,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         cancel_timeout: int | None = 10 * 60,
         wait_until_finished: bool | None = None,
         append_job_name: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -801,7 +802,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         cancel_timeout: int | None = 10 * 60,
         wait_until_finished: bool | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         append_job_name: bool = True,
         *args,
         **kwargs,

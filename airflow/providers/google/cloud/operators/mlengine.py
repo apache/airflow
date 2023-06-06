@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
 from airflow.providers.google.cloud.links.mlengine import (
     MLEngineJobDetailsLink,
@@ -1098,7 +1099,7 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
         labels: dict[str, str] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         hyperparameters: dict | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:

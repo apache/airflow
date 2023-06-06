@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.dbt.cloud.hooks.dbt import (
     DbtCloudHook,
     DbtCloudJobRunException,
@@ -99,7 +100,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
         additional_run_config: dict[str, Any] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

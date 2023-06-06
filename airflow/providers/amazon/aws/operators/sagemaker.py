@@ -27,6 +27,7 @@ from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
@@ -198,7 +199,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         max_attempts: int | None = None,
         max_ingestion_time: int | None = None,
         action_if_job_exists: str = "timestamp",
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -551,7 +552,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         max_ingestion_time: int | None = None,
         check_if_job_exists: bool = True,
         action_if_job_exists: str = "timestamp",
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -862,7 +863,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         max_ingestion_time: int | None = None,
         check_if_job_exists: bool = True,
         action_if_job_exists: str = "timestamp",
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)

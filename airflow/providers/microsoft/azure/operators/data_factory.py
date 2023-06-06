@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -140,7 +141,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         parameters: dict[str, Any] | None = None,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

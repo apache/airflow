@@ -51,12 +51,9 @@ from dateutil.tz import tzlocal
 from slugify import slugify
 
 from airflow.configuration import conf
-from airflow.exceptions import (
-    AirflowException,
-    AirflowNotFoundException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.helpers import exactly_one
@@ -154,7 +151,7 @@ class BaseSessionFactory(LoggingMixin):
 
         return async_get_session()
 
-    def create_session(self, deferrable: bool = False) -> boto3.session.Session:
+    def create_session(self, deferrable: bool = DEFAULT_DEFERRABLE) -> boto3.session.Session:
         """Create boto3 or aiobotocore Session from connection config."""
         if not self.conn:
             self.log.info(
@@ -195,7 +192,7 @@ class BaseSessionFactory(LoggingMixin):
         return boto3.session.Session(**session_kwargs)
 
     def _create_session_with_assume_role(
-        self, session_kwargs: dict[str, Any], deferrable: bool = False
+        self, session_kwargs: dict[str, Any], deferrable: bool = DEFAULT_DEFERRABLE
     ) -> boto3.session.Session:
 
         if self.conn.assume_role_method == "assume_role_with_web_identity":
@@ -579,7 +576,9 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         """Verify or not SSL certificates boto3 client/resource read-only property."""
         return self.conn_config.verify
 
-    def get_session(self, region_name: str | None = None, deferrable: bool = False) -> boto3.session.Session:
+    def get_session(
+        self, region_name: str | None = None, deferrable: bool = DEFAULT_DEFERRABLE
+    ) -> boto3.session.Session:
         """Get the underlying boto3.session.Session(region_name=region_name)."""
         return SessionFactory(
             conn=self.conn_config, region_name=region_name, config=self.config
@@ -607,7 +606,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self,
         region_name: str | None = None,
         config: Config | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session."""
         client_type = self.client_type
@@ -820,7 +819,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self,
         waiter_name: str,
         parameters: dict[str, str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         client=None,
     ) -> Waiter:
         """Get a waiter by name.
@@ -1044,7 +1043,7 @@ class BaseAsyncSessionFactory(BaseSessionFactory):
             aio_session.set_config_variable("region", region_name)
         return aio_session
 
-    def create_session(self, deferrable: bool = False) -> AioSession:
+    def create_session(self, deferrable: bool = DEFAULT_DEFERRABLE) -> AioSession:
         """Create aiobotocore Session from connection and config."""
         if not self._conn:
             self.log.info("No connection ID provided. Fallback on boto3 credential strategy")

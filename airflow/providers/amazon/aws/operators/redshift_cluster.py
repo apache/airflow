@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftCreateClusterSnapshotTrigger,
@@ -148,7 +149,7 @@ class RedshiftCreateClusterOperator(BaseOperator):
         wait_for_completion: bool = False,
         max_attempt: int = 5,
         poll_interval: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -327,7 +328,7 @@ class RedshiftCreateClusterSnapshotOperator(BaseOperator):
         poll_interval: int = 15,
         max_attempt: int = 20,
         aws_conn_id: str = "aws_default",
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -470,7 +471,7 @@ class RedshiftResumeClusterOperator(BaseOperator):
         cluster_identifier: str,
         aws_conn_id: str = "aws_default",
         wait_for_completion: bool = False,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         poll_interval: int = 10,
         max_attempts: int = 10,
         **kwargs,
@@ -560,7 +561,7 @@ class RedshiftPauseClusterOperator(BaseOperator):
         *,
         cluster_identifier: str,
         aws_conn_id: str = "aws_default",
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         poll_interval: int = 10,
         max_attempts: int = 15,
         **kwargs,
@@ -647,7 +648,7 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         poll_interval: int = 30,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         max_attempts: int = 30,
         **kwargs,
     ):

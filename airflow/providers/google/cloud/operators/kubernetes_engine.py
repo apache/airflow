@@ -28,12 +28,14 @@ from kubernetes.client.models import V1Pod
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 except ImportError:
     # preserve backward compatibility for older versions of cncf.kubernetes provider
     from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook, GKEPodHook
 from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEngineClusterLink,
@@ -108,7 +110,7 @@ class GKEDeleteClusterOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v2",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         poll_interval: int = 10,
         **kwargs,
     ) -> None:
@@ -255,7 +257,7 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
         api_version: str = "v2",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: int = 10,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

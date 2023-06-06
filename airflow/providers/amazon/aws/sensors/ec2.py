@@ -21,6 +21,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.triggers.ec2 import EC2StateSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -55,7 +56,7 @@ class EC2InstanceStateSensor(BaseSensorOperator):
         instance_id: str,
         aws_conn_id: str = "aws_default",
         region_name: str | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ):
         if target_state not in self.valid_states:

@@ -23,6 +23,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTableExistenceTrigger,
@@ -71,7 +72,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         table_id: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         if deferrable and "poke_interval" not in kwargs:
@@ -184,7 +185,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         partition_id: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         if deferrable and "poke_interval" not in kwargs:
