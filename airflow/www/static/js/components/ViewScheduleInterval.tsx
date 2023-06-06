@@ -25,7 +25,7 @@ interface Data {
 }
 
 interface Props {
-  data: Data;
+  data: Record<string, number | null>;
 }
 
 const ViewScheduleInterval = ({ data }: Props) => {
