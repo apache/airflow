@@ -68,7 +68,7 @@ class TestOracleToAzureDataLakeTransfer:
 
             assert os.path.exists(os.path.join(temp, filename)) == 1
 
-            with open(os.path.join(temp, filename)) as csvfile:
+            with open(os.path.join(temp, filename), encoding=encoding) as csvfile:
                 temp_file = csv.reader(csvfile, delimiter=delimiter)
 
                 rownum = 0
