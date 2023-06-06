@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-05T11:21:20Z
+# This constraints file was automatically generated on 2023-06-06T14:55:53Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -150,6 +150,7 @@ asn1crypto==1.5.1
 astroid==2.15.5
 asttokens==2.2.1
 async-timeout==4.0.2
+asynctest==0.13.0
 atlasclient==1.0.0
 atlassian-python-api==3.38.0
 attrs==23.1.0
@@ -181,7 +182,7 @@ backcall==0.2.0
 backoff==1.10.0
 bcrypt==4.0.1
 beautifulsoup4==4.12.2
-billiard==3.6.4.0
+billiard==4.1.0
 bitarray==2.7.4
 black==23.1a1
 bleach==6.0.0
@@ -192,9 +193,9 @@ botocore==1.29.76
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==5.3.1
-cassandra-driver==3.27.0
+cassandra-driver==3.28.0
 cattrs==23.1.2
-celery==5.2.7
+celery==5.3.0
 certifi==2023.5.7
 cffi==1.15.1
 cfgv==3.3.1
@@ -281,7 +282,7 @@ google-cloud-bigquery==3.11.0
 google-cloud-bigtable==2.18.1
 google-cloud-build==3.16.0
 google-cloud-compute==1.11.0
-google-cloud-container==2.22.0
+google-cloud-container==2.23.0
 google-cloud-core==2.3.2
 google-cloud-datacatalog==3.13.0
 google-cloud-dataflow-client==0.8.3
@@ -383,7 +384,7 @@ marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
 marshmallow==3.19.0
 matplotlib-inline==0.1.6
-mdit-py-plugins==0.3.5
+mdit-py-plugins==0.4.0
 mdurl==0.1.2
 mongomock==4.1.2
 monotonic==1.6
@@ -524,7 +525,7 @@ qds-sdk==1.16.1
 reactivex==4.0.4
 readme-renderer==37.3
 redis==4.5.5
-redshift-connector==2.0.910
+redshift-connector==2.0.911
 regex==2023.6.3
 requests-file==1.5.1
 requests-kerberos==0.14.0
@@ -629,6 +630,7 @@ types-termcolor==1.1.6.2
 types-toml==0.10.8.6
 types-urllib3==1.26.25.13
 typing_extensions==4.6.3
+tzdata==2023.3
 tzlocal==5.0.1
 uc-micro-py==1.0.2
 unicodecsv==0.14.1
