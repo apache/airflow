@@ -963,6 +963,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
     template_fields: Sequence[str] = (
         "application_id",
+        "config",
         "execution_role_arn",
         "job_driver",
         "configuration_overrides",
