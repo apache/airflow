@@ -109,6 +109,7 @@ def stat_name_otel_handler(
 ) -> str:
     """
     Verifies that a proposed prefix and name combination will meet OpenTelemetry naming standards.
+
     See: https://opentelemetry.io/docs/reference/specification/metrics/api/#instrument-name-syntax
 
     :param stat_prefix: The proposed prefix applied to all metric names.

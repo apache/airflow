@@ -504,7 +504,7 @@ class SnowflakeSqlApiOperator(SnowflakeOperator):
         self._hook.check_query_output(self.query_ids)
 
     def poll_on_queries(self):
-        """Poll on requested queries"""
+        """Poll on requested queries."""
         queries_in_progress = set(self.query_ids)
         statement_success_status = {}
         statement_error_status = {}
