@@ -21,6 +21,7 @@ import logging
 import os
 import shutil
 import sys
+import time
 from copy import copy
 from tempfile import NamedTemporaryFile
 from unittest import mock
@@ -43,6 +44,7 @@ from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
+from kubernetes_tests.test_base import BaseK8STest
 
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
@@ -896,8 +898,6 @@ class TestKubernetesPodOperatorSystem:
         # todo: This isn't really a system test
         await_xcom_sidecar_container_start_mock.return_value = None
         hook_mock.return_value.is_in_cluster = False
-        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
-        hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
         hook_mock.return_value.get_connection.return_value = Connection(conn_id="kubernetes_default")
         extract_xcom_mock.return_value = "{}"
         path = sys.path[0] + "/tests/kubernetes/pod.yaml"
@@ -1327,3 +1327,38 @@ def test_hide_sensitive_field_in_templated_fields_on_error(caplog, monkeypatch):
         task.render_template_fields(context=context)
     assert "password" in caplog.text
     assert "secretpassword" not in caplog.text
+
+
+class TestKubernetesPodOperator(BaseK8STest):
+    @pytest.mark.parametrize("active_deadline_seconds", [10])
+    def test_kubernetes_pod_operator_active_deadline_seconds(self, active_deadline_seconds):
+        task_id = "test_task"
+        image = "busybox"
+        cmds = ["sh", "-c", "echo 'hello world' && sleep 20"]
+        namespace = "default"
+
+        operator = KubernetesPodOperator(
+            task_id=task_id,
+            active_deadline_seconds=active_deadline_seconds,
+            image=image,
+            cmds=cmds,
+            namespace=namespace
+        )
+
+        operator.execute(context={})
+
+        pod = operator.find_pod()
+        pod_name = pod.metadata.name
+        # namespace = pod.metadata.namespace
+
+        k8s_client = client.CoreV1Api()
+        config.load_kube_config()
+
+        time.sleep(active_deadline_seconds)
+
+        pod_status = k8s_client.read_namespaced_pod_status(name=pod_name, namespace=namespace)
+
+        phase = pod_status.status.phase
+        conditions = pod_status.status.conditions
+
+        assert phase == "Failed"
