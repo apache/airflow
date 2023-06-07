@@ -73,8 +73,8 @@ Extra (optional)
 
     .. note::
         If setting ``allow_driver_extra``to True, this allows users to set the driver via the Airflow Connection's
-           ``extra`` field.  By default this is not allowed.  If enabling this functionality, you should make sure
-           that you trust the users who can edit connections in the UI to not use it maliciously.
+        ``extra`` field.  By default this is not allowed.  If enabling this functionality, you should make sure
+        that you trust the users who can edit connections in the UI to not use it maliciously.
 
     .. note::
         You are responsible for installing an ODBC driver on your system.
