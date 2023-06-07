@@ -30,7 +30,7 @@ from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
 from airflow.models import SlaMiss, TaskInstance
 from airflow.utils.helpers import exactly_one
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import TaskInstanceState
 
 
 class TaskInstanceSchema(SQLAlchemySchema):
@@ -159,7 +159,9 @@ class SetTaskInstanceStateFormSchema(Schema):
     include_future = fields.Boolean(required=True)
     include_past = fields.Boolean(required=True)
     new_state = TaskInstanceStateField(
-        required=True, validate=validate.OneOf([TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED])
+        required=True, validate=validate.OneOf(
+            [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
+        ),
     )
 
     @validates_schema
@@ -174,7 +176,9 @@ class SetSingleTaskInstanceStateFormSchema(Schema):
 
     dry_run = fields.Boolean(dump_default=True)
     new_state = TaskInstanceStateField(
-        required=True, validate=validate.OneOf([TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED])
+        required=True, validate=validate.OneOf(
+            [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
+        ),
     )
 
 
