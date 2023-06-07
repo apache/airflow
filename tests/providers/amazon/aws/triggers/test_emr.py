@@ -34,6 +34,7 @@ TEST_AWS_CONN_ID = "test-aws-id"
 
 class TestEmrCreateJobFlowTrigger:
     def test_emr_create_job_flow_trigger_serialize(self):
+        """Test serialize method to make sure all parameters are being serialized correctly."""
         emr_create_job_flow_trigger = EmrCreateJobFlowTrigger(
             job_flow_id=TEST_JOB_FLOW_ID,
             aws_conn_id=TEST_AWS_CONN_ID,
@@ -51,6 +52,10 @@ class TestEmrCreateJobFlowTrigger:
     @mock.patch.object(EmrHook, "get_waiter")
     @mock.patch.object(EmrHook, "async_conn")
     async def test_emr_create_job_flow_trigger_run(self, mock_async_conn, mock_get_waiter):
+        """
+        Test run method, with basic success case to assert TriggerEvent contains the
+        correct payload.
+        """
         a_mock = mock.MagicMock()
         mock_async_conn.__aenter__.return_value = a_mock
 
@@ -81,6 +86,10 @@ class TestEmrCreateJobFlowTrigger:
     async def test_emr_create_job_flow_trigger_run_multiple_attempts(
         self, mock_async_conn, mock_get_waiter, mock_sleep
     ):
+        """
+        Test run method with multiple attempts to make sure the waiter retries
+        are working as expected.
+        """
         a_mock = mock.MagicMock()
         mock_async_conn.__aenter__.return_value = a_mock
         error = WaiterError(
@@ -117,6 +126,10 @@ class TestEmrCreateJobFlowTrigger:
     async def test_emr_create_job_flow_trigger_run_attempts_exceeded(
         self, mock_async_conn, mock_get_waiter, mock_sleep
     ):
+        """
+        Test run method with max_attempts set to 2 to test the Trigger yields
+        the correct TriggerEvent in the case of max_attempts being exceeded.
+        """
         a_mock = mock.MagicMock()
         mock_async_conn.__aenter__.return_value = a_mock
         error = WaiterError(
@@ -149,6 +162,10 @@ class TestEmrCreateJobFlowTrigger:
     async def test_emr_create_job_flow_trigger_run_attempts_failed(
         self, mock_async_conn, mock_get_waiter, mock_sleep
     ):
+        """
+        Test run method with a failure case to test Trigger yields the correct
+        failure TriggerEvent.
+        """
         a_mock = mock.MagicMock()
         mock_async_conn.__aenter__.return_value = a_mock
         error_starting = WaiterError(

@@ -198,6 +198,10 @@ class TestEmrCreateJobFlowOperator:
 
     @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
     def test_create_job_flow_deferrable(self, _):
+        """
+        Test to make sure that the operator raises a TaskDeferred exception
+        if run in deferrable mode.
+        """
         self.emr_client_mock.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 
         # Mock out the emr_client creator
