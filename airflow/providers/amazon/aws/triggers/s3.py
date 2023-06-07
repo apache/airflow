@@ -26,7 +26,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class S3KeyTrigger(BaseTrigger):
     """
-    S3KeyTrigger is fired as deferred class with params to run the task in trigger worker
+    S3KeyTrigger is fired as deferred class with params to run the task in trigger worker.
 
     :param bucket_name: Name of the S3 bucket. Only needed when ``bucket_key``
         is not provided as a full s3:// url.

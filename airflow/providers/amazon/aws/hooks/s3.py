@@ -399,7 +399,7 @@ class S3Hook(AwsBaseHook):
         self, client: AioBaseClient, key: str, bucket_name: str | None = None
     ) -> dict[str, Any] | None:
         """
-        Retrieves metadata of an object
+        Retrieves metadata of an object.
 
         :param client: aiobotocore client
         :param bucket_name: Name of the bucket in which the file is stored
@@ -425,7 +425,7 @@ class S3Hook(AwsBaseHook):
         max_items: int | None = None,
     ) -> list[Any]:
         """
-        Lists prefixes in a bucket under prefix
+        Lists prefixes in a bucket under prefix.
 
         :param client: ClientCreatorContext
         :param bucket_name: the name of the bucket
@@ -458,7 +458,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name_async
     async def get_file_metadata_async(self, client: AioBaseClient, bucket_name: str, key: str) -> list[Any]:
         """
-        Gets a list of files that a key matching a wildcard expression exists in a bucket asynchronously
+        Gets a list of files that a key matching a wildcard expression exists in a bucket asynchronously.
 
         :param client: aiobotocore client
         :param bucket_name: the name of the bucket
@@ -512,7 +512,7 @@ class S3Hook(AwsBaseHook):
         wildcard_match: bool,
     ) -> bool:
         """
-        Checks for all keys in bucket and returns boolean value
+        Checks for all keys in bucket and returns boolean value.
 
         :param client: aiobotocore client
         :param bucket: the name of the bucket
@@ -531,7 +531,7 @@ class S3Hook(AwsBaseHook):
         self, client: AioBaseClient, prefix: str, delimiter: str, bucket_name: str | None = None
     ) -> bool:
         """
-        Checks that a prefix exists in a bucket
+        Checks that a prefix exists in a bucket.
 
         :param bucket_name: the name of the bucket
         :param prefix: a key prefix
@@ -559,7 +559,7 @@ class S3Hook(AwsBaseHook):
         wildcard_match: bool,
         delimiter: str | None = "/",
     ) -> list[Any]:
-        """Gets a list of files in the bucket"""
+        """Gets a list of files in the bucket."""
         keys: list[Any] = []
         for key in bucket_keys:
             prefix = key
@@ -584,7 +584,7 @@ class S3Hook(AwsBaseHook):
         max_items: int | None = None,
     ) -> list[str]:
         """
-        Lists keys in a bucket under prefix and not containing delimiter
+        Lists keys in a bucket under prefix and not containing delimiter.
 
         :param bucket_name: the name of the bucket
         :param prefix: a key prefix
