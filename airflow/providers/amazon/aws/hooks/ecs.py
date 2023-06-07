@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import itertools
 import time
-from collections import deque
 from datetime import datetime, timedelta
 from logging import Logger
 from threading import Event, Thread
@@ -168,7 +168,7 @@ class EcsTaskLogFetcher(Thread):
         self.log_group = log_group
         self.log_stream_name = log_stream_name
 
-        self.hook = AwsLogsHook(aws_conn_id=aws_conn_id, region_name=region_name)
+        self.logs_hook = AwsLogsHook(aws_conn_id=aws_conn_id, region_name=region_name)
 
     def run(self) -> None:
         logs_to_skip = 0
@@ -181,11 +181,10 @@ class EcsTaskLogFetcher(Thread):
 
     def _get_log_events(self, skip: int = 0) -> Generator:
         try:
-            yield from self.hook.get_log_events(self.log_group, self.log_stream_name, skip=skip)
+            yield from self.logs_hook.get_log_events(self.log_group, self.log_stream_name, skip=skip)
         except ClientError as error:
             if error.response["Error"]["Code"] != "ResourceNotFoundException":
                 self.logger.warning("Error on retrieving Cloudwatch log events", error)
-
             yield from ()
         except ConnectionClosedError as error:
             self.logger.warning("ConnectionClosedError on retrieving Cloudwatch log events", error)
@@ -198,7 +197,12 @@ class EcsTaskLogFetcher(Thread):
         return f"[{formatted_event_dt}] {message}"
 
     def get_last_log_messages(self, number_messages) -> list:
-        return [log["message"] for log in deque(self._get_log_events(), maxlen=number_messages)]
+        last_logs_iterator = self.logs_hook.get_log_events(
+            self.log_group, self.log_stream_name, start_from_head=False
+        )
+        truncated = list(itertools.islice(last_logs_iterator, number_messages))
+        # need to reverse the order to put the logs back in order after getting them from the end
+        return [log["message"] for log in reversed(truncated)]
 
     def get_last_log_message(self) -> str | None:
         try:

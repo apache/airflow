@@ -24,6 +24,7 @@ from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook, EcsTaskLogFetcher, should_retry, should_retry_eni
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
 DEFAULT_CONN_ID: str = "aws_default"
 REGION: str = "us-east-1"
@@ -167,29 +168,25 @@ class TestEcsTaskLogFetcher:
     def test_get_last_log_message_with_no_log_events(self, mock_log_events):
         assert self.log_fetcher.get_last_log_message() is None
 
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
-        return_value=iter(
-            [
+    @mock.patch.object(AwsLogsHook, "conn")
+    def test_get_last_log_message_with_log_events(self, log_conn_mock):
+        log_conn_mock.get_log_events.return_value = {
+            "events": [
                 {"timestamp": 1617400267123, "message": "First"},
                 {"timestamp": 1617400367456, "message": "Second"},
             ]
-        ),
-    )
-    def test_get_last_log_message_with_log_events(self, mock_log_events):
+        }
         assert self.log_fetcher.get_last_log_message() == "Second"
 
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
-        return_value=iter(
-            [
+    @mock.patch.object(AwsLogsHook, "conn")
+    def test_get_last_log_messages_with_log_events(self, log_conn_mock):
+        log_conn_mock.get_log_events.return_value = {
+            "events": [
                 {"timestamp": 1617400267123, "message": "First"},
                 {"timestamp": 1617400367456, "message": "Second"},
                 {"timestamp": 1617400367458, "message": "Third"},
             ]
-        ),
-    )
-    def test_get_last_log_messages_with_log_events(self, mock_log_events):
+        }
         assert self.log_fetcher.get_last_log_messages(2) == ["Second", "Third"]
 
     @mock.patch(

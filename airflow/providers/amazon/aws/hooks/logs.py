@@ -72,6 +72,7 @@ class AwsLogsHook(AwsBaseHook):
             This is for when there are multiple entries at the same timestamp.
         :param start_from_head: whether to start from the beginning (True) of the log or
             at the end of the log (False).
+            If iterating from the end of the file, the logs are returned in reverse order.
         :return: | A CloudWatch log event with the following key-value pairs:
                  |   'timestamp' (int): The time in milliseconds of the event.
                  |   'message' (str): The log event data.
@@ -103,7 +104,12 @@ class AwsLogsHook(AwsBaseHook):
                 skip -= event_count
                 events = []
 
-            yield from events
+            if not start_from_head:
+                # if we are not reading from head, it doesn't make sense to return events in "normal" order
+                # while hiding the subsequent calls, bc 1-9 queried by batches of 3 would return 789 456 123
+                yield from reversed(events)
+            else:
+                yield from events
 
             if not event_count:
                 num_consecutive_empty_response += 1
