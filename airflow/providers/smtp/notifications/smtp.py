@@ -34,7 +34,7 @@ from airflow.providers.smtp.hooks.smtp import SmtpHook
 
 class SmtpNotifier(BaseNotifier):
     """
-    SMTP Notifier
+    SMTP Notifier.
 
     :param smtp_conn_id: The :ref:`smtp connection id <howto/connection:smtp>`
         that contains the information used to authenticate the client.
@@ -82,11 +82,11 @@ class SmtpNotifier(BaseNotifier):
 
     @cached_property
     def hook(self) -> SmtpHook:
-        """Smtp Events Hook"""
+        """Smtp Events Hook."""
         return SmtpHook(smtp_conn_id=self.smtp_conn_id)
 
     def notify(self, context):
-        """Send a email via smtp server"""
+        """Send a email via smtp server."""
         with self.hook as smtp:
             smtp.send_email_smtp(
                 smtp_conn_id=self.smtp_conn_id,
