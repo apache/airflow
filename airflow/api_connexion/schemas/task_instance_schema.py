@@ -30,7 +30,7 @@ from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
 from airflow.models import SlaMiss, TaskInstance
 from airflow.utils.helpers import exactly_one
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 
 
 class TaskInstanceSchema(SQLAlchemySchema):
