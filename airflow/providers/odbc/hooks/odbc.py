@@ -30,7 +30,22 @@ class OdbcHook(DbApiHook):
     """
     Interact with odbc data sources using pyodbc.
 
+    To configure driver, in addition to supplying as constructor arg, the following are also supported:
+        * set ``driver`` parameter in ``hook_params`` dictionary when instantiating hook by SQL operators.
+        * set ``driver`` extra in the connection and set ``allow_driver_in_extra`` to True in
+          section ``providers.odbc`` section of airflow config.
+        * patch ``OdbcHook.default_driver`` in ``local_settings.py`` file.
+
     See :doc:`/connections/odbc` for full documentation.
+
+    :param args: passed to DbApiHook
+    :param database: database to use -- overrides connection ``schema``
+    :param driver: name of driver or path to driver. see above for more info
+    :param dsn: name of DSN to use.  overrides DSN supplied in connection ``extra``
+    :param connect_kwargs: keyword arguments passed to ``pyodbc.connect``
+    :param sqlalchemy_scheme: Scheme sqlalchemy connection.  Default is ``mssql+pyodbc`` Only used for
+        ``get_sqlalchemy_engine`` and ``get_sqlalchemy_connection`` methods.
+    :param kwargs: passed to DbApiHook
     """
 
     DEFAULT_SQLALCHEMY_SCHEME = "mssql+pyodbc"
@@ -39,6 +54,8 @@ class OdbcHook(DbApiHook):
     conn_type = "odbc"
     hook_name = "ODBC"
     supports_autocommit = True
+
+    default_driver: str | None = None
 
     def __init__(
         self,
@@ -102,6 +119,19 @@ class OdbcHook(DbApiHook):
     @property
     def driver(self) -> str | None:
         """Driver from init param if given; else try to find one in connection extra."""
+        extra_driver = self.connection_extra_lower.get("driver")
+        from airflow.configuration import conf
+
+        if extra_driver and conf.getboolean("providers.odbc", "allow_driver_in_extra", fallback=False):
+            self._driver = extra_driver
+        else:
+            self.log.warning(
+                "You have supplied 'driver' via connection extra but it will not be used. In order to "
+                "use 'driver' from extra you must set airflow config setting `allow_driver_in_extra = True` "
+                "in section `providers.odbc`. Alternatively you may specify driver via 'driver' parameter of "
+                "the hook constructor or via 'hook_params' dictionary with key 'driver' if using SQL "
+                "operators."
+            )
         if not self._driver:
             driver = self.connection_extra_lower.get("driver")
             if driver:
