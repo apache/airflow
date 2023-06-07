@@ -39,7 +39,7 @@ or by creating a corresponding environment variable:
     export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=my_conn_string
 
 Note that when the section name has a dot in it, you must replace it with an underscore when setting the env var.
-For example consider pretend section ``providers.some_provider``:
+For example consider the pretend section ``providers.some_provider``:
 
 .. code-block:: ini
 
