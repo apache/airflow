@@ -44,6 +44,7 @@ class TestS3KeyTrigger:
             "aws_conn_id": "aws_default",
             "hook_params": {},
             "poke_interval": 5.0,
+            "should_check_fn": False,
         }
 
     @pytest.mark.asyncio
