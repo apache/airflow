@@ -37,7 +37,7 @@ class OdbcHook(DbApiHook):
     :param driver: name of driver or path to driver. You can also set the driver via:
        * setting ``driver`` parameter in ``hook_params`` dictionary when instantiating hook by SQL operators.
        * setting ``driver`` extra in the connection and setting  ``allow_driver_in_extra`` to True in
-           section ``providers.odbc`` section of airflow config.
+         section ``providers.odbc`` section of airflow config.
        * setting ``OdbcHook.default_driver`` in ``local_settings.py`` file.
     :param dsn: name of DSN to use.  overrides DSN supplied in connection ``extra``
     :param connect_kwargs: keyword arguments passed to ``pyodbc.connect``
