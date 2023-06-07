@@ -969,7 +969,10 @@ class EmrServerlessStartJobOperator(BaseOperator):
         "configuration_overrides",
     )
 
-    template_fields_renderers = {"config":"json", "configuration_overrides":"json"}
+    template_fields_renderers = {
+        "config": "json",
+        "configuration_overrides": "json",
+    }
 
     def __init__(
         self,
