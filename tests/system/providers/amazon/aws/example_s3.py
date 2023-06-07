@@ -159,7 +159,6 @@ with DAG(
         task_id="sensor_one_key",
         bucket_name=bucket_name,
         bucket_key=key,
-        deferrable=True,
     )
     # [END howto_sensor_s3_key_single_key]
 
@@ -169,7 +168,6 @@ with DAG(
         task_id="sensor_two_keys",
         bucket_name=bucket_name,
         bucket_key=[key, key_2],
-        deferrable=True,
     )
     # [END howto_sensor_s3_key_multiple_keys]
 
@@ -180,7 +178,6 @@ with DAG(
         bucket_name=bucket_name,
         bucket_key=key,
         check_fn=check_fn,
-        deferrable=True,
     )
     # [END howto_sensor_s3_key_function]
 
