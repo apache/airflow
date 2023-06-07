@@ -1551,7 +1551,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             numbers (0-9), underscores (_), or dashes (-). The maximum length is 1,024
             characters. If not provided then uuid will be generated.
         :param project_id: Google Cloud Project where the job is running.
-        :param location: :ocation the job is running.
+        :param location: Location the job is running.
         :param nowait: Whether to insert job without waiting for the result.
         :param retry: How to retry the RPC.
         :param timeout: The number of seconds to wait for the underlying HTTP transport
