@@ -84,7 +84,7 @@ def name_is_otel_safe(prefix: str, name: str) -> bool:
 
 
 class SafeOtelLogger:
-    """Otel Logger"""
+    """Otel Logger."""
 
     def __init__(self, otel_provider, prefix: str = "airflow", allow_list_validator=AllowListValidator()):
         self.otel: Callable = otel_provider
