@@ -22,7 +22,7 @@ import os
 import re
 from datetime import datetime, timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, List, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
 
 from deprecated import deprecated
 
@@ -97,6 +97,7 @@ class S3KeySensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.deferrable = deferrable
+        self.should_check_fn = True if check_fn else False
 
     def _check_key(self, key):
         bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
@@ -144,19 +145,23 @@ class S3KeySensor(BaseSensorOperator):
             super().execute(context)
         else:
             if not self.poke(context=context):
-                self.defer(
-                    timeout=timedelta(seconds=self.timeout),
-                    trigger=S3KeyTrigger(
-                        bucket_name=cast(str, self.bucket_name),
-                        bucket_key=self.bucket_key,
-                        wildcard_match=self.wildcard_match,
-                        check_fn=self.check_fn,
-                        aws_conn_id=self.aws_conn_id,
-                        verify=self.verify,
-                        poke_interval=self.poke_interval,
-                    ),
-                    method_name="execute_complete",
-                )
+                self._defer()
+
+    def _defer(self) -> None:
+        """Check for a keys in s3 and defers using the triggerer."""
+        self.defer(
+            timeout=timedelta(seconds=self.timeout),
+            trigger=S3KeyTrigger(
+                bucket_name=cast(str, self.bucket_name),
+                bucket_key=self.bucket_key,
+                wildcard_match=self.wildcard_match,
+                aws_conn_id=self.aws_conn_id,
+                verify=self.verify,
+                poke_interval=self.poke_interval,
+                should_check_fn=self.should_check_fn,
+            ),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> bool | None:
         """
@@ -164,12 +169,15 @@ class S3KeySensor(BaseSensorOperator):
         Relies on trigger to throw an exception, otherwise it assumes execution was
         successful.
         """
+        if event["status"] == "running":
+            found_keys = self.check_fn(event["files"])  # type: ignore[misc]
+            if found_keys:
+                return None
+            else:
+                self._defer()
+
         if event["status"] == "error":
             raise AirflowException(event["message"])
-        elif event["status"] == "success" and "s3_objects" in event:
-            files = cast(List[str], event["s3_objects"])
-            if self.check_fn:
-                return self.check_fn(files)
         return None
 
     @deprecated(reason="use `hook` property instead.")
