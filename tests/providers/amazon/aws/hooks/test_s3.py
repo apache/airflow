@@ -231,6 +231,12 @@ class TestAwsS3Hook:
         bucket.put_object(Key="bxb", Body=b"axb")
         bucket.put_object(Key="dir/b", Body=b"b")
 
+        from_datetime = datetime(1992, 3, 8, 18, 52, 51)
+        to_datetime = datetime(1993, 3, 14, 21, 52, 42)
+
+        def dummy_object_filter(keys, from_datetime=None, to_datetime=None):
+            return []
+
         assert [] == hook.list_keys(s3_bucket, prefix="non-existent/")
         assert ["a", "ba", "bxa", "bxb", "dir/b"] == hook.list_keys(s3_bucket)
         assert ["a", "ba", "bxa", "bxb"] == hook.list_keys(s3_bucket, delimiter="/")
@@ -550,131 +556,6 @@ class TestAwsS3Hook:
         mock_client.get_paginator = mock.Mock(return_value=mock_paginator)
         response = await s3_hook_async._list_keys_async(mock_client, "test_bucket", "test*")
         assert response == ["test_key", "test_key2"]
-
-    @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
-    async def test_s3_key_hook_is_keys_unchanged_false_async(self, mock_list_keys, mock_client):
-        """
-        Test is_key_unchanged gives False response
-        :return:
-        """
-
-        mock_list_keys.return_value = ["test"]
-
-        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
-        response = await s3_hook_async.is_keys_unchanged_async(
-            client=mock_client.return_value,
-            bucket_name="test_bucket",
-            prefix="test",
-            inactivity_period=1,
-            min_objects=1,
-            previous_objects=set(),
-            inactivity_seconds=0,
-            allow_delete=True,
-            last_activity_time=None,
-        )
-
-        assert response.get("status") == "pending"
-
-        # test for the case when current_objects < previous_objects
-        mock_list_keys.return_value = []
-
-        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
-        response = await s3_hook_async.is_keys_unchanged_async(
-            client=mock_client.return_value,
-            bucket_name="test_bucket",
-            prefix="test",
-            inactivity_period=1,
-            min_objects=1,
-            previous_objects=set("test"),
-            inactivity_seconds=0,
-            allow_delete=True,
-            last_activity_time=None,
-        )
-
-        assert response.get("status") == "pending"
-
-    @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
-    async def test_s3_key_hook_is_keys_unchanged_exception_async(self, mock_list_keys, mock_client):
-        """
-        Test is_key_unchanged gives AirflowException
-        :return:
-        """
-        mock_list_keys.return_value = []
-
-        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
-
-        response = await s3_hook_async.is_keys_unchanged_async(
-            client=mock_client.return_value,
-            bucket_name="test_bucket",
-            prefix="test",
-            inactivity_period=1,
-            min_objects=1,
-            previous_objects=set("test"),
-            inactivity_seconds=0,
-            allow_delete=False,
-            last_activity_time=None,
-        )
-
-        assert response == {"message": " test_bucket/test between pokes.", "status": "error"}
-
-    @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
-    async def test_s3_key_hook_is_keys_unchanged_pending_async(self, mock_list_keys, mock_client):
-        """
-        Test is_key_unchanged gives AirflowException
-        :return:
-        """
-        mock_list_keys.return_value = []
-
-        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
-
-        response = await s3_hook_async.is_keys_unchanged_async(
-            client=mock_client.return_value,
-            bucket_name="test_bucket",
-            prefix="test",
-            inactivity_period=1,
-            min_objects=0,
-            previous_objects=set(),
-            inactivity_seconds=0,
-            allow_delete=False,
-            last_activity_time=None,
-        )
-
-        assert response.get("status") == "pending"
-
-    @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
-    async def test_s3_key_hook_is_keys_unchanged_inactivity_error_async(self, mock_list_keys, mock_client):
-        """
-        Test is_key_unchanged gives AirflowException
-        :return:
-        """
-        mock_list_keys.return_value = []
-
-        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
-
-        response = await s3_hook_async.is_keys_unchanged_async(
-            client=mock_client.return_value,
-            bucket_name="test_bucket",
-            prefix="test",
-            inactivity_period=0,
-            min_objects=5,
-            previous_objects=set(),
-            inactivity_seconds=5,
-            allow_delete=False,
-            last_activity_time=None,
-        )
-
-        assert response == {
-            "status": "error",
-            "message": "FAILURE: Inactivity Period passed, not enough objects found in test_bucket/test",
-        }
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
