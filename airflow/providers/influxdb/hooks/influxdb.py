@@ -18,7 +18,7 @@
 """
 This module allows to connect to a InfluxDB database.
 
-.. spelling::
+.. spelling:word-list::
 
     FluxTable
 """
