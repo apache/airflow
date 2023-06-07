@@ -963,10 +963,16 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
     template_fields: Sequence[str] = (
         "application_id",
+        "config",
         "execution_role_arn",
         "job_driver",
         "configuration_overrides",
     )
+
+    template_fields_renderers = {
+        "config": "json",
+        "configuration_overrides": "json",
+    }
 
     def __init__(
         self,
