@@ -28,7 +28,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class GlueCrawlerCompleteTrigger(BaseTrigger):
     """
-    Watches for a glue crawl, triggers when it finishes
+    Watches for a glue crawl, triggers when it finishes.
 
     :param crawler_name: name of the crawler to watch
     :param poll_interval: The amount of time in seconds to wait between attempts.

@@ -22,7 +22,6 @@ from unittest.mock import MagicMock, Mock
 
 import pandas as pd
 import pytest
-import unicodecsv as csv
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
@@ -87,35 +86,20 @@ class DummySQLToGCSOperator(BaseSQLToGCSOperator):
 
 class TestBaseSQLToGCSOperator:
     @mock.patch("airflow.providers.google.cloud.transfers.sql_to_gcs.NamedTemporaryFile")
-    @mock.patch.object(csv.writer, "writerow")
+    @mock.patch("csv.writer")
     @mock.patch.object(GCSHook, "upload")
     @mock.patch.object(DummySQLToGCSOperator, "query")
     @mock.patch.object(DummySQLToGCSOperator, "convert_type")
-    def test_exec(self, mock_convert_type, mock_query, mock_upload, mock_writerow, mock_tempfile):
+    def test_exec(self, mock_convert_type, mock_query, mock_upload, mock_writer, mock_tempfile):
         cursor_mock = Mock()
         cursor_mock.description = CURSOR_DESCRIPTION
         cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
         mock_query.return_value = cursor_mock
         mock_convert_type.return_value = "convert_type_return_value"
 
-        mock_file = Mock()
-
-        mock_tell = Mock()
-        mock_tell.return_value = 3
-        mock_file.tell = mock_tell
-
-        mock_flush = Mock()
-        mock_file.flush = mock_flush
-
-        mock_close = Mock()
-        mock_file.close = mock_close
-
+        mock_file = mock_tempfile.return_value
+        mock_file.tell.return_value = 3
         mock_file.name = TMP_FILE_NAME
-
-        mock_write = Mock()
-        mock_file.write = mock_write
-
-        mock_tempfile.return_value = mock_file
 
         # Test CSV
         operator = DummySQLToGCSOperator(
@@ -145,18 +129,16 @@ class TestBaseSQLToGCSOperator:
         }
 
         mock_query.assert_called_once()
-        mock_writerow.assert_has_calls(
-            [
-                mock.call(COLUMNS),
-                mock.call(ROW),
-                mock.call(COLUMNS),
-                mock.call(ROW),
-                mock.call(COLUMNS),
-                mock.call(ROW),
-                mock.call(COLUMNS),
-            ]
-        )
-        mock_flush.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call()])
+        assert mock_writer.return_value.writerow.call_args_list == [
+            mock.call(COLUMNS),
+            mock.call(ROW),
+            mock.call(COLUMNS),
+            mock.call(ROW),
+            mock.call(COLUMNS),
+            mock.call(ROW),
+            mock.call(COLUMNS),
+        ]
+        mock_file.flush.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call()])
         csv_calls = []
         for i in range(0, 3):
             csv_calls.append(
@@ -174,12 +156,12 @@ class TestBaseSQLToGCSOperator:
         )
         upload_calls = [json_call, csv_calls[0], csv_calls[1], csv_calls[2]]
         mock_upload.assert_has_calls(upload_calls)
-        mock_close.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call()])
+        mock_file.close.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call()])
 
         mock_query.reset_mock()
-        mock_flush.reset_mock()
+        mock_file.flush.reset_mock()
         mock_upload.reset_mock()
-        mock_close.reset_mock()
+        mock_file.close.reset_mock()
         cursor_mock.reset_mock()
 
         cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
@@ -200,26 +182,24 @@ class TestBaseSQLToGCSOperator:
         }
 
         mock_query.assert_called_once()
-        mock_write.assert_has_calls(
-            [
-                mock.call(OUTPUT_DATA),
-                mock.call(b"\n"),
-                mock.call(OUTPUT_DATA),
-                mock.call(b"\n"),
-                mock.call(OUTPUT_DATA),
-                mock.call(b"\n"),
-            ]
-        )
-        mock_flush.assert_called_once()
+        mock_file.write.call_args_list == [
+            mock.call(OUTPUT_DATA),
+            mock.call(b"\n"),
+            mock.call(OUTPUT_DATA),
+            mock.call(b"\n"),
+            mock.call(OUTPUT_DATA),
+            mock.call(b"\n"),
+        ]
         mock_upload.assert_called_once_with(
             BUCKET, FILENAME.format(0), TMP_FILE_NAME, mime_type=APP_JSON, gzip=False, metadata=None
         )
-        mock_close.assert_called_once()
+        mock_file.close.assert_called_once()
 
         mock_query.reset_mock()
-        mock_flush.reset_mock()
+        mock_file.flush.reset_mock()
         mock_upload.reset_mock()
-        mock_close.reset_mock()
+        mock_file.close.reset_mock()
+        mock_file.write.reset_mock()
         cursor_mock.reset_mock()
 
         cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
@@ -246,18 +226,16 @@ class TestBaseSQLToGCSOperator:
         }
 
         mock_query.assert_called_once()
-        mock_write.assert_has_calls(
-            [
-                mock.call(OUTPUT_DATA),
-                mock.call(b"\n"),
-                mock.call(OUTPUT_DATA),
-                mock.call(b"\n"),
-                mock.call(OUTPUT_DATA),
-                mock.call(b"\n"),
-            ]
-        )
+        mock_file.write.call_args_list == [
+            mock.call(OUTPUT_DATA),
+            mock.call(b"\n"),
+            mock.call(OUTPUT_DATA),
+            mock.call(b"\n"),
+            mock.call(OUTPUT_DATA),
+            mock.call(b"\n"),
+        ]
 
-        mock_flush.assert_called_once()
+        mock_file.flush.assert_called_once()
         mock_upload.assert_called_once_with(
             BUCKET,
             FILENAME.format(0),
@@ -266,12 +244,12 @@ class TestBaseSQLToGCSOperator:
             gzip=False,
             metadata={"row_count": 3},
         )
-        mock_close.assert_called_once()
+        mock_file.close.assert_called_once()
 
         mock_query.reset_mock()
-        mock_flush.reset_mock()
+        mock_file.flush.reset_mock()
         mock_upload.reset_mock()
-        mock_close.reset_mock()
+        mock_file.close.reset_mock()
         cursor_mock.reset_mock()
 
         cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
@@ -296,7 +274,7 @@ class TestBaseSQLToGCSOperator:
         }
 
         mock_query.assert_called_once()
-        mock_flush.assert_called_once()
+        mock_file.flush.assert_called_once()
         mock_upload.assert_called_once_with(
             BUCKET,
             FILENAME.format(0),
@@ -305,12 +283,12 @@ class TestBaseSQLToGCSOperator:
             gzip=False,
             metadata=None,
         )
-        mock_close.assert_called_once()
+        mock_file.close.assert_called_once()
 
         mock_query.reset_mock()
-        mock_flush.reset_mock()
+        mock_file.flush.reset_mock()
         mock_upload.reset_mock()
-        mock_close.reset_mock()
+        mock_file.close.reset_mock()
         cursor_mock.reset_mock()
 
         cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
@@ -351,8 +329,8 @@ class TestBaseSQLToGCSOperator:
         }
 
         mock_query.assert_called_once()
-        assert mock_flush.call_count == 3
-        assert mock_close.call_count == 3
+        assert mock_file.flush.call_count == 3
+        assert mock_file.close.call_count == 3
         mock_upload.assert_has_calls(
             [
                 mock.call(
@@ -368,9 +346,9 @@ class TestBaseSQLToGCSOperator:
         )
 
         mock_query.reset_mock()
-        mock_flush.reset_mock()
+        mock_file.flush.reset_mock()
         mock_upload.reset_mock()
-        mock_close.reset_mock()
+        mock_file.close.reset_mock()
         cursor_mock.reset_mock()
 
         cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
@@ -396,7 +374,7 @@ class TestBaseSQLToGCSOperator:
             "files": [{"file_name": "test_results_0.csv", "file_mime_type": "text/csv", "file_row_count": 3}],
         }
 
-        mock_writerow.assert_has_calls(
+        mock_writer.return_value.writerow.assert_has_calls(
             [
                 mock.call(COLUMNS),
                 mock.call(["NULL", "NULL", "NULL"]),

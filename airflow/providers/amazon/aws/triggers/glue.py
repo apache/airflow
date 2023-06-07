@@ -25,7 +25,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class GlueJobCompleteTrigger(BaseTrigger):
     """
-    Watches for a glue job, triggers when it finishes
+    Watches for a glue job, triggers when it finishes.
 
     :param job_name: glue job name
     :param run_id: the ID of the specific run to watch for that job
