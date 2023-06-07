@@ -302,6 +302,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
             TaskInstance._try_number,
             func.min(TaskInstanceNote.content).label("note"),
             func.count(func.coalesce(TaskInstance.state, sqla.literal("no_status"))).label("state_count"),
+            func.min(TaskInstance.queued_dttm).label("queued_dttm"),
             func.min(TaskInstance.start_date).label("start_date"),
             func.max(TaskInstance.end_date).label("end_date"),
         )
@@ -332,6 +333,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                     "task_id": task_instance.task_id,
                     "run_id": task_instance.run_id,
                     "state": task_instance.state,
+                    "queued_dttm": task_instance.queued_dttm,
                     "start_date": task_instance.start_date,
                     "end_date": task_instance.end_date,
                     "try_number": wwwutils.get_try_count(task_instance._try_number, task_instance.state),
@@ -361,12 +363,16 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                         record = {
                             "task_id": ti_summary.task_id,
                             "run_id": run_id,
+                            "queued_dttm": ti_summary.queued_dttm,
                             "start_date": ti_summary.start_date,
                             "end_date": ti_summary.end_date,
                             "mapped_states": {ti_summary.state: ti_summary.state_count},
                             "state": None,  # We change this before yielding
                         }
                         continue
+                    record["queued_dttm"] = min(
+                        filter(None, [record["queued_dttm"], ti_summary.queued_dttm]), default=None
+                    )
                     record["start_date"] = min(
                         filter(None, [record["start_date"], ti_summary.start_date]), default=None
                     )
@@ -419,11 +425,13 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 if item
             ]
 
+            children_queued_dttms = (item["queued_dttm"] for item in child_instances)
             children_start_dates = (item["start_date"] for item in child_instances)
             children_end_dates = (item["end_date"] for item in child_instances)
             children_states = {item["state"] for item in child_instances}
 
             group_state = next((state for state in wwwutils.priority if state in children_states), None)
+            group_queued_dttm = min(filter(None, children_queued_dttms), default=None)
             group_start_date = min(filter(None, children_start_dates), default=None)
             group_end_date = max(filter(None, children_end_dates), default=None)
 
@@ -431,6 +439,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                 "task_id": task_group.group_id,
                 "run_id": dag_run.run_id,
                 "state": group_state,
+                "queued_dttm": group_queued_dttm,
                 "start_date": group_start_date,
                 "end_date": group_end_date,
             }
@@ -460,6 +469,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                     if item and item["run_id"] == run_id
                 ]
 
+                children_queued_dttms = (item["queued_dttm"] for item in child_instances)
                 children_start_dates = (item["start_date"] for item in child_instances)
                 children_end_dates = (item["end_date"] for item in child_instances)
                 children_states = {item["state"] for item in child_instances}
@@ -475,6 +485,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                     mapped_states[value] += 1
 
                 group_state = next((state for state in wwwutils.priority if state in children_states), None)
+                group_queued_dttm = min(filter(None, children_queued_dttms), default=None)
                 group_start_date = min(filter(None, children_start_dates), default=None)
                 group_end_date = max(filter(None, children_end_dates), default=None)
 
@@ -482,6 +493,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
                     "task_id": task_group.group_id,
                     "run_id": run_id,
                     "state": group_state,
+                    "queued_dttm": group_queued_dttm,
                     "start_date": group_start_date,
                     "end_date": group_end_date,
                     "mapped_states": mapped_states,

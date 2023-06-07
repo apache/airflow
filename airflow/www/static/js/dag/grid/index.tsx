@@ -39,6 +39,8 @@ interface Props {
   onToggleGroups: (groupIds: string[]) => void;
   isGridCollapsed?: boolean;
   setIsGridCollapsed?: (collapsed: boolean) => void;
+  gridScrollRef?: any;
+  ganttScrollRef?: any;
 }
 
 const Grid = ({
@@ -49,8 +51,9 @@ const Grid = ({
   onToggleGroups,
   isGridCollapsed,
   setIsGridCollapsed,
+  gridScrollRef,
+  ganttScrollRef,
 }: Props) => {
-  const scrollRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableSectionElement>(null);
   const offsetTop = useOffsetTop(tableRef);
   const { selected } = useSelection();
@@ -68,9 +71,25 @@ const Grid = ({
       return true;
     });
 
+  const onGanttScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollTop = e?.currentTarget?.scrollTop;
+    if (scrollTop && ganttScrollRef?.current) {
+      gridScrollRef.current.scrollTop = scrollTop;
+    }
+  };
+
+  // Sync grid and gantt scroll
+  useEffect(() => {
+    const gantt = ganttScrollRef.current;
+    gantt?.addEventListener("scroll", onGanttScroll);
+    return () => {
+      gantt?.removeEventListener("scroll", onGanttScroll);
+    };
+  });
+
   useEffect(() => {
     const scrollOnResize = new ResizeObserver(() => {
-      const runsContainer = scrollRef.current;
+      const runsContainer = gridScrollRef?.current;
       // Set scroll to top right if it is scrollable
       if (
         tableRef?.current &&
@@ -90,7 +109,7 @@ const Grid = ({
       };
     }
     return () => {};
-  }, [tableRef, isGridCollapsed]);
+  }, [tableRef, isGridCollapsed, gridScrollRef]);
 
   return (
     <Box height="100%" position="relative">
@@ -134,11 +153,12 @@ const Grid = ({
       )}
       <Box
         maxHeight={`calc(100% - ${offsetTop}px)`}
-        ref={scrollRef}
+        ref={gridScrollRef}
         overflow="auto"
         position="relative"
         pr={4}
         mt={8}
+        overscrollBehavior="contain"
       >
         <Table pr="10px">
           <Thead>
