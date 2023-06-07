@@ -18,7 +18,7 @@
 """
 This module contains AWS Athena hook.
 
-.. spelling::
+.. spelling:word-list::
 
     PageIterator
 """

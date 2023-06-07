@@ -3795,7 +3795,7 @@ class Airflow(AirflowBaseView):
         ]
     )
     def historical_metrics_data(self):
-        """Returns cluster activity historical metrics"""
+        """Returns cluster activity historical metrics."""
         start_date = _safe_parse_datetime(request.args.get("start_date"))
         end_date = _safe_parse_datetime(request.args.get("end_date"))
         with create_session() as session:
