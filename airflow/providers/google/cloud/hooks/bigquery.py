@@ -15,10 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a BigQuery Hook, as well as a very basic PEP 249
-implementation for BigQuery.
-"""
+
+"""BigQuery Hook and a very basic PEP 249 implementation for BigQuery."""
+
 from __future__ import annotations
 
 import json
