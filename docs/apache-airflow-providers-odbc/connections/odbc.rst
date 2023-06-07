@@ -69,7 +69,8 @@ Extra (optional)
           scheme ``mssql+pyodbc``.  You may pass a string value here to override.
     - ``driver``
         * The name of the driver to use on your system.  Note that this is only considered if ``allow_driver_in_extra``
-          is set to True in airflow config section ``providers.odbc`` (by default it is not considered).
+          is set to True in airflow config section ``providers.odbc`` (by default it is not considered).  Note: if setting
+          this config from env vars, use ``AIRFLOW__PROVIDERS_ODBC__ALLOW_DRIVER_IN_EXTRA=true``.
 
     .. note::
         If setting ``allow_driver_extra``to True, this allows users to set the driver via the Airflow Connection's
