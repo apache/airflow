@@ -152,7 +152,7 @@ class SafeOtelLogger:
 
         :param stat: The name of the stat to increment.
         :param count: A positive integer to add to the current value of stat.
-        :param rate: value between 0 and 1 that represents the sampled rate at
+        :param rate: value between 0 and 1 that represents the sample rate at
             which the metric is going to be emitted.
         :param tags: Tags to append to the stat.
         """
@@ -178,7 +178,7 @@ class SafeOtelLogger:
 
         :param stat: The name of the stat to decrement.
         :param count: A positive integer to subtract from current value of stat.
-        :param rate: value between 0 and 1 that represents the sampled rate at
+        :param rate: value between 0 and 1 that represents the sample rate at
             which the metric is going to be emitted.
         :param tags: Tags to append to the stat.
         """
@@ -203,6 +203,19 @@ class SafeOtelLogger:
         tags: Attributes = None,
         back_compat_name: str = "",
     ) -> None:
+        """
+        Record a new value for a Gauge.
+
+        :param stat: The name of the stat to update.
+        :param value: The new value of stat, either a float or an int.
+        :param rate: value between 0 and 1 that represents the sample rate at
+            which the metric is going to be emitted.
+        :param delta: If true, the provided value will be added to the previous value.
+            If False the new value will override the previous.
+        :param tags: Tags to append to the stat.
+        :param back_compat_name:  If an alternative name is provided, the
+            stat will be emitted using both names if possible.
+        """
         if rate < 0:
             raise ValueError("rate must be a positive value.")
         if rate < 1 and random.random() > rate:
@@ -298,7 +311,6 @@ class MetricsMap:
         :param tags: Gauge attributes which were used to generate a unique key to store the counter.
         :returns: None
         """
-
         key: str = _generate_key_name(name, tags)
         old_value = self.poke_gauge(name, tags)
         # If delta is true, add the new value to the last reading otherwise overwrite it.
