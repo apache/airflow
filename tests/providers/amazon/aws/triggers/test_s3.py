@@ -43,7 +43,6 @@ class TestS3KeyTrigger:
             "wildcard_match": True,
             "aws_conn_id": "aws_default",
             "hook_params": {},
-            "check_fn": None,
             "poke_interval": 5.0,
         }
 
