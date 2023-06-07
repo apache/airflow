@@ -99,13 +99,13 @@ def _type_as_str(obj: Instrument) -> str:
     """
     Given an OpenTelemetry Instrument, returns the type of instrument as a string.
 
-    type() will return something like: <class 'opentelemetry.sdk.metrics._internal.instrument._Counter'>
-    This extracts that down to just "Counter" (or "Gauge" or whatever) for cleaner logging purposes.
-
     :param obj: An OTel Instrument or subclass
     :returns: The type() of the Instrument without all the nested class info
     """
-    return str(type(obj)).split(".")[-1][1:-2]
+    # type() will return something like: <class 'opentelemetry.sdk.metrics._internal.instrument._Counter'>
+    # This extracts that down to just "Counter" (or "Gauge" or whatever) for cleaner logging purposes.
+
+    return type(obj).__name__[1:]
 
 
 def _get_otel_safe_name(name: str) -> str:
@@ -271,8 +271,7 @@ class MetricsMap:
         else:
             counter = self.meter.create_counter(name=otel_safe_name)
 
-        counter_type = str(type(counter)).split(".")[-1][:-2]
-        logging.debug("Created %s as type: %s", otel_safe_name, counter_type)
+        logging.debug("Created %s as type: %s", otel_safe_name, _type_as_str(counter))
         return counter
 
     def get_counter(self, name: str, attributes: Attributes = None):
