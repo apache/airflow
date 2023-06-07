@@ -47,6 +47,7 @@ Create an EMR job flow
 
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator` to
 create a new EMR job flow.  The cluster will be terminated automatically after finishing the steps.
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter.
 
 JobFlow configuration
 """""""""""""""""""""
