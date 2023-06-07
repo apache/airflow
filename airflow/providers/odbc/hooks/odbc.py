@@ -30,15 +30,17 @@ class OdbcHook(DbApiHook):
     """
     Interact with odbc data sources using pyodbc.
 
+    To configure driver, in addition to supplying as constructor arg, the following are also supported:
+        * set ``driver`` parameter in ``hook_params`` dictionary when instantiating hook by SQL operators.
+        * set ``driver`` extra in the connection and set ``allow_driver_in_extra`` to True in
+          section ``providers.odbc`` section of airflow config.
+        * patch ``OdbcHook.default_driver`` in ``local_settings.py`` file.
+
     See :doc:`/connections/odbc` for full documentation.
 
     :param args: passed to DbApiHook
     :param database: database to use -- overrides connection ``schema``
-    :param driver: name of driver or path to driver. You can also set the driver via:
-       * setting ``driver`` parameter in ``hook_params`` dictionary when instantiating hook by SQL operators.
-       * setting ``driver`` extra in the connection and setting  ``allow_driver_in_extra`` to True in
-         section ``providers.odbc`` section of airflow config.
-       * setting ``OdbcHook.default_driver`` in ``local_settings.py`` file.
+    :param driver: name of driver or path to driver. see above for more info
     :param dsn: name of DSN to use.  overrides DSN supplied in connection ``extra``
     :param connect_kwargs: keyword arguments passed to ``pyodbc.connect``
     :param sqlalchemy_scheme: Scheme sqlalchemy connection.  Default is ``mssql+pyodbc`` Only used for
