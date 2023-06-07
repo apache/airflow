@@ -73,6 +73,9 @@ spec:
         {{- if .Values.pgbouncer.podAnnotations }}
           {{- toYaml .Values.pgbouncer.podAnnotations | nindent 8 }}
         {{- end }}
+        {{- if .Values.pgbouncer.extraAnnotations }}
+          {{- toYaml .Values.pgbouncer.extraAnnotations | nindent 8 }}
+        {{- end }}
     spec:
       {{- if .Values.pgbouncer.priorityClassName }}
       priorityClassName: {{ .Values.pgbouncer.priorityClassName }}

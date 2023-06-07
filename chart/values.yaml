@@ -1653,6 +1653,8 @@ pgbouncer:
 
   podAnnotations: {}
 
+  extraAnnotations: {}
+
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created

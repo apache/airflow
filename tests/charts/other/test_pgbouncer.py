@@ -96,6 +96,19 @@ class TestPgbouncer:
             "foo": "bar",
         } == jmespath.search("metadata.annotations", docs[0])
 
+    def test_pgbouncer_pod_extra_annotations(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {"enabled": True, "extraAnnotations": {"foo": "bar"}},
+            },
+            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
+        )
+
+        assert {"foo": "bar"} == jmespath.search(
+            "spec.template.metadata.annotations",
+            docs[0],
+        )
+
     @pytest.mark.parametrize(
         "revision_history_limit, global_revision_history_limit",
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
