@@ -370,7 +370,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         self.query_ids: list[str] = []
 
 
-class SnowflakeSqlApiOperator(SnowflakeOperator):
+class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
     """
     Implemented Snowflake SQL API Operator to support multiple SQL statements sequentially,
     which is the behavior of the SnowflakeOperator, the Snowflake SQL API allows submitting
