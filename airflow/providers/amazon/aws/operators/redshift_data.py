@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class RedshiftDataOperator(BaseOperator):
     """
-    Executes SQL Statements against an Amazon Redshift cluster using Redshift Data
+    Executes SQL Statements against an Amazon Redshift cluster using Redshift Data.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -112,7 +112,7 @@ class RedshiftDataOperator(BaseOperator):
         return RedshiftDataHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
 
     def execute(self, context: Context) -> GetStatementResultResponseTypeDef | str:
-        """Execute a statement against Amazon Redshift"""
+        """Execute a statement against Amazon Redshift."""
         self.log.info("Executing statement: %s", self.sql)
 
         self.statement_id = self.hook.execute_query(
@@ -136,7 +136,7 @@ class RedshiftDataOperator(BaseOperator):
             return self.statement_id
 
     def on_kill(self) -> None:
-        """Cancel the submitted redshift query"""
+        """Cancel the submitted redshift query."""
         if self.statement_id:
             self.log.info("Received a kill signal.")
             self.log.info("Stopping Query with statementId - %s", self.statement_id)

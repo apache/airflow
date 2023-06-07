@@ -16,10 +16,10 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Callable, Iterable, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
@@ -33,7 +33,7 @@ class S3ToSqlOperator(BaseOperator):
     """
         Loads Data from S3 into a SQL Database.
         You need to provide a parser function that takes a filename as an input
-        and returns an iterable of rows
+        and returns an iterable of rows.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

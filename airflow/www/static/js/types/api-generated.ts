@@ -646,8 +646,8 @@ export interface paths {
   };
   "/health": {
     /**
-     * Get the status of Airflow's metadatabase and scheduler. It includes info about
-     * metadatabase and last heartbeat of scheduler.
+     * Get the status of Airflow's metadatabase, triggerer and scheduler. It includes info about
+     * metadatabase and last heartbeat of scheduler and triggerer.
      */
     get: operations["get_health"];
   };
@@ -1191,6 +1191,7 @@ export interface components {
     HealthInfo: {
       metadatabase?: components["schemas"]["MetadatabaseStatus"];
       scheduler?: components["schemas"]["SchedulerStatus"];
+      triggerer?: components["schemas"]["TriggererStatus"];
     };
     /** @description The status of the metadatabase. */
     MetadatabaseStatus: {
@@ -1201,9 +1202,22 @@ export interface components {
       status?: components["schemas"]["HealthStatus"];
       /**
        * Format: datetime
-       * @description The time the scheduler last do a heartbeat.
+       * @description The time the scheduler last did a heartbeat.
        */
       latest_scheduler_heartbeat?: string | null;
+    };
+    /**
+     * @description The status and the latest triggerer heartbeat.
+     *
+     * *New in version 2.6.2*
+     */
+    TriggererStatus: {
+      status?: components["schemas"]["HealthStatus"];
+      /**
+       * Format: datetime
+       * @description The time the triggerer last did a heartbeat.
+       */
+      latest_triggerer_heartbeat?: string | null;
     };
     /** @description The pool */
     Pool: {
@@ -1417,7 +1431,7 @@ export interface components {
      * @description DAG details.
      *
      * For details see:
-     * [airflow.models.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.DAG)
+     * [airflow.models.dag.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/dag/index.html#airflow.models.dag.DAG)
      */
     DAGDetail: components["schemas"]["DAG"] & {
       timezone?: components["schemas"]["Timezone"];
@@ -1485,7 +1499,7 @@ export interface components {
     };
     /**
      * @description For details see:
-     * [airflow.models.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.BaseOperator)
+     * [airflow.models.baseoperator.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/baseoperator/index.html#airflow.models.baseoperator.BaseOperator)
      */
     Task: {
       class_ref?: components["schemas"]["ClassReference"];
@@ -2154,9 +2168,9 @@ export interface components {
     WeightRule: "downstream" | "upstream" | "absolute";
     /**
      * @description Health status
-     * @enum {string}
+     * @enum {string|null}
      */
-    HealthStatus: "healthy" | "unhealthy";
+    HealthStatus: ("healthy" | "unhealthy") | null;
   };
   responses: {
     /** Client specified an invalid argument. */
@@ -4221,8 +4235,8 @@ export interface operations {
     };
   };
   /**
-   * Get the status of Airflow's metadatabase and scheduler. It includes info about
-   * metadatabase and last heartbeat of scheduler.
+   * Get the status of Airflow's metadatabase, triggerer and scheduler. It includes info about
+   * metadatabase and last heartbeat of scheduler and triggerer.
    */
   get_health: {
     responses: {
@@ -4649,6 +4663,9 @@ export type MetadatabaseStatus = CamelCasedPropertiesDeep<
 >;
 export type SchedulerStatus = CamelCasedPropertiesDeep<
   components["schemas"]["SchedulerStatus"]
+>;
+export type TriggererStatus = CamelCasedPropertiesDeep<
+  components["schemas"]["TriggererStatus"]
 >;
 export type Pool = CamelCasedPropertiesDeep<components["schemas"]["Pool"]>;
 export type PoolCollection = CamelCasedPropertiesDeep<

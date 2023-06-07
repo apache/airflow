@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from deprecated import deprecated
@@ -28,8 +29,6 @@ from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-from airflow.compat.functools import cached_property
 
 
 class EmrBaseSensor(BaseSensorOperator):
@@ -157,7 +156,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> EmrServerlessHook:
-        """Create and return an EmrServerlessHook"""
+        """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     @staticmethod
@@ -213,7 +212,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> EmrServerlessHook:
-        """Create and return an EmrServerlessHook"""
+        """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     @staticmethod
@@ -293,7 +292,7 @@ class EmrContainerSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> EmrContainerHook:
-        """Create and return an EmrContainerHook"""
+        """Create and return an EmrContainerHook."""
         return EmrContainerHook(self.aws_conn_id, virtual_cluster_id=self.virtual_cluster_id)
 
 

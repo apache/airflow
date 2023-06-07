@@ -687,24 +687,24 @@ class TestDockerOperator:
         operator = DockerOperator(task_id="test", image="test", extra_hosts=hosts_obj)
         operator.execute(None)
         self.client_mock.create_container.assert_called_once()
-        assert "host_config" in self.client_mock.create_container.call_args[1]
-        assert "extra_hosts" in self.client_mock.create_host_config.call_args[1]
-        assert hosts_obj is self.client_mock.create_host_config.call_args[1]["extra_hosts"]
+        assert "host_config" in self.client_mock.create_container.call_args.kwargs
+        assert "extra_hosts" in self.client_mock.create_host_config.call_args.kwargs
+        assert hosts_obj is self.client_mock.create_host_config.call_args.kwargs["extra_hosts"]
 
     def test_privileged(self):
         privileged = mock.Mock()
         operator = DockerOperator(task_id="test", image="test", privileged=privileged)
         operator.execute(None)
         self.client_mock.create_container.assert_called_once()
-        assert "host_config" in self.client_mock.create_container.call_args[1]
-        assert "privileged" in self.client_mock.create_host_config.call_args[1]
-        assert privileged is self.client_mock.create_host_config.call_args[1]["privileged"]
+        assert "host_config" in self.client_mock.create_container.call_args.kwargs
+        assert "privileged" in self.client_mock.create_host_config.call_args.kwargs
+        assert privileged is self.client_mock.create_host_config.call_args.kwargs["privileged"]
 
     def test_port_bindings(self):
         port_bindings = {8000: 8080}
         operator = DockerOperator(task_id="test", image="test", port_bindings=port_bindings)
         operator.execute(None)
         self.client_mock.create_container.assert_called_once()
-        assert "host_config" in self.client_mock.create_container.call_args[1]
-        assert "port_bindings" in self.client_mock.create_host_config.call_args[1]
-        assert port_bindings == self.client_mock.create_host_config.call_args[1]["port_bindings"]
+        assert "host_config" in self.client_mock.create_container.call_args.kwargs
+        assert "port_bindings" in self.client_mock.create_host_config.call_args.kwargs
+        assert port_bindings == self.client_mock.create_host_config.call_args.kwargs["port_bindings"]

@@ -82,7 +82,9 @@ class TestTriggerer:
             },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
-        actual = jmespath.search("spec.template.spec.initContainers", docs[0])
+        actual = jmespath.search(
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
+        )
         assert actual is None
 
     def test_should_add_extra_containers(self):

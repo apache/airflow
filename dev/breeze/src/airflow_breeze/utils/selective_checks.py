@@ -17,36 +17,18 @@
 from __future__ import annotations
 
 import json
+import multiprocessing as mp
 import os
 import sys
 from enum import Enum
-
-from airflow_breeze.utils.exclude_from_matrix import excluded_combos
-from airflow_breeze.utils.github_actions import get_ga_output
-from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
-from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_ROOT,
-    AIRFLOW_SOURCES_ROOT,
-    DOCS_DIR,
-    SYSTEM_TESTS_PROVIDERS_ROOT,
-    TESTS_PROVIDERS_ROOT,
-)
-from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    # noinspection PyUnresolvedReferences
-    from cached_property import cached_property
-
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from re import match
 from typing import Any, Dict, List, TypeVar
 
 if sys.version_info >= (3, 9):
     from typing import Literal
 else:
-    from typing_extensions import Literal
+    from typing import Literal
 
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -72,6 +54,17 @@ from airflow_breeze.global_constants import (
     all_selective_test_types,
 )
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.exclude_from_matrix import excluded_combos
+from airflow_breeze.utils.github_actions import get_ga_output
+from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_PROVIDERS_ROOT,
+    AIRFLOW_SOURCES_ROOT,
+    DOCS_DIR,
+    SYSTEM_TESTS_PROVIDERS_ROOT,
+    TESTS_PROVIDERS_ROOT,
+)
+from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
@@ -786,3 +779,8 @@ class SelectiveChecks:
             if self._github_actor in COMMITTERS and USE_PUBLIC_RUNNERS_LABEL not in self._pr_labels:
                 return RUNS_ON_SELF_HOSTED_RUNNER
         return RUNS_ON_PUBLIC_RUNNER
+
+    @cached_property
+    def mssql_parallelism(self) -> int:
+        # Limit parallelism for MSSQL to 1 for public runners due to race conditions generated there
+        return mp.cpu_count() if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1

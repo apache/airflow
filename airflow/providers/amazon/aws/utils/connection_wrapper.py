@@ -20,11 +20,12 @@ import json
 import warnings
 from copy import deepcopy
 from dataclasses import MISSING, InitVar, dataclass, field, fields
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from botocore import UNSIGNED
 from botocore.config import Config
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -236,6 +237,8 @@ class AwsConnectionWrapper(LoggingMixin):
         if not self.botocore_config and config_kwargs:
             # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
             self.log.debug("Retrieving botocore config=%s from %s extra.", config_kwargs, self.conn_repr)
+            if config_kwargs.get("signature_version") == "unsigned":
+                config_kwargs["signature_version"] = UNSIGNED
             self.botocore_config = Config(**config_kwargs)
 
         if conn.host:
@@ -426,7 +429,7 @@ def _parse_s3_config(
 ) -> tuple[str | None, str | None]:
     """
     Parses a config file for s3 credentials. Can currently
-    parse boto, s3cmd.conf and AWS SDK config formats
+    parse boto, s3cmd.conf and AWS SDK config formats.
 
     :param config_file_name: path to the config file
     :param config_format: config type. One of "boto", "s3cmd" or "aws".

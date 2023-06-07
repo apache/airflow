@@ -19,16 +19,16 @@
 from __future__ import annotations
 
 import os
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
 
 
 class FTPOperation:
-    """Operation that can be used with FTP"""
+    """Operation that can be used with FTP."""
 
     PUT = "put"
     GET = "get"

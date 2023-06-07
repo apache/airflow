@@ -42,12 +42,9 @@ def _try_to_boolean(value: Any):
     return value
 
 
+# TODO: Remove this when provider min airflow version >= 2.5.0 since this is
+# handled by provider manager from that version.
 def _ensure_prefixes(conn_type):
-    """
-    Remove when provider min airflow version >= 2.5.0 since this is handled by
-    provider manager from that version.
-    """
-
     def dec(func):
         @wraps(func)
         def inner():
@@ -71,8 +68,7 @@ def _ensure_prefixes(conn_type):
 
 
 class SnowflakeHook(DbApiHook):
-    """
-    A client to interact with Snowflake.
+    """A client to interact with Snowflake.
 
     This hook requires the snowflake_conn_id connection. The snowflake account, login,
     and, password field must be setup in the connection. Other inputs can be defined
@@ -116,7 +112,7 @@ class SnowflakeHook(DbApiHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, StringField
@@ -139,7 +135,7 @@ class SnowflakeHook(DbApiHook):
     @staticmethod
     @_ensure_prefixes(conn_type="snowflake")
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         import json
 
         return {
@@ -201,9 +197,9 @@ class SnowflakeHook(DbApiHook):
         return extra_dict.get(backcompat_key) or None
 
     def _get_conn_params(self) -> dict[str, str | None]:
-        """
-        One method to fetch connection params as a dict
-        used in get_uri() and get_connection()
+        """Fetch connection params as a dict.
+
+        This is used in ``get_uri()`` and ``get_connection()``.
         """
         conn = self.get_connection(self.snowflake_conn_id)  # type: ignore[attr-defined]
         extra_dict = conn.extra_dejson
@@ -277,7 +273,7 @@ class SnowflakeHook(DbApiHook):
         return conn_config
 
     def get_uri(self) -> str:
-        """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
         conn_params = self._get_conn_params()
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
@@ -291,14 +287,13 @@ class SnowflakeHook(DbApiHook):
         )
 
     def get_conn(self) -> SnowflakeConnection:
-        """Returns a snowflake.connection object"""
+        """Returns a snowflake.connection object."""
         conn_config = self._get_conn_params()
         conn = connector.connect(**conn_config)
         return conn
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
-        """
-        Get an sqlalchemy_engine object.
+        """Get an sqlalchemy_engine object.
 
         :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
         :return: the created engine.
@@ -331,26 +326,30 @@ class SnowflakeHook(DbApiHook):
         return_last: bool = True,
         return_dictionaries: bool = False,
     ) -> Any | list[Any] | None:
-        """
-        Runs a command or a list of commands. Pass a list of sql
-        statements to the sql parameter to get them to execute
-        sequentially. The variable execution_info is returned so that
-        it can be used in the Operators to modify the behavior
-        depending on the result of the query (i.e fail the operator
-        if the copy has processed 0 files)
+        """Runs a command or a list of commands.
 
-        :param sql: the sql string to be executed with possibly multiple statements,
-          or a list of sql statements to execute
+        Pass a list of SQL statements to the SQL parameter to get them to
+        execute sequentially. The variable ``execution_info`` is returned so
+        that it can be used in the Operators to modify the behavior depending on
+        the result of the query (i.e fail the operator if the copy has processed
+        0 files).
+
+        :param sql: The SQL string to be executed with possibly multiple
+            statements, or a list of sql statements to execute
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
         :param parameters: The parameters to render the SQL query with.
-        :param handler: The result handler which is called with the result of each statement.
-        :param split_statements: Whether to split a single SQL string into statements and run separately
-        :param return_last: Whether to return result for only last statement or for all after split
-        :param return_dictionaries: Whether to return dictionaries rather than regular DBApi sequences
-            as rows in the result. The dictionaries are of form:
-            ``{ 'column1_name': value1, 'column2_name': value2 ... }``.
-        :return: return only result of the LAST SQL expression if handler was provided.
+        :param handler: The result handler which is called with the result of
+            each statement.
+        :param split_statements: Whether to split a single SQL string into
+            statements and run separately
+        :param return_last: Whether to return result for only last statement or
+            for all after split.
+        :param return_dictionaries: Whether to return dictionaries rather than
+            regular DBAPI sequences as rows in the result. The dictionaries are
+            of form ``{ 'column1_name': value1, 'column2_name': value2 ... }``.
+        :return: Result of the last SQL statement if *handler* is set.
+            *None* otherwise.
         """
         self.query_ids = []
 

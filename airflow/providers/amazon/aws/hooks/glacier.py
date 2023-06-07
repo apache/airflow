@@ -40,7 +40,7 @@ class GlacierHook(AwsBaseHook):
 
     def retrieve_inventory(self, vault_name: str) -> dict[str, Any]:
         """
-        Initiate an Amazon Glacier inventory-retrieval job
+        Initiate an Amazon Glacier inventory-retrieval job.
 
         .. seealso::
             - :external+boto3:py:meth:`Glacier.Client.initiate_job`
@@ -56,7 +56,7 @@ class GlacierHook(AwsBaseHook):
 
     def retrieve_inventory_results(self, vault_name: str, job_id: str) -> dict[str, Any]:
         """
-        Retrieve the results of an Amazon Glacier inventory-retrieval job
+        Retrieve the results of an Amazon Glacier inventory-retrieval job.
 
         .. seealso::
             - :external+boto3:py:meth:`Glacier.Client.get_job_output`
@@ -71,7 +71,7 @@ class GlacierHook(AwsBaseHook):
     def describe_job(self, vault_name: str, job_id: str) -> dict[str, Any]:
         """
         Retrieve the status of an Amazon S3 Glacier job, such as an
-        inventory-retrieval job
+        inventory-retrieval job.
 
         .. seealso::
             - :external+boto3:py:meth:`Glacier.Client.describe_job`

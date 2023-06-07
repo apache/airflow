@@ -33,7 +33,7 @@ from airflow.utils import timezone
 
 class AzureBatchHook(BaseHook):
     """
-    Hook for Azure Batch APIs
+    Hook for Azure Batch APIs.
 
     :param azure_batch_conn_id: :ref:`Azure Batch connection id<howto/connection:azure_batch>`
         of a service principal which will be used to start the container instance.
@@ -54,7 +54,7 @@ class AzureBatchHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -65,7 +65,7 @@ class AzureBatchHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -80,13 +80,13 @@ class AzureBatchHook(BaseHook):
         self.connection = self.get_conn()
 
     def _connection(self) -> Connection:
-        """Get connected to Azure Batch service"""
+        """Get connected to Azure Batch service."""
         conn = self.get_connection(self.conn_id)
         return conn
 
     def get_conn(self):
         """
-        Get the Batch client connection
+        Get the Batch client connection.
 
         :return: Azure Batch client
         """
@@ -118,7 +118,7 @@ class AzureBatchHook(BaseHook):
         **kwargs,
     ) -> PoolAddParameter:
         """
-        Configures a pool
+        Configures a pool.
 
         :param pool_id: A string that uniquely identifies the Pool within the Account
 
@@ -203,7 +203,7 @@ class AzureBatchHook(BaseHook):
 
     def create_pool(self, pool: PoolAddParameter) -> None:
         """
-        Creates a pool if not already existing
+        Creates a pool if not already existing.
 
         :param pool: the pool object to create
 
@@ -225,7 +225,7 @@ class AzureBatchHook(BaseHook):
         sku_starts_with: str | None = None,
     ) -> tuple:
         """
-        Get latest verified image vm and sku
+        Get latest verified image vm and sku.
 
         :param publisher: The publisher of the Azure Virtual Machines Marketplace Image.
             For example, Canonical or MicrosoftWindowsServer.
@@ -250,7 +250,7 @@ class AzureBatchHook(BaseHook):
 
     def wait_for_all_node_state(self, pool_id: str, node_state: set) -> list:
         """
-        Wait for all nodes in a pool to reach given states
+        Wait for all nodes in a pool to reach given states.
 
         :param pool_id: A string that identifies the pool
         :param node_state: A set of batch_models.ComputeNodeState
@@ -278,7 +278,7 @@ class AzureBatchHook(BaseHook):
         **kwargs,
     ) -> JobAddParameter:
         """
-        Configures a job for use in the pool
+        Configures a job for use in the pool.
 
         :param job_id: A string that uniquely identifies the job within the account
         :param pool_id: A string that identifies the pool
@@ -294,7 +294,7 @@ class AzureBatchHook(BaseHook):
 
     def create_job(self, job: JobAddParameter) -> None:
         """
-        Creates a job in the pool
+        Creates a job in the pool.
 
         :param job: The job object to create
         """
@@ -316,7 +316,7 @@ class AzureBatchHook(BaseHook):
         **kwargs,
     ) -> TaskAddParameter:
         """
-        Creates a task
+        Creates a task.
 
         :param task_id: A string that identifies the task to create
         :param command_line: The command line of the Task.
@@ -338,7 +338,7 @@ class AzureBatchHook(BaseHook):
 
     def add_single_task_to_job(self, job_id: str, task: TaskAddParameter) -> None:
         """
-        Add a single task to given job if it doesn't exist
+        Add a single task to given job if it doesn't exist.
 
         :param job_id: A string that identifies the given job
         :param task: The task to add
@@ -354,7 +354,7 @@ class AzureBatchHook(BaseHook):
 
     def wait_for_job_tasks_to_complete(self, job_id: str, timeout: int) -> list[batch_models.CloudTask]:
         """
-        Wait for tasks in a particular job to complete
+        Wait for tasks in a particular job to complete.
 
         :param job_id: A string that identifies the job
         :param timeout: The amount of time to wait before timing out in minutes
