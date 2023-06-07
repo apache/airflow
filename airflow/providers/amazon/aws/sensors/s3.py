@@ -97,7 +97,6 @@ class S3KeySensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.deferrable = deferrable
-        self.should_check_fn = True if check_fn else False
 
     def _check_key(self, key):
         bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
@@ -137,10 +136,7 @@ class S3KeySensor(BaseSensorOperator):
             return all(self._check_key(key) for key in self.bucket_key)
 
     def execute(self, context: Context) -> None:
-        """
-        Defers to Trigger class to poll for state of the job run until
-        it reaches a failure state or success state.
-        """
+        """Airflow runs this method on the worker and defers using the trigger."""
         if not self.deferrable:
             super().execute(context)
         else:
@@ -158,7 +154,7 @@ class S3KeySensor(BaseSensorOperator):
                 aws_conn_id=self.aws_conn_id,
                 verify=self.verify,
                 poke_interval=self.poke_interval,
-                should_check_fn=self.should_check_fn,
+                should_check_fn=True if self.check_fn else False,
             ),
             method_name="execute_complete",
         )
