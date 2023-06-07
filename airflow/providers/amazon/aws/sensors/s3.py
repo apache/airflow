@@ -169,7 +169,7 @@ def process_files(bucket_keys, wildcard_match, wildcard_keys, obj, check_fn, buc
     for i in range(len(bucket_keys)):
         key = bucket_key_names[i][1]
         if wildcard_match:
-            key_matches = [k for k in wildcard_keys[i] if fnmatch.fnmatch(k["Key"], bucket_key_names[i][1])]
+            key_matches = [k for k in wildcard_keys[i] if fnmatch.fnmatch(k["Key"], key)]
             if len(key_matches) == 0:
                 results.append(False)
                 continue
