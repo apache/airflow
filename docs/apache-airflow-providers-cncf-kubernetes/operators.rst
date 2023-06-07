@@ -167,6 +167,27 @@ Also for this action you can use operator in the deferrable mode:
     :start-after: [START howto_operator_k8s_write_xcom_async]
     :end-before: [END howto_operator_k8s_write_xcom_async]
 
+Include error message in email alert
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Any content written to ``/dev/termination-log`` will be retrieved by Kubernetes and
+included in the exception message if the task fails.
+
+.. code-block:: python
+
+    k = KubernetesPodOperator(
+        task_id="test_error_message",
+        image="alpine",
+        cmds=["/bin/sh"],
+        arguments=["-c", "echo hello world; echo Custom error > /dev/termination-log; exit 1;"],
+        name="test-error-message",
+        email="airflow@example.com",
+        email_on_failure=True,
+    )
+
+
+Read more on termination-log `here <https://kubernetes.io/docs/tasks/debug/debug-application/determine-reason-pod-failure/>`__.
+
 Reference
 ^^^^^^^^^
 For further information, look at:
