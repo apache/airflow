@@ -81,7 +81,7 @@ from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.module_loading import qualname
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -1619,6 +1619,55 @@ class TestTaskInstance:
         assert 1 == ti1.get_num_running_task_instances(session=session)
         assert 1 == ti2.get_num_running_task_instances(session=session)
         assert 1 == ti3.get_num_running_task_instances(session=session)
+
+    def test_get_num_running_task_instances_per_dagrun(self, create_task_instance, dag_maker):
+        session = settings.Session()
+
+        with dag_maker(dag_id="test_dag"):
+            MockOperator.partial(task_id="task_1").expand_kwargs([{"a": 1, "b": 2}, {"a": 3, "b": 4}])
+            MockOperator.partial(task_id="task_2").expand_kwargs([{"a": 1, "b": 2}])
+            MockOperator.partial(task_id="task_3").expand_kwargs([{"a": 1, "b": 2}])
+
+        dr1 = dag_maker.create_dagrun(
+            execution_date=timezone.utcnow(), state=DagRunState.RUNNING, run_id="run_id_1", session=session
+        )
+        tis1 = {(ti.task_id, ti.map_index): ti for ti in dr1.task_instances}
+        print(f"tis1: {tis1}")
+
+        dr2 = dag_maker.create_dagrun(
+            execution_date=timezone.utcnow(), state=DagRunState.RUNNING, run_id="run_id_2", session=session
+        )
+        tis2 = {(ti.task_id, ti.map_index): ti for ti in dr2.task_instances}
+
+        assert tis1[("task_1", 0)] in session
+        assert tis1[("task_1", 1)] in session
+        assert tis1[("task_2", 0)] in session
+        assert tis1[("task_3", 0)] in session
+        assert tis2[("task_1", 0)] in session
+        assert tis2[("task_1", 1)] in session
+        assert tis2[("task_2", 0)] in session
+        assert tis2[("task_3", 0)] in session
+
+        tis1[("task_1", 0)].state = State.RUNNING
+        tis1[("task_1", 1)].state = State.QUEUED
+        tis1[("task_2", 0)].state = State.RUNNING
+        tis1[("task_3", 0)].state = State.RUNNING
+        tis2[("task_1", 0)].state = State.RUNNING
+        tis2[("task_1", 1)].state = State.QUEUED
+        tis2[("task_2", 0)].state = State.RUNNING
+        tis2[("task_3", 0)].state = State.RUNNING
+
+        session.commit()
+
+        assert 1 == tis1[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
+        assert 1 == tis1[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True)
+        assert 2 == tis1[("task_2", 0)].get_num_running_task_instances(session=session)
+        assert 1 == tis1[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
+
+        assert 1 == tis2[("task_1", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
+        assert 1 == tis2[("task_1", 1)].get_num_running_task_instances(session=session, same_dagrun=True)
+        assert 2 == tis2[("task_2", 0)].get_num_running_task_instances(session=session)
+        assert 1 == tis2[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
 
     def test_log_url(self, create_task_instance):
         ti = create_task_instance(dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1))

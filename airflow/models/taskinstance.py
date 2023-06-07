@@ -2468,7 +2468,9 @@ class TaskInstance(Base, LoggingMixin):
             TaskInstance.state == State.RUNNING,
         )
         if same_dagrun:
-            num_running_task_instances_query.filter(TaskInstance.run_id == self.run_id)
+            num_running_task_instances_query = num_running_task_instances_query.filter(
+                TaskInstance.run_id == self.run_id
+            )
         return num_running_task_instances_query.scalar()
 
     def init_run_context(self, raw: bool = False) -> None:
