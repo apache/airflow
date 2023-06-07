@@ -49,6 +49,25 @@ you can use 3.* version of the provider, but the recommendation is to switch to 
 
 * ``Remove snakebite-py3 based HDFS hooks and sensors (#31262)``
 
+
+.. note::
+
+   Protobuf 3 required by the snakebite-py3 library has ended its life in June 2023 and Airflow and it's
+   providers stopped supporting it. If you would like to continue using HDFS hooks and sensors
+   based on snakebite-py3 library when you have protobuf library 4.+ you can install the 3.* version
+   of the provider but due to Protobuf incompatibility, you need to do one of the the two things:
+
+   * set ``PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python`` variable in your environment.
+   * downgrade protobuf to latest 3.* version (3.20.3 at this time)
+
+   Setting ``PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python`` will make many libraries using protobuf
+   much slower - including multiple Google client libraries and Kubernetes. Downgrading protobuf to
+   (already End-Of-Life) 3.* version will make some of the latest versions of the new providers
+   incompatible (for example google and grpc) and you will have to downgrade those providers as well.
+   Both should be treated as a temporary workaround only, and you should migrate to WebHDFS
+   as soon as possible.
+
+
 Misc
 ~~~~
 
