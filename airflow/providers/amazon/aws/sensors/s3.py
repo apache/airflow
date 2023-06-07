@@ -72,7 +72,6 @@ class S3KeySensor(BaseSensorOperator):
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :param deferrable: If True, the sensor will run in deferrable mode.
-        Note that in deferrable mode, check_fn is not supported.
     """
 
     template_fields: Sequence[str] = ("bucket_key", "bucket_name")
