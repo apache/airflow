@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-07T17:30:35Z
+# This constraints file was automatically generated on 2023-06-07T20:21:23Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -448,7 +448,7 @@ pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
 pinotdb==0.5.0
-pipdeptree==2.8.0
+pipdeptree==2.9.0
 pipx==1.2.0
 pkginfo==1.9.6
 platformdirs==3.5.1
@@ -478,7 +478,7 @@ pycountry==22.3.5
 pycparser==2.21
 pycryptodome==3.18.0
 pycryptodomex==3.18.0
-pydantic==1.10.8
+pydantic==1.10.9
 pydata-google-auth==1.8.0
 pydot==1.4.2
 pydruid==0.6.5
@@ -632,7 +632,6 @@ typing_extensions==4.6.3
 tzdata==2023.3
 tzlocal==5.0.1
 uc-micro-py==1.0.2
-unicodecsv==0.14.1
 uritemplate==4.1.1
 urllib3==1.26.16
 userpath==1.8.0
