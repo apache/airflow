@@ -18,59 +18,29 @@
  */
 
 import React from "react";
-import { Flex, Box, IconButton, Text } from "@chakra-ui/react";
-import {
-  MdOutlineZoomOutMap,
-  MdFilterCenterFocus,
-  MdOutlineAccountTree,
-} from "react-icons/md";
+import { Flex, Box, Text } from "@chakra-ui/react";
+import { MdOutlineAccountTree } from "react-icons/md";
 import { HiDatabase } from "react-icons/hi";
 
-interface Props {
-  zoom: any;
-  center: () => void;
-}
-
-const Legend = ({ zoom, center }: Props) => (
-  <Flex height="100%" flexDirection="column" justifyContent="space-between">
-    <Box>
-      <IconButton
-        onClick={zoom.reset}
-        fontSize="2xl"
-        m={2}
-        title="Reset zoom"
-        aria-label="Reset zoom"
-        icon={<MdOutlineZoomOutMap />}
-      />
-      <IconButton
-        onClick={center}
-        fontSize="2xl"
-        m={2}
-        title="Center"
-        aria-label="Center"
-        icon={<MdFilterCenterFocus />}
-      />
-    </Box>
-    <Box
-      backgroundColor="white"
-      p={2}
-      borderColor="gray.200"
-      borderRightWidth={1}
-      borderTopWidth={1}
-    >
-      <Text>Legend</Text>
-      <Flex>
-        <Flex mr={2} alignItems="center">
-          <MdOutlineAccountTree size="16px" />
-          <Text ml={1}>DAG</Text>
-        </Flex>
-        <Flex alignItems="center">
-          <HiDatabase size="16px" />
-          <Text ml={1}>Dataset</Text>
-        </Flex>
+const Legend = () => (
+  <Box
+    backgroundColor="white"
+    p={2}
+    borderColor="gray.200"
+    borderWidth={1}
+    fontSize={14}
+  >
+    <Flex>
+      <Flex mr={2} alignItems="center">
+        <MdOutlineAccountTree size="14px" />
+        <Text ml={1}>DAG</Text>
       </Flex>
-    </Box>
-  </Flex>
+      <Flex alignItems="center">
+        <HiDatabase size="14px" />
+        <Text ml={1}>Dataset</Text>
+      </Flex>
+    </Flex>
+  </Box>
 );
 
 export default Legend;

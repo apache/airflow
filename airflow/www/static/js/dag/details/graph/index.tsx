@@ -38,8 +38,8 @@ import { useGraphLayout } from "src/utils/graph";
 import Tooltip from "src/components/Tooltip";
 import { useContainerRef } from "src/context/containerRef";
 import useFilters from "src/dag/useFilters";
+import Edge from "src/components/Graph/Edge";
 
-import Edge from "./Edge";
 import Node, { CustomNodeProps } from "./Node";
 import { buildEdges, nodeStrokeColor, nodeColor, flattenNodes } from "./utils";
 
