@@ -899,6 +899,11 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         self.log.info("Terminating JobFlow %s", self.job_flow_id)
         response = emr.terminate_job_flows(JobFlowIds=[self.job_flow_id])
 
+        if not response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+            raise AirflowException(f"JobFlow termination failed: {response}")
+        else:
+            self.log.info("Terminating JobFlow with id %s", self.job_flow_id)
+
         if self.deferrable:
             self.defer(
                 trigger=EmrTerminateJobFlowTrigger(
@@ -912,11 +917,6 @@ class EmrTerminateJobFlowOperator(BaseOperator):
                 # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
-
-        if not response["ResponseMetadata"]["HTTPStatusCode"] == 200:
-            raise AirflowException(f"JobFlow termination failed: {response}")
-        else:
-            self.log.info("JobFlow with id %s terminated", self.job_flow_id)
 
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
