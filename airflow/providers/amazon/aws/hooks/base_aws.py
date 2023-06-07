@@ -870,7 +870,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             )
         # If there is no custom waiter found for the provided name,
         # then try checking the service's official waiters.
-        return self.conn.get_waiter(waiter_name)
+        return client.get_waiter(waiter_name)
 
     @staticmethod
     def _apply_parameters_value(config: dict, waiter_name: str, parameters: dict[str, str] | None) -> dict:
