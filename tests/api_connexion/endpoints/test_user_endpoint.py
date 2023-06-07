@@ -525,6 +525,21 @@ class TestPostUser(TestUserEndpoint):
             "type": EXCEPTIONS_LINK_MAP[400],
         }
 
+    def test_internal_server_error(self, autoclean_user_payload):
+        sm = self.app.appbuilder.sm
+        sm.add_user = unittest.mock.MagicMock(return_value=None)
+        response = self.client.post(
+            "/api/v1/users",
+            json=autoclean_user_payload,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.json == {
+            "detail": "Failed to add user `example_user`.",
+            "status": 500,
+            "title": "Internal Server Error",
+            "type": EXCEPTIONS_LINK_MAP[500],
+        }
+
 
 class TestPatchUser(TestUserEndpoint):
     @pytest.mark.usefixtures("autoclean_admin_user")
