@@ -39,16 +39,16 @@ or by creating a corresponding environment variable:
     export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=my_conn_string
 
 Note that when the section name has a dot in it, you must replace it with an underscore when setting the env var.
-For example consider section ``providers.odbc``:
+For example consider pretend section ``providers.some_provider``:
 
 .. code-block:: ini
 
-    [providers.odbc]
-    allow_driver_in_extra = true
+    [providers.some_provider>]
+    this_param = true
 
 .. code-block:: bash
 
-    export AIRFLOW__PROVIDERS_ODBC__ALLOW_DRIVER_IN_EXTRA=true
+    export AIRFLOW__PROVIDERS_SOME_PROVIDER__THIS_PARAM=true
 
 
 You can also derive the connection string at run time by appending ``_cmd`` to
