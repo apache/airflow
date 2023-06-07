@@ -175,7 +175,7 @@ class DagRun(Base, LoggingMixin):
     )
     dag_run_note = relationship(
         "DagRunNote",
-        cascade="save-update, merge, delete, delete-orphan",
+        cascade="all, delete-orphan",
         back_populates="dag_run",
         uselist=False,
     )
