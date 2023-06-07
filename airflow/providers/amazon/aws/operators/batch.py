@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-An Airflow operator for AWS Batch services
+An Airflow operator for AWS Batch services.
 
 .. seealso::
 
@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 
 class BatchOperator(BaseOperator):
     """
-    Execute a job on AWS Batch
+    Execute a job on AWS Batch.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -200,7 +200,7 @@ class BatchOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Submit and monitor an AWS Batch job
+        Submit and monitor an AWS Batch job.
 
         :raises: AirflowException
         """
@@ -237,7 +237,7 @@ class BatchOperator(BaseOperator):
 
     def submit_job(self, context: Context):
         """
-        Submit an AWS Batch job
+        Submit an AWS Batch job.
 
         :raises: AirflowException
         """
@@ -292,7 +292,7 @@ class BatchOperator(BaseOperator):
         Monitor an AWS Batch job
         monitor_job can raise an exception or an AirflowTaskTimeout can be raised if execution_timeout
         is given while creating the task. These exceptions should be handled in taskinstance.py
-        instead of here like it was previously done
+        instead of here like it was previously done.
 
         :raises: AirflowException
         """
@@ -358,7 +358,7 @@ class BatchOperator(BaseOperator):
 
 class BatchCreateComputeEnvironmentOperator(BaseOperator):
     """
-    Create an AWS Batch compute environment
+    Create an AWS Batch compute environment.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -433,7 +433,7 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
 
     @cached_property
     def hook(self):
-        """Create and return a BatchClientHook"""
+        """Create and return a BatchClientHook."""
         return BatchClientHook(
             max_retries=self.max_retries,
             status_retries=self.status_retries,
@@ -442,7 +442,7 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        """Create an AWS batch compute environment"""
+        """Create an AWS batch compute environment."""
         kwargs: dict[str, Any] = {
             "computeEnvironmentName": self.compute_environment_name,
             "type": self.environment_type,

@@ -26,7 +26,8 @@ log = logging.getLogger(__name__)
 def build_credentials_block(credentials: ReadOnlyCredentials) -> str:
     """
     Generate AWS credentials block for Redshift COPY and UNLOAD
-    commands, as noted in AWS docs
+    commands, as noted in AWS docs.
+
     https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-credentials
 
     :param credentials: ReadOnlyCredentials object from `botocore`

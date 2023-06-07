@@ -397,15 +397,14 @@ class ClusterGenerator:
 class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
     """
     Create a new cluster on Google Cloud Dataproc. The operator will wait until the
-    creation is successful or an error occurs in the creation process. If the cluster
-    already exists and ``use_if_exists`` is True then the operator will:
+    creation is successful or an error occurs in the creation process.
 
+    If the cluster already exists and ``use_if_exists`` is True then the operator will:
     - if cluster state is ERROR then delete it if specified and raise error
     - if cluster state is CREATING wait for it and then check for ERROR state
     - if cluster state is DELETING wait for it and then create new cluster
 
     Please refer to
-
     https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters
 
     for a detailed explanation on the different parameters. Most of the configuration
@@ -1009,7 +1008,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         self.polling_interval_seconds = polling_interval_seconds
 
     def create_job_template(self) -> DataProcJobBuilder:
-        """Initialize `self.job_template` with default values"""
+        """Initialize `self.job_template` with default values."""
         if self.project_id is None:
             raise AirflowException(
                 "project id should either be set via project_id "
@@ -1176,6 +1175,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         job_template = self.create_job_template()
@@ -1252,6 +1252,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         job_template = self.create_job_template()
@@ -1327,6 +1328,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         job_template = self.create_job_template()
@@ -1404,6 +1406,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         job_template = self.create_job_template()
@@ -1477,6 +1480,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         job_template = self.create_job_template()
@@ -1575,6 +1579,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         job_template = self.create_job_template()
@@ -2030,6 +2035,14 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
 
         self.job_id = new_job_id
         if self.deferrable:
+            job = self.hook.get_job(project_id=self.project_id, region=self.region, job_id=self.job_id)
+            state = job.status.state
+            if state == JobStatus.State.DONE:
+                return self.job_id
+            elif state == JobStatus.State.ERROR:
+                raise AirflowException(f"Job failed:\n{job}")
+            elif state == JobStatus.State.CANCELLED:
+                raise AirflowException(f"Job was cancelled:\n{job}")
             self.defer(
                 trigger=DataprocSubmitTrigger(
                     job_id=self.job_id,

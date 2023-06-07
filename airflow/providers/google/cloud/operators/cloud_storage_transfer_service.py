@@ -122,12 +122,12 @@ class TransferJobPreprocessor:
 
     @staticmethod
     def _convert_date_to_dict(field_date: date) -> dict:
-        """Convert native python ``datetime.date`` object  to a format supported by the API"""
+        """Convert native python ``datetime.date`` object  to a format supported by the API."""
         return {DAY: field_date.day, MONTH: field_date.month, YEAR: field_date.year}
 
     @staticmethod
     def _convert_time_to_dict(time_object: time) -> dict:
-        """Convert native python ``datetime.time`` object  to a format supported by the API"""
+        """Convert native python ``datetime.time`` object  to a format supported by the API."""
         return {HOURS: time_object.hour, MINUTES: time_object.minute, SECONDS: time_object.second}
 
 

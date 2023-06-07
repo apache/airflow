@@ -37,7 +37,7 @@ BUILD_TRIGGER_DETAILS_LINK = (
 
 
 class CloudBuildLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Build link"""
+    """Helper class for constructing Cloud Build link."""
 
     name = "Cloud Build Details"
     key = "cloud_build_key"
@@ -63,7 +63,7 @@ class CloudBuildLink(BaseGoogleLink):
 
 
 class CloudBuildListLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Build List link"""
+    """Helper class for constructing Cloud Build List link."""
 
     name = "Cloud Builds List"
     key = "cloud_build_list_key"
@@ -87,7 +87,7 @@ class CloudBuildListLink(BaseGoogleLink):
 
 
 class CloudBuildTriggersListLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Build Triggers List link"""
+    """Helper class for constructing Cloud Build Triggers List link."""
 
     name = "Cloud Build Triggers List"
     key = "cloud_build_triggers_list_key"
@@ -111,7 +111,7 @@ class CloudBuildTriggersListLink(BaseGoogleLink):
 
 
 class CloudBuildTriggerDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Build Trigger Details link"""
+    """Helper class for constructing Cloud Build Trigger Details link."""
 
     name = "Cloud Build Triggers Details"
     key = "cloud_build_triggers_details_key"

@@ -845,7 +845,7 @@ class CloudSQLDatabaseHook(BaseHook):
         can be close to 60 characters and there is a limitation in
         length of socket path to around 100 characters in total.
         We append project/location/instance to it later and postgres
-        appends its own prefix, so we chose a shorter "${tempdir()}[8 random characters]"
+        appends its own prefix, so we chose a shorter "${tempdir()}[8 random characters]".
         """
         random.seed()
         while True:
@@ -980,7 +980,7 @@ class CloudSQLDatabaseHook(BaseHook):
                     self.log.info(output)
 
     def reserve_free_tcp_port(self) -> None:
-        """Reserve free TCP port to be used by Cloud SQL Proxy"""
+        """Reserve free TCP port to be used by Cloud SQL Proxy."""
         self.reserved_tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.reserved_tcp_socket.bind(("127.0.0.1", 0))
         self.sql_proxy_tcp_port = self.reserved_tcp_socket.getsockname()[1]

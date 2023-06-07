@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-AWS Batch service waiters
+AWS Batch service waiters.
 
 .. seealso::
 
@@ -107,7 +107,7 @@ class BatchWaitersHook(BatchClientHook):
     @property
     def default_config(self) -> dict:
         """
-        An immutable default waiter configuration
+        An immutable default waiter configuration.
 
         :return: a waiter configuration for AWS Batch services
         """

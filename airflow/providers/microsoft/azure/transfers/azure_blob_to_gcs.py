@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 class AzureBlobStorageToGCSOperator(BaseOperator):
     """
-    Operator transfers data from Azure Blob Storage to specified bucket in Google Cloud Storage
+    Operator transfers data from Azure Blob Storage to specified bucket in Google Cloud Storage.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

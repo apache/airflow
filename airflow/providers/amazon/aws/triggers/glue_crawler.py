@@ -28,7 +28,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class GlueCrawlerCompleteTrigger(BaseTrigger):
     """
-    Watches for a glue crawl, triggers when it finishes
+    Watches for a glue crawl, triggers when it finishes.
 
     :param crawler_name: name of the crawler to watch
     :param poll_interval: The amount of time in seconds to wait between attempts.
@@ -68,10 +68,7 @@ class GlueCrawlerCompleteTrigger(BaseTrigger):
                     break  # we reach this point only if the waiter met a success criteria
                 except WaiterError as error:
                     if "terminal failure" in str(error):
-                        yield TriggerEvent(
-                            {"status": "failure", "message": f"Glue Crawler creation Failed: {error}"}
-                        )
-                        break
+                        raise
                     self.log.info("Status of glue crawl is %s", error.last_response["Crawler"]["State"])
                     await asyncio.sleep(int(self.poll_interval))
 

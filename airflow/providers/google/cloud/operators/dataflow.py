@@ -47,7 +47,8 @@ if TYPE_CHECKING:
 
 class CheckJobRunning(Enum):
     """
-    Helper enum for choosing what to do if job is already running
+    Helper enum for choosing what to do if job is already running.
+
     IgnoreJob - do not check if running
     FinishIfRunning - finish current dag run with no action
     WaitForRun - wait for job to finish and then continue with new job

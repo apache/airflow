@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class SegmentTrackEventOperator(BaseOperator):
     """
-    Send Track Event to Segment for a specified user_id and event
+    Send Track Event to Segment for a specified user_id and event.
 
     :param user_id: The ID for this user in your database. (templated)
     :param event: The name of the event you're tracking. (templated)

@@ -27,7 +27,12 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   # All other permissions are set to none
   contents: read
-  packages: read
+  # Technically read access while waiting for images should be more than enough. However,
+  # there is a bug in GitHub Actions/Packages and in case private repositories are used, you get a permission
+  # denied error when attempting to just pull private image, changing the token permission to write solves the
+  # issue. This is not dangerous, because if it is for "apache/airflow", only maintainers can push ci.yml
+  # changes. If it is for a fork, then the token is read-only anyway.
+  packages: write
 env:
   ANSWER: "yes"
   DB_RESET: "true"
@@ -93,6 +98,7 @@ jobs:
       full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
       parallel-test-types-list-as-string: >-
         ${{ steps.selective-checks.outputs.parallel-test-types-list-as-string }}
+      mssql-parallelism: ${{ steps.selective-checks.outputs.mssql-parallelism }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mssql-exclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
@@ -189,8 +195,6 @@ jobs:
   # We only push CI cache as PROD cache usually does not gain as much from fresh cache because
   # it uses prepared airflow and provider packages that invalidate the cache anyway most of the time
   push-early-buildx-cache-to-github-registry:
-    permissions:
-      packages: write
     timeout-minutes: 50
     name: "Push Early Image Cache"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
@@ -287,8 +291,6 @@ jobs:
         if: always()
 
   build-ci-images:
-    permissions:
-      packages: write
     timeout-minutes: 80
     name: >-
       ${{needs.build-info.outputs.build-job-description}} CI images
@@ -299,6 +301,8 @@ jobs:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      # Force more parallelism for build even on public images
+      PARALLELISM: 6
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -321,8 +325,6 @@ jobs:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
 
   build-prod-images:
-    permissions:
-      packages: write
     timeout-minutes: 80
     name: >
       ${{needs.build-info.outputs.build-job-description}} PROD images
@@ -337,6 +339,8 @@ jobs:
       DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
       DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      # Force more parallelism for build even on public images
+      PARALLELISM: 6
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -1096,6 +1100,10 @@ jobs:
       BACKEND_VERSION: "${{matrix.mssql-version}}"
       JOB_ID: "mssql-${{matrix.mssql-version}}-${{matrix.python-version}}"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
+      # The below (and corresponding selective checks code) can be removed once
+      # https://github.com/apache/airflow/issues/31575 is fixed.
+      # This is a temporary workaround for flaky tests that occur in MSSQL tests for public runners
+      PARALLELISM: "${{needs.build-info.outputs.mssql-parallelism}}"
     if: >
       needs.build-info.outputs.run-tests == 'true' &&
       (needs.build-info.outputs.runs-on == 'self-hosted' ||
@@ -1346,7 +1354,7 @@ jobs:
 
 
   wait-for-prod-images:
-    timeout-minutes: 120
+    timeout-minutes: 80
     name: "Wait for PROD images"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images, build-prod-images]
@@ -1477,6 +1485,7 @@ jobs:
   constraints:
     permissions:
       contents: write
+      packages: write
     timeout-minutes: 80
     name: "Constraints"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
@@ -1550,8 +1559,6 @@ jobs:
   # It rebuilds all images using just-pushed constraints using buildx and pushes them to registry
   # It will automatically check if a new python image was released and will pull the latest one if needed
   push-buildx-cache-to-github-registry:
-    permissions:
-      packages: write
     timeout-minutes: 50
     name: "Push Image Cache"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
@@ -1657,6 +1664,8 @@ jobs:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      # Force more parallelism for build even on small instances
+      PARALLELISM: 6
     if: >
       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
       needs.build-info.outputs.in-workflow-build == 'true' &&

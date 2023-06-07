@@ -18,49 +18,44 @@ from __future__ import annotations
 
 import os
 
-from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.run_utils import run_command
 
 
-def login_to_github_docker_registry(
-    image_params: CommonBuildParams, output: Output | None
-) -> tuple[int, str]:
+def login_to_github_docker_registry(github_token: str | None, output: Output | None) -> tuple[int, str]:
     """
     In case of CI environment, we need to login to GitHub Registry.
 
-    :param image_params: parameters to use for Building prod image
+    :param github_token: Github token to use
     :param output: Output to redirect to
 
-
+    :return  tuple of error code and message
     """
     if os.environ.get("CI"):
-        if len(image_params.github_token) == 0:
+        if not github_token:
             get_console(output=output).print(
                 "\n[info]Skip logging in to GitHub Registry. No Token available!"
             )
-        elif len(image_params.github_token) > 0:
-            run_command(
-                ["docker", "logout", "ghcr.io"],
-                output=output,
-                text=False,
-                check=False,
-            )
-            command_result = run_command(
-                [
-                    "docker",
-                    "login",
-                    "--username",
-                    image_params.github_username,
-                    "--password-stdin",
-                    "ghcr.io",
-                ],
-                output=output,
-                text=True,
-                input=image_params.github_token,
-                check=False,
-            )
-            return command_result.returncode, "Docker login"
-        else:
-            get_console().print("\n[info]Skip Login to GitHub Container Registry as token is missing")
+            return 0, "Docker login skipped as no token available"
+        run_command(
+            ["docker", "logout", "ghcr.io"],
+            output=output,
+            text=False,
+            check=False,
+        )
+        command_result = run_command(
+            [
+                "docker",
+                "login",
+                "ghcr.io",
+                "--username",
+                "$",
+                "--password-stdin",
+            ],
+            output=output,
+            text=True,
+            input=github_token,
+            check=False,
+        )
+        return command_result.returncode, "Docker login"
     return 0, "Docker login skipped"

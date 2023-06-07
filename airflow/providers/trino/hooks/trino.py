@@ -33,7 +33,7 @@ from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFA
 
 
 def generate_trino_client_info() -> str:
-    """Return json string with dag_id, task_id, execution_date and try_number"""
+    """Return json string with dag_id, task_id, execution_date and try_number."""
     context_var = {
         format_map["default"].replace(DEFAULT_FORMAT_PREFIX, ""): os.environ.get(
             format_map["env_var_format"], ""
@@ -52,7 +52,7 @@ def generate_trino_client_info() -> str:
 
 
 class TrinoException(Exception):
-    """Trino exception"""
+    """Trino exception."""
 
 
 def _boolify(value):
@@ -85,7 +85,7 @@ class TrinoHook(DbApiHook):
     _test_connection_sql = "select 1"
 
     def get_conn(self) -> Connection:
-        """Returns a connection object"""
+        """Returns a connection object."""
         db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
         extra = db.extra_dejson
         auth = None
@@ -141,7 +141,7 @@ class TrinoHook(DbApiHook):
         return trino_conn
 
     def get_isolation_level(self) -> Any:
-        """Returns an isolation level"""
+        """Returns an isolation level."""
         db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
         isolation_level = db.extra_dejson.get("isolation_level", "AUTOCOMMIT").upper()
         return getattr(IsolationLevel, isolation_level, IsolationLevel.AUTOCOMMIT)
