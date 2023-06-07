@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import ssl
 
 from airflow.configuration import conf
@@ -26,7 +27,7 @@ from airflow.exceptions import AirflowConfigException, AirflowException
 
 
 def _broker_supports_visibility_timeout(url):
-    return url.startswith("redis://") or url.startswith("sqs://")
+    return url.startswith(("redis://", "rediss://", "sqs://", "sentinel://"))
 
 
 log = logging.getLogger(__name__)
@@ -37,6 +38,16 @@ broker_transport_options = conf.getsection("celery_broker_transport_options") or
 if "visibility_timeout" not in broker_transport_options:
     if _broker_supports_visibility_timeout(broker_url):
         broker_transport_options["visibility_timeout"] = 21600
+
+broker_transport_options_for_celery: dict = broker_transport_options.copy()
+if "sentinel_kwargs" in broker_transport_options:
+    try:
+        sentinel_kwargs = broker_transport_options.get("sentinel_kwargs")
+        if not isinstance(sentinel_kwargs, dict):
+            raise ValueError
+        broker_transport_options_for_celery["sentinel_kwargs"] = sentinel_kwargs
+    except Exception:
+        raise AirflowException("sentinel_kwargs should be written in the correct dictionary format.")
 
 if conf.has_option("celery", "RESULT_BACKEND"):
     result_backend = conf.get_mandatory_value("celery", "RESULT_BACKEND")
@@ -74,7 +85,7 @@ try:
                 "ca_certs": conf.get("celery", "SSL_CACERT"),
                 "cert_reqs": ssl.CERT_REQUIRED,
             }
-        elif broker_url and "redis://" in broker_url:
+        elif broker_url and re.search("rediss?://|sentinel://", broker_url):
             broker_use_ssl = {
                 "ssl_keyfile": conf.get("celery", "SSL_KEY"),
                 "ssl_certfile": conf.get("celery", "SSL_CERT"),
@@ -100,7 +111,7 @@ except Exception as e:
         f"all necessary certs and key ({e})."
     )
 
-if "amqp://" in result_backend or "redis://" in result_backend or "rpc://" in result_backend:
+if re.search("rediss?://|amqp://|rpc://", result_backend):
     log.warning(
         "You have configured a result_backend of %s, it is highly recommended "
         "to use an alternative result_backend (i.e. a database).",
