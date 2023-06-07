@@ -190,17 +190,17 @@ class Connection(Base, LoggingMixin):
         schemes_count_in_uri = uri.count("://")
         if schemes_count_in_uri > 2:
             raise AirflowException(f"Invalid connection string: {uri}.")
-        scheme_in_uri = schemes_count_in_uri == 2
+        host_with_protocol = schemes_count_in_uri == 2
         uri_parts = urlsplit(uri)
         conn_type = uri_parts.scheme
         self.conn_type = self._normalize_conn_type(conn_type)
-        reset_of_the_url = uri.replace(f"{conn_type}://", ("" if scheme_in_uri else "//"))
-        if scheme_in_uri:
-            uri_splits = reset_of_the_url.split("://", 1)
+        rest_of_the_url = uri.replace(f"{conn_type}://", ("" if host_with_protocol else "//"))
+        if host_with_protocol:
+            uri_splits = rest_of_the_url.split("://", 1)
             if "@" in uri_splits[0] or ":" in uri_splits[0]:
                 raise AirflowException(f"Invalid connection string: {uri}.")
-        uri_parts = urlsplit(reset_of_the_url)
-        protocol = uri_parts.scheme if scheme_in_uri else None
+        uri_parts = urlsplit(rest_of_the_url)
+        protocol = uri_parts.scheme if host_with_protocol else None
         host = _parse_netloc_to_hostname(uri_parts)
         self.host = self._create_host(protocol, host)
         quoted_schema = uri_parts.path[1:]
