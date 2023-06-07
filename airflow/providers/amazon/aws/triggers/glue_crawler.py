@@ -68,10 +68,7 @@ class GlueCrawlerCompleteTrigger(BaseTrigger):
                     break  # we reach this point only if the waiter met a success criteria
                 except WaiterError as error:
                     if "terminal failure" in str(error):
-                        yield TriggerEvent(
-                            {"status": "failure", "message": f"Glue Crawler creation Failed: {error}"}
-                        )
-                        break
+                        raise
                     self.log.info("Status of glue crawl is %s", error.last_response["Crawler"]["State"])
                     await asyncio.sleep(int(self.poll_interval))
 

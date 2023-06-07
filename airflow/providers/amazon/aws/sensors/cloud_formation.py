@@ -61,7 +61,7 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> CloudFormationHook:
-        """Create and return a CloudFormationHook"""
+        """Create and return a CloudFormationHook."""
         return CloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
@@ -105,5 +105,5 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> CloudFormationHook:
-        """Create and return a CloudFormationHook"""
+        """Create and return a CloudFormationHook."""
         return CloudFormationHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)

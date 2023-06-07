@@ -217,7 +217,7 @@ class GlueJobHook(AwsBaseHook):
         paginator = log_client.get_paginator("filter_log_events")
 
         def display_logs_from(log_group: str, continuation_token: str | None) -> str | None:
-            """Internal method to mutualize iteration over the 2 different log streams glue jobs write to"""
+            """Internal method to mutualize iteration over the 2 different log streams glue jobs write to."""
             fetched_logs = []
             next_token = continuation_token
             try:

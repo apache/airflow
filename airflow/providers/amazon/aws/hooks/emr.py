@@ -495,7 +495,7 @@ class EmrContainerHook(AwsBaseHook):
 
     def stop_query(self, job_id: str) -> dict:
         """
-        Cancel the submitted job_run
+        Cancel the submitted job_run.
 
         .. seealso::
             - :external+boto3:py:meth:`EMRContainers.Client.cancel_job_run`

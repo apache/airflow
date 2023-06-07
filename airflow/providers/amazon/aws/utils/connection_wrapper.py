@@ -429,7 +429,7 @@ def _parse_s3_config(
 ) -> tuple[str | None, str | None]:
     """
     Parses a config file for s3 credentials. Can currently
-    parse boto, s3cmd.conf and AWS SDK config formats
+    parse boto, s3cmd.conf and AWS SDK config formats.
 
     :param config_file_name: path to the config file
     :param config_format: config type. One of "boto", "s3cmd" or "aws".

@@ -34,11 +34,17 @@ class OdbcHook(DbApiHook):
 
     :param args: passed to DbApiHook
     :param database: database to use -- overrides connection ``schema``
-    :param driver: name of driver or path to driver. overrides driver supplied in connection ``extra``
+    :param driver: name of driver or path to driver. You can also set the driver via:
+       * setting ``driver`` parameter in ``hook_params`` dictionary when instantiating hook by SQL operators.
+       * setting `driver`` extra in the connection and setting  ``allow_driver_extra`` to True.
+       * setting ``OdbcHook.default_driver`` in ``local_settings.py`` file.
     :param dsn: name of DSN to use.  overrides DSN supplied in connection ``extra``
     :param connect_kwargs: keyword arguments passed to ``pyodbc.connect``
     :param sqlalchemy_scheme: Scheme sqlalchemy connection.  Default is ``mssql+pyodbc`` Only used for
         ``get_sqlalchemy_engine`` and ``get_sqlalchemy_connection`` methods.
+    :param allow_driver_extra: If True, allows to use driver extra in connection string (default False).
+           You should make sure that you trust the users who can edit connections in the UI to not use it
+           maliciously.
     :param kwargs: passed to DbApiHook
     """
 
@@ -49,6 +55,8 @@ class OdbcHook(DbApiHook):
     hook_name = "ODBC"
     supports_autocommit = True
 
+    default_driver: str | None = None
+
     def __init__(
         self,
         *args,
@@ -57,6 +65,7 @@ class OdbcHook(DbApiHook):
         dsn: str | None = None,
         connect_kwargs: dict | None = None,
         sqlalchemy_scheme: str | None = None,
+        allow_driver_extra: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -67,6 +76,7 @@ class OdbcHook(DbApiHook):
         self._sqlalchemy_scheme = sqlalchemy_scheme
         self._connection = None
         self._connect_kwargs = connect_kwargs
+        self._allow_driver_extra = allow_driver_extra
 
     @property
     def connection(self):
@@ -101,11 +111,19 @@ class OdbcHook(DbApiHook):
     @property
     def driver(self) -> str | None:
         """Driver from init param if given; else try to find one in connection extra."""
+        extra_driver = self.connection_extra_lower.get("driver")
+        if extra_driver:
+            if self._allow_driver_extra:
+                self._driver = extra_driver
+            else:
+                self.log.warning(
+                    "Please provide driver via 'driver' parameter of the Hook constructor"
+                    " or via 'hook_params' dictionary 'driver' key when instantiating hook by the"
+                    " SQL operators. The 'driver' extra will not be used."
+                )
         if not self._driver:
-            driver = self.connection_extra_lower.get("driver")
-            if driver:
-                self._driver = driver
-        return self._driver and self._driver.strip().lstrip("{").rstrip("}").strip()
+            self._driver = self.default_driver
+        return self._driver.strip().lstrip("{").rstrip("}").strip() if self._driver else None
 
     @property
     def dsn(self) -> str | None:

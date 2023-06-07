@@ -182,7 +182,7 @@ class S3KeySensor(BaseSensorOperator):
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> S3Hook:
-        """Create and return an S3Hook"""
+        """Create and return an S3Hook."""
         return self.hook
 
     @cached_property

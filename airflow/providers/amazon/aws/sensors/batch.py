@@ -77,7 +77,7 @@ class BatchSensor(BaseSensorOperator):
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> BatchClientHook:
-        """Create and return a BatchClientHook"""
+        """Create and return a BatchClientHook."""
         return self.hook
 
     @cached_property
@@ -122,7 +122,7 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> BatchClientHook:
-        """Create and return a BatchClientHook"""
+        """Create and return a BatchClientHook."""
         return BatchClientHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,
@@ -188,7 +188,7 @@ class BatchJobQueueSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> BatchClientHook:
-        """Create and return a BatchClientHook"""
+        """Create and return a BatchClientHook."""
         return BatchClientHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,

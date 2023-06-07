@@ -204,8 +204,9 @@ class S3Hook(AwsBaseHook):
     def parse_s3_url(s3url: str) -> tuple[str, str]:
         """
         Parses the S3 Url into a bucket name and key.
-            See https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
-            for valid url formats
+
+        See https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
+        for valid url formats.
 
         :param s3url: The S3 Url to parse.
         :return: the parsed bucket name and key
@@ -236,9 +237,11 @@ class S3Hook(AwsBaseHook):
         bucket: str | None, key: str, bucket_param_name: str, key_param_name: str
     ) -> tuple[str, str]:
         """
-        Get the S3 bucket name and key from either:
-            - bucket name and key. Return the info as it is after checking `key` is a relative path
-            - key. Must be a full s3:// url
+        Get the S3 bucket name and key.
+
+        From either:
+        - bucket name and key. Return the info as it is after checking `key` is a relative path.
+        - key. Must be a full s3:// url.
 
         :param bucket: The S3 bucket name
         :param key: The S3 key
@@ -290,7 +293,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def get_bucket(self, bucket_name: str | None = None) -> object:
         """
-        Returns a :py:class:`S3.Bucket` object
+        Returns a :py:class:`S3.Bucket` object.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.ServiceResource.Bucket`
@@ -335,7 +338,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def check_for_prefix(self, prefix: str, delimiter: str, bucket_name: str | None = None) -> bool:
         """
-        Checks that a prefix exists in a bucket
+        Checks that a prefix exists in a bucket.
 
         :param bucket_name: the name of the bucket
         :param prefix: a key prefix
@@ -358,7 +361,7 @@ class S3Hook(AwsBaseHook):
         max_items: int | None = None,
     ) -> list:
         """
-        Lists prefixes in a bucket under prefix
+        Lists prefixes in a bucket under prefix.
 
         .. seealso::
             - :external+boto3:py:class:`S3.Paginator.ListObjectsV2`
@@ -746,9 +749,10 @@ class S3Hook(AwsBaseHook):
         from_datetime: datetime | None = None,
         to_datetime: datetime | None = None,
         object_filter: Callable[..., list] | None = None,
+        apply_wildcard: bool = False,
     ) -> list:
         """
-        Lists keys in a bucket under prefix and not containing delimiter
+        Lists keys in a bucket under prefix and not containing delimiter.
 
         .. seealso::
             - :external+boto3:py:class:`S3.Paginator.ListObjectsV2`
@@ -764,6 +768,7 @@ class S3Hook(AwsBaseHook):
         :param to_datetime: should return only keys with LastModified attr less than this to_datetime
         :param object_filter: Function that receives the list of the S3 objects, from_datetime and
             to_datetime and returns the List of matched key.
+        :param apply_wildcard: whether to treat '*' as a wildcard or a plain symbol in the prefix.
 
         **Example**: Returns the list of S3 object with LastModified attr greater than from_datetime
              and less than to_datetime:
@@ -787,7 +792,9 @@ class S3Hook(AwsBaseHook):
 
         :return: a list of matched keys
         """
-        prefix = prefix or ""
+        _original_prefix = prefix or ""
+        _apply_wildcard = bool(apply_wildcard and "*" in _original_prefix)
+        _prefix = _original_prefix.split("*", 1)[0] if _apply_wildcard else _original_prefix
         delimiter = delimiter or ""
         start_after_key = start_after_key or ""
         self.object_filter_usr = object_filter
@@ -799,7 +806,7 @@ class S3Hook(AwsBaseHook):
         paginator = self.get_conn().get_paginator("list_objects_v2")
         response = paginator.paginate(
             Bucket=bucket_name,
-            Prefix=prefix,
+            Prefix=_prefix,
             Delimiter=delimiter,
             PaginationConfig=config,
             StartAfter=start_after_key,
@@ -808,7 +815,10 @@ class S3Hook(AwsBaseHook):
         keys: list[str] = []
         for page in response:
             if "Contents" in page:
-                keys.extend(iter(page["Contents"]))
+                new_keys = page["Contents"]
+                if _apply_wildcard:
+                    new_keys = (k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix))
+                keys.extend(new_keys)
         if self.object_filter_usr is not None:
             return self.object_filter_usr(keys, from_datetime, to_datetime)
 
@@ -823,7 +833,7 @@ class S3Hook(AwsBaseHook):
         max_items: int | None = None,
     ) -> list:
         """
-        Lists metadata objects in a bucket under prefix
+        Lists metadata objects in a bucket under prefix.
 
         .. seealso::
             - :external+boto3:py:class:`S3.Paginator.ListObjectsV2`
@@ -852,7 +862,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def head_object(self, key: str, bucket_name: str | None = None) -> dict | None:
         """
-        Retrieves metadata of an object
+        Retrieves metadata of an object.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Client.head_object`
@@ -873,7 +883,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def check_for_key(self, key: str, bucket_name: str | None = None) -> bool:
         """
-        Checks if a key exists in a bucket
+        Checks if a key exists in a bucket.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Client.head_object`
@@ -912,7 +922,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def read_key(self, key: str, bucket_name: str | None = None) -> str:
         """
-        Reads a key from S3
+        Reads a key from S3.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Object.get`
@@ -976,7 +986,7 @@ class S3Hook(AwsBaseHook):
         self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ""
     ) -> bool:
         """
-        Checks that a key matching a wildcard expression exists in a bucket
+        Checks that a key matching a wildcard expression exists in a bucket.
 
         :param wildcard_key: the path to the key
         :param bucket_name: the name of the bucket
@@ -994,7 +1004,7 @@ class S3Hook(AwsBaseHook):
         self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ""
     ) -> S3ResourceObject | None:
         """
-        Returns a boto3.s3.Object object matching the wildcard expression
+        Returns a boto3.s3.Object object matching the wildcard expression.
 
         :param wildcard_key: the path to the key
         :param bucket_name: the name of the bucket
@@ -1021,7 +1031,7 @@ class S3Hook(AwsBaseHook):
         acl_policy: str | None = None,
     ) -> None:
         """
-        Loads a local file to S3
+        Loads a local file to S3.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Client.upload_file`
@@ -1071,7 +1081,7 @@ class S3Hook(AwsBaseHook):
         compression: str | None = None,
     ) -> None:
         """
-        Loads a string to S3
+        Loads a string to S3.
 
         This is provided as a convenience to drop a string in S3. It uses the
         boto infrastructure to ship a file to s3.
@@ -1122,7 +1132,7 @@ class S3Hook(AwsBaseHook):
         acl_policy: str | None = None,
     ) -> None:
         """
-        Loads bytes to S3
+        Loads bytes to S3.
 
         This is provided as a convenience to drop bytes data into S3. It uses the
         boto infrastructure to ship a file to s3.
@@ -1156,7 +1166,7 @@ class S3Hook(AwsBaseHook):
         acl_policy: str | None = None,
     ) -> None:
         """
-        Loads a file object to S3
+        Loads a file object to S3.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Client.upload_fileobj`
@@ -1396,7 +1406,7 @@ class S3Hook(AwsBaseHook):
         http_method: str | None = None,
     ) -> str | None:
         """
-        Generate a presigned url given a client, its method, and arguments
+        Generate a presigned url given a client, its method, and arguments.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Client.generate_presigned_url`
