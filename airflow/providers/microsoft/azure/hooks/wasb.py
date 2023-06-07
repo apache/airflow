@@ -174,6 +174,7 @@ class WasbHook(BaseHook):
         """Return the BlobServiceClient object."""
         conn = self.get_connection(self.conn_id)
         extra = conn.extra_dejson or {}
+        client_secret_auth_config = extra.pop("client_secret_auth_config", {})
 
         if self.public_read:
             # Here we use anonymous public read
@@ -196,7 +197,7 @@ class WasbHook(BaseHook):
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            token_credential = ClientSecretCredential(tenant, app_id, app_secret)
+            token_credential = ClientSecretCredential(tenant, app_id, app_secret, **client_secret_auth_config)
             return BlobServiceClient(account_url=conn.host, credential=token_credential, **extra)
 
         sas_token = self._get_field(extra, "sas_token")
@@ -542,6 +543,7 @@ class WasbAsyncHook(WasbHook):
 
         conn = await sync_to_async(self.get_connection)(self.conn_id)
         extra = conn.extra_dejson or {}
+        client_secret_auth_config = extra.pop("client_secret_auth_config", {})
 
         if self.public_read:
             # Here we use anonymous public read
@@ -571,7 +573,9 @@ class WasbAsyncHook(WasbHook):
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            token_credential = AsyncClientSecretCredential(tenant, app_id, app_secret)
+            token_credential = AsyncClientSecretCredential(
+                tenant, app_id, app_secret, **client_secret_auth_config
+            )
             self.blob_service_client = AsyncBlobServiceClient(
                 account_url=conn.host, credential=token_credential, **extra  # type:ignore[arg-type]
             )
