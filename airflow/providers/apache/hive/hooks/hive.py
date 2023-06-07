@@ -35,7 +35,7 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
-import unicodecsv as csv
+import csv
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -987,8 +987,8 @@ class HiveServer2Hook(DbApiHook):
         message = None
 
         i = 0
-        with open(csv_filepath, "wb") as file:
-            writer = csv.writer(file, delimiter=delimiter, lineterminator=lineterminator, encoding="utf-8")
+        with open(csv_filepath, "w", encoding="utf-8") as file:
+            writer = csv.writer(file, delimiter=delimiter, lineterminator=lineterminator)
             try:
                 if output_header:
                     self.log.debug("Cursor description is %s", header)

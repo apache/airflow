@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import csv
 import textwrap
 from collections import OrderedDict
 from contextlib import closing
@@ -187,7 +188,6 @@ class TestTransfer:
     )
     @pytest.mark.usefixtures("baby_names_table")
     def test_mysql_to_hive(self, spy_on_hive, params, expected, csv):
-
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         op = MySqlToHiveOperator(
             task_id="test_m2h",
@@ -247,7 +247,6 @@ class TestTransfer:
                     cursor.execute(f"DROP TABLE IF EXISTS {mysql_table}")
 
     def test_mysql_to_hive_verify_csv_special_char(self, spy_on_hive):
-
         mysql_table = "test_mysql_to_hive"
         hive_table = "test_mysql_to_hive"
 
@@ -276,8 +275,6 @@ class TestTransfer:
                         )
                     )
                     conn.commit()
-
-            import unicodecsv as csv
 
             op = MySqlToHiveOperator(
                 task_id="test_m2h",
