@@ -27,7 +27,16 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class EmrAddStepsTrigger(BaseTrigger):
-    """AWS Emr Add Steps Trigger"""
+    """
+    AWS Emr Add Steps Trigger
+    The trigger will asynchronously poll the boto3 API and wait for the
+    steps to finish executing.
+    :param job_flow_id: The id of the job flow.
+    :param step_ids: The id of the steps being waited upon.
+    :param poll_interval: The amount of time in seconds to wait between attempts.
+    :param max_attempts: The maximum number of attempts to be made.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
 
     def __init__(
         self,
