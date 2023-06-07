@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-from functools import cached_property
 from typing import Any
 
 from botocore.exceptions import WaiterError
@@ -64,11 +63,8 @@ class EmrAddStepsTrigger(BaseTrigger):
             },
         )
 
-    @cached_property
-    def hook(self) -> EmrHook:
-        return EmrHook(aws_conn_id=self.aws_conn_id)
-
     async def run(self):
+        self.hook = EmrHook(aws_conn_id=self.aws_conn_id)
         async with self.hook.async_conn as client:
             for step_id in self.step_ids:
                 attempt = 0

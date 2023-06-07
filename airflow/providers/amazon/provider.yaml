@@ -522,6 +522,9 @@ triggers:
     python-modules:
       - airflow.providers.amazon.aws.triggers.glue
       - airflow.providers.amazon.aws.triggers.glue_crawler
+  - integration-name: Amazon EMR
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.emr
 
 transfers:
   - source-integration-name: Amazon DynamoDB
