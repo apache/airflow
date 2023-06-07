@@ -608,6 +608,8 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 self.log.info("Trigger %s fired: %s", self.triggers[trigger_id]["name"], event)
                 self.triggers[trigger_id]["events"] += 1
                 self.events.append((trigger_id, event))
+        except asyncio.CancelledError:
+            self.log.info("Trigger cancelled due to timeout")
         finally:
             # CancelledError will get injected when we're stopped - which is
             # fine, the cleanup process will understand that, but we want to
