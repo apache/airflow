@@ -30,6 +30,7 @@ from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
+from airflow.models.deferrablemixin import DeferrableMixin
 from airflow.models.xcom import XCom
 from airflow.triggers.external_task import DagStateTrigger
 from airflow.utils import timezone
@@ -66,7 +67,7 @@ class TriggerDagRunLink(BaseOperatorLink):
         return build_airflow_url_with_query(query)
 
 
-class TriggerDagRunOperator(BaseOperator):
+class TriggerDagRunOperator(BaseOperator, DeferrableMixin):
     """
     Triggers a DAG run for a specified ``dag_id``.
 
@@ -86,8 +87,6 @@ class TriggerDagRunOperator(BaseOperator):
         (default: 60)
     :param allowed_states: List of allowed states, default is ``['success']``.
     :param failed_states: List of failed or dis-allowed states, default is ``None``.
-    :param deferrable: If waiting for completion, whether or not to defer the task until done,
-        default is ``False``.
     """
 
     template_fields: Sequence[str] = (
@@ -113,7 +112,6 @@ class TriggerDagRunOperator(BaseOperator):
         poke_interval: int = 60,
         allowed_states: list | None = None,
         failed_states: list | None = None,
-        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -189,7 +187,7 @@ class TriggerDagRunOperator(BaseOperator):
         if self.wait_for_completion:
 
             # Kick off the deferral process
-            if self._defer:
+            if self.deferrable:
                 self.defer(
                     trigger=DagStateTrigger(
                         dag_id=self.trigger_dag_id,
