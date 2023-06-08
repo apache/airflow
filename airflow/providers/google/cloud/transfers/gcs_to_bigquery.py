@@ -42,6 +42,13 @@ from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
 
+# TODO: once we update the minimum Airflow version to 2.7.0
+# remove this try-exception block and import directly
+# and use DeferrableMixin for operators with "deferrable" attribute
+try:
+    from airflow.models.deferrablemixin import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = False
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -218,7 +225,7 @@ class GCSToBigQueryOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         labels=None,
         description=None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         result_retry: Retry = DEFAULT_RETRY,
         result_timeout: float | None = None,
         cancel_on_kill: bool = True,

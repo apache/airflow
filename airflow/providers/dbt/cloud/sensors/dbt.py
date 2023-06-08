@@ -25,6 +25,14 @@ from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunEx
 from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.sensors.base import BaseSensorOperator
 
+# TODO: once we update the minimum Airflow version to 2.7.0
+# remove this try-exception block and import directly
+# and use DeferrableMixin for operators with "deferrable" attribute
+try:
+    from airflow.models.deferrablemixin import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = False
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -50,7 +58,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
         run_id: int,
         account_id: int | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         if deferrable:

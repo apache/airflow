@@ -25,6 +25,14 @@ from airflow.models import BaseOperator
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.triggers.livy import LivyTrigger
 
+# TODO: once we update the minimum Airflow version to 2.7.0
+# remove this try-exception block and import directly
+# and use DeferrableMixin for operators with "deferrable" attribute
+try:
+    from airflow.models.deferrablemixin import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = False
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -88,7 +96,7 @@ class LivyOperator(BaseOperator):
         extra_options: dict[str, Any] | None = None,
         extra_headers: dict[str, Any] | None = None,
         retry_args: dict[str, Any] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs: Any,
     ) -> None:
 

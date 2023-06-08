@@ -35,6 +35,13 @@ from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.json import AirflowJsonEncoder
 
+# TODO: once we update the minimum Airflow version to 2.7.0
+# remove this try-exception block and import directly
+# and use DeferrableMixin for operators with "deferrable" attribute
+try:
+    from airflow.models.deferrablemixin import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = False
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -198,7 +205,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         max_attempts: int | None = None,
         max_ingestion_time: int | None = None,
         action_if_job_exists: str = "timestamp",
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -551,7 +558,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         max_ingestion_time: int | None = None,
         check_if_job_exists: bool = True,
         action_if_job_exists: str = "timestamp",
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
@@ -862,7 +869,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         max_ingestion_time: int | None = None,
         check_if_job_exists: bool = True,
         action_if_job_exists: str = "timestamp",
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)

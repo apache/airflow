@@ -30,6 +30,14 @@ from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunSta
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 
+# TODO: once we update the minimum Airflow version to 2.7.0
+# remove this try-exception block and import directly
+# and use DeferrableMixin for operators with "deferrable" attribute
+try:
+    from airflow.models.deferrablemixin import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = False
+
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
@@ -315,7 +323,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         access_control_list: list[dict[str, str]] | None = None,
         wait_for_termination: bool = True,
         git_source: dict[str, str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSubmitRunOperator``."""
@@ -605,7 +613,7 @@ class DatabricksRunNowOperator(BaseOperator):
         databricks_retry_args: dict[Any, Any] | None = None,
         do_xcom_push: bool = True,
         wait_for_termination: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksRunNowOperator``."""

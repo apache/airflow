@@ -37,6 +37,14 @@ from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransf
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.bigquery_dts import BigQueryDataTransferRunTrigger
 
+# TODO: once we update the minimum Airflow version to 2.7.0
+# remove this try-exception block and import directly
+# and use DeferrableMixin for operators with "deferrable" attribute
+try:
+    from airflow.models.deferrablemixin import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = False
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -279,7 +287,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id="google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

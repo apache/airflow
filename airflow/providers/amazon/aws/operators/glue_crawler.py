@@ -23,6 +23,14 @@ from typing import TYPE_CHECKING, Sequence
 from airflow import AirflowException
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
 
+# TODO: once we update the minimum Airflow version to 2.7.0
+# remove this try-exception block and import directly
+# and use DeferrableMixin for operators with "deferrable" attribute
+try:
+    from airflow.models.deferrablemixin import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = False
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -61,7 +69,7 @@ class GlueCrawlerOperator(BaseOperator):
         region_name: str | None = None,
         poll_interval: int = 5,
         wait_for_completion: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ):
         super().__init__(**kwargs)

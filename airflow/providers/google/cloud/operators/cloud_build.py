@@ -42,6 +42,14 @@ from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_MET
 from airflow.utils import yaml
 from airflow.utils.helpers import exactly_one
 
+# TODO: once we update the minimum Airflow version to 2.7.0
+# remove this try-exception block and import directly
+# and use DeferrableMixin for operators with "deferrable" attribute
+try:
+    from airflow.models.deferrablemixin import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = False
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -176,7 +184,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: float = 4.0,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         location: str = "global",
         **kwargs,
     ) -> None:

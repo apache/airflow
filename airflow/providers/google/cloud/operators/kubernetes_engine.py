@@ -27,12 +27,6 @@ from google.cloud.container_v1.types import Cluster
 from kubernetes.client.models import V1Pod
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-
-try:
-    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
-except ImportError:
-    # preserve backward compatibility for older versions of cncf.kubernetes provider
-    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook, GKEPodHook
 from airflow.providers.google.cloud.links.kubernetes_engine import (
     KubernetesEngineClusterLink,
@@ -41,6 +35,20 @@ from airflow.providers.google.cloud.links.kubernetes_engine import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.kubernetes_engine import GKEOperationTrigger, GKEStartPodTrigger
 from airflow.utils.timezone import utcnow
+
+# TODO: once we update the minimum Airflow version to 2.7.0
+# remove this try-exception block and import directly
+# and use DeferrableMixin for operators with "deferrable" attribute
+try:
+    from airflow.models.deferrablemixin import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = False
+
+try:
+    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+except ImportError:
+    # preserve backward compatibility for older versions of cncf.kubernetes provider
+    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -107,7 +115,7 @@ class GKEDeleteClusterOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v2",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         poll_interval: int = 10,
         **kwargs,
     ) -> None:
@@ -254,7 +262,7 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
         api_version: str = "v2",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: int = 10,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

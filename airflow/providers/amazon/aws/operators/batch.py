@@ -45,6 +45,14 @@ from airflow.providers.amazon.aws.triggers.batch import (
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
+# TODO: once we update the minimum Airflow version to 2.7.0
+# remove this try-exception block and import directly
+# and use DeferrableMixin for operators with "deferrable" attribute
+try:
+    from airflow.models.deferrablemixin import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = False
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -154,7 +162,7 @@ class BatchOperator(BaseOperator):
         region_name: str | None = None,
         tags: dict | None = None,
         wait_for_completion: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         poll_interval: int = 30,
         awslogs_enabled: bool = False,
         awslogs_fetch_interval: timedelta = timedelta(seconds=30),

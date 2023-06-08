@@ -26,6 +26,14 @@ from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
 
+# TODO: once we update the minimum Airflow version to 2.7.0
+# remove this try-exception block and import directly
+# and use DeferrableMixin for operators with "deferrable" attribute
+try:
+    from airflow.models.deferrablemixin import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = False
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -53,7 +61,7 @@ class WasbBlobSensor(BaseSensorOperator):
         wasb_conn_id: str = "wasb_default",
         check_options: dict | None = None,
         public_read: bool = False,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -151,7 +159,7 @@ class WasbPrefixSensor(BaseSensorOperator):
         prefix: str,
         wasb_conn_id: str = "wasb_default",
         check_options: dict | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
