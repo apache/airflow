@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-08T20:43:17Z
+# This constraints file was automatically generated on 2023-06-08T22:55:25Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -278,7 +278,7 @@ google-cloud-automl==2.11.1
 google-cloud-bigquery-datatransfer==3.11.1
 google-cloud-bigquery-storage==2.20.0
 google-cloud-bigquery==3.11.0
-google-cloud-bigtable==2.18.1
+google-cloud-bigtable==2.19.0
 google-cloud-build==3.16.0
 google-cloud-compute==1.11.0
 google-cloud-container==2.23.0
@@ -632,6 +632,7 @@ typing_extensions==4.6.3
 tzdata==2023.3
 tzlocal==5.0.1
 uc-micro-py==1.0.2
+unicodecsv==0.14.1
 uritemplate==4.1.1
 urllib3==1.26.16
 userpath==1.8.0
