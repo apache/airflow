@@ -200,9 +200,11 @@ class EcsTaskLogFetcher(Thread):
         last_logs_iterator = self.logs_hook.get_log_events(
             self.log_group, self.log_stream_name, start_from_head=False
         )
-        truncated = list(itertools.islice(last_logs_iterator, number_messages))
+        truncated_iterator = itertools.islice(last_logs_iterator, number_messages)
+        messages = [log["message"] for log in truncated_iterator]
         # need to reverse the order to put the logs back in order after getting them from the end
-        return [log["message"] for log in reversed(truncated)]
+        messages.reverse()
+        return messages
 
     def get_last_log_message(self) -> str | None:
         try:
