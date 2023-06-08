@@ -298,6 +298,7 @@ class SelectiveChecks:
         github_event: GithubEvents = GithubEvents.PULL_REQUEST,
         github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY,
         github_actor: str = "",
+        github_context_dict: dict[str, Any] | None = None,
     ):
         self._files = files
         self._default_branch = default_branch
@@ -307,6 +308,7 @@ class SelectiveChecks:
         self._github_event = github_event
         self._github_repository = github_repository
         self._github_actor = github_actor
+        self._github_context_dict = github_context_dict or {}
 
     def __important_attributes(self) -> tuple[Any, ...]:
         return tuple(getattr(self, f) for f in self.__HASHABLE_FIELDS)
@@ -776,7 +778,21 @@ class SelectiveChecks:
         if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
             if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
                 return RUNS_ON_SELF_HOSTED_RUNNER
-            if self._github_actor in COMMITTERS and USE_PUBLIC_RUNNERS_LABEL not in self._pr_labels:
+            actor = self._github_actor
+            if self._github_event in (GithubEvents.PULL_REQUEST, GithubEvents.PULL_REQUEST_TARGET):
+                try:
+                    actor = self._github_context_dict["event"]["pull_request"]["user"]["login"]
+                    get_console().print(
+                        f"[warning]The actor: {actor} retrieved from GITHUB_CONTEXT's"
+                        f" event.pull_request.user.login[/]"
+                    )
+                except Exception as e:
+                    get_console().print(f"[warning]Exception when reading user login: {e}[/]")
+                    get_console().print(
+                        f"[info]Could not find the actor from pull request, "
+                        f"falling back to the actor who triggered the PR: {actor}[/]"
+                    )
+            if actor in COMMITTERS and USE_PUBLIC_RUNNERS_LABEL not in self._pr_labels:
                 return RUNS_ON_SELF_HOSTED_RUNNER
         return RUNS_ON_PUBLIC_RUNNER
 
