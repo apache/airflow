@@ -17,9 +17,7 @@
           "type": "string",
           "const": "timedelta"
         },
-        "__var": {
-          "$ref": "#/definitions/timedelta"
-        }
+        "__var": { "$ref": "#/definitions/timedelta" }
       },
       "required": [
         "__type",
@@ -40,61 +38,42 @@
           "properties": {
             "weekday": {
               "type": "array",
-              "items": {
-                "type": "integer"
-              },
+              "items": { "type": "integer" },
               "minItems": 1,
               "maxItems": 2
             }
           },
-          "additionalProperties": {
-            "type": "integer"
-          }
+          "additionalProperties": { "type": "integer" }
         }
       }
     },
     "timezone": {
       "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "integer"
-        }
+        { "type": "string" },
+        { "type": "integer" }
       ]
     },
     "dataset": {
       "type": "object",
       "properties": {
-        "uri": {
-          "type": "string"
-        },
+        "uri": { "type": "string" },
         "extra": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/dict"
-            }
-          ]
+            "anyOf": [
+                {"type": "null"},
+                { "$ref": "#/definitions/dict" }
+            ]
         }
       },
-      "required": [
-        "uri",
-        "extra"
-      ]
+      "required": [ "uri", "extra" ]
     },
     "typed_dataset": {
       "type": "object",
       "properties": {
         "__type": {
           "type": "string",
-          "constant": "dataset"
+            "constant": "dataset"
         },
-        "__var": {
-          "$ref": "#/definitions/dataset"
-        }
+        "__var": { "$ref": "#/definitions/dataset" }
       },
       "required": [
         "__type",
@@ -127,140 +106,62 @@
     "dag": {
       "type": "object",
       "properties": {
-        "params": {
-          "$ref": "#/definitions/params_dict"
-        },
-        "_dag_id": {
-          "type": "string"
-        },
-        "tasks": {
-          "$ref": "#/definitions/tasks"
-        },
-        "timezone": {
-          "$ref": "#/definitions/timezone"
-        },
+        "params": { "$ref": "#/definitions/params_dict" },
+        "_dag_id": { "type": "string" },
+        "tasks": {  "$ref": "#/definitions/tasks" },
+        "timezone": { "$ref": "#/definitions/timezone" },
         "schedule_interval": {
           "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/definitions/typed_timedelta"
-            },
-            {
-              "$ref": "#/definitions/typed_relativedelta"
-            }
+            { "type": "null" },
+            { "type": "string" },
+            { "$ref": "#/definitions/typed_timedelta" },
+            { "$ref": "#/definitions/typed_relativedelta" }
           ]
         },
         "dataset_triggers": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/typed_dataset"
-          }
+            "type": "array",
+            "items": { "$ref": "#/definitions/typed_dataset" }
         },
-        "owner_links": {
-          "type": "object"
-        },
+        "owner_links": { "type": "object" },
         "timetable": {
           "type": "object",
           "properties": {
-            "type": {
-              "type": "string"
-            },
-            "value": {
-              "$ref": "#/definitions/dict"
-            }
+            "type": { "type": "string" },
+            "value": { "$ref": "#/definitions/dict" }
           }
         },
-        "catchup": {
-          "type": "boolean"
-        },
-        "is_subdag": {
-          "type": "boolean"
-        },
-        "fileloc": {
-          "type": "string"
-        },
+        "catchup": { "type": "boolean" },
+        "is_subdag": { "type": "boolean" },
+        "fileloc": { "type" : "string"},
         "_processor_dags_folder": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            }
-          ]
+            "anyOf": [
+                { "type": "null" },
+                {"type": "string"}
+            ]
         },
-        "orientation": {
-          "type": "string"
-        },
-        "_description": {
-          "type": "string"
-        },
-        "_concurrency": {
-          "type": "number"
-        },
-        "_max_active_tasks": {
-          "type": "number"
-        },
-        "max_active_runs": {
-          "type": "number"
-        },
-        "default_args": {
-          "$ref": "#/definitions/dict"
-        },
-        "start_date": {
-          "$ref": "#/definitions/datetime"
-        },
-        "end_date": {
-          "$ref": "#/definitions/datetime"
-        },
-        "dagrun_timeout": {
-          "$ref": "#/definitions/timedelta"
-        },
-        "doc_md": {
-          "type": "string"
-        },
-        "_default_view": {
-          "type": "string"
-        },
-        "_access_control": {
-          "$ref": "#/definitions/dict"
-        },
-        "is_paused_upon_creation": {
-          "type": "boolean"
-        },
-        "has_on_success_callback": {
-          "type": "boolean"
-        },
-        "has_on_failure_callback": {
-          "type": "boolean"
-        },
-        "render_template_as_native_obj": {
-          "type": "boolean"
-        },
-        "tags": {
-          "type": "array"
-        },
-        "_task_group": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "$ref": "#/definitions/task_group"
-            }
-          ]
-        },
-        "edge_info": {
-          "$ref": "#/definitions/edge_info"
-        },
-        "dag_dependencies": {
-          "$ref": "#/definitions/dag_dependencies"
-        }
+         "orientation": { "type" : "string"},
+        "_description": { "type" : "string"},
+        "_concurrency": { "type" : "number"},
+        "_max_active_tasks": { "type" : "number"},
+        "max_active_runs": { "type" : "number"},
+        "default_args": { "$ref": "#/definitions/dict" },
+        "start_date": { "$ref": "#/definitions/datetime" },
+        "end_date": { "$ref": "#/definitions/datetime" },
+        "dagrun_timeout": { "$ref": "#/definitions/timedelta" },
+        "doc_md": { "type" : "string"},
+        "_default_view": { "type" : "string"},
+        "_access_control": {"$ref": "#/definitions/dict" },
+        "is_paused_upon_creation":  { "type": "boolean" },
+        "has_on_success_callback":  { "type": "boolean" },
+        "has_on_failure_callback":  { "type": "boolean" },
+        "render_template_as_native_obj":  { "type": "boolean" },
+        "tags": { "type": "array" },
+        "_task_group": {"anyOf": [
+          { "type": "null" },
+          { "$ref": "#/definitions/task_group" }
+        ]},
+        "edge_info": { "$ref": "#/definitions/edge_info" },
+        "dag_dependencies": { "$ref": "#/definitions/dag_dependencies" }
       },
       "required": [
         "_dag_id",
@@ -271,15 +172,11 @@
     },
     "tasks": {
       "type": "array",
-      "additionalProperties": {
-        "$ref": "#/definitions/operator"
-      }
+      "additionalProperties": { "$ref": "#/definitions/operator" }
     },
     "params_dict": {
       "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/param"
-      }
+      "additionalProperties": {"$ref": "#/definitions/param" }
     },
     "param": {
       "$comment": "A param for a dag / operator",
@@ -289,23 +186,10 @@
         "default"
       ],
       "properties": {
-        "__class": {
-          "type": "string"
-        },
+        "__class": { "type": "string" },
         "default": {},
-        "description": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "schema": {
-          "$ref": "#/definitions/dict"
-        }
+        "description": {"anyOf": [{"type":"string"}, {"type":"null"}]},
+        "schema": { "$ref": "#/definitions/dict" }
       }
     },
     "operator": {
@@ -320,158 +204,64 @@
         "template_fields"
       ],
       "properties": {
-        "_task_type": {
-          "type": "string"
-        },
-        "_task_module": {
-          "type": "string"
-        },
-        "_operator_extra_links": {
-          "$ref": "#/definitions/extra_links"
-        },
-        "task_id": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "owner": {
-          "type": "string"
-        },
-        "start_date": {
-          "$ref": "#/definitions/datetime"
-        },
-        "end_date": {
-          "$ref": "#/definitions/datetime"
-        },
-        "trigger_rule": {
-          "type": "string"
-        },
-        "depends_on_past": {
-          "type": "boolean"
-        },
-        "ignore_first_depends_on_past": {
-          "type": "boolean"
-        },
-        "wait_for_past_depends_before_skipping": {
-          "type": "boolean"
-        },
-        "wait_for_downstream": {
-          "type": "boolean"
-        },
-        "retries": {
-          "type": "number"
-        },
-        "queue": {
-          "type": "string"
-        },
-        "pool": {
-          "type": "string"
-        },
-        "pool_slots": {
-          "type": "number"
-        },
-        "execution_timeout": {
-          "$ref": "#/definitions/timedelta"
-        },
-        "retry_delay": {
-          "$ref": "#/definitions/timedelta"
-        },
-        "retry_exponential_backoff": {
-          "type": "boolean"
-        },
-        "max_retry_delay": {
-          "$ref": "#/definitions/timedelta"
-        },
-        "params": {
-          "$ref": "#/definitions/params_dict"
-        },
-        "priority_weight": {
-          "type": "number"
-        },
-        "weight_rule": {
-          "type": "string"
-        },
-        "executor_config": {
-          "$ref": "#/definitions/dict"
-        },
-        "do_xcom_push": {
-          "type": "boolean"
-        },
-        "ui_color": {
-          "$ref": "#/definitions/color"
-        },
-        "ui_fgcolor": {
-          "$ref": "#/definitions/color"
-        },
+        "_task_type": { "type": "string" },
+        "_task_module": { "type": "string" },
+        "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
+        "task_id": { "type": "string" },
+        "label": { "type": "string" },
+        "owner": { "type": "string" },
+        "start_date": { "$ref": "#/definitions/datetime" },
+        "end_date": { "$ref": "#/definitions/datetime" },
+        "trigger_rule": { "type": "string" },
+        "depends_on_past": { "type": "boolean" },
+        "ignore_first_depends_on_past": { "type": "boolean" },
+        "wait_for_past_depends_before_skipping": { "type": "boolean" },
+        "wait_for_downstream": { "type": "boolean" },
+        "retries": { "type": "number" },
+        "queue": { "type": "string" },
+        "pool": { "type": "string" },
+        "pool_slots": { "type": "number" },
+        "execution_timeout": { "$ref": "#/definitions/timedelta" },
+        "retry_delay": { "$ref": "#/definitions/timedelta" },
+        "retry_exponential_backoff": { "type": "boolean" },
+        "max_retry_delay": { "$ref": "#/definitions/timedelta" },
+        "params": { "$ref": "#/definitions/params_dict" },
+        "priority_weight": { "type": "number" },
+        "weight_rule": { "type": "string" },
+        "executor_config": { "$ref": "#/definitions/dict" },
+        "do_xcom_push": { "type": "boolean" },
+        "ui_color": { "$ref": "#/definitions/color" },
+        "ui_fgcolor": { "$ref": "#/definitions/color" },
         "template_fields": {
           "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" }
         },
-        "subdag": {
-          "$ref": "#/definitions/dag"
-        },
+        "subdag": { "$ref": "#/definitions/dag" },
         "downstream_task_ids": {
           "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" }
         },
-        "_is_dummy": {
-          "type": "boolean"
-        },
+        "_is_dummy": { "type": "boolean" },
         "deps": {
           "description": "list of dep classes -- if non-standard",
           "type": "array",
-          "items": {
-            "type": "string"
-          },
+          "items": { "type": "string" },
           "uniqueItems": true
         },
-        "doc": {
-          "type": "string"
-        },
-        "doc_md": {
-          "type": "string"
-        },
-        "doc_json": {
-          "type": "string"
-        },
-        "doc_yaml": {
-          "type": "string"
-        },
-        "doc_rst": {
-          "type": "string"
-        },
-        "_is_mapped": {
-          "const": true,
-          "$comment": "only present when True"
-        },
-        "expand_input": {
-          "type": "object"
-        },
-        "deferrable": {
-          "type": "boolean"
-        },
-        "partial_kwargs": {
-          "type": "object"
-        }
+        "doc":  { "type": "string" },
+        "doc_md":  { "type": "string" },
+        "doc_json":  { "type": "string" },
+        "doc_yaml":  { "type": "string" },
+        "doc_rst":  { "type": "string" },
+        "_is_mapped": { "const": true, "$comment": "only present when True" },
+        "expand_input": { "type": "object" },
+        "deferrable": { "type": "boolean" },
+        "partial_kwargs": { "type": "object" }
       },
       "dependencies": {
-        "expand_input": [
-          "partial_kwargs",
-          "_is_mapped"
-        ],
-        "partial_kwargs": [
-          "expand_input",
-          "_is_mapped"
-        ],
-        "_is_mapped": [
-          "expand_input",
-          "partial_kwargs"
-        ]
+        "expand_input": ["partial_kwargs", "_is_mapped"],
+        "partial_kwargs": ["expand_input", "_is_mapped"],
+        "_is_mapped": ["expand_input", "partial_kwargs"]
       },
       "additionalProperties": true
     },
@@ -491,57 +281,28 @@
         "downstream_task_ids"
       ],
       "properties": {
-        "_group_id": {
-          "anyOf": [
-            {
-              "type": "null"
-            },
-            {
-              "type": "string"
-            }
-          ]
-        },
-        "is_mapped": {
-          "type": "boolean"
-        },
-        "prefix_group_id": {
-          "type": "boolean"
-        },
-        "children": {
-          "$ref": "#/definitions/dict"
-        },
-        "tooltip": {
-          "type": "string"
-        },
-        "ui_color": {
-          "type": "string"
-        },
-        "ui_fgcolor": {
-          "type": "string"
-        },
+        "_group_id": {"anyOf": [{"type": "null"}, { "type": "string" }]},
+        "is_mapped": { "type": "boolean" },
+        "prefix_group_id": { "type": "boolean" },
+        "children":  { "$ref": "#/definitions/dict" },
+        "tooltip": { "type": "string" },
+        "ui_color": { "type": "string" },
+        "ui_fgcolor": { "type": "string" },
         "upstream_group_ids": {
           "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" }
         },
         "downstream_group_ids": {
           "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" }
         },
         "upstream_task_ids": {
           "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" }
         },
         "downstream_task_ids": {
           "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "items": { "type": "string" }
         }
       },
       "additionalProperties": false
@@ -554,18 +315,15 @@
         "additionalProperties": {
           "type": "object",
           "properties": {
-            "label": {
-              "type": "string"
-            }
+            "label": { "type": "string" }
           },
-          "required": [
-            "label"
-          ],
+          "required": ["label"],
           "additionalProperties": false
         }
       }
     }
   },
+
   "type": "object",
   "allOf": [
     {
@@ -575,15 +333,10 @@
           "type": "integer",
           "exclusiveMinimum": 0
         },
-        "dag": {
-          "$ref": "#/definitions/dag"
-        }
+        "dag": { "$ref": "#/definitions/dag" }
       },
       "additionalProperties": false,
-      "required": [
-        "__version",
-        "dag"
-      ]
+      "required": [ "__version", "dag" ]
     }
   ]
 }
