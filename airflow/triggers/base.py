@@ -20,6 +20,7 @@ import abc
 from typing import Any, AsyncIterator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import TaskInstanceState
 
 
 class BaseTrigger(abc.ABC, LoggingMixin):
@@ -37,7 +38,6 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     """
 
     def __init__(self, **kwargs):
-
         # these values are set by triggerer when preparing to run the instance
         # when run, they are injected into logger record.
         self.task_instance = None
@@ -109,7 +109,7 @@ class TriggerEvent:
     events.
     """
 
-    def __init__(self, payload: Any):
+    def __init__(self, payload: Any = None):
         self.payload = payload
 
     def __repr__(self) -> str:
@@ -119,3 +119,34 @@ class TriggerEvent:
         if isinstance(other, TriggerEvent):
             return other.payload == self.payload
         return False
+
+
+class BaseTaskEndEvent(TriggerEvent):
+    """Base event class to end the task without resuming on worker."""
+
+    task_instance_state: TaskInstanceState
+
+    def __init__(self, *, xcom_return: Any | None = None, other_xcom: dict[str, Any] | None = None, **kwargs):
+        if "payload" in kwargs:
+            raise ValueError("Param 'payload' not supported for this class.")
+        super().__init__(payload=self.task_instance_state)
+        self.xcom_return = xcom_return
+        self.other_xcom = other_xcom
+
+
+class TaskSuccessEvent(BaseTaskEndEvent):
+    """Yield this event in order to end the task successfully."""
+
+    task_instance_state = TaskInstanceState.SUCCESS
+
+
+class TaskFailedEvent(BaseTaskEndEvent):
+    """Yield this event in order to end the task with failure."""
+
+    task_instance_state = TaskInstanceState.FAILED
+
+
+class TaskSkippedEvent(BaseTaskEndEvent):
+    """Yield this event in order to end the task with status 'skipped'."""
+
+    task_instance_state = TaskInstanceState.SKIPPED

@@ -20,7 +20,7 @@ import asyncio
 import datetime
 from typing import Any
 
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.triggers.base import BaseTrigger, TaskSuccessEvent
 from airflow.utils import timezone
 
 
@@ -45,7 +45,7 @@ class DateTimeTrigger(BaseTrigger):
             self.moment = timezone.convert_to_utc(moment)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        return ("airflow.triggers.temporal.DateTimeTrigger", {"moment": self.moment})
+        return "airflow.triggers.temporal.DateTimeTrigger", {"moment": self.moment}
 
     async def run(self):
         """
@@ -68,9 +68,8 @@ class DateTimeTrigger(BaseTrigger):
         while self.moment > timezone.utcnow():
             self.log.info("sleeping 1 second...")
             await asyncio.sleep(1)
-        # Send our single event and then we're done
-        self.log.info("yielding event with payload %r", self.moment)
-        yield TriggerEvent(self.moment)
+        self.log.info("Sensor time condition reached; marking task successful and exiting")
+        yield TaskSuccessEvent()
 
 
 class TimeDeltaTrigger(DateTimeTrigger):

@@ -86,11 +86,4 @@ class DateTimeSensorAsync(DateTimeSensor):
     """
 
     def execute(self, context: Context):
-        self.defer(
-            trigger=DateTimeTrigger(moment=timezone.parse(self.target_time)),
-            method_name="execute_complete",
-        )
-
-    def execute_complete(self, context, event=None):
-        """Callback for when the trigger fires - returns immediately."""
-        return None
+        self.defer(trigger=DateTimeTrigger(moment=timezone.parse(self.target_time)))

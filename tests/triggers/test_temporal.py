@@ -25,6 +25,7 @@ import pytest
 from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.utils import timezone
+from airflow.utils.state import TaskInstanceState
 
 
 def test_input_validation():
@@ -95,4 +96,4 @@ async def test_datetime_trigger_timing(tz):
     assert trigger_task.done() is True
     result = trigger_task.result()
     assert isinstance(result, TriggerEvent)
-    assert result.payload == past_moment
+    assert result.payload == TaskInstanceState.SUCCESS

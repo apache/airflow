@@ -1574,7 +1574,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self,
         *,
         trigger: BaseTrigger,
-        method_name: str,
+        method_name: str | None = None,
         kwargs: dict[str, Any] | None = None,
         timeout: timedelta | None = None,
     ):

@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 from traceback import format_exception
 from typing import Any, Iterable
 
@@ -26,12 +27,15 @@ from sqlalchemy.orm import Session, joinedload, relationship
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
-from airflow.triggers.base import BaseTrigger
+from airflow.triggers.base import BaseTaskEndEvent, BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, with_row_locks
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.xcom import XCOM_RETURN_KEY
+
+log = logging.getLogger(__name__)
 
 
 class Trigger(Base):
@@ -150,14 +154,32 @@ class Trigger(Base):
         for task_instance in session.query(TaskInstance).filter(
             TaskInstance.trigger_id == trigger_id, TaskInstance.state == TaskInstanceState.DEFERRED
         ):
-            # Add the event's payload into the kwargs for the task
-            next_kwargs = task_instance.next_kwargs or {}
-            next_kwargs["event"] = event.payload
-            task_instance.next_kwargs = next_kwargs
-            # Remove ourselves as its trigger
-            task_instance.trigger_id = None
-            # Finally, mark it as scheduled so it gets re-queued
-            task_instance.state = TaskInstanceState.SCHEDULED
+            if isinstance(event, BaseTaskEndEvent):
+                # task will be marked with terminal state and will not resume on worker
+                task_instance.trigger_id = None
+                task_instance.state = event.task_instance_state
+                if event.xcom_return:
+                    task_instance.xcom_push(key=XCOM_RETURN_KEY, value=event.xcom_return)
+                if event.other_xcom:
+                    for key, value in event.other_xcom.items():
+                        if key == XCOM_RETURN_KEY:
+                            log.warning(
+                                "Trigger yielded `other_xcom` with reserved key %s; ignoring. ti=%s",
+                                XCOM_RETURN_KEY,
+                                task_instance,
+                            )
+                            continue
+                        task_instance.xcom_push(key=key, value=value)
+            else:
+                # task will be resumed on worker; set up next kwargs and schedule
+                # Add the event's payload into the kwargs for the task
+                next_kwargs = task_instance.next_kwargs or {}
+                next_kwargs["event"] = event.payload
+                task_instance.next_kwargs = next_kwargs
+                # Remove ourselves as its trigger
+                task_instance.trigger_id = None
+                # Finally, mark it as scheduled so it gets re-queued
+                task_instance.state = TaskInstanceState.SCHEDULED
 
     @classmethod
     @internal_api_call

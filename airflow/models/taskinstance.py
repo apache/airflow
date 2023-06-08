@@ -1693,6 +1693,8 @@ class TaskInstance(Base, LoggingMixin):
             execute_callable = getattr(task_to_execute, self.next_method)
             if self.next_kwargs:
                 execute_callable = partial(execute_callable, **self.next_kwargs)
+        elif self.next_kwargs is not None:
+            raise AirflowException("Task is coming out of deferral without next_method specified.")
         else:
             execute_callable = task_to_execute.execute
         # If a timeout is specified for the task, make it fail
