@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. spelling::
+.. spelling:word-list::
 
     getdbt
 

@@ -103,7 +103,7 @@ class WasbHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -124,7 +124,7 @@ class WasbHook(BaseHook):
     @staticmethod
     @_ensure_prefixes(conn_type="wasb")
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra"],
             "relabeling": {
@@ -221,7 +221,7 @@ class WasbHook(BaseHook):
 
     def _get_container_client(self, container_name: str) -> ContainerClient:
         """
-        Instantiates a container client
+        Instantiates a container client.
 
         :param container_name: The name of the container
         :return: ContainerClient
@@ -230,7 +230,7 @@ class WasbHook(BaseHook):
 
     def _get_blob_client(self, container_name: str, blob_name: str) -> BlobClient:
         """
-        Instantiates a blob client
+        Instantiates a blob client.
 
         :param container_name: The name of the blob container
         :param blob_name: The name of the blob. This needs not be existing
@@ -273,7 +273,7 @@ class WasbHook(BaseHook):
         **kwargs,
     ) -> list:
         """
-        List blobs in a given container
+        List blobs in a given container.
 
         :param container_name: The name of the container
         :param prefix: Filters the results to return only blobs whose names
@@ -400,7 +400,7 @@ class WasbHook(BaseHook):
         self, container_name, blob_name, offset: int | None = None, length: int | None = None, **kwargs
     ) -> StorageStreamDownloader:
         """
-        Downloads a blob to the StorageStreamDownloader
+        Downloads a blob to the StorageStreamDownloader.
 
         :param container_name: The name of the container containing the blob
         :param blob_name: The name of the blob to download
@@ -413,7 +413,7 @@ class WasbHook(BaseHook):
 
     def create_container(self, container_name: str) -> None:
         """
-        Create container object if not already existing
+        Create container object if not already existing.
 
         :param container_name: The name of the container to create
         """
@@ -444,7 +444,7 @@ class WasbHook(BaseHook):
 
     def delete_container(self, container_name: str) -> None:
         """
-        Delete a container object
+        Delete a container object.
 
         :param container_name: The name of the container
         """

@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 
 class DataFusionPipelineLinkHelper:
-    """Helper class for Pipeline links"""
+    """Helper class for Pipeline links."""
 
     @staticmethod
     def get_project_id(instance):

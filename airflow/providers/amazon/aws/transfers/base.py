@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains base AWS to AWS transfer operator"""
+"""This module contains base AWS to AWS transfer operator."""
 from __future__ import annotations
 
 import warnings
@@ -33,7 +33,7 @@ _DEPRECATION_MSG = (
 
 class AwsToAwsBaseOperator(BaseOperator):
     """
-    Base class for AWS to AWS transfer operators
+    Base class for AWS to AWS transfer operators.
 
     :param source_aws_conn_id: The Airflow connection used for AWS credentials
         to access DynamoDB. If this is None or empty then the default boto3

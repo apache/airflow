@@ -28,7 +28,7 @@ from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
 
 
 class FTPOperation:
-    """Operation that can be used with FTP"""
+    """Operation that can be used with FTP."""
 
     PUT = "put"
     GET = "get"

@@ -34,7 +34,7 @@ AVAILABLE_METHODS = ["APPEND", "REPLACE", "UPSERT"]
 
 class S3ToRedshiftOperator(BaseOperator):
     """
-    Executes an COPY command to load files from s3 to Redshift
+    Executes an COPY command to load files from s3 to Redshift.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

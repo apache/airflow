@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import multiprocessing as mp
 import os
 import sys
 from enum import Enum
@@ -778,3 +779,8 @@ class SelectiveChecks:
             if self._github_actor in COMMITTERS and USE_PUBLIC_RUNNERS_LABEL not in self._pr_labels:
                 return RUNS_ON_SELF_HOSTED_RUNNER
         return RUNS_ON_PUBLIC_RUNNER
+
+    @cached_property
+    def mssql_parallelism(self) -> int:
+        # Limit parallelism for MSSQL to 1 for public runners due to race conditions generated there
+        return mp.cpu_count() if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1

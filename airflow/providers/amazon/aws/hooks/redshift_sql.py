@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 class RedshiftSQLHook(DbApiHook):
     """
-    Execute statements against Amazon Redshift, using redshift_connector
+    Execute statements against Amazon Redshift, using redshift_connector.
 
     This hook requires the redshift_conn_id connection.
 
@@ -65,7 +65,7 @@ class RedshiftSQLHook(DbApiHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict:
-        """Returns custom field behavior"""
+        """Returns custom field behavior."""
         return {
             "hidden_fields": [],
             "relabeling": {"login": "User", "schema": "Database"},
@@ -76,7 +76,7 @@ class RedshiftSQLHook(DbApiHook):
         return self.get_connection(self.redshift_conn_id)  # type: ignore[attr-defined]
 
     def _get_conn_params(self) -> dict[str, str | int]:
-        """Helper method to retrieve connection args"""
+        """Helper method to retrieve connection args."""
         conn = self.conn
 
         conn_params: dict[str, str | int] = {}
@@ -100,7 +100,7 @@ class RedshiftSQLHook(DbApiHook):
     def get_iam_token(self, conn: Connection) -> tuple[str, str, int]:
         """
         Uses AWSHook to retrieve a temporary password to connect to Redshift.
-        Port is required. If none is provided, default is used for each service
+        Port is required. If none is provided, default is used for each service.
         """
         port = conn.port or 5439
         # Pull the custer-identifier from the beginning of the Redshift URL
@@ -124,7 +124,7 @@ class RedshiftSQLHook(DbApiHook):
         return login, token, port
 
     def get_uri(self) -> str:
-        """Overrides DbApiHook get_uri to use redshift_connector sqlalchemy dialect as driver name"""
+        """Overrides DbApiHook get_uri to use redshift_connector sqlalchemy dialect as driver name."""
         conn_params = self._get_conn_params()
 
         if "user" in conn_params:
@@ -136,7 +136,7 @@ class RedshiftSQLHook(DbApiHook):
         return str(create_url(drivername="redshift+redshift_connector", **conn_params))
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
-        """Overrides DbApiHook get_sqlalchemy_engine to pass redshift_connector specific kwargs"""
+        """Overrides DbApiHook get_sqlalchemy_engine to pass redshift_connector specific kwargs."""
         conn_kwargs = self.conn.extra_dejson
         if engine_kwargs is None:
             engine_kwargs = {}
@@ -150,7 +150,8 @@ class RedshiftSQLHook(DbApiHook):
 
     def get_table_primary_key(self, table: str, schema: str | None = "public") -> list[str] | None:
         """
-        Helper method that returns the table primary key
+        Helper method that returns the table primary key.
+
         :param table: Name of the target table
         :param schema: Name of the target schema, public by default
         :return: Primary key columns list
@@ -170,7 +171,7 @@ class RedshiftSQLHook(DbApiHook):
         return pk_columns or None
 
     def get_conn(self) -> RedshiftConnection:
-        """Returns a redshift_connector.Connection object"""
+        """Returns a redshift_connector.Connection object."""
         conn_params = self._get_conn_params()
         conn_kwargs_dejson = self.conn.extra_dejson
         conn_kwargs: dict = {**conn_params, **conn_kwargs_dejson}

@@ -69,7 +69,7 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
         self._conn: VideoIntelligenceServiceClient | None = None
 
     def get_conn(self) -> VideoIntelligenceServiceClient:
-        """Returns Gcp Video Intelligence Service client"""
+        """Returns Gcp Video Intelligence Service client."""
         if not self._conn:
             self._conn = VideoIntelligenceServiceClient(
                 credentials=self.get_credentials(), client_info=CLIENT_INFO
