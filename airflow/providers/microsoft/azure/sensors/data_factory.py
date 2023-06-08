@@ -21,7 +21,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -61,7 +60,7 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         azure_data_factory_conn_id: str = AzureDataFactoryHook.default_conn_name,
         resource_group_name: str | None = None,
         factory_name: str | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

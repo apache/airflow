@@ -29,7 +29,6 @@ from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
 from airflow.exceptions import AirflowException
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.google.cloud.hooks.cloud_build import CloudBuildHook
 from airflow.providers.google.cloud.links.cloud_build import (
     CloudBuildLink,
@@ -177,7 +176,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         poll_interval: float = 4.0,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         location: str = "global",
         **kwargs,
     ) -> None:

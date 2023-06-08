@@ -37,7 +37,6 @@ from google.protobuf.duration_pb2 import Duration
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.dataproc import (
@@ -485,7 +484,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         polling_interval_seconds: int = 10,
         **kwargs,
     ) -> None:
@@ -850,7 +849,7 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         polling_interval_seconds: int = 10,
         **kwargs,
     ):
@@ -982,7 +981,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         job_error_states: set[str] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         asynchronous: bool = False,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         polling_interval_seconds: int = 10,
         **kwargs,
     ) -> None:
@@ -1732,7 +1731,7 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         polling_interval_seconds: int = 10,
         **kwargs,
     ) -> None:
@@ -1860,7 +1859,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         polling_interval_seconds: int = 10,
         **kwargs,
     ) -> None:
@@ -1980,7 +1979,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         asynchronous: bool = False,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         polling_interval_seconds: int = 10,
         cancel_on_kill: bool = True,
         wait_timeout: int | None = None,
@@ -2140,7 +2139,7 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         polling_interval_seconds: int = 10,
         **kwargs,
     ):
@@ -2271,7 +2270,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         result_retry: Retry | _MethodDefault = DEFAULT,
         asynchronous: bool = False,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         polling_interval_seconds: int = 5,
         **kwargs,
     ):

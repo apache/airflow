@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Sequence
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
@@ -99,7 +98,7 @@ class GlueJobOperator(BaseOperator):
         create_job_kwargs: dict | None = None,
         run_job_kwargs: dict | None = None,
         wait_for_completion: bool = True,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         verbose: bool = False,
         update_config: bool = False,
         job_poll_interval: int | float = 6,

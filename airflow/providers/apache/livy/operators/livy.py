@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.triggers.livy import LivyTrigger
 
@@ -89,7 +88,7 @@ class LivyOperator(BaseOperator):
         extra_options: dict[str, Any] | None = None,
         extra_headers: dict[str, Any] | None = None,
         retry_args: dict[str, Any] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         **kwargs: Any,
     ) -> None:
 

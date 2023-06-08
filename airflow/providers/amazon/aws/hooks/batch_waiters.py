@@ -36,7 +36,6 @@ import botocore.exceptions
 import botocore.waiter
 
 from airflow.exceptions import AirflowException
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
@@ -143,11 +142,7 @@ class BatchWaitersHook(BatchClientHook):
         return self._waiter_model
 
     def get_waiter(
-        self,
-        waiter_name: str,
-        _: dict[str, str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
-        client=None,
+        self, waiter_name: str, _: dict[str, str] | None = None, deferrable: bool = False, client=None
     ) -> botocore.waiter.Waiter:
         """
         Get an AWS Batch service waiter, using the configured ``.waiter_model``.

@@ -28,7 +28,6 @@ from google.api_core.retry import Retry
 from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.triggers.gcs import (
     GCSBlobTrigger,
@@ -77,7 +76,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         google_cloud_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         retry: Retry = DEFAULT_RETRY,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
 
@@ -209,7 +208,7 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         ts_func: Callable = ts_function,
         google_cloud_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
 
@@ -299,7 +298,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         prefix: str,
         google_cloud_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -413,7 +412,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
         allow_delete: bool = True,
         google_cloud_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
 

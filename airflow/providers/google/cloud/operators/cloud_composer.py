@@ -27,7 +27,6 @@ from google.cloud.orchestration.airflow.service_v1.types import Environment
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import AirflowException
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -136,7 +135,7 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:
@@ -265,7 +264,7 @@ class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:
@@ -510,7 +509,7 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:

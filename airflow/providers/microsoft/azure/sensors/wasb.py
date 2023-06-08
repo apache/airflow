@@ -22,7 +22,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -54,7 +53,7 @@ class WasbBlobSensor(BaseSensorOperator):
         wasb_conn_id: str = "wasb_default",
         check_options: dict | None = None,
         public_read: bool = False,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -152,7 +151,7 @@ class WasbPrefixSensor(BaseSensorOperator):
         prefix: str,
         wasb_conn_id: str = "wasb_default",
         check_options: dict | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

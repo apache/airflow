@@ -37,7 +37,6 @@ from google.cloud.bigquery.table import EncryptionConfiguration, Table, TableRef
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
-from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
@@ -219,7 +218,7 @@ class GCSToBigQueryOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         labels=None,
         description=None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         result_retry: Retry = DEFAULT_RETRY,
         result_timeout: float | None = None,
         cancel_on_kill: bool = True,
