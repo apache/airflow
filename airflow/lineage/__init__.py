@@ -133,6 +133,7 @@ def prepare_lineage(func: T) -> T:
 
             # Remove auto and task_ids
             self.inlets = [i for i in self.inlets if not isinstance(i, str)]
+
             # We manually create a session here since xcom_pull returns a LazyXComAccess iterator.
             # If we do not pass a session a new session will be created, however that session will not be
             # properly closed and will remain open. After we are done iterating we can safely close this
@@ -141,9 +142,6 @@ def prepare_lineage(func: T) -> T:
                 _inlets = self.xcom_pull(
                     context, task_ids=task_ids, dag_id=self.dag_id, key=PIPELINE_OUTLETS, session=session
                 )
-
-                # re-instantiate the obtained inlets
-                # xcom_pull returns a list of items for each given task_id
                 self.inlets.extend(i for i in itertools.chain.from_iterable(_inlets))
 
         elif self.inlets:
