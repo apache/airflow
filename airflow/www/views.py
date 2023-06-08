@@ -1885,9 +1885,8 @@ class Airflow(AirflowBaseView):
             XCom.task_id == task_id,
             XCom.execution_date == dttm,
             XCom.map_index == map_index,
-            XCom.key.not_like("_%"),
         )
-        attributes = [tuple(row) for row in xcom_query]
+        attributes = [(k, v) for k, v in xcom_query if not k.startswith("_")]
 
         title = "XCom"
         return self.render_template(
