@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING, Sequence
 from airflow import AirflowException
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
 
+# TODO: remove this try-exception block and import directly
+# once we update the minimum Airflow version to 2.7.0
 try:
     from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 except ImportError:

@@ -41,6 +41,8 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.triggers.dataflow import TemplateJobStartTrigger
 from airflow.version import version
 
+# TODO: remove this try-exception block and import directly
+# once we update the minimum Airflow version to 2.7.0
 try:
     from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 except ImportError:

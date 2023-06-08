@@ -45,6 +45,8 @@ from airflow.providers.amazon.aws.triggers.batch import (
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
+# TODO: remove this try-exception block and import directly
+# once we update the minimum Airflow version to 2.7.0
 try:
     from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 except ImportError:

@@ -37,6 +37,8 @@ from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransf
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.bigquery_dts import BigQueryDataTransferRunTrigger
 
+# TODO: remove this try-exception block and import directly
+# once we update the minimum Airflow version to 2.7.0
 try:
     from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 except ImportError:
