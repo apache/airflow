@@ -113,6 +113,7 @@ class AwaitMessageTrigger(BaseTrigger):
                 if rv:
                     await async_commit(asynchronous=False)
                     yield TriggerEvent(rv)
+                    break
                 else:
                     await async_commit(asynchronous=False)
                     await asyncio.sleep(self.poll_interval)
