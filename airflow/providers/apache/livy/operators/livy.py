@@ -22,15 +22,9 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.triggers.livy import LivyTrigger
-
-try:
-    from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
-except ImportError:
-    from airflow.configuration import conf
-
-    DEFAULT_DEFERRABLE = conf.getboolean("operators", "default_deferrable", fallback=False)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

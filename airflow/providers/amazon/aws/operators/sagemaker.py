@@ -27,6 +27,7 @@ from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
@@ -35,12 +36,6 @@ from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.json import AirflowJsonEncoder
 
-try:
-    from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
-except ImportError:
-    from airflow.configuration import conf
-
-    DEFAULT_DEFERRABLE = conf.getboolean("operators", "default_deferrable", fallback=False)
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 

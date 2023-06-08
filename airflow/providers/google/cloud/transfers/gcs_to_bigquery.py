@@ -37,17 +37,12 @@ from google.cloud.bigquery.table import EncryptionConfiguration, Table, TableRef
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
 
-try:
-    from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
-except ImportError:
-    from airflow.configuration import conf
-
-    DEFAULT_DEFERRABLE = conf.getboolean("operators", "default_deferrable", fallback=False)
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 

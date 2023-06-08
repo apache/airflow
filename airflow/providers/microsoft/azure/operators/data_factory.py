@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -32,13 +33,6 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
 )
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
 from airflow.utils.log.logging_mixin import LoggingMixin
-
-try:
-    from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
-except ImportError:
-    from airflow.configuration import conf
-
-    DEFAULT_DEFERRABLE = conf.getboolean("operators", "default_deferrable", fallback=False)
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
