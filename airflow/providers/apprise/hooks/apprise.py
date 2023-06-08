@@ -29,7 +29,7 @@ class AppriseHook(BaseHook):
     """
     Use Apprise(https://github.com/caronc/apprise) to interact with notification services.
     The complete list of notification services supported by Apprise can be found at:
-    https://github.com/caronc/apprise/wiki#notification-services
+    https://github.com/caronc/apprise/wiki#notification-services.
 
     :param apprise_conn_id: :ref:`Apprise connection id <howto/connection:apprise>`
         that has services configured in the `config` field.
@@ -49,7 +49,7 @@ class AppriseHook(BaseHook):
         return json.loads(conn.extra_dejson["config"])
 
     def set_config_from_conn(self, apprise_obj: apprise.Apprise):
-        """Set config from connection to apprise object"""
+        """Set config from connection to apprise object."""
         config_object = self.get_config_from_conn()
         if isinstance(config_object, list):
             for config in config_object:
@@ -74,7 +74,7 @@ class AppriseHook(BaseHook):
         config: AppriseConfig | None = None,
     ):
         """
-        Send message to plugged-in services
+        Send message to plugged-in services.
 
         :param body: Specify the message body
         :param title: Specify the message title. (optional)
@@ -110,7 +110,7 @@ class AppriseHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField

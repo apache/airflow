@@ -35,7 +35,7 @@ from apprise import AppriseConfig, NotifyFormat, NotifyType
 
 class AppriseNotifier(BaseNotifier):
     """
-    Apprise BaseNotifier
+    Apprise BaseNotifier.
 
     :param body: Specify the message body
     :param title: Specify the message title. This field is complete optional
@@ -79,11 +79,11 @@ class AppriseNotifier(BaseNotifier):
 
     @cached_property
     def hook(self) -> AppriseHook:
-        """Apprise Hook"""
+        """Apprise Hook."""
         return AppriseHook(apprise_conn_id=self.apprise_conn_id)
 
     def notify(self, context):
-        """Send a alert to a apprise configured service"""
+        """Send a alert to a apprise configured service."""
         self.hook.notify(
             body=self.body,
             title=self.title,
