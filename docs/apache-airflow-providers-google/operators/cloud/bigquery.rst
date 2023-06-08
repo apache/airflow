@@ -320,7 +320,7 @@ with proper query job configuration that can be Jinja templated.
 The below example shows how to use
 :class:`~airflow.providers.google.cloud.operators.bigquery.BigQueryInsertJobOperator`
 in async (deferrable) mode. Note that a deferrable task requires the Triggerer to be
-running on your Airflow
+running on your Airflow deployment.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/bigquery/example_bigquery_queries_async.py
     :language: python
