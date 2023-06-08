@@ -1214,6 +1214,7 @@ class TestKubernetesJobWatcher:
 
     def test_process_status_pending_deleted(self):
         self.events.append({"type": "DELETED", "object": self.pod})
+        self.pod.metadata.deletion_timestamp = datetime.utcnow()
 
         self._run()
         self.assert_watcher_queue_called_once_with_state(State.FAILED)
@@ -1258,6 +1259,7 @@ class TestKubernetesJobWatcher:
 
     def test_process_status_running_deleted(self):
         self.pod.status.phase = "Running"
+        self.pod.metadata.deletion_timestamp = datetime.utcnow()
         self.events.append({"type": "DELETED", "object": self.pod})
 
         self._run()
