@@ -610,7 +610,7 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self,
         region_name: str | None = None,
         config: Config | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
     ) -> boto3.client:
         """Get the underlying boto3 client using boto3 session."""
         client_type = self.client_type
