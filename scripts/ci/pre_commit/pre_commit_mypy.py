@@ -84,7 +84,7 @@ if __name__ == "__main__":
         flag = " --upgrade-to-newer-dependencies" if upgrading else ""
         get_console().print(
             "[warning]If you see strange stacktraces above, "
-            f"run `breeze ci-image build --python 3.7{flag}` and try again. "
+            f"run `breeze ci-image build --python 3.8{flag}` and try again. "
             "You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used."
         )
     sys.exit(cmd_result.returncode)

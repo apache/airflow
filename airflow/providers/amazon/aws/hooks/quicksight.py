@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 import time
+from functools import cached_property
 
 from botocore.exceptions import ClientError
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 
@@ -58,7 +58,7 @@ class QuickSightHook(AwsBaseHook):
         check_interval: int = 30,
     ) -> dict:
         """
-        Creates and starts a new SPICE ingestion for a dataset. Refreshes the SPICE datasets
+        Creates and starts a new SPICE ingestion for a dataset. Refreshes the SPICE datasets.
 
         .. seealso::
             - :external+boto3:py:meth:`QuickSight.Client.create_ingestion`
@@ -143,7 +143,7 @@ class QuickSightHook(AwsBaseHook):
         check_interval: int,
     ):
         """
-        Check status of a QuickSight Create Ingestion API
+        Check status of a QuickSight Create Ingestion API.
 
         :param aws_account_id: An AWS Account ID
         :param data_set_id: QuickSight Data Set ID

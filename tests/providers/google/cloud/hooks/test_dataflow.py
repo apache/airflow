@@ -20,9 +20,9 @@ from __future__ import annotations
 import copy
 import re
 import shlex
-import sys
 from asyncio import Future
 from typing import Any
+from unittest import mock
 from unittest.mock import MagicMock
 from uuid import UUID
 
@@ -41,12 +41,6 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     _fallback_to_project_id_from_variables,
     process_line_and_extract_dataflow_job_id_callback,
 )
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
-
 
 DEFAULT_RUNNER = "DirectRunner"
 BEAM_STRING = "airflow.providers.apache.beam.hooks.beam.{}"

@@ -603,7 +603,7 @@ class TestAwsBaseHook:
         _, mock_creds_fetcher_kwargs = mock_credentials_fetcher.call_args
         assert isinstance(mock_creds_fetcher_kwargs["web_identity_token_loader"], FileWebIdentityTokenLoader)
         assert mock_creds_fetcher_kwargs["web_identity_token_loader"]() == "TOKEN"
-        assert mock_open_.call_args[0][0] == "/my-token-path"
+        assert mock_open_.call_args.args[0] == "/my-token-path"
 
     @mock.patch.object(AwsBaseHook, "get_connection")
     @mock_sts
@@ -1092,4 +1092,4 @@ def test_custom_waiter_with_resource_type(waiter_path_mock: MagicMock):
     with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter") as BaseBotoWaiter:
         hook.get_waiter("other_wait")
 
-    assert isinstance(BaseBotoWaiter.call_args[1]["client"], botocore.client.BaseClient)
+    assert isinstance(BaseBotoWaiter.call_args.kwargs["client"], botocore.client.BaseClient)

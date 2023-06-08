@@ -46,6 +46,13 @@ Content
     Detailed list of commits <commits>
 
 
+.. toctree::
+    :maxdepth: 1
+    :caption: Guides
+
+    SMTP Notifications <notifications/smtp_notifier_howto_guide>
+
+
 Package apache-airflow-providers-smtp
 ------------------------------------------------------
 

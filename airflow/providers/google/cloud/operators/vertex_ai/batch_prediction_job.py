@@ -17,7 +17,7 @@
 # under the License.
 """This module contains Google Vertex AI operators.
 
-.. spelling::
+.. spelling:word-list::
 
     jsonl
     codepoints
@@ -346,7 +346,7 @@ class DeleteBatchPredictionJobOperator(GoogleCloudBaseOperator):
 
 class GetBatchPredictionJobOperator(GoogleCloudBaseOperator):
     """
-    Gets a BatchPredictionJob
+    Gets a BatchPredictionJob.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.

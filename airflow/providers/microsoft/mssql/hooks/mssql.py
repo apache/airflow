@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Microsoft SQLServer hook module"""
+"""Microsoft SQLServer hook module."""
 from __future__ import annotations
 
 from typing import Any
@@ -86,12 +86,12 @@ class MsSqlHook(DbApiHook):
     def get_sqlalchemy_connection(
         self, connect_kwargs: dict | None = None, engine_kwargs: dict | None = None
     ) -> Any:
-        """Sqlalchemy connection object"""
+        """Sqlalchemy connection object."""
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         return engine.connect(**(connect_kwargs or {}))
 
     def get_conn(self) -> pymssql.connect:
-        """Returns a mssql connection object"""
+        """Returns a mssql connection object."""
         conn = self.get_connection(self.mssql_conn_id)  # type: ignore[attr-defined]
 
         conn = pymssql.connect(
