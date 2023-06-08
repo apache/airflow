@@ -93,11 +93,12 @@ class VerticaToHiveOperator(BaseOperator):
 
     @classmethod
     def type_map(cls, vertica_type):
-        """
-        Vertica-python datatype.py does not provide the full type mapping access.
-        Manual hack.
+        """Manually hack Vertica-Python type mapping.
 
-        Reference: https://github.com/uber/vertica-python/blob/master/vertica_python/vertica/column.py
+        The stock datatype.py does not provide the full type mapping access.
+
+        Reference:
+        https://github.com/uber/vertica-python/blob/master/vertica_python/vertica/column.py
         """
         type_map = {
             5: "BOOLEAN",

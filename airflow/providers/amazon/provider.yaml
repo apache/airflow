@@ -525,6 +525,9 @@ triggers:
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.triggers.s3
+  - integration-name: Amazon EMR
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.emr
 
 transfers:
   - source-integration-name: Amazon DynamoDB

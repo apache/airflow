@@ -226,6 +226,24 @@ key6 = value6
         assert "key4" not in cfg_dict["test"]
         assert "printf key4_result" == cfg_dict["test"]["key4_cmd"]
 
+    def test_can_read_dot_section(self):
+        test_config = """[test.abc]
+key1 = true
+"""
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(test_config)
+        section = "test.abc"
+        key = "key1"
+        assert test_conf.getboolean(section, key) is True
+
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "AIRFLOW__TEST_ABC__KEY1": "false",  # note that the '.' is converted to '_'
+            },
+        ):
+            assert test_conf.getboolean(section, key) is False
+
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
         {
@@ -596,7 +614,6 @@ notacommand = OK
 
     @pytest.mark.parametrize("display_sensitive, result", [(True, "OK"), (False, "< hidden >")])
     def test_as_dict_display_sensitivewith_command_from_env(self, display_sensitive, result):
-
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
         with mock.patch.dict("os.environ"):
