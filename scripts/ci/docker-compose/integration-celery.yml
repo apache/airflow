@@ -44,6 +44,8 @@ services:
   airflow:
     environment:
       - INTEGRATION_CELERY=true
+      - CELERY_FLOWER=${CELERY_FLOWER}
+      - AIRFLOW__CELERY__BROKER_URL=${AIRFLOW__CELERY__BROKER_URL}
     depends_on:
       redis:
         condition: service_healthy
