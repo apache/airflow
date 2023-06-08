@@ -1973,10 +1973,6 @@ class DAG(LoggingMixin):
         if not exactly_one(execution_date, run_id):
             raise ValueError("Exactly one of execution_date or run_id must be provided")
 
-        tasks_to_set_state: list[BaseOperator | tuple[BaseOperator, int]] = []
-        task_ids: list[str] = []
-        locked_dag_run_ids: list[int] = []
-
         if execution_date is None:
             dag_run = (
                 session.query(DagRun).filter(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id).one()
@@ -1994,18 +1990,6 @@ class DAG(LoggingMixin):
             raise ValueError("TaskGroup {group_id} could not be found")
         tasks_to_set_state = [task for task in task_group.iter_tasks() if isinstance(task, BaseOperator)]
         task_ids = [task.task_id for task in task_group.iter_tasks()]
-        dag_runs_query = session.query(DagRun.id).filter(DagRun.dag_id == self.dag_id).with_for_update()
-
-        if start_date is None and end_date is None:
-            dag_runs_query = dag_runs_query.filter(DagRun.execution_date == start_date)
-        else:
-            if start_date is not None:
-                dag_runs_query = dag_runs_query.filter(DagRun.execution_date >= start_date)
-
-            if end_date is not None:
-                dag_runs_query = dag_runs_query.filter(DagRun.execution_date <= end_date)
-
-        locked_dag_run_ids = dag_runs_query.all()
 
         altered = set_state(
             tasks=tasks_to_set_state,
@@ -2021,7 +2005,6 @@ class DAG(LoggingMixin):
         )
 
         if not commit:
-            del locked_dag_run_ids
             return altered
 
         # Clear downstream tasks that are in failed/upstream_failed state to resume them.
@@ -2044,7 +2027,6 @@ class DAG(LoggingMixin):
             exclude_task_ids=frozenset(task_ids),
         )
 
-        del locked_dag_run_ids
         return altered
 
     @property
