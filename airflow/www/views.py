@@ -153,6 +153,27 @@ def sanitize_args(args: dict[str, str]) -> dict[str, str]:
     return {key: value for key, value in args.items() if not key.startswith("_")}
 
 
+# Following the release of https://github.com/python/cpython/issues/102153 in Python 3.8.17 and 3.9.17 on
+# June 6, 2023, we are adding extra sanitization of the urls passed to get_safe_url method to make it works
+# the same way regardless if the user uses latest Python patchlevel versions or not. This also follows
+# a recommended solution by the Python core team.
+#
+# From: https://github.com/python/cpython/commit/d28bafa2d3e424b6fdcfd7ae7cde8e71d7177369
+#
+#   We recommend that users of these APIs where the values may be used anywhere
+#   with security implications code defensively. Do some verification within your
+#   code before trusting a returned component part.  Does that ``scheme`` make
+#   sense?  Is that a sensible ``path``?  Is there anything strange about that
+#   ``hostname``?  etc.
+#
+# C0 control and space to be stripped per WHATWG spec.
+# == "".join([chr(i) for i in range(0, 0x20 + 1)])
+_WHATWG_C0_CONTROL_OR_SPACE = (
+    "\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c"
+    "\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f "
+)
+
+
 def get_safe_url(url):
     """Given a user-supplied URL, ensure it points to our web server."""
     if not url:
@@ -162,6 +183,8 @@ def get_safe_url(url):
     # potential XSS. (Similar to https://github.com/python/cpython/pull/24297/files (bpo-42967))
     if ";" in unquote(url):
         return url_for("Airflow.index")
+
+    url = url.lstrip(_WHATWG_C0_CONTROL_OR_SPACE)
 
     host_url = urlsplit(request.host_url)
     redirect_url = urlsplit(urljoin(request.host_url, url))
@@ -3795,7 +3818,7 @@ class Airflow(AirflowBaseView):
         ]
     )
     def historical_metrics_data(self):
-        """Returns cluster activity historical metrics"""
+        """Returns cluster activity historical metrics."""
         start_date = _safe_parse_datetime(request.args.get("start_date"))
         end_date = _safe_parse_datetime(request.args.get("end_date"))
         with create_session() as session:

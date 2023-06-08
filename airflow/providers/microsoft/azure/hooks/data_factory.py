@@ -16,7 +16,7 @@
 # under the License.
 """Spelling exceptions.
 
-.. spelling::
+.. spelling:word-list::
     CreateRunResponse
     DatasetResource
     LinkedServiceResource

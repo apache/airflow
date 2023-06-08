@@ -166,10 +166,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._env: dict[str, Any] | None = None
 
     def _resolve_should_track_driver_status(self) -> bool:
-        """Whether this hook should poll the Spark driver status.
+        """Check if we should track the driver status.
 
-        If this returns True, the hook would send subsequent spark-submit status
-        requests after the initial spark-submit request.
+        If so, we should send subsequent spark-submit status requests after the
+        initial spark-submit request.
+
+        :return: if the driver status should be tracked
         """
         return "spark://" in self._connection["master"] and self._connection["deploy_mode"] == "cluster"
 

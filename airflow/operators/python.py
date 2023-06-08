@@ -400,6 +400,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         output_path = tmp_dir / "script.out"
         string_args_path = tmp_dir / "string_args.txt"
         script_path = tmp_dir / "script.py"
+        termination_log_path = tmp_dir / "termination.log"
         self._write_args(input_path)
         self._write_string_args(string_args_path)
         write_python_script(
@@ -423,11 +424,17 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                     os.fspath(input_path),
                     os.fspath(output_path),
                     os.fspath(string_args_path),
+                    os.fspath(termination_log_path),
                 ]
             )
         except subprocess.CalledProcessError as e:
             if e.returncode in self.skip_on_exit_code:
                 raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
+            elif termination_log_path.exists() and termination_log_path.stat().st_size > 0:
+                error_msg = f"Process returned non-zero exit status {e.returncode}.\n"
+                with open(termination_log_path) as file:
+                    error_msg += file.read()
+                raise AirflowException(error_msg) from None
             else:
                 raise
 

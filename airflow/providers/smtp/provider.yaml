@@ -50,3 +50,6 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.smtp.hooks.smtp.SmtpHook
     connection-type: smtp
+
+notifications:
+  - airflow.providers.smtp.notifications.smtp.SmtpNotifier
