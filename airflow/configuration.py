@@ -155,6 +155,7 @@ SENSITIVE_CONFIG_VALUES = {
     ("atlas", "password"),
     ("smtp", "smtp_password"),
     ("webserver", "secret_key"),
+    ("secrets", "backend_kwargs"),
     # The following options are deprecated
     ("core", "sql_alchemy_conn"),
 }
