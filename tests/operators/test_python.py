@@ -681,6 +681,14 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         with pytest.raises(CalledProcessError):
             self.run_as_task(f)
 
+    def test_fail_with_message(self):
+        def f():
+            raise Exception("Custom error message")
+
+        with pytest.raises(AirflowException) as e:
+            self.run_as_task(f)
+            assert "Custom error message" in str(e)
+
     def test_string_args(self):
         def f():
             global virtualenv_string_args

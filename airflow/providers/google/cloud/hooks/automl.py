@@ -18,7 +18,7 @@
 """
 This module contains a Google AutoML hook.
 
-.. spelling::
+.. spelling:word-list::
 
     PredictResponse
 """
