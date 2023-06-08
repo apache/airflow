@@ -53,8 +53,6 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 )
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
 
-# TODO: remove this try-exception block and import directly
-# once we update the minimum Airflow version to 2.7.0
 try:
     from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 except ImportError:

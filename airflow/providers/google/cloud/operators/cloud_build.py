@@ -42,8 +42,6 @@ from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_MET
 from airflow.utils import yaml
 from airflow.utils.helpers import exactly_one
 
-# TODO: remove this try-exception block and import directly
-# once we update the minimum Airflow version to 2.7.0
 try:
     from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 except ImportError:

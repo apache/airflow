@@ -25,8 +25,6 @@ from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.triggers.ec2 import EC2StateSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
 
-# TODO: remove this try-exception block and import directly
-# once we update the minimum Airflow version to 2.7.0
 try:
     from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 except ImportError:

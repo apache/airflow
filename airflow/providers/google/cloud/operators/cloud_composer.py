@@ -33,8 +33,6 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerExecutionTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
-# TODO: remove this try-exception block and import directly
-# once we update the minimum Airflow version to 2.7.0
 try:
     from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 except ImportError:

@@ -33,8 +33,6 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
 from airflow.providers.microsoft.azure.triggers.data_factory import AzureDataFactoryTrigger
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-# TODO: remove this try-exception block and import directly
-# once we update the minimum Airflow version to 2.7.0
 try:
     from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 except ImportError:

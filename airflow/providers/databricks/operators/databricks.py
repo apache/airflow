@@ -30,8 +30,6 @@ from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunSta
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 
-# TODO: remove this try-exception block and import directly
-# once we update the minimum Airflow version to 2.7.0
 try:
     from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 except ImportError:

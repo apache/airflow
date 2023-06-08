@@ -20,8 +20,6 @@ from __future__ import annotations
 import boto3
 from botocore.waiter import Waiter, WaiterModel, create_waiter_with_client
 
-# TODO: remove this try-exception block and import directly
-# once we update the minimum Airflow version to 2.7.0
 try:
     from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 except ImportError:

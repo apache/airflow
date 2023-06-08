@@ -25,8 +25,6 @@ from airflow.models import BaseOperator
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.triggers.livy import LivyTrigger
 
-# TODO: remove this try-exception block and import directly
-# once we update the minimum Airflow version to 2.7.0
 try:
     from airflow.models.abstractoperator import DEFAULT_DEFERRABLE
 except ImportError:
