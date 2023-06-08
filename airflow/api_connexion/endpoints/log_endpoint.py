@@ -29,7 +29,7 @@ from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.log_schema import LogResponseObject, logs_schema
 from airflow.api_connexion.types import APIResponse
 from airflow.exceptions import TaskNotFound
-from airflow.models import TaskInstance
+from airflow.models import TaskInstance, Trigger
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.log.log_reader import TaskLogReader
@@ -86,7 +86,7 @@ def get_log(
             TaskInstance.map_index == map_index,
         )
         .join(TaskInstance.dag_run)
-        .options(joinedload(TaskInstance.trigger))
+        .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
     )
     ti = session.scalars(query).one_or_none()
     if ti is None:
