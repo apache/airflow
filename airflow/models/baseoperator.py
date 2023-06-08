@@ -1484,7 +1484,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         dag_id: str | None = None,
         key: str = XCOM_RETURN_KEY,
         include_prior_dates: bool | None = None,
-        *,
         session: Session = NEW_SESSION,
     ) -> Any:
         """

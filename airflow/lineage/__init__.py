@@ -144,9 +144,7 @@ def prepare_lineage(func: T) -> T:
 
                 # re-instantiate the obtained inlets
                 # xcom_pull returns a list of items for each given task_id
-                _inlets = [item for item in itertools.chain.from_iterable(_inlets)]
-
-                self.inlets.extend(_inlets)
+                self.inlets.extend(i for i in itertools.chain.from_iterable(_inlets))
 
         elif self.inlets:
             raise AttributeError("inlets is not a list, operator, string or attr annotated object")
