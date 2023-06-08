@@ -2214,7 +2214,7 @@ class DAG(LoggingMixin):
         )
 
         if dry_run:
-            return tis
+            return list(session.execute(tis))
 
         tis = list(session.scalars(tis))
 
