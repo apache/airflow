@@ -627,7 +627,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         if not HANDLER_SUPPORTS_TRIGGERER:
             return
         ctx_trigger_end.set(True)
-        trigger.log.log(level=100, msg="trigger end")
+        trigger.log.info("trigger end")
 
     def update_triggers(self, requested_trigger_ids: set[int]):
         """
