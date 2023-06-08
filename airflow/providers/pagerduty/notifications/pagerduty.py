@@ -17,9 +17,9 @@
 
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Any
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 
 try:
@@ -34,7 +34,7 @@ from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHo
 
 class PagerdutyNotifier(BaseNotifier):
     """
-    Pagerduty BaseNotifier
+    Pagerduty BaseNotifier.
 
     :param summary: Summary for the event
     :param severity: Severity for the event, needs to be one of: info, warning, error, critical
@@ -114,13 +114,13 @@ class PagerdutyNotifier(BaseNotifier):
 
     @cached_property
     def hook(self) -> PagerdutyEventsHook:
-        """Pagerduty Events Hook"""
+        """Pagerduty Events Hook."""
         return PagerdutyEventsHook(
             pagerduty_events_conn_id=self.pagerduty_events_conn_id, integration_key=self.integration_key
         )
 
     def notify(self, context):
-        """Send a alert to a pagerduty event v2 API"""
+        """Send a alert to a pagerduty event v2 API."""
         self.hook.create_event(
             summary=self.summary,
             severity=self.severity,
