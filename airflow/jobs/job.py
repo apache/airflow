@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from functools import cached_property
 from time import sleep
-from typing import Callable, NoReturn
+from typing import TYPE_CHECKING, Callable, NoReturn
 
 from sqlalchemy import Column, Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
@@ -40,7 +40,10 @@ from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.executors.base_executor import BaseExecutor
 
 
 def _resolve_dagrun_model():
@@ -117,7 +120,7 @@ class Job(Base, LoggingMixin):
         super().__init__(**kwargs)
 
     @cached_property
-    def executor(self):
+    def executor(self) -> BaseExecutor:
         return ExecutorLoader.get_default_executor()
 
     def is_alive(self, grace_multiplier=2.1):
@@ -135,7 +138,7 @@ class Job(Base, LoggingMixin):
         else:
             health_check_threshold: int = self.heartrate * grace_multiplier
         return (
-            self.state == TaskInstanceState.RUNNING
+            self.state == State.RUNNING
             and (timezone.utcnow() - self.latest_heartbeat).total_seconds() < health_check_threshold
         )
 
@@ -221,7 +224,7 @@ class Job(Base, LoggingMixin):
     def prepare_for_execution(self, session: Session = NEW_SESSION):
         """Prepares the job for execution."""
         Stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
-        self.state = TaskInstanceState.RUNNING
+        self.state = State.RUNNING
         self.start_date = timezone.utcnow()
         session.add(self)
         session.commit()
@@ -257,7 +260,7 @@ def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None
         .where(Job.job_type == job_type)
         .order_by(
             # Put "running" jobs at the front.
-            case({TaskInstanceState.RUNNING: 0}, value=Job.state, else_=1),
+            case({State.RUNNING: 0}, value=Job.state, else_=1),
             Job.latest_heartbeat.desc(),
         )
         .limit(1)
@@ -314,12 +317,12 @@ def execute_job(job: Job | JobPydantic, execute_callable: Callable[[], int | Non
     try:
         ret = execute_callable()
         # In case of max runs or max duration
-        job.state = TaskInstanceState.SUCCESS
+        job.state = State.SUCCESS
     except SystemExit:
         # In case of ^C or SIGTERM
-        job.state = TaskInstanceState.SUCCESS
+        job.state = State.SUCCESS
     except Exception:
-        job.state = TaskInstanceState.FAILED
+        job.state = State.FAILED
         raise
     return ret
 

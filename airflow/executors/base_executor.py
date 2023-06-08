@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 
     # Event_buffer dict value type
     # Tuple of: state, info
-    EventBufferValueType = Tuple[Optional[str], Any]
+    EventBufferValueType = Tuple[Optional[TaskInstanceState], Any]
 
     # Task tuple to send to be executed
     TaskTuple = Tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
@@ -298,7 +298,7 @@ class BaseExecutor(LoggingMixin):
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
             self.running.add(key)
 
-    def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
+    def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
         """
         Changes state of the task.
 

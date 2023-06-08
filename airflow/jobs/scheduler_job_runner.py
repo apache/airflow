@@ -682,7 +682,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         # Report execution
         for ti_key, value in event_buffer.items():
-            state: str
+            state: TaskInstanceState | None
             state, _ = value
             # We create map (dag_id, task_id, execution_date) -> in-memory try_number
             ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
@@ -1592,20 +1592,19 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         update(Job)
                         .where(
                             Job.job_type == "SchedulerJob",
-                            Job.state == TaskInstanceState.RUNNING,
+                            Job.state == State.RUNNING,
                             Job.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout)),
                         )
-                        .values(state=TaskInstanceState.FAILED)
+                        .values(state=State.FAILED)
                     ).rowcount
 
                     if num_failed:
                         self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
                         Stats.incr(self.__class__.__name__.lower() + "_end", num_failed)
 
-                    resettable_states = [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING]
                     query = (
                         select(TI)
-                        .where(TI.state.in_(resettable_states))
+                        .where(TI.state.in_((TaskInstanceState.QUEUED, TaskInstanceState.RUNNING)))
                         # outerjoin is because we didn't use to have queued_by_job
                         # set, so we need to pick up anything pre upgrade. This (and the
                         # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
@@ -1697,12 +1696,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     .join(Job, TI.job_id == Job.id)
                     .join(DM, TI.dag_id == DM.dag_id)
                     .where(TI.state == TaskInstanceState.RUNNING)
-                    .where(
-                        or_(
-                            Job.state != TaskInstanceState.RUNNING,
-                            Job.latest_heartbeat < limit_dttm,
-                        )
-                    )
+                    .where(or_(Job.state != State.RUNNING, Job.latest_heartbeat < limit_dttm))
                     .where(Job.job_type == "LocalTaskJob")
                     .where(TI.queued_by_job_id == self.job.id)
                 )

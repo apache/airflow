@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from airflow.jobs.job import Job
 from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import State
 
 
 @provide_session
@@ -32,11 +32,7 @@ def check(args, session: Session = NEW_SESSION) -> None:
     if args.hostname and args.local:
         raise SystemExit("You can't use --hostname and --local at the same time")
 
-    query = (
-        session.query(Job)
-        .filter(Job.state == TaskInstanceState.RUNNING)
-        .order_by(Job.latest_heartbeat.desc())
-    )
+    query = session.query(Job).filter(Job.state == State.RUNNING).order_by(Job.latest_heartbeat.desc())
     if args.job_type:
         query = query.filter(Job.job_type == args.job_type)
     if args.hostname:
