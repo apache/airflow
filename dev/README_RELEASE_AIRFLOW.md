@@ -117,6 +117,9 @@ land in documentation part of the changelog. The tool to review and assign the l
 
 ## Making the cherry picking
 
+If this is the first time you make a release it is recommended to clone Airflow upstream (not your fork) and run the commands on
+the relevant test branch in this clone. That way origin points to the upstream repo.
+
 To see cherry picking candidates (unmerged PR with the appropriate milestone), from the test
 branch you can run:
 
