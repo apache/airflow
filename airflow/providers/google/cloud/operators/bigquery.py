@@ -240,16 +240,18 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
             )
             job = self._submit_job(hook, job_id="")
             context["ti"].xcom_push(key="job_id", value=job.job_id)
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=BigQueryCheckTrigger(
-                    conn_id=self.gcp_conn_id,
-                    job_id=job.job_id,
-                    project_id=hook.project_id,
-                    poll_interval=self.poll_interval,
-                ),
-                method_name="execute_complete",
-            )
+            if job.running():
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=BigQueryCheckTrigger(
+                        conn_id=self.gcp_conn_id,
+                        job_id=job.job_id,
+                        project_id=hook.project_id,
+                        poll_interval=self.poll_interval,
+                    ),
+                    method_name="execute_complete",
+                )
+            self.log.info("Current state of job %s is %s", job.job_id, job.state)
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         """
