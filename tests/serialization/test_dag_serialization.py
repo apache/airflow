@@ -1176,7 +1176,6 @@ class TestStringifiedDAGs:
             "_post_execute_hook": None,
             "_pre_execute_hook": None,
             "depends_on_past": False,
-            "deferrable": False,
             "do_xcom_push": True,
             "doc": None,
             "doc_json": None,
