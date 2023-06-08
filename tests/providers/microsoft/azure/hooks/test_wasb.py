@@ -166,7 +166,7 @@ class TestWasbHook:
         assert isinstance(hook.get_conn(), BlobServiceClient)
         assert isinstance(hook.get_conn().credential, DefaultAzureCredential)
 
-    def test_ad_connection(self):
+    def test_azure_directory_connection(self):
         hook = WasbHook(wasb_conn_id=self.ad_conn_id)
         assert isinstance(hook.get_conn(), BlobServiceClient)
         assert isinstance(hook.get_conn().credential, ClientSecretCredential)
