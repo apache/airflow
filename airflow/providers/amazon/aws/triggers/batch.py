@@ -110,7 +110,7 @@ class BatchOperatorTrigger(BaseTrigger):
 class BatchSensorTrigger(BaseTrigger):
     """
     Checks for the status of a submitted job_id to AWS Batch until it reaches a failure or a success state.
-    BatchSensorTrigger is fired as deferred class with params to poll the job state in Triggerer
+    BatchSensorTrigger is fired as deferred class with params to poll the job state in Triggerer.
 
     :param job_id: the job ID, to poll for job completion or not
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
@@ -157,7 +157,7 @@ class BatchSensorTrigger(BaseTrigger):
     async def run(self):
         """
         Make async connection using aiobotocore library to AWS Batch,
-        periodically poll for the Batch job status
+        periodically poll for the Batch job status.
 
         The status that indicates job completion are: 'SUCCEEDED'|'FAILED'.
         """
