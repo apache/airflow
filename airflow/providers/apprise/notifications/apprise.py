@@ -46,7 +46,7 @@ class AppriseNotifier(BaseNotifier):
     :param tag: Specify one or more tags to filter which services to notify
     :param attach: Specify one or more file attachment locations
     :param interpret_escapes: Enable interpretation of backslash escapes. For example, this would convert
-        sequences such as \n and \r to their respected ascii new-line and carriage
+        sequences such as \\n and \\r to their respected ascii new-line and carriage
     :param config: Specify one or more configuration
     :param apprise_conn_id: connection that has Apprise configs setup
     """  # noqa: D301
