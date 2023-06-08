@@ -58,6 +58,7 @@ PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
 CROSS_PROVIDERS_DEPS = "cross-providers-deps"
 DEPS = "deps"
+CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 
 
 #
@@ -67,7 +68,13 @@ DEPS = "deps"
 #
 def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
     try:
-        return json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+        with AIRFLOW_SOURCES_ROOT.joinpath("generated", "provider_dependencies.json").open() as f:
+            dependencies = json.load(f)
+        return {
+            key: value
+            for key, value in dependencies.items()
+            if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"]
+        }
     except Exception as e:
         print(f"Exception while loading provider dependencies {e}")
         # we can ignore loading dependencies when they are missing - they are only used to generate
@@ -261,9 +268,6 @@ doc = [
     # <section> tags for sections
     "docutils<0.17.0",
     "eralchemy2",
-    # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
-    # even though Sphinx 4.4.0 has this but with python_version<3.10.
-    'importlib-metadata>=4.4; python_version < "3.8"',
     "sphinx-airflow-theme",
     "sphinx-argparse>=0.1.13",
     "sphinx-autoapi>=2.0.0",
@@ -305,7 +309,7 @@ ldap = [
     "python-ldap",
 ]
 leveldb = ["plyvel"]
-otel = ["opentelemetry-api==1.15.0", "opentelemetry-exporter-otlp", "opentelemetry-exporter-prometheus"]
+otel = ["opentelemetry-exporter-prometheus"]
 pandas = ["pandas>=0.17.1", "pyarrow>=9.0.0"]
 password = [
     "bcrypt>=2.0.0",
@@ -361,7 +365,6 @@ mypy_dependencies = [
 
 # Dependencies needed for development only
 devel_only = [
-    "asynctest~=0.13",
     "aws_xray_sdk",
     "beautifulsoup4>=4.7.1",
     "black",
@@ -490,6 +493,17 @@ CORE_EXTRAS_DEPENDENCIES: dict[str, list[str]] = {
     "statsd": statsd,
     "virtualenv": virtualenv,
 }
+
+
+def filter_out_excluded_extras() -> Iterable[tuple[str, list[str]]]:
+    for key, value in CORE_EXTRAS_DEPENDENCIES.items():
+        if value:
+            yield key, value
+        else:
+            print(f"Removing extra {key} as it has been excluded")
+
+
+CORE_EXTRAS_DEPENDENCIES = dict(filter_out_excluded_extras())
 
 EXTRAS_DEPENDENCIES: dict[str, list[str]] = deepcopy(CORE_EXTRAS_DEPENDENCIES)
 

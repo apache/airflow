@@ -62,7 +62,7 @@ BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={jo
 
 
 class BigQueryUIColors(enum.Enum):
-    """Hex colors for BigQuery operators"""
+    """Hex colors for BigQuery operators."""
 
     CHECK = "#C0D7FF"
     QUERY = "#A1BBFF"
@@ -71,7 +71,7 @@ class BigQueryUIColors(enum.Enum):
 
 
 class IfExistAction(enum.Enum):
-    """Action to take if the resource exist"""
+    """Action to take if the resource exist."""
 
     IGNORE = "ignore"
     LOG = "log"
@@ -121,7 +121,7 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
 
 class _BigQueryDbHookMixin:
     def get_db_hook(self: BigQueryCheckOperator) -> BigQueryHook:  # type:ignore[misc]
-        """Get BigQuery DB Hook"""
+        """Get BigQuery DB Hook."""
         return BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             use_legacy_sql=self.use_legacy_sql,
@@ -240,16 +240,18 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
             )
             job = self._submit_job(hook, job_id="")
             context["ti"].xcom_push(key="job_id", value=job.job_id)
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=BigQueryCheckTrigger(
-                    conn_id=self.gcp_conn_id,
-                    job_id=job.job_id,
-                    project_id=hook.project_id,
-                    poll_interval=self.poll_interval,
-                ),
-                method_name="execute_complete",
-            )
+            if job.running():
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=BigQueryCheckTrigger(
+                        conn_id=self.gcp_conn_id,
+                        job_id=job.job_id,
+                        project_id=hook.project_id,
+                        poll_interval=self.poll_interval,
+                    ),
+                    method_name="execute_complete",
+                )
+            self.log.info("Current state of job %s is %s", job.job_id, job.state)
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         """
@@ -802,7 +804,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table_id: The table ID of the requested table. (templated)
     :param project_id: (Optional) The name of the project where the data
-        will be returned from. (templated)
+        will be returned from. If None, it will be derived from the hook's project ID. (templated)
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
     :param selected_fields: List of fields to return (comma-separated). If
@@ -872,7 +874,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         hook: BigQueryHook,
         job_id: str,
     ) -> BigQueryJob:
-        get_query = self.generate_query()
+        get_query = self.generate_query(hook=hook)
         configuration = {"query": {"query": get_query, "useLegacySql": self.use_legacy_sql}}
         """Submit a new job and get the job id for polling the status using Triggerer."""
         return hook.insert_job(
@@ -883,17 +885,22 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             nowait=True,
         )
 
-    def generate_query(self) -> str:
+    def generate_query(self, hook: BigQueryHook) -> str:
         """
         Generate a select query if selected fields are given or with *
-        for the given dataset and table id
+        for the given dataset and table id.
+
+        :param hook BigQuery Hook
         """
         query = "select "
         if self.selected_fields:
             query += self.selected_fields
         else:
             query += "*"
-        query += f" from `{self.project_id}.{self.dataset_id}.{self.table_id}` limit {self.max_results}"
+        query += (
+            f" from `{self.project_id or hook.project_id}.{self.dataset_id}"
+            f".{self.table_id}` limit {self.max_results}"
+        )
         return query
 
     def execute(self, context: Context):
@@ -906,7 +913,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         if not self.deferrable:
             self.log.info(
                 "Fetching Data from %s.%s.%s max results: %s",
-                self.project_id,
+                self.project_id or hook.project_id,
                 self.dataset_id,
                 self.table_id,
                 self.max_results,
@@ -1062,7 +1069,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
 
     @property
     def operator_extra_links(self):
-        """Return operator extra links"""
+        """Return operator extra links."""
         if isinstance(self.sql, str):
             return (BigQueryConsoleLink(),)
         return (BigQueryConsoleIndexableLink(i) for i, _ in enumerate(self.sql))
@@ -1721,6 +1728,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
 class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator deletes an existing dataset from your Project in Big query.
+
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete
 
     .. seealso::
@@ -1795,6 +1803,7 @@ class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
 class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator is used to create new dataset for your Project in BigQuery.
+
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
 
     .. seealso::
@@ -2268,7 +2277,7 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
 
 class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
     """
-    Deletes BigQuery tables
+    Deletes BigQuery tables.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -2327,7 +2336,7 @@ class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
 
 class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
     """
-    Upsert BigQuery table
+    Upsert BigQuery table.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -2509,6 +2518,7 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
 class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
     """
     Executes a BigQuery job. Waits for the job to complete and returns job id.
+
     This operator work in the following way:
 
     - it calculates a unique hash of the job using job's configuration or uuid if ``force_rerun`` is True
@@ -2705,16 +2715,19 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
             self._handle_job_error(job)
 
             return self.job_id
-        self.defer(
-            timeout=self.execution_timeout,
-            trigger=BigQueryInsertJobTrigger(
-                conn_id=self.gcp_conn_id,
-                job_id=self.job_id,
-                project_id=self.project_id,
-                poll_interval=self.poll_interval,
-            ),
-            method_name="execute_complete",
-        )
+        else:
+            if job.running():
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=BigQueryInsertJobTrigger(
+                        conn_id=self.gcp_conn_id,
+                        job_id=self.job_id,
+                        project_id=self.project_id,
+                        poll_interval=self.poll_interval,
+                    ),
+                    method_name="execute_complete",
+                )
+            self.log.info("Current state of job %s is %s", job.job_id, job.state)
 
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """

@@ -16,11 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.sensors.base import BaseSensorOperator
@@ -77,7 +77,7 @@ class BatchSensor(BaseSensorOperator):
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> BatchClientHook:
-        """Create and return a BatchClientHook"""
+        """Create and return a BatchClientHook."""
         return self.hook
 
     @cached_property
@@ -122,7 +122,7 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> BatchClientHook:
-        """Create and return a BatchClientHook"""
+        """Create and return a BatchClientHook."""
         return BatchClientHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,
@@ -188,7 +188,7 @@ class BatchJobQueueSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> BatchClientHook:
-        """Create and return a BatchClientHook"""
+        """Create and return a BatchClientHook."""
         return BatchClientHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,

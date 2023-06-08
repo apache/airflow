@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 
@@ -40,7 +40,7 @@ class AthenaOperator(BaseOperator):
     :param output_location: s3 path to write the query results into. (templated)
     :param aws_conn_id: aws connection to use
     :param client_request_token: Unique token created by user to avoid multiple executions of same query
-    :param workgroup: Athena workgroup in which query will be run
+    :param workgroup: Athena workgroup in which query will be run. (templated)
     :param query_execution_context: Context in which query need to be run
     :param result_configuration: Dict with path to store results in and config related to encryption
     :param sleep_time: Time (in seconds) to wait between two consecutive calls to check query status on Athena
@@ -51,7 +51,7 @@ class AthenaOperator(BaseOperator):
     """
 
     ui_color = "#44b5e2"
-    template_fields: Sequence[str] = ("query", "database", "output_location")
+    template_fields: Sequence[str] = ("query", "database", "output_location", "workgroup")
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"query": "sql"}
 
@@ -91,7 +91,7 @@ class AthenaOperator(BaseOperator):
         return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time, log_query=self.log_query)
 
     def execute(self, context: Context) -> str | None:
-        """Run Presto Query on Athena"""
+        """Run Presto Query on Athena."""
         self.query_execution_context["Database"] = self.database
         self.result_configuration["OutputLocation"] = self.output_location
         self.query_execution_id = self.hook.run_query(
@@ -121,7 +121,7 @@ class AthenaOperator(BaseOperator):
         return self.query_execution_id
 
     def on_kill(self) -> None:
-        """Cancel the submitted athena query"""
+        """Cancel the submitted athena query."""
         if self.query_execution_id:
             self.log.info("Received a kill signal.")
             response = self.hook.stop_query(self.query_execution_id)

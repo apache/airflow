@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+from functools import cached_property
 from typing import Any
 
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
@@ -24,7 +25,6 @@ from croniter import CroniterBadCronError, CroniterBadDateError, croniter
 from pendulum import DateTime
 from pendulum.tz.timezone import Timezone
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.utils.dates import cron_presets
 from airflow.utils.timezone import convert_to_utc, make_aware, make_naive

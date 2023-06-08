@@ -42,7 +42,6 @@ from urllib.parse import urlsplit
 
 from typing_extensions import overload
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
@@ -156,6 +155,7 @@ SENSITIVE_CONFIG_VALUES = {
     ("atlas", "password"),
     ("smtp", "smtp_password"),
     ("webserver", "secret_key"),
+    ("secrets", "backend_kwargs"),
     # The following options are deprecated
     ("core", "sql_alchemy_conn"),
 }
@@ -258,11 +258,11 @@ class AirflowConfigParser(ConfigParser):
 
     # Now build the inverse so we can go from old_section/old_key to new_section/new_key
     # if someone tries to retrieve it based on old_section/old_key
-    @cached_property
+    @functools.cached_property
     def inversed_deprecated_options(self):
         return {(sec, name): key for key, (sec, name, ver) in self.deprecated_options.items()}
 
-    @cached_property
+    @functools.cached_property
     def inversed_deprecated_sections(self):
         return {
             old_section: new_section for new_section, (old_section, ver) in self.deprecated_sections.items()
@@ -487,7 +487,7 @@ class AirflowConfigParser(ConfigParser):
         )
 
     def _env_var_name(self, section: str, key: str) -> str:
-        return f"{ENV_VAR_PREFIX}{section.upper()}__{key.upper()}"
+        return f"{ENV_VAR_PREFIX}{section.replace('.', '_').upper()}__{key.upper()}"
 
     def _get_env_var_option(self, section: str, key: str):
         # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)

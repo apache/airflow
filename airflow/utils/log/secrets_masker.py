@@ -21,6 +21,7 @@ import collections.abc
 import logging
 import re
 import sys
+from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -37,7 +38,7 @@ from typing import (
 )
 
 from airflow import settings
-from airflow.compat.functools import cache, cached_property
+from airflow.compat.functools import cache
 from airflow.typing_compat import TypeGuard
 
 if TYPE_CHECKING:

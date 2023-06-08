@@ -20,11 +20,11 @@ from __future__ import annotations
 import re
 import sys
 from datetime import timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 import boto3
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, XCom
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
@@ -335,7 +335,7 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
 
 class EcsRunTaskOperator(EcsBaseOperator):
     """
-    Execute a task on AWS ECS (Elastic Container Service)
+    Execute a task on AWS ECS (Elastic Container Service).
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

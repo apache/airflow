@@ -28,7 +28,7 @@ from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 class PostgresOperator(SQLExecuteQueryOperator):
     """
-    Executes sql code in a specific Postgres database
+    Executes sql code in a specific Postgres database.
 
     :param sql: the SQL code to be executed as a single string, or
         a list of str (sql statements), or a reference to a template file.

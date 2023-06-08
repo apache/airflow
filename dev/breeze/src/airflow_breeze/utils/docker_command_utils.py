@@ -301,7 +301,7 @@ def check_remote_ghcr_io_commands():
             sys.exit(1)
 
 
-DOCKER_COMPOSE_COMMAND = ["docker-compose"]
+DOCKER_COMPOSE_COMMAND = ["docker", "compose"]
 
 
 def check_docker_compose_version():
@@ -313,7 +313,7 @@ def check_docker_compose_version():
     warning for the user.
     """
     version_pattern = re.compile(r"(\d+)\.(\d+)\.(\d+)")
-    docker_compose_version_command = ["docker-compose", "--version"]
+    docker_compose_version_command = ["docker", "compose", "version"]
     try:
         docker_compose_version_result = run_command(
             docker_compose_version_command,
@@ -322,8 +322,8 @@ def check_docker_compose_version():
             text=True,
             dry_run_override=False,
         )
-    except FileNotFoundError:
-        docker_compose_version_command = ["docker", "compose", "version"]
+    except Exception:
+        docker_compose_version_command = ["docker-compose", "--version"]
         docker_compose_version_result = run_command(
             docker_compose_version_command,
             no_output_dump_on_exception=True,
@@ -332,7 +332,7 @@ def check_docker_compose_version():
             dry_run_override=False,
         )
         DOCKER_COMPOSE_COMMAND.clear()
-        DOCKER_COMPOSE_COMMAND.extend(["docker", "compose"])
+        DOCKER_COMPOSE_COMMAND.append("docker-compose")
     if docker_compose_version_result.returncode == 0:
         docker_compose_version = docker_compose_version_result.stdout
         version_extracted = version_pattern.search(docker_compose_version)
@@ -610,6 +610,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "DEFAULT_BRANCH", AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, "ENABLED_SYSTEMS", "")
     set_value_to_default_if_not_set(env, "ENABLE_TEST_COVERAGE", "false")
+    set_value_to_default_if_not_set(env, "HELM_TEST_PACKAGE", "")
     set_value_to_default_if_not_set(env, "HOST_GROUP_ID", get_host_group_id())
     set_value_to_default_if_not_set(env, "HOST_OS", get_host_os())
     set_value_to_default_if_not_set(env, "HOST_USER_ID", get_host_user_id())

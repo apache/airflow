@@ -20,6 +20,7 @@ from dataclasses import fields
 from unittest import mock
 
 import pytest
+from botocore import UNSIGNED
 from botocore.config import Config
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -309,6 +310,7 @@ class TestAwsConnectionWrapper:
             (Config(s3={"us_east_1_regional_endpoint": "regional"}), None),
             (Config(region_name="ap-southeast-1"), {"user_agent": "Airflow Amazon Provider"}),
             (None, {"user_agent": "Airflow Amazon Provider"}),
+            (None, {"signature_version": "unsigned"}),
             (None, None),
         ],
     )
@@ -326,6 +328,8 @@ class TestAwsConnectionWrapper:
             assert mock_botocore_config.assert_not_called
         else:
             assert mock_botocore_config.assert_called_once
+            if botocore_config_kwargs.get("signature_version") == "unsigned":
+                botocore_config_kwargs["signature_version"] = UNSIGNED
             assert mock.call(**botocore_config_kwargs) in mock_botocore_config.mock_calls
 
     @pytest.mark.parametrize(

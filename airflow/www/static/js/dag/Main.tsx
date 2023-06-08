@@ -26,12 +26,14 @@ import { isEmpty, debounce } from "lodash";
 import { useGridData } from "src/api";
 import { hoverDelay } from "src/utils";
 
+import ShortcutCheatSheet from "src/components/ShortcutCheatSheet";
+import { useKeysPress } from "src/utils/useKeysPress";
 import Details from "./details";
 import Grid from "./grid";
 import FilterBar from "./nav/FilterBar";
 import LegendRow from "./nav/LegendRow";
 import useToggleGroups from "./useToggleGroups";
-import useSelection from "./useSelection";
+import keyboardShortcutIdentifier from "./keyboardShortcutIdentifier";
 
 const detailsPanelKey = "hideDetailsPanel";
 const minPanelWidth = 300;
@@ -68,11 +70,17 @@ const Main = () => {
   const gridRef = useRef<HTMLDivElement>(null);
   const isPanelOpen = localStorage.getItem(detailsPanelKey) !== "true";
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
-  const { clearSelection } = useSelection();
   const [hoveredTaskState, setHoveredTaskState] = useState<
     string | null | undefined
   >();
   const { openGroupIds, onToggleGroups } = useToggleGroups();
+  const oldGridElX = useRef(0);
+
+  const {
+    onClose: onCloseShortcut,
+    isOpen: isOpenShortcut,
+    onToggle: onToggleShortcut,
+  } = useDisclosure();
 
   // Add a debounced delay to not constantly trigger highlighting certain task states
   const onStatusHover = debounce(
@@ -91,26 +99,55 @@ const Main = () => {
     if (!isOpen) {
       localStorage.setItem(detailsPanelKey, "false");
     } else {
-      clearSelection();
       localStorage.setItem(detailsPanelKey, "true");
+      if (isGridCollapsed) {
+        setIsGridCollapsed(!isGridCollapsed);
+      }
     }
     onToggle();
   };
 
+  const onToggleGridCollapse = useCallback(() => {
+    const gridElement = gridRef.current;
+    if (gridElement) {
+      if (isGridCollapsed) {
+        gridElement.style.width = localStorage.getItem(gridWidthKey) || "";
+      } else {
+        gridElement.style.width = collapsedWidth;
+      }
+      setIsGridCollapsed(!isGridCollapsed);
+    }
+  }, [isGridCollapsed]);
+
   const resize = useCallback(
     (e: MouseEvent) => {
       const gridEl = gridRef.current;
-      if (
-        gridEl &&
-        e.x > minPanelWidth &&
-        e.x < window.innerWidth - minPanelWidth
-      ) {
-        const width = `${e.x}px`;
-        gridEl.style.width = width;
-        saveWidth(width);
+      if (gridEl) {
+        if (e.x > minPanelWidth && e.x < window.innerWidth - minPanelWidth) {
+          const width = `${e.x}px`;
+          gridEl.style.width = width;
+          saveWidth(width);
+        } else if (
+          // expand grid if cursor moves right
+          e.x < minPanelWidth &&
+          oldGridElX &&
+          oldGridElX.current &&
+          oldGridElX.current < e.x
+        ) {
+          setIsGridCollapsed(false);
+        } else if (
+          // collapse grid if cursor moves left
+          e.x < minPanelWidth / 2 &&
+          oldGridElX &&
+          oldGridElX.current &&
+          oldGridElX.current > e.x
+        ) {
+          onToggleGridCollapse();
+        }
       }
+      oldGridElX.current = e.x;
     },
-    [gridRef]
+    [gridRef, onToggleGridCollapse]
   );
 
   useEffect(() => {
@@ -133,17 +170,10 @@ const Main = () => {
     return () => {};
   }, [resize, isLoading, isOpen]);
 
-  const onToggleGridCollapse = () => {
-    const gridElement = gridRef.current;
-    if (gridElement) {
-      if (isGridCollapsed) {
-        gridElement.style.width = localStorage.getItem(gridWidthKey) || "";
-      } else {
-        gridElement.style.width = collapsedWidth;
-      }
-      setIsGridCollapsed(!isGridCollapsed);
-    }
-  };
+  useKeysPress(
+    keyboardShortcutIdentifier.toggleShortcutCheatSheet,
+    onToggleShortcut
+  );
 
   return (
     <Box
@@ -206,6 +236,12 @@ const Main = () => {
           </>
         )}
       </Flex>
+      <ShortcutCheatSheet
+        isOpen={isOpenShortcut}
+        onClose={onCloseShortcut}
+        header="Shortcuts to interact with DAGs and Tasks"
+        keyboardShortcutIdentifier={keyboardShortcutIdentifier}
+      />
     </Box>
   );
 };

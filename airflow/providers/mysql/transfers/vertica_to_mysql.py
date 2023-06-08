@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import csv
 from contextlib import closing
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
 import MySQLdb
-import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
@@ -125,11 +125,11 @@ class VerticaToMySqlOperator(BaseOperator):
             with closing(conn.cursor()) as cursor:
                 cursor.execute(self.sql)
                 selected_columns = [d.name for d in cursor.description]
-                with NamedTemporaryFile("w") as tmpfile:
+                with NamedTemporaryFile("w", encoding="utf-8") as tmpfile:
                     self.log.info("Selecting rows from Vertica to local file %s...", tmpfile.name)
                     self.log.info(self.sql)
 
-                    csv_writer = csv.writer(tmpfile, delimiter="\t", encoding="utf-8")
+                    csv_writer = csv.writer(tmpfile, delimiter="\t")
                     for row in cursor.iterate():
                         csv_writer.writerow(row)
                         count += 1

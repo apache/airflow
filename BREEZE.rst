@@ -245,6 +245,17 @@ Run this command to install Breeze (make sure to use ``-e`` flag):
 
     pipx install -e ./dev/breeze
 
+
+.. note:: Note for Windows users
+
+    The ``./dev/breeze`` in command about is a PATH to sub-folder where breeze source packages are.
+    If you are on Windows, you should use Windows way to point to the ``dev/breeze`` sub-folder
+    of Airflow either as absolute or relative path. For example:
+
+    .. code-block:: bash
+
+        pipx install -e dev\breeze
+
 Once this is complete, you should have ``breeze`` binary on your PATH and available to run by ``breeze``
 command.
 
@@ -277,6 +288,26 @@ where it was installed.
 
 You can run ``breeze setup version`` command to see where breeze installed from and what are the current sources
 that Breeze works on
+
+.. warning:: Upgrading from earlier Python version
+
+    If you used Breeze with Python 3.7 and when running it, it will complain that it needs Python 3.8. In this
+    case you should force-reinstall Breeze with ``pipx``:
+
+        .. code-block:: bash
+
+            pipx install --force -e ./dev/breeze
+
+    .. note:: Note for Windows users
+
+        The ``./dev/breeze`` in command about is a PATH to sub-folder where breeze source packages are.
+        If you are on Windows, you should use Windows way to point to the ``dev/breeze`` sub-folder
+        of Airflow either as absolute or relative path. For example:
+
+        .. code-block:: bash
+
+            pipx install --force -e dev\breeze
+
 
 Running Breeze for the first time
 ---------------------------------
@@ -360,12 +391,12 @@ You can use additional ``breeze`` flags to choose your environment. You can spec
 version to use, and backend (the meta-data database). Thanks to that, with Breeze, you can recreate the same
 environments as we have in matrix builds in the CI.
 
-For example, you can choose to run Python 3.7 tests with MySQL as backend and with mysql version 8
+For example, you can choose to run Python 3.8 tests with MySQL as backend and with mysql version 8
 as follows:
 
 .. code-block:: bash
 
-    breeze --python 3.7 --backend mysql --mysql-version 8
+    breeze --python 3.8 --backend mysql --mysql-version 8
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
@@ -526,7 +557,7 @@ When you are starting airflow from local sources, www asset compilation is autom
 
 .. code-block:: bash
 
-    breeze --python 3.7 --backend mysql start-airflow
+    breeze --python 3.8 --backend mysql start-airflow
 
 
 You can also use it to start any released version of Airflow from ``PyPI`` with the
@@ -534,7 +565,7 @@ You can also use it to start any released version of Airflow from ``PyPI`` with 
 
 .. code-block:: bash
 
-    breeze start-airflow --python 3.7 --backend mysql --use-airflow-version 2.2.5
+    breeze start-airflow --python 3.8 --backend mysql --use-airflow-version 2.2.5
 
 Those are all available flags of ``start-airflow`` command:
 
@@ -707,11 +738,19 @@ can check whether your problem is fixed.
 
 1. If you are on macOS, check if you have enough disk space for Docker (Breeze will warn you if not).
 2. Stop Breeze with ``breeze down``.
-3. Delete the ``.build`` directory and run ``breeze ci-image build``.
-4. Clean up Docker images via ``breeze cleanup`` command.
-5. Restart your Docker Engine and try again.
-6. Restart your machine and try again.
-7. Re-install Docker Desktop and try again.
+3. Git fetch the origin and git rebase the current branch with main branch.
+4. Delete the ``.build`` directory and run ``breeze ci-image build``.
+5. Clean up Docker images via ``breeze cleanup`` command.
+6. Restart your Docker Engine and try again.
+7. Restart your machine and try again.
+8. Re-install Docker Desktop and try again.
+
+.. note::
+  If the pip is taking a significant amount of time and your internet connection is causing pip to be unable to download the libraries within the default timeout, it is advisable to modify the default timeout as follows and run the breeze again.
+
+  .. code-block::
+
+      export PIP_DEFAULT_TIMEOUT=1000
 
 In case the problems are not solved, you can set the VERBOSE_COMMANDS variable to "true":
 
@@ -853,8 +892,7 @@ To run the whole test class:
 You can re-run the tests interactively, add extra parameters to pytest and modify the files before
 re-running the test to iterate over the tests. You can also add more flags when starting the
 ``breeze shell`` command when you run integration tests or system tests. Read more details about it
-in the ``TESTING.rst <TESTING.rst#>`` where all the test types of our are explained and more information
-on how to run them.
+in the `testing doc <TESTING.rst>`_ where all the test types and information on how to run them are explained.
 
 This applies to all kind of tests - all our tests can be run using pytest.
 
@@ -1422,10 +1460,10 @@ suffix and they need to also be paired with corresponding runtime dependency add
 
 .. code-block:: bash
 
-     breeze prod-image build --python 3.7 --additional-dev-deps "libasound2-dev" \
+     breeze prod-image build --python 3.8 --additional-dev-deps "libasound2-dev" \
         --additional-runtime-apt-deps "libasound2"
 
-Same as above but uses python 3.7.
+Same as above but uses python 3.8.
 
 Building PROD image
 ...................
