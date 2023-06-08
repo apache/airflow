@@ -217,13 +217,12 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         event: Any,
     ) -> None:
         pod = event["object"]
-        annotations_string = annotations_for_logging_task_metadata(annotations)
         """Process status response."""
         if status == "Pending":
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
             # since kube server have received request to delete pod set TI state failed
             if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
-                self.log.info("Event: Failed to start pod %s, annotations: %s", pod_name, annotations_string)
+                self.log.info("Event: Failed to start pod %s", pod_name)
                 self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
             else:
                 self.log.debug("Event: %s Pending", pod_name)
@@ -252,11 +251,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
             # since kube server have received request to delete pod set TI state failed
             if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
-                self.log.info(
-                    "Event: Pod %s deleted before it could complete, annotations: %s",
-                    pod_name,
-                    annotations_string,
-                )
+                self.log.info("Event: Pod %s deleted before it could complete", pod_name)
                 self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
             else:
                 self.log.info("Event: %s is Running", pod_name)

@@ -18,7 +18,9 @@
 from __future__ import annotations
 
 import json
+import logging
 from unittest import mock
+from unittest.mock import patch
 from urllib.parse import quote_plus, urlsplit
 
 import pyodbc

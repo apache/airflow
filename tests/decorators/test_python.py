@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Dict, Tuple
 import pytest
 
 from airflow import PY38, PY311
-from airflow.decorators import setup, task as task_decorator, teardown
+from airflow.decorators import task as task_decorator
 from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
