@@ -17,10 +17,11 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 import pytest
 
-from airflow_breeze.global_constants import GithubEvents
+from airflow_breeze.global_constants import COMMITTERS, GithubEvents
 from airflow_breeze.utils.selective_checks import SelectiveChecks
 
 ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
@@ -1118,3 +1119,123 @@ def test_suspended_providers(
     assert failed == should_fail
     if not failed:
         assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "github_event, github_actor, github_repository, pr_labels, github_context_dict, runs_on",
+    [
+        pytest.param(GithubEvents.PUSH, "user", "apache/airflow", [], dict(), "self-hosted", id="Push event"),
+        pytest.param(
+            GithubEvents.PUSH,
+            "user",
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Push event for private repo",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST, "user", "apache/airflow", [], dict(), "ubuntu-22.04", id="Pull request"
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "user",
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request private repo",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            COMMITTERS[0],
+            "apache/airflow",
+            [],
+            dict(),
+            "self-hosted",
+            id="Pull request committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            COMMITTERS[0],
+            "apache/airflow",
+            [],
+            dict(event=dict(pull_request=dict(user=dict(login="user")))),
+            "ubuntu-22.04",
+            id="Pull request committer pr non-committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            COMMITTERS[0],
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request private repo committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST_TARGET,
+            "user",
+            "apache/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request target",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST_TARGET,
+            "user",
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request target private repo",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST_TARGET,
+            COMMITTERS[0],
+            "apache/airflow",
+            [],
+            dict(),
+            "self-hosted",
+            id="Pull request target committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            COMMITTERS[0],
+            "apache/airflow",
+            [],
+            dict(event=dict(pull_request=dict(user=dict(login="user")))),
+            "ubuntu-22.04",
+            id="Pull request target committer pr non-committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST_TARGET,
+            COMMITTERS[0],
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request targe private repo committer",
+        ),
+    ],
+)
+def test_runs_on(
+    github_event: GithubEvents,
+    github_actor: str,
+    github_repository: str,
+    pr_labels: list[str],
+    github_context_dict: dict[str, Any],
+    runs_on: str,
+):
+    stderr = SelectiveChecks(
+        files=(),
+        commit_ref="",
+        github_repository=github_repository,
+        github_event=github_event,
+        github_actor=github_actor,
+        github_context_dict=github_context_dict,
+        pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed({"runs-on": runs_on}, str(stderr))
