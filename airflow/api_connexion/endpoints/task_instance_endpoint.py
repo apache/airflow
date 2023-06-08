@@ -196,9 +196,8 @@ def get_mapped_task_instances(
     )
 
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
-    # Count elements before joining extra columns
-    total_entries = session.execute(select(func.count("*")).select_from(base_query)).scalar()
-    if total_entries == 0:
+    unfiltered_total_count = session.execute(select(func.count("*")).select_from(base_query)).scalar()
+    if unfiltered_total_count == 0:
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
         if not dag:
             error_message = f"DAG {dag_id} not found"
@@ -212,22 +211,29 @@ def get_mapped_task_instances(
             raise NotFound(error_message)
 
     # Other search criteria
-    query = _apply_range_filter(
+    base_query = _apply_range_filter(
         base_query,
         key=DR.execution_date,
         value_range=(execution_date_gte, execution_date_lte),
     )
-    query = _apply_range_filter(query, key=TI.start_date, value_range=(start_date_gte, start_date_lte))
-    query = _apply_range_filter(query, key=TI.end_date, value_range=(end_date_gte, end_date_lte))
-    query = _apply_range_filter(query, key=TI.duration, value_range=(duration_gte, duration_lte))
-    query = _apply_range_filter(query, key=TI.updated_at, value_range=(updated_at_gte, updated_at_lte))
-    query = _apply_array_filter(query, key=TI.state, values=states)
-    query = _apply_array_filter(query, key=TI.pool, values=pool)
-    query = _apply_array_filter(query, key=TI.queue, values=queue)
+    base_query = _apply_range_filter(
+        base_query, key=TI.start_date, value_range=(start_date_gte, start_date_lte)
+    )
+    base_query = _apply_range_filter(base_query, key=TI.end_date, value_range=(end_date_gte, end_date_lte))
+    base_query = _apply_range_filter(base_query, key=TI.duration, value_range=(duration_gte, duration_lte))
+    base_query = _apply_range_filter(
+        base_query, key=TI.updated_at, value_range=(updated_at_gte, updated_at_lte)
+    )
+    base_query = _apply_array_filter(base_query, key=TI.state, values=states)
+    base_query = _apply_array_filter(base_query, key=TI.pool, values=pool)
+    base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
+
+    # Count elements before joining extra columns
+    total_entries = session.execute(select(func.count("*")).select_from(base_query)).scalar()
 
     # Add SLA miss
-    query = (
-        query.outerjoin(
+    entry_query = (
+        base_query.outerjoin(
             SlaMiss,
             and_(
                 SlaMiss.dag_id == TI.dag_id,
@@ -241,18 +247,18 @@ def get_mapped_task_instances(
 
     if order_by:
         if order_by == "state":
-            query = query.order_by(TI.state.asc(), TI.map_index.asc())
+            entry_query = entry_query.order_by(TI.state.asc(), TI.map_index.asc())
         elif order_by == "-state":
-            query = query.order_by(TI.state.desc(), TI.map_index.asc())
+            entry_query = entry_query.order_by(TI.state.desc(), TI.map_index.asc())
         elif order_by == "-map_index":
-            query = query.order_by(TI.map_index.desc())
+            entry_query = entry_query.order_by(TI.map_index.desc())
         else:
             raise BadRequest(detail=f"Ordering with '{order_by}' is not supported")
     else:
-        query = query.order_by(TI.map_index.asc())
+        entry_query = entry_query.order_by(TI.map_index.asc())
 
-    task_instances = session.execute(query.offset(offset).limit(limit)).all()
-
+    # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
+    task_instances = session.execute(entry_query.offset(offset).limit(limit)).all()
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
     )
@@ -349,9 +355,11 @@ def get_task_instances(
     base_query = _apply_array_filter(base_query, key=TI.queue, values=queue)
 
     # Count elements before joining extra columns
-    total_entries = session.execute(select(func.count("*")).select_from(base_query)).scalar()
+    count_query = select(func.count("*")).select_from(base_query)
+    total_entries = session.execute(count_query).scalar()
+
     # Add join
-    query = (
+    entry_query = (
         base_query.outerjoin(
             SlaMiss,
             and_(
@@ -362,9 +370,11 @@ def get_task_instances(
         )
         .add_columns(SlaMiss)
         .options(joinedload(TI.rendered_task_instance_fields))
+        .offset(offset)
+        .limit(limit)
     )
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
-    task_instances = session.execute(query.offset(offset).limit(limit)).all()
+    task_instances = session.execute(entry_query).all()
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
     )
