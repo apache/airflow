@@ -14,15 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-version: "3.7"
-services:
-  airflow:
-    environment:
-      - BACKEND=sqlite
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=${SQLITE_URL}
-    volumes:
-      - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
-      - sqlite-db-volume:/root/airflow/sqlite
-volumes:
-  sqlite-db-volume:
