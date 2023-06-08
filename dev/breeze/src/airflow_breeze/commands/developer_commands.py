@@ -45,8 +45,11 @@ from airflow_breeze.utils.common_options import (
     option_airflow_extras,
     option_answer,
     option_backend,
+    option_celery_broker,
+    option_celery_flower,
     option_db_reset,
     option_dry_run,
+    option_executor,
     option_force_build,
     option_forward_credentials,
     option_github_repository,
@@ -232,6 +235,9 @@ def shell(
 @option_dry_run
 @option_answer
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
+@option_executor
+@option_celery_broker
+@option_celery_flower
 def start_airflow(
     python: str,
     backend: str,
@@ -256,6 +262,9 @@ def start_airflow(
     platform: str | None,
     extra_args: tuple,
     github_repository: str,
+    executor: str,
+    celery_broker: str,
+    celery_flower: bool,
 ):
     """
     Enter breeze environment and starts all Airflow components in the tmux session.
@@ -292,6 +301,9 @@ def start_airflow(
         image_tag=image_tag,
         platform=platform,
         extra_args=extra_args,
+        executor=executor,
+        celery_broker=celery_broker,
+        celery_flower=celery_flower,
     )
     sys.exit(result.returncode)
 
@@ -622,6 +634,15 @@ def enter_shell(**kwargs) -> RunCommandResult:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     shell_params = ShellParams(**filter_out_none(**kwargs))
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+
+    if shell_params.backend == "sqlite":
+        get_console().print(
+            f"\n[warn]backend: sqlite is not"
+            f" compatible with executor: {shell_params.executor}."
+            f"Changing the executor to SequentialExecutor.\n"
+        )
+        shell_params.executor = "SequentialExecutor"
+
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
     shell_params.print_badge_info()
