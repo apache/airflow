@@ -777,7 +777,9 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       USE_AIRFLOW_VERSION: "sdist"
-    if: needs.build-info.outputs.canary-run == 'true'
+    if: >
+      needs.build-info.outputs.canary-run == 'true' &&
+      needs.build-info.outputs.skip-provider-tests != 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
