@@ -434,6 +434,7 @@ core:
       description: Kwargs to supply to dataset manager.
       version_added: 2.4.0
       type: string
+      sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
     database_access_isolation:
@@ -654,6 +655,7 @@ logging:
         log files will be deleted after they are uploaded to remote location.
       version_added: 2.6.0
       type: string
+      sensitive: true
       example: '{"delete_local_copy": true}'
       default: ""
     encrypt_s3_logs:
@@ -871,7 +873,6 @@ logging:
       example: "0o664"
       default: "0o664"
 
-
 metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
@@ -1026,6 +1027,7 @@ secrets:
         ``{{"connections_prefix": "/airflow/connections", "profile_name": "default"}}``
       version_added: 1.10.10
       type: string
+      sensitive: true
       example: ~
       default: ""
 cli:
@@ -1837,6 +1839,7 @@ sentry:
       description: ~
       version_added: 1.10.6
       type: string
+      sensitive: true
       example: ~
       default: ""
     before_send:
@@ -1956,6 +1959,13 @@ celery:
       sensitive: true
       example: "db+postgresql://postgres:airflow@postgres/airflow"
       default: ~
+    result_backend_sqlalchemy_engine_options:
+      description: |
+        Optional configuration dictionary to pass to the Celery result backend SQLAlchemy engine.
+      version_added: 2.6.0
+      type: string
+      example: '{"pool_recycle": 1800}'
+      default: ""
     flower_host:
       description: |
         Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start
@@ -2009,19 +2019,22 @@ celery:
       example: ~
       default: "False"
     ssl_key:
-      description: ~
+      description: |
+        Path to the client key.
       version_added: ~
       type: string
       example: ~
       default: ""
     ssl_cert:
-      description: ~
+      description: |
+        Path to the client certificate.
       version_added: ~
       type: string
       example: ~
       default: ""
     ssl_cacert:
-      description: ~
+      description: |
+        Path to the CA certificate.
       version_added: ~
       type: string
       example: ~
