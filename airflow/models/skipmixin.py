@@ -61,7 +61,7 @@ class SkipMixin(LoggingMixin):
     def _set_state_to_skipped(
         self,
         dag_run: DagRun | DagRunPydantic,
-        tasks: Iterable[str] | Iterable[tuple[str, int]],
+        tasks: Sequence[str] | Sequence[tuple[str, int]],
         session: Session,
     ) -> None:
         """Used internally to set state of task instances to skipped from the same dag run."""
@@ -190,7 +190,7 @@ class SkipMixin(LoggingMixin):
                 f"but got {type(branch_task_ids).__name__!r}."
             )
 
-        dag_run: DagRun = ti.get_dagrun()
+        dag_run = ti.get_dagrun()
 
         # TODO(potiuk): Handle TaskInstancePydantic case differently - we need to figure out the way to
         # pass task that has been set in LocalTaskJob but in the way that TaskInstancePydantic definition
@@ -226,10 +226,11 @@ class SkipMixin(LoggingMixin):
             for branch_task_id in list(branch_task_id_set):
                 branch_task_id_set.update(dag.get_task(branch_task_id).get_flat_relative_ids(upstream=False))
 
-            skip_tasks = list()
+            skip_tasks = []
             for t in downstream_tasks:
-                downstream_ti =\
-                    dag_run.get_task_instance(t.task_id, map_index=ti.map_index)  # type: ignore[union-attr]
+                downstream_ti = dag_run.get_task_instance(  # type: ignore[union-attr]
+                    t.task_id, map_index=ti.map_index
+                )
                 if downstream_ti and t.task_id not in branch_task_id_set:
                     skip_tasks.append((t.task_id, downstream_ti.map_index))
 
