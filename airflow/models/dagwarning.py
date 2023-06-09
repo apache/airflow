@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from enum import Enum
 
-from sqlalchemy import Column, ForeignKeyConstraint, String, Text, false, select
+from sqlalchemy import Column, ForeignKeyConstraint, String, Text, false
 from sqlalchemy.orm import Session
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -83,12 +83,11 @@ class DagWarning(Base):
         from airflow.models.dag import DagModel
 
         if session.get_bind().dialect.name == "sqlite":
-            dag_ids = session.scalars(select(DagModel.dag_id).where(DagModel.is_active == false()))
-            query = session.scalars(select(cls).where(cls.dag_id.in_(dag_ids)))
+            dag_ids = session.query(DagModel.dag_id).filter(DagModel.is_active == false())
+            query = session.query(cls).filter(cls.dag_id.in_(dag_ids))
         else:
-            query = session.scalars(
-                select(cls).where(cls.dag_id == DagModel.dag_id, DagModel.is_active == false())
-            )
+            query = session.query(cls).filter(cls.dag_id == DagModel.dag_id, DagModel.is_active == false())
+
         query.delete(synchronize_session=False)
         session.commit()
 
