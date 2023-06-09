@@ -65,25 +65,26 @@ class SkipMixin(LoggingMixin):
         session: Session,
     ) -> None:
         """Used internally to set state of task instances to skipped from the same dag run."""
-        now = timezone.utcnow()
-        TI = TaskInstance
-        query = session.query(TI).filter(
-            TI.dag_id == dag_run.dag_id,
-            TI.run_id == dag_run.run_id,
-        )
-        if isinstance(tasks[0], tuple):
-            query = query.filter(tuple_in_condition((TI.task_id, TI.map_index), tasks))
-        else:
-            query = query.filter(TI.task_id.in_(tasks))
+        if tasks:
+            now = timezone.utcnow()
+            TI = TaskInstance
+            query = session.query(TI).filter(
+                TI.dag_id == dag_run.dag_id,
+                TI.run_id == dag_run.run_id,
+            )
+            if isinstance(tasks[0], tuple):
+                query = query.filter(tuple_in_condition((TI.task_id, TI.map_index), tasks))
+            else:
+                query = query.filter(TI.task_id.in_(tasks))
 
-        query.update(
-            {
-                TaskInstance.state: State.SKIPPED,
-                TaskInstance.start_date: now,
-                TaskInstance.end_date: now,
-            },
-            synchronize_session=False,
-        )
+            query.update(
+                {
+                    TaskInstance.state: State.SKIPPED,
+                    TaskInstance.start_date: now,
+                    TaskInstance.end_date: now,
+                },
+                synchronize_session=False,
+            )
 
     @provide_session
     def skip(
