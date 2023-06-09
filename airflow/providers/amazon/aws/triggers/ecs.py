@@ -22,6 +22,7 @@ from typing import Any, AsyncIterator
 
 from botocore.exceptions import ClientError, WaiterError
 
+from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook, EcsTaskLogFetcher
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -48,7 +49,7 @@ class ClusterActiveTrigger(BaseTrigger):
         region: str | None,
     ):
         self.cluster_arn = cluster_arn
-        self.waiter_delay = waiter_delay or 15
+        self.waiter_delay = waiter_delay if waiter_delay is not None else 15  # written like this to allow 0
         self.attempts = waiter_max_attempts or 999999999
         self.aws_conn_id = aws_conn_id
         self.region = region
@@ -77,14 +78,16 @@ class ClusterActiveTrigger(BaseTrigger):
                             "MaxAttempts": 1,
                         },
                     )
-                    break  # we reach this point only if the waiter met a success criteria
+                    # we reach this point only if the waiter met a success criteria
+                    yield TriggerEvent({"status": "success", "value": self.cluster_arn})
+                    return
                 except WaiterError as error:
                     if "terminal failure" in str(error):
                         raise
                     self.log.info("Status of cluster is %s", error.last_response["clusters"][0]["status"])
                     await asyncio.sleep(int(self.waiter_delay))
 
-        yield TriggerEvent({"status": "success", "value": self.cluster_arn})
+        raise AirflowException("Cluster still not active after the max number of tries has been reached")
 
 
 class TaskDoneTrigger(BaseTrigger):

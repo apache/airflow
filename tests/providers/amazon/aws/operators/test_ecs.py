@@ -20,7 +20,7 @@ from __future__ import annotations
 import sys
 from copy import deepcopy
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock
 
 import boto3
 import pytest
@@ -38,6 +38,7 @@ from airflow.providers.amazon.aws.operators.ecs import (
     EcsRunTaskOperator,
     EcsTaskLogFetcher,
 )
+from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
 from airflow.utils.types import NOTSET
 
 CLUSTER_NAME = "test_cluster"
@@ -653,6 +654,31 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
     def test_execute_xcom_disabled(self, log_fetcher_mock, client_mock):
         self.ecs.do_xcom_push = False
         assert self.ecs.execute(None) is None
+
+    @mock.patch.object(EcsRunTaskOperator, "client")
+    def test_with_defer(self, client_mock):
+        self.ecs.deferrable = True
+
+        client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
+
+        with pytest.raises(TaskDeferred) as deferred:
+            self.ecs.execute(None)
+
+        assert isinstance(deferred.value.trigger, TaskDoneTrigger)
+        assert deferred.value.trigger.task_arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+
+    @mock.patch.object(EcsRunTaskOperator, "client", new_callable=PropertyMock)
+    @mock.patch.object(EcsRunTaskOperator, "_xcom_del")
+    def test_execute_complete(self, xcom_del_mock: MagicMock, client_mock):
+        event = {"status": "success", "task_arn": "my_arn"}
+        self.ecs.reattach = True
+
+        self.ecs.execute_complete(None, event)
+
+        # task gets described to assert its success
+        client_mock().describe_tasks.assert_called_once_with(cluster="c", tasks=["my_arn"])
+        # if reattach mode, xcom value is deleted on success
+        xcom_del_mock.assert_called_once()
 
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):

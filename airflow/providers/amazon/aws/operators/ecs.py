@@ -515,19 +515,17 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
         self._start_wait_task(context)
 
-        self._after_execution(session)
-
-        return None
+        return self._after_execution(session)
 
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
             raise AirflowException(f"Error in task execution: {event}")
         self.arn = event["task_arn"]  # restore arn to its updated value
         self._after_execution()
-        return None
+        # TODO return last log line if necessary because task_log_fetcher will always be None here
 
     @provide_session
-    def _after_execution(self, session=None):
+    def _after_execution(self, session=None) -> str | None:
         self._check_success_task()
 
         self.log.info("ECS Task has been successfully executed")
@@ -539,6 +537,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
         if self.do_xcom_push and self.task_log_fetcher:
             return self.task_log_fetcher.get_last_log_message()
+        else:
+            return None
 
     @AwsBaseHook.retry(should_retry_eni)
     def _start_wait_task(self, context):
