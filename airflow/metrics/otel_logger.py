@@ -97,13 +97,13 @@ def name_is_otel_safe(prefix: str, name: str) -> bool:
 
 def _type_as_str(obj: Instrument) -> str:
     """
-    Given an OpenTelemetry Instrument, returns the type of instrument as a string.
+    Given an OpenTelemetry Instrument, returns the type of the instrument as a string.
 
     :param obj: An OTel Instrument or subclass
     :returns: The type() of the Instrument without all the nested class info
     """
     # type() will return something like: <class 'opentelemetry.sdk.metrics._internal.instrument._Counter'>
-    # This extracts that down to just "Counter" (or "Gauge" or whatever) for cleaner logging purposes.
+    # This extracts that down to just "Counter" (or "Gauge", etc.) for cleaner logging purposes.
 
     return type(obj).__name__[1:]
 
