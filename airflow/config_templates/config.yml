@@ -434,6 +434,7 @@ core:
       description: Kwargs to supply to dataset manager.
       version_added: 2.4.0
       type: string
+      sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
     database_access_isolation:
@@ -662,6 +663,7 @@ logging:
         log files will be deleted after they are uploaded to remote location.
       version_added: 2.6.0
       type: string
+      sensitive: true
       example: '{"delete_local_copy": true}'
       default: ""
     encrypt_s3_logs:
@@ -1052,6 +1054,7 @@ secrets:
         ``{{"connections_prefix": "/airflow/connections", "profile_name": "default"}}``
       version_added: 1.10.10
       type: string
+      sensitive: true
       example: ~
       default: ""
 cli:
@@ -1929,6 +1932,7 @@ sentry:
       description: ~
       version_added: 1.10.6
       type: string
+      sensitive: true
       example: ~
       default: ""
     before_send:
@@ -2200,6 +2204,7 @@ celery_broker_transport_options:
         https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#configuration
       version_added: 2.7.0
       type: string
+      sensitive: true
       example: '{"password": "password_for_redis_server"}'
       default: ~
 dask:
