@@ -2214,9 +2214,9 @@ class DAG(LoggingMixin):
         )
 
         if dry_run:
-            return list(session.execute(tis))
+            return session.scalars(tis).all()
 
-        tis = list(session.scalars(tis))
+        tis = list(session.scalars(tis).all())
 
         count = len(tis)
         do_it = True

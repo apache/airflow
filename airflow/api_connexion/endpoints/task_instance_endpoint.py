@@ -494,16 +494,17 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
             # If we had upstream/downstream etc then also include those!
             task_ids.extend(tid for tid in dag.task_dict if tid != task_id)
     task_instances = dag.clear(dry_run=True, dag_bag=get_airflow_app().dag_bag, task_ids=task_ids, **data)
+
     if not dry_run:
         clear_task_instances(
-            task_instances.all(),
+            task_instances,
             session,
             dag=dag,
             dag_run_state=DagRunState.QUEUED if reset_dag_runs else False,
         )
 
     return task_instance_reference_collection_schema.dump(
-        TaskInstanceReferenceCollection(task_instances=task_instances.all())
+        TaskInstanceReferenceCollection(task_instances=task_instances)
     )
 
 

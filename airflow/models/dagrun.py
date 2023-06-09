@@ -296,7 +296,7 @@ class DagRun(Base, LoggingMixin):
         else:
             query = query.where(cls.state.in_([State.RUNNING, State.QUEUED]))
         query = query.group_by(cls.dag_id)
-        return {dag_id: count for dag_id, count in session.scalars(query).all()}
+        return {dag_id: count for dag_id, count in session.execute(query).all()}
 
     @classmethod
     def next_dagruns_to_examine(
