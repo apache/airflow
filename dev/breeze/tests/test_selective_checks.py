@@ -485,6 +485,7 @@ def test_expected_output_pull_request_main(
                     "docs-filter-list-as-string": "--package-filter apache-airflow "
                     "--package-filter docker-stack",
                     "full-tests-needed": "true",
+                    "skip-provider-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Core Other WWW API Always CLI",
                 },
