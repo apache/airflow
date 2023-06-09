@@ -25,12 +25,12 @@ import json
 from copy import copy
 from datetime import datetime
 from decimal import Decimal
+from functools import cached_property
 from os.path import getsize
 from tempfile import NamedTemporaryFile
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 from uuid import uuid4
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
 
 class JSONEncoder(json.JSONEncoder):
-    """Custom json encoder implementation"""
+    """Custom json encoder implementation."""
 
     def default(self, obj):
         """Convert decimal objects in a json serializable format."""
@@ -97,9 +97,14 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
     template_fields: Sequence[str] = (
         *AwsToAwsBaseOperator.template_fields,
-        "s3_bucket_name",
-        "s3_key_prefix",
         "dynamodb_table_name",
+        "s3_bucket_name",
+        "file_size",
+        "dynamodb_scan_kwargs",
+        "s3_key_prefix",
+        "process_func",
+        "export_time",
+        "export_format",
     )
 
     template_fields_renderers = {
@@ -129,12 +134,9 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         self.export_time = export_time
         self.export_format = export_format
 
-        if self.export_time and self.export_time > datetime.now():
-            raise ValueError("The export_time parameter cannot be a future time.")
-
     @cached_property
     def hook(self):
-        """Create DynamoDBHook"""
+        """Create DynamoDBHook."""
         return DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
 
     def execute(self, context: Context) -> None:
@@ -148,6 +150,9 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         Export data from start of epoc till `export_time`. Table export will be a snapshot of the table's
          state at this point in time.
         """
+        if self.export_time and self.export_time > datetime.now(self.export_time.tzinfo):
+            raise ValueError("The export_time parameter cannot be a future time.")
+
         client = self.hook.conn.meta.client
         table_description = client.describe_table(TableName=self.dynamodb_table_name)
         response = client.export_table_to_point_in_time(
@@ -163,7 +168,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
     def _export_entire_data(self):
         """Export all data from the table."""
-        table = self.hook.get_conn().Table(self.dynamodb_table_name)
+        table = self.hook.conn.Table(self.dynamodb_table_name)
         scan_kwargs = copy(self.dynamodb_scan_kwargs) if self.dynamodb_scan_kwargs else {}
         err = None
         f: IO[Any]

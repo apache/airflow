@@ -117,7 +117,7 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
             self.handle_task_exit(128 + signum)
 
         def segfault_signal_handler(signum, frame):
-            """Setting sigmentation violation signal handler"""
+            """Setting sigmentation violation signal handler."""
             self.log.critical(SIGSEGV_MESSAGE)
             self.task_runner.terminate()
             self.handle_task_exit(128 + signum)
@@ -298,4 +298,14 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
         Stats.incr(
             "local_task_job.task_exit."
             f"{self.job.id}.{self.task_instance.dag_id}.{self.task_instance.task_id}.{return_code}"
+        )
+        # Same metric with tagging
+        Stats.incr(
+            "local_task_job.task_exit",
+            tags={
+                "job_id": self.job.id,
+                "dag_id": self.task_instance.dag_id,
+                "task_id": self.task_instance.task_id,
+                "return_code": return_code,
+            },
         )

@@ -60,7 +60,6 @@
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id) }}">
   <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
   <meta name="grid_url_no_root" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, base_date=base_date_arg) }}">
-  <meta name="dag_details_url" content="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
   <meta name="graph_url" content="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root) }}">
   <meta name="task_url" content="{{ url_for('Airflow.task', dag_id=dag.dag_id) }}">
   <meta name="log_url" content="{{ url_for('Airflow.log', dag_id=dag.dag_id) }}">
@@ -68,6 +67,7 @@
   <meta name="rendered_templates_url" content="{{ url_for('Airflow.rendered_templates', dag_id=dag.dag_id) }}">
   <meta name="rendered_k8s_url" content="{{ url_for('Airflow.rendered_k8s', dag_id=dag.dag_id) }}">
   <meta name="task_instances_list_url" content="{{ url_for('TaskInstanceModelView.list') }}">
+  <meta name="tag_index_url" content="{{ url_for('Airflow.index', tags='_TAG_NAME_') }}">
   <meta name="mapped_instances_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_mapped_task_instances', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
   <meta name="task_log_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_log_endpoint_get_log', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_', task_try_number='-1') }}">
   <meta name="upstream_dataset_events_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_get_upstream_dataset_events', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_') }}">
@@ -75,6 +75,9 @@
   <meta name="set_task_instance_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_set_task_instance_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_' ) }}">
   <meta name="set_mapped_task_instance_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_set_mapped_task_instance_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_', map_index=0 ) }}">
   <meta name="set_dag_run_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_set_dag_run_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_') }}">
+  <meta name="dag_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag', dag_id=dag.dag_id) }}">
+  <meta name="dag_source_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_source_endpoint_get_dag_source', file_token='_FILE_TOKEN_') }}">
+  <meta name="dag_details_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag_details', dag_id=dag.dag_id) }}">
 
   <!-- End Urls -->
   <meta name="is_paused" content="{{ dag_is_paused }}">
@@ -217,36 +220,21 @@
       </div>
       <div class="col-md-2">
         <div class="btn-group pull-right">
-          <div class="dropdown">
-            <a aria-label="Trigger DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn" data-toggle="dropdown">
+          {% if 'dag_id' in request.args %}
+            <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, **request.args), unpause=True) }}"
+          {% else %}
+            <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, dag_id=dag.dag_id, **request.args), unpause=True) }}"
+          {% endif %}
+              title="Trigger&nbsp;DAG"
+              aria-label="Trigger DAG"
+              class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_trigger }} trigger-dropdown-btn">
               <span class="material-icons" aria-hidden="true">play_arrow</span>
-            </a>
-            <ul class="dropdown-menu trigger-dropdown-menu">
-              <li>
-                <form method="POST" action="{{ url_for('Airflow.trigger') }}">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <input type="hidden" name="dag_id" value="{{ dag.dag_id }}">
-                  <input type="hidden" name="unpause" value="True">
-                  <!-- for task instance detail pages, dag_id is still a query param -->
-                  {% if 'dag_id' in request.args %}
-                    <input type="hidden" name="origin" value="{{ url_for(request.endpoint, **request.args) }}">
-                  {% else %}
-                    <input type="hidden" name="origin" value="{{ url_for(request.endpoint, dag_id=dag.dag_id, **request.args) }}">
-                  {% endif %}
-                  <button type="submit" class="dropdown-form-btn">Trigger DAG</button>
-                </form>
-              </li>
-              <li>
-                {% if 'dag_id' in request.args %}
-                  <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, **request.args)) }}">
-                {% else %}
-                  <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=url_for(request.endpoint, dag_id=dag.dag_id, **request.args)) }}">
-                {% endif %}
-                Trigger DAG w/ config</a></li>
-            </ul>
-          </div>
-          <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint, dag_id=dag.dag_id)) }}" title="Delete&nbsp;DAG" class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_delete }}"
-            onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')" aria-label="Delete DAG">
+          </a>
+          <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint, dag_id=dag.dag_id)) }}"
+            title="Delete&nbsp;DAG"
+            aria-label="Delete DAG"
+            class="btn btn-default btn-icon-only{{ ' disabled' if not dag.can_delete }}"
+            onclick="return confirmDeleteDag(this, '{{ dag.safe_dag_id }}')">
             <span class="material-icons text-danger" aria-hidden="true">delete_outline</span>
           </a>
         </div>

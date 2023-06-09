@@ -28,7 +28,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class BigQueryInsertJobTrigger(BaseTrigger):
     """
-    BigQueryInsertJobTrigger run on the trigger worker to perform insert operation
+    BigQueryInsertJobTrigger run on the trigger worker to perform insert operation.
 
     :param conn_id: Reference to google cloud connection id
     :param job_id:  The ID of the job. It will be suffixed with hash of job configuration
@@ -72,7 +72,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent"""
+        """Gets current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         while True:
             try:
@@ -88,14 +88,12 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                             "message": "Job completed",
                         }
                     )
-                    return
                 elif response_from_hook == "pending":
                     self.log.info("Query is still running...")
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
                 else:
                     yield TriggerEvent({"status": "error", "message": response_from_hook})
-                    return
 
             except Exception as e:
                 self.log.exception("Exception occurred while checking for query completion")
@@ -106,7 +104,7 @@ class BigQueryInsertJobTrigger(BaseTrigger):
 
 
 class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
-    """BigQueryCheckTrigger run on the trigger worker"""
+    """BigQueryCheckTrigger run on the trigger worker."""
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes BigQueryCheckTrigger arguments and classpath."""
@@ -123,7 +121,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent"""
+        """Gets current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         while True:
             try:
@@ -151,7 +149,6 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
                                 "records": first_record,
                             }
                         )
-                    return
 
                 elif response_from_hook == "pending":
                     self.log.info("Query is still running...")
@@ -166,7 +163,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
 
 class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
     """
-    BigQueryGetDataTrigger run on the trigger worker, inherits from BigQueryInsertJobTrigger class
+    BigQueryGetDataTrigger run on the trigger worker, inherits from BigQueryInsertJobTrigger class.
 
     :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists
         (default: False).
@@ -187,11 +184,12 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                 "project_id": self.project_id,
                 "table_id": self.table_id,
                 "poll_interval": self.poll_interval,
+                "as_dict": self.as_dict,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent with response data"""
+        """Gets current job execution status and yields a TriggerEvent with response data."""
         hook = self._get_async_hook()
         while True:
             try:
@@ -208,23 +206,20 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                             "records": records,
                         }
                     )
-                    return
                 elif response_from_hook == "pending":
                     self.log.info("Query is still running...")
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
                 else:
                     yield TriggerEvent({"status": "error", "message": response_from_hook})
-                    return
             except Exception as e:
                 self.log.exception("Exception occurred while checking for query completion")
                 yield TriggerEvent({"status": "error", "message": str(e)})
-                return
 
 
 class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
     """
-    BigQueryIntervalCheckTrigger run on the trigger worker, inherits from BigQueryInsertJobTrigger class
+    BigQueryIntervalCheckTrigger run on the trigger worker, inherits from BigQueryInsertJobTrigger class.
 
     :param conn_id: Reference to google cloud connection id
     :param first_job_id:  The ID of the job 1 performed
@@ -296,7 +291,7 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent"""
+        """Gets current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         while True:
             try:
@@ -350,7 +345,6 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                             "second_row_data": second_job_row,
                         }
                     )
-                    return
                 elif first_job_response_from_hook == "pending" or second_job_response_from_hook == "pending":
                     self.log.info("Query is still running...")
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
@@ -359,17 +353,15 @@ class BigQueryIntervalCheckTrigger(BigQueryInsertJobTrigger):
                     yield TriggerEvent(
                         {"status": "error", "message": second_job_response_from_hook, "data": None}
                     )
-                    return
 
             except Exception as e:
                 self.log.exception("Exception occurred while checking for query completion")
                 yield TriggerEvent({"status": "error", "message": str(e)})
-                return
 
 
 class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
     """
-    BigQueryValueCheckTrigger run on the trigger worker, inherits from BigQueryInsertJobTrigger class
+    BigQueryValueCheckTrigger run on the trigger worker, inherits from BigQueryInsertJobTrigger class.
 
     :param conn_id: Reference to google cloud connection id
     :param sql: the sql to be executed
@@ -424,7 +416,7 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current job execution status and yields a TriggerEvent"""
+        """Gets current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         while True:
             try:
@@ -436,24 +428,21 @@ class BigQueryValueCheckTrigger(BigQueryInsertJobTrigger):
                     records = records.pop(0) if records else None
                     hook.value_check(self.sql, self.pass_value, records, self.tolerance)
                     yield TriggerEvent({"status": "success", "message": "Job completed", "records": records})
-                    return
                 elif response_from_hook == "pending":
                     self.log.info("Query is still running...")
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
                 else:
                     yield TriggerEvent({"status": "error", "message": response_from_hook, "records": None})
-                    return
 
             except Exception as e:
                 self.log.exception("Exception occurred while checking for query completion")
                 yield TriggerEvent({"status": "error", "message": str(e)})
-                return
 
 
 class BigQueryTableExistenceTrigger(BaseTrigger):
     """
-    Initialize the BigQuery Table Existence Trigger with needed parameters
+    Initialize the BigQuery Table Existence Trigger with needed parameters.
 
     :param project_id: Google Cloud Project where the job is running
     :param dataset_id: The dataset ID of the requested table.
@@ -506,12 +495,10 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
                 )
                 if response:
                     yield TriggerEvent({"status": "success", "message": "success"})
-                    return
                 await asyncio.sleep(self.poll_interval)
             except Exception as e:
                 self.log.exception("Exception occurred while checking for Table existence")
                 yield TriggerEvent({"status": "error", "message": str(e)})
-                return
 
     async def _table_exists(
         self, hook: BigQueryTableAsyncHook, dataset: str, table_id: str, project_id: str
@@ -542,7 +529,8 @@ class BigQueryTableExistenceTrigger(BaseTrigger):
 
 class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
     """
-    Initialize the BigQuery Table Partition Existence Trigger with needed parameters
+    Initialize the BigQuery Table Partition Existence Trigger with needed parameters.
+
     :param partition_id: The name of the partition to check the existence of.
     :param project_id: Google Cloud Project where the job is running
     :param dataset_id: The dataset ID of the requested table.
@@ -592,7 +580,6 @@ class BigQueryTablePartitionExistenceTrigger(BigQueryTableExistenceTrigger):
                     job_id = None
                 elif status == "error":
                     yield TriggerEvent({"status": "error", "message": status})
-                    return
                 self.log.info("Sleeping for %s seconds.", self.poll_interval)
                 await asyncio.sleep(self.poll_interval)
 

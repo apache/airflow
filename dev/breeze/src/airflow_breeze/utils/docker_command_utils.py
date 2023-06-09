@@ -41,6 +41,7 @@ except ImportError:
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
+    ALLOWED_CELERY_BROKERS,
     ALLOWED_PACKAGE_FORMATS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     FLOWER_HOST_PORT,
@@ -262,11 +263,11 @@ Please upgrade to at least {MIN_DOCKER_VERSION}[/]
 
 
 def check_remote_ghcr_io_commands():
-    """
-    Checks if you have permissions to pull an empty image from ghcr.io. Unfortunately, GitHub packages
-    treat expired login as "no-access" even on public repos. We need to detect that situation and suggest
-    user to log-out or if they are in CI environment to re-push their PR/close or reopen the PR.
-    :return:
+    """Checks if you have permissions to pull an empty image from ghcr.io.
+
+    Unfortunately, GitHub packages treat expired login as "no-access" even on
+    public repos. We need to detect that situation and suggest user to log-out
+    or if they are in CI environment to re-push their PR/close or reopen the PR.
     """
     response = run_command(
         ["docker", "pull", "ghcr.io/apache/airflow-hello-world"],
@@ -301,19 +302,19 @@ def check_remote_ghcr_io_commands():
             sys.exit(1)
 
 
-DOCKER_COMPOSE_COMMAND = ["docker-compose"]
+DOCKER_COMPOSE_COMMAND = ["docker", "compose"]
 
 
 def check_docker_compose_version():
-    """
-    Checks if the docker compose version is as expected, including some specific modifications done by
-    some vendors such as Microsoft. They might have modified version of docker-compose/docker in their
-    cloud. In case docker compose version is wrong we continue but print warning for the user.
+    """Checks if the docker compose version is as expected.
 
-
+    This includes specific modifications done by some vendors such as Microsoft.
+    They might have modified version of docker-compose/docker in their cloud. In
+    the case the docker compose version is wrong, we continue but print a
+    warning for the user.
     """
     version_pattern = re.compile(r"(\d+)\.(\d+)\.(\d+)")
-    docker_compose_version_command = ["docker-compose", "--version"]
+    docker_compose_version_command = ["docker", "compose", "version"]
     try:
         docker_compose_version_result = run_command(
             docker_compose_version_command,
@@ -322,8 +323,8 @@ def check_docker_compose_version():
             text=True,
             dry_run_override=False,
         )
-    except FileNotFoundError:
-        docker_compose_version_command = ["docker", "compose", "version"]
+    except Exception:
+        docker_compose_version_command = ["docker-compose", "--version"]
         docker_compose_version_result = run_command(
             docker_compose_version_command,
             no_output_dump_on_exception=True,
@@ -332,7 +333,7 @@ def check_docker_compose_version():
             dry_run_override=False,
         )
         DOCKER_COMPOSE_COMMAND.clear()
-        DOCKER_COMPOSE_COMMAND.extend(["docker", "compose"])
+        DOCKER_COMPOSE_COMMAND.append("docker-compose")
     if docker_compose_version_result.returncode == 0:
         docker_compose_version = docker_compose_version_result.stdout
         version_extracted = version_pattern.search(docker_compose_version)
@@ -363,10 +364,7 @@ Make sure docker-compose you install is first on the PATH variable of yours.
 
 
 def check_docker_context():
-    """
-    Checks whether Docker is using the expected context
-
-    """
+    """Checks whether Docker is using the expected context."""
     expected_docker_context = "default"
     response = run_command(
         ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
@@ -576,12 +574,11 @@ def make_sure_builder_configured(params: CommonBuildParams):
 
 
 def set_value_to_default_if_not_set(env: dict[str, str], name: str, default: str):
-    """
-    Set value of name parameter to default (indexed by name) if not set.
+    """Set value of name parameter to default (indexed by name) if not set.
+
     :param env: dictionary where to set the parameter
     :param name: name of parameter
     :param default: default value
-    :return:
     """
     if env.get(name) is None:
         env[name] = os.environ.get(name, default)
@@ -614,6 +611,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "DEFAULT_BRANCH", AIRFLOW_BRANCH)
     set_value_to_default_if_not_set(env, "ENABLED_SYSTEMS", "")
     set_value_to_default_if_not_set(env, "ENABLE_TEST_COVERAGE", "false")
+    set_value_to_default_if_not_set(env, "HELM_TEST_PACKAGE", "")
     set_value_to_default_if_not_set(env, "HOST_GROUP_ID", get_host_group_id())
     set_value_to_default_if_not_set(env, "HOST_OS", get_host_os())
     set_value_to_default_if_not_set(env, "HOST_USER_ID", get_host_user_id())
@@ -653,6 +651,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "AIRFLOW_PROD_IMAGE": "airflow_image_name",
     "AIRFLOW_SOURCES": "airflow_sources",
     "AIRFLOW_VERSION": "airflow_version",
+    "AIRFLOW__CORE__EXECUTOR": "executor",
     "BACKEND": "backend",
     "BASE_BRANCH": "base_branch",
     "COMPOSE_FILE": "compose_file",
@@ -683,6 +682,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
     "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",
+    "CELERY_FLOWER": "celery_flower",
 }
 
 DOCKER_VARIABLE_CONSTANTS = {
@@ -693,6 +693,7 @@ DOCKER_VARIABLE_CONSTANTS = {
     "REDIS_HOST_PORT": REDIS_HOST_PORT,
     "SSH_PORT": SSH_PORT,
     "WEBSERVER_HOST_PORT": WEBSERVER_HOST_PORT,
+    "CELERY_BROKER_URLS": "amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0",
 }
 
 
@@ -720,8 +721,20 @@ def get_env_variables_for_docker_commands(params: ShellParams | BuildCiParams) -
         constant_param_value = DOCKER_VARIABLE_CONSTANTS[variable]
         if not env_variables.get(variable):
             env_variables[variable] = str(constant_param_value)
+    prepare_broker_url(params, env_variables)
     update_expected_environment_variables(env_variables)
     return env_variables
+
+
+def prepare_broker_url(params, env_variables):
+    """Prepare broker url for celery executor"""
+    urls = env_variables["CELERY_BROKER_URLS"].split(",")
+    url_map = {
+        ALLOWED_CELERY_BROKERS[0]: urls[0],
+        ALLOWED_CELERY_BROKERS[1]: urls[1],
+    }
+    if getattr(params, "celery_broker", None) and params.celery_broker in params.celery_broker in url_map:
+        env_variables["AIRFLOW__CELERY__BROKER_URL"] = url_map[params.celery_broker]
 
 
 def perform_environment_checks():

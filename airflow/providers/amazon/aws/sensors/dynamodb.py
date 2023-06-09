@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -30,13 +30,30 @@ class DynamoDBValueSensor(BaseSensorOperator):
     """
     Waits for an attribute value to be present for an item in a DynamoDB table.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:DynamoDBValueSensor`
+
+    :param table_name: DynamoDB table name
     :param partition_key_name: DynamoDB partition key name
     :param partition_key_value: DynamoDB partition key value
     :param attribute_name: DynamoDB attribute name
     :param attribute_value: DynamoDB attribute value
     :param sort_key_name: (optional) DynamoDB sort key name
     :param sort_key_value: (optional) DynamoDB sort key value
+    :param aws_conn_id: aws connection to use
+    :param region_name: aws region to use
     """
+
+    template_fields: Sequence[str] = (
+        "table_name",
+        "partition_key_name",
+        "partition_key_value",
+        "attribute_name",
+        "attribute_value",
+        "sort_key_name",
+        "sort_key_value",
+    )
 
     def __init__(
         self,
@@ -63,7 +80,7 @@ class DynamoDBValueSensor(BaseSensorOperator):
         self.region_name = region_name
 
     def poke(self, context: Context) -> bool:
-        """Test DynamoDB item for matching attribute value"""
+        """Test DynamoDB item for matching attribute value."""
         key = {self.partition_key_name: self.partition_key_value}
         msg = (
             f"Checking table {self.table_name} for "
@@ -93,5 +110,5 @@ class DynamoDBValueSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> DynamoDBHook:
-        """Create and return a DynamoDBHook"""
+        """Create and return a DynamoDBHook."""
         return DynamoDBHook(self.aws_conn_id, region_name=self.region_name)

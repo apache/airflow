@@ -88,7 +88,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "login", "password"],
             "relabeling": {},
@@ -166,9 +166,11 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._env: dict[str, Any] | None = None
 
     def _resolve_should_track_driver_status(self) -> bool:
-        """
-        Determines whether this hook should poll the spark driver status through
-        subsequent spark-submit status requests after the initial spark-submit request
+        """Check if we should track the driver status.
+
+        If so, we should send subsequent spark-submit status requests after the
+        initial spark-submit request.
+
         :return: if the driver status should be tracked
         """
         return "spark://" in self._connection["master"] and self._connection["deploy_mode"] == "cluster"
@@ -385,7 +387,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def submit(self, application: str = "", **kwargs: Any) -> None:
         """
-        Remote Popen to execute the spark-submit job
+        Remote Popen to execute the spark-submit job.
 
         :param application: Submitted application, jar or py file
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
@@ -491,7 +493,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
     def _process_spark_status_log(self, itr: Iterator[Any]) -> None:
         """
-        Parses the logs of the spark driver status query process
+        Parses the logs of the spark driver status query process.
 
         :param itr: An iterator which iterates over the input of the subprocess
         """
@@ -582,6 +584,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _build_spark_driver_kill_command(self) -> list[str]:
         """
         Construct the spark-submit command to kill a driver.
+
         :return: full command to kill a driver
         """
         # Assume that spark-submit is present in the path to the executing user
@@ -599,7 +602,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         return connection_cmd
 
     def on_kill(self) -> None:
-        """Kill Spark submit command"""
+        """Kill Spark submit command."""
         self.log.debug("Kill Command is being called")
 
         if self._should_track_driver_status and self._driver_id:

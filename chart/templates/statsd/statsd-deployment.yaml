@@ -26,7 +26,8 @@
 {{- $tolerations := or .Values.statsd.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.statsd.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.statsd.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "localSecurityContext" .Values.statsd }}
+{{- $securityContext := include "localPodSecurityContext" .Values.statsd }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.statsd) }}
 kind: Deployment
 apiVersion: apps/v1
 metadata:
@@ -88,8 +89,12 @@ spec:
         - name: statsd
           image: {{ template "statsd_image" . }}
           imagePullPolicy: {{ .Values.images.statsd.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if .Values.statsd.args }}
           args: {{ tpl (toYaml .Values.statsd.args) . | nindent 12 }}
+          {{- else}}
+          args:
+            - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
           {{- end }}
           resources: {{- toYaml .Values.statsd.resources | nindent 12 }}
           ports:

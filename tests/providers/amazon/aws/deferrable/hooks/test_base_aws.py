@@ -16,13 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import ANY
 
 import pytest
 
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseAsyncHook
-from tests.providers.amazon.aws.utils.compat import async_mock
 
 pytest.importorskip("aiobotocore")
 
@@ -56,8 +56,8 @@ class TestAwsBaseAsyncHook:
             return self.compare(self.obj, other)
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.hooks.base.BaseHook.get_connection")
-    @async_mock.patch("aiobotocore.session.AioClientCreator.create_client")
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    @mock.patch("aiobotocore.session.AioClientCreator.create_client")
     async def test_get_client_async(self, mock_client, mock_get_connection):
         """Check the connection credential passed while creating client"""
         mock_get_connection.return_value = Connection(

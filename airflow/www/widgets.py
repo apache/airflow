@@ -24,13 +24,13 @@ from wtforms.widgets import html_params
 
 
 class AirflowModelListWidget(RenderTemplateWidget):
-    """Airflow model list"""
+    """Airflow model list."""
 
     template = "airflow/model_list.html"
 
 
 class AirflowDateTimePickerWidget:
-    """Airflow date time picker widget"""
+    """Airflow date time picker widget."""
 
     data_template = (
         '<div class="input-group datetime datetimepicker">'
@@ -53,7 +53,7 @@ class AirflowDateTimePickerWidget:
 
 
 class AirflowDateTimePickerROWidget(AirflowDateTimePickerWidget):
-    """Airflow Read-only date time picker widget"""
+    """Airflow Read-only date time picker widget."""
 
     def __call__(self, field, **kwargs):
         kwargs["readonly"] = "true"
@@ -61,7 +61,7 @@ class AirflowDateTimePickerROWidget(AirflowDateTimePickerWidget):
 
 
 class BS3TextFieldROWidget(BS3TextFieldWidget):
-    """Read-only single-line text input Widget (BS3TextFieldWidget)"""
+    """Read-only single-line text input Widget (BS3TextFieldWidget)."""
 
     def __call__(self, field, **kwargs):
         kwargs["readonly"] = "true"
@@ -69,7 +69,7 @@ class BS3TextFieldROWidget(BS3TextFieldWidget):
 
 
 class BS3TextAreaROWidget(BS3TextAreaFieldWidget):
-    """Read-only multi-line text area Widget (BS3TextAreaROWidget)"""
+    """Read-only multi-line text area Widget (BS3TextAreaROWidget)."""
 
     def __call__(self, field, **kwargs):
         kwargs["readonly"] = "true"
@@ -77,6 +77,6 @@ class BS3TextAreaROWidget(BS3TextAreaFieldWidget):
 
 
 class AirflowVariableShowWidget(RenderTemplateWidget):
-    """Airflow variable show widget"""
+    """Airflow variable show widget."""
 
     template = "airflow/variable_show_widget.html"

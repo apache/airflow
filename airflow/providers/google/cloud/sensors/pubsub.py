@@ -113,7 +113,7 @@ class PubSubPullSensor(BaseSensorOperator):
         self._return_value = None
 
     def execute(self, context: Context) -> Any:
-        """Overridden to allow messages to be passed"""
+        """Overridden to allow messages to be passed."""
         super().execute(context)
         return self._return_value
 

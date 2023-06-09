@@ -18,9 +18,9 @@
 from __future__ import annotations
 
 import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
@@ -158,7 +158,7 @@ class SlackWebhookOperator(BaseOperator):
         )
 
     def execute(self, context: Context) -> None:
-        """Call the SlackWebhookHook to post the provided Slack message"""
+        """Call the SlackWebhookHook to post the provided Slack message."""
         self.hook.send(
             text=self.message,
             attachments=self.attachments,

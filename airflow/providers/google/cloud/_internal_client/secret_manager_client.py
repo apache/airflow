@@ -17,12 +17,12 @@
 from __future__ import annotations
 
 import re
+from functools import cached_property
 
 import google
 from google.api_core.exceptions import InvalidArgument, NotFound, PermissionDenied
 from google.cloud.secretmanager_v1 import SecretManagerServiceClient
 
-from airflow.compat.functools import cached_property
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -33,7 +33,7 @@ class _SecretManagerClient(LoggingMixin):
     """
     Retrieves Secrets object from Google Cloud Secrets Manager. This is a common class reused between
     SecretsManager and Secrets Hook that provides the shared authentication and verification mechanisms.
-    This class should not be used directly, use SecretsManager or SecretsHook instead
+    This class should not be used directly, use SecretsManager or SecretsHook instead.
 
 
     :param credentials: Credentials used to authenticate to GCP
@@ -50,6 +50,7 @@ class _SecretManagerClient(LoggingMixin):
     def is_valid_secret_name(secret_name: str) -> bool:
         """
         Returns true if the secret name is valid.
+
         :param secret_name: name of the secret
         :return:
         """
@@ -57,7 +58,7 @@ class _SecretManagerClient(LoggingMixin):
 
     @cached_property
     def client(self) -> SecretManagerServiceClient:
-        """Create an authenticated KMS client"""
+        """Create an authenticated KMS client."""
         _client = SecretManagerServiceClient(credentials=self.credentials, client_info=CLIENT_INFO)
         return _client
 
@@ -71,7 +72,7 @@ class _SecretManagerClient(LoggingMixin):
         """
         name = self.client.secret_version_path(project_id, secret_id, secret_version)
         try:
-            response = self.client.access_secret_version(name)
+            response = self.client.access_secret_version(request={"name": name})
             value = response.payload.data.decode("UTF-8")
             return value
         except NotFound:

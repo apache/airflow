@@ -24,6 +24,17 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The driver parameter has to be passed via keyword ``driver`` argument when initializing the Hook or via
+``hook_params`` dictionary (with ``driver`` key) when instantiating Hook from SQL Operators. It was possible
+to instantiate it via extras before, but in this version, only setting it via constructor is supported.
+
+
 3.3.0
 .....
 
@@ -41,6 +52,9 @@ Misc
    * ``Switch to ruff for faster static checks (#28893)``
    * ``Add full automation for min Airflow version for providers (#30994)``
    * ``Add mechanism to suspend providers (#30422)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
 
 3.2.1
 .....

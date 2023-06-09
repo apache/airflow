@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
 from asyncio import CancelledError, Future
 from datetime import datetime
+from unittest import mock
 
 import pytest
 import pytz
@@ -29,11 +29,6 @@ from kubernetes.client import models as k8s
 
 from airflow.providers.cncf.kubernetes.triggers.pod import ContainerState, KubernetesPodTrigger
 from airflow.triggers.base import TriggerEvent
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
 
 TRIGGER_PATH = "airflow.providers.cncf.kubernetes.triggers.pod.KubernetesPodTrigger"
 HOOK_PATH = "airflow.providers.cncf.kubernetes.hooks.kubernetes.AsyncKubernetesHook"

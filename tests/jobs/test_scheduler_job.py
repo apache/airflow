@@ -1386,6 +1386,7 @@ class TestSchedulerJob:
             [
                 mock.call("scheduler.tasks.starving", 1),
                 mock.call(f"pool.starving_tasks.{Pool.DEFAULT_POOL_NAME}", 1),
+                mock.call("pool.starving_tasks", 1, tags={"pool_name": Pool.DEFAULT_POOL_NAME}),
             ],
             any_order=True,
         )
@@ -1401,6 +1402,7 @@ class TestSchedulerJob:
             [
                 mock.call("scheduler.tasks.starving", 0),
                 mock.call(f"pool.starving_tasks.{Pool.DEFAULT_POOL_NAME}", 0),
+                mock.call("pool.starving_tasks", 0, tags={"pool_name": Pool.DEFAULT_POOL_NAME}),
             ],
             any_order=True,
         )
@@ -2122,7 +2124,7 @@ class TestSchedulerJob:
 
         # Verify Callback is not set (i.e is None) when no callbacks are set on DAG
         self.job_runner._send_dag_callbacks_to_processor.assert_called_once()
-        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args[0]
+        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args.args
         assert call_args[0].dag_id == dr.dag_id
         assert call_args[1] is None
 
@@ -2157,7 +2159,7 @@ class TestSchedulerJob:
 
         # Verify Callback is set (i.e is None) when no callbacks are set on DAG
         self.job_runner._send_dag_callbacks_to_processor.assert_called_once()
-        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args[0]
+        call_args = self.job_runner._send_dag_callbacks_to_processor.call_args.args
         assert call_args[0].dag_id == dr.dag_id
         assert call_args[1] is not None
         assert call_args[1].msg == msg
@@ -3395,6 +3397,42 @@ class TestSchedulerJob:
             self.job_runner._send_sla_callbacks_to_processor(dag)
             scheduler_job.executor.callback_sink.send.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "schedule, number_running, excepted",
+        [
+            (None, None, False),
+            ("*/1 * * * *", None, False),
+            ("*/1 * * * *", 1, True),
+        ],
+        ids=["no_dag_schedule", "dag_schedule_too_many_runs", "dag_schedule_less_runs"],
+    )
+    def test_should_update_dag_next_dagruns(self, schedule, number_running, excepted, session, dag_maker):
+        """Test if really required to update next dagrun or possible to save run time"""
+
+        with dag_maker(
+            dag_id="test_should_update_dag_next_dagruns", schedule=schedule, max_active_runs=2
+        ) as dag:
+            EmptyOperator(task_id="dummy")
+
+        dag_model = dag_maker.dag_model
+
+        for index in range(2):
+            dag_maker.create_dagrun(
+                run_id=f"run_{index}",
+                execution_date=(DEFAULT_DATE + timedelta(days=index)),
+                start_date=timezone.utcnow(),
+                state=State.RUNNING,
+                session=session,
+            )
+
+        session.flush()
+        scheduler_job = Job(executor=self.null_exec)
+        self.job_runner = SchedulerJobRunner(job=scheduler_job)
+
+        assert excepted is self.job_runner._should_update_dag_next_dagruns(
+            dag, dag_model, number_running, session=session
+        )
+
     def test_create_dag_runs(self, dag_maker):
         """
         Test various invariants of _create_dag_runs.
@@ -4509,7 +4547,7 @@ class TestSchedulerJob:
             self.job_runner._find_zombies()
 
         scheduler_job.executor.callback_sink.send.assert_called_once()
-        requests = scheduler_job.executor.callback_sink.send.call_args[0]
+        requests = scheduler_job.executor.callback_sink.send.call_args.args
         assert 1 == len(requests)
         assert requests[0].full_filepath == dag.fileloc
         assert requests[0].msg == str(self.job_runner._generate_zombie_message_details(ti))
@@ -4644,7 +4682,7 @@ class TestSchedulerJob:
                 msg=str(self.job_runner._generate_zombie_message_details(ti)),
             )
         ]
-        callback_requests = scheduler_job.executor.callback_sink.send.call_args[0]
+        callback_requests = scheduler_job.executor.callback_sink.send.call_args.args
         assert len(callback_requests) == 1
         assert {zombie.simple_task_instance.key for zombie in expected_failure_callback_requests} == {
             result.simple_task_instance.key for result in callback_requests
@@ -5141,7 +5179,9 @@ class TestSchedulerJobQueriesCount:
 
             with assert_queries_count(expected_query_count, margin=15):
                 with mock.patch.object(DagRun, "next_dagruns_to_examine") as mock_dagruns:
-                    mock_dagruns.return_value = dagruns
+                    query = MagicMock()
+                    query.all.return_value = dagruns
+                    mock_dagruns.return_value = query
 
                     self.job_runner._run_scheduler_loop()
 

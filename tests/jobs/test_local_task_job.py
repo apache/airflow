@@ -407,6 +407,15 @@ class TestLocalTaskJob:
         mock_stats_incr.assert_has_calls(
             [
                 mock.call("local_task_job.task_exit.95.test_localtaskjob_code.op1.-9"),
+                mock.call(
+                    "local_task_job.task_exit",
+                    tags={
+                        "job_id": 95,
+                        "dag_id": "test_localtaskjob_code",
+                        "task_id": "op1",
+                        "return_code": -9,
+                    },
+                ),
             ]
         )
 

@@ -56,9 +56,9 @@ MODEL_DISPLAY_NAME = f"container-housing-model-{ENV_ID}"
 CUSTOM_CONTAINER_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
 DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/california_housing_train.csv"
-CSV_FILE_LOCAL_PATH = "/custom-job/california_housing_train.csv"
+CSV_FILE_LOCAL_PATH = "/custom-job-container/california_housing_train.csv"
 RESOURCES_PATH = Path(__file__).parent / "resources"
-CSV_ZIP_FILE_LOCAL_PATH = str(RESOURCES_PATH / "California-housing.zip")
+CSV_ZIP_FILE_LOCAL_PATH = str(RESOURCES_PATH / "California-housing-custom-container.zip")
 
 TABULAR_DATASET = lambda bucket_name: {
     "display_name": f"tabular-dataset-{ENV_ID}",
@@ -96,7 +96,8 @@ with models.DAG(
     )
     unzip_file = BashOperator(
         task_id="unzip_csv_data_file",
-        bash_command=f"mkdir -p /custom-job/ && unzip {CSV_ZIP_FILE_LOCAL_PATH} -d /custom-job/",
+        bash_command=f"mkdir -p /custom-job-container/ && "
+        f"unzip {CSV_ZIP_FILE_LOCAL_PATH} -d /custom-job-container/",
     )
     upload_files = LocalFilesystemToGCSOperator(
         task_id="upload_file_to_bucket",
@@ -158,7 +159,7 @@ with models.DAG(
     )
     clear_folder = BashOperator(
         task_id="clear_folder",
-        bash_command="rm -r /custom-job/*",
+        bash_command="rm -r /custom-job-container/*",
     )
 
     (

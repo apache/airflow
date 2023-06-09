@@ -116,7 +116,7 @@ class KubernetesPodTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current pod status and yields a TriggerEvent"""
+        """Gets current pod status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
         while True:
@@ -149,7 +149,6 @@ class KubernetesPodTrigger(BaseTrigger):
                                 "message": "All containers inside pod have started successfully.",
                             }
                         )
-                        return
                 elif self.should_wait(pod_phase=pod_status, container_state=container_state):
                     self.log.info("Container is not completed and still working.")
 
@@ -181,7 +180,6 @@ class KubernetesPodTrigger(BaseTrigger):
                             "message": pod.status.message,
                         }
                     )
-                    return
             except CancelledError:
                 # That means that task was marked as failed
                 if self.get_logs:

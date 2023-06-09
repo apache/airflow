@@ -69,7 +69,7 @@ class _UpstreamTIStates(NamedTuple):
             curr_state = {ti.state: 1}
             counter.update(curr_state)
             # setup task cannot be mapped
-            if not isinstance(ti.task, MappedOperator) and ti.task._is_setup:
+            if not isinstance(ti.task, MappedOperator) and ti.task.is_setup:
                 setup_counter.update(curr_state)
         return _UpstreamTIStates(
             success=counter.get(TaskInstanceState.SUCCESS, 0),
@@ -130,7 +130,7 @@ class TriggerRuleDep(BaseTIDep):
         upstream_tasks = {t.task_id: t for t in task.upstream_list}
         trigger_rule = task.trigger_rule
 
-        @functools.lru_cache()
+        @functools.lru_cache
         def _get_expanded_ti_count() -> int:
             """Get how many tis the current task is supposed to be expanded into.
 
@@ -139,7 +139,7 @@ class TriggerRuleDep(BaseTIDep):
             """
             return task.get_mapped_ti_count(ti.run_id, session=session)
 
-        @functools.lru_cache()
+        @functools.lru_cache
         def _get_relevant_upstream_map_indexes(upstream_id: str) -> int | range | None:
             """Get the given task's map indexes relevant to the current ti.
 
@@ -231,7 +231,7 @@ class TriggerRuleDep(BaseTIDep):
         if not any(needs_expansion(t) for t in upstream_tasks.values()):
             upstream = len(upstream_tasks)
             upstream_setup = len(
-                [x for x in upstream_tasks.values() if not isinstance(x, MappedOperator) and x._is_setup]
+                [x for x in upstream_tasks.values() if not isinstance(x, MappedOperator) and x.is_setup]
             )
         else:
             upstream = (

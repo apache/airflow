@@ -105,7 +105,6 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                             "config_id": self.config_id,
                         }
                     )
-                    return
 
                 elif state == TransferState.FAILED:
                     self.log.info("Job has failed")
@@ -116,7 +115,6 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                             "message": "Job has failed",
                         }
                     )
-                    return
 
                 if state == TransferState.CANCELLED:
                     self.log.info("Job has been cancelled.")
@@ -127,7 +125,6 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                             "message": "Job was cancelled",
                         }
                     )
-                    return
 
                 else:
                     self.log.info("Job is still working...")
@@ -141,7 +138,6 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                         "message": f"Trigger failed with exception: {str(e)}",
                     }
                 )
-                return
 
     def _get_async_hook(self) -> AsyncBiqQueryDataTransferServiceHook:
         return AsyncBiqQueryDataTransferServiceHook(

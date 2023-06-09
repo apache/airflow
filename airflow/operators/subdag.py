@@ -127,14 +127,14 @@ class SubDagOperator(BaseSensorOperator):
         )
         return dag_runs[0] if dag_runs else None
 
-    def _reset_dag_run_and_task_instances(self, dag_run, execution_date):
-        """
-        Set task instance states to allow for execution.
-        Set the DagRun state to RUNNING and set the failed TaskInstances to None state
-        for scheduler to pick up.
-        :param dag_run: DAG run
-        :param execution_date: Execution date
-        :return: None
+    def _reset_dag_run_and_task_instances(self, dag_run: DagRun, execution_date: datetime) -> None:
+        """Set task instance states to allow for execution.
+
+        The state of the DAG run will be set to RUNNING, and failed task
+        instances to ``None`` for scheduler to pick up.
+
+        :param dag_run: DAG run to reset.
+        :param execution_date: Execution date to select task instances.
         """
         with create_session() as session:
             dag_run.state = State.RUNNING
@@ -226,6 +226,11 @@ class SubDagOperator(BaseSensorOperator):
         self.log.debug("Downstream task_ids %s", downstream_tasks)
 
         if downstream_tasks:
-            self.skip(context["dag_run"], context["execution_date"], downstream_tasks)
+            self.skip(
+                context["dag_run"],
+                context["execution_date"],
+                downstream_tasks,
+                map_index=context["ti"].map_index,
+            )
 
         self.log.info("Done.")

@@ -18,29 +18,21 @@
 """This module contains Google Ad hook."""
 from __future__ import annotations
 
+from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import IO, Any
 
+from google.ads.googleads.client import GoogleAdsClient
+from google.ads.googleads.errors import GoogleAdsException
+from google.ads.googleads.v13.services.services.customer_service import CustomerServiceClient
+from google.ads.googleads.v13.services.services.google_ads_service import GoogleAdsServiceClient
+from google.ads.googleads.v13.services.types.google_ads_service import GoogleAdsRow
+from google.api_core.page_iterator import GRPCIterator
 from google.auth.exceptions import GoogleAuthError
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.common.hooks.base_google import get_field
-from airflow.providers.google_vendor.googleads.client import GoogleAdsClient
-from airflow.providers.google_vendor.googleads.errors import GoogleAdsException
-from airflow.providers.google_vendor.googleads.v12.services.services.customer_service import (
-    CustomerServiceClient,
-)
-from airflow.providers.google_vendor.googleads.v12.services.services.google_ads_service import (
-    GoogleAdsServiceClient,
-)
-from airflow.providers.google_vendor.googleads.v12.services.services.google_ads_service.pagers import (
-    SearchPager,
-)
-from airflow.providers.google_vendor.googleads.v12.services.types.google_ads_service import (
-    GoogleAdsRow,
-)
 
 
 class GoogleAdsHook(BaseHook):
@@ -81,7 +73,7 @@ class GoogleAdsHook(BaseHook):
     :return: list of Google Ads Row object(s)
     """
 
-    default_api_version = "v12"
+    default_api_version = "v13"
 
     def __init__(
         self,
@@ -160,7 +152,7 @@ class GoogleAdsHook(BaseHook):
 
     @cached_property
     def _get_service(self) -> GoogleAdsServiceClient:
-        """Connects and authenticates with the Google Ads API using a service account"""
+        """Connects and authenticates with the Google Ads API using a service account."""
         client = self._get_client
         return client.get_service("GoogleAdsService", version=self.api_version)
 
@@ -178,7 +170,7 @@ class GoogleAdsHook(BaseHook):
 
     @cached_property
     def _get_customer_service(self) -> CustomerServiceClient:
-        """Connects and authenticates with the Google Ads API using a service account"""
+        """Connects and authenticates with the Google Ads API using a service account."""
         with NamedTemporaryFile("w", suffix=".json") as secrets_temp:
             self._get_config()
             self._update_config_with_secret(secrets_temp)
@@ -192,7 +184,7 @@ class GoogleAdsHook(BaseHook):
     def _get_config(self) -> None:
         """
         Gets google ads connection from meta db and sets google_ads_config attribute with returned config
-        file
+        file.
         """
         conn = self.get_connection(self.google_ads_conn_id)
         if "google_ads_client" not in conn.extra_dejson:
@@ -204,7 +196,7 @@ class GoogleAdsHook(BaseHook):
         """
         Gets Google Cloud secret from connection and saves the contents to the temp file
         Updates google ads config with file path of the temp file containing the secret
-        Note, the secret must be passed as a file path for Google Ads API
+        Note, the secret must be passed as a file path for Google Ads API.
         """
         extras = self.get_connection(self.gcp_conn_id).extra_dejson
         secret = get_field(extras, "keyfile_dict")
@@ -219,7 +211,7 @@ class GoogleAdsHook(BaseHook):
         self, client_ids: list[str], query: str, page_size: int = 10000, **kwargs
     ) -> list[GoogleAdsRow]:
         """
-        Pulls data from the Google Ads API
+        Pulls data from the Google Ads API.
 
         :param client_ids: Google Ads client ID(s) to query the API for.
         :param query: Google Ads Query Language query.
@@ -238,9 +230,9 @@ class GoogleAdsHook(BaseHook):
 
         return self._extract_rows(iterators)
 
-    def _extract_rows(self, iterators: list[SearchPager]) -> list[GoogleAdsRow]:
+    def _extract_rows(self, iterators: list[GRPCIterator]) -> list[GoogleAdsRow]:
         """
-        Convert Google Page Iterator (GRPCIterator) objects to Google Ads Rows
+        Convert Google Page Iterator (GRPCIterator) objects to Google Ads Rows.
 
         :param iterators: List of Google Page Iterator (GRPCIterator) objects
 

@@ -62,6 +62,7 @@ Misc
 * ``Support 'shareIdentifier' in BatchOperator (#30829)``
 * ``BaseAWS - Override client when resource_type is user to get custom waiters (#30897)``
 * ``Add future-compatible mongo Hook typing (#31289)``
+* ``Handle temporary credentials when resource_type is used to get custom waiters (#31333)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -71,6 +72,11 @@ Misc
    * ``Revert "DynamoDBToS3Operator - Add feature to export table to a point in time (#30501)" (#31139)``
    * ``Add full automation for min Airflow version for providers (#30994)``
    * ``Bring back detection of implicit single-line string concatenation (#31270)``
+   * ``Fix AWS system test example_dynamodb (#31395)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Fix AWS system test example_dynamodb_to_s3 (#31362)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
 
 8.0.0
 ......

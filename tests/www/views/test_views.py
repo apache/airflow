@@ -33,7 +33,6 @@ from airflow.www.views import (
     get_safe_url,
     get_task_stats_from_query,
     get_value_from_path,
-    truncate_task_duration,
 )
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
@@ -61,6 +60,18 @@ def test_configuration_expose_config(admin_client):
     with conf_vars({("webserver", "expose_config"): "True"}):
         resp = admin_client.get("configuration", follow_redirects=True)
     check_content_in_response(["Airflow Configuration"], resp)
+
+
+@mock.patch("airflow.configuration.WEBSERVER_CONFIG")
+def test_webserver_configuration_config_file(mock_webserver_config_global, admin_client, tmp_path):
+    import airflow.configuration
+
+    config_file = str(tmp_path / "my_custom_webserver_config.py")
+    with mock.patch.dict(os.environ, {"AIRFLOW__WEBSERVER__CONFIG_FILE": config_file}):
+        initialize_config()
+        assert airflow.configuration.WEBSERVER_CONFIG == config_file
+
+    assert os.path.isfile(config_file)
 
 
 def test_redoc_should_render_template(capture_templates, admin_client):
@@ -182,7 +193,7 @@ def test_task_dag_id_equals_filter(admin_client, url, content):
     [
         ("", "/home"),
         ("javascript:alert(1)", "/home"),
-        (" javascript:alert(1)", "http://localhost:8080/ javascript:alert(1)"),
+        (" javascript:alert(1)", "/home"),
         ("http://google.com", "/home"),
         ("google.com", "http://localhost:8080/google.com"),
         ("\\/google.com", "http://localhost:8080/\\/google.com"),
@@ -208,20 +219,6 @@ def test_get_safe_url(mock_url_for, app, test_url, expected_url):
     mock_url_for.return_value = "/home"
     with app.test_request_context(base_url="http://localhost:8080"):
         assert get_safe_url(test_url) == expected_url
-
-
-@pytest.mark.parametrize(
-    "test_duration, expected_duration",
-    [
-        (0.12345, 0.123),
-        (0.12355, 0.124),
-        (3.12, 3.12),
-        (9.99999, 10.0),
-        (10.01232, 10),
-    ],
-)
-def test_truncate_task_duration(test_duration, expected_duration):
-    assert truncate_task_duration(test_duration) == expected_duration
 
 
 @pytest.fixture

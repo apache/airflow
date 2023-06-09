@@ -140,6 +140,7 @@ class TaskGroup(DAGNode):
 
         if parent_group:
             parent_group.add(self)
+            self._update_default_args(parent_group)
 
         self.used_group_ids.add(self.group_id)
         if self.group_id:
@@ -176,6 +177,10 @@ class TaskGroup(DAGNode):
             else:
                 self._group_id = f"{base}__{suffixes[-1] + 1}"
 
+    def _update_default_args(self, parent_group: TaskGroup):
+        if parent_group.default_args:
+            self.default_args = {**parent_group.default_args, **self.default_args}
+
     @classmethod
     def create_root(cls, dag: DAG) -> TaskGroup:
         """Create a root TaskGroup with no group_id or parent."""
@@ -187,7 +192,7 @@ class TaskGroup(DAGNode):
 
     @property
     def is_root(self) -> bool:
-        """Returns True if this TaskGroup is the root TaskGroup. Otherwise False"""
+        """Returns True if this TaskGroup is the root TaskGroup. Otherwise False."""
         return not self.group_id
 
     @property
@@ -338,12 +343,12 @@ class TaskGroup(DAGNode):
 
     @property
     def roots(self) -> list[BaseOperator]:
-        """Required by TaskMixin"""
+        """Required by TaskMixin."""
         return list(self.get_roots())
 
     @property
     def leaves(self) -> list[BaseOperator]:
-        """Required by TaskMixin"""
+        """Required by TaskMixin."""
         return list(self.get_leaves())
 
     def get_roots(self) -> Generator[BaseOperator, None, None]:
@@ -358,7 +363,7 @@ class TaskGroup(DAGNode):
     def get_leaves(self) -> Generator[BaseOperator, None, None]:
         """
         Returns a generator of tasks that are leaf tasks, i.e. those with no downstream
-        dependencies within the TaskGroup
+        dependencies within the TaskGroup.
         """
         for task in self:
             if not any(self.has_task(child) for child in task.get_direct_relatives(upstream=False)):
@@ -395,7 +400,7 @@ class TaskGroup(DAGNode):
         return f"{self.group_id}.downstream_join_id"
 
     def get_task_group_dict(self) -> dict[str, TaskGroup]:
-        """Returns a flat dictionary of group_id: TaskGroup"""
+        """Returns a flat dictionary of group_id: TaskGroup."""
         task_group_map = {}
 
         def build_map(task_group):
@@ -411,7 +416,7 @@ class TaskGroup(DAGNode):
         return task_group_map
 
     def get_child_by_label(self, label: str) -> DAGNode:
-        """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)"""
+        """Get a child task/TaskGroup by its label (i.e. task_id/group_id without the group_id prefix)."""
         return self.children[self.child_id(label)]
 
     def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:

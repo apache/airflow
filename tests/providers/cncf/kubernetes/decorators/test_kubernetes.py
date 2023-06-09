@@ -31,8 +31,6 @@ KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.pod"
 POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.pod.KubernetesHook"
 
-XCOM_IMAGE = "XCOM_IMAGE"
-
 
 @pytest.fixture(autouse=True)
 def mock_create_pod() -> mock.Mock:
@@ -95,7 +93,7 @@ def test_basic_kubernetes(dag_maker, session, mock_create_pod: mock.Mock, mock_h
     )
     assert mock_create_pod.call_count == 1
 
-    containers = mock_create_pod.call_args[1]["pod"].spec.containers
+    containers = mock_create_pod.call_args.kwargs["pod"].spec.containers
     assert len(containers) == 1
     assert containers[0].command[0] == "bash"
     assert len(containers[0].args) == 0
@@ -127,12 +125,6 @@ def test_kubernetes_with_input_output(
     dr = dag_maker.create_dagrun()
     (ti,) = dr.task_instances
 
-    mock_hook.return_value.get_xcom_sidecar_container_image.return_value = XCOM_IMAGE
-    mock_hook.return_value.get_xcom_sidecar_container_resources.return_value = {
-        "requests": {"cpu": "1m", "memory": "10Mi"},
-        "limits": {"cpu": "1m", "memory": "50Mi"},
-    }
-
     dag.get_task("my_task_id").execute(context=ti.get_template_context(session=session))
 
     mock_hook.assert_called_once_with(
@@ -142,10 +134,8 @@ def test_kubernetes_with_input_output(
         config_file="/tmp/fake_file",
     )
     assert mock_create_pod.call_count == 1
-    assert mock_hook.return_value.get_xcom_sidecar_container_image.call_count == 1
-    assert mock_hook.return_value.get_xcom_sidecar_container_resources.call_count == 1
 
-    containers = mock_create_pod.call_args[1]["pod"].spec.containers
+    containers = mock_create_pod.call_args.kwargs["pod"].spec.containers
 
     # First container is Python script
     assert len(containers) == 2
@@ -162,7 +152,7 @@ def test_kubernetes_with_input_output(
     assert decoded_input == {"args": ("arg1", "arg2"), "kwargs": {"kwarg1": "kwarg1"}}
 
     # Second container is xcom image
-    assert containers[1].image == XCOM_IMAGE
+    assert containers[1].image == "alpine"
     assert containers[1].volume_mounts[0].mount_path == "/airflow/xcom"
 
 
@@ -185,7 +175,7 @@ def test_kubernetes_with_marked_as_setup(
 
     assert len(dag.task_group.children) == 1
     setup_task = dag.task_group.children["f"]
-    assert setup_task._is_setup
+    assert setup_task.is_setup
 
 
 def test_kubernetes_with_marked_as_teardown(
@@ -207,7 +197,7 @@ def test_kubernetes_with_marked_as_teardown(
 
     assert len(dag.task_group.children) == 1
     teardown_task = dag.task_group.children["f"]
-    assert teardown_task._is_teardown
+    assert teardown_task.is_teardown
 
 
 def test_kubernetes_with_mini_scheduler(

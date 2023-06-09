@@ -24,10 +24,10 @@ import uuid
 import warnings
 from contextlib import ExitStack
 from enum import Enum
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.google.cloud.hooks.dataflow import (
@@ -47,7 +47,8 @@ if TYPE_CHECKING:
 
 class CheckJobRunning(Enum):
     """
-    Helper enum for choosing what to do if job is already running
+    Helper enum for choosing what to do if job is already running.
+
     IgnoreJob - do not check if running
     FinishIfRunning - finish current dag run with no action
     WaitForRun - wait for job to finish and then continue with new job
@@ -782,6 +783,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode.
+    :param append_job_name: True if unique suffix has to be appended to job name.
     """
 
     template_fields: Sequence[str] = ("body", "location", "project_id", "gcp_conn_id")
@@ -798,6 +800,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         wait_until_finished: bool | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = False,
+        append_job_name: bool = True,
         *args,
         **kwargs,
     ) -> None:
@@ -812,6 +815,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         self.job: dict | None = None
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
+        self.append_job_name = append_job_name
 
         self._validate_deferrable_params()
 
@@ -838,7 +842,8 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         return hook
 
     def execute(self, context: Context):
-        self._append_uuid_to_job_name()
+        if self.append_job_name:
+            self._append_uuid_to_job_name()
 
         def set_current_job(current_job):
             self.job = current_job

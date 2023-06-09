@@ -14,27 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Executes task in a Kubernetes POD"""
+"""Executes task in a Kubernetes POD."""
 
 from __future__ import annotations
 
 import json
 import logging
-import os
 import re
 import secrets
 import string
-import warnings
 from collections.abc import Container
 from contextlib import AbstractContextManager
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from kubernetes.client import CoreV1Api, models as k8s
 from slugify import slugify
 from urllib3.exceptions import HTTPError
 
-from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
@@ -87,7 +85,7 @@ def _rand_str(num):
 
 
 def _add_pod_suffix(*, pod_name, rand_len=8, max_len=253):
-    """Add random string to pod name while staying under max len
+    """Add random string to pod name while staying under max len.
 
     TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
 
@@ -137,7 +135,7 @@ class PodReattachFailure(AirflowException):
 
 class KubernetesPodOperator(BaseOperator):
     """
-    Execute a task in a Kubernetes Pod
+    Execute a task in a Kubernetes Pod.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -227,6 +225,7 @@ class KubernetesPodOperator(BaseOperator):
         container name to use.
     :param deferrable: Run operator in the deferrable mode.
     :param poll_interval: Polling period in seconds to check for the status. Used only in deferrable mode.
+    :param log_pod_spec_on_failure: Log the pod's specification if a failure occurs
     """
 
     # This field can be overloaded at the instance level via base_container_name
@@ -303,6 +302,7 @@ class KubernetesPodOperator(BaseOperator):
         base_container_name: str | None = None,
         deferrable: bool = False,
         poll_interval: float = 2,
+        log_pod_spec_on_failure: bool = True,
         **kwargs,
     ) -> None:
         # TODO: remove in provider 6.0.0 release. This is a mitigate step to advise users to switch to the
@@ -383,6 +383,7 @@ class KubernetesPodOperator(BaseOperator):
         self.deferrable = deferrable
         self.poll_interval = poll_interval
         self.remote_pod: k8s.V1Pod | None = None
+        self.log_pod_spec_on_failure = log_pod_spec_on_failure
         self._config_dict: dict | None = None  # TODO: remove it when removing convert_config_file_to_dict
 
     @cached_property
@@ -425,7 +426,7 @@ class KubernetesPodOperator(BaseOperator):
     @staticmethod
     def _get_ti_pod_labels(context: Context | None = None, include_try_number: bool = True) -> dict[str, str]:
         """
-        Generate labels for the pod to track the pod in case of Operator crash
+        Generate labels for the pod to track the pod in case of Operator crash.
 
         :param context: task context provided by airflow DAG
         :return: dict
@@ -473,14 +474,6 @@ class KubernetesPodOperator(BaseOperator):
         )
         return hook
 
-    def get_hook(self):
-        warnings.warn(
-            "get_hook is deprecated. Please use hook instead.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        return self.hook
-
     @cached_property
     def client(self) -> CoreV1Api:
         return self.hook.core_v1_client
@@ -525,7 +518,7 @@ class KubernetesPodOperator(BaseOperator):
             raise
 
     def extract_xcom(self, pod: k8s.V1Pod):
-        """Retrieves xcom value and kills xcom sidecar container"""
+        """Retrieves xcom value and kills xcom sidecar container."""
         result = self.pod_manager.extract_xcom(pod)
         if isinstance(result, str) and result.rstrip() == "__airflow_xcom_result_empty__":
             self.log.info("xcom result file is empty.")
@@ -535,7 +528,7 @@ class KubernetesPodOperator(BaseOperator):
             return json.loads(result)
 
     def execute(self, context: Context):
-        """Based on the deferrable parameter runs the pod asynchronously or synchronously"""
+        """Based on the deferrable parameter runs the pod asynchronously or synchronously."""
         if self.deferrable:
             self.execute_async(context)
         else:
@@ -588,20 +581,6 @@ class KubernetesPodOperator(BaseOperator):
             context=context,
         )
         self.invoke_defer_method()
-
-    def convert_config_file_to_dict(self):
-        """Converts passed config_file to dict format."""
-        warnings.warn(
-            "This method is deprecated and will be removed in a future version.",
-            AirflowProviderDeprecationWarning,
-            stacklevel=2,
-        )
-        config_file = self.config_file if self.config_file else os.environ.get(KUBE_CONFIG_ENV_VAR)
-        if config_file:
-            with open(config_file) as f:
-                self._config_dict = yaml.safe_load(f)
-        else:
-            self._config_dict = None
 
     def invoke_defer_method(self):
         """Method to easily redefine triggers which are being used in child classes."""
@@ -700,7 +679,6 @@ class KubernetesPodOperator(BaseOperator):
             self.process_pod_deletion(remote_pod, reraise=False)
 
             error_message = get_container_termination_message(remote_pod, self.base_container_name)
-            error_message = "\n" + error_message if error_message else ""
             if self.skip_on_exit_code is not None:
                 container_statuses = (
                     remote_pod.status.container_statuses if remote_pod and remote_pod.status else None
@@ -721,14 +699,22 @@ class KubernetesPodOperator(BaseOperator):
                         f"{self.skip_on_exit_code}. Skipping."
                     )
             raise AirflowException(
-                f"Pod {pod and pod.metadata.name} returned a failure:\n{error_message}\n"
-                f"remote_pod: {remote_pod}"
+                "\n".join(
+                    filter(
+                        None,
+                        [
+                            f"Pod {pod and pod.metadata.name} returned a failure.",
+                            error_message if isinstance(error_message, str) else None,
+                            f"remote_pod: {remote_pod}" if self.log_pod_spec_on_failure else None,
+                        ],
+                    )
+                )
             )
         else:
             self.process_pod_deletion(remote_pod, reraise=False)
 
     def _read_pod_events(self, pod, *, reraise=True):
-        """Will fetch and emit events from pod"""
+        """Will fetch and emit events from pod."""
         with _optionally_suppress(reraise=reraise):
             for event in self.pod_manager.read_pod_events(pod).items:
                 self.log.error("Pod Event: %s - %s", event.reason, event.message)
@@ -759,7 +745,7 @@ class KubernetesPodOperator(BaseOperator):
         return None
 
     def patch_already_checked(self, pod: k8s.V1Pod, *, reraise=True):
-        """Add an "already checked" annotation to ensure we don't reattach on retries"""
+        """Add an "already checked" annotation to ensure we don't reattach on retries."""
         with _optionally_suppress(reraise=reraise):
             self.client.patch_namespaced_pod(
                 name=pod.metadata.name,
@@ -851,9 +837,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.metadata.name = _add_pod_suffix(pod_name=pod.metadata.name)
 
         if not pod.metadata.namespace:
-            # todo: replace with call to `hook.get_namespace` in 6.0, when it doesn't default to `default`.
-            # if namespace not actually defined in hook, we want to check k8s if in cluster
-            hook_namespace = self.hook._get_namespace()
+            hook_namespace = self.hook.get_namespace()
             pod_namespace = self.namespace or hook_namespace or self._incluster_namespace or "default"
             pod.metadata.namespace = pod_namespace
 
@@ -862,11 +846,7 @@ class KubernetesPodOperator(BaseOperator):
             pod = secret.attach_to_pod(pod)
         if self.do_xcom_push:
             self.log.debug("Adding xcom sidecar to task %s", self.task_id)
-            pod = xcom_sidecar.add_xcom_sidecar(
-                pod,
-                sidecar_container_image=self.hook.get_xcom_sidecar_container_image(),
-                sidecar_container_resources=self.hook.get_xcom_sidecar_container_resources(),
-            )
+            pod = xcom_sidecar.add_xcom_sidecar(pod)
 
         labels = self._get_ti_pod_labels(context)
         self.log.info("Building pod %s with labels: %s", pod.metadata.name, labels)
