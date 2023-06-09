@@ -71,7 +71,6 @@ Misc/Internal
 - Add Python 3.11 support (#27264)
 - Replace unicodecsv with standard csv library (#31693)
 - Bring back unicodecsv as dependency of Airflow (#31814)
-- Small cleanups / optimizations in DagRun.update_state (#31628)
 - Remove found_descendents param from get_flat_relative_ids (#31559)
 - Fix typing in external task triggers (#31490)
 - Wording the next and last run DAG columns better (#31467)
