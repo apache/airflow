@@ -17,7 +17,7 @@
 # under the License.
 """This module contains Google Vertex AI operators.
 
-.. spelling::
+.. spelling:word-list::
 
     jsonl
     codepoints

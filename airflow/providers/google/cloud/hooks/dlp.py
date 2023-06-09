@@ -19,7 +19,7 @@
 This module contains a CloudDLPHook
 which allows you to connect to Google Cloud DLP service.
 
-.. spelling::
+.. spelling:word-list::
 
     ImageRedactionConfig
     RedactImageRequest

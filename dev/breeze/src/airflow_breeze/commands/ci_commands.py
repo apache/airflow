@@ -229,6 +229,13 @@ def get_changed_files(commit_ref: str | None) -> tuple[str, ...]:
     type=str,
     default="",
 )
+@click.option(
+    "--github-context",
+    help="Github context (JSON formatted) passed by Github Actions",
+    envvar="GITHUB_CONTEXT",
+    type=str,
+    default="",
+)
 @option_verbose
 @option_dry_run
 def selective_check(
@@ -239,9 +246,11 @@ def selective_check(
     github_event_name: str,
     github_repository: str,
     github_actor: str,
+    github_context: str,
 ):
     from airflow_breeze.utils.selective_checks import SelectiveChecks
 
+    github_context_dict = json.loads(github_context) if github_context else {}
     github_event = GithubEvents(github_event_name)
     if commit_ref is not None:
         changed_files = get_changed_files(commit_ref=commit_ref)
@@ -256,6 +265,7 @@ def selective_check(
         github_event=github_event,
         github_repository=github_repository,
         github_actor=github_actor,
+        github_context_dict=github_context_dict,
     )
     print(str(sc), file=sys.stderr)
 

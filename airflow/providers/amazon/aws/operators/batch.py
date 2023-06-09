@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-An Airflow operator for AWS Batch services.
+"""AWS Batch services.
 
 .. seealso::
 
@@ -46,8 +45,7 @@ if TYPE_CHECKING:
 
 
 class BatchOperator(BaseOperator):
-    """
-    Execute a job on AWS Batch.
+    """Execute a job on AWS Batch.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -148,8 +146,7 @@ class BatchOperator(BaseOperator):
         deferrable: bool = False,
         poll_interval: int = 30,
         **kwargs,
-    ):
-
+    ) -> None:
         BaseOperator.__init__(self, **kwargs)
         self.job_id = job_id
         self.job_name = job_name
@@ -199,8 +196,7 @@ class BatchOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        """
-        Submit and monitor an AWS Batch job.
+        """Submit and monitor an AWS Batch job.
 
         :raises: AirflowException
         """
@@ -236,8 +232,7 @@ class BatchOperator(BaseOperator):
         self.log.info("AWS Batch job (%s) terminated: %s", self.job_id, response)
 
     def submit_job(self, context: Context):
-        """
-        Submit an AWS Batch job.
+        """Submit an AWS Batch job.
 
         :raises: AirflowException
         """
@@ -288,13 +283,10 @@ class BatchOperator(BaseOperator):
         )
 
     def monitor_job(self, context: Context):
-        """
-        Monitor an AWS Batch job
-        monitor_job can raise an exception or an AirflowTaskTimeout can be raised if execution_timeout
-        is given while creating the task. These exceptions should be handled in taskinstance.py
-        instead of here like it was previously done.
+        """Monitor an AWS Batch job.
 
-        :raises: AirflowException
+        This can raise an exception or an AirflowTaskTimeout if the task was
+        created with ``execution_timeout``.
         """
         if not self.job_id:
             raise AirflowException("AWS Batch job - job_id was not found")
@@ -357,43 +349,34 @@ class BatchOperator(BaseOperator):
 
 
 class BatchCreateComputeEnvironmentOperator(BaseOperator):
-    """
-    Create an AWS Batch compute environment.
+    """Create an AWS Batch compute environment.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BatchCreateComputeEnvironmentOperator`
 
-    :param compute_environment_name: the name of the AWS batch compute environment (templated)
-
-    :param environment_type: the type of the compute-environment
-
-    :param state: the state of the compute-environment
-
-    :param compute_resources: details about the resources managed by the compute-environment (templated).
-        See more details here
+    :param compute_environment_name: Name of the AWS batch compute
+        environment (templated).
+    :param environment_type: Type of the compute-environment.
+    :param state: State of the compute-environment.
+    :param compute_resources: Details about the resources managed by the
+        compute-environment (templated). More details:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html#Batch.Client.create_compute_environment
-
-    :param unmanaged_v_cpus: the maximum number of vCPU for an unmanaged compute environment.
-        This parameter is only supported when the ``type`` parameter is set to ``UNMANAGED``.
-
-    :param service_role: the IAM role that allows Batch to make calls to other AWS services on your behalf
-        (templated)
-
-    :param tags: the tags that you apply to the compute-environment to help you categorize and organize your
-        resources
-
-    :param max_retries: exponential back-off retries, 4200 = 48 hours;
-        polling is only used when waiters is None
-
-    :param status_retries: number of HTTP retries to get job status, 10;
-        polling is only used when waiters is None
-
-    :param aws_conn_id: connection id of AWS credentials / region name. If None,
+    :param unmanaged_v_cpus: Maximum number of vCPU for an unmanaged compute
+        environment. This parameter is only supported when the ``type``
+        parameter is set to ``UNMANAGED``.
+    :param service_role: IAM role that allows Batch to make calls to other AWS
+        services on your behalf (templated).
+    :param tags: Tags that you apply to the compute-environment to help you
+        categorize and organize your resources.
+    :param max_retries: Exponential back-off retries, 4200 = 48 hours; polling
+        is only used when waiters is None.
+    :param status_retries: Number of HTTP retries to get job status, 10; polling
+        is only used when waiters is None.
+    :param aws_conn_id: Connection ID of AWS credentials / region name. If None,
         credential boto3 strategy will be used.
-
-    :param region_name: region name to use in AWS Hook.
-        Override the region_name in connection (if provided)
+    :param region_name: Region name to use in AWS Hook. Overrides the
+        ``region_name`` in connection if provided.
     """
 
     template_fields: Sequence[str] = (
