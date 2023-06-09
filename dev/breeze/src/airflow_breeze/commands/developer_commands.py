@@ -533,7 +533,21 @@ def static_checks(
     )
     if static_checks_result.returncode != 0:
         if os.environ.get("CI"):
-            get_console().print("[error]There were errors during pre-commit check. They should be fixed[/]")
+            get_console().print("\n[error]This error means that you have to fix the issues listed above:[/]")
+            get_console().print("\n[info]Some of the problems might be fixed automatically via pre-commit[/]")
+            get_console().print(
+                "\n[info]You can run it locally with: `pre-commit run --all-files` "
+                "but it might take quite some time.[/]"
+            )
+            get_console().print(
+                "\n[info]If you use breeze you can also run it faster via: "
+                "`breeze static-checks --only-my-changes` but it might produce slightly "
+                "different results.[/]"
+            )
+            get_console().print(
+                "\n[info]To run `pre-commit` as part of git workflow, use "
+                "`pre-commit install`. This will make pre-commit run as you commit changes[/]\n"
+            )
     sys.exit(static_checks_result.returncode)
 
 
