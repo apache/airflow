@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from unittest import mock
 
 import botocore.exceptions
@@ -25,6 +26,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
 # Use dummy AWS credentials
 AWS_REGION = "eu-west-1"
@@ -114,6 +116,29 @@ class TestBatchClient:
             job_complete.assert_called_once_with(JOB_ID, None)
 
         assert self.client_mock.describe_jobs.call_count == 4
+
+    def test_wait_for_job_with_logs(self):
+        self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
+
+        batch_log_fetcher = mock.Mock(spec=AwsTaskLogFetcher)
+        mock_get_batch_log_fetcher = mock.Mock(return_value=batch_log_fetcher)
+
+        thread_start = mock.Mock(side_effect=lambda: time.sleep(2))
+        thread_stop = mock.Mock(side_effect=lambda: time.sleep(2))
+        thread_join = mock.Mock(side_effect=lambda: time.sleep(2))
+
+        with mock.patch.object(
+            batch_log_fetcher, "start", thread_start
+        ) as mock_fetcher_start, mock.patch.object(
+            batch_log_fetcher, "stop", thread_stop
+        ) as mock_fetcher_stop, mock.patch.object(
+            batch_log_fetcher, "join", thread_join
+        ) as mock_fetcher_join:
+            self.batch_client.wait_for_job(JOB_ID, get_batch_log_fetcher=mock_get_batch_log_fetcher)
+            mock_get_batch_log_fetcher.assert_called_with(JOB_ID)
+            mock_fetcher_start.assert_called_once()
+            mock_fetcher_stop.assert_called_once()
+            mock_fetcher_join.assert_called_once()
 
     def test_poll_job_running_for_status_running(self):
         self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "RUNNING"}]}

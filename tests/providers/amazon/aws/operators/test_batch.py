@@ -120,6 +120,8 @@ class TestBatchOperator:
             "waiters",
             "tags",
             "wait_for_completion",
+            "awslogs_enabled",
+            "awslogs_fetch_interval",
         )
 
     @mock.patch.object(BatchClientHook, "get_job_description")
@@ -272,6 +274,32 @@ class TestBatchOperator:
         with pytest.raises(TaskDeferred) as exc:
             batch.execute(context=None)
         assert isinstance(exc.value.trigger, BatchOperatorTrigger), "Trigger is not a BatchOperatorTrigger"
+
+    @mock.patch.object(BatchClientHook, "get_job_description")
+    @mock.patch.object(BatchClientHook, "wait_for_job")
+    @mock.patch.object(BatchClientHook, "check_job_success")
+    @mock.patch("airflow.providers.amazon.aws.links.batch.BatchJobQueueLink.persist")
+    @mock.patch("airflow.providers.amazon.aws.links.batch.BatchJobDefinitionLink.persist")
+    def test_monitor_job_with_logs(
+        self, job_definition_persist_mock, job_queue_persist_mock, check_mock, wait_mock, job_description_mock
+    ):
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            awslogs_enabled=True,
+        )
+
+        batch.job_id = JOB_ID
+
+        batch.monitor_job(context=None)
+
+        job_description_mock.assert_called_with(job_id=JOB_ID)
+        job_definition_persist_mock.assert_called_once()
+        job_queue_persist_mock.assert_called_once()
+        wait_mock.assert_called_once()
+        assert len(wait_mock.call_args) == 2
 
 
 class TestBatchCreateComputeEnvironmentOperator:

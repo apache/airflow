@@ -16,16 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
 from unittest import mock
-from unittest.mock import PropertyMock
 
 import pytest
-from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
-from airflow.providers.amazon.aws.hooks.ecs import EcsHook, EcsTaskLogFetcher, should_retry, should_retry_eni
-from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
+from airflow.providers.amazon.aws.hooks.ecs import EcsHook, should_retry, should_retry_eni
 
 DEFAULT_CONN_ID: str = "aws_default"
 REGION: str = "us-east-1"
@@ -82,135 +78,3 @@ class TestShouldRetryEni:
                 "ref pull has been retried 5 time(s): failed to resolve reference"
             )
         )
-
-
-class TestEcsTaskLogFetcher:
-    @mock.patch("logging.Logger")
-    def set_up_log_fetcher(self, logger_mock):
-        self.logger_mock = logger_mock
-
-        self.log_fetcher = EcsTaskLogFetcher(
-            log_group="test_log_group",
-            log_stream_name="test_log_stream_name",
-            fetch_interval=timedelta(milliseconds=1),
-            logger=logger_mock,
-        )
-
-    def setup_method(self):
-        self.set_up_log_fetcher()
-
-    @mock.patch(
-        "threading.Event.is_set",
-        side_effect=(False, False, False, True),
-    )
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
-        side_effect=(
-            iter(
-                [
-                    {"timestamp": 1617400267123, "message": "First"},
-                    {"timestamp": 1617400367456, "message": "Second"},
-                ]
-            ),
-            iter(
-                [
-                    {"timestamp": 1617400467789, "message": "Third"},
-                ]
-            ),
-            iter([]),
-        ),
-    )
-    def test_run(self, get_log_events_mock, event_is_set_mock):
-
-        self.log_fetcher.run()
-
-        self.logger_mock.info.assert_has_calls(
-            [
-                mock.call("[2021-04-02 21:51:07,123] First"),
-                mock.call("[2021-04-02 21:52:47,456] Second"),
-                mock.call("[2021-04-02 21:54:27,789] Third"),
-            ]
-        )
-
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
-        side_effect=ClientError({"Error": {"Code": "ResourceNotFoundException"}}, None),
-    )
-    def test_get_log_events_with_expected_error(self, get_log_events_mock):
-        with pytest.raises(StopIteration):
-            next(self.log_fetcher._get_log_events())
-
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
-        side_effect=Exception(),
-    )
-    def test_get_log_events_with_unexpected_error(self, get_log_events_mock):
-        with pytest.raises(Exception):
-            next(self.log_fetcher._get_log_events())
-
-    @mock.patch.object(AwsLogsHook, "conn", new_callable=PropertyMock)
-    def test_get_log_events_updates_token(self, logs_conn_mock):
-        logs_conn_mock().get_log_events.return_value = {
-            "events": ["my_event"],
-            "nextForwardToken": "my_next_token",
-        }
-
-        token = AwsLogsHook.ContinuationToken()
-        list(self.log_fetcher._get_log_events(token))
-
-        assert token.value == "my_next_token"
-        # 2 calls expected, it's only on the second one that the stop condition old_token == next_token is met
-        assert logs_conn_mock().get_log_events.call_count == 2
-
-    def test_event_to_str(self):
-        events = [
-            {"timestamp": 1617400267123, "message": "First"},
-            {"timestamp": 1617400367456, "message": "Second"},
-            {"timestamp": 1617400467789, "message": "Third"},
-        ]
-        assert [self.log_fetcher._event_to_str(event) for event in events] == (
-            [
-                "[2021-04-02 21:51:07,123] First",
-                "[2021-04-02 21:52:47,456] Second",
-                "[2021-04-02 21:54:27,789] Third",
-            ]
-        )
-
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
-        return_value=(),
-    )
-    def test_get_last_log_message_with_no_log_events(self, mock_log_events):
-        assert self.log_fetcher.get_last_log_message() is None
-
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
-        return_value=iter(
-            [
-                {"timestamp": 1617400267123, "message": "First"},
-                {"timestamp": 1617400367456, "message": "Second"},
-            ]
-        ),
-    )
-    def test_get_last_log_message_with_log_events(self, mock_log_events):
-        assert self.log_fetcher.get_last_log_message() == "Second"
-
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
-        return_value=iter(
-            [
-                {"timestamp": 1617400267123, "message": "First"},
-                {"timestamp": 1617400367456, "message": "Second"},
-                {"timestamp": 1617400367458, "message": "Third"},
-            ]
-        ),
-    )
-    def test_get_last_log_messages_with_log_events(self, mock_log_events):
-        assert self.log_fetcher.get_last_log_messages(2) == ["Second", "Third"]
-
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
-        return_value=(),
-    )
-    def test_get_last_log_messages_with_no_log_events(self, mock_log_events):
-        assert self.log_fetcher.get_last_log_messages(2) == []

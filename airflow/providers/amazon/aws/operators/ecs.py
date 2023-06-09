@@ -33,9 +33,9 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.ecs import (
     EcsClusterStates,
     EcsHook,
-    EcsTaskLogFetcher,
     should_retry_eni,
 )
+from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import provide_session
 
@@ -447,7 +447,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
         self.arn: str | None = None
         self.retry_args = quota_retry
-        self.task_log_fetcher: EcsTaskLogFetcher | None = None
+        self.task_log_fetcher: AwsTaskLogFetcher | None = None
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
@@ -597,12 +597,12 @@ class EcsRunTaskOperator(EcsBaseOperator):
     def _aws_logs_enabled(self):
         return self.awslogs_group and self.awslogs_stream_prefix
 
-    def _get_task_log_fetcher(self) -> EcsTaskLogFetcher:
+    def _get_task_log_fetcher(self) -> AwsTaskLogFetcher:
         if not self.awslogs_group:
             raise ValueError("must specify awslogs_group to fetch task logs")
         log_stream_name = f"{self.awslogs_stream_prefix}/{self._get_ecs_task_id(self.arn)}"
 
-        return EcsTaskLogFetcher(
+        return AwsTaskLogFetcher(
             aws_conn_id=self.aws_conn_id,
             region_name=self.awslogs_region,
             log_group=self.awslogs_group,
