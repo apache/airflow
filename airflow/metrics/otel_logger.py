@@ -125,6 +125,12 @@ def _get_otel_safe_name(name: str) -> str:
     return otel_safe_name
 
 
+def _skip_due_to_rate(rate: float) -> bool:
+    if rate < 0:
+        raise ValueError("rate must be a positive value.")
+    return rate < 1 and random.random() > rate
+
+
 class SafeOtelLogger:
     """Otel Logger"""
 
@@ -156,10 +162,10 @@ class SafeOtelLogger:
             which the metric is going to be emitted.
         :param tags: Tags to append to the stat.
         """
-        if (count < 0) or (rate < 0):
-            raise ValueError("count and rate must both be positive values.")
-        if rate < 1 and random.random() > rate:
+        if _skip_due_to_rate(rate):
             return
+        if count < 0:
+            raise ValueError("count must be a positive value.")
 
         if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
             counter = self.metrics_map.get_counter(full_name(prefix=self.prefix, name=stat), attributes=tags)
@@ -182,10 +188,10 @@ class SafeOtelLogger:
             which the metric is going to be emitted.
         :param tags: Tags to append to the stat.
         """
-        if (count < 0) or (rate < 0):
-            raise ValueError("count and rate must both be positive values.")
-        if rate < 1 and random.random() > rate:
+        if _skip_due_to_rate(rate):
             return
+        if count < 0:
+            raise ValueError("count must be a positive value.")
 
         if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
             counter = self.metrics_map.get_counter(full_name(prefix=self.prefix, name=stat))
@@ -216,9 +222,7 @@ class SafeOtelLogger:
         :param back_compat_name:  If an alternative name is provided, the
             stat will be emitted using both names if possible.
         """
-        if rate < 0:
-            raise ValueError("rate must be a positive value.")
-        if rate < 1 and random.random() > rate:
+        if _skip_due_to_rate(rate):
             return
 
         if back_compat_name and self.metrics_validator.test(back_compat_name):
