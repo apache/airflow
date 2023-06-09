@@ -54,7 +54,7 @@ Bug Fixes
 - Don't present an undefined execution date (#31196)
 - Added spinner activity while the logs load (#31165)
 - Include rediss to the list of supported URL schemes (#31028)
-- Optimize scheduler by skipping "non-scheduable" DAGs (#30706)
+- Optimize scheduler by skipping "non-schedulable" DAGs (#30706)
 - Save scheduler execution time during search for queued dag_runs (#30699)
 - Fix ExternalTaskSensor to work correctly with task groups (#30742)
 - Fix DAG.access_control can't sync when clean access_control (#30340)
