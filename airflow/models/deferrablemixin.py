@@ -25,6 +25,5 @@ DEFAULT_DEFERRABLE: bool = conf.getboolean("operators", "default_deferrable")
 class DeferrableMixin:
     """Convenience super-class to load deferrable value from configuration."""
 
-    def __init__(self, *args, deferrable=DEFAULT_DEFERRABLE, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, deferrable=DEFAULT_DEFERRABLE):
         self.deferrable = deferrable
