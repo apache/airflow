@@ -1467,10 +1467,9 @@ def test_sensitive_values():
         ("smtp", "smtp_password"),
         ("webserver", "secret_key"),
         ("secrets", "backend_kwargs"),
-        # The following options are deprecated
-        ("core", "sql_alchemy_conn"),
-        ("database", "sql_alchemy_engine_args"),
         ("sentry", "sentry_dsn"),
+        ("database", "sql_alchemy_engine_args"),
+        ("core", "sql_alchemy_conn"),
     }
     default_config = default_config_yaml()
     all_keys = {(s, k) for s, v in default_config.items() for k in v.get("options")}
