@@ -1431,7 +1431,7 @@ class DAG(LoggingMixin):
                 DagRun.external_trigger == (expression.true() if external_trigger else expression.false())
             )
 
-        return query.scalar()
+        return session.scalar(query)
 
     @provide_session
     def get_dagrun(
