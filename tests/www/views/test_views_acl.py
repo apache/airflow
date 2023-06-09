@@ -25,7 +25,6 @@ import pytest
 
 from airflow.models import DagModel
 from airflow.security import permissions
-from airflow.settings import _ENABLE_AIP_52
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -258,9 +257,6 @@ def test_dag_autocomplete_success(client_all_dags):
         {"name": "tutorial_taskflow_api", "type": "dag"},
         {"name": "tutorial_taskflow_api_virtualenv", "type": "dag"},
     ]
-    if _ENABLE_AIP_52:
-        expected.insert(1, {"name": "example_setup_teardown_taskflow", "type": "dag"})
-
     assert resp.json == expected
 
 
