@@ -893,13 +893,14 @@ repos:
         pass_filenames: false
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
-      - id: mypy-dev
-        name: Run mypy for dev
-        language: python
-        entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
-        files: ^dev/.*\.py$
-        require_serial: true
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
+        # breeze code uses Python 3.8 features, so we need to use Python 3.8
+        #      - id: mypy-dev
+        #        name: Run mypy for dev
+        #        language: python
+        #        entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
+        #        files: ^dev/.*\.py$
+        #        require_serial: true
+        #        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'pyyaml']
       - id: mypy-core
         name: Run mypy for core
         language: python

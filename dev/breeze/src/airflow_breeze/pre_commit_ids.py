@@ -90,7 +90,6 @@ PRE_COMMIT_LIST = [
     "lint-openapi",
     "mixed-line-ending",
     "mypy-core",
-    "mypy-dev",
     "mypy-docs",
     "mypy-providers",
     "pretty-format-json",

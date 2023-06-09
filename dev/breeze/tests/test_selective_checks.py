@@ -17,10 +17,11 @@
 from __future__ import annotations
 
 import re
+from typing import Any
 
 import pytest
 
-from airflow_breeze.global_constants import GithubEvents
+from airflow_breeze.global_constants import COMMITTERS, GithubEvents
 from airflow_breeze.utils.selective_checks import SelectiveChecks
 
 ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
@@ -266,10 +267,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ("setup.py",),
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -289,10 +290,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 ("generated/provider_dependencies.json",),
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
@@ -397,10 +398,10 @@ def test_expected_output_pull_request_main(
                 "main",
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
@@ -424,10 +425,10 @@ def test_expected_output_pull_request_main(
                 "main",
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
@@ -449,10 +450,10 @@ def test_expected_output_pull_request_main(
                 "main",
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
@@ -474,10 +475,10 @@ def test_expected_output_pull_request_main(
                 "v2-3-stable",
                 {
                     "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
-                    "python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
+                    "python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                    "python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
@@ -787,8 +788,8 @@ def test_expected_output_pull_request_target(
             "main",
             {
                 "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
                 "image-build": "true",
                 "needs-helm-tests": "true",
                 "run-tests": "true",
@@ -807,8 +808,8 @@ def test_expected_output_pull_request_target(
             "v2-3-stable",
             {
                 "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
                 "image-build": "true",
                 "needs-helm-tests": "false",
                 "run-tests": "true",
@@ -826,8 +827,8 @@ def test_expected_output_pull_request_target(
             "main",
             {
                 "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
-                "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-                "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+                "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
                 "image-build": "true",
                 "needs-helm-tests": "true",
                 "run-tests": "true",
@@ -878,8 +879,8 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
     )
     assert_outputs_are_printed(
         {
-            "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
-            "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+            "all-python-versions": "['3.7', '3.8', '3.9', '3.10', '3.11']",
+            "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10 3.11",
             "image-build": "true",
             "needs-helm-tests": "true",
             "run-tests": "true",
@@ -1071,3 +1072,123 @@ def test_docs_filter(files: tuple[str, ...], expected_outputs: dict[str, str]):
         default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(stderr))
+
+
+@pytest.mark.parametrize(
+    "github_event, github_actor, github_repository, pr_labels, github_context_dict, runs_on",
+    [
+        pytest.param(GithubEvents.PUSH, "user", "apache/airflow", [], dict(), "self-hosted", id="Push event"),
+        pytest.param(
+            GithubEvents.PUSH,
+            "user",
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Push event for private repo",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST, "user", "apache/airflow", [], dict(), "ubuntu-22.04", id="Pull request"
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            "user",
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request private repo",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            COMMITTERS[0],
+            "apache/airflow",
+            [],
+            dict(),
+            "self-hosted",
+            id="Pull request committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            COMMITTERS[0],
+            "apache/airflow",
+            [],
+            dict(event=dict(pull_request=dict(user=dict(login="user")))),
+            "ubuntu-22.04",
+            id="Pull request committer pr non-committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            COMMITTERS[0],
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request private repo committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST_TARGET,
+            "user",
+            "apache/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request target",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST_TARGET,
+            "user",
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request target private repo",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST_TARGET,
+            COMMITTERS[0],
+            "apache/airflow",
+            [],
+            dict(),
+            "self-hosted",
+            id="Pull request target committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST,
+            COMMITTERS[0],
+            "apache/airflow",
+            [],
+            dict(event=dict(pull_request=dict(user=dict(login="user")))),
+            "ubuntu-22.04",
+            id="Pull request target committer pr non-committer",
+        ),
+        pytest.param(
+            GithubEvents.PULL_REQUEST_TARGET,
+            COMMITTERS[0],
+            "private/airflow",
+            [],
+            dict(),
+            "ubuntu-22.04",
+            id="Pull request targe private repo committer",
+        ),
+    ],
+)
+def test_runs_on(
+    github_event: GithubEvents,
+    github_actor: str,
+    github_repository: str,
+    pr_labels: list[str],
+    github_context_dict: dict[str, Any],
+    runs_on: str,
+):
+    stderr = SelectiveChecks(
+        files=(),
+        commit_ref="",
+        github_repository=github_repository,
+        github_event=github_event,
+        github_actor=github_actor,
+        github_context_dict=github_context_dict,
+        pr_labels=(),
+        default_branch="main",
+    )
+    assert_outputs_are_printed({"runs-on": runs_on}, str(stderr))

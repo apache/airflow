@@ -27,7 +27,12 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   # All other permissions are set to none
   contents: read
-  packages: read
+  # Technically read access while waiting for images should be more than enough. However,
+  # there is a bug in GitHub Actions/Packages and in case private repositories are used, you get a permission
+  # denied error when attempting to just pull private image, changing the token permission to write solves the
+  # issue. This is not dangerous, because if it is for "apache/airflow", only maintainers can push ci.yml
+  # changes. If it is for a fork, then the token is read-only anyway.
+  packages: write
 env:
   ANSWER: "yes"
   DB_RESET: "true"
@@ -46,7 +51,6 @@ env:
   USE_SUDO: "true"
   INCLUDE_SUCCESS_OUTPUTS: "true"
   AIRFLOW_ENABLE_AIP_44: "true"
-  AIRFLOW_ENABLE_AIP_52: "true"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -66,69 +70,12 @@ jobs:
     # to find the list of authors and replace them, so any changes to the
     # formatting of the contains(fromJSON()) structure below will need to be
     # reflected in that workflow too.
-    runs-on: >-
-      ${{ (
-        (
-          github.event_name == 'push' ||
-          github.event_name == 'schedule' ||
-          contains(fromJSON('[
-            "BasPH",
-            "Fokko",
-            "KevinYang21",
-            "Taragolis",
-            "XD-DENG",
-            "aijamalnk",
-            "alexvanboxel",
-            "aoen",
-            "artwr",
-            "ashb",
-            "bbovenzi",
-            "bolkedebruin",
-            "criccomini",
-            "dimberman",
-            "dstandish",
-            "eladkal",
-            "ephraimbuddy",
-            "feluelle",
-            "feng-tao",
-            "houqp",
-            "hussein-awala",
-            "jedcunningham",
-            "jgao54",
-            "jghoman",
-            "jhtimmins",
-            "jmcarp",
-            "josh-fell",
-            "kaxil",
-            "leahecole",
-            "malthe",
-            "mik-laj",
-            "milton0825",
-            "mistercrunch",
-            "msumit",
-            "o-nikolas",
-            "pierrejeambrun",
-            "pingzh",
-            "potiuk",
-            "r39132",
-            "ryanahamilton",
-            "ryw",
-            "saguziel",
-            "sekikn",
-            "turbaszek",
-            "uranusjr",
-            "vikramkoka",
-            "xinbinhuang",
-            "yuqian90",
-            "zhongjiajie"
-          ]'), github.event.pull_request.user.login)
-        ) && github.repository == 'apache/airflow'
-      ) && 'self-hosted' || 'ubuntu-20.04' }}
+    runs-on: "ubuntu-22.04"
     env:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
-      affected-providers-list-as-string: >
+      affected-providers-list-as-string: >-
         ${{ steps.selective-checks.outputs.affected-providers-list-as-string }}
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
@@ -151,6 +98,7 @@ jobs:
       full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
       parallel-test-types-list-as-string: >-
         ${{ steps.selective-checks.outputs.parallel-test-types-list-as-string }}
+      mssql-parallelism: ${{ steps.selective-checks.outputs.mssql-parallelism }}
       postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mssql-exclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
@@ -172,11 +120,11 @@ jobs:
       skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
       debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
+      runs-on: ${{ steps.selective-checks.outputs.runs-on }}
       source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
       pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
       in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
       build-job-description: ${{ steps.source-run-info.outputs.build-job-description }}
-      runs-on: ${{ steps.source-run-info.outputs.runs-on }}
       canary-run: ${{ steps.source-run-info.outputs.canary-run }}
       run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
     steps:
@@ -247,8 +195,6 @@ jobs:
   # We only push CI cache as PROD cache usually does not gain as much from fresh cache because
   # it uses prepared airflow and provider packages that invalidate the cache anyway most of the time
   push-early-buildx-cache-to-github-registry:
-    permissions:
-      packages: write
     timeout-minutes: 50
     name: "Push Early Image Cache"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
@@ -345,8 +291,6 @@ jobs:
         if: always()
 
   build-ci-images:
-    permissions:
-      packages: write
     timeout-minutes: 80
     name: >-
       ${{needs.build-info.outputs.build-job-description}} CI images
@@ -357,6 +301,8 @@ jobs:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      # Force more parallelism for build even on public images
+      PARALLELISM: 6
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -379,8 +325,6 @@ jobs:
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
 
   build-prod-images:
-    permissions:
-      packages: write
     timeout-minutes: 80
     name: >
       ${{needs.build-info.outputs.build-job-description}} PROD images
@@ -395,6 +339,8 @@ jobs:
       DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
       DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+      # Force more parallelism for build even on public images
+      PARALLELISM: 6
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -431,7 +377,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@v4
         with:
-          python-version: "${{needs.build-info.outputs.default-python-version}}"
+          python-version: 3.8
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
@@ -526,7 +472,7 @@ jobs:
   wait-for-ci-images:
     timeout-minutes: 120
     name: "Wait for CI images"
-    runs-on: "${{needs.build-info.outputs.runs-on}}"
+    runs-on: "ubuntu-22.04"
     needs: [build-info, build-ci-images]
     if: needs.build-info.outputs.image-build == 'true'
     env:
@@ -549,13 +495,6 @@ jobs:
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
           DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-      - name: "Tests Pytest collection"
-        run: breeze testing tests --run-in-parallel --collect-only
-        if: needs.build-info.outputs.run-tests == 'true'
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-          BACKEND: sqlite
-          PARALLEL_TEST_TYPES: "${{needs.build-info.outputs.parallel-test-types-list-as-string}}"
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -568,6 +507,7 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+      UPGRADE_TO_NEWER_DEPENDENCIES: "${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}"
     if: needs.build-info.outputs.basic-checks-only == 'false'
     steps:
       - name: Cleanup repo
@@ -587,10 +527,9 @@ jobs:
           # yamllint disable-line rule:line-length
           key: "pre-commit-full-${{steps.breeze.outputs.host-python-version}}-${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: |
-            pre-commit-full-${{steps.breeze.outputs.host-python-version}}
-            pre-commit-full
+            pre-commit-full-${{steps.breeze.outputs.host-python-version}}-
       - name: "Static checks"
-        run: breeze static-checks --all-files --show-diff-on-failure --color always
+        run: breeze static-checks --all-files --show-diff-on-failure --color always --initialize-environment
         env:
           VERBOSE: "false"
           SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
@@ -638,10 +577,8 @@ jobs:
           restore-keys: "\
             pre-commit-full-${{steps.breeze.outputs.host-python-version}}-\
             ${{ hashFiles('.pre-commit-config.yaml') }}\n
-            pre-commit-basic-${{steps.breeze.outputs.host-python-version}}\n
-            pre-commit-full-${{steps.breeze.outputs.host-python-version}}\n
-            pre-commit-basic-\n
-            pre-commit-full-"
+            pre-commit-basic-${{steps.breeze.outputs.host-python-version}}-\n
+            pre-commit-full-${{steps.breeze.outputs.host-python-version}}-"
       - name: Fetch incoming commit ${{ github.sha }} with its parent
         uses: actions/checkout@v3
         with:
@@ -650,7 +587,7 @@ jobs:
           persist-credentials: false
       - name: "Static checks: basic checks only"
         run: >
-          breeze static-checks --all-files --show-diff-on-failure --color always
+          breeze static-checks --show-diff-on-failure --color always --initialize-environment
           --commit-ref "${{ github.sha }}"
         env:
           VERBOSE: "false"
@@ -662,7 +599,7 @@ jobs:
         if: always()
 
   docs:
-    timeout-minutes: 45
+    timeout-minutes: 90
     name: "Build docs"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images]
@@ -717,8 +654,7 @@ jobs:
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-    if: >
-      needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
+    if: needs.build-info.outputs.skip-provider-tests != 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -767,14 +703,13 @@ jobs:
 
   provider-airflow-compatibility-check:
     timeout-minutes: 80
-    name: "Providers Airflow 2.3 compatibility check"
+    name: "Providers Airflow 2.4 compatibility check"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images]
     env:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-    if: >
-      needs.build-info.outputs.image-build == 'true' && needs.build-info.outputs.default-branch == 'main'
+    if: needs.build-info.outputs.skip-provider-tests != 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -791,10 +726,10 @@ jobs:
         run: >
           breeze release-management prepare-provider-packages --version-suffix-for-pypi dev0
           --package-format wheel ${{ needs.build-info.outputs.affected-providers-list-as-string }}
-      - name: "Fix incompatible 2.3 provider packages"
+      - name: "Fix incompatible 2.4 provider packages"
         run: |
-          # This step should remove the provider packages that are not compatible with 2.3
-          # or replace them with 2.3 compatible versions. Sometimes we have good reasons to bump
+          # This step should remove the provider packages that are not compatible with 2.4
+          # or replace them with 2.4 compatible versions. Sometimes we have good reasons to bump
           # the min airflow versions for some providers and then we need to add exclusions here.
           #
           # The Removal can be done with:
@@ -815,16 +750,20 @@ jobs:
           providers = json.loads(Path("generated/provider_dependencies.json").read_text())
           provider_keys = ",".join(providers.keys())
           print("AIRFLOW_EXTRAS={}".format(provider_keys))' >> $GITHUB_ENV
-      - name: "Install and verify all provider packages and airflow on Airflow 2.3 files"
+      - name: "Install and verify all provider packages and airflow on Airflow 2.4 files"
         run: >
-          breeze release-management verify-provider-packages --use-airflow-version 2.3.0
-          --use-packages-from-dist --airflow-constraints-reference constraints-2.3.0
+          breeze release-management verify-provider-packages --use-airflow-version 2.4.0
+          --use-packages-from-dist --airflow-constraints-reference constraints-2.4.0
         if: needs.build-info.outputs.affected-providers-list-as-string == ''
-      - name: "Install affected provider packages and airflow on Airflow 2.3 files"
+      - name: "Install affected provider packages and airflow on Airflow 2.4 files"
         run: >
-          breeze release-management install-provider-packages --use-airflow-version 2.3.0
-          --airflow-constraints-reference constraints-2.3.0 --run-in-parallel
-        if: needs.build-info.outputs.affected-providers-list-as-string != ''
+          breeze release-management install-provider-packages --use-airflow-version 2.4.0
+          --airflow-constraints-reference constraints-2.4.0 --run-in-parallel
+        # Make sure to skip the run if the only provider to be installed has been removed
+        # in the previous step
+        if: >
+          needs.build-info.outputs.affected-providers-list-as-string != '' &&
+          needs.build-info.outputs.affected-providers-list-as-string != 'openlineage'
       - name: "Fix ownership"
         run: breeze ci fix-ownership
         if: always()
@@ -838,7 +777,7 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       USE_AIRFLOW_VERSION: "sdist"
-    # if: ${{ steps.source-run-info.outputs.canary-run }} == 'true'
+    if: needs.build-info.outputs.canary-run == 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -1064,7 +1003,6 @@ jobs:
       POSTGRES_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       BACKEND_VERSION: "${{needs.build-info.outputs.default-postgres-version}}"
       AIRFLOW_ENABLE_AIP_44: "false"
-      AIRFLOW_ENABLE_AIP_52: "false"
       JOB_ID: >
         postgres-in-progress-disabled-${{needs.build-info.outputs.default-python-version}}-
         ${{needs.build-info.outputs.default-postgres-version}}
@@ -1162,7 +1100,14 @@ jobs:
       BACKEND_VERSION: "${{matrix.mssql-version}}"
       JOB_ID: "mssql-${{matrix.mssql-version}}-${{matrix.python-version}}"
       COVERAGE: "${{needs.build-info.outputs.run-coverage}}"
-    if: needs.build-info.outputs.run-tests == 'true' && needs.build-info.outputs.runs-on == 'self-hosted'
+      # The below (and corresponding selective checks code) can be removed once
+      # https://github.com/apache/airflow/issues/31575 is fixed.
+      # This is a temporary workaround for flaky tests that occur in MSSQL tests for public runners
+      PARALLELISM: "${{needs.build-info.outputs.mssql-parallelism}}"
+    if: >
+      needs.build-info.outputs.run-tests == 'true' &&
+      (needs.build-info.outputs.runs-on == 'self-hosted' ||
+      needs.build-info.outputs.full-tests-needed == 'true')
     steps:
       - name: Cleanup repo
         shell: bash
@@ -1262,32 +1207,32 @@ jobs:
       - name: "Integration Tests Postgres: cassandra"
         run: |
           breeze testing integration-tests --integration cassandra
-          breeze stop
+          breeze down
         if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: mongo"
         run: |
           breeze testing integration-tests --integration mongo
-          breeze stop
+          breeze down
         if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: pinot"
         run: |
           breeze testing integration-tests --integration pinot
-          breeze stop
+          breeze down
         if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: celery"
         run: |
           breeze testing integration-tests --integration celery
-          breeze stop
+          breeze down
         if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: trino, kerberos"
         run: |
           breeze testing integration-tests --integration trino --integration kerberos
-          breeze stop
+          breeze down
         if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: Kafka"
         run: |
           breeze testing integration-tests --integration kafka
-          breeze stop
+          breeze down
         if: needs.build-info.outputs.runs-on != 'self-hosted'
       - name: "Integration Tests Postgres: all-testable"
         run: breeze testing integration-tests --integration all-testable
@@ -1409,7 +1354,7 @@ jobs:
 
 
   wait-for-prod-images:
-    timeout-minutes: 120
+    timeout-minutes: 80
     name: "Wait for PROD images"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
     needs: [build-info, wait-for-ci-images, build-prod-images]
@@ -1495,6 +1440,7 @@ jobs:
           persist-credentials: false
       - name: "Install Breeze"
         uses: ./.github/actions/breeze
+        id: breeze
       - name: Pull PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG }}
         run: breeze prod-image pull --run-in-parallel --tag-as-latest
         env:
@@ -1504,7 +1450,8 @@ jobs:
         with:
           path: ".build/.k8s-env"
           key: "\
-            k8s-env-${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','setup.cfg',\
+            k8s-env-${{steps.breeze.outputs.host-python-version}}-\
+            ${{ hashFiles('scripts/ci/kubernetes/k8s_requirements.txt','setup.cfg',\
             'setup.py','pyproject.toml','generated/provider_dependencies.json') }}"
       - name: Run complete K8S tests ${{needs.build-info.outputs.kubernetes-combos-list-as-string}}
         run: breeze k8s run-complete-tests --run-in-parallel --upgrade
@@ -1538,6 +1485,7 @@ jobs:
   constraints:
     permissions:
       contents: write
+      packages: write
     timeout-minutes: 80
     name: "Constraints"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
@@ -1611,8 +1559,6 @@ jobs:
   # It rebuilds all images using just-pushed constraints using buildx and pushes them to registry
   # It will automatically check if a new python image was released and will pull the latest one if needed
   push-buildx-cache-to-github-registry:
-    permissions:
-      packages: write
     timeout-minutes: 50
     name: "Push Image Cache"
     runs-on: "${{needs.build-info.outputs.runs-on}}"
@@ -1718,6 +1664,8 @@ jobs:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
+      # Force more parallelism for build even on small instances
+      PARALLELISM: 6
     if: >
       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
       needs.build-info.outputs.in-workflow-build == 'true' &&

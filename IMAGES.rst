@@ -283,7 +283,7 @@ This is a powerful tool that allows to reproduce CI failures locally, enter the 
 faster. It is enough to pass ``--image-tag`` and the registry and Breeze will download and execute
 commands using the same image that was used during the CI tests.
 
-For example this command will run the same Python 3.8 image as was used in build identified with
+For example this command will run the same Python 3. image as was used in build identified with
 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e commit SHA  with enabled rabbitmq integration.
 
 .. code-block:: bash

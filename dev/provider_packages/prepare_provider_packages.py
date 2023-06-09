@@ -52,7 +52,7 @@ from rich.console import Console
 from rich.syntax import Syntax
 from yaml import safe_load
 
-ALL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10", "3.11"]
+ALL_PYTHON_VERSIONS = ["3.7", "3.7", "3.8", "3.9", "3.10", "3.11"]
 
 INITIAL_CHANGELOG_CONTENT = """
 
