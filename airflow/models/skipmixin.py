@@ -63,7 +63,6 @@ class SkipMixin(LoggingMixin):
         dag_run: DagRun | DagRunPydantic,
         tasks: Iterable[str] | Iterable[tuple[str, int]],
         session: Session,
-        include_map_index: bool = False,
     ) -> None:
         """Used internally to set state of task instances to skipped from the same dag run."""
         now = timezone.utcnow()
@@ -72,8 +71,7 @@ class SkipMixin(LoggingMixin):
             TI.dag_id == dag_run.dag_id,
             TI.run_id == dag_run.run_id,
         )
-
-        if include_map_index:
+        if isinstance(tasks[0], tuple):
             query = query.filter(tuple_in_condition((TI.task_id, TI.map_index), tasks))
         else:
             query = query.filter(TI.task_id.in_(tasks))
@@ -235,10 +233,9 @@ class SkipMixin(LoggingMixin):
                     skip_tasks.append((t.task_id, downstream_ti.map_index))
 
             follow_task_ids = [t.task_id for t in downstream_tasks if t.task_id in branch_task_id_set]
-
             self.log.info("Skipping tasks %s", skip_tasks)
             with create_session() as session:
-                self._set_state_to_skipped(dag_run, skip_tasks, session=session, include_map_index=True)
+                self._set_state_to_skipped(dag_run, skip_tasks, session=session)
                 # For some reason, session.commit() needs to happen before xcom_push.
                 # Otherwise the session is not committed.
                 session.commit()
