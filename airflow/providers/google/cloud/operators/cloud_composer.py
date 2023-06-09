@@ -33,6 +33,14 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.triggers.cloud_composer import CloudComposerExecutionTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
+# TODO: once we update the minimum Airflow version to 2.7.0
+# remove this try-exception block and
+# inherit BaseDeferrableOperator for operator with deferrable attribute
+try:
+    from airflow.models.basedeferrableoperator import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = False
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -135,7 +143,7 @@ class CloudComposerCreateEnvironmentOperator(GoogleCloudBaseOperator):
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:
@@ -264,7 +272,7 @@ class CloudComposerDeleteEnvironmentOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:
@@ -509,7 +517,7 @@ class CloudComposerUpdateEnvironmentOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         pooling_period_seconds: int = 30,
         **kwargs,
     ) -> None:

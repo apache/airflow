@@ -30,6 +30,14 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 )
 from airflow.sensors.base import BaseSensorOperator
 
+# TODO: once we update the minimum Airflow version to 2.7.0
+# remove this try-exception block and
+# inherit BaseDeferrableOperator for operator with deferrable attribute
+try:
+    from airflow.models.basedeferrableoperator import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = False
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -71,7 +79,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         table_id: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         if deferrable and "poke_interval" not in kwargs:
@@ -184,7 +192,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         partition_id: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         **kwargs,
     ) -> None:
         if deferrable and "poke_interval" not in kwargs:
