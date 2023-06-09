@@ -1932,6 +1932,7 @@ sentry:
       description: ~
       version_added: 1.10.6
       type: string
+      sensitive: true
       example: ~
       default: ""
     before_send:

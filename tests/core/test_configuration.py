@@ -1456,6 +1456,7 @@ def test_sensitive_values():
     # this list was hardcoded prior to 2.6.2
     # included here to avoid regression in refactor
     # inclusion of keys ending in "password" or "kwargs" is automated from 2.6.2
+    # items not matching this pattern must be added here manually
     sensitive_values = {
         ("database", "sql_alchemy_conn"),
         ("core", "fernet_key"),
@@ -1469,6 +1470,7 @@ def test_sensitive_values():
         # The following options are deprecated
         ("core", "sql_alchemy_conn"),
         ("database", "sql_alchemy_engine_args"),
+        ("sentry", "sentry_dsn"),
     }
     default_config = default_config_yaml()
     all_keys = {(s, k) for s, v in default_config.items() for k in v.get("options")}
