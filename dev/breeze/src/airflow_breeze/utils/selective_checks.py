@@ -574,6 +574,9 @@ class SelectiveChecks:
         return "allow suspended provider changes" not in self._pr_labels
 
     def _get_test_types_to_run(self) -> list[str]:
+        if self.full_tests_needed:
+            return list(all_selective_test_types())
+
         candidate_test_types: set[str] = {"Always"}
         matched_files: set[str] = set()
         matched_files.update(
@@ -656,10 +659,7 @@ class SelectiveChecks:
     def parallel_test_types_list_as_string(self) -> str | None:
         if not self.run_tests:
             return None
-        if self.full_tests_needed:
-            current_test_types = set(all_selective_test_types())
-        else:
-            current_test_types = set(self._get_test_types_to_run())
+        current_test_types = set(self._get_test_types_to_run())
         if self._default_branch != "main":
             test_types_to_remove: set[str] = set()
             for test_type in current_test_types:
@@ -735,13 +735,22 @@ class SelectiveChecks:
 
     @cached_property
     def skip_pre_commits(self) -> str:
-        return "identity" if self._default_branch == "main" else "identity,check-airflow-2-2-compatibility"
+        return (
+            "identity"
+            if self._default_branch == "main"
+            else "identity,check-airflow-provider-compatibility,"
+            "check-extra-packages-references,check-provider-yaml-valid"
+        )
 
     @cached_property
     def skip_provider_tests(self) -> bool:
-        return self._default_branch != "main" or not any(
-            test_type.startswith("Providers") for test_type in self._get_test_types_to_run()
-        )
+        if self._default_branch != "main":
+            return True
+        if self.full_tests_needed:
+            return False
+        if any(test_type.startswith("Providers") for test_type in self._get_test_types_to_run()):
+            return False
+        return True
 
     @cached_property
     def cache_directive(self) -> str:
