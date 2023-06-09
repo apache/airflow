@@ -39,14 +39,6 @@ from airflow.providers.google.cloud.links.mlengine import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.mlengine import MLEngineStartTrainingJobTrigger
 
-# TODO: once we update the minimum Airflow version to 2.7.0
-# remove this try-exception block and import directly
-# and use DeferrableMixin for operators with "deferrable" attribute
-try:
-    from airflow.models.deferrablemixin import DEFAULT_DEFERRABLE
-except ImportError:
-    DEFAULT_DEFERRABLE = False
-
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -1106,7 +1098,7 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
         labels: dict[str, str] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         hyperparameters: dict | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         cancel_on_kill: bool = True,
         **kwargs,
     ) -> None:

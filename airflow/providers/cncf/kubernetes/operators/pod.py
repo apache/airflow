@@ -66,14 +66,6 @@ from airflow.utils.helpers import prune_dict, validate_key
 from airflow.utils.timezone import utcnow
 from airflow.version import version as airflow_version
 
-# TODO: once we update the minimum Airflow version to 2.7.0
-# remove this try-exception block and import directly
-# and use DeferrableMixin for operators with "deferrable" attribute
-try:
-    from airflow.models.deferrablemixin import DEFAULT_DEFERRABLE
-except ImportError:
-    DEFAULT_DEFERRABLE = False
-
 if TYPE_CHECKING:
     import jinja2
 
@@ -313,7 +305,7 @@ class KubernetesPodOperator(BaseOperator):
         configmaps: list[str] | None = None,
         skip_on_exit_code: int | Container[int] | None = None,
         base_container_name: str | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         poll_interval: float = 2,
         log_pod_spec_on_failure: bool = True,
         on_finish_action: str = "delete_pod",

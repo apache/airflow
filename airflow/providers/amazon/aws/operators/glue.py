@@ -29,14 +29,6 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.triggers.glue import GlueJobCompleteTrigger
 
-# TODO: once we update the minimum Airflow version to 2.7.0
-# remove this try-exception block and import directly
-# and use DeferrableMixin for operators with "deferrable" attribute
-try:
-    from airflow.models.deferrablemixin import DEFAULT_DEFERRABLE
-except ImportError:
-    DEFAULT_DEFERRABLE = False
-
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -106,7 +98,7 @@ class GlueJobOperator(BaseOperator):
         create_job_kwargs: dict | None = None,
         run_job_kwargs: dict | None = None,
         wait_for_completion: bool = True,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         verbose: bool = False,
         update_config: bool = False,
         job_poll_interval: int | float = 6,
