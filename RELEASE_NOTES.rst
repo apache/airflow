@@ -83,6 +83,7 @@ Misc/Internal
 - Rephrase comment in setup.py (#31312)
 - Add fullname to owner on logging (#30185)
 - Make connection id validation consistent across interface (#31282)
+- Use single source of truth for sensitive config items (#31820)
 
 Doc only changes
 ^^^^^^^^^^^^^^^^
