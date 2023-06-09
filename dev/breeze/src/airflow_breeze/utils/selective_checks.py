@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import multiprocessing as mp
 import os
 import sys
 from enum import Enum
@@ -48,6 +47,7 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
+    SELF_HOSTED_RUNNERS_CPU_COUNT,
     GithubEvents,
     SelectiveUnitTestTypes,
     all_helm_test_packages,
@@ -799,4 +799,4 @@ class SelectiveChecks:
     @cached_property
     def mssql_parallelism(self) -> int:
         # Limit parallelism for MSSQL to 1 for public runners due to race conditions generated there
-        return mp.cpu_count() if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1
+        return SELF_HOSTED_RUNNERS_CPU_COUNT if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1
