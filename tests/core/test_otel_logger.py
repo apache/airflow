@@ -177,6 +177,7 @@ class TestOtelMetrics:
         self.meter.get_meter().create_observable_gauge.assert_called_once_with(
             name=full_name(name), callbacks=ANY
         )
+        assert self.map[full_name(name)].value == 1
 
     def test_gauge_new_metric_with_tags(self, name):
         tags = {"hello": "world"}
@@ -198,6 +199,15 @@ class TestOtelMetrics:
         )
         assert self.map[full_name(name)].value == 2
 
+    def test_gauge_existing_metric_with_delta(self, name):
+        self.stats.gauge(name, value=1)
+        self.stats.gauge(name, value=2, delta=True)
+
+        self.meter.get_meter().create_observable_gauge.assert_called_once_with(
+            name=full_name(name), callbacks=ANY
+        )
+        assert self.map[full_name(name)].value == 3
+
     @mock.patch("random.random", side_effect=[0.1, 0.9])
     @mock.patch.object(MetricsMap, "set_gauge_value")
     def test_gauge_with_rate_limit_works(self, mock_set_value, mock_random, name):
@@ -211,6 +221,11 @@ class TestOtelMetrics:
 
         assert mock_random.call_count == 2
         assert mock_set_value.call_count == 1
+
+    def test_gauge_value_is_correct(self, name):
+        self.stats.gauge(name, value=1)
+
+        assert self.map[full_name(name)].value == 1
 
     @mock.patch("warnings.warn")
     def test_timer_warns_not_implemented(self, mock_warn):

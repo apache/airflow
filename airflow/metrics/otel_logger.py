@@ -315,9 +315,12 @@ class MetricsMap:
         :returns: None
         """
         key: str = _generate_key_name(name, tags)
+        new_value = value
         old_value = self.poke_gauge(name, tags)
+        if delta:
+            new_value += old_value
         # If delta is true, add the new value to the last reading otherwise overwrite it.
-        self.map[key] = Observation(value + (delta * old_value), tags)
+        self.map[key] = Observation(new_value, tags)
 
     def _create_gauge(self, name: str, attributes: Attributes = None):
         """
