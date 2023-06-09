@@ -2567,10 +2567,16 @@ class DAG(LoggingMixin):
         # than creating a BackfillJob and allows us to surface logs to the user
         while dr.state == State.RUNNING:
             schedulable_tis, _ = dr.update_state(session=session)
-            for ti in schedulable_tis:
-                add_logger_if_needed(ti)
-                ti.task = tasks[ti.task_id]
-                _run_task(ti, session=session)
+            try:
+                for ti in schedulable_tis:
+                    add_logger_if_needed(ti)
+                    ti.task = tasks[ti.task_id]
+                    _run_task(ti, session=session)
+            except Exception:
+                self.log.info(
+                    "Task failed. DAG will continue to run until finished and be marked as failed.",
+                    exc_info=True,
+                )
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
             secrets_backend_list.pop(0)

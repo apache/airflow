@@ -1875,6 +1875,48 @@ class TestDag:
         dag.test()
         mock_object.assert_called_with("output of first task")
 
+    def test_dag_test_with_fail_handler(self):
+        mock_handle_object_1 = mock.MagicMock()
+        mock_handle_object_2 = mock.MagicMock()
+
+        def handle_task_failure(context):
+            ti = context["task_instance"]
+            mock_handle_object_1(f"task {ti.task_id} failed...")
+
+        def handle_dag_failure(context):
+            ti = context["task_instance"]
+            mock_handle_object_2(f"dag {ti.dag_id} run failed...")
+
+        dag = DAG(
+            dag_id="test_local_testing_conn_file",
+            default_args={"on_failure_callback": handle_task_failure},
+            on_failure_callback=handle_dag_failure,
+            start_date=DEFAULT_DATE,
+        )
+
+        mock_task_object_1 = mock.MagicMock()
+        mock_task_object_2 = mock.MagicMock()
+
+        @task_decorator
+        def check_task():
+            mock_task_object_1()
+            raise AirflowException("boooom")
+
+        @task_decorator
+        def check_task_2(my_input):
+            # we call a mock object to ensure that this task actually ran.
+            mock_task_object_2(my_input)
+
+        with dag:
+            check_task_2(check_task())
+
+        dag.test()
+
+        mock_handle_object_1.assert_called_with("task check_task failed...")
+        mock_handle_object_2.assert_called_with("dag test_local_testing_conn_file run failed...")
+        mock_task_object_1.assert_called()
+        mock_task_object_2.assert_not_called()
+
     def test_dag_test_with_task_mapping(self):
         dag = DAG(dag_id="test_local_testing_conn_file", start_date=DEFAULT_DATE)
         mock_object = mock.MagicMock()
