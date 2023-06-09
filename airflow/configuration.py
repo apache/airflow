@@ -162,9 +162,9 @@ class AirflowConfigParser(ConfigParser):
             (s, k): item for s, s_c in default_config.items() for k, item in s_c.get("options").items()
         }
         sensitive = {(section, key) for (section, key), v in flattened.items() if v.get("sensitive") is True}
-        depr_option = {self.deprecated_options.get(x)[:-1] for x in sensitive if x in self.deprecated_options}
+        depr_option = {self.deprecated_options[x][:-1] for x in sensitive if x in self.deprecated_options}
         depr_section = {
-            (self.deprecated_sections.get(s)[:-1], k) for s, k in sensitive if s in self.deprecated_sections
+            (self.deprecated_sections[s][0], k) for s, k in sensitive if s in self.deprecated_sections
         }
         sensitive.update(depr_section, depr_option)
         return sensitive
