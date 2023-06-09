@@ -1914,6 +1914,7 @@ class TestDag:
     def test_dag_test_with_fail_handler(self):
         mock_handle_object_1 = mock.MagicMock()
         mock_handle_object_2 = mock.MagicMock()
+
         def handle_task_failure(context):
             ti = context["task_instance"]
             mock_handle_object_1(f"task {ti.task_id} failed...")
