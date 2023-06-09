@@ -2108,19 +2108,22 @@ celery:
       example: ~
       default: "False"
     ssl_key:
-      description: ~
+      description: |
+        Path to the client key.
       version_added: ~
       type: string
       example: ~
       default: ""
     ssl_cert:
-      description: ~
+      description: |
+        Path to the client certificate.
       version_added: ~
       type: string
       example: ~
       default: ""
     ssl_cacert:
-      description: ~
+      description: |
+        Path to the CA certificate.
       version_added: ~
       type: string
       example: ~
@@ -2213,19 +2216,21 @@ dask:
       default: "127.0.0.1:8786"
     tls_ca:
       description: |
-        TLS/ SSL settings to access a secured Dask scheduler.
+        Path to a CA certificate file encoded in PEM format to access a secured Dask scheduler.
       version_added: ~
       type: string
       example: ~
       default: ""
     tls_cert:
-      description: ~
+      description: |
+        Path to a certificate file for the client, encoded in PEM format.
       version_added: ~
       type: string
       example: ~
       default: ""
     tls_key:
-      description: ~
+      description: |
+        Path to a key file for the client, encoded in PEM format.
       version_added: ~
       type: string
       example: ~
