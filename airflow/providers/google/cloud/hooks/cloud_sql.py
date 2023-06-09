@@ -39,16 +39,18 @@ from typing import Any, Sequence
 from urllib.parse import quote_plus
 
 import httpx
+from aiohttp import ClientSession
+from gcloud.aio.auth import AioSession, Token
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
-
-from airflow.exceptions import AirflowException
+from requests import Session
 
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, get_field
+from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -300,8 +302,7 @@ class CloudSQLHook(GoogleBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
 
     @GoogleBaseHook.fallback_to_default_project_id
-    @GoogleBaseHook.operation_in_progress_retry()
-    def export_instance(self, instance: str, body: dict, project_id: str) -> None:
+    def export_instance(self, instance: str, body: dict, project_id: str):
         """
         Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
         or CSV file.
@@ -321,7 +322,7 @@ class CloudSQLHook(GoogleBaseHook):
             .execute(num_retries=self.num_retries)
         )
         operation_name = response["name"]
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+        return operation_name
 
     @GoogleBaseHook.fallback_to_default_project_id
     def import_instance(self, instance: str, body: dict, project_id: str) -> None:
@@ -376,6 +377,7 @@ class CloudSQLHook(GoogleBaseHook):
         except HttpError as ex:
             raise AirflowException(f"Cloning of instance {instance} failed: {ex.content}")
 
+    @GoogleBaseHook.fallback_to_default_project_id
     def _wait_for_operation_to_complete(
         self, project_id: str, operation_name: str, time_to_sleep: int = TIME_TO_SLEEP_IN_SECONDS
     ) -> None:
@@ -410,6 +412,42 @@ CLOUD_SQL_PROXY_DOWNLOAD_URL = "https://dl.google.com/cloudsql/cloud_sql_proxy.{
 CLOUD_SQL_PROXY_VERSION_DOWNLOAD_URL = (
     "https://storage.googleapis.com/cloudsql-proxy/{}/cloud_sql_proxy.{}.{}"
 )
+
+
+class CloudSQLAsyncHook(GoogleBaseAsyncHook):
+    """Class to get asynchronous hook for Google Cloud SQL."""
+
+    sync_hook_class = CloudSQLHook
+
+    async def _get_conn(self, session: Session, url: str):
+        scopes = [
+            "https://www.googleapis.com/auth/cloud-platform",
+            "https://www.googleapis.com/auth/sqlservice.admin",
+        ]
+
+        async with Token(scopes=scopes) as token:
+            session_aio = AioSession(session)
+            headers = {
+                "Authorization": f"Bearer {await token.get()}",
+            }
+        return await session_aio.get(url=url, headers=headers)
+
+    async def get_operation_name(self, project_id: str, operation_name: str, session):
+        url = f"https://sqladmin.googleapis.com/sql/v1beta4/projects/{project_id}/operations/{operation_name}"
+        return await self._get_conn(url=str(url), session=session)
+
+    async def get_operation(self, project_id: str, operation_name: str):
+        async with ClientSession() as session:
+            try:
+                operation = await self.get_operation_name(
+                    project_id=project_id,
+                    operation_name=operation_name,
+                    session=session,
+                )
+                operation = await operation.json(content_type=None)
+            except HttpError as e:
+                raise e
+            return operation
 
 
 class CloudSqlProxyRunner(LoggingMixin):
