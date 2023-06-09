@@ -102,8 +102,8 @@ def _type_as_str(obj: Instrument) -> str:
     :param obj: An OTel Instrument or subclass
     :returns: The type() of the Instrument without all the nested class info
     """
-    # type() will return something like: <class 'opentelemetry.sdk.metrics._internal.instrument._Counter'>
-    # This extracts that down to just "Counter" (or "Gauge", etc.) for cleaner logging purposes.
+    # type().__name__ will return something like: '_Counter',
+    # this drops the leading underscore for cleaner logging.
 
     return type(obj).__name__[1:]
 
