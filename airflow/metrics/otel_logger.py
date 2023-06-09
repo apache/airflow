@@ -153,7 +153,7 @@ class SafeOtelLogger:
         rate: float = 1,
         tags: Attributes = None,
     ):
-        """
+        """counter
         Increment stat by count.
 
         :param stat: The name of the stat to increment.
@@ -226,12 +226,12 @@ class SafeOtelLogger:
             return
 
         if back_compat_name and self.metrics_validator.test(back_compat_name):
-            self.metrics_map.set_value(
+            self.metrics_map.set_gauge_value(
                 full_name(prefix=self.prefix, name=back_compat_name), value, delta, tags
             )
 
         if self.metrics_validator.test(stat):
-            self.metrics_map.set_value(full_name(prefix=self.prefix, name=stat), value, delta, tags)
+            self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), value, delta, tags)
 
     @validate_stat
     def timing(
@@ -304,7 +304,7 @@ class MetricsMap:
         if key in self.map.keys():
             del self.map[key]
 
-    def set_value(self, name: str, value: float, delta: bool, tags: Attributes):
+    def set_gauge_value(self, name: str, value: float, delta: bool, tags: Attributes):
         """
         Overrides the last reading for a Gauge with a new value.
 

@@ -199,9 +199,9 @@ class TestOtelMetrics:
         assert self.map[full_name(name)].value == 2
 
     @mock.patch("random.random", side_effect=[0.1, 0.9])
-    @mock.patch.object(MetricsMap, "set_value")
+    @mock.patch.object(MetricsMap, "set_gauge_value")
     def test_gauge_with_rate_limit_works(self, mock_set_value, mock_random, name):
-        # Create the counter and set the value to 1
+        # Create the gauge and set the value to 1
         self.stats.gauge(name, value=1, rate=0.5)
         # This one should not increment because random() will return a value higher than `rate`
         self.stats.gauge(name, value=1, rate=0.5)
