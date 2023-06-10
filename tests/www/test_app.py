@@ -86,15 +86,18 @@ class TestApp:
         assert b"success" == response.get_data()
         assert response.status_code == 200
 
-    @conf_vars(
-        {
-            ("webserver", "base_url"): "http://localhost:8080/internal-client",
-        }
+    @pytest.mark.parametrize(
+        "base_url",
+        [
+            "http://localhost:8080/internal-client",
+            "http://localhost:8080/internal-client/",
+        ],
     )
     @dont_initialize_flask_app_submodules
-    def test_should_respect_base_url_ignore_proxy_headers(self):
-        app = application.cached_app(testing=True)
-        app.url_map.add(Rule("/debug", endpoint="debug"))
+    def test_should_respect_base_url_ignore_proxy_headers(self, base_url):
+        with conf_vars({("webserver", "base_url"): base_url}):
+            app = application.cached_app(testing=True)
+            app.url_map.add(Rule("/debug", endpoint="debug"))
 
         def debug_view():
             from flask import request
@@ -126,9 +129,15 @@ class TestApp:
         assert b"success" == response.get_data()
         assert response.status_code == 200
 
+    @pytest.mark.parametrize(
+        "base_url",
+        [
+            "http://localhost:8080/internal-client",
+            "http://localhost:8080/internal-client/",
+        ],
+    )
     @conf_vars(
         {
-            ("webserver", "base_url"): "http://localhost:8080/internal-client",
             ("webserver", "enable_proxy_fix"): "True",
             ("webserver", "proxy_fix_x_for"): "1",
             ("webserver", "proxy_fix_x_proto"): "1",
@@ -138,9 +147,12 @@ class TestApp:
         }
     )
     @dont_initialize_flask_app_submodules
-    def test_should_respect_base_url_when_proxy_fix_and_base_url_is_set_up_but_headers_missing(self):
-        app = application.cached_app(testing=True)
-        app.url_map.add(Rule("/debug", endpoint="debug"))
+    def test_should_respect_base_url_when_proxy_fix_and_base_url_is_set_up_but_headers_missing(
+        self, base_url
+    ):
+        with conf_vars({("webserver", "base_url"): base_url}):
+            app = application.cached_app(testing=True)
+            app.url_map.add(Rule("/debug", endpoint="debug"))
 
         def debug_view():
             from flask import request

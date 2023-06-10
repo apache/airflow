@@ -758,7 +758,7 @@ class TaskInstance(Base, LoggingMixin):
     def log_url(self) -> str:
         """Log URL for TaskInstance."""
         iso = quote(self.execution_date.isoformat())
-        base_url = conf.get_mandatory_value("webserver", "BASE_URL")
+        base_url = conf.get_mandatory_value("webserver", "BASE_URL").rstrip("/")
         return (
             f"{base_url}/log"
             f"?execution_date={iso}"
@@ -770,7 +770,7 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def mark_success_url(self) -> str:
         """URL to mark TI success."""
-        base_url = conf.get_mandatory_value("webserver", "BASE_URL")
+        base_url = conf.get_mandatory_value("webserver", "BASE_URL").rstrip("/")
         return (
             f"{base_url}/confirm"
             f"?task_id={self.task_id}"
