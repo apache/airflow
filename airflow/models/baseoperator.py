@@ -1584,6 +1584,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         This is achieved by raising a special exception (TaskDeferred)
         which is caught in the main _execute_task wrapper.
+
+        Triggers can send execution back to task or end the task instance directly.
+        If the trigger will end the task instance itself, ``method_name`` should be
+        None; otherwise, provide the name of the method that should be used when
+        resuming execution in the task.
         """
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 

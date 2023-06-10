@@ -341,6 +341,11 @@ class TaskDeferred(BaseException):
 
     Special exception raised to signal that the operator it was raised from
     wishes to defer until a trigger fires.
+
+    Triggers can send execution back to task or end the task instance directly.
+    If the trigger will end the task instance itself, ``method_name`` should be
+    None; otherwise, provide the name of the method that should be used when
+    resuming execution in the task.
     """
 
     def __init__(
