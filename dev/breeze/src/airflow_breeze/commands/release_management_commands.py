@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import glob
 import operator
+import logging
 import os
 import random
 import re
@@ -33,6 +34,8 @@ from subprocess import DEVNULL
 from typing import IO, TYPE_CHECKING, Any, Generator, Iterable, NamedTuple
 
 import click
+import semver
+from github import Github, UnknownObjectException
 from rich.progress import Progress
 from rich.syntax import Syntax
 
@@ -148,6 +151,10 @@ from airflow_breeze.utils.run_utils import (
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose
 from airflow_breeze.utils.versions import is_pre_release
+from airflow_breeze.utils.packages import get_min_airflow_version
+
+log = logging.getLogger(__name__)
+
 
 argument_provider_packages = click.argument(
     "provider_packages",
@@ -1654,6 +1661,60 @@ def create_github_issue_url(title: str, body: str, labels: Iterable[str]) -> str
         f"title={quoted_title}&body={quoted_body}"
     )
 
+def discover_pending_todo_directives(
+    package_name: str,
+    provider_deps: dict,
+    provider_root: Path,
+    curr_prov_version_str: str,
+    repo_root: Path,
+):
+    curr_prov_version = semver.VersionInfo.parse(curr_prov_version_str)
+    failures = {}
+    curr_min_airflow_version = semver.VersionInfo.parse(get_min_airflow_version(package_name))
+    provider_failures = defaultdict(list)
+    for file in provider_root.rglob("*.py"):
+        for idx, line in enumerate(file.read_text().splitlines()):
+            for identifier, cmpr_vers in [
+                ("remove-on-min-airflow-version", curr_min_airflow_version),
+                ("remove-on-provider-version", curr_prov_version),
+            ]:
+                pattern = re.compile(rf"\s*# todo: {identifier}=([0-9.]+)(?: +author=(\w+))? *")
+                if m := pattern.match(line):
+                    version_str, username = m.groups()
+                    version = tuple(map(int, version_str.split(".")))
+                    rel_path = file.relative_to(repo_root)
+                    ref = {
+                        "reference": f"{rel_path}:{idx + 1}",
+                        "username": f"@{username}" if username else None,
+                    }
+                    if version and cmpr_vers >= version:
+                        provider_failures[identifier].append(ref)
+    if provider_failures:
+        failures[package_name] = dict(provider_failures)
+    return failures
+
+
+def print_todo_directive_message(todos):
+    if todos:
+        message = (
+            "Found providers with todos which should be addressed now. "
+            "There are two classes of such todos. One is when the provider version is now"
+            "greater than that specified in comment. "
+            "The other is when the current min airflow version for the provider is greater"
+            "than specified in the comment. "
+        )
+        message += "\n\n"
+        for package, info in todos.items():
+            message += f"## {package}\n"
+            for type_, elems in info.items():
+                message += f"### {type_}"
+                for elem in elems:
+                    ref = elem["reference"]
+                    message += f"\n  - [ ] {ref}"
+                    if username := elem["username"]:
+                        message += f" ({username})"
+        get_console().print(message)
+
 
 @release_management.command(
     name="generate-issue-content-providers", help="Generates content for issue to test the release."
@@ -1686,7 +1747,7 @@ def generate_issue_content_providers(
 ):
     import jinja2
     import yaml
-    from github import Github, Issue, PullRequest, UnknownObjectException
+    from github import Issue, PullRequest
 
     class ProviderPRInfo(NamedTuple):
         provider_package_id: str
@@ -1738,26 +1799,33 @@ def generate_issue_content_providers(
                         get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
                 progress.advance(task)
         providers: dict[str, ProviderPRInfo] = {}
+        todos = {}
         for provider_id in prepared_package_ids:
             pull_request_list = [pull_requests[pr] for pr in provider_prs[provider_id] if pr in pull_requests]
-            provider_yaml_dict = yaml.safe_load(
-                (
-                    AIRFLOW_SOURCES_ROOT
-                    / "airflow"
-                    / "providers"
-                    / provider_id.replace(".", os.sep)
-                    / "provider.yaml"
-                ).read_text()
-            )
+            provider_root = AIRFLOW_SOURCES_ROOT / "airflow" / "providers" / provider_id.replace(".", os.sep)
+            provider_yaml_dict = yaml.safe_load((provider_root / "provider.yaml").read_text())
+            package_name = provider_yaml_dict["package-name"]
+            provider_deps = provider_yaml_dict["dependencies"]
+            curr_provider_version_str = provider_yaml_dict["versions"][0]
             if pull_request_list:
                 package_suffix = get_suffix_from_package_in_dist(files_in_dist, provider_id)
                 providers[provider_id] = ProviderPRInfo(
-                    version=provider_yaml_dict["versions"][0],
+                    version=curr_provider_version_str,
                     provider_package_id=provider_id,
-                    pypi_package_name=provider_yaml_dict["package-name"],
+                    pypi_package_name=package_name,
                     pr_list=pull_request_list,
                     suffix=package_suffix if package_suffix else "",
                 )
+            todos.update(
+                discover_pending_todo_directives(
+                    provider_deps=provider_deps,
+                    package_name=provider_id,
+                    provider_root=provider_root,
+                    curr_prov_version_str=curr_provider_version_str,
+                    repo_root=AIRFLOW_SOURCES_ROOT,
+                )
+            )
+
         template = jinja2.Template(
             (Path(__file__).parents[1] / "provider_issue_TEMPLATE.md.jinja2").read_text()
         )
@@ -1774,6 +1842,7 @@ def generate_issue_content_providers(
             f"prepared on {datetime.now():%B %d, %Y}[/]"
         )
         get_console().print()
+        print_todo_directive_message(todos)
         issue_content += "\n"
         users: set[str] = set()
         for provider_info in providers.values():

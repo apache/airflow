@@ -167,6 +167,11 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         self.client = elasticsearch.Elasticsearch(host, **es_kwargs)
         # in airflow.cfg, host of elasticsearch has to be http://dockerhostXxxx:9200
+
+        if log_id_template is not None:
+            # todo: remove-on-provider-version=5.0 author=dstandish
+            #   remove log_id_template param in next major release
+            pass
         if USE_PER_RUN_LOG_ID and log_id_template is not None:
             warnings.warn(
                 "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
