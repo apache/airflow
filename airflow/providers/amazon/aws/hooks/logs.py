@@ -63,7 +63,7 @@ class AwsLogsHook(AwsBaseHook):
         start_time: int = 0,
         skip: int = 0,
         start_from_head: bool = True,
-        continuation_token: ContinuationToken = ContinuationToken(),
+        continuation_token: ContinuationToken | None = None,
     ) -> Generator:
         """
         A generator for log items in a single stream. This will yield all the
@@ -86,6 +86,9 @@ class AwsLogsHook(AwsBaseHook):
                  |   'message' (str): The log event data.
                  |   'ingestionTime' (int): The time in milliseconds the event was ingested.
         """
+        if continuation_token is None:
+            continuation_token = AwsLogsHook.ContinuationToken()
+
         num_consecutive_empty_response = 0
         while True:
             if continuation_token.value is not None:
