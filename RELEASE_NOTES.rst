@@ -31,6 +31,7 @@ No significant changes.
 
 Bug Fixes
 ^^^^^^^^^
+- Cascade update of TaskInstance to TaskMap table (#31445)
 - Fix Kubernetes executors detection of deleted pods (#31274)
 - Use keyword parameters for migration methods for mssql (#31309)
 - Control permissibility of driver config in extra from airflow.cfg (#31754)
