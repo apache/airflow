@@ -178,9 +178,9 @@ class EcsTaskLogFetcher(Thread):
             for log_event in log_events:
                 self.logger.info(self._event_to_str(log_event))
 
-    def _get_log_events(
-        self, skip_token: AwsLogsHook.ContinuationToken = AwsLogsHook.ContinuationToken()
-    ) -> Generator:
+    def _get_log_events(self, skip_token: AwsLogsHook.ContinuationToken | None = None) -> Generator:
+        if skip_token is None:
+            skip_token = AwsLogsHook.ContinuationToken()
         try:
             yield from self.hook.get_log_events(
                 self.log_group, self.log_stream_name, continuation_token=skip_token
