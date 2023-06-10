@@ -185,7 +185,15 @@ class EcsTaskLogFetcher(Thread):
         except ClientError as error:
             if error.response["Error"]["Code"] != "ResourceNotFoundException":
                 self.logger.warning("Error on retrieving Cloudwatch log events", error)
-
+            else:
+                self.logger.info(
+                    "Cannot find log stream yet, it can take a couple of seconds to show up.\n"
+                    "If this error persists, check that the log group and stream are correct:\n"
+                    "group: %s\n"
+                    "stream: %s",
+                    self.log_group,
+                    self.log_stream_name,
+                )
             yield from ()
         except ConnectionClosedError as error:
             self.logger.warning("ConnectionClosedError on retrieving Cloudwatch log events", error)
