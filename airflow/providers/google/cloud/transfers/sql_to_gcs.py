@@ -82,7 +82,8 @@ class BaseSQLToGCSOperator(BaseOperator):
     :param write_on_empty: Optional parameter to specify whether to write a file if the
         export does not return any rows. Default is False so we will not write a file
         if the export returns no rows.
-    :param parquet_row_group_size: The size of parquet row groups when using parquet format.
+    :param parquet_row_group_size: The approximate number of rows in each row group
+        when using parquet format.
     """
 
     template_fields: Sequence[str] = (
