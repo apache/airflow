@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import textwrap
 from tempfile import NamedTemporaryFile
+import time
 
 from packaging.version import parse as parse_version
 
@@ -187,9 +188,21 @@ def shell(args):
 
 
 @cli_utils.action_cli(check_db=False)
-def check(_):
+def check(args):
     """Runs a check command that checks if db is available."""
-    db.check()
+    retries: int = args.retry
+    retry_delay: int = args.retry_delay
+
+    if db.check():
+        exit(0)
+
+    while retries > 0:
+        if db.check():
+            exit(0)
+        retries -= 1
+        print(f"Warning: will retry in {retry_delay} seconds. {retries} retries left")
+        time.sleep(retry_delay)
+    exit(1)
 
 
 # lazily imported by CLI parser for `help` command
