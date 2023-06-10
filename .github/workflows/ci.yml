@@ -23,7 +23,7 @@ on:  # yamllint disable-line rule:truthy
   push:
     branches: ['main', 'v[0-9]+-[0-9]+-test']
   pull_request:
-    branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
+    branches: ['main']
 permissions:
   # All other permissions are set to none
   contents: read
@@ -103,7 +103,7 @@ jobs:
       mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
       mssql-exclude: ${{ steps.selective-checks.outputs.mssql-exclude }}
       sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
-      skip-provider-tests: ${{ steps.source-run-info.outputs.skip-provider-tests }}
+      skip-provider-tests: ${{ steps.selective-checks.outputs.skip-provider-tests }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
       run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
@@ -274,7 +274,9 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       UPGRADE_TO_NEWER_DEPENDENCIES: false
       PLATFORM: "linux/amd64"
-    if: needs.build-info.outputs.canary-run == 'true'
+    if: >
+      needs.build-info.outputs.canary-run == 'true'
+      && needs.build-info.outputs.default-branch == 'main'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
@@ -777,7 +779,9 @@ jobs:
       RUNS_ON: "${{needs.build-info.outputs.runs-on}}"
       PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
       USE_AIRFLOW_VERSION: "sdist"
-    if: needs.build-info.outputs.canary-run == 'true'
+    if: >
+      needs.build-info.outputs.canary-run == 'true' &&
+      needs.build-info.outputs.skip-provider-tests != 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"

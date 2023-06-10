@@ -461,6 +461,7 @@ class GCSHook(GoogleBaseHook):
         timeout: int | None = DEFAULT_TIMEOUT,
         num_max_attempts: int = 1,
         metadata: dict | None = None,
+        cache_control: str | None = None,
     ) -> None:
         """
         Uploads a local file or file data as string or bytes to Google Cloud Storage.
@@ -476,6 +477,7 @@ class GCSHook(GoogleBaseHook):
         :param timeout: Request timeout in seconds.
         :param num_max_attempts: Number of attempts to try to upload the file.
         :param metadata: The metadata to be uploaded with the file.
+        :param cache_control: Cache-Control metadata field.
         """
 
         def _call_with_retry(f: Callable[[], None]) -> None:
@@ -511,6 +513,9 @@ class GCSHook(GoogleBaseHook):
 
         if metadata:
             blob.metadata = metadata
+
+        if cache_control:
+            blob.cacheControl = cache_control
 
         if filename and data:
             raise ValueError(

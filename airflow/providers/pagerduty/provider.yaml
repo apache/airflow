@@ -56,3 +56,6 @@ hooks:
     python-modules:
       - airflow.providers.pagerduty.hooks.pagerduty
       - airflow.providers.pagerduty.hooks.pagerduty_events
+
+notifications:
+  - airflow.providers.pagerduty.notifications.pagerduty.PagerdutyNotifier

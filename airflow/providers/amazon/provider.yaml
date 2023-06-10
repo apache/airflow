@@ -73,8 +73,8 @@ dependencies:
   - mypy-boto3-rds>=1.24.0
   - mypy-boto3-redshift-data>=1.24.0
   - mypy-boto3-appflow>=1.24.0
+  - asgiref
   - mypy-boto3-s3>=1.24.0
-
 
 integrations:
   - integration-name: Amazon Athena
@@ -522,6 +522,9 @@ triggers:
     python-modules:
       - airflow.providers.amazon.aws.triggers.glue
       - airflow.providers.amazon.aws.triggers.glue_crawler
+  - integration-name: Amazon Simple Storage Service (S3)
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.s3
   - integration-name: Amazon EMR
     python-modules:
       - airflow.providers.amazon.aws.triggers.emr

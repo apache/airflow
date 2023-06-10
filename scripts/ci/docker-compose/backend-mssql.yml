@@ -22,7 +22,6 @@ services:
       - BACKEND=mssql
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mssql+pyodbc://sa:Airflow123@mssql:1433/airflow?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=No
       - AIRFLOW__CELERY__RESULT_BACKEND=db+mssql+pyodbc://sa:Airflow123@mssql:1433/airflow?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=No
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     depends_on:
       mssql:
         condition: service_healthy

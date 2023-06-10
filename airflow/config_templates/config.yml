@@ -434,6 +434,7 @@ core:
       description: Kwargs to supply to dataset manager.
       version_added: 2.4.0
       type: string
+      sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
     database_access_isolation:
@@ -662,6 +663,7 @@ logging:
         log files will be deleted after they are uploaded to remote location.
       version_added: 2.6.0
       type: string
+      sensitive: true
       example: '{"delete_local_copy": true}'
       default: ""
     encrypt_s3_logs:
@@ -1052,6 +1054,7 @@ secrets:
         ``{{"connections_prefix": "/airflow/connections", "profile_name": "default"}}``
       version_added: 1.10.10
       type: string
+      sensitive: true
       example: ~
       default: ""
 cli:
@@ -1929,6 +1932,7 @@ sentry:
       description: ~
       version_added: 1.10.6
       type: string
+      sensitive: true
       example: ~
       default: ""
     before_send:
@@ -2108,19 +2112,22 @@ celery:
       example: ~
       default: "False"
     ssl_key:
-      description: ~
+      description: |
+        Path to the client key.
       version_added: ~
       type: string
       example: ~
       default: ""
     ssl_cert:
-      description: ~
+      description: |
+        Path to the client certificate.
       version_added: ~
       type: string
       example: ~
       default: ""
     ssl_cacert:
-      description: ~
+      description: |
+        Path to the CA certificate.
       version_added: ~
       type: string
       example: ~
@@ -2197,6 +2204,7 @@ celery_broker_transport_options:
         https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#configuration
       version_added: 2.7.0
       type: string
+      sensitive: true
       example: '{"password": "password_for_redis_server"}'
       default: ~
 dask:
@@ -2213,19 +2221,21 @@ dask:
       default: "127.0.0.1:8786"
     tls_ca:
       description: |
-        TLS/ SSL settings to access a secured Dask scheduler.
+        Path to a CA certificate file encoded in PEM format to access a secured Dask scheduler.
       version_added: ~
       type: string
       example: ~
       default: ""
     tls_cert:
-      description: ~
+      description: |
+        Path to a certificate file for the client, encoded in PEM format.
       version_added: ~
       type: string
       example: ~
       default: ""
     tls_key:
-      description: ~
+      description: |
+        Path to a key file for the client, encoded in PEM format.
       version_added: ~
       type: string
       example: ~

@@ -1885,9 +1885,8 @@ class Airflow(AirflowBaseView):
             XCom.task_id == task_id,
             XCom.execution_date == dttm,
             XCom.map_index == map_index,
-            XCom.key.not_like("_%"),
         )
-        attributes = [tuple(row) for row in xcom_query]
+        attributes = [(k, v) for k, v in xcom_query if not k.startswith("_")]
 
         title = "XCom"
         return self.render_template(
@@ -4160,11 +4159,9 @@ class ConfigurationView(AirflowBaseView):
         # TODO remove "if raw" usage in Airflow 3.0. Configuration can be fetched via the REST API.
         if raw:
             if expose_config == "non-sensitive-only":
-                from airflow.configuration import SENSITIVE_CONFIG_VALUES
-
                 updater = configupdater.ConfigUpdater()
                 updater.read(AIRFLOW_CONFIG)
-                for sect, key in SENSITIVE_CONFIG_VALUES:
+                for sect, key in conf.sensitive_config_values:
                     if updater.has_option(sect, key):
                         updater[sect][key].value = "< hidden >"
                 config = str(updater)
