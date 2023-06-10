@@ -83,7 +83,9 @@ class BaseSQLToGCSOperator(BaseOperator):
         export does not return any rows. Default is False so we will not write a file
         if the export returns no rows.
     :param parquet_row_group_size: The approximate number of rows in each row group
-        when using parquet format.
+        when using parquet format. Using a large row group size can reduce the file size
+        and improve the performance of reading the data, but it needs more memory to
+        execute the operator. (default: 1)
     """
 
     template_fields: Sequence[str] = (
