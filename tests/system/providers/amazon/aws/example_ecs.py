@@ -66,7 +66,7 @@ def get_region():
     return boto3.session.Session().region_name
 
 
-@task
+@task(trigger_rule=TriggerRule.ALL_DONE)
 def clean_logs(group_name: str):
     client = boto3.client("logs")
     # A bit brutal to delete the whole group, I know,
