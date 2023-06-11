@@ -35,12 +35,19 @@ class JdbcHook(DbApiHook):
     To configure driver parameters, you can use the following methods:
         1. Supply them as constructor arguments when instantiating the hook.
         2. Set the "driver_path" and/or "driver_class" parameters in the "hook_params" dictionary when
-        creating the hook using SQL operators.
+           creating the hook using SQL operators.
         3. Set the "driver_path" and/or "driver_class" extra in the connection and correspondingly enable
-        the "allow_driver_path_in_extra" and/or "allow_driver_class_in_extra" options in the "providers.jdbc"
-        section of the Airflow configuration.
+           the "allow_driver_path_in_extra" and/or "allow_driver_class_in_extra" options in the
+           "providers.jdbc" section of the Airflow configuration.
         4. Patch the "JdbcHook.default_driver_path" and/or "JdbcHook.default_driver_class" values in the
-        "local_settings.py" file.
+           "local_settings.py" file.
+
+    See :doc:`/connections/jdbc` for full documentation.
+
+    :param args: passed to DbApiHook
+    :param driver_path: path to the JDBC driver jar file. See above for more info
+    :param driver_class: name of the JDBC driver class. See above for more info
+    :param kwargs: passed to DbApiHook
     """
 
     conn_name_attr = "jdbc_conn_id"
