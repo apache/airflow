@@ -166,3 +166,13 @@ Airflow tries to only run triggers in one place at once, and maintains a heartbe
 This means it's possible, but unlikely, for triggers to run in multiple places at once; this is designed into the Trigger contract, however, and entirely expected. Airflow will de-duplicate events fired when a trigger is running in multiple places simultaneously, so this process should be transparent to your Operators.
 
 Note that every extra ``triggerer`` you run will result in an extra persistent connection to your database.
+
+
+Difference between Deferrable and Non-Deferrable Operators
+----------------------------------------------------------
+
+Deferrable Operators have the ability to pause their execution and release worker slots when they are idle, allowing other tasks to run. They use triggers to resume their execution when specific events occur. This helps to optimize resource utilization and reduce waste in the Airflow cluster.
+
+On the other hand, Non-Deferrable operators occupy worker slots for the entire duration of their execution, even when they are idle, which can result in inefficient resource usage when waiting for events.
+
+
