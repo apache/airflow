@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from contextlib import closing
 from datetime import datetime
-from typing import Any, Callable, Iterable, Mapping, Protocol, Sequence, cast
+from typing import Any, Callable, Iterable, Mapping, Protocol, Sequence, TypeVar, cast, overload
 
 import sqlparse
 from packaging.version import Version
@@ -27,6 +27,8 @@ from sqlalchemy import create_engine
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.version import version
+
+T = TypeVar("T")
 
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
@@ -264,15 +266,39 @@ class DbApiHook(BaseForDbApiHook):
             return None
         return self.descriptions[-1]
 
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> None:
+        ...
+
+    @overload
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping | None = ...,
+        handler: Callable[[Any], T] = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
+    ) -> T | list[T]:
+        ...
+
     def run(
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
         parameters: Iterable | Mapping | None = None,
-        handler: Callable | None = None,
+        handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
-    ) -> Any | list[Any] | None:
+    ) -> T | list[T] | None:
         """Run a command or a list of commands.
 
         Pass a list of SQL statements to the sql parameter to get them to
