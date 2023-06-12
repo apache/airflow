@@ -30,6 +30,7 @@ POLL_INTERVAL = 5
 MAX_ATTEMPT = 5
 AWS_CONN_ID = "aws_batch_job_conn"
 AWS_REGION = "us-east-2"
+pytest.importorskip("aiobotocore")
 
 
 class TestBatchOperatorTrigger:
