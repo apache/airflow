@@ -85,6 +85,8 @@ if __name__ == "__main__":
         get_console().print(
             "[warning]If you see strange stacktraces above, "
             f"run `breeze ci-image build --python 3.8{flag}` and try again. "
-            "You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used."
+            "You can also run `breeze down --cleanup-mypy-cache` to clean up the cache used. "
+            "Still sometimes diff heuristic in mypy is behaving abnormal, to double check you can double "
+            "check by calling `breeze static-checks --type mypy-[dev|core|providers|docs] --all-files`."
         )
     sys.exit(cmd_result.returncode)
