@@ -40,7 +40,7 @@ TABLE_NAME = "task_instance"
 
 def upgrade():
     """Apply Add custom_operator_name column"""
-    op.add_column(TABLE_NAME, sa.Column("custom_operator_name", sa.VARCHAR(length=1000), nullable=False))
+    op.add_column(TABLE_NAME, sa.Column("custom_operator_name", sa.VARCHAR(length=1000), nullable=True))
 
 
 def downgrade():
