@@ -1689,7 +1689,7 @@ class TaskInstance(Base, LoggingMixin):
                 if traceback is not None:
                     self.log.error("Trigger failed:\n%s", "\n".join(traceback))
                 raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
-            elif self.next_method == TaskDeferred.TRIGGER_EXIT:
+            elif self.next_method == TaskDeferred.NOT_SET:
                 raise TaskDeferralError(
                     "Task is resuming from deferral without next_method specified. "
                     "You must either set `method_name` when deferring, or use a trigger "

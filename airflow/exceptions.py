@@ -343,19 +343,22 @@ class TaskDeferred(BaseException):
     wishes to defer until a trigger fires.
 
     Triggers can send execution back to task or end the task instance directly.
-    If the trigger will end the task instance itself, ``method_name`` should be
-    None; otherwise, provide the name of the method that should be used when
-    resuming execution in the task.
+
+    If the trigger will end the task instance itself (i.e. not schedule the task to resume
+    its execution) then you should omit the ``method_name`` param; the default value,
+    ``'__not_set__'`` will be used.
+
+    Otherwise, provide the name of the method that should be used when resuming execution in the task.
     """
 
-    TRIGGER_EXIT = "__trigger_exit__"
-    """Sentinel value to signal the expectation that the trigger will exit the task."""
+    NOT_SET = "__not_set__"
+    """If task is deferred with method_name = NOT_SET, it's expected that the trigger will exit the task."""
 
     def __init__(
         self,
         *,
         trigger,
-        method_name: str = TRIGGER_EXIT,
+        method_name: str = NOT_SET,
         kwargs: dict[str, Any] | None = None,
         timeout: datetime.timedelta | None = None,
     ):
