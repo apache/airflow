@@ -18,8 +18,10 @@
 """Variable subcommands."""
 from __future__ import annotations
 
+import io
 import json
 import os
+import sys
 from json import JSONDecodeError
 
 from airflow.cli.simple_table import AirflowConsole
@@ -76,7 +78,29 @@ def variables_import(args):
 
 def variables_export(args):
     """Exports all the variables to the file."""
-    _variable_export_helper(args.file)
+    var_dict = {}
+    with create_session() as session:
+        qry = session.query(Variable).all()
+
+        data = json.JSONDecoder()
+        for var in qry:
+            try:
+                val = data.decode(var.val)
+            except Exception:
+                val = var.val
+            var_dict[var.key] = val
+    file_is_stdout = _is_stdout(args.file)
+
+    with args.file as f:
+        f.write(json.dumps(var_dict, sort_keys=True, indent=4))
+    if file_is_stdout:
+        print("\nVariables successfully exported.", file=sys.stderr)
+    else:
+        print(f"Variables successfully exported to {args.file.name}.")
+
+
+def _is_stdout(fileio: io.TextIOWrapper) -> bool:
+    return fileio.name == "<stdout>"
 
 
 def _import_helper(filepath):
@@ -101,22 +125,3 @@ def _import_helper(filepath):
         print(f"{suc_count} of {len(var_json)} variables successfully updated.")
         if fail_count:
             print(f"{fail_count} variable(s) failed to be updated.")
-
-
-def _variable_export_helper(filepath):
-    """Helps export all the variables to the file."""
-    var_dict = {}
-    with create_session() as session:
-        qry = session.query(Variable).all()
-
-        data = json.JSONDecoder()
-        for var in qry:
-            try:
-                val = data.decode(var.val)
-            except Exception:
-                val = var.val
-            var_dict[var.key] = val
-
-    with open(filepath, "w") as varfile:
-        varfile.write(json.dumps(var_dict, sort_keys=True, indent=4))
-    print(f"{len(var_dict)} variables successfully exported to {filepath}")
