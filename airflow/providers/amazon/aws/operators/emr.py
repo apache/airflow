@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import ast
 import warnings
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 from uuid import uuid4
 
@@ -518,12 +519,16 @@ class EmrContainerOperator(BaseOperator):
             self.tags,
         )
         if self.deferrable:
+            timeout = (
+                timedelta(seconds=self.max_polling_attempts * self.poll_interval + 60)
+                if self.max_polling_attempts
+                else self.execution_timeout
+            )
             self.defer(
-                timeout=self.execution_timeout,
+                timeout=timeout,
                 trigger=EmrContainerOperatorTrigger(
                     virtual_cluster_id=self.virtual_cluster_id,
                     job_id=self.job_id,
-                    max_attempts=self.max_polling_attempts,
                     aws_conn_id=self.aws_conn_id,
                     poll_interval=self.poll_interval,
                 ),

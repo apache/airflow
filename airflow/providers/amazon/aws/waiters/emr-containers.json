@@ -11,6 +11,18 @@
                     "argument": "jobRun.state",
                     "expected": "COMPLETED",
                     "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "jobRun.state",
+                    "expected": "FAILED",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "jobRun.state",
+                    "expected": "CANCELLED",
+                    "state": "failure"
                 }
             ]
         }
