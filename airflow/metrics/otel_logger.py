@@ -153,7 +153,7 @@ class SafeOtelLogger:
         rate: float = 1,
         tags: Attributes = None,
     ):
-        """counter
+        """
         Increment stat by count.
 
         :param stat: The name of the stat to increment.
@@ -241,7 +241,7 @@ class SafeOtelLogger:
         *,
         tags: Attributes = None,
     ) -> None:
-        warnings.warn(f"Create timer {stat} : OpenTelemetry Timers are not yet implemented.")
+        warnings.warn(f"Create timer {stat}: OpenTelemetry Timers are not yet implemented.")
         return None
 
     @validate_stat
@@ -252,7 +252,7 @@ class SafeOtelLogger:
         tags: Attributes = None,
         **kwargs,
     ) -> TimerProtocol:
-        warnings.warn(f"Create timer {stat} : OpenTelemetry Timers are not yet implemented.")
+        warnings.warn(f"Create timer {stat}: OpenTelemetry Timers are not yet implemented.")
         return Timer()
 
 
@@ -353,7 +353,7 @@ class MetricsMap:
         :returns:  The integer or float value last recorded for the provided Gauge name.
         """
         key = _generate_key_name(name, attributes)
-        if key not in self.map.keys():
+        if key not in self.map:
             self._create_gauge(name, attributes)
 
         return self.map[key].value
