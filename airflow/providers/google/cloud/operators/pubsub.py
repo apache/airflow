@@ -18,7 +18,7 @@
 """
 This module contains Google PubSub operators.
 
-.. spelling::
+.. spelling:word-list::
 
     MessageStoragePolicy
 """

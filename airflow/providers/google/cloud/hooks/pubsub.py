@@ -18,7 +18,7 @@
 """
 This module contains a Google Pub/Sub Hook.
 
-.. spelling::
+.. spelling:word-list::
 
     MessageStoragePolicy
     ReceivedMessage

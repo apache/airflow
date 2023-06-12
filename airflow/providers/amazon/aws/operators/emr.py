@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
+from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
 from airflow.providers.amazon.aws.utils.waiter import waiter
 from airflow.utils.helpers import exactly_one, prune_dict
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -55,6 +56,10 @@ class EmrAddStepsOperator(BaseOperator):
     :param wait_for_completion: If True, the operator will wait for all the steps to be completed.
     :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
+    :param wait_for_completion: Whether to wait for job run completion. (default: True)
+    :param deferrable: If True, the operator will wait asynchronously for the job to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     template_fields: Sequence[str] = (
@@ -84,6 +89,7 @@ class EmrAddStepsOperator(BaseOperator):
         waiter_delay: int | None = None,
         waiter_max_attempts: int | None = None,
         execution_role_arn: str | None = None,
+        deferrable: bool = False,
         **kwargs,
     ):
         if not exactly_one(job_flow_id is None, job_flow_name is None):
@@ -96,10 +102,11 @@ class EmrAddStepsOperator(BaseOperator):
         self.job_flow_name = job_flow_name
         self.cluster_states = cluster_states
         self.steps = steps
-        self.wait_for_completion = wait_for_completion
+        self.wait_for_completion = False if deferrable else wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.execution_role_arn = execution_role_arn
+        self.deferrable = deferrable
 
     def execute(self, context: Context) -> list[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
@@ -137,7 +144,7 @@ class EmrAddStepsOperator(BaseOperator):
         steps = self.steps
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
-        return emr_hook.add_job_flow_steps(
+        step_ids = emr_hook.add_job_flow_steps(
             job_flow_id=job_flow_id,
             steps=steps,
             wait_for_completion=self.wait_for_completion,
@@ -145,6 +152,26 @@ class EmrAddStepsOperator(BaseOperator):
             waiter_max_attempts=self.waiter_max_attempts,
             execution_role_arn=self.execution_role_arn,
         )
+        if self.deferrable:
+            self.defer(
+                trigger=EmrAddStepsTrigger(
+                    job_flow_id=job_flow_id,
+                    step_ids=step_ids,
+                    aws_conn_id=self.aws_conn_id,
+                    max_attempts=self.waiter_max_attempts,
+                    poll_interval=self.waiter_delay,
+                ),
+                method_name="execute_complete",
+            )
+
+        return step_ids
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error resuming cluster: {event}")
+        else:
+            self.log.info("Steps completed successfully")
+        return event["step_ids"]
 
 
 class EmrStartNotebookExecutionOperator(BaseOperator):
@@ -414,7 +441,7 @@ class EmrEksCreateClusterOperator(BaseOperator):
         return EmrContainerHook(self.aws_conn_id)
 
     def execute(self, context: Context) -> str | None:
-        """Create EMR on EKS virtual Cluster"""
+        """Create EMR on EKS virtual Cluster."""
         self.virtual_cluster_id = self.hook.create_emr_on_eks_cluster(
             self.virtual_cluster_name, self.eks_cluster_name, self.eks_namespace, self.tags
         )
@@ -513,7 +540,7 @@ class EmrContainerOperator(BaseOperator):
         )
 
     def execute(self, context: Context) -> str | None:
-        """Run job on EMR Containers"""
+        """Run job on EMR Containers."""
         self.job_id = self.hook.submit_job(
             self.name,
             self.execution_role_arn,
@@ -545,7 +572,7 @@ class EmrContainerOperator(BaseOperator):
         return self.job_id
 
     def on_kill(self) -> None:
-        """Cancel the submitted job run"""
+        """Cancel the submitted job run."""
         if self.job_id:
             self.log.info("Stopping job run with jobId - %s", self.job_id)
             response = self.hook.stop_query(self.job_id)
@@ -838,7 +865,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
 
 class EmrServerlessCreateApplicationOperator(BaseOperator):
     """
-    Operator to create Serverless EMR Application
+    Operator to create Serverless EMR Application.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -963,10 +990,16 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
     template_fields: Sequence[str] = (
         "application_id",
+        "config",
         "execution_role_arn",
         "job_driver",
         "configuration_overrides",
     )
+
+    template_fields_renderers = {
+        "config": "json",
+        "configuration_overrides": "json",
+    }
 
     def __init__(
         self,
@@ -1056,7 +1089,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         return self.job_id
 
     def on_kill(self) -> None:
-        """Cancel the submitted job run"""
+        """Cancel the submitted job run."""
         if self.job_id:
             self.log.info("Stopping job run with jobId - %s", self.job_id)
             response = self.hook.conn.cancel_job_run(applicationId=self.application_id, jobRunId=self.job_id)
@@ -1089,7 +1122,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
 class EmrServerlessStopApplicationOperator(BaseOperator):
     """
-    Operator to stop an EMR Serverless application
+    Operator to stop an EMR Serverless application.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1167,7 +1200,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
 
 class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperator):
     """
-    Operator to delete EMR Serverless application
+    Operator to delete EMR Serverless application.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

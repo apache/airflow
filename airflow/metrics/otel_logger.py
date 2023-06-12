@@ -132,7 +132,7 @@ def _skip_due_to_rate(rate: float) -> bool:
 
 
 class SafeOtelLogger:
-    """Otel Logger"""
+    """Otel Logger."""
 
     def __init__(
         self,

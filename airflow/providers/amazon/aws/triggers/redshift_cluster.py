@@ -29,6 +29,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 class RedshiftCreateClusterTrigger(BaseTrigger):
     """
     Trigger for RedshiftCreateClusterOperator.
+
     The trigger will asynchronously poll the boto3 API and wait for the
     Redshift cluster to be in the `available` state.
 
@@ -80,6 +81,7 @@ class RedshiftCreateClusterTrigger(BaseTrigger):
 class RedshiftPauseClusterTrigger(BaseTrigger):
     """
     Trigger for RedshiftPauseClusterOperator.
+
     The trigger will asynchronously poll the boto3 API and wait for the
     Redshift cluster to be in the `paused` state.
 
@@ -150,6 +152,7 @@ class RedshiftPauseClusterTrigger(BaseTrigger):
 class RedshiftCreateClusterSnapshotTrigger(BaseTrigger):
     """
     Trigger for RedshiftCreateClusterSnapshotOperator.
+
     The trigger will asynchronously poll the boto3 API and wait for the
     Redshift cluster snapshot to be in the `available` state.
 
@@ -225,6 +228,7 @@ class RedshiftCreateClusterSnapshotTrigger(BaseTrigger):
 class RedshiftResumeClusterTrigger(BaseTrigger):
     """
     Trigger for RedshiftResumeClusterOperator.
+
     The trigger will asynchronously poll the boto3 API and wait for the
     Redshift cluster to be in the `available` state.
 
@@ -296,7 +300,7 @@ class RedshiftResumeClusterTrigger(BaseTrigger):
 
 class RedshiftDeleteClusterTrigger(BaseTrigger):
     """
-    Trigger for RedshiftDeleteClusterOperator
+    Trigger for RedshiftDeleteClusterOperator.
 
     :param cluster_identifier:  A unique identifier for the cluster.
     :param max_attempts: The maximum number of attempts to be made.
