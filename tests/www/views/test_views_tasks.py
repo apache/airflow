@@ -977,6 +977,7 @@ def test_task_instances(admin_client):
     assert resp.status_code == 200
     assert resp.json == {
         "also_run_this": {
+            "custom_operator_name": "BashOperator",
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
@@ -1007,6 +1008,7 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "run_after_loop": {
+            "custom_operator_name": "BashOperator",
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
@@ -1037,6 +1039,7 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "run_this_last": {
+            "custom_operator_name": "BashOperator",
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
@@ -1067,6 +1070,7 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_0": {
+            "custom_operator_name": "BashOperator",
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
@@ -1097,6 +1101,7 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_1": {
+            "custom_operator_name": "BashOperator",
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
@@ -1127,6 +1132,7 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_2": {
+            "custom_operator_name": "BashOperator",
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
@@ -1157,6 +1163,7 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "this_will_skip": {
+            "custom_operator_name": "BashOperator",
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
