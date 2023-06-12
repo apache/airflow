@@ -19,12 +19,13 @@
 from __future__ import annotations
 
 import json
-import os
+import sys
 from json import JSONDecodeError
 
 from sqlalchemy import select
 
 from airflow.cli.simple_table import AirflowConsole
+from airflow.cli.utils import is_stdout
 from airflow.models import Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
@@ -76,21 +77,7 @@ def variables_delete(args):
 @providers_configuration_loaded
 def variables_import(args):
     """Imports variables from a given file."""
-    if os.path.exists(args.file):
-        _import_helper(args.file)
-    else:
-        raise SystemExit("Missing variables file.")
-
-
-@providers_configuration_loaded
-def variables_export(args):
-    """Exports all the variables to the file."""
-    _variable_export_helper(args.file)
-
-
-def _import_helper(filepath):
-    """Helps import variables from the file."""
-    with open(filepath) as varfile:
+    with args.file as varfile:
         data = varfile.read()
 
     try:
@@ -112,8 +99,9 @@ def _import_helper(filepath):
             print(f"{fail_count} variable(s) failed to be updated.")
 
 
-def _variable_export_helper(filepath):
-    """Helps export all the variables to the file."""
+@providers_configuration_loaded
+def variables_export(args):
+    """Exports all the variables to the file."""
     var_dict = {}
     with create_session() as session:
         qry = session.scalars(select(Variable))
@@ -126,6 +114,9 @@ def _variable_export_helper(filepath):
                 val = var.val
             var_dict[var.key] = val
 
-    with open(filepath, "w") as varfile:
-        varfile.write(json.dumps(var_dict, sort_keys=True, indent=4))
-    print(f"{len(var_dict)} variables successfully exported to {filepath}")
+    with args.file as varfile:
+        json.dump(var_dict, varfile, sort_keys=True, indent=4)
+    if is_stdout(args.file):
+        print("\nVariables successfully exported.", file=sys.stderr)
+    else:
+        print(f"Variables successfully exported to {args.file.name}.")
