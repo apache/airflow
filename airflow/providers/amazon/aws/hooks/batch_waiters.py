@@ -202,7 +202,7 @@ class BatchWaitersHook(BatchClientHook):
         :param delay:  A delay before polling for job status
 
         :param get_batch_log_fetcher: A method that returns batch_log_fetcher of
-            type AwsTaskLogFetcher or None.
+            type AwsTaskLogFetcher or None when the CloudWatch log stream hasn't been created yet.
 
         :raises: AirflowException
 
