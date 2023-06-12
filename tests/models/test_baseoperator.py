@@ -971,6 +971,11 @@ class TestBaseDeferrableOperator:
             },
         ):
             importlib.reload(baseoperator)
-            deferrable_operator = baseoperator.BaseDeferrableOperator(task_id="deferrable_operator")
-            result_deferrable = deferrable_operator.deferrable
+
+            class DummyDeferrableOperator(baseoperator.BaseDeferrableOperator):
+                def execute(self, context):
+                    pass
+
+            dummy_deferrable_operator = DummyDeferrableOperator(task_id="deferrable_operator")
+            result_deferrable = dummy_deferrable_operator.deferrable
             assert result_deferrable == expected_deferrable
