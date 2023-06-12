@@ -860,7 +860,7 @@ class TaskInstance(Base, LoggingMixin):
             self.queue = ti.queue
             self.priority_weight = ti.priority_weight
             self.operator = ti.operator
-            self.custom_operator_name = ti.operator_name
+            self.custom_operator_name = ti.custom_operator_name
             self.queued_dttm = ti.queued_dttm
             self.queued_by_job_id = ti.queued_by_job_id
             self.pid = ti.pid
