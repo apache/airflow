@@ -322,12 +322,12 @@ class SnowflakeHook(DbApiHook):
     def run(
         self,
         sql: str | Iterable[str],
-        autocommit: bool = ...,
-        parameters: Iterable | Mapping | None = ...,
-        handler: None = ...,
-        split_statements: bool = ...,
-        return_last: bool = ...,
-        return_dictionaries: bool = ...,
+        autocommit: bool = False,
+        parameters: Iterable | Mapping | None = None,
+        handler: None = None,
+        split_statements: bool = True,
+        return_last: bool = True,
+        return_dictionaries: bool = False,
     ) -> None:
         ...
 
@@ -335,12 +335,12 @@ class SnowflakeHook(DbApiHook):
     def run(
         self,
         sql: str | Iterable[str],
-        autocommit: bool = ...,
-        parameters: Iterable | Mapping | None = ...,
-        handler: Callable[[Any], T] = ...,
-        split_statements: bool = ...,
-        return_last: bool = ...,
-        return_dictionaries: bool = ...,
+        autocommit: bool = False,
+        parameters: Iterable | Mapping | None = None,
+        handler: Callable[[Any], T] = None,  # type: ignore[assignment]
+        split_statements: bool = True,
+        return_last: bool = True,
+        return_dictionaries: bool = False,
     ) -> T | list[T]:
         ...
 
