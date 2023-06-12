@@ -236,6 +236,7 @@ COMMITTERS = [
     "mistercrunch",
     "msumit",
     "o-nikolas",
+    "pankajastro",
     "pierrejeambrun",
     "pingzh",
     "potiuk",
