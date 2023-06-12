@@ -388,7 +388,7 @@ class BeamHook(BaseHook):
 class BeamAsyncHook(BeamHook):
     """
     Asynchronous hook for Apache Beam.
-    :param runner: Runner type
+    :param runner: Runner type.
     """
 
     def __init__(
@@ -400,7 +400,7 @@ class BeamAsyncHook(BeamHook):
 
     @staticmethod
     async def _create_tmp_dir(prefix: str) -> str:
-        """Helper method to create temporary directory"""
+        """Helper method to create temporary directory."""
         # Creating separate thread to create temporary directory
         loop = asyncio.get_running_loop()
         partial_func = functools.partial(tempfile.mkdtemp, prefix=prefix)
@@ -411,7 +411,7 @@ class BeamAsyncHook(BeamHook):
     async def _cleanup_tmp_dir(tmp_dir: str) -> None:
         """
         Helper method to delete temporary directory after finishing work with it.
-        Is uses `rmtree` method to recursively remove the temporary directory
+        Is uses `rmtree` method to recursively remove the temporary directory.
         """
         shutil.rmtree(tmp_dir)
 
