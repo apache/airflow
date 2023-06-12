@@ -603,8 +603,8 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == "deferred"
 
-        # ti should have next_method == "__not_set__" when deferred without specifying method_name
-        assert ti.next_method == "__not_set__"
+        # ti should have next_method == "__trigger_exit__" when deferred without specifying method_name
+        assert ti.next_method == "__trigger_exit__"
         assert ti.next_kwargs == {}
 
         # simulate being set back to "scheduled" from the triggerer

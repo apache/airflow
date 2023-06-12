@@ -1574,7 +1574,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self,
         *,
         trigger: BaseTrigger,
-        method_name: str = TaskDeferred.NOT_SET,
+        method_name: str = TaskDeferred.TRIGGER_EXIT,
         kwargs: dict[str, Any] | None = None,
         timeout: timedelta | None = None,
     ):
