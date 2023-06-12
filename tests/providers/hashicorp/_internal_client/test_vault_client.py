@@ -21,6 +21,9 @@ from unittest.mock import mock_open, patch
 
 import pytest
 from hvac.exceptions import InvalidPath, VaultError
+from requests import Session
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
 
@@ -47,6 +50,27 @@ class TestVaultClient:
 
         vault_client = _VaultClient(auth_type="userpass", kv_engine_version=1)
         assert 1 == vault_client.kv_engine_version
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_default_session_retry(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+        vault_client = _VaultClient(
+            auth_type="approle",
+            role_id="role",
+            url="http://localhost:8180",
+            secret_id="pass",
+        )
+        _ = vault_client.client
+
+        default_session = vault_client.kwargs["session"]
+        assert isinstance(default_session, Session)
+        adapter = default_session.get_adapter(url="http://localhost:8180")
+        assert isinstance(adapter, HTTPAdapter)
+        max_retries = adapter.max_retries
+        assert isinstance(max_retries, Retry)
+        assert (max_retries.total if max_retries.total else 0) > 1
+        mock_hvac.Client.assert_called_with(url="http://localhost:8180", session=default_session)
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_approle(self, mock_hvac):
