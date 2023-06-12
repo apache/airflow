@@ -44,6 +44,9 @@ class BatchSensor(BaseSensorOperator):
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     :param region_name: aws region name associated with the client
     :param deferrable: Run sensor in the deferrable mode.
+    :param poke_interval: polling period in seconds to check for the status of the job.
+    :param max_retries: Number of times to poll for job state before
+        returning the current state.
     """
 
     template_fields: Sequence[str] = ("job_id",)

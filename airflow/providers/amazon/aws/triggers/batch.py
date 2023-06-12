@@ -113,13 +113,13 @@ class BatchSensorTrigger(BaseTrigger):
     BatchSensorTrigger is fired as deferred class with params to poll the job state in Triggerer.
 
     :param job_id: the job ID, to poll for job completion or not
-    :param aws_conn_id: connection id of AWS credentials / region name. If None,
-        credential boto3 strategy will be used
     :param region_name: AWS region name to use
         Override the region_name in connection (if provided)
+    :param aws_conn_id: connection id of AWS credentials / region name. If None,
+        credential boto3 strategy will be used
+    :param poke_interval: polling period in seconds to check for the status of the job
     :param max_retries: Number of times to poll for job state before
         returning the current state, defaults to None
-    :param poke_interval: polling period in seconds to check for the status of the job
     """
 
     def __init__(
@@ -177,8 +177,8 @@ class BatchSensorTrigger(BaseTrigger):
                     break
                 except WaiterError as error:
                     self.log.info(
-                        "Job status is %s. Retrying attempt %s/%s",
-                        error.last_response["jobs"][0]["status"],
+                        "Job response is %s. Retrying attempt %s/%s",
+                        error.last_response["Error"]["Message"],
                         attempt,
                         self.max_retries,
                     )

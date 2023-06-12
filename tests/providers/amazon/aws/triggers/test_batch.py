@@ -16,12 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+import asyncio
 from unittest import mock
 from unittest.mock import AsyncMock
 
 import pytest
 
-from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger
+from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger, BatchSensorTrigger
 from airflow.triggers.base import TriggerEvent
 
 BATCH_JOB_ID = "job_id"
@@ -69,3 +70,104 @@ class TestBatchOperatorTrigger:
         response = await generator.asend(None)
 
         assert response == TriggerEvent({"status": "success", "job_id": BATCH_JOB_ID})
+
+
+class TestBatchSensorTrigger:
+    TRIGGER = BatchSensorTrigger(
+        job_id=BATCH_JOB_ID,
+        region_name=AWS_REGION,
+        aws_conn_id=AWS_CONN_ID,
+        poke_interval=POLL_INTERVAL,
+    )
+
+    def test_batch_sensor_trigger_serialization(self):
+        """
+        Asserts that the BatchSensorTrigger correctly serializes its arguments
+        and classpath.
+        """
+
+        classpath, kwargs = self.TRIGGER.serialize()
+        assert classpath == "airflow.providers.amazon.aws.triggers.batch.BatchSensorTrigger"
+        assert kwargs == {
+            "job_id": BATCH_JOB_ID,
+            "max_retries": 5,
+            "region_name": AWS_REGION,
+            "aws_conn_id": AWS_CONN_ID,
+            "poke_interval": POLL_INTERVAL,
+        }
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.get_job_description")
+    async def test_batch_sensor_trigger_run(self, mock_response):
+        """Trigger the BatchSensorTrigger and check if the task is in running state."""
+        mock_response.return_value = {"status": "RUNNABLE"}
+
+        task = asyncio.create_task(self.TRIGGER.run().__anext__())
+        await asyncio.sleep(0.5)
+        # TriggerEvent was not returned
+        assert task.done() is False
+        asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.async_conn")
+    async def test_batch_job_trigger_run(self, mock_async_conn, mock_get_waiter):
+        the_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = the_mock
+
+        mock_get_waiter().wait = AsyncMock()
+
+        batch_trigger = BatchOperatorTrigger(
+            job_id=BATCH_JOB_ID,
+            poll_interval=POLL_INTERVAL,
+            max_retries=MAX_ATTEMPT,
+            aws_conn_id=AWS_CONN_ID,
+            region_name=AWS_REGION,
+        )
+
+        generator = batch_trigger.run()
+        response = await generator.asend(None)
+
+        assert response == TriggerEvent({"status": "success", "job_id": BATCH_JOB_ID})
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.async_conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.get_job_description")
+    async def test_batch_sensor_trigger_completed(self, mock_response, mock_async_conn, mock_get_waiter):
+        """Test if the success event is returned from trigger."""
+        mock_response.return_value = {"status": "SUCCEEDED"}
+
+        the_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = the_mock
+
+        mock_get_waiter().wait = AsyncMock()
+
+        trigger = BatchSensorTrigger(
+            job_id=BATCH_JOB_ID,
+            region_name=AWS_REGION,
+            aws_conn_id=AWS_CONN_ID,
+        )
+        generator = trigger.run()
+        actual_response = await generator.asend(None)
+        assert (
+            TriggerEvent(
+                {"status": "success", "job_id": BATCH_JOB_ID, "message": f"Job {BATCH_JOB_ID} Succeeded"}
+            )
+            == actual_response
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.get_job_description")
+    async def test_batch_sensor_trigger_failure(self, mock_response, mock_get_waiter):
+        """Test if the failure event is returned from trigger."""
+        trigger = BatchSensorTrigger(
+            job_id=BATCH_JOB_ID, region_name=AWS_REGION, aws_conn_id=AWS_CONN_ID, max_retries=0
+        )
+        generator = trigger.run()
+        actual_response = await generator.asend(None)
+        assert (
+            TriggerEvent({"status": "failure", "message": "Job Failed - max attempts reached."})
+            == actual_response
+        )
