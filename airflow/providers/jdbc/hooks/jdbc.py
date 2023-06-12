@@ -41,7 +41,7 @@ class JdbcHook(DbApiHook):
            "providers.jdbc" section of the Airflow configuration. If you're enabling these options in Airflow
            configuration, you should make sure that you trust the users who can edit connections in the UI
            to not use it maliciously.
-        4. Patch the "JdbcHook.default_driver_path" and/or "JdbcHook.default_driver_class" values in the
+        4. Patch the ``JdbcHook.default_driver_path`` and/or ``JdbcHook.default_driver_class`` values in the
            "local_settings.py" file.
 
     See :doc:`/connections/jdbc` for full documentation.

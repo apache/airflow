@@ -788,7 +788,6 @@ javascript
 jaydebeapi
 Jdbc
 jdbc
-JdbcHook
 jdk
 jenkins
 JenkinsRequest
