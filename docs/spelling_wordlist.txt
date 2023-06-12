@@ -13,6 +13,9 @@ acyclic
 AddressesType
 adhoc
 adls
+adobjects
+AdsInsights
+adsinsights
 afterall
 AgentKey
 aio
@@ -382,6 +385,7 @@ DataTransferServiceClient
 datatypes
 DateFrame
 datestamp
+DateTime
 datetime
 Datetimepicker
 Datetimes
