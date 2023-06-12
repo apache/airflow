@@ -45,4 +45,4 @@ def upgrade():
 
 def downgrade():
     """Unapply Add custom_operator_name column"""
-    op.drop_table(TABLE_NAME, "custom_operator_name")
+    op.drop_column(TABLE_NAME, "custom_operator_name")
