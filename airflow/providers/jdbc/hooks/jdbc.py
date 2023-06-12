@@ -38,7 +38,9 @@ class JdbcHook(DbApiHook):
            creating the hook using SQL operators.
         3. Set the "driver_path" and/or "driver_class" extra in the connection and correspondingly enable
            the "allow_driver_path_in_extra" and/or "allow_driver_class_in_extra" options in the
-           "providers.jdbc" section of the Airflow configuration.
+           "providers.jdbc" section of the Airflow configuration. If you're enabling these options in Airflow
+           configuration, you should make sure that you trust the users who can edit connections in the UI
+           to not use it maliciously.
         4. Patch the "JdbcHook.default_driver_path" and/or "JdbcHook.default_driver_class" values in the
            "local_settings.py" file.
 

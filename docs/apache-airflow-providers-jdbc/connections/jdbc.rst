@@ -54,3 +54,8 @@ Extra (optional)
           Note that this is only considered if ``allow_driver_path_in_extra`` is set to True in airflow config section
           ``providers.jdbc`` (by default it is not considered).  Note: if setting this config from env vars, use
           ``AIRFLOW__PROVIDERS_JDBC__ALLOW_DRIVER_PATH_IN_EXTRA=true``.
+
+    .. note::
+        Setting ``allow_driver_path_in_extra`` or ``allow_driver_class_in_extra`` to True allows users to set the driver
+        via the Airflow Connection's ``extra`` field.  By default this is not allowed.  If enabling this functionality,
+        you should make sure that you trust the users who can edit connections in the UI to not use it maliciously.
