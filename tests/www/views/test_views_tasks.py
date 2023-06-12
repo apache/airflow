@@ -1039,7 +1039,7 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "run_this_last": {
-            "custom_operator_name": "BashOperator",
+            "custom_operator_name": "EmptyOperator",
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
