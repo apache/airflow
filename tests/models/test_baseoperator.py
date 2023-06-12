@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import copy
+import importlib
 import logging
 import uuid
 from datetime import date, datetime, timedelta
@@ -30,14 +31,8 @@ import pytest
 from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, DagInvalidTriggerRule, RemovedInAirflow3Warning
 from airflow.lineage.entities import File
-from airflow.models import DAG
-from airflow.models.baseoperator import (
-    BaseOperator,
-    BaseOperatorMeta,
-    chain,
-    chain_linear,
-    cross_downstream,
-)
+from airflow.models import DAG, baseoperator
+from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
@@ -958,3 +953,24 @@ def test_find_mapped_dependants_in_another_group(dag_maker):
 
     dependants = list(gen_result.operator.iter_mapped_dependants())
     assert dependants == [add_result.operator]
+
+
+class TestBaseDeferrableOperator:
+    @pytest.mark.parametrize(
+        "default_deferrable, expected_deferrable",
+        [
+            ("true", True),
+            ("false", False),
+        ],
+    )
+    def test_load_default_deferrable(self, default_deferrable: str, expected_deferrable: bool) -> None:
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "AIRFLOW__OPERATORS__DEFAULT_DEFERRABLE": default_deferrable,
+            },
+        ):
+            importlib.reload(baseoperator)
+            deferrable_operator = baseoperator.BaseDeferrableOperator(task_id="deferrable_operator")
+            result_deferrable = deferrable_operator.deferrable
+            assert result_deferrable == expected_deferrable

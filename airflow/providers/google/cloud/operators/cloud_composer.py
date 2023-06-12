@@ -37,7 +37,7 @@ from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_MET
 # remove this try-exception block and
 # inherit BaseDeferrableOperator for operator with deferrable attribute
 try:
-    from airflow.models.basedeferrableoperator import DEFAULT_DEFERRABLE
+    from airflow.models.baseoperator import DEFAULT_DEFERRABLE
 except ImportError:
     DEFAULT_DEFERRABLE = False
 

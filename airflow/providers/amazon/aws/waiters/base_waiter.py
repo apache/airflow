@@ -24,7 +24,7 @@ from botocore.waiter import Waiter, WaiterModel, create_waiter_with_client
 # remove this try-exception block and
 # inherit BaseDeferrableOperator for operator with deferrable attribute
 try:
-    from airflow.models.basedeferrableoperator import DEFAULT_DEFERRABLE
+    from airflow.models.baseoperator import DEFAULT_DEFERRABLE
 except ImportError:
     DEFAULT_DEFERRABLE = False
 

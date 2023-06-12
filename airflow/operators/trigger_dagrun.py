@@ -26,8 +26,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
-from airflow.models.basedeferrableoperator import BaseDeferrableOperator
-from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.baseoperator import BaseDeferrableOperator, BaseOperator, BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -121,8 +120,8 @@ class TriggerDagRunOperator(BaseDeferrableOperator):
         self.reset_dag_run = reset_dag_run
         self.wait_for_completion = wait_for_completion
         self.poke_interval = poke_interval
-        self.allowed_states = allowed_states or [State.SUCCESS]
-        self.failed_states = failed_states or [State.FAILED]
+        self.allowed_states = allowed_states or [DagRunState.SUCCESS]
+        self.failed_states = failed_states or [DagRunState.FAILED]
 
         if execution_date is not None and not isinstance(execution_date, (str, datetime.datetime)):
             raise TypeError(
