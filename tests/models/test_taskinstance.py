@@ -45,10 +45,12 @@ from airflow.exceptions import (
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
+    TaskDeferralError,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
@@ -78,6 +80,7 @@ from airflow.ti_deps.dependencies_deps import REQUEUEABLE_DEPS, RUNNING_DEPS
 from airflow.ti_deps.dependencies_states import RUNNABLE_STATES
 from airflow.ti_deps.deps.base_ti_dep import TIDepStatus
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTIStates
+from airflow.triggers.testing import SuccessTrigger
 from airflow.utils import timezone
 from airflow.utils.db import merge_conn
 from airflow.utils.module_loading import qualname
@@ -579,6 +582,40 @@ class TestTaskInstance:
         assert ti.next_method is None
         assert ti.next_kwargs is None
         assert ti.state == state
+
+    def test_no_method_specified_and_resume_fails(self, session, dag_maker):
+        """
+        Verify that when no resume method specified, task fails on resume.
+        """
+
+        class DeferOp(BaseOperator):
+            def execute(self, context):
+                self.defer(trigger=SuccessTrigger())
+
+        with dag_maker("test_resume_no_method"):
+            DeferOp(task_id="hello")
+
+        dr = dag_maker.create_dagrun()
+        ti: TaskInstance = dr.task_instances[0]
+        ti._run_raw_task()
+        session.merge(ti)
+        session.commit()
+        ti.refresh_from_db()
+        assert ti.state == "deferred"
+
+        # ti should have next_method == "__trigger_exit__" when deferred without specifying method_name
+        assert ti.next_method == "__trigger_exit__"
+        assert ti.next_kwargs == {}
+
+        # simulate being set back to "scheduled" from the triggerer
+        ti.state = "scheduled"
+
+        # now we run the task again and it should fail with appropriate message
+        # because, we didn't set the method name at deferral time, but are resuming
+        # so we don't know what to do
+        expected_message = "Task is resuming from deferral without next_method specified"
+        with pytest.raises(TaskDeferralError, match=expected_message):
+            ti._run_raw_task()
 
     def test_retry_delay(self, dag_maker, time_machine):
         """

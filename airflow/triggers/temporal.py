@@ -20,7 +20,7 @@ import asyncio
 import datetime
 from typing import Any
 
-from airflow.triggers.base import BaseTrigger, TaskSuccessEvent
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
 
 
@@ -69,7 +69,7 @@ class DateTimeTrigger(BaseTrigger):
             self.log.info("sleeping 1 second...")
             await asyncio.sleep(1)
         self.log.info("Sensor time condition reached; marking task successful and exiting")
-        yield TaskSuccessEvent()
+        yield TriggerEvent()
 
 
 class TimeDeltaTrigger(DateTimeTrigger):

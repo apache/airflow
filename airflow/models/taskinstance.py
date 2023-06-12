@@ -1689,12 +1689,16 @@ class TaskInstance(Base, LoggingMixin):
                 if traceback is not None:
                     self.log.error("Trigger failed:\n%s", "\n".join(traceback))
                 raise TaskDeferralError(next_kwargs.get("error", "Unknown"))
+            elif self.next_method == TaskDeferred.TRIGGER_EXIT:
+                raise TaskDeferralError(
+                    "Task is resuming from deferral without next_method specified. "
+                    "You must either set `method_name` when deferring, or use a trigger "
+                    "that is designed to exit the task."
+                )
             # Grab the callable off the Operator/Task and add in any kwargs
             execute_callable = getattr(task_to_execute, self.next_method)
             if self.next_kwargs:
                 execute_callable = partial(execute_callable, **self.next_kwargs)
-        elif self.next_kwargs is not None:
-            raise AirflowException("Task is coming out of deferral without next_method specified.")
         else:
             execute_callable = task_to_execute.execute
         # If a timeout is specified for the task, make it fail

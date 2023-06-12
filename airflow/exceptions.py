@@ -348,11 +348,14 @@ class TaskDeferred(BaseException):
     resuming execution in the task.
     """
 
+    TRIGGER_EXIT = "__trigger_exit__"
+    """Sentinel value to signal the expectation that the trigger will exit the task."""
+
     def __init__(
         self,
         *,
         trigger,
-        method_name: str | None = None,
+        method_name: str = TRIGGER_EXIT,
         kwargs: dict[str, Any] | None = None,
         timeout: datetime.timedelta | None = None,
     ):
