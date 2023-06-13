@@ -551,17 +551,23 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
         self._start_wait_task(context)
 
-        return self._after_execution(session)
+        self._after_execution(session)
+
+        if self.do_xcom_push and self.task_log_fetcher:
+            return self.task_log_fetcher.get_last_log_message()
+        else:
+            return None
 
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
             raise AirflowException(f"Error in task execution: {event}")
         self.arn = event["task_arn"]  # restore arn to its updated value
         self._after_execution()
-        # TODO return last log line if necessary because task_log_fetcher will always be None here
+        if self._aws_logs_enabled():
+            ...  # TODO return last log line but task_log_fetcher will always be None here
 
     @provide_session
-    def _after_execution(self, session=None) -> str | None:
+    def _after_execution(self, session=None):
         self._check_success_task()
 
         self.log.info("ECS Task has been successfully executed")
@@ -570,11 +576,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
             # Clear the XCom value storing the ECS task ARN if the task has completed
             # as we can't reattach it anymore
             self._xcom_del(session, self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id))
-
-        if self.do_xcom_push and self.task_log_fetcher:
-            return self.task_log_fetcher.get_last_log_message()
-        else:
-            return None
 
     @AwsBaseHook.retry(should_retry_eni)
     def _start_wait_task(self, context):
