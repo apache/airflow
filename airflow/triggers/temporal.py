@@ -95,5 +95,5 @@ class TimeDeltaTrigger(DateTimeTrigger):
     DateTimeTrigger class, since they're operationally the same.
     """
 
-    def __init__(self, delta: datetime.timedelta, **kwargs):
-        super().__init__(moment=timezone.utcnow() + delta, **kwargs)
+    def __init__(self, delta: datetime.timedelta, end_task=False):
+        super().__init__(moment=timezone.utcnow() + delta, end_task=end_task)
