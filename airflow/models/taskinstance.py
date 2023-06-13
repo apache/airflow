@@ -572,7 +572,7 @@ class TaskInstance(Base, LoggingMixin):
             "max_tries": task.retries,
             "executor_config": task.executor_config,
             "operator": task.task_type,
-            "custom_operator_name": task.operator_name,
+            "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
         }
 
@@ -618,6 +618,11 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def next_try_number(self) -> int:
         return self._try_number + 1
+
+    @property
+    def operator_name(self) -> str:
+        """@property: use a more friendly display name for the operator, if set."""
+        return self.custom_operator_name or self.operator  # type: ignore
 
     def command_as_list(
         self,
@@ -889,7 +894,7 @@ class TaskInstance(Base, LoggingMixin):
         # value that needs to be stored in the db.
         self.executor_config = task.executor_config
         self.operator = task.task_type
-        self.custom_operator_name = task.operator_name
+        self.custom_operator_name = getattr(task, "custom_operator_name", None)
 
     @provide_session
     def clear_xcom_data(self, session: Session = NEW_SESSION) -> None:
