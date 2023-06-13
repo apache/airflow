@@ -28,10 +28,11 @@ from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
-class ClusterActiveTrigger(BaseTrigger):
+class ClusterWaiterTrigger(BaseTrigger):
     """
-    Waits for a cluster to be active, triggers when it finishes
+    Polls the status of a cluster using a given waiter. Can be used to poll for an active or inactive cluster.
 
+    :param waiter_name: Name of the waiter to use, for instance 'cluster_active' or 'cluster_inactive'
     :param cluster_arn: ARN of the cluster to watch.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The number of times to ping for status.
@@ -42,6 +43,7 @@ class ClusterActiveTrigger(BaseTrigger):
 
     def __init__(
         self,
+        waiter_name: str,
         cluster_arn: str,
         waiter_delay: int | None,
         waiter_max_attempts: int | None,
@@ -49,6 +51,7 @@ class ClusterActiveTrigger(BaseTrigger):
         region: str | None,
     ):
         self.cluster_arn = cluster_arn
+        self.waiter_name = waiter_name
         self.waiter_delay = waiter_delay if waiter_delay is not None else 15  # written like this to allow 0
         self.attempts = waiter_max_attempts or 999999999
         self.aws_conn_id = aws_conn_id
@@ -58,6 +61,7 @@ class ClusterActiveTrigger(BaseTrigger):
         return (
             self.__class__.__module__ + "." + self.__class__.__qualname__,
             {
+                "waiter_name": self.waiter_name,
                 "cluster_arn": self.cluster_arn,
                 "waiter_delay": self.waiter_delay,
                 "waiter_max_attempts": self.attempts,
@@ -68,7 +72,7 @@ class ClusterActiveTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         async with EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).async_conn as client:
-            waiter = client.get_waiter("cluster_active")
+            waiter = client.get_waiter(self.waiter_name)
             while self.attempts >= 1:
                 self.attempts = self.attempts - 1
                 try:
@@ -79,7 +83,7 @@ class ClusterActiveTrigger(BaseTrigger):
                         },
                     )
                     # we reach this point only if the waiter met a success criteria
-                    yield TriggerEvent({"status": "success", "value": self.cluster_arn})
+                    yield TriggerEvent({"status": "success", "arn": self.cluster_arn})
                     return
                 except WaiterError as error:
                     if "terminal failure" in str(error):
@@ -87,12 +91,14 @@ class ClusterActiveTrigger(BaseTrigger):
                     self.log.info("Status of cluster is %s", error.last_response["clusters"][0]["status"])
                     await asyncio.sleep(int(self.waiter_delay))
 
-        raise AirflowException("Cluster still not active after the max number of tries has been reached")
+        raise AirflowException(
+            "Cluster still not in expected status after the max number of tries has been reached"
+        )
 
 
 class TaskDoneTrigger(BaseTrigger):
     """
-    Waits for an ECS task to be done
+    Waits for an ECS task to be done, while eventually polling logs.
 
     :param cluster: short name or full ARN of the cluster where the task is running.
     :param task_arn: ARN of the task to watch.

@@ -36,7 +36,10 @@ from airflow.providers.amazon.aws.hooks.ecs import (
     EcsTaskLogFetcher,
     should_retry_eni,
 )
-from airflow.providers.amazon.aws.triggers.ecs import ClusterActiveTrigger, TaskDoneTrigger
+from airflow.providers.amazon.aws.triggers.ecs import (
+    ClusterWaiterTrigger,
+    TaskDoneTrigger,
+)
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import provide_session
 
@@ -67,6 +70,15 @@ class EcsBaseOperator(BaseOperator):
     def execute(self, context: Context):
         """Must overwrite in child classes."""
         raise NotImplementedError("Please implement execute() in subclass")
+
+    def _complete_exec_with_cluster_desc(self, context, event=None):
+        """To be used as trigger callback for operators that return the cluster description"""
+        if event["status"] != "success":
+            raise AirflowException(f"Error while waiting for operation on cluster to complete: {event}")
+        cluster_arn = event.get("arn")
+        # We cannot get the cluster definition from the waiter on success, so we have to query it here.
+        details = self.hook.conn.describe_clusters(clusters=[cluster_arn])["clusters"][0]
+        return details
 
 
 class EcsCreateClusterOperator(EcsBaseOperator):
@@ -127,14 +139,15 @@ class EcsCreateClusterOperator(EcsBaseOperator):
             self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
         elif self.deferrable:
             self.defer(
-                trigger=ClusterActiveTrigger(
+                trigger=ClusterWaiterTrigger(
+                    waiter_name="cluster_active",
                     cluster_arn=cluster_details["clusterArn"],
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
                     region=self.region,
                 ),
-                method_name="execute_complete",
+                method_name="_complete_exec_with_cluster_desc",
             )
         elif self.wait_for_completion:
             waiter = self.hook.get_waiter("cluster_active")
@@ -149,11 +162,6 @@ class EcsCreateClusterOperator(EcsBaseOperator):
             )
 
         return cluster_details
-
-    def execute_complete(self, context, event=None):
-        if event["status"] != "success":
-            raise AirflowException(f"Error in cluster creation: {event}")
-        return event.get("value")
 
 
 class EcsDeleteClusterOperator(EcsBaseOperator):
@@ -196,9 +204,21 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
         cluster_state = cluster_details.get("status")
 
         if cluster_state == EcsClusterStates.INACTIVE:
-            # In some circumstances the ECS Cluster is deleted immediately,
-            # so there is no reason to wait for completion.
+            # if the cluster doesn't have capacity providers that are associated with it,
+            # the deletion is instantaneous, and we don't need to wait for it.
             self.log.info("Cluster %r in state: %r.", self.cluster_name, cluster_state)
+        elif self.deferrable:
+            self.defer(
+                trigger=ClusterWaiterTrigger(
+                    waiter_name="cluster_inactive",
+                    cluster_arn=cluster_details["clusterArn"],
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                    region=self.region,
+                ),
+                method_name="_complete_exec_with_cluster_desc",
+            )
         elif self.wait_for_completion:
             waiter = self.hook.get_waiter("cluster_inactive")
             waiter.wait(
