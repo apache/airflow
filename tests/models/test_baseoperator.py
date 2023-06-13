@@ -961,11 +961,10 @@ def test_find_mapped_dependants_in_another_group(dag_maker):
     assert dependants == [add_result.operator]
 
 
-class TestBaseDeferrableOperator:
-    def test_load_default_deferrable(self) -> None:
-        class EmptyDeferrableOperator(BaseDeferrableOperator):
-            def execute(self, _):
-                pass
+def test_load_default_deferrable() -> None:
+    class EmptyDeferrableOperator(BaseDeferrableOperator):
+        def execute(self, _):
+            pass
 
-        empty_deferrable_operator = EmptyDeferrableOperator(task_id="deferrable_operator")
-        assert empty_deferrable_operator.deferrable is DEFAULT_DEFERRABLE
+    empty_deferrable_operator = EmptyDeferrableOperator(task_id="deferrable_operator")
+    assert empty_deferrable_operator.deferrable is DEFAULT_DEFERRABLE
