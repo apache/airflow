@@ -188,6 +188,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             "reattach",
             "number_logs_exception",
             "wait_for_completion",
+            "deferrable",
         )
 
     @pytest.mark.parametrize(
@@ -770,6 +771,26 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
             expected_waiter_config["MaxAttempts"] = waiter_max_attempts
         mocked_waiters.wait.assert_called_once_with(clusters=mock.ANY, WaiterConfig=expected_waiter_config)
         assert result is not None
+
+    @mock.patch.object(EcsDeleteClusterOperator, "client")
+    def test_execute_deferrable(self, mock_client: MagicMock):
+        op = EcsDeleteClusterOperator(
+            task_id="task",
+            cluster_name=CLUSTER_NAME,
+            deferrable=True,
+            waiter_delay=12,
+            waiter_max_attempts=34,
+        )
+        mock_client.delete_cluster.return_value = {
+            "cluster": {"status": EcsClusterStates.DEPROVISIONING, "clusterArn": "my arn"}
+        }
+
+        with pytest.raises(TaskDeferred) as defer:
+            op.execute(None)
+
+        assert defer.value.trigger.cluster_arn == "my arn"
+        assert defer.value.trigger.waiter_delay == 12
+        assert defer.value.trigger.attempts == 34
 
     def test_execute_immediate_delete(self, patch_hook_waiters):
         """Test if cluster deleted during initial request."""

@@ -24,11 +24,11 @@ from botocore.exceptions import WaiterError
 
 from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
-from airflow.providers.amazon.aws.triggers.ecs import ClusterActiveTrigger, TaskDoneTrigger
+from airflow.providers.amazon.aws.triggers.ecs import ClusterWaiterTrigger, TaskDoneTrigger
 from airflow.triggers.base import TriggerEvent
 
 
-class TestClusterActiveTrigger:
+class TestClusterWaiterTrigger:
     @pytest.mark.asyncio
     @mock.patch.object(EcsHook, "async_conn")
     async def test_run_max_attempts(self, client_mock):
@@ -39,7 +39,7 @@ class TestClusterActiveTrigger:
         a_mock.get_waiter().wait = wait_mock
 
         max_attempts = 5
-        trigger = ClusterActiveTrigger("cluster_arn", 0, max_attempts, None, None)
+        trigger = ClusterWaiterTrigger("my_waiter", "cluster_arn", 0, max_attempts, None, None)
 
         with pytest.raises(AirflowException):
             generator = trigger.run()
@@ -55,7 +55,7 @@ class TestClusterActiveTrigger:
         wait_mock = AsyncMock()
         a_mock.get_waiter().wait = wait_mock
 
-        trigger = ClusterActiveTrigger("cluster_arn", 0, 5, None, None)
+        trigger = ClusterWaiterTrigger("my_waiter", "cluster_arn", 0, 5, None, None)
 
         generator = trigger.run()
         response: TriggerEvent = await generator.asend(None)
@@ -72,7 +72,7 @@ class TestClusterActiveTrigger:
         wait_mock.side_effect = WaiterError("terminal failure", "reason", {})
         a_mock.get_waiter().wait = wait_mock
 
-        trigger = ClusterActiveTrigger("cluster_arn", 0, 5, None, None)
+        trigger = ClusterWaiterTrigger("my_waiter", "cluster_arn", 0, 5, None, None)
 
         with pytest.raises(WaiterError):
             generator = trigger.run()
