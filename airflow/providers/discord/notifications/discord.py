@@ -35,7 +35,7 @@ ICON_URL: str = "https://raw.githubusercontent.com/apache/airflow/2.5.0/airflow/
 
 class DiscordNotifier(BaseNotifier):
     """
-    Discord BaseNotifier
+    Discord BaseNotifier.
 
     :param discord_conn_id: Http connection ID with host as "https://discord.com/api/" and
                          default webhook endpoint in the extra field in the form of
@@ -69,11 +69,11 @@ class DiscordNotifier(BaseNotifier):
 
     @cached_property
     def hook(self) -> DiscordWebhookHook:
-        """Discord Webhook Hook"""
+        """Discord Webhook Hook."""
         return DiscordWebhookHook(http_conn_id=self.discord_conn_id)
 
     def notify(self, context):
-        """Send a message to a Discord channel"""
+        """Send a message to a Discord channel."""
         self.hook.username = self.username
         self.hook.message = self.text
         self.hook.avatar_url = self.avatar_url
