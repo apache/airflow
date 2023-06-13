@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
-from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -149,12 +148,11 @@ class BaseTaskEndEvent(TriggerEvent):
 
     task_instance_state: TaskInstanceState
 
-    def __init__(self, *, xcom_return: Any | None = None, other_xcom: dict[str, Any] | None = None, **kwargs):
+    def __init__(self, *, xcoms: dict[str, Any] | None = None, **kwargs):
         if "payload" in kwargs:
             raise ValueError("Param 'payload' not supported for this class.")
         super().__init__(payload=self.task_instance_state)
-        self.xcom_return = xcom_return
-        self.other_xcom = other_xcom
+        self.xcoms = xcoms
 
     def handle_submit(self, *, task_instance: TaskInstance):
         """
@@ -165,17 +163,8 @@ class BaseTaskEndEvent(TriggerEvent):
         # task will be marked with terminal state and will not resume on worker
         task_instance.trigger_id = None
         task_instance.state = self.task_instance_state
-        if self.xcom_return:
-            task_instance.xcom_push(key=XCOM_RETURN_KEY, value=self.xcom_return)
-        if self.other_xcom:
-            for key, value in self.other_xcom.items():
-                if key == XCOM_RETURN_KEY:
-                    log.warning(
-                        "Trigger yielded `other_xcom` with reserved key %s; ignoring. ti=%s",
-                        XCOM_RETURN_KEY,
-                        task_instance,
-                    )
-                    continue
+        if self.xcoms:
+            for key, value in self.xcoms.items():
                 task_instance.xcom_push(key=key, value=value)
 
 

@@ -29,6 +29,7 @@ from airflow.triggers.base import TaskFailedEvent, TaskSkippedEvent, TaskSuccess
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 
 @pytest.fixture
@@ -152,7 +153,7 @@ def test_submit_event_task_end(session, create_task_instance, event_cls, expecte
     # now, for each type, submit event
     # verify that (1) task ends in right state and (2) xcom is pushed
     Trigger.submit_event(
-        trigger.id, event_cls(xcom_return="xcomret", other_xcom={"a": "b", "c": "d"}), session=session
+        trigger.id, event_cls(xcoms={XCOM_RETURN_KEY: "xcomret", "a": "b", "c": "d"}), session=session
     )
     # commit changes made by submit event and expire all cache to read from db.
     session.flush()
