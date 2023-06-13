@@ -91,14 +91,18 @@ class BatchSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context=context)
         else:
+            timeout = (
+                timedelta(seconds=self.max_retries * self.poke_interval + 60)
+                if self.max_retries
+                else self.execution_timeout
+            )
             self.defer(
-                timeout=timedelta(seconds=self.timeout),
+                timeout=timeout,
                 trigger=BatchSensorTrigger(
                     job_id=self.job_id,
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region_name,
                     poke_interval=self.poke_interval,
-                    max_retries=self.max_retries,
                 ),
                 method_name="execute_complete",
             )

@@ -118,8 +118,6 @@ class BatchSensorTrigger(BaseTrigger):
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
     :param poke_interval: polling period in seconds to check for the status of the job
-    :param max_retries: Number of times to poll for job state before
-        returning the current state, defaults to None
     """
 
     def __init__(
@@ -128,14 +126,12 @@ class BatchSensorTrigger(BaseTrigger):
         region_name: str | None,
         aws_conn_id: str | None = "aws_default",
         poke_interval: float = 5,
-        max_retries: int = 5,
     ):
         super().__init__()
         self.job_id = job_id
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
         self.poke_interval = poke_interval
-        self.max_retries = max_retries
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serializes BatchSensorTrigger arguments and classpath."""
@@ -146,7 +142,6 @@ class BatchSensorTrigger(BaseTrigger):
                 "aws_conn_id": self.aws_conn_id,
                 "region_name": self.region_name,
                 "poke_interval": self.poke_interval,
-                "max_retries": self.max_retries,
             },
         )
 
@@ -164,7 +159,7 @@ class BatchSensorTrigger(BaseTrigger):
         async with self.hook.async_conn as client:
             waiter = self.hook.get_waiter("batch_job_complete", deferrable=True, client=client)
             attempt = 0
-            while attempt < self.max_retries:
+            while True:
                 attempt = attempt + 1
                 try:
                     await waiter.wait(
@@ -176,21 +171,20 @@ class BatchSensorTrigger(BaseTrigger):
                     )
                     break
                 except WaiterError as error:
+                    if "Error" in str(error):
+                        yield TriggerEvent({"status": "failure", "message": f"Job Failed: {error}"})
+                        break
                     self.log.info(
-                        "Job response is %s. Retrying attempt %s/%s",
+                        "Job response is %s. Retrying attempt %s",
                         error.last_response["Error"]["Message"],
                         attempt,
-                        self.max_retries,
                     )
                     await asyncio.sleep(int(self.poke_interval))
 
-            if attempt >= self.max_retries:
-                yield TriggerEvent({"status": "failure", "message": "Job Failed - max attempts reached."})
-            else:
-                yield TriggerEvent(
-                    {
-                        "status": "success",
-                        "job_id": self.job_id,
-                        "message": f"Job {self.job_id} Succeeded",
-                    }
-                )
+            yield TriggerEvent(
+                {
+                    "status": "success",
+                    "job_id": self.job_id,
+                    "message": f"Job {self.job_id} Succeeded",
+                }
+            )
