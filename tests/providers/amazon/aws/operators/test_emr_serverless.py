@@ -49,10 +49,10 @@ application_id_delete_operator = "test_emr_serverless_delete_application_operato
 
 
 class TestEmrServerlessCreateApplicationOperator:
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.get_waiter")
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
     def test_execute_successfully_with_wait_for_completion(self, mock_conn, mock_waiter):
-        mock_waiter.wait.return_value = True
+        mock_waiter().wait.return_value = True
         mock_conn.create_application.return_value = {
             "applicationId": application_id,
             "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -68,6 +68,8 @@ class TestEmrServerlessCreateApplicationOperator:
             job_type=job_type,
             client_request_token=client_request_token,
             config=config,
+            waiter_max_attempts=3,
+            waiter_delay=0,
         )
 
         id = operator.execute(None)
@@ -78,14 +80,23 @@ class TestEmrServerlessCreateApplicationOperator:
             type=job_type,
             **config,
         )
+        mock_waiter().wait.assert_called_with(
+            applicationId=application_id,
+            WaiterConfig={
+                "Delay": 1,
+                "MaxAttempts": 1,
+            },
+        )
+        assert mock_waiter().wait.call_count == 2
+
         mock_conn.start_application.assert_called_once_with(applicationId=application_id)
         assert id == application_id
         mock_conn.get_application.call_count == 2
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.get_waiter")
+    @mock.patch.object(EmrServerlessHook, "get_waiter")
     @mock.patch.object(EmrServerlessHook, "conn")
     def test_execute_successfully_no_wait_for_completion(self, mock_conn, mock_waiter):
-        mock_waiter.wait.return_value = True
+        mock_waiter().wait.return_value = True
         mock_conn.create_application.return_value = {
             "applicationId": application_id,
             "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -110,7 +121,7 @@ class TestEmrServerlessCreateApplicationOperator:
         )
         mock_conn.start_application.assert_called_once_with(applicationId=application_id)
 
-        mock_waiter.assert_called_once()
+        mock_waiter().wait.assert_called_once()
         assert id == application_id
 
     @mock.patch.object(EmrServerlessHook, "conn")
