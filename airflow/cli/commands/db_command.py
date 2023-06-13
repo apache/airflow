@@ -17,12 +17,13 @@
 """Database sub-commands."""
 from __future__ import annotations
 
+import logging
 import os
 import textwrap
 from tempfile import NamedTemporaryFile
 
 from packaging.version import parse as parse_version
-from tenacity import Retrying, stop_after_attempt, wait_fixed
+from tenacity import RetryCallState, Retrying, stop_after_attempt, wait_fixed
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -31,6 +32,8 @@ from airflow.utils.db import REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
 from airflow.utils.process_utils import execute_interactive
 
+
+log = logging.getLogger(__name__)
 
 def initdb(args):
     """Initializes the metadata database."""
@@ -193,10 +196,15 @@ def check(args):
     retries: int = args.retry
     retry_delay: int = args.retry_delay
 
+    def _warn_remaining_retries(retrystate: RetryCallState):
+        remain = retries - retrystate.attempt_number
+        log.warning(f"{remain} retries remain, will retry after {retry_delay} seconds")
+
     for attempt in Retrying(
         stop=stop_after_attempt(1 + retries),
         wait=wait_fixed(retry_delay),
-        reraise=True
+        reraise=True,
+        before_sleep=_warn_remaining_retries,
     ):
         with attempt:
             db.check()
