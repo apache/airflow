@@ -168,11 +168,11 @@ This means it's possible, but unlikely, for triggers to run in multiple places a
 Note that every extra ``triggerer`` you run will result in an extra persistent connection to your database.
 
 
-Difference between Deferrable and Non-Deferrable Operators
-----------------------------------------------------------
+Difference between Mode='reschedule' and Deferrable=True in Sensors
+-------------------------------------------------------------------
 
-Deferrable Operators have the ability to pause their execution and release worker slots when they are idle, allowing other tasks to run. They use triggers to resume their execution when specific events occur. This helps to optimize resource utilization and reduce waste in the Airflow cluster.
+In Airflow, Sensors wait for specific conditions to be met before proceeding with downstream tasks. Sensors have two options for managing idle periods: mode='reschedule' and deferrable=True.
 
-On the other hand, Non-Deferrable operators occupy worker slots for the entire duration of their execution, even when they are idle, which can result in inefficient resource usage when waiting for events.
+* Mode='reschedule': The sensor continuously reschedules itself until the condition is met or the maximum retries are reached, suitable for conditions expected to change    over time.Resource consumption may be higher as the sensor is repeatedly executed.
 
-
+* Deferrable=True: The sensor pauses execution when idle, freeing up worker slots for other tasks, ideal for sensors waiting for external events or resources. Requires proper implementation of deferring logic and coordination with the event or resource.
