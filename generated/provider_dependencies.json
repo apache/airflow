@@ -440,7 +440,8 @@
       "pandas-gbq",
       "pandas>=0.17.1",
       "proto-plus>=1.19.6",
-      "sqlalchemy-bigquery>=1.2.1"
+      "sqlalchemy-bigquery>=1.2.1",
+      "sqlalchemy-spanner>=1.6.2"
     ],
     "cross-providers-deps": [
       "amazon",

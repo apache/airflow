@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import PropertyMock
+from unittest.mock import MagicMock, PropertyMock
 
 import pytest
+import sqlalchemy
 
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
 from airflow.providers.google.common.consts import CLIENT_INFO
@@ -33,6 +34,7 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 SPANNER_INSTANCE = "instance"
 SPANNER_CONFIGURATION = "configuration"
 SPANNER_DATABASE = "database-name"
+SPANNER_CONN_PARAMS = ("test_project_id", SPANNER_INSTANCE, SPANNER_DATABASE)
 
 
 class TestGcpSpannerHookDefaultProjectId:
@@ -431,6 +433,12 @@ class TestGcpSpannerHookDefaultProjectId:
         run_in_transaction_method.assert_called_once_with(mock.ANY)
         assert res is None
 
+    def test_get_sqlalchemy_engine(self):
+        self.spanner_hook_default_project_id._get_conn_params = MagicMock(return_value=SPANNER_CONN_PARAMS)
+        engine = self.spanner_hook_default_project_id.get_sqlalchemy_engine()
+        assert isinstance(engine, sqlalchemy.engine.Engine)
+        assert engine.name == "spanner+spanner"
+
 
 class TestGcpSpannerHookNoDefaultProjectID:
     def setup_method(self):
@@ -675,3 +683,9 @@ class TestGcpSpannerHookNoDefaultProjectID:
         database_method.assert_called_once_with(database_id="database-name")
         run_in_transaction_method.assert_called_once_with(mock.ANY)
         assert res is None
+
+    def test_get_sqlalchemy_engine(self):
+        self.spanner_hook_no_default_project_id._get_conn_params = MagicMock(return_value=SPANNER_CONN_PARAMS)
+        engine = self.spanner_hook_no_default_project_id.get_sqlalchemy_engine()
+        assert isinstance(engine, sqlalchemy.engine.Engine)
+        assert engine.name == "spanner+spanner"
