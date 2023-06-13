@@ -32,6 +32,7 @@ from alembic.migration import MigrationContext
 from alembic.runtime.environment import EnvironmentContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import MetaData
+from sqlalchemy.exc import OperationalError, DatabaseError
 
 from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
@@ -48,6 +49,7 @@ from airflow.utils.db import (
     downgrade,
     resetdb,
     upgradedb,
+    check,
 )
 
 
@@ -251,3 +253,12 @@ class TestDb:
         import airflow
 
         assert config.config_file_name == os.path.join(os.path.dirname(airflow.__file__), "alembic.ini")
+
+    def test_check(self):
+        session_mock = MagicMock()
+        assert check(session_mock)
+        session_mock.execute = mock.Mock(side_effect=OperationalError("FOO", None, None))
+        assert not check(session_mock)
+        session_mock.execute = mock.Mock(side_effect=DatabaseError("BAR", None, None))
+        with pytest.raises(DatabaseError, match="BAR"):
+            check(session_mock)

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import call, patch, MagicMock, Mock
 
 import pendulum
 import pytest
@@ -270,6 +270,25 @@ class TestCliDb:
         else:
             db_command.downgrade(self.parser.parse_args(["db", "downgrade", "--to-revision", "abc"]))
             mock_dg.assert_called_with(to_revision="abc", from_revision=None, show_sql_only=False)
+
+    def test_check(self):
+        retry, retry_delay = 6, 9  # arbitrary but distinct number
+        args = self.parser.parse_args(
+            ["db", "check", "--retry", str(retry), "--retry-delay", str(retry_delay)])
+        sleep = MagicMock()
+        always_pass = Mock(return_value=True)
+        always_fail = Mock(return_value=False)
+
+        with patch("time.sleep", new=sleep), patch("airflow.utils.db.check", new=always_pass):
+            with pytest.raises(SystemExit, match="0"):
+                db_command.check(args)
+            always_pass.assert_called_once()
+
+        with patch("time.sleep", new=sleep), patch("airflow.utils.db.check", new=always_fail):
+            with pytest.raises(SystemExit, match="1"):
+                db_command.check(args)
+            # With N retries there are N+1 total checks, hence N sleeps
+            sleep.assert_has_calls([call(retry_delay)] * retry)
 
 
 class TestCLIDBClean:
