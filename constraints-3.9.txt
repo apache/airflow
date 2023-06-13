@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-11T16:01:38Z
+# This constraints file was automatically generated on 2023-06-13T17:36:52Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -142,7 +142,7 @@ apache-airflow-providers-zendesk==4.3.0
 apache-beam==2.48.0
 apispec==5.2.2
 appdirs==1.4.4
-argcomplete==3.1.0
+argcomplete==3.1.1
 arrow==1.2.3
 asana==3.2.1
 asgiref==3.7.2
@@ -155,7 +155,7 @@ atlassian-python-api==3.38.0
 attrs==23.1.0
 aws-sam-translator==1.68.0
 aws-xray-sdk==2.12.0
-azure-batch==13.0.0
+azure-batch==14.0.0
 azure-common==1.1.28
 azure-core==1.27.0
 azure-cosmos==4.4.0
@@ -171,7 +171,7 @@ azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==23.0.1
 azure-nspkg==3.0.2
-azure-servicebus==7.10.0
+azure-servicebus==7.11.0
 azure-storage-blob==12.16.0
 azure-storage-common==2.1.0
 azure-storage-file-datalake==12.11.0
@@ -252,22 +252,22 @@ facebook-business==17.0.0
 fastavro==1.7.4
 fasteners==0.18
 fastjsonschema==2.17.1
-filelock==3.12.1
+filelock==3.12.2
 fissix==21.11.13
 flower==1.2.0
 frozenlist==1.3.3
-fsspec==2023.5.0
+fsspec==2023.6.0
 future==0.18.3
 gcloud-aio-auth==4.2.1
 gcloud-aio-bigquery==6.3.0
 gcloud-aio-storage==8.2.0
-gcsfs==2023.5.0
+gcsfs==2023.6.0
 geomet==0.2.1.post1
 gevent==22.10.2
 gitdb==4.0.10
 google-ads==21.2.0
 google-api-core==2.11.0
-google-api-python-client==2.88.0
+google-api-python-client==2.89.0
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==1.0.0
 google-auth==2.19.1
@@ -277,11 +277,11 @@ google-cloud-audit-log==0.2.5
 google-cloud-automl==2.11.1
 google-cloud-bigquery-datatransfer==3.11.1
 google-cloud-bigquery-storage==2.20.0
-google-cloud-bigquery==3.11.0
+google-cloud-bigquery==3.11.1
 google-cloud-bigtable==2.19.0
 google-cloud-build==3.16.0
 google-cloud-compute==1.11.0
-google-cloud-container==2.23.0
+google-cloud-container==2.24.0
 google-cloud-core==2.3.2
 google-cloud-datacatalog==3.13.0
 google-cloud-dataflow-client==0.8.3
@@ -312,7 +312,7 @@ google-cloud-vision==3.4.2
 google-cloud-workflows==1.10.1
 google-crc32c==1.5.0
 google-resumable-media==2.5.0
-googleapis-common-protos==1.59.0
+googleapis-common-protos==1.59.1
 graphql-core==3.2.3
 graphviz==0.20.1
 greenlet==2.0.2
@@ -332,7 +332,7 @@ humanize==4.6.0
 hvac==1.1.0
 identify==2.5.24
 idna==3.4
-ijson==3.2.0.post0
+ijson==3.2.1
 imagesize==1.4.1
 importlib-metadata==6.6.0
 importlib-resources==5.12.0
@@ -377,7 +377,7 @@ lockfile==0.12.2
 looker-sdk==23.8.1
 lxml==4.9.2
 lz4==4.3.2
-markdown-it-py==2.2.0
+markdown-it-py==3.0.0
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
@@ -414,10 +414,10 @@ numpy==1.24.3
 oauthlib==3.2.2
 objsize==0.6.1
 openapi-schema-validator==0.4.4
-openapi-spec-validator==0.5.6
-openlineage-integration-common==0.27.2
-openlineage-python==0.27.2
-openlineage_sql==0.27.2
+openapi-spec-validator==0.5.7
+openlineage-integration-common==0.28.0
+openlineage-python==0.28.0
+openlineage_sql==0.28.0
 openpyxl==3.1.2
 opentelemetry-api==1.15.0
 opentelemetry-exporter-otlp-proto-grpc==1.15.0
@@ -537,7 +537,7 @@ responses==0.23.1
 rfc3339-validator==0.1.4
 rfc3986==1.5.0
 rich-click==1.6.1
-rich==13.4.1
+rich==13.4.2
 rich_argparse==1.1.1
 rsa==4.9
 ruff==0.0.272
