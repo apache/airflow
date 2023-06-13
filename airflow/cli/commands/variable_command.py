@@ -89,18 +89,13 @@ def variables_export(args):
             except json.decoder.JSONDecodeError:
                 value = variable.val
             var_dict[variable.key] = value
-    file_is_stdout = _is_stdout(args.file)
 
     with args.file as f:
         f.write(json.dumps(var_dict, sort_keys=True, indent=4))
-    if file_is_stdout:
+    if args.file.name == "<stdout>":
         print("\nVariables successfully exported.", file=sys.stderr)
     else:
         print(f"Variables successfully exported to {args.file.name}.")
-
-
-def _is_stdout(fileio: io.TextIOWrapper) -> bool:
-    return fileio.name == "<stdout>"
 
 
 def _import_helper(filepath):
