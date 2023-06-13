@@ -21,7 +21,7 @@ import json
 import logging
 from typing import Any
 
-from sqlalchemy import Boolean, Column, Integer, String, Text
+from sqlalchemy import Boolean, Column, Integer, String, Text, delete
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Session, declared_attr, reconstructor, synonym
 
@@ -127,7 +127,7 @@ class Variable(Base, LoggingMixin):
         default_var: Any = __NO_DEFAULT_SENTINEL,
         deserialize_json: bool = False,
     ) -> Any:
-        """Gets a value for an Airflow Variable Key
+        """Gets a value for an Airflow Variable Key.
 
         :param key: Variable Key
         :param default_var: Default value of the Variable if the Variable doesn't exist
@@ -212,7 +212,7 @@ class Variable(Base, LoggingMixin):
 
         :param key: Variable Keys
         """
-        return session.query(Variable).filter(Variable.key == key).delete()
+        return session.execute(delete(Variable).where(Variable.key == key)).rowcount
 
     def rotate_fernet_key(self):
         """Rotate Fernet Key."""

@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 
 class RedisKeySensor(BaseSensorOperator):
-    """Checks for the existence of a key in a Redis"""
+    """Checks for the existence of a key in a Redis."""
 
     template_fields: Sequence[str] = ("key",)
     ui_color = "#f0eee4"

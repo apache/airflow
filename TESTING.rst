@@ -310,6 +310,19 @@ You can also run all providers but exclude the providers you would like to skip
     breeze testing tests --test-type "Providers[-amazon,google]"
 
 
+Inspecting docker compose after test commands
+---------------------------------------------
+
+Sometimes you need to inspect docker compose after tests command complete,
+for example when test environment could not be properly set due to
+failed healthchecks. This can be achieved with ``--skip-docker-compose-down``
+flag:
+
+.. code-block:: bash
+
+    breeze testing tests --skip--docker-compose-down
+
+
 Running full Airflow unit test suite in parallel
 ------------------------------------------------
 
@@ -479,7 +492,7 @@ Running complete test with breeze:
 
 .. code-block:: bash
 
-    breeze prod-image build --python 3.7
+    breeze prod-image build --python 3.8
     breeze testing docker-compose-tests
 
 In case the test fails, it will dump the logs from the running containers to the console and it
@@ -496,8 +509,8 @@ to see the output of the test as it happens (it can be also set via
 The test can be also run manually with ``pytest docker_tests/test_docker_compose_quick_start.py``
 command, provided that you have a local airflow venv with ``dev`` extra set and the
 ``DOCKER_IMAGE`` environment variable is set to the image you want to test. The variable defaults
-to ``ghcr.io/apache/airflow/main/prod/python3.7:latest`` which is built by default
-when you run ``breeze prod-image build --python 3.7``. also the switches ``--skip-docker-compose-deletion``
+to ``ghcr.io/apache/airflow/main/prod/python3.8:latest`` which is built by default
+when you run ``breeze prod-image build --python 3.8``. also the switches ``--skip-docker-compose-deletion``
 and ``--wait-for-containers-timeout`` can only be passed via environment variables.
 
 If you want to debug the deployment using ``docker compose`` commands after ``SKIP_DOCKER_COMPOSE_DELETION``
@@ -518,7 +531,7 @@ the prod image build command above.
 
 .. code-block:: bash
 
-    export AIRFLOW_IMAGE_NAME=ghcr.io/apache/airflow/main/prod/python3.7:latest
+    export AIRFLOW_IMAGE_NAME=ghcr.io/apache/airflow/main/prod/python3.8:latest
 
 and follow the instructions in the
 `Running Airflow in Docker <https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html>`_

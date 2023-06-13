@@ -53,6 +53,15 @@ class DataprocMetastoreHook(GoogleBaseHook):
             credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
         )
 
+    def get_dataproc_metastore_client_v1beta(self):
+        """Returns DataprocMetastoreClient (from v1 beta)."""
+        from google.cloud.metastore_v1beta import DataprocMetastoreClient
+
+        client_options = ClientOptions(api_endpoint="metastore.googleapis.com:443")
+        return DataprocMetastoreClient(
+            credentials=self.get_credentials(), client_info=CLIENT_INFO, client_options=client_options
+        )
+
     def wait_for_operation(self, timeout: float | None, operation: Operation):
         """Waits for long-lasting operation to complete."""
         try:
@@ -636,5 +645,51 @@ class DataprocMetastoreHook(GoogleBaseHook):
             retry=retry,
             timeout=timeout,
             metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def list_hive_partitions(
+        self,
+        project_id: str,
+        service_id: str,
+        region: str,
+        table: str,
+        partition_names: list[str] | None = None,
+    ) -> Operation:
+        """
+        Lists Hive partitions.
+
+        :param project_id: Optional. The ID of a dbt Cloud project.
+        :param service_id: Required. Dataproc Metastore service id.
+        :param region: Required. The ID of the Google Cloud region that the service belongs to.
+        :param table: Required. Name of the partitioned table
+        :param partition_names: Optional. List of table partitions to wait for.
+            A name of a partition should look like "ds=1", or "a=1/b=2" in case of multiple partitions.
+            Note that you cannot use logical or comparison operators as in HivePartitionSensor.
+            If not specified then the sensor will wait for at least one partition regardless its name.
+        """
+        # Remove duplicates from the `partition_names` and preserve elements order
+        # because dictionaries are ordered since Python 3.7+
+        _partitions = list(dict.fromkeys(partition_names)) if partition_names else []
+
+        query = f"""
+                SELECT *
+                FROM PARTITIONS
+                INNER JOIN TBLS
+                ON PARTITIONS.TBL_ID = TBLS.TBL_ID
+                WHERE
+                    TBLS.TBL_NAME = '{table}'"""
+        if _partitions:
+            query += f"""
+                    AND PARTITIONS.PART_NAME IN ({', '.join(f"'{p}'" for p in _partitions)})"""
+        query += ";"
+
+        client = self.get_dataproc_metastore_client_v1beta()
+        result = client.query_metadata(
+            request={
+                "service": f"projects/{project_id}/locations/{region}/services/{service_id}",
+                "query": query,
+            }
         )
         return result

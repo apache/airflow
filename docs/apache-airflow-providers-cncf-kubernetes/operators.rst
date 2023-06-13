@@ -57,7 +57,7 @@ You can print out the Kubernetes manifest for the pod that would be created at r
 
 .. code-block:: python
 
-    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 
     k = KubernetesPodOperator(
         name="hello-dry-run",
@@ -166,6 +166,27 @@ Also for this action you can use operator in the deferrable mode:
     :language: python
     :start-after: [START howto_operator_k8s_write_xcom_async]
     :end-before: [END howto_operator_k8s_write_xcom_async]
+
+Include error message in email alert
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Any content written to ``/dev/termination-log`` will be retrieved by Kubernetes and
+included in the exception message if the task fails.
+
+.. code-block:: python
+
+    k = KubernetesPodOperator(
+        task_id="test_error_message",
+        image="alpine",
+        cmds=["/bin/sh"],
+        arguments=["-c", "echo hello world; echo Custom error > /dev/termination-log; exit 1;"],
+        name="test-error-message",
+        email="airflow@example.com",
+        email_on_failure=True,
+    )
+
+
+Read more on termination-log `here <https://kubernetes.io/docs/tasks/debug/debug-application/determine-reason-pod-failure/>`__.
 
 Reference
 ^^^^^^^^^

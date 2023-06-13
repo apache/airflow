@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
 class SnowflakeOperator(SQLExecuteQueryOperator):
     """
-    Executes SQL code in a Snowflake database
+    Executes SQL code in a Snowflake database.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -371,7 +371,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         self.query_ids: list[str] = []
 
 
-class SnowflakeSqlApiOperator(SnowflakeOperator):
+class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
     """
     Implemented Snowflake SQL API Operator to support multiple SQL statements sequentially,
     which is the behavior of the SnowflakeOperator, the Snowflake SQL API allows submitting
@@ -461,26 +461,20 @@ class SnowflakeSqlApiOperator(SnowflakeOperator):
         self.token_life_time = token_life_time
         self.token_renewal_delta = token_renewal_delta
         self.bindings = bindings
-        self.deferrable = deferrable
-        if self.__class__.__base__.__name__ != "SnowflakeOperator":
-            # It's better to do str check of the parent class name because currently SnowflakeOperator
-            # is deprecated and in future OSS SnowflakeOperator may be removed
-            if any(
-                [warehouse, database, role, schema, authenticator, session_parameters]
-            ):  # pragma: no cover
-                hook_params = kwargs.pop("hook_params", {})  # pragma: no cover
-                kwargs["hook_params"] = {
-                    "warehouse": warehouse,
-                    "database": database,
-                    "role": role,
-                    "schema": schema,
-                    "authenticator": authenticator,
-                    "session_parameters": session_parameters,
-                    **hook_params,
-                }
-            super().__init__(conn_id=snowflake_conn_id, **kwargs)  # pragma: no cover
-        else:
-            super().__init__(**kwargs)
+        self.execute_async = False
+        self.deferrable = deferrable  
+        if any([warehouse, database, role, schema, authenticator, session_parameters]):  # pragma: no cover
+            hook_params = kwargs.pop("hook_params", {})  # pragma: no cover
+            kwargs["hook_params"] = {
+                "warehouse": warehouse,
+                "database": database,
+                "role": role,
+                "schema": schema,
+                "authenticator": authenticator,
+                "session_parameters": session_parameters,
+                **hook_params,
+            }
+        super().__init__(conn_id=snowflake_conn_id, **kwargs)  # pragma: no cover
 
     def execute(self, context: Context) -> None:
         """
@@ -521,7 +515,7 @@ class SnowflakeSqlApiOperator(SnowflakeOperator):
             self._hook.check_query_output(self.query_ids)
 
     def poll_on_queries(self):
-        """Poll on requested queries"""
+        """Poll on requested queries."""
         queries_in_progress = set(self.query_ids)
         statement_success_status = {}
         statement_error_status = {}

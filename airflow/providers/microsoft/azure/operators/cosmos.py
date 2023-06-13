@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 class AzureCosmosInsertDocumentOperator(BaseOperator):
     """
     Inserts a new document into the specified Cosmos database and collection
-    It will create both the database and collection if they do not already exist
+    It will create both the database and collection if they do not already exist.
 
     :param database_name: The name of the database. (templated)
     :param collection_name: The name of the collection. (templated)

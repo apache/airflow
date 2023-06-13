@@ -37,7 +37,7 @@ COMPUTE_GROUP_MANAGER_LINK = (
 
 
 class ComputeInstanceDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Compute Instance details Link"""
+    """Helper class for constructing Compute Instance details Link."""
 
     name = "Compute Instance details"
     key = "compute_instance_details"
@@ -63,7 +63,7 @@ class ComputeInstanceDetailsLink(BaseGoogleLink):
 
 
 class ComputeInstanceTemplateDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Compute Instance Template details Link"""
+    """Helper class for constructing Compute Instance Template details Link."""
 
     name = "Compute Instance Template details"
     key = "compute_instance_template_details"
@@ -87,7 +87,7 @@ class ComputeInstanceTemplateDetailsLink(BaseGoogleLink):
 
 
 class ComputeInstanceGroupManagerDetailsLink(BaseGoogleLink):
-    """Helper class for constructing Compute Instance Group Manager details Link"""
+    """Helper class for constructing Compute Instance Group Manager details Link."""
 
     name = "Compute Instance Group Manager"
     key = "compute_instance_group_manager_details"

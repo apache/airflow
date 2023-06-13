@@ -115,6 +115,19 @@ The following example adds ``test_dag.py`` to your image in the ``/opt/airflow/d
     :start-after: [START dag]
     :end-before: [END dag]
 
+Add Airflow configuration with environment variables
+....................................................
+
+The following example adds airflow configuration to the image. ``airflow.cfg`` file in
+``$AIRFLOW_HOME`` directory contains Airflow's configuration. You can set options with environment variables for those Airflow's configuration by using this format:
+:envvar:`AIRFLOW__{SECTION}__{KEY}` (note the double underscores).
+
+
+.. exampleinclude:: docker-examples/extending/add-airflow-configuration/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
+
 
 Extending vs. customizing the image
 -----------------------------------
@@ -474,6 +487,16 @@ The following example adds ``test_dag.py`` to your image in the ``/opt/airflow/d
     :language: Python
     :start-after: [START dag]
     :end-before: [END dag]
+
+Example of changing airflow configuration using environment variables
+.....................................................................
+
+The following example adds airflow configuration changes to the airflow image.
+
+.. exampleinclude:: docker-examples/extending/add-airflow-configuration/Dockerfile
+    :language: Dockerfile
+    :start-after: [START Dockerfile]
+    :end-before: [END Dockerfile]
 
 Customizing the image
 ---------------------

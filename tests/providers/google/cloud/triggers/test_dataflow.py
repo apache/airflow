@@ -19,8 +19,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
-from asyncio import Future
 from unittest import mock
 
 import pytest
@@ -49,20 +47,6 @@ def trigger():
         impersonation_chain=IMPERSONATION_CHAIN,
         cancel_timeout=CANCEL_TIMEOUT,
     )
-
-
-@pytest.fixture()
-def make_mock_awaitable():
-    def func(mock_obj, return_value):
-        if sys.version_info < (3, 8):
-            f = Future()
-            f.set_result(return_value)
-            mock_obj.return_value = f
-        else:
-            mock_obj.return_value = return_value
-        return mock_obj
-
-    return func
 
 
 class TestTemplateJobStartTrigger:
@@ -99,8 +83,8 @@ class TestTemplateJobStartTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    async def test_run_loop_return_success_event(self, mock_job_status, trigger, make_mock_awaitable):
-        make_mock_awaitable(mock_job_status, JobState.JOB_STATE_DONE)
+    async def test_run_loop_return_success_event(self, mock_job_status, trigger):
+        mock_job_status.return_value = JobState.JOB_STATE_DONE
 
         expected_event = TriggerEvent(
             {
@@ -115,8 +99,8 @@ class TestTemplateJobStartTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    async def test_run_loop_return_failed_event(self, mock_job_status, trigger, make_mock_awaitable):
-        make_mock_awaitable(mock_job_status, JobState.JOB_STATE_FAILED)
+    async def test_run_loop_return_failed_event(self, mock_job_status, trigger):
+        mock_job_status.return_value = JobState.JOB_STATE_FAILED
 
         expected_event = TriggerEvent(
             {
@@ -130,8 +114,8 @@ class TestTemplateJobStartTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    async def test_run_loop_return_stopped_event(self, mock_job_status, trigger, make_mock_awaitable):
-        make_mock_awaitable(mock_job_status, JobState.JOB_STATE_STOPPED)
+    async def test_run_loop_return_stopped_event(self, mock_job_status, trigger):
+        mock_job_status.return_value = JobState.JOB_STATE_STOPPED
         expected_event = TriggerEvent(
             {
                 "status": "stopped",
@@ -144,8 +128,8 @@ class TestTemplateJobStartTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.AsyncDataflowHook.get_job_status")
-    async def test_run_loop_is_still_running(self, mock_job_status, trigger, caplog, make_mock_awaitable):
-        make_mock_awaitable(mock_job_status, JobState.JOB_STATE_RUNNING)
+    async def test_run_loop_is_still_running(self, mock_job_status, trigger, caplog):
+        mock_job_status.return_value = JobState.JOB_STATE_RUNNING
         caplog.set_level(logging.INFO)
 
         task = asyncio.create_task(trigger.run().__anext__())
