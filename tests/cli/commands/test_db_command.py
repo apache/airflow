@@ -23,6 +23,7 @@ import pendulum
 import pytest
 from pytest import param
 from sqlalchemy.engine.url import make_url
+from sqlalchemy.exc import OperationalError
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import db_command
@@ -276,18 +277,19 @@ class TestCliDb:
         args = self.parser.parse_args(
             ["db", "check", "--retry", str(retry), "--retry-delay", str(retry_delay)])
         sleep = MagicMock()
-        always_pass = Mock(return_value=True)
-        always_fail = Mock(return_value=False)
+        always_pass = Mock()
+        always_fail = Mock(side_effect=OperationalError("", None, None))
 
         with patch("time.sleep", new=sleep), patch("airflow.utils.db.check", new=always_pass):
-            with pytest.raises(SystemExit, match="0"):
-                db_command.check(args)
+            db_command.check(args)
             always_pass.assert_called_once()
+            sleep.assert_not_called()
 
         with patch("time.sleep", new=sleep), patch("airflow.utils.db.check", new=always_fail):
-            with pytest.raises(SystemExit, match="1"):
+            with pytest.raises(OperationalError):
                 db_command.check(args)
             # With N retries there are N+1 total checks, hence N sleeps
+            always_fail.assert_has_calls([call()] * (retry + 1))
             sleep.assert_has_calls([call(retry_delay)] * retry)
 
 

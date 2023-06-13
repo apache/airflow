@@ -20,9 +20,9 @@ from __future__ import annotations
 import os
 import textwrap
 from tempfile import NamedTemporaryFile
-import time
 
 from packaging.version import parse as parse_version
+from tenacity import Retrying, stop_after_attempt, wait_fixed
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -193,16 +193,13 @@ def check(args):
     retries: int = args.retry
     retry_delay: int = args.retry_delay
 
-    if db.check():
-        raise SystemExit(0)
-
-    while retries > 0:
-        time.sleep(retry_delay)
-        if db.check():
-            raise SystemExit(0)
-        retries -= 1
-        print(f"Warning: will retry in {retry_delay} seconds. {retries} retries left")
-    raise SystemExit(1)
+    for attempt in Retrying(
+        stop=stop_after_attempt(1 + retries),
+        wait=wait_fixed(retry_delay),
+        reraise=True
+    ):
+        with attempt:
+            db.check()
 
 
 # lazily imported by CLI parser for `help` command

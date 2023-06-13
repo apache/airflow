@@ -30,7 +30,6 @@ from tempfile import gettempdir
 from typing import TYPE_CHECKING, Callable, Generator, Iterable
 
 from sqlalchemy import Table, and_, column, delete, exc, func, inspect, or_, select, table, text, tuple_
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session
 
 import airflow
@@ -1739,24 +1738,14 @@ def drop_airflow_moved_tables(connection):
 
 
 @provide_session
-def check(session: Session = NEW_SESSION) -> bool:
+def check(session: Session = NEW_SESSION):
     """
-    Checks if the database works. Return True if database can be connected,
-    else return False.
-
-    If the database connection fails, the error message is logged but at
-    "DEBUG" level. This is so that the user can choose to show the exception
-    with the "--verbose" flag on the command line
+    Checks if the database works.
 
     :param session: session of the sqlalchemy
     """
-    try:
-        session.execute(text("select 1 as is_alive;"))
-        log.info("Connection successful.")
-        return True
-    except OperationalError as e:
-        log.debug(e)
-    return False
+    session.execute(text("select 1 as is_alive;"))
+    log.info("Connection successful.")
 
 
 @enum.unique
