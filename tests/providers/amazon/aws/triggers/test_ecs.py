@@ -61,7 +61,7 @@ class TestClusterWaiterTrigger:
         response: TriggerEvent = await generator.asend(None)
 
         assert response.payload["status"] == "success"
-        assert response.payload["value"] == "cluster_arn"
+        assert response.payload["arn"] == "cluster_arn"
 
     @pytest.mark.asyncio
     @mock.patch.object(EcsHook, "async_conn")
@@ -94,6 +94,7 @@ class TestTaskDoneTrigger:
         a_mock.get_waiter().wait = wait_mock
 
         trigger = TaskDoneTrigger("cluster", "task_arn", 0, None, None)
+        trigger.waiter_delay = 0  # cannot be set to 0 in __init__ because 0 is treated as None
 
         with pytest.raises(WaiterError):
             generator = trigger.run()
