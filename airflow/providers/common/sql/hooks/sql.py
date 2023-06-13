@@ -181,7 +181,7 @@ class DbApiHook(BaseForDbApiHook):
             engine_kwargs = {}
         return create_engine(self.get_uri(), **engine_kwargs)
 
-    def get_pandas_df(self, sql, parameters=None, **kwargs):
+    def get_pandas_df(self, sql, parameters: Iterable | Mapping[str, Any] | None = None, **kwargs):
         """
         Executes the sql and returns a pandas dataframe.
 
@@ -201,7 +201,9 @@ class DbApiHook(BaseForDbApiHook):
         with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
 
-    def get_pandas_df_by_chunks(self, sql, parameters=None, *, chunksize, **kwargs):
+    def get_pandas_df_by_chunks(
+        self, sql, parameters: Iterable | Mapping[str, Any] | None = None, *, chunksize: int | None, **kwargs
+    ):
         """
         Executes the sql and returns a generator.
 
@@ -225,7 +227,7 @@ class DbApiHook(BaseForDbApiHook):
     def get_records(
         self,
         sql: str | list[str],
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
     ) -> Any:
         """
         Executes the sql and returns a set of records.
@@ -235,7 +237,7 @@ class DbApiHook(BaseForDbApiHook):
         """
         return self.run(sql=sql, parameters=parameters, handler=fetch_all_handler)
 
-    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """
         Executes the sql and returns the first resulting row.
 
@@ -271,7 +273,7 @@ class DbApiHook(BaseForDbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         handler: None = None,
         split_statements: bool = False,
         return_last: bool = True,
@@ -283,7 +285,7 @@ class DbApiHook(BaseForDbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         handler: Callable[[Any], T] = None,  # type: ignore[assignment]
         split_statements: bool = False,
         return_last: bool = True,
@@ -294,7 +296,7 @@ class DbApiHook(BaseForDbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,

@@ -1011,7 +1011,7 @@ class HiveServer2Hook(DbApiHook):
         self.log.info("Done. Loaded a total of %s rows.", i)
 
     def get_records(
-        self, sql: str | list[str], parameters: Iterable | Mapping | None = None, **kwargs
+        self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
     ) -> Any:
         """
         Get a set of records from a Hive query. You can optionally pass 'schema' kwarg

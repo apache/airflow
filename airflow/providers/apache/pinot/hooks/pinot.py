@@ -287,7 +287,7 @@ class PinotDbApiHook(DbApiHook):
         return f"{conn_type}://{host}/{endpoint}"
 
     def get_records(
-        self, sql: str | list[str], parameters: Iterable | Mapping | None = None, **kwargs
+        self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
     ) -> Any:
         """
         Executes the sql and returns a set of records.
@@ -300,7 +300,7 @@ class PinotDbApiHook(DbApiHook):
             cur.execute(sql)
             return cur.fetchall()
 
-    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """
         Executes the sql and returns the first resulting row.
 

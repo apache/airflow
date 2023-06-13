@@ -68,7 +68,9 @@ class ExasolHook(DbApiHook):
         conn = pyexasol.connect(**conn_args)
         return conn
 
-    def get_pandas_df(self, sql: str, parameters: dict | None = None, **kwargs) -> pd.DataFrame:
+    def get_pandas_df(
+        self, sql, parameters: Iterable | Mapping[str, Any] | None = None, **kwargs
+    ) -> pd.DataFrame:
         """Execute the SQL and return a Pandas dataframe.
 
         :param sql: The sql statement to be executed (str) or a list of
@@ -85,7 +87,7 @@ class ExasolHook(DbApiHook):
     def get_records(
         self,
         sql: str | list[str],
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
     ) -> list[dict | tuple[Any, ...]]:
         """Execute the SQL and return a set of records.
 
@@ -97,7 +99,7 @@ class ExasolHook(DbApiHook):
             with closing(conn.execute(sql, parameters)) as cur:
                 return cur.fetchall()
 
-    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping[str, Any] | None = None) -> Any:
         """Execute the SQL and return the first resulting row.
 
         :param sql: the sql statement to be executed (str) or a list of
@@ -164,7 +166,7 @@ class ExasolHook(DbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         handler: None = None,
         split_statements: bool = False,
         return_last: bool = True,
@@ -176,7 +178,7 @@ class ExasolHook(DbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         handler: Callable[[Any], T] = None,  # type: ignore[assignment]
         split_statements: bool = False,
         return_last: bool = True,
@@ -187,7 +189,7 @@ class ExasolHook(DbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
-        parameters: Iterable | Mapping | None = None,
+        parameters: Iterable | Mapping[str, Any] | None = None,
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = False,
         return_last: bool = True,
