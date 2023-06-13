@@ -40,6 +40,7 @@ from airflow.serialization.pydantic.job import JobPydantic
 from airflow.stats import Stats
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.typing_compat import TypedDict
+from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.trigger_handler import (
@@ -608,6 +609,11 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 self.log.info("Trigger %s fired: %s", self.triggers[trigger_id]["name"], event)
                 self.triggers[trigger_id]["events"] += 1
                 self.events.append((trigger_id, event))
+
+            trigger_timeout = trigger.task_instance.trigger_timeout
+            if trigger_timeout and trigger_timeout < timezone.utcnow():
+                self.log.info("Trigger cancelled due to timeout")
+                raise asyncio.CancelledError("Trigger cancelled due to timeout")
         except asyncio.CancelledError as err:
             self.log.info("Trigger cancelled due to %s", str(err))
             raise
