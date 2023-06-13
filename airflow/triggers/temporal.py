@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+from typing import Any
 
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
@@ -82,3 +83,6 @@ class TimeDeltaTrigger(DateTimeTrigger):
 
     def __init__(self, delta: datetime.timedelta):
         super().__init__(moment=timezone.utcnow() + delta)
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return "airflow.triggers.temporal.DateTimeTrigger", {"moment": self.moment}
