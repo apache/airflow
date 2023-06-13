@@ -20,7 +20,7 @@ import asyncio
 import datetime
 from typing import Any
 
-from airflow.triggers.base import BaseTrigger, TaskSuccessEvent
+from airflow.triggers.base import BaseTrigger, TaskSuccessEvent, TriggerEvent
 from airflow.utils import timezone
 
 
@@ -32,9 +32,13 @@ class DateTimeTrigger(BaseTrigger):
     a few seconds.
 
     The provided datetime MUST be in UTC.
+
+    :param moment: when to yield event
+    :param exit_task: whether the trigger should mark the task successful after time condition
+        reached or resume the task
     """
 
-    def __init__(self, moment: datetime.datetime):
+    def __init__(self, moment: datetime.datetime, exit_task=False):
         super().__init__()
         if not isinstance(moment, datetime.datetime):
             raise TypeError(f"Expected datetime.datetime type for moment. Got {type(moment)}")
@@ -43,9 +47,13 @@ class DateTimeTrigger(BaseTrigger):
             raise ValueError("You cannot pass naive datetimes")
         else:
             self.moment = timezone.convert_to_utc(moment)
+        self.exit_task = exit_task
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        return "airflow.triggers.temporal.DateTimeTrigger", {"moment": self.moment}
+        return "airflow.triggers.temporal.DateTimeTrigger", {
+            "moment": self.moment,
+            "exit_task": self.exit_task,
+        }
 
     async def run(self):
         """
@@ -68,8 +76,12 @@ class DateTimeTrigger(BaseTrigger):
         while self.moment > timezone.utcnow():
             self.log.info("sleeping 1 second...")
             await asyncio.sleep(1)
-        self.log.info("Sensor time condition reached; marking task successful and exiting")
-        yield TaskSuccessEvent()
+        if self.exit_task:
+            self.log.info("Sensor time condition reached; marking task successful and exiting")
+            yield TaskSuccessEvent()
+        else:
+            self.log.info("yielding event with payload %r", self.moment)
+            yield TriggerEvent(self.moment)
 
 
 class TimeDeltaTrigger(DateTimeTrigger):
@@ -83,5 +95,5 @@ class TimeDeltaTrigger(DateTimeTrigger):
     DateTimeTrigger class, since they're operationally the same.
     """
 
-    def __init__(self, delta: datetime.timedelta):
-        super().__init__(moment=timezone.utcnow() + delta)
+    def __init__(self, delta: datetime.timedelta, **kwargs):
+        super().__init__(moment=timezone.utcnow() + delta, **kwargs)

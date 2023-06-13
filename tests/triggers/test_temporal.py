@@ -63,15 +63,16 @@ def test_timedelta_trigger_serialization():
 
 
 @pytest.mark.parametrize(
-    "tz",
+    "tz, exit_task",
     [
-        pendulum.tz.timezone("UTC"),
-        pendulum.tz.timezone("Europe/Paris"),
-        pendulum.tz.timezone("America/Toronto"),
+        (pendulum.tz.timezone("UTC"), True),
+        (pendulum.tz.timezone("UTC"), False),  # only really need to test one
+        (pendulum.tz.timezone("Europe/Paris"), True),
+        (pendulum.tz.timezone("America/Toronto"), True),
     ],
 )
 @pytest.mark.asyncio
-async def test_datetime_trigger_timing(tz):
+async def test_datetime_trigger_timing(tz, exit_task):
     """
     Tests that the DateTimeTrigger only goes off on or after the appropriate
     time.
@@ -80,7 +81,7 @@ async def test_datetime_trigger_timing(tz):
     future_moment = pendulum.instance((timezone.utcnow() + datetime.timedelta(seconds=60)).astimezone(tz))
 
     # Create a task that runs the trigger for a short time then cancels it
-    trigger = DateTimeTrigger(future_moment)
+    trigger = DateTimeTrigger(future_moment, exit_task=exit_task)
     trigger_task = asyncio.create_task(trigger.run().__anext__())
     await asyncio.sleep(0.5)
 
@@ -89,11 +90,12 @@ async def test_datetime_trigger_timing(tz):
     trigger_task.cancel()
 
     # Now, make one waiting for en event in the past and do it again
-    trigger = DateTimeTrigger(past_moment)
+    trigger = DateTimeTrigger(past_moment, exit_task=exit_task)
     trigger_task = asyncio.create_task(trigger.run().__anext__())
     await asyncio.sleep(0.5)
 
     assert trigger_task.done() is True
     result = trigger_task.result()
     assert isinstance(result, TriggerEvent)
-    assert result.payload == TaskInstanceState.SUCCESS
+    expected_payload = TaskInstanceState.SUCCESS if exit_task else past_moment
+    assert result.payload == expected_payload

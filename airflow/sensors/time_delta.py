@@ -64,4 +64,4 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
     def execute(self, context: Context):
         target_dttm = context["data_interval_end"]
         target_dttm += self.delta
-        self.defer(trigger=DateTimeTrigger(moment=target_dttm))
+        self.defer(trigger=DateTimeTrigger(moment=target_dttm, exit_task=True))
