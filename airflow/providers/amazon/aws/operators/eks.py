@@ -427,6 +427,8 @@ class EksCreateFargateProfileOperator(BaseOperator):
                     max_attempts=self.waiter_max_attempts,
                 ),
                 method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
                 timeout=timedelta(seconds=(self.waiter_max_attempts * self.waiter_delay + 60)),
             )
         elif self.wait_for_completion:
@@ -679,6 +681,8 @@ class EksDeleteFargateProfileOperator(BaseOperator):
                     max_attempts=self.waiter_max_attempts,
                 ),
                 method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
                 timeout=timedelta(seconds=(self.waiter_max_attempts * self.waiter_delay + 60)),
             )
         elif self.wait_for_completion:
