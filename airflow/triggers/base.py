@@ -17,10 +17,17 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, AsyncIterator
+import logging
+from typing import TYPE_CHECKING, Any, AsyncIterator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
+from airflow.utils.xcom import XCOM_RETURN_KEY
+
+if TYPE_CHECKING:
+    from airflow.models import TaskInstance
+
+log = logging.getLogger(__name__)
 
 
 class BaseTrigger(abc.ABC, LoggingMixin):
@@ -120,6 +127,22 @@ class TriggerEvent:
             return other.payload == self.payload
         return False
 
+    def handle_submit(self, *, task_instance: TaskInstance):
+        """
+        Submit event for given task instance.
+
+        Sets task_instance next_method and next_kwargs, and its state to scheduled.
+        """
+        # task will be resumed on worker; set up next kwargs and schedule
+        # Add the event's payload into the kwargs for the task
+        next_kwargs = task_instance.next_kwargs or {}
+        next_kwargs["event"] = self.payload
+        task_instance.next_kwargs = next_kwargs
+        # Remove ourselves as its trigger
+        task_instance.trigger_id = None
+        # Finally, mark it as scheduled so it gets re-queued
+        task_instance.state = TaskInstanceState.SCHEDULED
+
 
 class BaseTaskEndEvent(TriggerEvent):
     """Base event class to end the task without resuming on worker."""
@@ -132,6 +155,28 @@ class BaseTaskEndEvent(TriggerEvent):
         super().__init__(payload=self.task_instance_state)
         self.xcom_return = xcom_return
         self.other_xcom = other_xcom
+
+    def handle_submit(self, *, task_instance: TaskInstance):
+        """
+        Submit event for given task instance.
+
+        Marks the task with state `task_instance_state` and pushes xcom if applicable.
+        """
+        # task will be marked with terminal state and will not resume on worker
+        task_instance.trigger_id = None
+        task_instance.state = self.task_instance_state
+        if self.xcom_return:
+            task_instance.xcom_push(key=XCOM_RETURN_KEY, value=self.xcom_return)
+        if self.other_xcom:
+            for key, value in self.other_xcom.items():
+                if key == XCOM_RETURN_KEY:
+                    log.warning(
+                        "Trigger yielded `other_xcom` with reserved key %s; ignoring. ti=%s",
+                        XCOM_RETURN_KEY,
+                        task_instance,
+                    )
+                    continue
+                task_instance.xcom_push(key=key, value=value)
 
 
 class TaskSuccessEvent(BaseTaskEndEvent):
