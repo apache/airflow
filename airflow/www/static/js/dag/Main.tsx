@@ -74,6 +74,8 @@ const Main = () => {
     string | null | undefined
   >();
   const { openGroupIds, onToggleGroups } = useToggleGroups();
+  const oldGridElX = useRef(0);
+
   const {
     onClose: onCloseShortcut,
     isOpen: isOpenShortcut,
@@ -105,20 +107,47 @@ const Main = () => {
     onToggle();
   };
 
+  const onToggleGridCollapse = useCallback(() => {
+    const gridElement = gridRef.current;
+    if (gridElement) {
+      if (isGridCollapsed) {
+        gridElement.style.width = localStorage.getItem(gridWidthKey) || "";
+      } else {
+        gridElement.style.width = collapsedWidth;
+      }
+      setIsGridCollapsed(!isGridCollapsed);
+    }
+  }, [isGridCollapsed]);
+
   const resize = useCallback(
     (e: MouseEvent) => {
       const gridEl = gridRef.current;
-      if (
-        gridEl &&
-        e.x > minPanelWidth &&
-        e.x < window.innerWidth - minPanelWidth
-      ) {
-        const width = `${e.x}px`;
-        gridEl.style.width = width;
-        saveWidth(width);
+      if (gridEl) {
+        if (e.x > minPanelWidth && e.x < window.innerWidth - minPanelWidth) {
+          const width = `${e.x}px`;
+          gridEl.style.width = width;
+          saveWidth(width);
+        } else if (
+          // expand grid if cursor moves right
+          e.x < minPanelWidth &&
+          oldGridElX &&
+          oldGridElX.current &&
+          oldGridElX.current < e.x
+        ) {
+          setIsGridCollapsed(false);
+        } else if (
+          // collapse grid if cursor moves left
+          e.x < minPanelWidth / 2 &&
+          oldGridElX &&
+          oldGridElX.current &&
+          oldGridElX.current > e.x
+        ) {
+          onToggleGridCollapse();
+        }
       }
+      oldGridElX.current = e.x;
     },
-    [gridRef]
+    [gridRef, onToggleGridCollapse]
   );
 
   useEffect(() => {
@@ -140,18 +169,6 @@ const Main = () => {
     }
     return () => {};
   }, [resize, isLoading, isOpen]);
-
-  const onToggleGridCollapse = () => {
-    const gridElement = gridRef.current;
-    if (gridElement) {
-      if (isGridCollapsed) {
-        gridElement.style.width = localStorage.getItem(gridWidthKey) || "";
-      } else {
-        gridElement.style.width = collapsedWidth;
-      }
-      setIsGridCollapsed(!isGridCollapsed);
-    }
-  };
 
   useKeysPress(
     keyboardShortcutIdentifier.toggleShortcutCheatSheet,

@@ -17,7 +17,7 @@
 # under the License.
 """This module contains a Google Cloud Vertex AI hook.
 
-.. spelling::
+.. spelling:word-list::
 
     undeployed
     undeploy

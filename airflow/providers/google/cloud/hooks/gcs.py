@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import functools
 import gzip as gz
+import json
 import os
 import shutil
 import time
@@ -29,12 +30,12 @@ from functools import partial
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import IO, Callable, Generator, Sequence, TypeVar, cast, overload
+from typing import IO, Any, Callable, Generator, Sequence, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
 from aiohttp import ClientSession
 from gcloud.aio.storage import Storage
-from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import GoogleAPICallError, NotFound
 from google.api_core.retry import Retry
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
@@ -400,7 +401,7 @@ class GCSHook(GoogleBaseHook):
         dir: str | None = None,
     ) -> Generator[IO[bytes], None, None]:
         """
-        Downloads the file to a temporary directory and returns a file handle
+        Downloads the file to a temporary directory and returns a file handle.
 
         You can use this method by passing the bucket_name and object_name parameters
         or just object_url parameter.
@@ -461,6 +462,7 @@ class GCSHook(GoogleBaseHook):
         timeout: int | None = DEFAULT_TIMEOUT,
         num_max_attempts: int = 1,
         metadata: dict | None = None,
+        cache_control: str | None = None,
     ) -> None:
         """
         Uploads a local file or file data as string or bytes to Google Cloud Storage.
@@ -476,6 +478,7 @@ class GCSHook(GoogleBaseHook):
         :param timeout: Request timeout in seconds.
         :param num_max_attempts: Number of attempts to try to upload the file.
         :param metadata: The metadata to be uploaded with the file.
+        :param cache_control: Cache-Control metadata field.
         """
 
         def _call_with_retry(f: Callable[[], None]) -> None:
@@ -511,6 +514,9 @@ class GCSHook(GoogleBaseHook):
 
         if metadata:
             blob.metadata = metadata
+
+        if cache_control:
+            blob.cacheControl = cache_control
 
         if filename and data:
             raise ValueError(
@@ -569,7 +575,7 @@ class GCSHook(GoogleBaseHook):
 
     def get_blob_update_time(self, bucket_name: str, object_name: str):
         """
-        Get the update time of a file in Google Cloud Storage
+        Get the update time of a file in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the blob to get updated time from the Google cloud
@@ -646,7 +652,7 @@ class GCSHook(GoogleBaseHook):
 
     def is_older_than(self, bucket_name: str, object_name: str, seconds: int) -> bool:
         """
-        Check if object is older than given time
+        Check if object is older than given time.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the object to check in the Google cloud
@@ -705,7 +711,7 @@ class GCSHook(GoogleBaseHook):
         delimiter: str | None = None,
     ):
         """
-        List all objects from the bucket with the given a single prefix or multiple prefixes
+        List all objects from the bucket with the given a single prefix or multiple prefixes.
 
         :param bucket_name: bucket name
         :param versions: if true, list all versions of the objects
@@ -747,7 +753,7 @@ class GCSHook(GoogleBaseHook):
         delimiter: str | None = None,
     ) -> List:
         """
-        List all objects from the bucket with the give string prefix in name
+        List all objects from the bucket with the give string prefix in name.
 
         :param bucket_name: bucket name
         :param versions: if true, list all versions of the objects
@@ -965,6 +971,7 @@ class GCSHook(GoogleBaseHook):
     ) -> None:
         """
         Creates a new ACL entry on the specified bucket_name.
+
         See: https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert
 
         :param bucket_name: Name of a bucket_name.
@@ -999,6 +1006,7 @@ class GCSHook(GoogleBaseHook):
     ) -> None:
         """
         Creates a new ACL entry on the specified object.
+
         See: https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert
 
         :param bucket_name: Name of a bucket_name.
@@ -1030,7 +1038,7 @@ class GCSHook(GoogleBaseHook):
 
     def compose(self, bucket_name: str, source_objects: List[str], destination_object: str) -> None:
         """
-        Composes a list of existing object into a new object in the same storage bucket_name
+        Composes a list of existing object into a new object in the same storage bucket_name.
 
         Currently it only supports up to 32 objects that can be concatenated
         in a single operation
@@ -1225,6 +1233,36 @@ def gcs_object_is_directory(bucket: str) -> bool:
     return len(blob) == 0 or blob.endswith("/")
 
 
+def parse_json_from_gcs(gcp_conn_id: str, file_uri: str) -> Any:
+    """
+    Downloads and parses json file from Google cloud Storage.
+
+    :param gcp_conn_id: Airflow Google Cloud connection ID.
+    :param file_uri: full path to json file
+        example: ``gs://test-bucket/dir1/dir2/file``
+    """
+    gcs_hook = GCSHook(gcp_conn_id=gcp_conn_id)
+    bucket, blob = _parse_gcs_url(file_uri)
+    with NamedTemporaryFile(mode="w+b") as file:
+        try:
+            gcs_hook.download(bucket_name=bucket, object_name=blob, filename=file.name)
+        except GoogleAPICallError as ex:
+            raise AirflowException(f"Failed to download file with query result: {ex}")
+
+        file.seek(0)
+        try:
+            json_data = file.read()
+        except (ValueError, OSError, RuntimeError) as ex:
+            raise AirflowException(f"Failed to read file: {ex}")
+
+        try:
+            result = json.loads(json_data)
+        except json.JSONDecodeError as ex:
+            raise AirflowException(f"Failed to decode query result from bytes to json: {ex}")
+
+        return result
+
+
 def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
     """
     Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a
@@ -1243,7 +1281,7 @@ def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
 
 
 class GCSAsyncHook(GoogleBaseAsyncHook):
-    """GCSAsyncHook run on the trigger worker, inherits from GoogleBaseHookAsync"""
+    """GCSAsyncHook run on the trigger worker, inherits from GoogleBaseHookAsync."""
 
     sync_hook_class = GCSHook
 

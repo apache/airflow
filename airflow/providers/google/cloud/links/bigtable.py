@@ -32,7 +32,7 @@ BIGTABLE_TABLES_LINK = BIGTABLE_BASE_LINK + "/instances/{instance_id}/tables?pro
 
 
 class BigtableInstanceLink(BaseGoogleLink):
-    """Helper class for constructing Bigtable Instance link"""
+    """Helper class for constructing Bigtable Instance link."""
 
     name = "Bigtable Instance"
     key = "instance_key"
@@ -54,7 +54,7 @@ class BigtableInstanceLink(BaseGoogleLink):
 
 
 class BigtableClusterLink(BaseGoogleLink):
-    """Helper class for constructing Bigtable Cluster link"""
+    """Helper class for constructing Bigtable Cluster link."""
 
     name = "Bigtable Cluster"
     key = "cluster_key"
@@ -77,7 +77,7 @@ class BigtableClusterLink(BaseGoogleLink):
 
 
 class BigtableTablesLink(BaseGoogleLink):
-    """Helper class for constructing Bigtable Tables link"""
+    """Helper class for constructing Bigtable Tables link."""
 
     name = "Bigtable Tables"
     key = "tables_key"

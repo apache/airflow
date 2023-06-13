@@ -19,13 +19,13 @@
 Apache Kafka Hooks
 ==================
 
-.. _howto/hook:KafkaHook:
+.. _howto/hook:KafkaBaseHook:
 
 KafkaHook
 ------------------------
 
 A base hook for interacting with Apache Kafka. Use this hook as a base class when creating your own Kafka hooks.
-For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.hooks.base.KafkaHook`.
+For parameter definitions take a look at :class:`~airflow.providers.apache.kafka.hooks.base.KafkaBaseHook`.
 
 
 .. _howto/hook:KafkaAdminClientHook:

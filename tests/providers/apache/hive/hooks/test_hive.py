@@ -272,13 +272,13 @@ class TestHiveCliHook:
         hook.load_df(df=df, table=table, delimiter=delimiter, encoding=encoding)
 
         assert mock_to_csv.call_count == 1
-        kwargs = mock_to_csv.call_args[1]
+        kwargs = mock_to_csv.call_args.kwargs
         assert kwargs["header"] is False
         assert kwargs["index"] is False
         assert kwargs["sep"] == delimiter
 
         assert mock_load_file.call_count == 1
-        kwargs = mock_load_file.call_args[1]
+        kwargs = mock_load_file.call_args.kwargs
         assert kwargs["delimiter"] == delimiter
         assert kwargs["field_dict"] == {"c": "STRING"}
         assert isinstance(kwargs["field_dict"], OrderedDict)
@@ -294,7 +294,7 @@ class TestHiveCliHook:
             hook.load_df(df=pd.DataFrame({"c": range(0, 10)}), table="t", create=create, recreate=recreate)
 
             assert mock_load_file.call_count == 1
-            kwargs = mock_load_file.call_args[1]
+            kwargs = mock_load_file.call_args.kwargs
             assert kwargs["create"] == create
             assert kwargs["recreate"] == recreate
 

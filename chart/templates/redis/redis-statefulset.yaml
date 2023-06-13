@@ -25,7 +25,8 @@
 {{- $affinity := or .Values.redis.affinity .Values.affinity }}
 {{- $tolerations := or .Values.redis.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.redis.topologySpreadConstraints .Values.topologySpreadConstraints }}
-{{- $securityContext := include "localSecurityContext" .Values.redis }}
+{{- $securityContext := include "localPodSecurityContext" .Values.redis }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.redis) }}
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
@@ -79,6 +80,7 @@ spec:
         - name: redis
           image: {{ template "redis_image" . }}
           imagePullPolicy: {{ .Values.images.redis.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
           command: ["/bin/sh"]
           resources: {{- toYaml .Values.redis.resources | nindent 12 }}
           args: ["-c", "redis-server --requirepass ${REDIS_PASSWORD}"]

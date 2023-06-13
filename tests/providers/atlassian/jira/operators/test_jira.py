@@ -61,6 +61,22 @@ class TestJiraOperator:
         assert jira_operator.get_jira_resource_method is None
 
     @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
+    def test_project_issue_count(self, jira_mock):
+        jira_mock.return_value.get_project_issues_count.return_value = 10
+
+        jira_ticket_search_operator = JiraOperator(
+            task_id="get-issue-count",
+            jira_method="get_project_issues_count",
+            jira_method_args={"project": "ABC"},
+            dag=self.dag,
+        )
+
+        jira_ticket_search_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        assert jira_mock.called
+        assert jira_mock.return_value.get_project_issues_count.called
+
+    @patch("airflow.providers.atlassian.jira.hooks.jira.Jira", autospec=True, return_value=jira_client_mock)
     def test_issue_search(self, jira_mock):
         jql_str = "issuekey=TEST-1226"
         jira_mock.return_value.jql_get_list_of_tickets.return_value = minimal_test_ticket

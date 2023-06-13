@@ -73,6 +73,7 @@ jobs:
       RUNS_ON: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-22.04' }}
     if: contains(fromJSON('[
       "ashb",
+      "eladkal",
       "ephraimbuddy",
       "jedcunningham",
       "kaxil",

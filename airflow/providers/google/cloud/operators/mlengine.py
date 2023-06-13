@@ -426,7 +426,7 @@ class MLEngineCreateModelOperator(GoogleCloudBaseOperator):
 
 class MLEngineGetModelOperator(GoogleCloudBaseOperator):
     """
-    Gets a particular model
+    Gets a particular model.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -679,7 +679,7 @@ class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
 
 class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
     """
-    Creates a new version in the model
+    Creates a new version in the model.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -843,7 +843,7 @@ class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
 
 class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
     """
-    Lists all available versions of the model
+    Lists all available versions of the model.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

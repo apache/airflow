@@ -54,7 +54,7 @@ def _ensure_prefixes(conn_type):
 
 
 class JenkinsHook(BaseHook):
-    """Hook to manage connection to jenkins server"""
+    """Hook to manage connection to jenkins server."""
 
     conn_name_attr = "conn_id"
     default_conn_name = "jenkins_default"
@@ -63,7 +63,7 @@ class JenkinsHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_babel import lazy_gettext
         from wtforms import BooleanField
 
@@ -77,7 +77,7 @@ class JenkinsHook(BaseHook):
     @staticmethod
     @_ensure_prefixes(conn_type="jenkins")
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "extra"],
             "relabeling": {},
@@ -102,7 +102,7 @@ class JenkinsHook(BaseHook):
         self.jenkins_server = jenkins.Jenkins(url, connection.login, connection.password)
 
     def get_jenkins_server(self) -> jenkins.Jenkins:
-        """Get jenkins server"""
+        """Get jenkins server."""
         return self.jenkins_server
 
     def get_latest_build_number(self, job_name) -> int:
