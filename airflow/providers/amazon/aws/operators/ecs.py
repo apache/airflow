@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.hooks.ecs import (
     EcsTaskLogFetcher,
     should_retry_eni,
 )
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.ecs import (
     ClusterWaiterTrigger,
     TaskDoneTrigger,
@@ -561,10 +562,19 @@ class EcsRunTaskOperator(EcsBaseOperator):
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
             raise AirflowException(f"Error in task execution: {event}")
-        self.arn = event["task_arn"]  # restore arn to its updated value
+        self.arn = event["task_arn"]  # restore arn to its updated value, needed for next steps
         self._after_execution()
         if self._aws_logs_enabled():
-            ...  # TODO return last log line but task_log_fetcher will always be None here
+            # same behavior as non-deferrable mode, return last line of logs of the task.
+            logs_client = AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).conn
+            one_log = logs_client.get_log_events(
+                logGroupName=self.awslogs_group,
+                logStreamName=self._get_logs_stream_name(),
+                startFromHead=False,
+                limit=1,
+            )
+            if len(one_log["events"]) > 0:
+                return one_log["events"][0]["message"]
 
     @provide_session
     def _after_execution(self, session=None):
@@ -700,16 +710,18 @@ class EcsRunTaskOperator(EcsBaseOperator):
     def _aws_logs_enabled(self):
         return self.awslogs_group and self.awslogs_stream_prefix
 
+    def _get_logs_stream_name(self) -> str:
+        return f"{self.awslogs_stream_prefix}/{self.ecs_task_id}"
+
     def _get_task_log_fetcher(self) -> EcsTaskLogFetcher:
         if not self.awslogs_group:
             raise ValueError("must specify awslogs_group to fetch task logs")
-        log_stream_name = f"{self.awslogs_stream_prefix}/{self.ecs_task_id}"
 
         return EcsTaskLogFetcher(
             aws_conn_id=self.aws_conn_id,
             region_name=self.awslogs_region,
             log_group=self.awslogs_group,
-            log_stream_name=log_stream_name,
+            log_stream_name=self._get_logs_stream_name(),
             fetch_interval=self.awslogs_fetch_interval,
             logger=self.log,
         )
