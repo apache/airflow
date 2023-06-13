@@ -78,7 +78,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         return self._client
 
     def _get_conn_params(self) -> tuple:
-        """Extract spanner database connection parameters"""
+        """Extract spanner database connection parameters."""
         extras = self.get_connection(self.gcp_conn_id).extra_dejson
         project_id = get_field(extras, "project_id") or self.project_id
         instance_id = get_field(extras, "instance_id")
@@ -86,7 +86,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
         return project_id, instance_id, database_id
 
     def get_uri(self) -> str:
-        """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
         project_id, instance_id, database_id = self._get_conn_params()
         if not instance_id or not database_id:
             raise AirflowException("The instance_id or database_id were not specify")
