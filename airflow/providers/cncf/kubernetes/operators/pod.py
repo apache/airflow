@@ -556,6 +556,7 @@ class KubernetesPodOperator(BaseOperator):
                     container_name=self.base_container_name,
                     follow=True,
                     post_termination_timeout=self.POST_TERMINATION_TIMEOUT,
+                    progress_callback=self.progress_callback
                 )
             else:
                 self.pod_manager.await_container_completion(
@@ -873,6 +874,11 @@ class KubernetesPodOperator(BaseOperator):
         pod = self.build_pod_request_obj()
         print(yaml.dump(prune_dict(pod.to_dict(), mode="strict")))
 
+    def progress_callback(self) -> None:
+        """
+        Expose a callback hook on status lines
+        """
+        pass
 
 class _optionally_suppress(AbstractContextManager):
     """

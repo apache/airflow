@@ -25,7 +25,7 @@ import warnings
 from contextlib import closing, suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Generator, cast
+from typing import TYPE_CHECKING, Generator, cast, Callable
 
 import pendulum
 import tenacity
@@ -336,6 +336,7 @@ class PodManager(LoggingMixin):
         follow=False,
         since_time: DateTime | None = None,
         post_termination_timeout: int = 120,
+        progress_callback: Callable[str, None] = lambda r: None,
     ) -> PodLoggingStatus:
         """
         Follows the logs of container and streams to airflow logging.
@@ -379,6 +380,7 @@ class PodManager(LoggingMixin):
                     line = raw_line.decode("utf-8", errors="backslashreplace")
                     timestamp, message = self.parse_log_line(line)
                     self.log.info(message)
+                    progress_callback(message)
             except BaseHTTPError as e:
                 self.log.warning(
                     "Reading of logs interrupted with error %r; will retry. "
