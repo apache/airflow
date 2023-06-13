@@ -62,19 +62,34 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         """
         params = inspect.signature(self.__init__).parameters.keys()  # type: ignore[misc]
         kwargs = {k: getattr(self, k) for k in params}
+        class_name = self.__class__.__name__
+        mod = inspect.getmodule(self)
+        # easy case
+        if mod and mod.__name__ != "__main__":
+            return f"{mod.__name__}.{class_name}", kwargs
+
+        print("tougher case")
+        # the file being run defines the method
         from airflow import AIRFLOW_ROOT
 
         mod_file = inspect.getfile(self.__class__)
+        if mod_file == "<input>":
+            raise ValueError(
+                "Logic for automated serialization of trigger does not work "
+                "when defining the class in a repl; please define the class "
+                "in another module and import it; alternatively, implement "
+                "the `serialize` method and hardcode the import path."
+            )
         try:
             rel_path = Path(mod_file).relative_to(AIRFLOW_ROOT)
         except ValueError:
             raise ValueError(
-                f"Class {self.__class__.__name__} is not located in a submodule of "
+                f"Class {class_name} is not located in a submodule of "
                 f"Airflow. You must implement its `serialize` method and hardcode "
                 f"the fully qualified class name."
             )
         mod_full_name = ".".join([*rel_path.parts[:-1], rel_path.stem])
-        return f"airflow.{mod_full_name}.{self.__class__.__name__}", kwargs
+        return f"airflow.{mod_full_name}.{class_name}", kwargs
 
     @abc.abstractmethod
     async def run(self) -> AsyncIterator[TriggerEvent]:
