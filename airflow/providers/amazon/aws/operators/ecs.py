@@ -102,7 +102,12 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         (default: False)
     """
 
-    template_fields: Sequence[str] = ("cluster_name", "create_cluster_kwargs", "wait_for_completion")
+    template_fields: Sequence[str] = (
+        "cluster_name",
+        "create_cluster_kwargs",
+        "wait_for_completion",
+        "deferrable",
+    )
 
     def __init__(
         self,
@@ -178,9 +183,12 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
         if not set then the default waiter value will be used.
     :param waiter_max_attempts: The maximum number of attempts to be made,
         if not set then the default waiter value will be used.
+    :param deferrable: If True, the operator will wait asynchronously for the job to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
-    template_fields: Sequence[str] = ("cluster_name", "wait_for_completion")
+    template_fields: Sequence[str] = ("cluster_name", "wait_for_completion", "deferrable")
 
     def __init__(
         self,
@@ -189,6 +197,7 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int | None = None,
         waiter_max_attempts: int | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -196,6 +205,7 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
 
     def execute(self, context: Context):
         self.log.info("Deleting cluster %r.", self.cluster_name)
@@ -432,6 +442,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
         if not set then the default waiter value will be used.
     :param waiter_max_attempts: The maximum number of attempts to be made,
         if not set then the default waiter value will be used.
+    :param deferrable: If True, the operator will wait asynchronously for the job to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     ui_color = "#f0ede4"
@@ -455,6 +468,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         "reattach",
         "number_logs_exception",
         "wait_for_completion",
+        "deferrable",
     )
     template_fields_renderers = {
         "overrides": "json",
@@ -489,6 +503,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int | None = None,
         waiter_max_attempts: int | None = None,
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -522,6 +537,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
 
     @provide_session
     def execute(self, context, session=None):
