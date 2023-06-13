@@ -111,6 +111,23 @@ class TestXComEncoder:
         e = json.loads(i, cls=utils_json.XComDecoder)
         assert data == e
 
+    @pytest.mark.parametrize(
+        "data",
+        [
+            '[{"__classname__": "airflow.datasets.Dataset", "__version__": 1,'
+            ' "__data__": {"__var": {"uri": "bq://google_cloud_default@?table=table_name&schema=schema_name",'
+            ' "extra": null}, "__type": "dict"}}]'
+        ],
+    )
+    def test_decode_xcom_with_old_data(self, data):
+        """
+        Ensure that the Xcom value encoded by Airflow 2.5.2 is getting decoded by Airflow 2.6.
+        """
+        d = json.loads(data, cls=utils_json.XComDecoder)
+        assert d == [
+            Dataset(uri="bq://google_cloud_default@?table=table_name&schema=schema_name", extra=None)
+        ]
+
     def test_orm_deserialize(self):
         x = 14
         u = U(x=x)
