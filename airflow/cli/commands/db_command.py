@@ -194,15 +194,15 @@ def check(args):
     retry_delay: int = args.retry_delay
 
     if db.check():
-        exit(0)
+        raise SystemExit(0)
 
     while retries > 0:
+        time.sleep(retry_delay)
         if db.check():
-            exit(0)
+            raise SystemExit(0)
         retries -= 1
         print(f"Warning: will retry in {retry_delay} seconds. {retries} retries left")
-        time.sleep(retry_delay)
-    exit(1)
+    raise SystemExit(1)
 
 
 # lazily imported by CLI parser for `help` command
