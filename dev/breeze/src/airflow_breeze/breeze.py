@@ -28,6 +28,12 @@ from airflow_breeze.configure_rich_click import click  # isort: skip # noqa
 find_airflow_sources_root_to_operate_on()
 create_directories_and_files()
 
+@click.command()
+@click.option('--with-triggerer', is_flag=True, help='Start a triggerer process')
+def breeze(with_triggerer: bool):
+    if with_triggerer:
+        subprocess.Popen([sys.executable, 'airflow', 'triggerer'])
+
 from airflow_breeze.commands import developer_commands  # noqa
 from airflow_breeze.commands.ci_commands import ci_group  # noqa
 from airflow_breeze.commands.ci_image_commands import ci_image  # noqa
@@ -44,6 +50,7 @@ main.add_command(ci_image)
 main.add_command(prod_image)
 main.add_command(setup)
 main.add_command(release_management)
+main.add_command(breeze)
 
 if __name__ == "__main__":
     main()
