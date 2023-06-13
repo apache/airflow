@@ -376,8 +376,8 @@ class AzureBatchHook(BaseHook):
                 failed_tasks = [
                     task
                     for task in tasks
-                    if (task.execution_info.result == batch_models.TaskExecutionResult.failure) or (
-                        task.execution_info.exit_code != 0)
+                    if (task.execution_info.result == batch_models.TaskExecutionResult.failure)
+                    or (task.execution_info.exit_code != 0)
                 ]
                 return failed_tasks
             for task in incomplete_tasks:
@@ -385,8 +385,7 @@ class AzureBatchHook(BaseHook):
             time.sleep(15)
         raise TimeoutError("Timed out waiting for tasks to complete")
 
-    def wait_for_single_job_task_to_complete(self, job_id: str, task_id: str,
-                                             timeout: int) -> bool:
+    def wait_for_single_job_task_to_complete(self, job_id: str, task_id: str, timeout: int) -> bool:
         """
         Wait for a single task in a particular job to complete, return False if it ultimately fails or True
         if it succeeds.
@@ -402,11 +401,15 @@ class AzureBatchHook(BaseHook):
 
             if task.state == batch_models.TaskState.completed:
                 # detect if task in job has failed
-                self.log.info("Task %s completed with result %s and exit code %s", task.id,
-                              task.execution_info.result,
-                              str(task.execution_info.exit_code))
+                self.log.info(
+                    "Task %s completed with result %s and exit code %s",
+                    task.id,
+                    task.execution_info.result,
+                    str(task.execution_info.exit_code),
+                )
                 if (task.execution_info.result == batch_models.TaskExecutionResult.failure) or (
-                    task.execution_info.exit_code != 0):
+                    task.execution_info.exit_code != 0
+                ):
                     return False
                 return True
             self.log.info("Waiting for %s to complete, currently on %s state", task.id, task.state)

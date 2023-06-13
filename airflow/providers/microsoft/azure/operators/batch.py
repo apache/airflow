@@ -304,9 +304,9 @@ class AzureBatchOperator(BaseOperator):
         # Add task to job
         self.hook.add_single_task_to_job(job_id=self.batch_job_id, task=task)
         # Wait for tasks to complete
-        is_task_successful = self.hook.wait_for_single_job_task_to_complete(job_id=self.batch_job_id,
-                                                                            task_id=task.id,
-                                                                            timeout=self.timeout)
+        is_task_successful = self.hook.wait_for_single_job_task_to_complete(
+            job_id=self.batch_job_id, task_id=task.id, timeout=self.timeout
+        )
         # Clean up
         if self.should_delete_job:
             # delete job first
