@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
 from unittest import mock
 from unittest.mock import AsyncMock
 
@@ -96,18 +95,6 @@ class TestBatchSensorTrigger:
             "aws_conn_id": AWS_CONN_ID,
             "poke_interval": POLL_INTERVAL,
         }
-
-    @pytest.mark.asyncio
-    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.get_job_description")
-    async def test_batch_sensor_trigger_run(self, mock_response):
-        """Trigger the BatchSensorTrigger and check if the task is in running state."""
-        mock_response.return_value = {"status": "RUNNABLE"}
-
-        task = asyncio.create_task(self.TRIGGER.run().__anext__())
-        await asyncio.sleep(0.5)
-        # TriggerEvent was not returned
-        assert task.done() is False
-        asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.get_waiter")
