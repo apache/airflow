@@ -486,7 +486,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
             )
 
     @staticmethod
-    def _get_ecs_task_id(task_arn: str) -> str:
+    def _get_ecs_task_id(task_arn: str | None) -> str | None:
+        if task_arn is None:
+            return None
         return task_arn.split("/")[-1]
 
     @provide_session

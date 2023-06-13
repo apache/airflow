@@ -187,10 +187,9 @@ class EcsTaskLogFetcher(Thread):
                 self.logger.warning("Error on retrieving Cloudwatch log events", error)
             else:
                 self.logger.info(
-                    "Cannot find log stream yet, it can take a couple of seconds to show up.\n"
-                    "If this error persists, check that the log group and stream are correct:\n"
-                    "group: %s\n"
-                    "stream: %s",
+                    "Cannot find log stream yet, it can take a couple of seconds to show up. "
+                    "If this error persists, check that the log group and stream are correct: "
+                    "group: %s\tstream: %s",
                     self.log_group,
                     self.log_stream_name,
                 )
