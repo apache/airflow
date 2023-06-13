@@ -42,7 +42,7 @@ Only ``pip`` installation is currently officially supported.
 
 Typical command to install airflow from PyPI looks like below:
 
-.. code-block::
+.. code-block:: bash
 
     pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
 
@@ -53,20 +53,28 @@ This is an example, see further for more explanation.
 Constraints files
 '''''''''''''''''
 
-Airflow installation can be tricky sometimes because Airflow is both a library and an application.
+Why we need constraints
+=======================
+
+Airflow installation can be tricky because Airflow is both a library and an application.
+
 Libraries usually keep their dependencies open and applications usually pin them, but we should do neither
 and both at the same time. We decided to keep our dependencies as open as possible
 (in ``setup.cfg`` and ``setup.py``) so users can install different
 version of libraries if needed. This means that from time to time plain ``pip install apache-airflow`` will
 not work or will produce an unusable Airflow installation.
 
-In order to have a repeatable installation (and only for that reason), we also keep a set of "known-to-be-working" constraint files in the
-``constraints-main``, ``constraints-2-0``, ``constraints-2-1`` etc. orphan branches and then we create a tag
-for each released version e.g. :subst-code:`constraints-|version|`. This way, we keep a tested and working set of dependencies.
+Reproducible Airflow installation
+=================================
 
-Those "known-to-be-working" constraints are per major/minor Python version. You can use them as constraint
-files when installing Airflow from PyPI. Note that you have to specify the correct Airflow
-and Python versions in the URL.
+In order to have a reproducible installation, we also keep a set of constraint files in the
+``constraints-main``, ``constraints-2-0``, ``constraints-2-1`` etc. orphan branches and then we create a tag
+for each released version e.g. :subst-code:`constraints-|version|`.
+
+This way, we keep a tested set of dependencies at the moment of release. This provides you with the ability
+of having the exact same installation of airflow + providers + dependencies as was known to be working
+at the moment of release - frozen set of dependencies for that version of Airflow. There is a separate
+constraints file for each version of Python that Airflow supports.
 
 You can create the URL to the file substituting the variables in the template below.
 
@@ -79,21 +87,68 @@ where:
 - ``AIRFLOW_VERSION`` - Airflow version (e.g. :subst-code:`|version|`) or ``main``, ``2-0``, for latest development version
 - ``PYTHON_VERSION`` Python version e.g. ``3.8``, ``3.9``
 
-There is also a ``constraints-no-providers`` constraint file, which contains just constraints required to
-install Airflow core. This allows to install and upgrade airflow separately and independently from providers.
+**However, that should not prevent you from being able to upgrade or downgrade providers and dependencies to other versions**
 
-You can create the URL to the file substituting the variables in the template below.
+You can, for example, install new versions of providers and dependencies after the release to use the latest
+version and up-to-date with latest security fixes - even if you do not want upgrade airflow core version.
+Or you can downgrade some dependencies or providers if you want to keep previous versions for compatibility
+reasons. Installing such dependencies should be done without constraints as a separate pip command.
 
-.. code-block::
+When you do such an upgrade, you should make sure to also add the ``apache-airflow`` package to the list of
+packages to install and pin it to the version that you have, otherwise you might end up with a
+different version of Airflow than you expect as ``pip`` can upgrade/downgrade it automatically when
+performing dependency resolution.
 
-  https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-no-providers-${PYTHON_VERSION}.txt
+.. code-block:: bash
 
-You can also use "latest" as version when you install "latest" stable version of Airflow. The "latest"
-constraints always points to the "latest" released Airflow version constraints:
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
+    pip install "apache-airflow[celery]==|version|" apache-airflow-providers-google==10.1.1
 
-.. code-block::
+You can also downgrade or upgrade other dependencies this way - even if they are not compatible with
+those dependencies that are stored in the original constraints file:
 
-  https://raw.githubusercontent.com/apache/airflow/constraints-latest/constraints-3.8.txt
+.. code-block:: bash
+
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
+    pip install "apache-airflow[celery]==|version|" dbt-core==0.20.0
+
+
+Such an upgrade is not always possible - you might have conflicting dependencies. However, by not using constraints,
+you give ``pip`` a chance to resolve the conflicts for you, while keeping within the limits of dependencies
+that Apache Airflow and other providers require. The combination of those dependencies might not be as well
+tested as the "golden" set of dependencies, but it should work in most cases. You can also always run
+the ``pip check`` command to test if the set of your Python packages is consistent and not conflicting.
+
+
+Using your own constraints
+==========================
+
+When you decide to install your own dependencies, or want to upgrade or downgrade providers, you might want
+to continue being able to keep reproducible installation of Airflow and those dependencies via single command
+line . In order to do that, you can produce your own constraints file and use it
+to install Airflow instead of the one provided by the community.
+
+.. code-block:: bash
+
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
+    pip install "apache-airflow[celery]==|version|" dbt-core==0.20.0
+    pip freeze > my-constraints.txt
+
+
+Then you can use it to create reproducible installations of your environment in a single operation via
+a local constraints file:
+
+.. code-block:: bash
+
+    pip install "apache-airflow[celery]==|version|" --constraint "my-constraints.txt"
+
+
+The constraint file might also be hosted via a webserver of your choice and made available for remote use:
+
+
+.. code-block:: bash
+
+    pip install "apache-airflow[celery]==|version|" --constraint "https://my-company.org/my-constraints.txt"
 
 
 Fixing Constraint files at release time
@@ -101,28 +156,17 @@ Fixing Constraint files at release time
 
 The released "versioned" constraints are mostly ``fixed`` when we release Airflow version and we only
 update them in exceptional circumstances. For example when we find out that the released constraints might prevent
-Airflow from being installed consistently from the scratch. In normal circumstances, the constraint files
-are not going to change if new version of Airflow dependencies are released - not even when those
-versions contain critical security fixes. The process of Airflow releases is designed around upgrading
-dependencies automatically where applicable but only when we release a new version of Airflow,
-not for already released versions.
+Airflow from being installed consistently from the scratch.
 
-If you want to make sure that Airflow dependencies are upgraded to the latest released versions containing
-latest security fixes, you should implement your own process to upgrade those yourself when
-you detect the need for that. Airflow usually does not upper-bound versions of its dependencies via
-requirements, so you should be able to upgrade them to the latest versions - usually without any problems.
+In normal circumstances, the constraint files are not going to change if new version of Airflow
+dependencies are released - not even when those versions contain critical security fixes.
+The process of Airflow releases is designed around upgrading dependencies automatically where
+applicable but only when we release a new version of Airflow, not for already released versions.
 
-Obviously - since we have no control over what gets released in new versions of the dependencies, we
-cannot give any guarantees that tests and functionality of those dependencies will be compatible with
-Airflow after you upgrade them - testing if Airflow still works with those is in your hands,
-and in case of any problems, you should raise issue with the authors of the dependencies that are problematic.
-You can also - in such cases - look at the `Airflow issues <https://github.com/apache/airflow/issues>`_
-`Airflow Pull Requests <https://github.com/apache/airflow/pulls>`_ and
-`Airflow Discussions <https://github.com/apache/airflow/discussions>`_, searching for similar
-problems to see if there are any fixes or workarounds found in the ``main`` version of Airflow and apply them
-to your deployment.
+Between the releases you can upgrade dependencies on your own and you can keep your own constraints
+updated as described in the previous section.
 
-The easiest way to keep-up with the latest released dependencies is however, to upgrade to the latest released
+The easiest way to keep-up with the latest released dependencies is to upgrade to the latest released
 Airflow version. Whenever we release a new version of Airflow, we upgrade all dependencies to the latest
 applicable versions and test them together, so if you want to keep up with those tests - staying up-to-date
 with latest version of Airflow is the easiest way to update those dependencies.
