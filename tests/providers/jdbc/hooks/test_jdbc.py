@@ -18,17 +18,31 @@
 from __future__ import annotations
 
 import json
-import os
+import logging
+from unittest import mock
 from unittest.mock import Mock, patch
-
-import pytest
-from pytest import param
 
 from airflow.models import Connection
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook
 from airflow.utils import db
 
 jdbc_conn_mock = Mock(name="jdbc_conn")
+
+
+def get_hook(hook_params=None, conn_params=None):
+    hook_params = hook_params or {}
+    conn_params = conn_params or {}
+    connection = Connection(
+        **{
+            **dict(login="login", password="password", host="host", schema="schema", port=1234),
+            **conn_params,
+        }
+    )
+
+    hook = JdbcHook(**hook_params)
+    hook.get_connection = Mock()
+    hook.get_connection.return_value = connection
+    return hook
 
 
 class TestJdbcHook:
@@ -41,8 +55,8 @@ class TestJdbcHook:
                 port=443,
                 extra=json.dumps(
                     {
-                        "extra__jdbc__drv_path": "/path1/test.jar,/path2/t.jar2",
-                        "extra__jdbc__drv_clsname": "com.driver.main",
+                        "driver_path": "/path1/test.jar,/path2/t.jar2",
+                        "driver_class": "com.driver.main",
                     }
                 ),
             )
@@ -70,39 +84,75 @@ class TestJdbcHook:
         jdbc_hook.get_autocommit(jdbc_conn)
         jdbc_conn.jconn.getAutoCommit.assert_called_once_with()
 
-    @pytest.mark.parametrize(
-        "uri",
-        [
-            param(
-                "a://?extra__jdbc__drv_path=abc&extra__jdbc__drv_clsname=abc",
-                id="prefix",
-            ),
-            param("a://?drv_path=abc&drv_clsname=abc", id="no-prefix"),
-        ],
-    )
-    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect")
-    def test_backcompat_prefix_works(self, mock_connect, uri):
-        with patch.dict(os.environ, {"AIRFLOW_CONN_MY_CONN": uri}):
-            hook = JdbcHook("my_conn")
-            hook.get_conn()
-            mock_connect.assert_called_with(
-                jclassname="abc",
-                url="",
-                driver_args=["None", "None"],
-                jars="abc".split(","),
-            )
+    def test_driver_hook_params(self):
+        hook = get_hook(hook_params=dict(driver_path="Blah driver path", driver_class="Blah driver class"))
+        assert hook.driver_path == "Blah driver path"
+        assert hook.driver_class == "Blah driver class"
 
-    @patch("airflow.providers.jdbc.hooks.jdbc.jaydebeapi.connect")
-    def test_backcompat_prefix_both_prefers_short(self, mock_connect):
-        with patch.dict(
-            os.environ,
-            {"AIRFLOW_CONN_MY_CONN": "a://?drv_path=non-prefixed&extra__jdbc__drv_path=prefixed"},
-        ):
-            hook = JdbcHook("my_conn")
-            hook.get_conn()
-            mock_connect.assert_called_with(
-                jclassname=None,
-                url="",
-                driver_args=["None", "None"],
-                jars="non-prefixed".split(","),
-            )
+    def test_driver_in_extra_not_used(self):
+        conn_params = dict(
+            extra=json.dumps(dict(driver_path="ExtraDriverPath", driver_class="ExtraDriverClass"))
+        )
+        hook_params = {"driver_path": "ParamDriverPath", "driver_class": "ParamDriverClass"}
+        hook = get_hook(conn_params=conn_params, hook_params=hook_params)
+        assert hook.driver_path == "ParamDriverPath"
+        assert hook.driver_class == "ParamDriverClass"
+
+    def test_driver_extra_raises_warning_by_default(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="airflow.providers.jdbc.hooks.test_jdbc"):
+            driver_path = get_hook(conn_params=dict(extra='{"driver_path": "Blah driver path"}')).driver_path
+            assert (
+                "You have supplied 'driver_path' via connection extra but it will not be used"
+            ) in caplog.text
+            assert driver_path is None
+
+            driver_class = get_hook(
+                conn_params=dict(extra='{"driver_class": "Blah driver class"}')
+            ).driver_class
+            assert (
+                "You have supplied 'driver_class' via connection extra but it will not be used"
+            ) in caplog.text
+            assert driver_class is None
+
+    @mock.patch.dict("os.environ", {"AIRFLOW__PROVIDERS_JDBC__ALLOW_DRIVER_PATH_IN_EXTRA": "TRUE"})
+    @mock.patch.dict("os.environ", {"AIRFLOW__PROVIDERS_JDBC__ALLOW_DRIVER_CLASS_IN_EXTRA": "TRUE"})
+    def test_driver_extra_works_when_allow_driver_extra(self):
+        hook = get_hook(
+            conn_params=dict(extra='{"driver_path": "Blah driver path", "driver_class": "Blah driver class"}')
+        )
+        assert hook.driver_path == "Blah driver path"
+        assert hook.driver_class == "Blah driver class"
+
+    def test_default_driver_set(self):
+        with patch.object(JdbcHook, "default_driver_path", "Blah driver path") as _, patch.object(
+            JdbcHook, "default_driver_class", "Blah driver class"
+        ) as _:
+            hook = get_hook()
+            assert hook.driver_path == "Blah driver path"
+            assert hook.driver_class == "Blah driver class"
+
+    def test_driver_none_by_default(self):
+        hook = get_hook()
+        assert hook.driver_path is None
+        assert hook.driver_class is None
+
+    def test_driver_extra_raises_warning_and_returns_default_driver_by_default(self, caplog):
+        with patch.object(JdbcHook, "default_driver_path", "Blah driver path"):
+            with caplog.at_level(logging.WARNING, logger="airflow.providers.jdbc.hooks.test_jdbc"):
+                driver_path = get_hook(
+                    conn_params=dict(extra='{"driver_path": "Blah driver path2"}')
+                ).driver_path
+                assert (
+                    "have supplied 'driver_path' via connection extra but it will not be used"
+                ) in caplog.text
+                assert driver_path == "Blah driver path"
+
+        with patch.object(JdbcHook, "default_driver_class", "Blah driver class"):
+            with caplog.at_level(logging.WARNING, logger="airflow.providers.jdbc.hooks.test_jdbc"):
+                driver_class = get_hook(
+                    conn_params=dict(extra='{"driver_class": "Blah driver class2"}')
+                ).driver_class
+                assert (
+                    "have supplied 'driver_class' via connection extra but it will not be used"
+                ) in caplog.text
+                assert driver_class == "Blah driver class"
