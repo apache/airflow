@@ -115,7 +115,7 @@ class TriggerEvent:
     events.
     """
 
-    def __init__(self, payload: Any = None):
+    def __init__(self, payload):
         self.payload = payload
 
     def __repr__(self) -> str:
