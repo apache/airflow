@@ -17,6 +17,8 @@
 from __future__ import annotations
 
 import abc
+import inspect
+from pathlib import Path
 from typing import Any, AsyncIterator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -37,7 +39,6 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     """
 
     def __init__(self, **kwargs):
-
         # these values are set by triggerer when preparing to run the instance
         # when run, they are injected into logger record.
         self.task_instance = None
@@ -50,14 +51,30 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """
         Returns the information needed to reconstruct this Trigger.
 
+        In most cases the default implementation should work but there may be some cases where
+        you will need to implement.
+
         :return: Tuple of (class path, keyword arguments needed to re-instantiate).
         """
-        raise NotImplementedError("Triggers must implement serialize()")
+        params = inspect.signature(self.__init__).parameters.keys()  # type: ignore[misc]
+        kwargs = {k: getattr(self, k) for k in params}
+        from airflow import AIRFLOW_ROOT
+
+        mod_file = inspect.getfile(self.__class__)
+        try:
+            rel_path = Path(mod_file).relative_to(AIRFLOW_ROOT)
+        except ValueError:
+            raise ValueError(
+                f"Class {self.__class__.__name__} is not located in a submodule of "
+                f"Airflow. You must implement its `serialize` method and hardcode "
+                f"the fully qualified class name."
+            )
+        mod_full_name = ".".join([*rel_path.parts[:-1], rel_path.stem])
+        return f"airflow.{mod_full_name}.{self.__class__.__name__}", kwargs
 
     @abc.abstractmethod
     async def run(self) -> AsyncIterator[TriggerEvent]:

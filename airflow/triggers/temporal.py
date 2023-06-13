@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 import datetime
-from typing import Any
 
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
@@ -43,9 +42,6 @@ class DateTimeTrigger(BaseTrigger):
             raise ValueError("You cannot pass naive datetimes")
         else:
             self.moment = timezone.convert_to_utc(moment)
-
-    def serialize(self) -> tuple[str, dict[str, Any]]:
-        return ("airflow.triggers.temporal.DateTimeTrigger", {"moment": self.moment})
 
     async def run(self):
         """

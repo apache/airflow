@@ -32,6 +32,7 @@ __version__ = "2.7.0.dev0"
 
 import os
 import sys
+from pathlib import Path
 from typing import Callable
 
 if os.environ.get("_AIRFLOW_PATCH_GEVENT"):
@@ -130,3 +131,5 @@ if STATICA_HACK:  # pragma: no cover
     from airflow.models.xcom_arg import XComArg
     from airflow.exceptions import AirflowException
     from airflow.models.dataset import Dataset
+
+AIRFLOW_ROOT = Path(__file__).parent
