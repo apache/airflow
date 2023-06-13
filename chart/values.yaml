@@ -25,9 +25,6 @@ fullnameOverride: ""
 # Provide a name to substitute for the name of the chart
 nameOverride: ""
 
-# Provide a Kubernetes version (used for API Version selection) to override the auto-detected version
-kubeVersionOverride: ""
-
 # Max number of old replicasets to retain. Can be overridden by each deployment's revisionHistoryLimit
 revisionHistoryLimit: ~
 
