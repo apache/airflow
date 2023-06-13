@@ -30,7 +30,7 @@ create_directories_and_files()
 
 @click.command()
 @click.option('--with-triggerer', is_flag=True, help='Start a triggerer process')
-def breeze(with_triggerer: bool):
+def with_trigger(with_triggerer: bool):
     if with_triggerer:
         subprocess.Popen([sys.executable, 'airflow', 'triggerer'])
 
@@ -50,7 +50,7 @@ main.add_command(ci_image)
 main.add_command(prod_image)
 main.add_command(setup)
 main.add_command(release_management)
-main.add_command(breeze)
+main.add_command(with_trigger)
 
 if __name__ == "__main__":
     main()
