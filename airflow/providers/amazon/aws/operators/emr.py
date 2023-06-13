@@ -18,13 +18,10 @@
 from __future__ import annotations
 
 import ast
-import time
 import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 from uuid import uuid4
-
-from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
@@ -32,6 +29,7 @@ from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, Em
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
 from airflow.providers.amazon.aws.utils.waiter import waiter
+from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.utils.helpers import exactly_one, prune_dict
 from airflow.utils.types import NOTSET, ArgNotSet
 
@@ -957,64 +955,38 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             raise AirflowException(f"Application Creation failed: {response}")
 
         self.log.info("EMR serverless application created: %s", application_id)
-        attempt = 0
         waiter = self.hook.get_waiter("serverless_app_created")
-        while attempt < self.waiter_max_attempts:
-            attempt += 1
-            try:
-                waiter.wait(
-                    applicationId=application_id,
-                    WaiterConfig=prune_dict(
-                        {
-                            "Delay": self.waiter_delay,
-                            "MaxAttempts": 1,
-                        }
-                    ),
-                )
-                break
-            except WaiterError as error:
-                if "terminal failure" in str(error):
-                    raise AirflowException(f"Serverless Application Creation failed: {error}")
-                self.log.info(
-                    "Serverless Application status is: %s - %s",
-                    error.last_response["application"]["state"],
-                    error.last_response["application"]["stateDetails"],
-                )
-                time.sleep(self.waiter_delay)
-        if attempt > self.waiter_max_attempts:
-            raise AirflowException("Serverless Application Creation failed - max attempts reached")
-
+        state_args = {
+            "applicationId": application_id,
+        }
+        status_message = {
+            "message": "Serverless Application status is: ",
+            "args": [["application", "state"], ["application", "stateDetails"]],
+        }
+        wait(
+            waiter=waiter,
+            waiter_delay=self.waiter_delay,
+            max_attempts=self.waiter_max_attempts,
+            state_args=state_args,
+            failure_message="Serverless Application Creation failed",
+            status_message=status_message,
+        )
         self.log.info("Starting application %s", application_id)
         self.hook.conn.start_application(applicationId=application_id)
 
         if self.wait_for_completion:
-            attempt = 0
             waiter = self.hook.get_waiter("serverless_app_started")
-            while attempt < self.waiter_max_attempts:
-                attempt += 1
-                try:
-                    waiter.wait(
-                        applicationId=application_id,
-                        WaiterConfig=prune_dict(
-                            {
-                                "Delay": self.waiter_delay,
-                                "MaxAttempts": 1,
-                            }
-                        ),
-                    )
-                    break
-                except WaiterError as error:
-                    if "terminal failure" in str(error):
-                        raise AirflowException(f"Serverless Application failed to start: {error}")
-                    self.log.info(
-                        "Serverless Application status is: %s - %s",
-                        error.last_response["application"]["state"],
-                        error.last_response["application"]["stateDetails"],
-                    )
-                    time.sleep(self.waiter_delay)
-            if attempt > self.waiter_max_attempts:
-                raise AirflowException("Serverless Application failed - max attempts reached")
-
+            wait(
+                waiter=waiter,
+                max_attempts=self.waiter_max_attempts,
+                waiter_delay=self.waiter_delay,
+                state_args={"applicationId": application_id},
+                failure_message="Serverless Application failed to start",
+                status_message={
+                    "message": "Serverless Application status is",
+                    "args": [["application", "state"], ["application", "stateDetails"]],
+                },
+            )
         return application_id
 
 
@@ -1124,32 +1096,19 @@ class EmrServerlessStartJobOperator(BaseOperator):
         app_state = self.hook.conn.get_application(applicationId=self.application_id)["application"]["state"]
         if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
             self.hook.conn.start_application(applicationId=self.application_id)
-            attempt = 0
             waiter = self.hook.get_waiter("serverless_app_started")
-            while attempt < self.waiter_max_attempts:
-                attempt += 1
-                try:
-                    waiter.wait(
-                        applicationId=self.application_id,
-                        WaiterConfig=prune_dict(
-                            {
-                                "Delay": self.waiter_delay,
-                                "MaxAttempts": 1,
-                            }
-                        ),
-                    )
-                    break
-                except WaiterError as error:
-                    if "terminal failure" in str(error):
-                        raise AirflowException(f"Serverless Application failed to start: {error}")
-                    self.log.info(
-                        "Serverless Application status is: %s - %s",
-                        error.last_response["application"]["state"],
-                        error.last_response["application"]["stateDetails"],
-                    )
-                    time.sleep(self.waiter_delay)
-            if attempt > self.waiter_max_attempts:
-                raise AirflowException("Serverless Application failed - max attempts reached")
+
+            wait(
+                waiter=waiter,
+                max_attempts=self.waiter_max_attempts,
+                waiter_delay=self.waiter_delay,
+                state_args={"applicationId": self.application_id},
+                failure_message="Serverless Application failed to start",
+                status_message={
+                    "message": "Serverless Application status is ",
+                    "args": [["application", "state"], ["application", "stateDetails"]],
+                },
+            )
 
         response = self.hook.conn.start_job_run(
             clientToken=self.client_request_token,
@@ -1167,33 +1126,19 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.job_id = response["jobRunId"]
         self.log.info("EMR serverless job started: %s", self.job_id)
         if self.wait_for_completion:
-            attempt = 0
             waiter = self.hook.get_waiter("serverless_job_completed")
-            while attempt < self.waiter_max_attempts:
-                attempt += 1
-                try:
-                    waiter.wait(
-                        applicationId=self.application_id,
-                        jobRunId=self.job_id,
-                        WaiterConfig=prune_dict(
-                            {
-                                "Delay": self.waiter_delay,
-                                "MaxAttempts": 1,
-                            }
-                        ),
-                    )
-                    break
-                except WaiterError as error:
-                    if "terminal failure" in str(error):
-                        raise AirflowException(f"Serverless Job failed: {error}")
-                    self.log.info(
-                        "Serverless Job status is: %s - %s",
-                        error.last_response["jobRun"]["state"],
-                        error.last_response["jobRun"]["stateDetails"],
-                    )
-                    time.sleep(self.waiter_delay)
-            if attempt > self.waiter_max_attempts:
-                raise AirflowException("Serverless Job failed - max attempts reached")
+            wait(
+                waiter=waiter,
+                max_attempts=self.waiter_max_attempts,
+                waiter_delay=self.waiter_delay,
+                state_args={"applicationId": self.application_id, "jobRunId": self.job_id},
+                failure_message="Serverless Job failed",
+                status_message={
+                    "message": "Serverless Job status is ",
+                    "args": [["jobRun", "state"], ["jobRun", "stateDetails"]],
+                },
+            )
+
         return self.job_id
 
     def on_kill(self) -> None:
@@ -1312,32 +1257,18 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         self.hook.conn.stop_application(applicationId=self.application_id)
 
         if self.wait_for_completion:
-            attempt = 0
             waiter = self.hook.get_waiter("serverless_app_stopped")
-            while attempt < self.waiter_max_attempts:
-                attempt += 1
-                try:
-                    waiter.wait(
-                        applicationId=self.application_id,
-                        WaiterConfig=prune_dict(
-                            {
-                                "Delay": self.waiter_delay,
-                                "MaxAttempts": 1,
-                            }
-                        ),
-                    )
-                    break
-                except WaiterError as error:
-                    if "terminal failure" in str(error):
-                        raise AirflowException(f"Error stopping application: {error}")
-                    self.log.info(
-                        "Serverless application status is: %s - %s",
-                        error.last_response["application"]["state"],
-                        error.last_response["application"]["stateDetails"],
-                    )
-                    time.sleep(self.waiter_delay)
-            if attempt > self.waiter_max_attempts:
-                raise AirflowException("Error stopping application - max attempts reached")
+            wait(
+                waiter=waiter,
+                max_attempts=self.waiter_max_attempts,
+                waiter_delay=self.waiter_delay,
+                state_args={"applicationId": self.application_id},
+                failure_message="Error stopping application",
+                status_message={
+                    "message": "Serverless application is %s - %s",
+                    "args": [["application", "state"], ["application", "stateDetails"]],
+                },
+            )
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)
 
 
@@ -1422,31 +1353,18 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
             raise AirflowException(f"Application deletion failed: {response}")
 
         if self.wait_for_delete_completion:
-            attempt = 0
             waiter = self.hook.get_waiter("serverless_app_terminated")
-            while attempt < self.waiter_max_attempts:
-                attempt += 1
-                try:
-                    waiter.wait(
-                        applicationId=self.application_id,
-                        WaiterConfig=prune_dict(
-                            {
-                                "Delay": self.waiter_delay,
-                                "MaxAttempts": 1,
-                            }
-                        ),
-                    )
-                    break
-                except WaiterError as error:
-                    if "terminal failure" in str(error):
-                        raise AirflowException(f"Error terminating application: {error}")
-                    self.log.info(
-                        "Serverless application status is: %s - %s",
-                        error.last_response["application"]["state"],
-                        error.last_response["application"]["stateDetails"],
-                    )
-                    time.sleep(self.waiter_delay)
-            if attempt > self.waiter_max_attempts:
-                raise AirflowException("Error terminating application - max attempts reached")
+
+            wait(
+                waiter=waiter,
+                max_attempts=self.waiter_max_attempts,
+                waiter_delay=self.waiter_delay,
+                state_args={"applicationId": self.application_id},
+                failure_message="Error terminating application",
+                status_message={
+                    "message": "Serverless Application status is ",
+                    "args": [["application", "state"], ["application", "stateDetails"]],
+                },
+            )
 
         self.log.info("EMR serverless application deleted")
