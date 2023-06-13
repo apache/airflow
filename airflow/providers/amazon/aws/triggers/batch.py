@@ -171,7 +171,7 @@ class BatchSensorTrigger(BaseTrigger):
                     )
                     break
                 except WaiterError as error:
-                    if "Error" in str(error):
+                    if "error" in str(error):
                         yield TriggerEvent({"status": "failure", "message": f"Job Failed: {error}"})
                         break
                     self.log.info(

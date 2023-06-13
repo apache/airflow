@@ -21,6 +21,7 @@ from unittest import mock
 from unittest.mock import AsyncMock
 
 import pytest
+from botocore.exceptions import WaiterError
 
 from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger, BatchSensorTrigger
 from airflow.triggers.base import TriggerEvent
@@ -91,7 +92,6 @@ class TestBatchSensorTrigger:
         assert classpath == "airflow.providers.amazon.aws.triggers.batch.BatchSensorTrigger"
         assert kwargs == {
             "job_id": BATCH_JOB_ID,
-            "max_retries": 5,
             "region_name": AWS_REGION,
             "aws_conn_id": AWS_CONN_ID,
             "poke_interval": POLL_INTERVAL,
@@ -159,16 +159,38 @@ class TestBatchSensorTrigger:
         )
 
     @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.get_waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.get_job_description")
-    async def test_batch_sensor_trigger_failure(self, mock_response, mock_get_waiter):
+    @mock.patch("airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.async_conn")
+    async def test_batch_sensor_trigger_failure(
+        self, mock_async_conn, mock_response, mock_get_waiter, mock_sleep
+    ):
         """Test if the failure event is returned from trigger."""
-        trigger = BatchSensorTrigger(
-            job_id=BATCH_JOB_ID, region_name=AWS_REGION, aws_conn_id=AWS_CONN_ID, max_retries=0
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+
+        mock_response.return_value = {"status": "failed"}
+
+        name = "batch_job_complete"
+        reason = (
+            "An error occurred (UnrecognizedClientException): The security token included in the "
+            "request is invalid. "
         )
+        last_response = ({"Error": {"Message": "The security token included in the request is invalid."}},)
+
+        error_failed = WaiterError(
+            name=name,
+            reason=reason,
+            last_response=last_response,
+        )
+
+        mock_get_waiter().wait.side_effect = AsyncMock(side_effect=[error_failed])
+        mock_sleep.return_value = True
+
+        trigger = BatchSensorTrigger(job_id=BATCH_JOB_ID, region_name=AWS_REGION, aws_conn_id=AWS_CONN_ID)
         generator = trigger.run()
         actual_response = await generator.asend(None)
-        assert (
-            TriggerEvent({"status": "failure", "message": "Job Failed - max attempts reached."})
-            == actual_response
+        assert actual_response == TriggerEvent(
+            {"status": "failure", "message": f"Job Failed: Waiter {name} failed: {reason}"}
         )
