@@ -72,7 +72,7 @@ class EcsBaseOperator(BaseOperator):
         raise NotImplementedError("Please implement execute() in subclass")
 
     def _complete_exec_with_cluster_desc(self, context, event=None):
-        """To be used as trigger callback for operators that return the cluster description"""
+        """To be used as trigger callback for operators that return the cluster description."""
         if event["status"] != "success":
             raise AirflowException(f"Error while waiting for operation on cluster to complete: {event}")
         cluster_arn = event.get("arn")
