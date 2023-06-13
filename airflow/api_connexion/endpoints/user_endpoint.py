@@ -119,7 +119,7 @@ def post_user() -> APIResponse:
     user = security_manager.add_user(role=roles_to_add, **data)
     if not user:
         detail = f"Failed to add user `{username}`."
-        return Unknown(detail=detail)
+        raise Unknown(detail=detail)
 
     return user_schema.dump(user)
 

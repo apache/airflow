@@ -193,7 +193,7 @@ def test_task_dag_id_equals_filter(admin_client, url, content):
     [
         ("", "/home"),
         ("javascript:alert(1)", "/home"),
-        (" javascript:alert(1)", "http://localhost:8080/ javascript:alert(1)"),
+        (" javascript:alert(1)", "/home"),
         ("http://google.com", "/home"),
         ("google.com", "http://localhost:8080/google.com"),
         ("\\/google.com", "http://localhost:8080/\\/google.com"),
