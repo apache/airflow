@@ -30,7 +30,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
     """
     SnowflakeSqlApi Trigger inherits from the BaseTrigger,it is fired as
     deferred class with params to run the task in trigger worker and
-    fetch the status for the query ids passed
+    fetch the status for the query ids passed.
 
     :param task_id: Reference to task id of the Dag
     :param poll_interval:  polling period in seconds to check for the status
@@ -69,7 +69,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """
         Makes a GET API request to snowflake with query_id to get the status of the query
-        by get_sql_api_query_status async function
+        by get_sql_api_query_status async function.
         """
         hook = SnowflakeSqlApiHook(
             self.snowflake_conn_id,
@@ -99,7 +99,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
         """
         Async function to check whether the query statement submitted via SQL API is still
         running state and returns True if it is still running else
-        return False
+        return False.
         """
         hook = SnowflakeSqlApiHook(
             self.snowflake_conn_id,
