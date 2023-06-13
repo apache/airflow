@@ -374,7 +374,10 @@ class TestEksCreateFargateProfileOperator:
         operator.execute({})
         mock_create_fargate_profile.assert_called_with(**convert_keys(parameters))
         mock_waiter.assert_called_with(
-            mock.ANY, clusterName=CLUSTER_NAME, fargateProfileName=FARGATE_PROFILE_NAME
+            mock.ANY,
+            clusterName=CLUSTER_NAME,
+            fargateProfileName=FARGATE_PROFILE_NAME,
+            WaiterConfig={"Delay": 10, "MaxAttempts": 60},
         )
         assert_expected_waiter_type(mock_waiter, "FargateProfileActive")
 
@@ -551,7 +554,10 @@ class TestEksDeleteFargateProfileOperator:
             clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
         )
         mock_waiter.assert_called_with(
-            mock.ANY, clusterName=CLUSTER_NAME, fargateProfileName=FARGATE_PROFILE_NAME
+            mock.ANY,
+            clusterName=CLUSTER_NAME,
+            fargateProfileName=FARGATE_PROFILE_NAME,
+            WaiterConfig={"Delay": 30, "MaxAttempts": 60},
         )
         assert_expected_waiter_type(mock_waiter, "FargateProfileDeleted")
 

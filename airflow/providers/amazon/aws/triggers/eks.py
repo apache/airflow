@@ -17,11 +17,11 @@
 from __future__ import annotations
 
 import asyncio
-from functools import cached_property
 from typing import Any
 
 from botocore.exceptions import WaiterError
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -64,11 +64,8 @@ class EksCreateFargateProfileTrigger(BaseTrigger):
             },
         )
 
-    @cached_property
-    def hook(self) -> EksHook:
-        return EksHook(aws_conn_id=self.aws_conn_id)
-
     async def run(self):
+        self.hook = EksHook(aws_conn_id=self.aws_conn_id)
         async with self.hook.async_conn as client:
             attempt = 0
             waiter = client.get_waiter("fargate_profile_active")
@@ -83,20 +80,14 @@ class EksCreateFargateProfileTrigger(BaseTrigger):
                     break
                 except WaiterError as error:
                     if "terminal failure" in str(error):
-                        yield TriggerEvent(
-                            {"status": "failure", "message": f"Create Fargate Profile failed: {error}"}
-                        )
-                        break
+                        raise AirflowException(f"Create Fargate Profile failed: {error}")
                     self.log.info(
                         "Status of fargate profile is %s", error.last_response["fargateProfile"]["status"]
                     )
                     await asyncio.sleep(int(self.poll_interval))
         if attempt >= int(self.max_attempts):
-            yield TriggerEvent(
-                {
-                    "status": "failure",
-                    "message": "Create Fargate profile Failed - max attempts reached.",
-                }
+            raise AirflowException(
+                f"Create Fargate Profile failed - max attempts reached: {self.max_attempts}"
             )
         else:
             yield TriggerEvent({"status": "success", "message": "Fargate Profile Created"})
@@ -140,11 +131,8 @@ class EksDeleteFargateProfileTrigger(BaseTrigger):
             },
         )
 
-    @cached_property
-    def hook(self) -> EksHook:
-        return EksHook(aws_conn_id=self.aws_conn_id)
-
     async def run(self):
+        self.hook = EksHook(aws_conn_id=self.aws_conn_id)
         async with self.hook.async_conn as client:
             attempt = 0
             waiter = client.get_waiter("fargate_profile_deleted")
@@ -159,20 +147,14 @@ class EksDeleteFargateProfileTrigger(BaseTrigger):
                     break
                 except WaiterError as error:
                     if "terminal failure" in str(error):
-                        yield TriggerEvent(
-                            {"status": "failure", "message": f"Delete Fargate Profile failed: {error}"}
-                        )
-                        break
+                        raise AirflowException(f"Delete Fargate Profile failed: {error}")
                     self.log.info(
                         "Status of fargate profile is %s", error.last_response["fargateProfile"]["status"]
                     )
                     await asyncio.sleep(int(self.poll_interval))
         if attempt >= int(self.max_attempts):
-            yield TriggerEvent(
-                {
-                    "status": "failure",
-                    "message": "Delete Fargate Profile Failed - max attempts reached.",
-                }
+            raise AirflowException(
+                f"Delete Fargate Profile failed - max attempts reached: {self.max_attempts}"
             )
         else:
             yield TriggerEvent({"status": "success", "message": "Fargate Profile Deleted"})

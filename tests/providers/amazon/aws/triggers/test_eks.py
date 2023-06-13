@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.eks import (
     EksCreateFargateProfileTrigger,
@@ -128,17 +129,11 @@ class TestEksCreateFargateProfileTrigger:
             poll_interval=TEST_POLL_INTERVAL,
             max_attempts=2,
         )
-
-        generator = eks_create_fargate_profile_trigger.run()
-        response = await generator.asend(None)
-
+        with pytest.raises(AirflowException) as exc:
+            generator = eks_create_fargate_profile_trigger.run()
+            await generator.asend(None)
+        assert "Create Fargate Profile failed - max attempts reached:" in str(exc.value)
         assert a_mock.get_waiter().wait.call_count == 2
-        assert response == TriggerEvent(
-            {
-                "status": "failure",
-                "message": "Create Fargate profile Failed - max attempts reached.",
-            }
-        )
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep")
@@ -167,13 +162,11 @@ class TestEksCreateFargateProfileTrigger:
             max_attempts=TEST_MAX_ATTEMPTS,
         )
 
-        generator = eks_create_fargate_profile_trigger.run()
-        response = await generator.asend(None)
-
+        with pytest.raises(AirflowException) as exc:
+            generator = eks_create_fargate_profile_trigger.run()
+            await generator.asend(None)
+        assert f"Create Fargate Profile failed: {error_failed}" in str(exc.value)
         assert a_mock.get_waiter().wait.call_count == 3
-        assert response == TriggerEvent(
-            {"status": "failure", "message": f"Create Fargate Profile failed: {error_failed}"}
-        )
 
 
 class TestEksDeleteFargateProfileTrigger:
@@ -267,16 +260,11 @@ class TestEksDeleteFargateProfileTrigger:
             poll_interval=TEST_POLL_INTERVAL,
             max_attempts=2,
         )
-
-        generator = eks_delete_fargate_profile_trigger.run()
-        response = await generator.asend(None)
+        with pytest.raises(AirflowException) as exc:
+            generator = eks_delete_fargate_profile_trigger.run()
+            await generator.asend(None)
+        assert "Delete Fargate Profile failed - max attempts reached: 2" in str(exc.value)
         assert a_mock.get_waiter().wait.call_count == 2
-        assert response == TriggerEvent(
-            {
-                "status": "failure",
-                "message": "Delete Fargate Profile Failed - max attempts reached.",
-            }
-        )
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep")
@@ -304,9 +292,8 @@ class TestEksDeleteFargateProfileTrigger:
             poll_interval=TEST_POLL_INTERVAL,
             max_attempts=TEST_MAX_ATTEMPTS,
         )
-        generator = eks_delete_fargate_profile_trigger.run()
-        response = await generator.asend(None)
+        with pytest.raises(AirflowException) as exc:
+            generator = eks_delete_fargate_profile_trigger.run()
+            await generator.asend(None)
+        assert f"Delete Fargate Profile failed: {error_failed}" in str(exc.value)
         assert a_mock.get_waiter().wait.call_count == 3
-        assert response == TriggerEvent(
-            {"status": "failure", "message": f"Delete Fargate Profile failed: {error_failed}"}
-        )

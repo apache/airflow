@@ -386,8 +386,8 @@ class EksCreateFargateProfileOperator(BaseOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
-        waiter_delay: int = 60,
-        waiter_max_attempts: int = 30,
+        waiter_delay: int = 10,
+        waiter_max_attempts: int = 60,
         deferrable: bool = False,
         **kwargs,
     ) -> None:
@@ -432,7 +432,9 @@ class EksCreateFargateProfileOperator(BaseOperator):
         elif self.wait_for_completion:
             self.log.info("Waiting for Fargate profile to provision.  This will take some time.")
             eks_hook.conn.get_waiter("fargate_profile_active").wait(
-                clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
+                clusterName=self.cluster_name,
+                fargateProfileName=self.fargate_profile_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
     def execute_complete(self, context, event=None):
@@ -643,8 +645,8 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
-        waiter_delay: int = 60,
-        waiter_max_attempts: int = 30,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
         deferrable: bool = False,
         **kwargs,
     ) -> None:
@@ -682,7 +684,9 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         elif self.wait_for_completion:
             self.log.info("Waiting for Fargate profile to delete.  This will take some time.")
             eks_hook.conn.get_waiter("fargate_profile_deleted").wait(
-                clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
+                clusterName=self.cluster_name,
+                fargateProfileName=self.fargate_profile_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
     def execute_complete(self, context, event=None):
