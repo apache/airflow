@@ -462,7 +462,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         self.token_renewal_delta = token_renewal_delta
         self.bindings = bindings
         self.execute_async = False
-        self.deferrable = deferrable  
+        self.deferrable = deferrable
         if any([warehouse, database, role, schema, authenticator, session_parameters]):  # pragma: no cover
             hook_params = kwargs.pop("hook_params", {})  # pragma: no cover
             kwargs["hook_params"] = {
