@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-14T20:01:24Z
+# This constraints file was automatically generated on 2023-06-14T22:37:47Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -448,7 +448,7 @@ pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
 pinotdb==0.5.0
-pipdeptree==2.9.0
+pipdeptree==2.9.1
 pipx==1.2.0
 pkginfo==1.9.6
 platformdirs==3.5.3
@@ -462,7 +462,7 @@ prison==0.2.1
 prometheus-client==0.17.0
 prompt-toolkit==3.0.38
 proto-plus==1.22.2
-protobuf==4.23.2
+protobuf==4.23.3
 psutil==5.9.5
 psycopg2-binary==2.9.6
 ptyprocess==0.7.0
