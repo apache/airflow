@@ -116,8 +116,8 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         cluster_name: str,
         create_cluster_kwargs: dict | None = None,
         wait_for_completion: bool = True,
-        waiter_delay: int | None = None,
-        waiter_max_attempts: int | None = None,
+        waiter_delay: int = 15,
+        waiter_max_attempts: int = 60,
         deferrable: bool = False,
         **kwargs,
     ) -> None:
@@ -154,6 +154,9 @@ class EcsCreateClusterOperator(EcsBaseOperator):
                     region=self.region,
                 ),
                 method_name="_complete_exec_with_cluster_desc",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
         elif self.wait_for_completion:
             waiter = self.hook.get_waiter("cluster_active")
@@ -196,8 +199,8 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
         *,
         cluster_name: str,
         wait_for_completion: bool = True,
-        waiter_delay: int | None = None,
-        waiter_max_attempts: int | None = None,
+        waiter_delay: int = 15,
+        waiter_max_attempts: int = 60,
         deferrable: bool = False,
         **kwargs,
     ) -> None:
@@ -229,6 +232,9 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
                     region=self.region,
                 ),
                 method_name="_complete_exec_with_cluster_desc",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
         elif self.wait_for_completion:
             waiter = self.hook.get_waiter("cluster_inactive")
@@ -502,8 +508,8 @@ class EcsRunTaskOperator(EcsBaseOperator):
         reattach: bool = False,
         number_logs_exception: int = 10,
         wait_for_completion: bool = True,
-        waiter_delay: int | None = None,
-        waiter_max_attempts: int | None = None,
+        waiter_delay: int = 6,
+        waiter_max_attempts: int = 100,
         deferrable: bool = False,
         **kwargs,
     ):
@@ -605,6 +611,9 @@ class EcsRunTaskOperator(EcsBaseOperator):
                     log_stream=f"{self.awslogs_stream_prefix}/{self.ecs_task_id}",
                 ),
                 method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
         elif self._aws_logs_enabled():
             self.log.info("Starting ECS Task Log Fetcher")
@@ -697,12 +706,10 @@ class EcsRunTaskOperator(EcsBaseOperator):
         waiter.wait(
             cluster=self.cluster,
             tasks=[self.arn],
-            WaiterConfig=prune_dict(
-                {
-                    "Delay": self.waiter_delay,
-                    "MaxAttempts": self.waiter_max_attempts,
-                }
-            ),
+            WaiterConfig={
+                "Delay": self.waiter_delay,
+                "MaxAttempts": self.waiter_max_attempts,
+            },
         )
 
         return
