@@ -53,6 +53,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Advanced flag for tests command",
             "options": [
                 "--image-tag",
+                "--use-airflow-version",
                 "--mount-sources",
                 "--upgrade-boto",
                 "--remove-arm-packages",
