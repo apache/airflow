@@ -102,7 +102,7 @@ performing dependency resolution.
 .. code-block:: bash
 
     pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
-    pip install "apache-airflow[celery]==|version|" apache-airflow-providers-google==10.1.1
+    pip install "apache-airflow==|version|" apache-airflow-providers-google==10.1.1
 
 You can also downgrade or upgrade other dependencies this way - even if they are not compatible with
 those dependencies that are stored in the original constraints file:
