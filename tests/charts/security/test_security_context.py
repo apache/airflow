@@ -225,6 +225,7 @@ class TestSecurityContext:
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
             ],
         )
 
