@@ -747,7 +747,7 @@ Where `.` is the global variables scope and `.Values.webserver` the local variab
       {{ toYaml $.Values.securityContexts.pod | print }}
     {{- else if $.Values.securityContext -}}
       {{ toYaml $.Values.securityContext | print }}
-    {{- else if .uid -}}
+    {{- else if not (kindIs "invalid"  .uid) -}}
 runAsUser: {{ .uid }}
     {{- else -}}
 runAsUser: {{ $.Values.uid }}
