@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, 
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger, EmrCreateJobFlowTrigger
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
 from airflow.providers.amazon.aws.triggers.emr import EmrTerminateJobFlowTrigger
+from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger, EmrTerminateJobFlowTrigger
 from airflow.providers.amazon.aws.utils.waiter import waiter
 from airflow.utils.helpers import exactly_one, prune_dict
 from airflow.utils.types import NOTSET, ArgNotSet

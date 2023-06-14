@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import asyncio
 from typing import Any
-from airflow.utils.helpers import prune_dict
 
 from botocore.exceptions import WaiterError
 
