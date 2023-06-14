@@ -124,7 +124,7 @@ but you can pick your own set of extras and providers to install.
     The reproducible installation guarantees that this initial installation steps will always work for you -
     providing that you use the right Python version and that you have appropriate Operating System dependencies
     installed for the providers to be installed. Some of the providers require additional OS dependencies to
-    be installed such us ``build-essential`` in order to compile libraries, or for example database client
+    be installed such as ``build-essential`` in order to compile libraries, or for example database client
     libraries in case you install a database provider, etc.. You need to figure out which system dependencies
     you need when your installation fails and install them before retrying the installation.
 
