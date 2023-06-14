@@ -68,9 +68,6 @@ class GCSToGoogleDriveOperator(BaseOperator):
     :param move_object: When move object is True, the object is moved instead of copied to the new location.
         This is the equivalent of a mv command as opposed to a cp command.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
