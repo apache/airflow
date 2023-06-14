@@ -202,7 +202,7 @@ def push_packages_to_test_pypi(version):
             "environment. The package download link is available at: "
             "https://test.pypi.org/project/apache-airflow/#files "
             "Install it with the appropriate constraint file, adapt python version: "
-            f"pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ apache-airflow=={version} --constraint https://raw.githubusercontent.com/apache/airflow/constraints-{version}/constraints-3.8.txt"  # noqa: 501
+            f"pip install -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/apache-airflow=={version} --constraint https://raw.githubusercontent.com/apache/airflow/constraints-{version}/constraints-3.8.txt"  # noqa: 501
         )
 
 
