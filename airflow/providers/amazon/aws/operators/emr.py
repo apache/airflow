@@ -28,8 +28,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
-from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
-from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
+from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger, EmrCreateJobFlowTrigger
 from airflow.providers.amazon.aws.utils.waiter import waiter
 from airflow.utils.helpers import exactly_one, prune_dict
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -734,6 +733,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
                         max_attempts=self.waiter_max_attempts,
                     ),
                     method_name="execute_complete",
+                    # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                    # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
                     timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
                 )
             if self.wait_for_completion:
@@ -753,7 +754,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         if event["status"] != "success":
             raise AirflowException(f"Error creating jobFlow: {event}")
         else:
-            self.log.info("Resumed cluster successfully")
+            self.log.info("JobFlow created successfully")
         return event["job_flow_id"]
 
     def on_kill(self) -> None:

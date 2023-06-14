@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
 from airflow.triggers.base import TriggerEvent
@@ -147,13 +148,12 @@ class TestEmrCreateJobFlowTrigger:
             max_attempts=2,
         )
 
-        generator = emr_create_job_flow_trigger.run()
-        response = await generator.asend(None)
+        with pytest.raises(AirflowException) as exc:
+            generator = emr_create_job_flow_trigger.run()
+            await generator.asend(None)
 
+        assert str(exc.value) == "JobFlow creation failed - max attempts reached: 2"
         assert mock_get_waiter().wait.call_count == 2
-        assert response == TriggerEvent(
-            {"status": "failure", "message": "JobFlow creation failed - max attempts reached."}
-        )
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep")
@@ -192,10 +192,9 @@ class TestEmrCreateJobFlowTrigger:
             max_attempts=TEST_MAX_ATTEMPTS,
         )
 
-        generator = emr_create_job_flow_trigger.run()
-        response = await generator.asend(None)
+        with pytest.raises(AirflowException) as exc:
+            generator = emr_create_job_flow_trigger.run()
+            await generator.asend(None)
 
+        assert str(exc.value) == f"JobFlow creation failed: {error_failed}"
         assert mock_get_waiter().wait.call_count == 3
-        assert response == TriggerEvent(
-            {"status": "failure", "message": f"JobFlow creation failed: {error_failed}"}
-        )

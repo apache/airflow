@@ -17,14 +17,14 @@
 from __future__ import annotations
 
 import asyncio
-from functools import cached_property
 from typing import Any
-from airflow.utils.helpers import prune_dict
 
 from botocore.exceptions import WaiterError
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.helpers import prune_dict
 
 
 class EmrAddStepsTrigger(BaseTrigger):
@@ -136,11 +136,8 @@ class EmrCreateJobFlowTrigger(BaseTrigger):
             },
         )
 
-    @cached_property
-    def hook(self) -> EmrHook:
-        return EmrHook(aws_conn_id=self.aws_conn_id)
-
     async def run(self):
+        self.hook = EmrHook(aws_conn_id=self.aws_conn_id)
         async with self.hook.async_conn as client:
             attempt = 0
             waiter = self.hook.get_waiter("job_flow_waiting", deferrable=True, client=client)
@@ -159,10 +156,7 @@ class EmrCreateJobFlowTrigger(BaseTrigger):
                     break
                 except WaiterError as error:
                     if "terminal failure" in str(error):
-                        yield TriggerEvent(
-                            {"status": "failure", "message": f"JobFlow creation failed: {error}"}
-                        )
-                        break
+                        raise AirflowException(f"JobFlow creation failed: {error}")
                     self.log.info(
                         "Status of jobflow is %s - %s",
                         error.last_response["Cluster"]["Status"]["State"],
@@ -170,9 +164,7 @@ class EmrCreateJobFlowTrigger(BaseTrigger):
                     )
                     await asyncio.sleep(int(self.poll_interval))
         if attempt >= int(self.max_attempts):
-            yield TriggerEvent(
-                {"status": "failure", "message": "JobFlow creation failed - max attempts reached."}
-            )
+            raise AirflowException(f"JobFlow creation failed - max attempts reached: {self.max_attempts}")
         else:
             yield TriggerEvent(
                 {
