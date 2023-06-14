@@ -21,7 +21,7 @@ import warnings
 from typing import TYPE_CHECKING, Iterable, Sequence
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
-from airflow.models import DagRun
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils import timezone
