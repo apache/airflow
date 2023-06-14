@@ -124,6 +124,13 @@ class TestDagFileProcessor:
 
         session.merge(TaskInstance(task=task, execution_date=test_start_date, state="success"))
         session.merge(SlaMiss(task_id="dummy", dag_id="test_sla_miss", execution_date=test_start_date))
+        session.commit()
+
+        slas_miss_objects: list[SlaMiss] = (
+            session.query(SlaMiss)
+            .filter(SlaMiss.notification_sent == False, SlaMiss.dag_id == dag.dag_id)  # noqa
+            .all()
+        )
 
         mock_dagbag = mock.Mock()
         mock_dagbag.get_dag.return_value = dag
@@ -132,6 +139,13 @@ class TestDagFileProcessor:
         DagFileProcessor.manage_slas(dag_folder=dag.fileloc, dag_id="test_sla_miss", session=session)
 
         assert sla_callback.called
+        sla_callback.assert_called_once_with(
+            dag=dag,
+            task_list=f"dummy on {test_start_date.isoformat()}",
+            blocking_task_list="",
+            slas=slas_miss_objects,
+            blocking_tis=[],
+        )
 
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")
     def test_dag_file_processor_sla_miss_callback_invalid_sla(self, mock_get_dagbag, create_dummy_dag):
