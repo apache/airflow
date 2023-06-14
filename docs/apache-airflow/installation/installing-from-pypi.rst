@@ -164,8 +164,8 @@ those dependencies that are stored in the original constraints file:
     requirements of Airflow or other dependencies installed in your system. However, by skipping constraints
     when you install or upgrade dependencies, you give ``pip`` a chance to resolve the conflicts for you,
     while keeping dependencies within the limits that Apache Airflow, providers and other dependencies require.
-    The resulting combination of those dependencies might not be tested together before as well as the set
-    of dependencies that come with constraints, but it should work in most cases as we usually add
+    The resulting combination of those dependencies and the set of dependencies that come with the 
+    constraints might not be tested before, but it should work in most cases as we usually add
     requirements, when Airflow depends on particular versions of some dependencies. In cases you cannot
     install some dependencies in the same environment as Airflow - you can attempt to use other approaches.
     See :ref:`best practices for handling conflicting/complex Python dependencies <best_practices/handling_conflicting_complex_python_dependencies>`
