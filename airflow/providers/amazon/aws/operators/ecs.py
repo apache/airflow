@@ -32,7 +32,6 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.ecs import (
     EcsClusterStates,
     EcsHook,
-    EcsTaskDefinitionStates,
     EcsTaskLogFetcher,
     should_retry_eni,
 )
@@ -202,11 +201,9 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
 
     :param task_definition: The family and revision (family:revision) or full Amazon Resource Name (ARN)
         of the task definition to deregister. If you use a family name, you must specify a revision.
-    :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
-    :param waiter_delay: The amount of time in seconds to wait between attempts,
-        if not set then the default waiter value will be used.
-    :param waiter_max_attempts: The maximum number of attempts to be made,
-        if not set then the default waiter value will be used.
+    :param wait_for_completion: obsolete, the operation completes instantly
+    :param waiter_delay: obsolete
+    :param waiter_max_attempts: obsolete
     """
 
     template_fields: Sequence[str] = ("task_definition", "wait_for_completion")
@@ -215,40 +212,22 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
         self,
         *,
         task_definition: str,
-        wait_for_completion: bool = True,
-        waiter_delay: int | None = None,
-        waiter_max_attempts: int | None = None,
+        wait_for_completion: bool = True,  # obsolete
+        waiter_delay: int | None = None,  # obsolete
+        waiter_max_attempts: int | None = None,  # obsolete
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.task_definition = task_definition
-        self.wait_for_completion = wait_for_completion
-        self.waiter_delay = waiter_delay
-        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context):
         self.log.info("Deregistering task definition %s.", self.task_definition)
         result = self.client.deregister_task_definition(taskDefinition=self.task_definition)
         task_definition_details = result["taskDefinition"]
         task_definition_arn = task_definition_details["taskDefinitionArn"]
-        task_definition_state = task_definition_details.get("status")
-
-        if task_definition_state == EcsTaskDefinitionStates.INACTIVE:
-            # In some circumstances the ECS Task Definition is deleted immediately,
-            # so there is no reason to wait for completion.
-            self.log.info("Task Definition %r in state: %r.", task_definition_arn, task_definition_state)
-        elif self.wait_for_completion:
-            waiter = self.hook.get_waiter("task_definition_inactive")
-            waiter.wait(
-                taskDefinition=task_definition_arn,
-                WaiterConfig=prune_dict(
-                    {
-                        "Delay": self.waiter_delay,
-                        "MaxAttempts": self.waiter_max_attempts,
-                    }
-                ),
-            )
-
+        self.log.info(
+            "Task Definition %r in state: %r.", task_definition_arn, task_definition_details.get("status")
+        )
         return task_definition_arn
 
 
@@ -264,11 +243,9 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
     :param container_definitions: A list of container definitions in JSON format that describe
         the different containers that make up your task.
     :param register_task_kwargs: Extra arguments for Register Task Definition.
-    :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
-    :param waiter_delay: The amount of time in seconds to wait between attempts,
-        if not set then the default waiter value will be used.
-    :param waiter_max_attempts: The maximum number of attempts to be made,
-        if not set then the default waiter value will be used.
+    :param wait_for_completion: obsolete, the operation completes instantly
+    :param waiter_delay: obsolete
+    :param waiter_max_attempts: obsolete
     """
 
     template_fields: Sequence[str] = (
@@ -284,18 +261,15 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         family: str,
         container_definitions: list[dict],
         register_task_kwargs: dict | None = None,
-        wait_for_completion: bool = True,
-        waiter_delay: int | None = None,
-        waiter_max_attempts: int | None = None,
+        wait_for_completion: bool = True,  # obsolete
+        waiter_delay: int | None = None,  # obsolete
+        waiter_max_attempts: int | None = None,  # obsolete
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.family = family
         self.container_definitions = container_definitions
         self.register_task_kwargs = register_task_kwargs or {}
-        self.wait_for_completion = wait_for_completion
-        self.waiter_delay = waiter_delay
-        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context):
         self.log.info(
@@ -311,24 +285,10 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         )
         task_definition_details = response["taskDefinition"]
         task_definition_arn = task_definition_details["taskDefinitionArn"]
-        task_definition_state = task_definition_details.get("status")
 
-        if task_definition_state == EcsTaskDefinitionStates.ACTIVE:
-            # In some circumstances the ECS Task Definition is created immediately,
-            # so there is no reason to wait for completion.
-            self.log.info("Task Definition %r in state: %r.", task_definition_arn, task_definition_state)
-        elif self.wait_for_completion:
-            waiter = self.hook.get_waiter("task_definition_active")
-            waiter.wait(
-                taskDefinition=task_definition_arn,
-                WaiterConfig=prune_dict(
-                    {
-                        "Delay": self.waiter_delay,
-                        "MaxAttempts": self.waiter_max_attempts,
-                    }
-                ),
-            )
-
+        self.log.info(
+            "Task Definition %r in state: %r.", task_definition_arn, task_definition_details.get("status")
+        )
         context["ti"].xcom_push(key="task_definition_arn", value=task_definition_arn)
         return task_definition_arn
 
