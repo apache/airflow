@@ -24,9 +24,7 @@ from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
-from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
-from airflow.providers.amazon.aws.hooks.emr import EmrHook
-from airflow.providers.amazon.aws.triggers.emr import EmrTerminateJobFlowTrigger
+from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger, EmrTerminateJobFlowTrigger
 from airflow.triggers.base import TriggerEvent
 
 TEST_JOB_FLOW_ID = "test-job-flow-id"
