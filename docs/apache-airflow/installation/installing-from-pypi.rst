@@ -65,7 +65,7 @@ Those are just examples, see further for more explanation why those are the best
    Generally speaking, Python community established practice is to perform application installation in a
    virtualenv created with ``virtualenv`` or ``venv`` tools. You can also use ``pipx`` to install Airflow in a
    application dedicated virtual environment created for you. There are also other tools that can be used
-   to manage your virtualenv installation and you are free to choose how you are managing the environments,
+   to manage your virtualenv installation and you are free to choose how you are managing the environments.
    Airflow has no limitation regarding to the tool of your choice when it comes to virtual environment.
 
    The only exception where you might consider not using virtualenv is when you are building a container
