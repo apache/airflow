@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Mask sensitive information from logs"""
+"""Mask sensitive information from logs."""
 from __future__ import annotations
 
 import collections.abc
 import logging
 import re
 import sys
+from functools import cached_property
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -37,7 +38,7 @@ from typing import (
 )
 
 from airflow import settings
-from airflow.compat.functools import cache, cached_property
+from airflow.compat.functools import cache
 from airflow.typing_compat import TypeGuard
 
 if TYPE_CHECKING:
@@ -82,7 +83,7 @@ def get_sensitive_variables_fields():
 
 
 def should_hide_value_for_key(name):
-    """Should the value for this given name (Variable name, or key in conn.extra_dejson) be hidden"""
+    """Should the value for this given name (Variable name, or key in conn.extra_dejson) be hidden."""
     from airflow import settings
 
     if isinstance(name, str) and settings.HIDE_SENSITIVE_VAR_CONN_FIELDS:
@@ -141,7 +142,7 @@ def _is_v1_env_var(v: Any) -> TypeGuard[V1EnvVar]:
 
 
 class SecretsMasker(logging.Filter):
-    """Redact secrets from logs"""
+    """Redact secrets from logs."""
 
     replacer: re.Pattern | None = None
     patterns: set[str]
@@ -207,7 +208,9 @@ class SecretsMasker(logging.Filter):
 
         return True
 
-    def _redact_all(self, item: Redactable, depth: int, max_depth: int) -> Redacted:
+    # Default on `max_depth` is to support versions of the OpenLineage plugin (not the provider) which called
+    # this function directly. New versions of that provider, and this class itself call it with a value
+    def _redact_all(self, item: Redactable, depth: int, max_depth: int = MAX_RECURSION_DEPTH) -> Redacted:
         if depth > max_depth or isinstance(item, str):
             return "***"
         if isinstance(item, dict):

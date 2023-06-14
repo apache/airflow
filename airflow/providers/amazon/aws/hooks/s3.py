@@ -18,6 +18,7 @@
 """Interact with AWS S3, using the boto3 library."""
 from __future__ import annotations
 
+import asyncio
 import fnmatch
 import gzip as gz
 import io
@@ -33,18 +34,29 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile, gettempdir
-from typing import Any, Callable, TypeVar, cast
+from time import sleep
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from boto3.s3.transfer import S3Transfer, TransferConfig
+if TYPE_CHECKING:
+    try:
+        from aiobotocore.client import AioBaseClient
+    except ImportError:
+        pass
+
+from asgiref.sync import sync_to_async
+from boto3.s3.transfer import TransferConfig
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.helpers import chunks
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3.service_resource import Object as S3ResourceObject
 
 T = TypeVar("T", bound=Callable)
 
@@ -74,12 +86,35 @@ def provide_bucket_name(func: T) -> T:
                     "s3 conn_type, and the associated schema field, is deprecated."
                     " Please use aws conn_type instead, and specify `bucket_name`"
                     " in `service_config.s3` within `extras`.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
                 bound_args.arguments["bucket_name"] = self.conn_config.schema
 
         return func(*bound_args.args, **bound_args.kwargs)
+
+    return cast(T, wrapper)
+
+
+def provide_bucket_name_async(func: T) -> T:
+    """
+    Function decorator that provides a bucket name taken from the connection
+    in case no bucket name has been passed to the function.
+    """
+    function_signature = signature(func)
+
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        bound_args = function_signature.bind(*args, **kwargs)
+
+        if "bucket_name" not in bound_args.arguments:
+            self = args[0]
+            if self.aws_conn_id:
+                connection = await sync_to_async(self.get_connection)(self.aws_conn_id)
+                if connection.schema:
+                    bound_args.arguments["bucket_name"] = connection.schema
+
+        return await func(*bound_args.args, **bound_args.kwargs)
 
     return cast(T, wrapper)
 
@@ -170,8 +205,9 @@ class S3Hook(AwsBaseHook):
     def parse_s3_url(s3url: str) -> tuple[str, str]:
         """
         Parses the S3 Url into a bucket name and key.
-            See https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
-            for valid url formats
+
+        See https://docs.aws.amazon.com/AmazonS3/latest/userguide/access-bucket-intro.html
+        for valid url formats.
 
         :param s3url: The S3 Url to parse.
         :return: the parsed bucket name and key
@@ -202,9 +238,11 @@ class S3Hook(AwsBaseHook):
         bucket: str | None, key: str, bucket_param_name: str, key_param_name: str
     ) -> tuple[str, str]:
         """
-        Get the S3 bucket name and key from either:
-            - bucket name and key. Return the info as it is after checking `key` is a relative path
-            - key. Must be a full s3:// url
+        Get the S3 bucket name and key.
+
+        From either:
+        - bucket name and key. Return the info as it is after checking `key` is a relative path.
+        - key. Must be a full s3:// url.
 
         :param bucket: The S3 bucket name
         :param key: The S3 key
@@ -221,7 +259,6 @@ class S3Hook(AwsBaseHook):
                 f"If `{bucket_param_name}` is provided, {key_param_name} should be a relative path "
                 "from root level, rather than a full s3:// url"
             )
-
         return bucket, key
 
     @provide_bucket_name
@@ -257,7 +294,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def get_bucket(self, bucket_name: str | None = None) -> object:
         """
-        Returns a :py:class:`S3.Bucket` object
+        Returns a :py:class:`S3.Bucket` object.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.ServiceResource.Bucket`
@@ -302,7 +339,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def check_for_prefix(self, prefix: str, delimiter: str, bucket_name: str | None = None) -> bool:
         """
-        Checks that a prefix exists in a bucket
+        Checks that a prefix exists in a bucket.
 
         :param bucket_name: the name of the bucket
         :param prefix: a key prefix
@@ -325,7 +362,7 @@ class S3Hook(AwsBaseHook):
         max_items: int | None = None,
     ) -> list:
         """
-        Lists prefixes in a bucket under prefix
+        Lists prefixes in a bucket under prefix.
 
         .. seealso::
             - :external+boto3:py:class:`S3.Paginator.ListObjectsV2`
@@ -356,6 +393,226 @@ class S3Hook(AwsBaseHook):
 
         return prefixes
 
+    @provide_bucket_name_async
+    @unify_bucket_name_and_key
+    async def get_head_object_async(
+        self, client: AioBaseClient, key: str, bucket_name: str | None = None
+    ) -> dict[str, Any] | None:
+        """
+        Retrieves metadata of an object.
+
+        :param client: aiobotocore client
+        :param bucket_name: Name of the bucket in which the file is stored
+        :param key: S3 key that will point to the file
+        """
+        head_object_val: dict[str, Any] | None = None
+        try:
+            head_object_val = await client.head_object(Bucket=bucket_name, Key=key)
+            return head_object_val
+        except ClientError as e:
+            if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
+                return head_object_val
+            else:
+                raise e
+
+    async def list_prefixes_async(
+        self,
+        client: AioBaseClient,
+        bucket_name: str | None = None,
+        prefix: str | None = None,
+        delimiter: str | None = None,
+        page_size: int | None = None,
+        max_items: int | None = None,
+    ) -> list[Any]:
+        """
+        Lists prefixes in a bucket under prefix.
+
+        :param client: ClientCreatorContext
+        :param bucket_name: the name of the bucket
+        :param prefix: a key prefix
+        :param delimiter: the delimiter marks key hierarchy.
+        :param page_size: pagination size
+        :param max_items: maximum items to return
+        :return: a list of matched prefixes
+        """
+        prefix = prefix or ""
+        delimiter = delimiter or ""
+        config = {
+            "PageSize": page_size,
+            "MaxItems": max_items,
+        }
+
+        paginator = client.get_paginator("list_objects_v2")
+        response = paginator.paginate(
+            Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
+        )
+
+        prefixes = []
+        async for page in response:
+            if "CommonPrefixes" in page:
+                for common_prefix in page["CommonPrefixes"]:
+                    prefixes.append(common_prefix["Prefix"])
+
+        return prefixes
+
+    @provide_bucket_name_async
+    async def get_file_metadata_async(self, client: AioBaseClient, bucket_name: str, key: str) -> list[Any]:
+        """
+        Gets a list of files that a key matching a wildcard expression exists in a bucket asynchronously.
+
+        :param client: aiobotocore client
+        :param bucket_name: the name of the bucket
+        :param key: the path to the key
+        """
+        prefix = re.split(r"[\[\*\?]", key, 1)[0]
+        delimiter = ""
+        paginator = client.get_paginator("list_objects_v2")
+        response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter)
+        files = []
+        async for page in response:
+            if "Contents" in page:
+                files += page["Contents"]
+        return files
+
+    async def _check_key_async(
+        self,
+        client: AioBaseClient,
+        bucket_val: str,
+        wildcard_match: bool,
+        key: str,
+    ) -> bool:
+        """
+        Function to check if wildcard_match is True get list of files that a key matching a wildcard
+        expression exists in a bucket asynchronously and return the boolean value. If  wildcard_match
+        is False get the head object from the bucket and return the boolean value.
+
+        :param client: aiobotocore client
+        :param bucket_val: the name of the bucket
+        :param key: S3 keys that will point to the file
+        :param wildcard_match: the path to the key
+        """
+        bucket_name, key = self.get_s3_bucket_key(bucket_val, key, "bucket_name", "bucket_key")
+        if wildcard_match:
+            keys = await self.get_file_metadata_async(client, bucket_name, key)
+            key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
+            if len(key_matches) == 0:
+                return False
+        else:
+            obj = await self.get_head_object_async(client, key, bucket_name)
+            if obj is None:
+                return False
+
+        return True
+
+    async def check_key_async(
+        self,
+        client: AioBaseClient,
+        bucket: str,
+        bucket_keys: str | list[str],
+        wildcard_match: bool,
+    ) -> bool:
+        """
+        Checks for all keys in bucket and returns boolean value.
+
+        :param client: aiobotocore client
+        :param bucket: the name of the bucket
+        :param bucket_keys: S3 keys that will point to the file
+        :param wildcard_match: the path to the key
+        """
+        if isinstance(bucket_keys, list):
+            return all(
+                await asyncio.gather(
+                    *(self._check_key_async(client, bucket, wildcard_match, key) for key in bucket_keys)
+                )
+            )
+        return await self._check_key_async(client, bucket, wildcard_match, bucket_keys)
+
+    async def check_for_prefix_async(
+        self, client: AioBaseClient, prefix: str, delimiter: str, bucket_name: str | None = None
+    ) -> bool:
+        """
+        Checks that a prefix exists in a bucket.
+
+        :param bucket_name: the name of the bucket
+        :param prefix: a key prefix
+        :param delimiter: the delimiter marks key hierarchy.
+        :return: False if the prefix does not exist in the bucket and True if it does.
+        """
+        prefix = prefix + delimiter if prefix[-1] != delimiter else prefix
+        prefix_split = re.split(rf"(\w+[{delimiter}])$", prefix, 1)
+        previous_level = prefix_split[0]
+        plist = await self.list_prefixes_async(client, bucket_name, previous_level, delimiter)
+        return prefix in plist
+
+    async def _check_for_prefix_async(
+        self, client: AioBaseClient, prefix: str, delimiter: str, bucket_name: str | None = None
+    ) -> bool:
+        return await self.check_for_prefix_async(
+            client, prefix=prefix, delimiter=delimiter, bucket_name=bucket_name
+        )
+
+    async def get_files_async(
+        self,
+        client: AioBaseClient,
+        bucket: str,
+        bucket_keys: str | list[str],
+        wildcard_match: bool,
+        delimiter: str | None = "/",
+    ) -> list[Any]:
+        """Gets a list of files in the bucket."""
+        keys: list[Any] = []
+        for key in bucket_keys:
+            prefix = key
+            if wildcard_match:
+                prefix = re.split(r"[\[\*\?]", key, 1)[0]
+
+            paginator = client.get_paginator("list_objects_v2")
+            response = paginator.paginate(Bucket=bucket, Prefix=prefix, Delimiter=delimiter)
+            async for page in response:
+                if "Contents" in page:
+                    _temp = [k for k in page["Contents"] if isinstance(k.get("Size", None), (int, float))]
+                    keys = keys + _temp
+        return keys
+
+    @staticmethod
+    async def _list_keys_async(
+        client: AioBaseClient,
+        bucket_name: str | None = None,
+        prefix: str | None = None,
+        delimiter: str | None = None,
+        page_size: int | None = None,
+        max_items: int | None = None,
+    ) -> list[str]:
+        """
+        Lists keys in a bucket under prefix and not containing delimiter.
+
+        :param bucket_name: the name of the bucket
+        :param prefix: a key prefix
+        :param delimiter: the delimiter marks key hierarchy.
+        :param page_size: pagination size
+        :param max_items: maximum items to return
+        :return: a list of matched keys
+        """
+        prefix = prefix or ""
+        delimiter = delimiter or ""
+        config = {
+            "PageSize": page_size,
+            "MaxItems": max_items,
+        }
+
+        paginator = client.get_paginator("list_objects_v2")
+        response = paginator.paginate(
+            Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
+        )
+
+        keys = []
+        async for page in response:
+            if "Contents" in page:
+                for k in page["Contents"]:
+                    keys.append(k["Key"])
+
+        return keys
+
     def _list_key_object_filter(
         self, keys: list, from_datetime: datetime | None = None, to_datetime: datetime | None = None
     ) -> list:
@@ -380,9 +637,10 @@ class S3Hook(AwsBaseHook):
         from_datetime: datetime | None = None,
         to_datetime: datetime | None = None,
         object_filter: Callable[..., list] | None = None,
+        apply_wildcard: bool = False,
     ) -> list:
         """
-        Lists keys in a bucket under prefix and not containing delimiter
+        Lists keys in a bucket under prefix and not containing delimiter.
 
         .. seealso::
             - :external+boto3:py:class:`S3.Paginator.ListObjectsV2`
@@ -398,6 +656,7 @@ class S3Hook(AwsBaseHook):
         :param to_datetime: should return only keys with LastModified attr less than this to_datetime
         :param object_filter: Function that receives the list of the S3 objects, from_datetime and
             to_datetime and returns the List of matched key.
+        :param apply_wildcard: whether to treat '*' as a wildcard or a plain symbol in the prefix.
 
         **Example**: Returns the list of S3 object with LastModified attr greater than from_datetime
              and less than to_datetime:
@@ -421,7 +680,9 @@ class S3Hook(AwsBaseHook):
 
         :return: a list of matched keys
         """
-        prefix = prefix or ""
+        _original_prefix = prefix or ""
+        _apply_wildcard = bool(apply_wildcard and "*" in _original_prefix)
+        _prefix = _original_prefix.split("*", 1)[0] if _apply_wildcard else _original_prefix
         delimiter = delimiter or ""
         start_after_key = start_after_key or ""
         self.object_filter_usr = object_filter
@@ -433,7 +694,7 @@ class S3Hook(AwsBaseHook):
         paginator = self.get_conn().get_paginator("list_objects_v2")
         response = paginator.paginate(
             Bucket=bucket_name,
-            Prefix=prefix,
+            Prefix=_prefix,
             Delimiter=delimiter,
             PaginationConfig=config,
             StartAfter=start_after_key,
@@ -442,7 +703,10 @@ class S3Hook(AwsBaseHook):
         keys: list[str] = []
         for page in response:
             if "Contents" in page:
-                keys.extend(iter(page["Contents"]))
+                new_keys = page["Contents"]
+                if _apply_wildcard:
+                    new_keys = (k for k in new_keys if fnmatch.fnmatch(k["Key"], _original_prefix))
+                keys.extend(new_keys)
         if self.object_filter_usr is not None:
             return self.object_filter_usr(keys, from_datetime, to_datetime)
 
@@ -457,7 +721,7 @@ class S3Hook(AwsBaseHook):
         max_items: int | None = None,
     ) -> list:
         """
-        Lists metadata objects in a bucket under prefix
+        Lists metadata objects in a bucket under prefix.
 
         .. seealso::
             - :external+boto3:py:class:`S3.Paginator.ListObjectsV2`
@@ -486,7 +750,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def head_object(self, key: str, bucket_name: str | None = None) -> dict | None:
         """
-        Retrieves metadata of an object
+        Retrieves metadata of an object.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Client.head_object`
@@ -507,7 +771,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def check_for_key(self, key: str, bucket_name: str | None = None) -> bool:
         """
-        Checks if a key exists in a bucket
+        Checks if a key exists in a bucket.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Client.head_object`
@@ -521,7 +785,7 @@ class S3Hook(AwsBaseHook):
 
     @unify_bucket_name_and_key
     @provide_bucket_name
-    def get_key(self, key: str, bucket_name: str | None = None) -> S3Transfer:
+    def get_key(self, key: str, bucket_name: str | None = None) -> S3ResourceObject:
         """
         Returns a :py:class:`S3.Object`.
 
@@ -546,7 +810,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def read_key(self, key: str, bucket_name: str | None = None) -> str:
         """
-        Reads a key from S3
+        Reads a key from S3.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Object.get`
@@ -610,7 +874,7 @@ class S3Hook(AwsBaseHook):
         self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ""
     ) -> bool:
         """
-        Checks that a key matching a wildcard expression exists in a bucket
+        Checks that a key matching a wildcard expression exists in a bucket.
 
         :param wildcard_key: the path to the key
         :param bucket_name: the name of the bucket
@@ -626,9 +890,9 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def get_wildcard_key(
         self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ""
-    ) -> S3Transfer:
+    ) -> S3ResourceObject | None:
         """
-        Returns a boto3.s3.Object object matching the wildcard expression
+        Returns a boto3.s3.Object object matching the wildcard expression.
 
         :param wildcard_key: the path to the key
         :param bucket_name: the name of the bucket
@@ -655,7 +919,7 @@ class S3Hook(AwsBaseHook):
         acl_policy: str | None = None,
     ) -> None:
         """
-        Loads a local file to S3
+        Loads a local file to S3.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Client.upload_file`
@@ -705,7 +969,7 @@ class S3Hook(AwsBaseHook):
         compression: str | None = None,
     ) -> None:
         """
-        Loads a string to S3
+        Loads a string to S3.
 
         This is provided as a convenience to drop a string in S3. It uses the
         boto infrastructure to ship a file to s3.
@@ -756,7 +1020,7 @@ class S3Hook(AwsBaseHook):
         acl_policy: str | None = None,
     ) -> None:
         """
-        Loads bytes to S3
+        Loads bytes to S3.
 
         This is provided as a convenience to drop bytes data into S3. It uses the
         boto infrastructure to ship a file to s3.
@@ -790,7 +1054,7 @@ class S3Hook(AwsBaseHook):
         acl_policy: str | None = None,
     ) -> None:
         """
-        Loads a file object to S3
+        Loads a file object to S3.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Client.upload_fileobj`
@@ -888,7 +1152,7 @@ class S3Hook(AwsBaseHook):
         return response
 
     @provide_bucket_name
-    def delete_bucket(self, bucket_name: str, force_delete: bool = False) -> None:
+    def delete_bucket(self, bucket_name: str, force_delete: bool = False, max_retries: int = 5) -> None:
         """
         To delete s3 bucket, delete all s3 bucket objects and then delete the bucket.
 
@@ -897,12 +1161,24 @@ class S3Hook(AwsBaseHook):
 
         :param bucket_name: Bucket name
         :param force_delete: Enable this to delete bucket even if not empty
+        :param max_retries: A bucket must be empty to be deleted.  If force_delete is true,
+            then retries may help prevent a race condition between deleting objects in the
+            bucket and trying to delete the bucket.
         :return: None
         """
+        tries_remaining = max_retries + 1
         if force_delete:
-            bucket_keys = self.list_keys(bucket_name=bucket_name)
-            if bucket_keys:
+            while tries_remaining:
+                bucket_keys = self.list_keys(bucket_name=bucket_name)
+                if not bucket_keys:
+                    break
+                if tries_remaining <= max_retries:
+                    # Avoid first loop
+                    sleep(500)
+
                 self.delete_objects(bucket=bucket_name, keys=bucket_keys)
+                tries_remaining -= 1
+
         self.conn.delete_bucket(Bucket=bucket_name)
 
     def delete_objects(self, bucket: str, keys: str | list) -> None:
@@ -1018,7 +1294,7 @@ class S3Hook(AwsBaseHook):
         http_method: str | None = None,
     ) -> str | None:
         """
-        Generate a presigned url given a client, its method, and arguments
+        Generate a presigned url given a client, its method, and arguments.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Client.generate_presigned_url`

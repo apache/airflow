@@ -19,6 +19,7 @@ from __future__ import annotations
 import warnings
 from typing import Iterable, Mapping, Sequence
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
 
 
@@ -90,7 +91,7 @@ class SnowflakeToSlackOperator(SqlToSlackOperator):
             SnowflakeToSlackOperator is deprecated.
             Please use `airflow.providers.slack.transfers.sql_to_slack.SqlToSlackOperator`.
             """,
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
 

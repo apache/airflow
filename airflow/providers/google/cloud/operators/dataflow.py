@@ -24,10 +24,11 @@ import uuid
 import warnings
 from contextlib import ExitStack
 from enum import Enum
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
@@ -46,7 +47,8 @@ if TYPE_CHECKING:
 
 class CheckJobRunning(Enum):
     """
-    Helper enum for choosing what to do if job is already running
+    Helper enum for choosing what to do if job is already running.
+
     IgnoreJob - do not check if running
     FinishIfRunning - finish current dag run with no action
     WaitForRun - wait for job to finish and then continue with new job
@@ -347,7 +349,7 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
         warnings.warn(
             f"The `{self.__class__.__name__}` operator is deprecated, "
             f"please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` instead.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         super().__init__(**kwargs)
@@ -599,7 +601,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         options: dict[str, Any] | None = None,
         dataflow_default_options: dict[str, Any] | None = None,
         parameters: dict[str, str] | None = None,
-        location: str = DEFAULT_DATAFLOW_LOCATION,
+        location: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         poll_sleep: int = 10,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -689,7 +691,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
             trigger=TemplateJobStartTrigger(
                 project_id=self.project_id,
                 job_id=job_id,
-                location=self.location,
+                location=self.location if self.location else DEFAULT_DATAFLOW_LOCATION,
                 gcp_conn_id=self.gcp_conn_id,
                 poll_sleep=self.poll_sleep,
                 impersonation_chain=self.impersonation_chain,
@@ -781,6 +783,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode.
+    :param append_job_name: True if unique suffix has to be appended to job name.
     """
 
     template_fields: Sequence[str] = ("body", "location", "project_id", "gcp_conn_id")
@@ -797,6 +800,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         wait_until_finished: bool | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         deferrable: bool = False,
+        append_job_name: bool = True,
         *args,
         **kwargs,
     ) -> None:
@@ -811,6 +815,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         self.job: dict | None = None
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
+        self.append_job_name = append_job_name
 
         self._validate_deferrable_params()
 
@@ -837,7 +842,8 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         return hook
 
     def execute(self, context: Context):
-        self._append_uuid_to_job_name()
+        if self.append_job_name:
+            self._append_uuid_to_job_name()
 
         def set_current_job(current_job):
             self.job = current_job
@@ -1130,7 +1136,7 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         warnings.warn(
             f"The `{self.__class__.__name__}` operator is deprecated, "
             "please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator` instead.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         super().__init__(**kwargs)

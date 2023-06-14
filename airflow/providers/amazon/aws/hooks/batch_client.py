@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-A client for AWS Batch services
+A client for AWS Batch services.
 
 .. seealso::
 
@@ -53,7 +53,7 @@ class BatchProtocol(Protocol):
 
     def describe_jobs(self, jobs: list[str]) -> dict:
         """
-        Get job descriptions from AWS Batch
+        Get job descriptions from AWS Batch.
 
         :param jobs: a list of JobId to describe
 
@@ -63,7 +63,7 @@ class BatchProtocol(Protocol):
 
     def get_waiter(self, waiterName: str) -> botocore.waiter.Waiter:
         """
-        Get an AWS Batch service waiter
+        Get an AWS Batch service waiter.
 
         :param waiterName: The name of the waiter.  The name should match
             the name (including the casing) of the key name in the waiter
@@ -98,7 +98,7 @@ class BatchProtocol(Protocol):
         tags: dict,
     ) -> dict:
         """
-        Submit a Batch job
+        Submit a Batch job.
 
         :param jobName: the name for the AWS Batch job
 
@@ -120,7 +120,7 @@ class BatchProtocol(Protocol):
 
     def terminate_job(self, jobId: str, reason: str) -> dict:
         """
-        Terminate a Batch job
+        Terminate a Batch job.
 
         :param jobId: a job ID to terminate
 
@@ -216,7 +216,7 @@ class BatchClientHook(AwsBaseHook):
 
     def terminate_job(self, job_id: str, reason: str) -> dict:
         """
-        Terminate a Batch job
+        Terminate a Batch job.
 
         :param job_id: a job ID to terminate
 
@@ -230,11 +230,11 @@ class BatchClientHook(AwsBaseHook):
 
     def check_job_success(self, job_id: str) -> bool:
         """
-        Check the final status of the Batch job; return True if the job
-        'SUCCEEDED', else raise an AirflowException
+        Check the final status of the Batch job.
+
+        Return True if the job 'SUCCEEDED', else raise an AirflowException.
 
         :param job_id: a Batch job ID
-
 
         :raises: AirflowException
         """
@@ -255,7 +255,7 @@ class BatchClientHook(AwsBaseHook):
 
     def wait_for_job(self, job_id: str, delay: int | float | None = None) -> None:
         """
-        Wait for Batch job to complete
+        Wait for Batch job to complete.
 
         :param job_id: a Batch job ID
 
@@ -396,7 +396,7 @@ class BatchClientHook(AwsBaseHook):
     @staticmethod
     def parse_job_description(job_id: str, response: dict) -> dict:
         """
-        Parse job description to extract description for job_id
+        Parse job description to extract description for job_id.
 
         :param job_id: a Batch job ID
 
@@ -419,7 +419,7 @@ class BatchClientHook(AwsBaseHook):
             return None
         if len(all_info) > 1:
             self.log.warning(
-                f"AWS Batch job ({job_id}) has more than one log stream, " f"only returning the first one."
+                f"AWS Batch job ({job_id}) has more than one log stream, only returning the first one."
             )
         return all_info[0]
 
@@ -488,7 +488,7 @@ class BatchClientHook(AwsBaseHook):
     @staticmethod
     def add_jitter(delay: int | float, width: int | float = 1, minima: int | float = 0) -> float:
         """
-        Use delay +/- width for random jitter
+        Use delay +/- width for random jitter.
 
         Adding jitter to status polling can help to avoid
         AWS Batch API limits for monitoring Batch jobs with

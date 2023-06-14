@@ -37,7 +37,7 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.common.links.storage import StorageLink
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -51,7 +51,7 @@ METASTORE_SERVICE_LINK = METASTORE_BASE_LINK + "/config?project={project_id}"
 
 
 class DataprocMetastoreLink(BaseOperatorLink):
-    """Helper class for constructing Dataproc Metastore resource link"""
+    """Helper class for constructing Dataproc Metastore resource link."""
 
     name = "Dataproc Metastore"
     key = "conf"
@@ -99,7 +99,7 @@ class DataprocMetastoreLink(BaseOperatorLink):
 
 
 class DataprocMetastoreDetailedLink(BaseOperatorLink):
-    """Helper class for constructing Dataproc Metastore detailed resource link"""
+    """Helper class for constructing Dataproc Metastore detailed resource link."""
 
     name = "Dataproc Metastore resource"
     key = "config"
@@ -701,7 +701,7 @@ class DataprocMetastoreExportMetadataOperator(GoogleCloudBaseOperator):
     def _wait_for_export_metadata(self, hook: DataprocMetastoreHook):
         """
         Workaround to check that export was created successfully.
-        We discovered a issue to parse result to MetadataExport inside the SDK
+        We discovered a issue to parse result to MetadataExport inside the SDK.
         """
         for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
             sleep(time_to_wait)
@@ -989,7 +989,7 @@ class DataprocMetastoreRestoreServiceOperator(GoogleCloudBaseOperator):
     def _wait_for_restore_service(self, hook: DataprocMetastoreHook):
         """
         Workaround to check that restore service was finished successfully.
-        We discovered an issue to parse result to Restore inside the SDK
+        We discovered an issue to parse result to Restore inside the SDK.
         """
         for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
             sleep(time_to_wait)

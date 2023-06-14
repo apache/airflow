@@ -22,7 +22,7 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "start-airflow",
         "static-checks",
         "build-docs",
-        "stop",
+        "down",
         "shell",
         "exec",
         "compile-www-assets",
@@ -59,24 +59,42 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--integration",
                 "--forward-credentials",
                 "--db-reset",
+                "--max-time",
+            ],
+        },
+        {
+            "name": "Choosing executor",
+            "options": [
+                "--executor",
+                "--celery-broker",
+                "--celery-flower",
+            ],
+        },
+        {
+            "name": "Building image before entering shell",
+            "options": [
+                "--force-build",
+                "--platform",
+                "--image-tag",
                 "--github-repository",
             ],
         },
         {
-            "name": "Advanced flag for running",
+            "name": "Mounting the sources and volumes",
+            "options": [
+                "--mount-sources",
+                "--include-mypy-volume",
+            ],
+        },
+        {
+            "name": "Installing packages after entering shell",
             "options": [
                 "--install-selected-providers",
                 "--use-airflow-version",
                 "--airflow-constraints-reference",
-                "--platform",
                 "--airflow-extras",
                 "--use-packages-from-dist",
                 "--package-format",
-                "--force-build",
-                "--image-tag",
-                "--mount-sources",
-                "--include-mypy-volume",
-                "--max-time",
             ],
         },
     ],
@@ -103,7 +121,14 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--integration",
                 "--forward-credentials",
                 "--db-reset",
-                "--github-repository",
+            ],
+        },
+        {
+            "name": "Choosing executor",
+            "options": [
+                "--executor",
+                "--celery-broker",
+                "--celery-flower",
             ],
         },
         {
@@ -114,25 +139,36 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
-            "name": "Advanced flag for running",
+            "name": "Building image before entering shell",
+            "options": [
+                "--force-build",
+                "--image-tag",
+                "--github-repository",
+            ],
+        },
+        {
+            "name": "Mounting the sources and volumes",
+            "options": [
+                "--mount-sources",
+            ],
+        },
+        {
+            "name": "Installing packages after entering shell",
             "options": [
                 "--use-airflow-version",
                 "--airflow-constraints-reference",
                 "--airflow-extras",
                 "--use-packages-from-dist",
                 "--package-format",
-                "--force-build",
-                "--image-tag",
-                "--mount-sources",
             ],
         },
     ],
     "breeze exec": [
         {"name": "Drops in the interactive shell of active airflow container"},
     ],
-    "breeze stop": [
+    "breeze down": [
         {
-            "name": "Stop flags",
+            "name": "Down flags",
             "options": [
                 "--preserve-volumes",
                 "--cleanup-mypy-cache",
@@ -158,12 +194,20 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Pre-commit flags",
             "options": [
                 "--type",
+                "--show-diff-on-failure",
+                "--initialize-environment",
+                "--max-initialization-attempts",
+                "--github-repository",
+            ],
+        },
+        {
+            "name": "Selecting files to run the checks on",
+            "options": [
                 "--file",
                 "--all-files",
-                "--show-diff-on-failure",
-                "--last-commit",
                 "--commit-ref",
-                "--github-repository",
+                "--last-commit",
+                "--only-my-changes",
             ],
         },
     ],

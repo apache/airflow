@@ -209,7 +209,7 @@
             "description": "Integration name. It must have a matching item in the 'integration' section of any provider."
           },
           "python-modules": {
-            "description": "List of python modules containing the triggers.",
+            "description": "List of Python modules containing the triggers.",
             "type": "array",
             "items": {
               "type": "string"
@@ -312,7 +312,7 @@
           "items": {
               "type": "string"
           }
-      },
+    },
     "plugins": {
       "type": "array",
       "description": "Plugins exposed by the provider",

@@ -121,6 +121,7 @@ Extra (optional)
 
     * ``config_kwargs``: Additional **kwargs** used to construct a
       `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__.
+      To anonymously access public AWS resources (equivalent of `signature_version=botocore.UNSGINED`), set `"signature_version"="unsigned"` within `config_kwargs`.
     * ``endpoint_url``: Endpoint URL for the connection.
     * ``verify``: Whether or not to verify SSL certificates.
 
@@ -357,6 +358,7 @@ provide selected options in the connection's extra field.
         "s3": {
           "bucket_name": "awesome-bucket"
         }
+      }
     }
 
 

@@ -46,7 +46,7 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
 
 from airflow import version
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_scopes,
@@ -73,8 +73,8 @@ INVALID_REASONS = [
 def is_soft_quota_exception(exception: Exception):
     """
     API for Google services does not have a standardized way to report quota violation errors.
-    The function has been adapted by trial and error to the following services:
 
+    The function has been adapted by trial and error to the following services:
     * Google Translate
     * Google Vision
     * Google Text-to-Speech
@@ -188,7 +188,7 @@ class GoogleBaseHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import IntegerField, PasswordField, StringField
@@ -198,6 +198,9 @@ class GoogleBaseHook(BaseHook):
             "project": StringField(lazy_gettext("Project Id"), widget=BS3TextFieldWidget()),
             "key_path": StringField(lazy_gettext("Keyfile Path"), widget=BS3TextFieldWidget()),
             "keyfile_dict": PasswordField(lazy_gettext("Keyfile JSON"), widget=BS3PasswordFieldWidget()),
+            "credential_config_file": StringField(
+                lazy_gettext("Credential Configuration File"), widget=BS3TextFieldWidget()
+            ),
             "scope": StringField(lazy_gettext("Scopes (comma separated)"), widget=BS3TextFieldWidget()),
             "key_secret_name": StringField(
                 lazy_gettext("Keyfile Secret Name (in GCP Secret Manager)"), widget=BS3TextFieldWidget()
@@ -215,7 +218,7 @@ class GoogleBaseHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
@@ -236,7 +239,7 @@ class GoogleBaseHook(BaseHook):
         self._cached_project_id: str | None = None
 
     def get_credentials_and_project_id(self) -> tuple[google.auth.credentials.Credentials, str | None]:
-        """Returns the Credentials object for Google API and the associated project_id"""
+        """Returns the Credentials object for Google API and the associated project_id."""
         if self._cached_credentials is not None:
             return self._cached_credentials, self._cached_project_id
 
@@ -251,14 +254,18 @@ class GoogleBaseHook(BaseHook):
                     keyfile_dict_json = json.loads(keyfile_dict)
         except json.decoder.JSONDecodeError:
             raise AirflowException("Invalid key JSON.")
+
         key_secret_name: str | None = self._get_field("key_secret_name", None)
         key_secret_project_id: str | None = self._get_field("key_secret_project_id", None)
+
+        credential_config_file: str | None = self._get_field("credential_config_file", None)
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
 
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
             keyfile_dict=keyfile_dict_json,
+            credential_config_file=credential_config_file,
             key_secret_name=key_secret_name,
             key_secret_project_id=key_secret_project_id,
             scopes=self.scopes,
@@ -277,12 +284,12 @@ class GoogleBaseHook(BaseHook):
         return credentials, project_id
 
     def get_credentials(self) -> google.auth.credentials.Credentials:
-        """Returns the Credentials object for Google API"""
+        """Returns the Credentials object for Google API."""
         credentials, _ = self.get_credentials_and_project_id()
         return credentials
 
     def _get_access_token(self) -> str:
-        """Returns a valid access token from Google API Credentials"""
+        """Returns a valid access token from Google API Credentials."""
         credentials = self.get_credentials()
         auth_req = google.auth.transport.requests.Request()
         # credentials.token is None
@@ -293,7 +300,7 @@ class GoogleBaseHook(BaseHook):
     @functools.lru_cache(maxsize=None)
     def _get_credentials_email(self) -> str:
         """
-        Returns the email address associated with the currently logged in account
+        Returns the email address associated with the currently logged in account.
 
         If a service account is used, it returns the service account.
         If user authentication (e.g. gcloud auth) is used, it returns the e-mail account of that user.
@@ -382,7 +389,7 @@ class GoogleBaseHook(BaseHook):
         """
         warnings.warn(
             "This method is deprecated, please use `airflow.providers.google.common.consts.CLIENT_INFO`.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         return CLIENT_INFO
@@ -595,7 +602,7 @@ class GoogleBaseHook(BaseHook):
         file_handle.flush()
 
     def test_connection(self):
-        """Test the Google cloud connectivity from UI"""
+        """Test the Google cloud connectivity from UI."""
         status, message = False, ""
         try:
             token = self._get_access_token()
@@ -612,7 +619,7 @@ class GoogleBaseHook(BaseHook):
 
 
 class GoogleBaseAsyncHook(BaseHook):
-    """GoogleBaseAsyncHook inherits from BaseHook class, run on the trigger worker"""
+    """GoogleBaseAsyncHook inherits from BaseHook class, run on the trigger worker."""
 
     sync_hook_class: Any = None
 

@@ -21,7 +21,6 @@ implementation for BigQuery.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import re
@@ -45,6 +44,7 @@ from google.cloud.bigquery import (
     LoadJob,
     QueryJob,
     SchemaField,
+    UnknownJob,
 )
 from google.cloud.bigquery.dataset import AccessEntry, Dataset, DatasetListItem, DatasetReference
 from google.cloud.bigquery.table import EncryptionConfiguration, Row, RowIterator, Table, TableReference
@@ -56,11 +56,17 @@ from pandas_gbq.gbq import GbqConnector  # noqa
 from requests import Session
 from sqlalchemy import create_engine
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook, get_field
+
+try:
+    from airflow.utils.hashlib_wrapper import md5
+except ModuleNotFoundError:
+    # Remove when Airflow providers min Airflow version is "2.7.0"
+    from hashlib import md5
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -76,6 +82,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     :param gcp_conn_id: The Airflow connection used for GCP credentials.
     :param use_legacy_sql: This specifies whether to use legacy SQL dialect.
     :param location: The location of the BigQuery resource.
+    :param priority: Specifies a priority for the query.
+        Possible values include INTERACTIVE and BATCH.
+        The default value is INTERACTIVE.
     :param api_resource_configs: This contains params configuration applied for Google BigQuery jobs.
     :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
@@ -92,6 +101,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         gcp_conn_id: str = GoogleBaseHook.default_conn_name,
         use_legacy_sql: bool = True,
         location: str | None = None,
+        priority: str = "INTERACTIVE",
         api_resource_configs: dict | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
@@ -108,6 +118,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
         self.use_legacy_sql = use_legacy_sql
         self.location = location
+        self.priority = priority
         self.running_job_id: str | None = None
         self.api_resource_configs: dict = api_resource_configs if api_resource_configs else {}
         self.labels = labels
@@ -128,7 +139,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def get_service(self) -> Resource:
         """Returns a BigQuery service object."""
         warnings.warn(
-            "This method will be deprecated. Please use `BigQueryHook.get_client` method", DeprecationWarning
+            "This method will be deprecated. Please use `BigQueryHook.get_client` method",
+            AirflowProviderDeprecationWarning,
         )
         http_authorized = self._authorize()
         return build("bigquery", "v2", http=http_authorized, cache_discovery=False)
@@ -149,7 +161,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
 
     def get_uri(self) -> str:
-        """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
         return f"bigquery://{self.project_id}"
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
@@ -238,8 +250,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         Returns a Pandas DataFrame for the results produced by a BigQuery
         query. The DbApiHook method must be overridden because Pandas
-        doesn't support PEP 249 connections, except for SQLite. See:
+        doesn't support PEP 249 connections, except for SQLite.
 
+        See:
         https://github.com/pandas-dev/pandas/blob/055d008615272a1ceca9720dc365a2abd316f353/pandas/io/sql.py#L415
         https://github.com/pandas-dev/pandas/issues/6900
 
@@ -313,13 +326,13 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         view: dict | None = None,
         materialized_view: dict | None = None,
         encryption_configuration: dict | None = None,
-        retry: Retry | None = DEFAULT_RETRY,
+        retry: Retry = DEFAULT_RETRY,
         location: str | None = None,
         exists_ok: bool = True,
     ) -> Table:
         """
         Creates a new, empty table in the dataset.
-        To create a view, which is defined by a SQL query, parse a dictionary to 'view' kwarg
+        To create a view, which is defined by a SQL query, parse a dictionary to 'view' kwarg.
 
         :param project_id: The project to create the table into.
         :param dataset_id: The dataset to create the table into.
@@ -417,8 +430,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         exists_ok: bool = True,
     ) -> dict[str, Any]:
         """
-        Create a new empty dataset:
-        https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert
+        Create a new empty dataset.
+
+        See: https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert.
 
         :param project_id: The name of the project where we want to create
             an empty a dataset. Don't need to provide, if projectId in dataset_reference.
@@ -550,9 +564,13 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     ) -> Table:
         """
         Creates a new external table in the dataset with the data from Google
-        Cloud Storage. See here:
+        Cloud Storage.
 
+        See here:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#resource
+
+        This method is deprecated.
+        Please use `BigQueryHook.create_empty_table` method with passing the `table_resource` object
 
         for more details about these parameters.
 
@@ -609,7 +627,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.create_empty_table` method with "
             "passing the `table_resource` object. This gives more flexibility than this method.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         location = location or self.location
         src_fmt_configs = src_fmt_configs or {}
@@ -743,6 +761,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         Patch information in an existing table.
         It only updates fields that are provided in the request object.
 
+        This method is deprecated. Please use `BigQueryHook.update_table`
+
         Reference: https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/patch
 
         :param dataset_id: The dataset containing the table to be patched.
@@ -788,7 +808,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         warnings.warn(
             "This method is deprecated, please use ``BigQueryHook.update_table`` method.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         table_resource: dict[str, Any] = {}
 
@@ -834,7 +854,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     ) -> None:
         """
         Method to stream data into BigQuery one record at a time without needing
-        to run a load job
+        to run a load job.
 
         .. seealso::
             For more information, see:
@@ -928,6 +948,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         """
         Patches information in an existing dataset.
         It only replaces fields that are provided in the submitted dataset resource.
+
+        This method is deprecated. Please use `update_dataset`
+
         More info:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/patch
 
@@ -937,7 +960,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
         :param project_id: The Google Cloud Project ID
         """
-        warnings.warn("This method is deprecated. Please use ``update_dataset``.", DeprecationWarning)
+        warnings.warn(
+            "This method is deprecated. Please use ``update_dataset``.", AirflowProviderDeprecationWarning
+        )
         project_id = project_id or self.project_id
         if not dataset_id or not isinstance(dataset_id, str):
             raise ValueError(
@@ -972,6 +997,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         Method returns tables list of a BigQuery tables. If table prefix is specified,
         only tables beginning by it are returned.
 
+        This method is deprecated. Please use `get_dataset_tables`
+
         For more information, see:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables/list
 
@@ -982,7 +1009,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             Leverage the page tokens to iterate through the entire collection.
         :return: List of tables associated with the dataset
         """
-        warnings.warn("This method is deprecated. Please use ``get_dataset_tables``.", DeprecationWarning)
+        warnings.warn(
+            "This method is deprecated. Please use ``get_dataset_tables``.", AirflowProviderDeprecationWarning
+        )
         project_id = project_id or self.project_id
         tables = self.get_client().list_tables(
             dataset=DatasetReference(project=project_id, dataset_id=dataset_id),
@@ -1009,7 +1038,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return_iterator: bool = False,
     ) -> list[DatasetListItem] | HTTPIterator:
         """
-        Method returns full list of BigQuery datasets in the current project
+        Method returns full list of BigQuery datasets in the current project.
 
         For more information, see:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/list
@@ -1042,7 +1071,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         # If iterator is requested, we cannot perform a list() on it to log the number
         # of datasets because we will have started iteration
         if return_iterator:
-            return iterator
+            # The iterator returned by list_datasets() is a HTTPIterator but annotated
+            # as Iterator
+            return iterator  #  type: ignore
 
         datasets_list = list(iterator)
         self.log.info("Datasets List: %s", len(datasets_list))
@@ -1162,6 +1193,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         If the table does not exist, return an error unless ignore_if_missing
         is set to True.
 
+        This method is deprecated. Please use `delete_table`
+
         :param deletion_dataset_table: A dotted
             ``(<project>.|<project>:)<dataset>.<table>`` that indicates which table
             will be deleted.
@@ -1169,7 +1202,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             requested table does not exist.
         :return:
         """
-        warnings.warn("This method is deprecated. Please use `delete_table`.", DeprecationWarning)
+        warnings.warn(
+            "This method is deprecated. Please use `delete_table`.", AirflowProviderDeprecationWarning
+        )
         return self.delete_table(table_id=deletion_dataset_table, not_found_ok=ignore_if_missing)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -1206,6 +1241,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     ) -> list[dict]:
         """
         Get the data of a given dataset.table and optionally with selected columns.
+
+        This method is deprecated. Please use `list_rows`
+
         see https://cloud.google.com/bigquery/docs/reference/v2/tabledata/list
 
         :param dataset_id: the dataset ID of the requested table.
@@ -1218,7 +1256,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param start_index: zero based index of the starting row to read.
         :return: list of rows
         """
-        warnings.warn("This method is deprecated. Please use `list_rows`.", DeprecationWarning)
+        warnings.warn("This method is deprecated. Please use `list_rows`.", AirflowProviderDeprecationWarning)
         rows = self.list_rows(
             dataset_id=dataset_id,
             table_id=table_id,
@@ -1245,6 +1283,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     ) -> list[Row] | RowIterator:
         """
         List the rows of the table.
+
         See https://cloud.google.com/bigquery/docs/reference/rest/v2/tabledata/list
 
         :param dataset_id: the dataset ID of the requested table.
@@ -1267,9 +1306,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             selected_fields = selected_fields.split(",")
 
         if selected_fields:
-            selected_fields = [SchemaField(n, "") for n in selected_fields]
+            selected_fields_sequence = [SchemaField(n, "") for n in selected_fields]
         else:
-            selected_fields = None
+            selected_fields_sequence = None
 
         table = self._resolve_table_reference(
             table_resource={},
@@ -1280,7 +1319,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         iterator = self.get_client(project_id=project_id, location=location).list_rows(
             table=Table.from_api_repr(table),
-            selected_fields=selected_fields,
+            selected_fields=selected_fields_sequence,
             max_results=max_results,
             page_token=page_token,
             start_index=start_index,
@@ -1294,6 +1333,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def get_schema(self, dataset_id: str, table_id: str, project_id: str | None = None) -> dict:
         """
         Get the schema for a given dataset and table.
+
         see https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
 
         :param dataset_id: the dataset ID of the requested table
@@ -1320,6 +1360,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         some fields in schemas are immutable and trying to change them will cause
         an exception.
         If a new field is included it will be inserted which requires all required fields to be set.
+
         See https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableSchema
 
         :param include_policy_tags: If set to True policy tags will be included in
@@ -1418,10 +1459,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return job.done(retry=retry)
 
     def cancel_query(self) -> None:
-        """Cancel all started queries that have not yet completed"""
+        """Cancel all started queries that have not yet completed."""
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.cancel_job`.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         if self.running_job_id:
             self.cancel_job(job_id=self.running_job_id)
@@ -1436,7 +1477,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         location: str | None = None,
     ) -> None:
         """
-        Cancel a job and wait for cancellation to complete
+        Cancel a job and wait for cancellation to complete.
 
         :param job_id: id of the job.
         :param project_id: Google Cloud Project where the job is running
@@ -1476,17 +1517,18 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def get_job(
         self,
-        job_id: str | None = None,
+        job_id: str,
         project_id: str | None = None,
         location: str | None = None,
-    ) -> CopyJob | QueryJob | LoadJob | ExtractJob:
+    ) -> CopyJob | QueryJob | LoadJob | ExtractJob | UnknownJob:
         """
-        Retrieves a BigQuery job. For more information see:
-        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+        Retrieves a BigQuery job.
+
+        See: https://cloud.google.com/bigquery/docs/reference/v2/jobs
 
         :param job_id: The ID of the job. The ID must contain only letters (a-z, A-Z),
             numbers (0-9), underscores (_), or dashes (-). The maximum length is 1,024
-            characters. If not provided then uuid will be generated.
+            characters.
         :param project_id: Google Cloud Project where the job is running
         :param location: location the job is running
         """
@@ -1497,7 +1539,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     @staticmethod
     def _custom_job_id(configuration: dict[str, Any]) -> str:
         hash_base = json.dumps(configuration, sort_keys=True)
-        uniqueness_suffix = hashlib.md5(hash_base.encode()).hexdigest()
+        uniqueness_suffix = md5(hash_base.encode()).hexdigest()
         microseconds_from_epoch = int(
             (datetime.now() - datetime.fromtimestamp(0)) / timedelta(microseconds=1)
         )
@@ -1516,8 +1558,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     ) -> BigQueryJob:
         """
         Executes a BigQuery job. Waits for the job to complete and returns job id.
-        See here:
 
+        See here:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
 
         :param configuration: The configuration parameter maps directly to
@@ -1543,14 +1585,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             "jobReference": {"jobId": job_id, "projectId": project_id, "location": location},
         }
 
-        supported_jobs = {
+        supported_jobs: dict[str, type[CopyJob] | type[QueryJob] | type[LoadJob] | type[ExtractJob]] = {
             LoadJob._JOB_TYPE: LoadJob,
             CopyJob._JOB_TYPE: CopyJob,
             ExtractJob._JOB_TYPE: ExtractJob,
             QueryJob._JOB_TYPE: QueryJob,
         }
 
-        job = None
+        job: type[CopyJob] | type[QueryJob] | type[LoadJob] | type[ExtractJob] | None = None
         for job_type, job_object in supported_jobs.items():
             if job_type in configuration:
                 job = job_object
@@ -1558,21 +1600,23 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         if not job:
             raise AirflowException(f"Unknown job type. Supported types: {supported_jobs.keys()}")
-        job = job.from_api_repr(job_data, client)
-        self.log.info("Inserting job %s", job.job_id)
+        job_api_repr = job.from_api_repr(job_data, client)
+        self.log.info("Inserting job %s", job_api_repr.job_id)
         if nowait:
             # Initiate the job and don't wait for it to complete.
-            job._begin()
+            job_api_repr._begin()
         else:
             # Start the job and wait for it to complete and get the result.
-            job.result(timeout=timeout, retry=retry)
-        return job
+            job_api_repr.result(timeout=timeout, retry=retry)
+        return job_api_repr
 
     def run_with_configuration(self, configuration: dict) -> str:
         """
-        Executes a BigQuery SQL query. See here:
+        Executes a BigQuery SQL query.
 
-        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+        See here: https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+        This method is deprecated. Please use `BigQueryHook.insert_job`
 
         For more details about the configuration parameter.
 
@@ -1581,7 +1625,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             https://cloud.google.com/bigquery/docs/reference/v2/jobs for
             details.
         """
-        warnings.warn("This method is deprecated. Please use `BigQueryHook.insert_job`", DeprecationWarning)
+        warnings.warn(
+            "This method is deprecated. Please use `BigQueryHook.insert_job`",
+            AirflowProviderDeprecationWarning,
+        )
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
         self.running_job_id = job.job_id
         return job.job_id
@@ -1613,9 +1660,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     ) -> str:
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
-        to BigQuery. See here:
+        to BigQuery.
 
-        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+        See here: https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+        This method is deprecated. Please use `BigQueryHook.insert_job` method.
 
         For more details about these parameters.
 
@@ -1676,7 +1725,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param description: A string containing the description for the BigQuery table.
         """
         warnings.warn(
-            "This method is deprecated. Please use `BigQueryHook.insert_job` method.", DeprecationWarning
+            "This method is deprecated. Please use `BigQueryHook.insert_job` method.",
+            AirflowProviderDeprecationWarning,
         )
 
         if not self.project_id:
@@ -1837,9 +1887,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     ) -> str:
         """
         Executes a BigQuery copy command to copy data from one BigQuery table
-        to another. See here:
+        to another.
 
-        https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.copy
+
+        See here: https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.copy
+
+        This method is deprecated. Please use `BigQueryHook.insert_job` method.
 
         For more details about these parameters.
 
@@ -1863,7 +1916,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 }
         """
         warnings.warn(
-            "This method is deprecated. Please use `BigQueryHook.insert_job` method.", DeprecationWarning
+            "This method is deprecated. Please use `BigQueryHook.insert_job` method.",
+            AirflowProviderDeprecationWarning,
         )
         if not self.project_id:
             raise ValueError("The project_id should be set")
@@ -1924,9 +1978,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     ) -> str | BigQueryJob:
         """
         Executes a BigQuery extract command to copy data from BigQuery to
-        Google Cloud Storage. See here:
+        Google Cloud Storage.
 
-        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+        See here: https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+        This method is deprecated. Please use `BigQueryHook.insert_job` method.
 
         For more details about these parameters.
 
@@ -1945,7 +2001,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param return_full_job: return full job instead of job id only
         """
         warnings.warn(
-            "This method is deprecated. Please use `BigQueryHook.insert_job` method.", DeprecationWarning
+            "This method is deprecated. Please use `BigQueryHook.insert_job` method.",
+            AirflowProviderDeprecationWarning,
         )
         if not self.project_id:
             raise ValueError("The project_id should be set")
@@ -2000,7 +2057,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         query_params: list | None = None,
         labels: dict | None = None,
         schema_update_options: Iterable | None = None,
-        priority: str = "INTERACTIVE",
+        priority: str | None = None,
         time_partitioning: dict | None = None,
         api_resource_configs: dict | None = None,
         cluster_fields: list[str] | None = None,
@@ -2009,9 +2066,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     ) -> str:
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
-        table. See here:
+        table.
 
-        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+        See here: https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+        This method is deprecated. Please use `BigQueryHook.insert_job` method.
 
         For more details about these parameters.
 
@@ -2051,7 +2110,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table to be updated as a side effect of the query job.
         :param priority: Specifies a priority for the query.
             Possible values include INTERACTIVE and BATCH.
-            The default value is INTERACTIVE.
+            If `None`, defaults to `self.priority`.
         :param time_partitioning: configure optional time partitioning fields i.e.
             partition by field, type and expiration as per API specifications.
         :param cluster_fields: Request that the result of this query be stored sorted
@@ -2068,7 +2127,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 }
         """
         warnings.warn(
-            "This method is deprecated. Please use `BigQueryHook.insert_job` method.", DeprecationWarning
+            "This method is deprecated. Please use `BigQueryHook.insert_job` method.",
+            AirflowProviderDeprecationWarning,
         )
         if not self.project_id:
             raise ValueError("The project_id should be set")
@@ -2076,11 +2136,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         labels = labels or self.labels
         schema_update_options = list(schema_update_options or [])
 
+        priority = priority or self.priority
+
         if time_partitioning is None:
             time_partitioning = {}
-
-        if location:
-            self.location = location
 
         if not api_resource_configs:
             api_resource_configs = self.api_resource_configs
@@ -2133,7 +2192,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         query_param_list: list[tuple[Any, str, str | bool | None | dict, type | tuple[type]]] = [
             (sql, "query", None, (str,)),
-            (priority, "priority", "INTERACTIVE", (str,)),
+            (priority, "priority", priority, (str,)),
             (use_legacy_sql, "useLegacySql", self.use_legacy_sql, bool),
             (query_params, "queryParameters", None, list),
             (udf_config, "userDefinedFunctionResources", None, list),
@@ -2202,7 +2261,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if encryption_configuration:
             configuration["query"]["destinationEncryptionConfiguration"] = encryption_configuration
 
-        job = self.insert_job(configuration=configuration, project_id=self.project_id)
+        job = self.insert_job(configuration=configuration, project_id=self.project_id, location=location)
         self.running_job_id = job.job_id
         return job.job_id
 
@@ -2212,7 +2271,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         else:
             hash_base = json.dumps(configuration, sort_keys=True)
 
-        uniqueness_suffix = hashlib.md5(hash_base.encode()).hexdigest()
+        uniqueness_suffix = md5(hash_base.encode()).hexdigest()
 
         if job_id:
             return f"{job_id}_{uniqueness_suffix}"
@@ -2296,17 +2355,17 @@ class BigQueryConnection:
         self._kwargs = kwargs
 
     def close(self) -> None:
-        """The BigQueryConnection does not have anything to close"""
+        """The BigQueryConnection does not have anything to close."""
 
     def commit(self) -> None:
-        """The BigQueryConnection does not support transactions"""
+        """The BigQueryConnection does not support transactions."""
 
     def cursor(self) -> BigQueryCursor:
-        """Return a new :py:class:`Cursor` object using the connection"""
+        """Return a new :py:class:`Cursor` object using the connection."""
         return BigQueryCursor(*self._args, **self._kwargs)
 
     def rollback(self) -> NoReturn:
-        """The BigQueryConnection does not have transactions"""
+        """The BigQueryConnection does not have transactions."""
         raise NotImplementedError("BigQueryConnection does not have transactions")
 
 
@@ -2344,12 +2403,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def create_empty_table(self, *args, **kwargs):
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.create_empty_table(*args, **kwargs)
@@ -2357,12 +2416,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def create_empty_dataset(self, *args, **kwargs) -> dict[str, Any]:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_dataset`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_dataset`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_dataset`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.create_empty_dataset(*args, **kwargs)
@@ -2370,12 +2429,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def get_dataset_tables(self, *args, **kwargs) -> list[dict[str, Any]]:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.get_dataset_tables(*args, **kwargs)
@@ -2383,12 +2442,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def delete_dataset(self, *args, **kwargs) -> None:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.delete_dataset`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.delete_dataset`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.delete_dataset`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.delete_dataset(*args, **kwargs)
@@ -2396,12 +2455,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def create_external_table(self, *args, **kwargs):
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_external_table`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_external_table`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_external_table`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.create_external_table(*args, **kwargs)
@@ -2409,12 +2468,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def patch_table(self, *args, **kwargs) -> None:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_table`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_table`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_table`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.patch_table(*args, **kwargs)
@@ -2422,12 +2481,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def insert_all(self, *args, **kwargs) -> None:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_all`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_all`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_all`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.insert_all(*args, **kwargs)
@@ -2435,12 +2494,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def update_dataset(self, *args, **kwargs) -> dict:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return Dataset.to_api_repr(self.hook.update_dataset(*args, **kwargs))
@@ -2448,12 +2507,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def patch_dataset(self, *args, **kwargs) -> dict:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_dataset`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_dataset`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_dataset`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.patch_dataset(*args, **kwargs)
@@ -2461,12 +2520,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def get_dataset_tables_list(self, *args, **kwargs) -> list[dict[str, Any]]:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables_list`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables_list`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables_list`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.get_dataset_tables_list(*args, **kwargs)
@@ -2474,25 +2533,25 @@ class BigQueryBaseCursor(LoggingMixin):
     def get_datasets_list(self, *args, **kwargs) -> list | HTTPIterator:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_datasets_list`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_datasets_list`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_datasets_list`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.get_datasets_list(*args, **kwargs)
 
-    def get_dataset(self, *args, **kwargs) -> dict:
+    def get_dataset(self, *args, **kwargs) -> Dataset:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.get_dataset(*args, **kwargs)
@@ -2500,13 +2559,13 @@ class BigQueryBaseCursor(LoggingMixin):
     def run_grant_dataset_view_access(self, *args, **kwargs) -> dict:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks"
             ".bigquery.BigQueryHook.run_grant_dataset_view_access`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.run_grant_dataset_view_access(*args, **kwargs)
@@ -2514,12 +2573,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def run_table_upsert(self, *args, **kwargs) -> dict:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_upsert`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_upsert`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_upsert`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.run_table_upsert(*args, **kwargs)
@@ -2527,12 +2586,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def run_table_delete(self, *args, **kwargs) -> None:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_delete`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_delete`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_delete`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.run_table_delete(*args, **kwargs)
@@ -2540,12 +2599,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def get_tabledata(self, *args, **kwargs) -> list[dict]:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_tabledata`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_tabledata`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_tabledata`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.get_tabledata(*args, **kwargs)
@@ -2553,12 +2612,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def get_schema(self, *args, **kwargs) -> dict:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_schema`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_schema`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_schema`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.get_schema(*args, **kwargs)
@@ -2566,12 +2625,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def poll_job_complete(self, *args, **kwargs) -> bool:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.poll_job_complete(*args, **kwargs)
@@ -2579,12 +2638,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def cancel_query(self, *args, **kwargs) -> None:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.cancel_query`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.cancel_query`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.cancel_query`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.cancel_query(*args, **kwargs)  # type: ignore
@@ -2592,12 +2651,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def run_with_configuration(self, *args, **kwargs) -> str:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.run_with_configuration(*args, **kwargs)
@@ -2605,12 +2664,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def run_load(self, *args, **kwargs) -> str:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_load`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_load`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_load`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.run_load(*args, **kwargs)
@@ -2618,25 +2677,25 @@ class BigQueryBaseCursor(LoggingMixin):
     def run_copy(self, *args, **kwargs) -> str:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_copy`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_copy`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_copy`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.run_copy(*args, **kwargs)
 
-    def run_extract(self, *args, **kwargs) -> str:
+    def run_extract(self, *args, **kwargs) -> str | BigQueryJob:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_extract`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_extract`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_extract`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.run_extract(*args, **kwargs)
@@ -2644,12 +2703,12 @@ class BigQueryBaseCursor(LoggingMixin):
     def run_query(self, *args, **kwargs) -> str:
         """
         This method is deprecated.
-        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_query`
+        Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_query`.
         """
         warnings.warn(
             "This method is deprecated. "
             "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_query`",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
         return self.hook.run_query(*args, **kwargs)
@@ -2658,7 +2717,7 @@ class BigQueryBaseCursor(LoggingMixin):
 class BigQueryCursor(BigQueryBaseCursor):
     """
     A very basic BigQuery PEP 249 cursor implementation. The PyHive PEP 249
-    implementation was used as a reference:
+    implementation was used as a reference.
 
     https://github.com/dropbox/PyHive/blob/master/pyhive/presto.py
     https://github.com/dropbox/PyHive/blob/master/pyhive/common.py
@@ -2690,7 +2749,7 @@ class BigQueryCursor(BigQueryBaseCursor):
 
     @property
     def description(self) -> list:
-        """Return the cursor description"""
+        """Return the cursor description."""
         return self._description
 
     @description.setter
@@ -2698,11 +2757,11 @@ class BigQueryCursor(BigQueryBaseCursor):
         self._description = value
 
     def close(self) -> None:
-        """By default, do nothing"""
+        """By default, do nothing."""
 
     @property
     def rowcount(self) -> int:
-        """By default, return -1 to indicate that this is not supported"""
+        """By default, return -1 to indicate that this is not supported."""
         return -1
 
     def execute(self, operation: str, parameters: dict | None = None) -> None:
@@ -2734,14 +2793,14 @@ class BigQueryCursor(BigQueryBaseCursor):
             self.execute(operation, parameters)
 
     def flush_results(self) -> None:
-        """Flush results related cursor attributes"""
+        """Flush results related cursor attributes."""
         self.page_token = None
         self.job_id = None
         self.all_pages_loaded = False
         self.buffer = []
 
     def fetchone(self) -> list | None:
-        """Fetch the next row of a query result set"""
+        """Fetch the next row of a query result set."""
         return self.next()
 
     def next(self) -> list | None:
@@ -2814,20 +2873,20 @@ class BigQueryCursor(BigQueryBaseCursor):
         return result
 
     def get_arraysize(self) -> int:
-        """Specifies the number of rows to fetch at a time with .fetchmany()"""
+        """Specifies the number of rows to fetch at a time with .fetchmany()."""
         return self.buffersize or 1
 
     def set_arraysize(self, arraysize: int) -> None:
-        """Specifies the number of rows to fetch at a time with .fetchmany()"""
+        """Specifies the number of rows to fetch at a time with .fetchmany()."""
         self.buffersize = arraysize
 
     arraysize = property(get_arraysize, set_arraysize)
 
     def setinputsizes(self, sizes: Any) -> None:
-        """Does nothing by default"""
+        """Does nothing by default."""
 
     def setoutputsize(self, size: Any, column: Any = None) -> None:
-        """Does nothing by default"""
+        """Does nothing by default."""
 
     def _get_query_result(self) -> dict:
         """Get job query results like data, schema, job type..."""
@@ -2846,7 +2905,7 @@ class BigQueryCursor(BigQueryBaseCursor):
 
 
 def _bind_parameters(operation: str, parameters: dict) -> str:
-    """Helper method that binds parameters to a SQL query"""
+    """Helper method that binds parameters to a SQL query."""
     # inspired by MySQL Python Connector (conversion.py)
     string_parameters = {}  # type dict[str, str]
     for (name, value) in parameters.items():
@@ -2860,7 +2919,7 @@ def _bind_parameters(operation: str, parameters: dict) -> str:
 
 
 def _escape(s: str) -> str:
-    """Helper method that escapes parameters to a SQL query"""
+    """Helper method that escapes parameters to a SQL query."""
     e = s
     e = e.replace("\\", "\\\\")
     e = e.replace("\n", "\\n")
@@ -2946,7 +3005,7 @@ def _cleanse_time_partitioning(
 
 
 def _validate_value(key: Any, value: Any, expected_type: type | tuple[type]) -> None:
-    """Function to check expected type and raise error if type is not correct"""
+    """Function to check expected type and raise error if type is not correct."""
     if not isinstance(value, expected_type):
         raise TypeError(f"{key} argument must have a type {expected_type} not {type(value)}")
 
@@ -2997,7 +3056,7 @@ def _validate_src_fmt_configs(
 def _format_schema_for_description(schema: dict) -> list:
     """
     Reformat the schema to match cursor description standard which is a tuple
-    of 7 elemenbts (name, type, display_size, internal_size, precision, scale, null_ok)
+    of 7 elemenbts (name, type, display_size, internal_size, precision, scale, null_ok).
     """
     description = []
     for field in schema["fields"]:
@@ -3016,7 +3075,7 @@ def _format_schema_for_description(schema: dict) -> list:
 
 
 class BigQueryAsyncHook(GoogleBaseAsyncHook):
-    """Uses gcloud-aio library to retrieve Job details"""
+    """Uses gcloud-aio library to retrieve Job details."""
 
     sync_hook_class = BigQueryHook
 
@@ -3082,20 +3141,26 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
             job_query_resp = await job_client.query(query_request, cast(Session, session))
             return job_query_resp["jobReference"]["jobId"]
 
-    def get_records(self, query_results: dict[str, Any]) -> list[Any]:
+    def get_records(self, query_results: dict[str, Any], as_dict: bool = False) -> list[Any]:
         """
         Given the output query response from gcloud-aio bigquery, convert the response to records.
 
         :param query_results: the results from a SQL query
+        :param as_dict: if True returns the result as a list of dictionaries, otherwise as list of lists.
         """
-        buffer = []
+        buffer: list[Any] = []
         if "rows" in query_results and query_results["rows"]:
             rows = query_results["rows"]
             fields = query_results["schema"]["fields"]
             col_types = [field["type"] for field in fields]
             for dict_row in rows:
                 typed_row = [bq_cast(vs["v"], col_types[idx]) for idx, vs in enumerate(dict_row["f"])]
-                buffer.append(typed_row)
+                if not as_dict:
+                    buffer.append(typed_row)
+                else:
+                    fields_names = [field["name"] for field in fields]
+                    typed_row_dict = {k: v for k, v in zip(fields_names, typed_row)}
+                    buffer.append(typed_row_dict)
         return buffer
 
     def value_check(
@@ -3106,7 +3171,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         tolerance: float | None = None,
     ) -> None:
         """
-        Match a single query resulting row and tolerance with pass_value
+        Match a single query resulting row and tolerance with pass_value.
 
         :return: If Match fail, we throw an AirflowException.
         """
@@ -3144,7 +3209,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         records: list[float], pass_value: Any, tolerance: float | None = None
     ) -> list[bool]:
         """
-        A helper function to match numeric pass_value, tolerance with records value
+        A helper function to match numeric pass_value, tolerance with records value.
 
         :param records: List of value to match against
         :param pass_value: Expected value
@@ -3160,7 +3225,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
     @staticmethod
     def _convert_to_float_if_possible(s: Any) -> Any:
         """
-        A small helper function to convert a string to a numeric value if appropriate
+        A small helper function to convert a string to a numeric value if appropriate.
 
         :param s: the string to be converted
         """
@@ -3178,7 +3243,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
         ratio_formula: str,
     ) -> None:
         """
-        Checks that the values of metrics given as SQL expressions are within a certain tolerance
+        Checks that the values of metrics given as SQL expressions are within a certain tolerance.
 
         :param row1: first resulting row of a query execution job for first SQL query
         :param row2: first resulting row of a query execution job for second SQL query
@@ -3258,7 +3323,7 @@ class BigQueryAsyncHook(GoogleBaseAsyncHook):
 
 
 class BigQueryTableAsyncHook(GoogleBaseAsyncHook):
-    """Class to get async hook for Bigquery Table Async"""
+    """Class to get async hook for Bigquery Table Async."""
 
     sync_hook_class = BigQueryHook
 

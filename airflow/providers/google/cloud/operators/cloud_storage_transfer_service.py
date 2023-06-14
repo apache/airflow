@@ -22,7 +22,7 @@ from copy import deepcopy
 from datetime import date, time
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID,
@@ -122,12 +122,12 @@ class TransferJobPreprocessor:
 
     @staticmethod
     def _convert_date_to_dict(field_date: date) -> dict:
-        """Convert native python ``datetime.date`` object  to a format supported by the API"""
+        """Convert native python ``datetime.date`` object  to a format supported by the API."""
         return {DAY: field_date.day, MONTH: field_date.month, YEAR: field_date.year}
 
     @staticmethod
     def _convert_time_to_dict(time_object: time) -> dict:
-        """Convert native python ``datetime.time`` object  to a format supported by the API"""
+        """Convert native python ``datetime.time`` object  to a format supported by the API."""
         return {HOURS: time_object.hour, MINUTES: time_object.minute, SECONDS: time_object.second}
 
 
@@ -548,7 +548,9 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
         if request_filter is None:
             if "filter" in kwargs:
                 request_filter = kwargs["filter"]
-                DeprecationWarning("Use 'request_filter' instead 'filter' to pass the argument.")
+                AirflowProviderDeprecationWarning(
+                    "Use 'request_filter' instead 'filter' to pass the argument."
+                )
             else:
                 TypeError("__init__() missing 1 required positional argument: 'request_filter'")
 

@@ -20,12 +20,13 @@ import json
 import warnings
 from copy import deepcopy
 from dataclasses import MISSING, InitVar, dataclass, field, fields
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
+from botocore import UNSIGNED
 from botocore.config import Config
 
-from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
@@ -74,11 +75,11 @@ class _ConnectionMetadata:
 
 @dataclass
 class AwsConnectionWrapper(LoggingMixin):
-    """
-    AWS Connection Wrapper class helper.
+    """AWS Connection Wrapper class helper.
+
     Use for validate and resolve AWS Connection parameters.
 
-    ``conn`` reference to Airflow Connection object or AwsConnectionWrapper
+    ``conn`` references an Airflow Connection object or AwsConnectionWrapper
         if it set to ``None`` than default values would use.
 
     The precedence rules for ``region_name``
@@ -168,7 +169,7 @@ class AwsConnectionWrapper(LoggingMixin):
                 f"{self.conn_repr} has connection type 's3', "
                 "which has been replaced by connection type 'aws'. "
                 "Please update your connection to have `conn_type='aws'`.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         elif self.conn_type != "aws":
@@ -186,7 +187,7 @@ class AwsConnectionWrapper(LoggingMixin):
             warnings.warn(
                 "'session_kwargs' in extra config is deprecated and will be removed in a future releases. "
                 f"Please specify arguments passed to boto3 Session directly in {self.conn_repr} extra.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -236,13 +237,15 @@ class AwsConnectionWrapper(LoggingMixin):
         if not self.botocore_config and config_kwargs:
             # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
             self.log.debug("Retrieving botocore config=%s from %s extra.", config_kwargs, self.conn_repr)
+            if config_kwargs.get("signature_version") == "unsigned":
+                config_kwargs["signature_version"] = UNSIGNED
             self.botocore_config = Config(**config_kwargs)
 
         if conn.host:
             warnings.warn(
                 f"Host {conn.host} specified in the connection is not used."
                 " Please, set it on extra['endpoint_url'] instead",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -251,7 +254,7 @@ class AwsConnectionWrapper(LoggingMixin):
             warnings.warn(
                 "extra['host'] is deprecated and will be removed in a future release."
                 " Please set extra['endpoint_url'] instead",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         else:
@@ -316,17 +319,17 @@ class AwsConnectionWrapper(LoggingMixin):
         session_kwargs: dict[str, Any] | None = None,
         **kwargs,
     ) -> tuple[str | None, str | None, str | None]:
-        """
-        Get AWS credentials from connection login/password and extra.
+        """Get AWS credentials from connection login/password and extra.
 
-        ``aws_access_key_id`` and ``aws_secret_access_key`` order
+        ``aws_access_key_id`` and ``aws_secret_access_key`` order:
+
         1. From Connection login and password
-        2. From Connection extra['aws_access_key_id'] and extra['aws_access_key_id']
-        3. (deprecated) Form Connection extra['session_kwargs']
-        4. (deprecated) From local credentials file
+        2. From Connection ``extra['aws_access_key_id']`` and
+           ``extra['aws_access_key_id']``
+        3. (deprecated) Form Connection ``extra['session_kwargs']``
+        4. (deprecated) From a local credentials file
 
-        Get ``aws_session_token`` from extra['aws_access_key_id']
-
+        Get ``aws_session_token`` from ``extra['aws_access_key_id']``.
         """
         session_kwargs = session_kwargs or {}
         session_aws_access_key_id = session_kwargs.get("aws_access_key_id")
@@ -385,7 +388,7 @@ class AwsConnectionWrapper(LoggingMixin):
                 "Constructing 'role_arn' from extra['aws_account_id'] and extra['aws_iam_role'] is deprecated"
                 f" and will be removed in a future releases."
                 f" Please set 'role_arn' in {self.conn_repr} extra.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
             role_arn = f"arn:aws:iam::{aws_account_id}:role/{aws_iam_role}"
@@ -413,7 +416,7 @@ class AwsConnectionWrapper(LoggingMixin):
             warnings.warn(
                 "'external_id' in extra config is deprecated and will be removed in a future releases. "
                 f"Please set 'ExternalId' in 'assume_role_kwargs' in {self.conn_repr} extra.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=3,
             )
             assume_role_kwargs["ExternalId"] = external_id
@@ -424,9 +427,9 @@ class AwsConnectionWrapper(LoggingMixin):
 def _parse_s3_config(
     config_file_name: str, config_format: str | None = "boto", profile: str | None = None
 ) -> tuple[str | None, str | None]:
-    """
-    Parses a config file for s3 credentials. Can currently
-    parse boto, s3cmd.conf and AWS SDK config formats
+    """Parse a config file for S3 credentials.
+
+    Can currently parse boto, s3cmd.conf and AWS SDK config formats.
 
     :param config_file_name: path to the config file
     :param config_format: config type. One of "boto", "s3cmd" or "aws".
@@ -436,7 +439,7 @@ def _parse_s3_config(
     warnings.warn(
         "Use local credentials file is never documented and well tested. "
         "Obtain credentials by this way deprecated and will be removed in a future releases.",
-        DeprecationWarning,
+        AirflowProviderDeprecationWarning,
         stacklevel=4,
     )
 

@@ -1,6 +1,0 @@
-The ``cleanup()`` method in BaseTrigger is now defined as asynchronous (following async/await) pattern.
-
-This is potentially a breaking change for any custom trigger implementations that override the ``cleanup()``
-method and uses synchronous code, however using synchronous operations in cleanup was technically wrong,
-because the method was executed in the main loop of the Triggerer and it was introducing unnecessary delays
-impacting other triggers. The change is unlikely to affect any existing trigger implementations.

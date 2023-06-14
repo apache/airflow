@@ -24,7 +24,7 @@ from typing import Any
 from tableauserverclient import Pager, PersonalAccessTokenAuth, Server, TableauAuth
 from tableauserverclient.server import Auth
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 
@@ -48,6 +48,7 @@ class TableauJobFailedException(AirflowException):
 class TableauJobFinishCode(Enum):
     """
     The finish code indicates the status of the job.
+
     .. seealso:: https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api_ref.htm#query_job
     """
 
@@ -123,7 +124,7 @@ class TableauHook(BaseHook):
         warnings.warn(
             "Authentication via personal access token is deprecated. "
             "Please, use the password authentication to avoid inconsistencies.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         tableau_auth = PersonalAccessTokenAuth(
             token_name=self.conn.extra_dejson["token_name"],
@@ -135,6 +136,7 @@ class TableauHook(BaseHook):
     def get_all(self, resource_name: str) -> Pager:
         """
         Get all items of the given resource.
+
         .. see also:: https://tableau.github.io/server-client-python/docs/page-through-results
 
         :param resource_name: The name of the resource to paginate.
@@ -150,6 +152,7 @@ class TableauHook(BaseHook):
     def get_job_status(self, job_id: str) -> TableauJobFinishCode:
         """
         Get the current state of a defined Tableau Job.
+
         .. see also:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
 
         :param job_id: The id of the job to check.

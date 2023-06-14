@@ -80,7 +80,7 @@ class TestWasbTaskHandler:
                 # Initialize the hook
                 handler.hook
 
-        assert "Could not create a WasbHook with connection id '%s'" in mock_exc.call_args[0][0]
+        assert "Could not create a WasbHook with connection id '%s'" in mock_exc.call_args.args[0]
 
     def test_set_context_raw(self, ti):
         ti.raw = True
@@ -113,7 +113,7 @@ class TestWasbTaskHandler:
                 [
                     (
                         "localhost",
-                        "*** Found remote logs:\n" "***   * wasb://wasb-container/abc/hello.log\n" "Log line",
+                        "*** Found remote logs:\n***   * wasb://wasb-container/abc/hello.log\nLog line",
                     )
                 ]
             ],

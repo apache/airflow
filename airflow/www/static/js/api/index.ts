@@ -40,6 +40,14 @@ import useSetDagRunNote from "./useSetDagRunNote";
 import useSetTaskInstanceNote from "./useSetTaskInstanceNote";
 import useUpstreamDatasetEvents from "./useUpstreamDatasetEvents";
 import useTaskInstance from "./useTaskInstance";
+import useDag from "./useDag";
+import useDagCode from "./useDagCode";
+import useDagDetails from "./useDagDetails";
+import useHealth from "./useHealth";
+import usePools from "./usePools";
+import useDags from "./useDags";
+import useDagRuns from "./useDagRuns";
+import useHistoricalMetricsData from "./useHistoricalMetricsData";
 
 axios.interceptors.response.use((res: AxiosResponse) =>
   res.data ? camelcaseKeys(res.data, { deep: true }) : res
@@ -50,7 +58,11 @@ axios.defaults.headers.common.Accept = "application/json";
 export {
   useClearRun,
   useClearTask,
-  useMarkTaskDryRun,
+  useDag,
+  useDagCode,
+  useDagDetails,
+  useDagRuns,
+  useDags,
   useDataset,
   useDatasetDependencies,
   useDatasetEvents,
@@ -58,14 +70,18 @@ export {
   useExtraLinks,
   useGraphData,
   useGridData,
+  useHealth,
   useMappedInstances,
   useMarkFailedRun,
   useMarkFailedTask,
   useMarkSuccessRun,
   useMarkSuccessTask,
+  useMarkTaskDryRun,
+  usePools,
   useQueueRun,
   useSetDagRunNote,
   useSetTaskInstanceNote,
   useTaskInstance,
   useUpstreamDatasetEvents,
+  useHistoricalMetricsData,
 };

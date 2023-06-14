@@ -38,7 +38,8 @@ PARALLELISM: int = conf.getint("core", "PARALLELISM")
 if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
 
     # Command to execute - list of strings
     # the first element is always "airflow".
@@ -77,7 +78,7 @@ class RunningRetryAttemptType:
 
     @property
     def elapsed(self):
-        """Seconds since first attempt"""
+        """Seconds since first attempt."""
         return (pendulum.now("UTC") - self.first_attempt_time).total_seconds()
 
     def can_try_again(self):

@@ -50,11 +50,10 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
+    runs-on: 'ubuntu-22.04'
     env:
       TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
     outputs:
-      runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
       python-versions: "${{ steps.selective-checks.python-versions }}"
       upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       all-python-versions-list-as-string: >-
@@ -66,10 +65,12 @@ jobs:
       cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+      runs-on: ${{ steps.selective-checks.outputs.runs-on }}
       target-commit-sha: "${{steps.discover-pr-merge-commit.outputs.target-commit-sha ||
           github.event.pull_request.head.sha ||
           github.sha
         }}"
+    if: github.repository == 'apache/airflow'
     steps:
       - name: Discover PR merge commit
         id: discover-pr-merge-commit
@@ -108,7 +109,7 @@ jobs:
       - name: "Setup python"
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.8
       - name: "Retrieve defaults from branch_defaults.py"
         # We cannot "execute" the branch_defaults.py python code here because that would be
         # a security problem (we cannot run any code that comes from the sources coming from the PR.
@@ -157,6 +158,7 @@ jobs:
 
   build-ci-images:
     permissions:
+      contents: read
       packages: write
     timeout-minutes: 80
     name: >
@@ -165,7 +167,8 @@ jobs:
     needs: [build-info]
     if: |
       needs.build-info.outputs.image-build == 'true' &&
-      github.event.pull_request.head.repo.full_name != 'apache/airflow'
+      github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
+      github.repository == 'apache/airflow'
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -192,6 +195,7 @@ jobs:
 
   build-prod-images:
     permissions:
+      contents: read
       packages: write
     timeout-minutes: 80
     name: >
@@ -201,7 +205,8 @@ jobs:
     needs: [build-info, build-ci-images]
     if: |
       needs.build-info.outputs.image-build == 'true' &&
-      github.event.pull_request.head.repo.full_name != 'apache/airflow'
+      github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
+      github.repository == 'apache/airflow'
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -237,7 +242,9 @@ jobs:
     if: |
       needs.build-info.outputs.image-build == 'true' &&
       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
-      github.event.pull_request.head.repo.full_name != 'apache/airflow'
+      github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
+      needs.build-info.outputs.runs-on == 'self-hosted' &&
+      github.repository == 'apache/airflow'
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}

@@ -29,6 +29,13 @@ For example, you may wish to alert when certain tasks have failed, or have the l
     As such, task changes set by the command line interface (:doc:`CLI <../../howto/usage-cli>`) or user interface (:doc:`UI <../../ui>`) do not
     execute callback functions.
 
+.. warning::
+
+    Callback functions are executed after tasks are completed.
+    Errors in callback functions will show up in scheduler logs rather than task logs.
+    By default, scheduler logs do not show up in the UI and instead can be found in
+    ``$AIRFLOW_HOME/logs/scheduler/latest/PROJECT/DAG_FILE.py.log``
+
 Callback Types
 --------------
 
@@ -87,3 +94,5 @@ In the following example, failures in any task call the ``task_failure_alert`` f
     As of Airflow 2.6.0, callbacks now supports a list of callback functions, allowing users to specify multiple functions
     to be executed in the desired event. Simply pass a list of callback functions to the callback args when defining your DAG/task
     callbacks: e.g ``on_failure_callback=[callback_func_1, callback_func_2]``
+
+Full list of variables available in ``context`` in :doc:`docs <../../templates-ref>` and `code <https://github.com/apache/airflow/blob/main/airflow/utils/context.pyi>`_.

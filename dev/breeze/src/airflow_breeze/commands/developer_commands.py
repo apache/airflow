@@ -39,13 +39,17 @@ from airflow_breeze.params.doc_build_params import DocBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.pre_commit_ids import PRE_COMMIT_LIST
 from airflow_breeze.utils.cache import read_from_cache_file
+from airflow_breeze.utils.coertions import one_or_none_set
 from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_answer,
     option_backend,
+    option_celery_broker,
+    option_celery_flower,
     option_db_reset,
     option_dry_run,
+    option_executor,
     option_force_build,
     option_forward_credentials,
     option_github_repository,
@@ -136,6 +140,9 @@ class TimerThread(threading.Thread):
 @option_dry_run
 @option_github_repository
 @option_answer
+@option_executor
+@option_celery_broker
+@option_celery_flower
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
 def shell(
     python: str,
@@ -159,6 +166,9 @@ def shell(
     image_tag: str | None,
     platform: str | None,
     github_repository: str,
+    executor: str,
+    celery_broker: str,
+    celery_flower: bool,
     extra_args: tuple,
 ):
     """Enter breeze environment. this is the default command use when no other is selected."""
@@ -190,6 +200,9 @@ def shell(
         extra_args=extra_args if not max_time else ["exit"],
         image_tag=image_tag,
         platform=platform,
+        executor=executor,
+        celery_broker=celery_broker,
+        celery_flower=celery_flower,
     )
     sys.exit(result.returncode)
 
@@ -231,6 +244,9 @@ def shell(
 @option_dry_run
 @option_answer
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
+@option_executor
+@option_celery_broker
+@option_celery_flower
 def start_airflow(
     python: str,
     backend: str,
@@ -255,6 +271,9 @@ def start_airflow(
     platform: str | None,
     extra_args: tuple,
     github_repository: str,
+    executor: str,
+    celery_broker: str,
+    celery_flower: bool,
 ):
     """
     Enter breeze environment and starts all Airflow components in the tmux session.
@@ -291,6 +310,9 @@ def start_airflow(
         image_tag=image_tag,
         platform=platform,
         extra_args=extra_args,
+        executor=executor,
+        celery_broker=celery_broker,
+        celery_flower=celery_flower,
     )
     sys.exit(result.returncode)
 
@@ -399,11 +421,30 @@ def build_docs(
     is_flag=True,
 )
 @click.option(
+    "-m",
+    "--only-my-changes",
+    help="Run checks for commits belonging to my PR only: for all commits between merge base to `main` "
+    "branch and HEAD of your branch.",
+    is_flag=True,
+)
+@click.option(
     "-r",
     "--commit-ref",
     help="Run checks for this commit reference only "
     "(can be any git commit-ish reference). "
     "Mutually exclusive with --last-commit.",
+)
+@click.option(
+    "--initialize-environment",
+    help="Initialize environment before running checks.",
+    is_flag=True,
+)
+@click.option(
+    "--max-initialization-attempts",
+    help="Maximum number of attempts to initialize environment before giving up.",
+    show_default=True,
+    type=click.IntRange(1, 10),
+    default=3,
 )
 @option_github_repository
 @option_verbose
@@ -413,27 +454,75 @@ def static_checks(
     all_files: bool,
     show_diff_on_failure: bool,
     last_commit: bool,
+    only_my_changes: bool,
     commit_ref: str,
     type_: str,
     file: Iterable[str],
     precommit_args: tuple,
+    initialize_environment: bool,
+    max_initialization_attempts: int,
     github_repository: str,
 ):
     assert_pre_commit_installed()
     perform_environment_checks()
+
+    if initialize_environment:
+        get_console().print("[info]Make sure that pre-commit is installed and environment initialized[/]")
+        get_console().print(
+            f"[info]Trying to install the environments up to {max_initialization_attempts} "
+            f"times in case of flakiness[/]"
+        )
+        i = 0
+        while True:
+            get_console().print(f"[info]Attempt number {i+1} to install pre-commit environments")
+            initialization_result = run_command(
+                [sys.executable, "-m", "pre_commit", "install", "--install-hooks"],
+                check=False,
+                no_output_dump_on_exception=True,
+                text=True,
+            )
+            if initialization_result.returncode == 0:
+                break
+            get_console().print(f"[warning]Attempt number {i+1} failed - retrying[/]")
+            if i == max_initialization_attempts - 1:
+                get_console().print("[error]Could not install pre-commit environments[/]")
+                sys.exit(initialization_result.returncode)
+            i += 1
+
     command_to_execute = [sys.executable, "-m", "pre_commit", "run"]
-    if last_commit and commit_ref:
-        get_console().print("\n[error]You cannot specify both --last-commit and --commit-ref[/]\n")
+    if not one_or_none_set([last_commit, commit_ref, only_my_changes, all_files]):
+        get_console().print(
+            "\n[error]You can only specify "
+            "one of --last-commit, --commit-ref, --only-my-changes, --all-files[/]\n"
+        )
         sys.exit(1)
     if type_:
         command_to_execute.append(type_)
+    if only_my_changes:
+        merge_base = run_command(
+            ["git", "merge-base", "HEAD", "main"], capture_output=True, check=False, text=True
+        ).stdout.strip()
+        if not merge_base:
+            get_console().print(
+                "\n[warning]Could not find merge base between HEAD and main. Running check for all files\n"
+            )
+            all_files = True
+        else:
+            get_console().print(
+                f"\n[info]Running checks for files changed in the current branch: {merge_base}..HEAD\n"
+            )
+            command_to_execute.extend(["--from-ref", merge_base, "--to-ref", "HEAD"])
     if all_files:
         command_to_execute.append("--all-files")
     if show_diff_on_failure:
         command_to_execute.append("--show-diff-on-failure")
     if last_commit:
+        get_console().print(
+            "\n[info]Running checks for last commit in the current branch current branch: HEAD^..HEAD\n"
+        )
         command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
     if commit_ref:
+        get_console().print(f"\n[info]Running checks for selected commit: {commit_ref}\n")
         command_to_execute.extend(["--from-ref", f"{commit_ref}^", "--to-ref", f"{commit_ref}"])
     if get_verbose() or get_dry_run():
         command_to_execute.append("--verbose")
@@ -453,7 +542,21 @@ def static_checks(
     )
     if static_checks_result.returncode != 0:
         if os.environ.get("CI"):
-            get_console().print("[error]There were errors during pre-commit check. They should be fixed[/]")
+            get_console().print("\n[error]This error means that you have to fix the issues listed above:[/]")
+            get_console().print("\n[info]Some of the problems might be fixed automatically via pre-commit[/]")
+            get_console().print(
+                "\n[info]You can run it locally with: `pre-commit run --all-files` "
+                "but it might take quite some time.[/]"
+            )
+            get_console().print(
+                "\n[info]If you use breeze you can also run it faster via: "
+                "`breeze static-checks --only-my-changes` but it might produce slightly "
+                "different results.[/]"
+            )
+            get_console().print(
+                "\n[info]To run `pre-commit` as part of git workflow, use "
+                "`pre-commit install`. This will make pre-commit run as you commit changes[/]\n"
+            )
     sys.exit(static_checks_result.returncode)
 
 
@@ -478,7 +581,7 @@ def compile_www_assets(dev: bool):
     sys.exit(0)
 
 
-@main.command(name="stop", help="Stop running breeze environment.")
+@main.command(name="down", help="Stop running breeze environment.")
 @click.option(
     "-p",
     "--preserve-volumes",
@@ -493,7 +596,7 @@ def compile_www_assets(dev: bool):
 )
 @option_verbose
 @option_dry_run
-def stop(preserve_volumes: bool, cleanup_mypy_cache: bool):
+def down(preserve_volumes: bool, cleanup_mypy_cache: bool):
     perform_environment_checks()
     command_to_execute = [*DOCKER_COMPOSE_COMMAND, "down", "--remove-orphans"]
     if not preserve_volumes:
@@ -554,6 +657,15 @@ def enter_shell(**kwargs) -> RunCommandResult:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     shell_params = ShellParams(**filter_out_none(**kwargs))
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
+
+    if shell_params.backend == "sqlite":
+        get_console().print(
+            f"\n[warn]backend: sqlite is not"
+            f" compatible with executor: {shell_params.executor}."
+            f"Changing the executor to SequentialExecutor.\n"
+        )
+        shell_params.executor = "SequentialExecutor"
+
     if shell_params.include_mypy_volume:
         create_mypy_volume_if_needed()
     shell_params.print_badge_info()

@@ -234,7 +234,7 @@ def setup_queue_listener():
         return None
 
 
-class TriggererJobRunner(BaseJobRunner, LoggingMixin):
+class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
     """
     TriggererJobRunner continuously runs active triggers in asyncio, watching
     for them to fire off their events and then dispatching that information
@@ -252,14 +252,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
         job: Job | JobPydantic,
         capacity=None,
     ):
-        super().__init__()
-        if job.job_type and job.job_type != self.job_type:
-            raise Exception(
-                f"The job is already assigned a different job_type: {job.job_type}."
-                f"This is a bug and should be reported."
-            )
-        self.job = job
-        self.job.job_type = self.job_type
+        super().__init__(job)
         if capacity is None:
             self.capacity = conf.getint("triggerer", "default_capacity", fallback=1000)
         elif isinstance(capacity, int) and capacity > 0:
@@ -306,7 +299,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
     def on_kill(self):
         """
         Called when there is an external kill command (via the heartbeat
-        mechanism, for example)
+        mechanism, for example).
         """
         self.trigger_runner.stop = True
 
@@ -634,6 +627,10 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         if not HANDLER_SUPPORTS_TRIGGERER:
             return
         ctx_trigger_end.set(True)
+        # this is a special message required by TriggerHandlerWrapper
+        # it tells the wrapper to close the handler for this trigger
+        # we set level to 100 so that it will not be filtered by user logging settings
+        # it is not emitted; see TriggererHandlerWrapper.handle method.
         trigger.log.log(level=100, msg="trigger end")
 
     def update_triggers(self, requested_trigger_ids: set[int]):
@@ -684,7 +681,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
 
     def set_trigger_logging_metadata(self, ti: TaskInstance, trigger_id, trigger):
         """
-        Set up logging for triggers
+        Set up logging for triggers.
 
         We want to ensure that each trigger logs to its own file and that the log messages are not
         propagated to parent loggers.

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock
 from uuid import UUID
 
 import pytest
@@ -573,6 +573,32 @@ class TestEmrServerlessStartJobOperator:
             name=custom_name,
         )
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
+    def test_cancel_job_run(self, mock_conn):
+        mock_conn.get_application.return_value = {"application": {"state": "STARTED"}}
+        mock_conn.start_job_run.return_value = {
+            "jobRunId": job_run_id,
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        mock_conn.get_job_run.return_value = {"jobRun": {"state": "RUNNING"}}
+
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            client_request_token=client_request_token,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+            wait_for_completion=False,
+        )
+
+        id = operator.execute(None)
+        operator.on_kill()
+        mock_conn.cancel_job_run.assert_called_once_with(
+            applicationId=application_id,
+            jobRunId=id,
+        )
+
 
 class TestEmrServerlessDeleteOperator:
     @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
@@ -654,3 +680,16 @@ class TestEmrServerlessStopOperator:
 
         mock_waiter.assert_not_called()
         mock_conn.stop_application.assert_called_once()
+
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.waiter")
+    @mock.patch.object(EmrServerlessStopApplicationOperator, "hook", new_callable=PropertyMock)
+    def test_force_stop(self, mock_hook: MagicMock, mock_waiter: MagicMock):
+        operator = EmrServerlessStopApplicationOperator(
+            task_id=task_id, application_id="test", force_stop=True
+        )
+
+        operator.execute(None)
+
+        mock_hook().cancel_running_jobs.assert_called_once()
+        mock_hook().conn.stop_application.assert_called_once()
+        mock_waiter.assert_called_once()

@@ -18,7 +18,7 @@
 """
 This module allows to connect to a InfluxDB database.
 
-.. spelling::
+.. spelling:word-list::
 
     FluxTable
 """
@@ -35,8 +35,7 @@ from airflow.models import Connection
 
 
 class InfluxDBHook(BaseHook):
-    """
-    Interact with InfluxDB.
+    """Interact with InfluxDB.
 
     Performs a connection to InfluxDB and retrieves client.
 
@@ -61,20 +60,13 @@ class InfluxDBHook(BaseHook):
         return InfluxDBClient(url=uri, token=token, org=org_name)
 
     def get_uri(self, conn: Connection):
-        """
-        Function to add additional parameters to the URI
-        based on SSL or other InfluxDB host requirements
-
-        """
+        """Add additional parameters to the URI based on InfluxDB host requirements."""
         conn_scheme = "https" if conn.schema is None else conn.schema
         conn_port = 7687 if conn.port is None else conn.port
         return f"{conn_scheme}://{conn.host}:{conn_port}"
 
     def get_conn(self) -> InfluxDBClient:
-        """
-        Function that initiates a new InfluxDB connection
-        with token and organization name
-        """
+        """Initiate a new InfluxDB connection with token and organization name."""
         self.connection = self.get_connection(self.influxdb_conn_id)
         self.extras = self.connection.extra_dejson.copy()
 
@@ -95,10 +87,9 @@ class InfluxDBHook(BaseHook):
         return self.client
 
     def query(self, query) -> list[FluxTable]:
-        """
-        Function to to run the query.
-        Note: The bucket name
-        should be included in the query
+        """Run the query.
+
+        Note: The bucket name should be included in the query.
 
         :param query: InfluxDB query
         :return: List
@@ -109,11 +100,9 @@ class InfluxDBHook(BaseHook):
         return query_api.query(query)
 
     def query_to_df(self, query) -> pd.DataFrame:
-        """
-        Function to run the query and
-        return a pandas dataframe
-        Note: The bucket name
-        should be included in the query
+        """Run the query and return a pandas dataframe.
+
+        Note: The bucket name should be included in the query.
 
         :param query: InfluxDB query
         :return: pd.DataFrame
@@ -124,9 +113,9 @@ class InfluxDBHook(BaseHook):
         return query_api.query_data_frame(query)
 
     def write(self, bucket_name, point_name, tag_name, tag_value, field_name, field_value, synchronous=False):
-        """
-        Writes a Point to the bucket specified.
-        Example: Point("my_measurement").tag("location", "Prague").field("temperature", 25.3)
+        """Write a Point to the bucket specified.
+
+        Example: ``Point("my_measurement").tag("location", "Prague").field("temperature", 25.3)``
         """
         # By defaults its Batching
         if synchronous:
@@ -139,26 +128,26 @@ class InfluxDBHook(BaseHook):
         write_api.write(bucket=bucket_name, record=p)
 
     def create_organization(self, name):
-        """Function to create a new organization"""
+        """Create a new organization."""
         return self.client.organizations_api().create_organization(name=name)
 
     def delete_organization(self, org_id):
-        """Function to delete organization by organization id"""
+        """Delete an organization by ID."""
         return self.client.organizations_api().delete_organization(org_id=org_id)
 
     def create_bucket(self, bucket_name, description, org_id, retention_rules=None):
-        """Function to create a bucket for an organization"""
+        """Create a bucket for an organization."""
         return self.client.buckets_api().create_bucket(
             bucket_name=bucket_name, description=description, org_id=org_id, retention_rules=None
         )
 
     def find_bucket_id_by_name(self, bucket_name):
-        """Function to get bucket id by name."""
+        """Get bucket ID by name."""
         bucket = self.client.buckets_api().find_bucket_by_name(bucket_name)
 
         return "" if bucket is None else bucket.id
 
     def delete_bucket(self, bucket_name):
-        """Function to delete bucket by bucket name."""
+        """Delete bucket by name."""
         bucket = self.find_bucket_id_by_name(bucket_name)
         return self.client.buckets_api().delete_bucket(bucket)

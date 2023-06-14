@@ -51,7 +51,7 @@ class DmsHook(AwsBaseHook):
 
     def describe_replication_tasks(self, **kwargs) -> tuple[str | None, list]:
         """
-        Describe replication tasks
+        Describe replication tasks.
 
         .. seealso::
             - :external+boto3:py:meth:`DatabaseMigrationService.Client.describe_replication_tasks`
@@ -65,7 +65,7 @@ class DmsHook(AwsBaseHook):
 
     def find_replication_tasks_by_arn(self, replication_task_arn: str, without_settings: bool | None = False):
         """
-        Find and describe replication tasks by task ARN
+        Find and describe replication tasks by task ARN.
 
         .. seealso::
             - :external+boto3:py:meth:`DatabaseMigrationService.Client.describe_replication_tasks`
@@ -207,7 +207,7 @@ class DmsHook(AwsBaseHook):
             raise TypeError("Status must be an instance of DmsTaskWaiterStatus")
 
         dms_client = self.get_conn()
-        waiter = dms_client.get_waiter(f"replication_task_{status}")
+        waiter = dms_client.get_waiter(f"replication_task_{status.value}")
         waiter.wait(
             Filters=[
                 {

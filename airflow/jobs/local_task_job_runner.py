@@ -68,7 +68,7 @@ macOS
 ********************************************************************************************************"""
 
 
-class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
+class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
     """LocalTaskJob runs a single task instance."""
 
     job_type = "LocalTaskJob"
@@ -87,15 +87,8 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         pool: str | None = None,
         external_executor_id: str | None = None,
     ):
-        BaseJobRunner.__init__(self)
+        super().__init__(job)
         LoggingMixin.__init__(self, context=task_instance)
-        if job.job_type and job.job_type != self.job_type:
-            raise Exception(
-                f"The job is already assigned a different job_type: {job.job_type}."
-                f"This is a bug and should be reported."
-            )
-        self.job = job
-        self.job.job_type = self.job_type
         self.task_instance = task_instance
         self.ignore_all_deps = ignore_all_deps
         self.ignore_depends_on_past = ignore_depends_on_past
@@ -124,7 +117,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             self.handle_task_exit(128 + signum)
 
         def segfault_signal_handler(signum, frame):
-            """Setting sigmentation violation signal handler"""
+            """Setting sigmentation violation signal handler."""
             self.log.critical(SIGSEGV_MESSAGE)
             self.task_runner.terminate()
             self.handle_task_exit(128 + signum)
@@ -305,4 +298,14 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
         Stats.incr(
             "local_task_job.task_exit."
             f"{self.job.id}.{self.task_instance.dag_id}.{self.task_instance.task_id}.{return_code}"
+        )
+        # Same metric with tagging
+        Stats.incr(
+            "local_task_job.task_exit",
+            tags={
+                "job_id": self.job.id,
+                "dag_id": self.task_instance.dag_id,
+                "task_id": self.task_instance.task_id,
+                "return_code": return_code,
+            },
         )

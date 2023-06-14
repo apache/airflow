@@ -48,7 +48,7 @@ core:
          with argument as: `(file_path: str, zip_file: zipfile.ZipFile | None = None)`
          return True if it has dags otherwise False
          If this is not provided, Airflow uses its own heuristic rules.
-      version_added: ~
+      version_added: 2.6.0
       type: string
       example: ~
       default: "airflow.utils.file.might_contain_dag_via_default_heuristic"
@@ -434,6 +434,7 @@ core:
       description: Kwargs to supply to dataset manager.
       version_added: 2.4.0
       type: string
+      sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
     database_access_isolation:
@@ -452,6 +453,14 @@ core:
 database:
   description: ~
   options:
+    alembic_ini_file_path:
+      description: |
+        Path to the ``alembic.ini`` file. You can either provide the file path relative
+        to the Airflow home directory or the absolute path if it is located elsewhere.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "alembic.ini"
     sql_alchemy_conn:
       description: |
         The SqlAlchemy connection string to the metadata database.
@@ -556,7 +565,7 @@ database:
         See https://docs.sqlalchemy.org/en/14/core/engines.html#sqlalchemy.create_engine.params.connect_args
       version_added: 2.3.0
       type: string
-      example: ~
+      example: '{"timeout": 30}'
       default: ~
     load_default_connections:
       description: |
@@ -654,6 +663,7 @@ logging:
         log files will be deleted after they are uploaded to remote location.
       version_added: 2.6.0
       type: string
+      sensitive: true
       example: '{"delete_local_copy": true}'
       default: ""
     encrypt_s3_logs:
@@ -870,6 +880,17 @@ logging:
       type: string
       example: "0o664"
       default: "0o664"
+    celery_stdout_stderr_separation:
+      description: |
+        By default Celery sends all logs into stderr.
+        If enabled any previous logging handlers will get *removed*.
+        With this option AirFlow will create new handlers
+        and send low level logs like INFO and WARNING to stdout,
+        while sending higher severity logs to stderr.
+      version_added: 2.5.4
+      type: boolean
+      example: ~
+      default: "False"
 
 
 metrics:
@@ -881,7 +902,7 @@ metrics:
         If you want to avoid emitting all the available metrics, you can configure an
         allow list of prefixes (comma separated) to send only the metrics that start
         with the elements of the list (e.g: "scheduler,executor,dagrun")
-      version_added: 2.0.0
+      version_added: 2.6.0
       type: string
       example: ~
       default: ""
@@ -1008,6 +1029,13 @@ metrics:
       type: integer
       example: ~
       default: "60000"
+    otel_debugging_on:
+      description: |
+        If True, all metrics are also emitted to the console.  Defaults to False.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "False"
 secrets:
   description: ~
   options:
@@ -1026,6 +1054,7 @@ secrets:
         ``{{"connections_prefix": "/airflow/connections", "profile_name": "default"}}``
       version_added: 1.10.10
       type: string
+      sensitive: true
       example: ~
       default: ""
 cli:
@@ -1159,6 +1188,65 @@ lineage:
       type: string
       example: ~
       default: ""
+openlineage:
+  description: |
+    This section applies settings for OpenLineage integration.
+    For backwards compatibility with `openlineage-python` one can still use
+    `openlineage.yml` file or `OPENLINEAGE_` environment variables. However, below
+    configuration takes precedence over those.
+    More in documentation - https://openlineage.io/docs/client/python#configuration.
+  options:
+    disabled:
+      description: |
+        Set this to true if you don't want OpenLineage to emit events.
+      type: boolean
+      example: ~
+      default: "False"
+      version_added: ~
+    namespace:
+      description: |
+        OpenLineage namespace
+      version_added: ~
+      type: string
+      example: "food_delivery"
+      default: ~
+    extractors:
+      description: |
+        Comma-separated paths to custom OpenLineage extractors.
+      type: string
+      example: full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
+      default: ''
+      version_added: ~
+    config_path:
+      description: |
+        Path to YAML config. This provides backwards compatibility to pass config as
+        `openlineage.yml` file.
+      version_added: ~
+      type: string
+      example: ~
+      default: ''
+    transport:
+      description: |
+        OpenLineage Client transport configuration. It should contain type
+        and additional options per each type.
+
+        Currently supported types are:
+
+          * HTTP
+          * Kafka
+          * Console
+      type: string
+      example: '{"type": "http", "url": "http://localhost:5000"}'
+      default: ''
+      version_added: ~
+    disable_source_code:
+      description: |
+        If disabled, OpenLineage events do not contain source code of particular
+        operators, like PythonOperator.
+      default: ~
+      example: ~
+      type: boolean
+      version_added: ~
 atlas:
   description: ~
   options:
@@ -1264,6 +1352,13 @@ hive:
 webserver:
   description: ~
   options:
+    config_file:
+      description: |
+        Path of webserver config file used for configuring the webserver parameters
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "{AIRFLOW_HOME}/webserver_config.py"
     base_url:
       description: |
         The base url of your website as airflow cannot guess what domain or
@@ -1837,6 +1932,7 @@ sentry:
       description: ~
       version_added: 1.10.6
       type: string
+      sensitive: true
       example: ~
       default: ""
     before_send:
@@ -1956,6 +2052,13 @@ celery:
       sensitive: true
       example: "db+postgresql://postgres:airflow@postgres/airflow"
       default: ~
+    result_backend_sqlalchemy_engine_options:
+      description: |
+        Optional configuration dictionary to pass to the Celery result backend SQLAlchemy engine.
+      version_added: 2.6.0
+      type: string
+      example: '{"pool_recycle": 1800}'
+      default: ""
     flower_host:
       description: |
         Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start
@@ -2009,19 +2112,22 @@ celery:
       example: ~
       default: "False"
     ssl_key:
-      description: ~
+      description: |
+        Path to the client key.
       version_added: ~
       type: string
       example: ~
       default: ""
     ssl_cert:
-      description: ~
+      description: |
+        Path to the client certificate.
       version_added: ~
       type: string
       example: ~
       default: ""
     ssl_cacert:
-      description: ~
+      description: |
+        Path to the CA certificate.
       version_added: ~
       type: string
       example: ~
@@ -2083,10 +2189,23 @@ celery_broker_transport_options:
         ETA you're planning to use.
         visibility_timeout is only supported for Redis and SQS celery brokers.
         See:
-        http://docs.celeryproject.org/en/master/userguide/configuration.html#std:setting-broker_transport_options
+        https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#visibility-timeout
       version_added: ~
       type: string
       example: "21600"
+      default: ~
+    sentinel_kwargs:
+      description: |
+        The sentinel_kwargs parameter allows passing additional options to the Sentinel client.
+        In a typical scenario where Redis Sentinel is used as the broker and Redis servers are
+        password-protected, the password needs to be passed through this parameter. Although its
+        type is string, it is required to pass a string that conforms to the dictionary format.
+        See:
+        https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/redis.html#configuration
+      version_added: 2.7.0
+      type: string
+      sensitive: true
+      example: '{"password": "password_for_redis_server"}'
       default: ~
 dask:
   description: |
@@ -2102,19 +2221,21 @@ dask:
       default: "127.0.0.1:8786"
     tls_ca:
       description: |
-        TLS/ SSL settings to access a secured Dask scheduler.
+        Path to a CA certificate file encoded in PEM format to access a secured Dask scheduler.
       version_added: ~
       type: string
       example: ~
       default: ""
     tls_cert:
-      description: ~
+      description: |
+        Path to a certificate file for the client, encoded in PEM format.
       version_added: ~
       type: string
       example: ~
       default: ""
     tls_key:
-      description: ~
+      description: |
+        Path to a key file for the client, encoded in PEM format.
       version_added: ~
       type: string
       example: ~
@@ -2212,7 +2333,8 @@ scheduler:
       description: |
         If the last scheduler heartbeat happened more than scheduler_health_check_threshold
         ago (in seconds), scheduler is considered unhealthy.
-        This is used by the health check in the "/health" endpoint
+        This is used by the health check in the "/health" endpoint and in `airflow jobs check` CLI
+        for SchedulerJob.
       version_added: 1.10.2
       type: string
       example: ~
@@ -2588,6 +2710,13 @@ kubernetes_executor:
       type: string
       example: '{ "total": 3, "backoff_factor": 0.5 }'
       default: ""
+    logs_task_metadata:
+      description: |
+        Flag to control the information added to kubernetes executor logs for better traceability
+      version_added: 2.7.0
+      type: boolean
+      example: ~
+      default: "False"
     pod_template_file:
       description: |
         Path to the YAML pod file that forms the basis for KubernetesExecutor workers.

@@ -23,10 +23,14 @@ from unittest.mock import MagicMock, Mock, call
 import pytest
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
-from google.cloud.dataproc_v1 import Batch
+from google.cloud.dataproc_v1 import Batch, JobStatus
 
-from airflow import AirflowException
-from airflow.exceptions import AirflowTaskTimeout, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+    AirflowTaskTimeout,
+    TaskDeferred,
+)
 from airflow.models import DAG, DagBag
 from airflow.providers.google.cloud.operators.dataproc import (
     DATAPROC_CLUSTER_LINK,
@@ -420,7 +424,7 @@ class TestsClusterGenerator:
 
 class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
     def test_deprecation_warning(self):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             op = DataprocCreateClusterOperator(
                 task_id=TASK_ID,
                 region=GCP_REGION,
@@ -757,7 +761,7 @@ def test_create_cluster_operator_extra_links(dag_maker, create_task_instance_of_
 
 class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
     def test_deprecation_warning(self):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocScaleClusterOperator(task_id=TASK_ID, cluster_name=CLUSTER_NAME, project_id=GCP_PROJECT)
         assert_warning("DataprocUpdateClusterOperator", warnings)
 
@@ -1053,6 +1057,32 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 
         assert isinstance(exc.value.trigger, DataprocSubmitTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator.defer")
+    @mock.patch("airflow.providers.google.cloud.operators.dataproc.DataprocHook.submit_job")
+    def test_dataproc_operator_execute_async_done_before_defer(self, mock_submit_job, mock_defer, mock_hook):
+        mock_submit_job.return_value.reference.job_id = TEST_JOB_ID
+        job_status = mock_hook.return_value.get_job.return_value.status
+        job_status.state = JobStatus.State.DONE
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            job={},
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            asynchronous=True,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            request_id=REQUEST_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+
+        op.execute(context=self.mock_context)
+        assert not mock_defer.called
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_on_kill(self, mock_hook):
@@ -1464,6 +1494,33 @@ class TestDataprocWorkflowTemplateInstantiateInlineOperator:
             metadata=METADATA,
         )
 
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
+    def test_execute_call_defer_method(self, mock_trigger_hook, mock_hook):
+        operator = DataprocInstantiateInlineWorkflowTemplateOperator(
+            task_id=TASK_ID,
+            template={},
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            request_id=REQUEST_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(mock.MagicMock())
+
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+
+        mock_hook.return_value.instantiate_inline_workflow_template.assert_called_once()
+
+        assert isinstance(exc.value.trigger, DataprocWorkflowTrigger)
+        assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+
 
 @pytest.mark.need_serialized_dag
 @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -1522,7 +1579,7 @@ class TestDataProcHiveOperator:
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocSubmitHiveJobOperator(task_id=TASK_ID, region=GCP_REGION, query="query")
         assert_warning("DataprocSubmitJobOperator", warnings)
 
@@ -1584,7 +1641,7 @@ class TestDataProcPigOperator:
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocSubmitPigJobOperator(task_id=TASK_ID, region=GCP_REGION, query="query")
         assert_warning("DataprocSubmitJobOperator", warnings)
 
@@ -1652,7 +1709,7 @@ class TestDataProcSparkSqlOperator:
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocSubmitSparkSqlJobOperator(task_id=TASK_ID, region=GCP_REGION, query="query")
         assert_warning("DataprocSubmitJobOperator", warnings)
 
@@ -1743,7 +1800,7 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocSubmitSparkJobOperator(
                 task_id=TASK_ID, region=GCP_REGION, main_class=self.main_class, dataproc_jars=self.jars
             )
@@ -1836,7 +1893,7 @@ class TestDataProcHadoopOperator:
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocSubmitHadoopJobOperator(
                 task_id=TASK_ID, region=GCP_REGION, main_jar=self.jar, arguments=self.args
             )
@@ -1874,7 +1931,7 @@ class TestDataProcPySparkOperator:
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_deprecation_warning(self, mock_hook):
-        with pytest.warns(DeprecationWarning) as warnings:
+        with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
             DataprocSubmitPySparkJobOperator(task_id=TASK_ID, region=GCP_REGION, main=self.uri)
         assert_warning("DataprocSubmitJobOperator", warnings)
 

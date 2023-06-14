@@ -42,6 +42,7 @@
   - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
@@ -52,7 +53,6 @@
   - [Update `main` with the latest release details](#update-main-with-the-latest-release-details)
   - [Update default Airflow version in the helm chart](#update-default-airflow-version-in-the-helm-chart)
   - [Update airflow/config_templates/config.yml file](#update-airflowconfig_templatesconfigyml-file)
-  - [Update EndOfLife data](#update-endoflife-data)
   - [API clients](#api-clients)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -116,6 +116,9 @@ Those changes that are "doc-only" changes should be marked with `type:doc-only` 
 land in documentation part of the changelog. The tool to review and assign the labels is described below.
 
 ## Making the cherry picking
+
+It is recommended to clone Airflow upstream (not your fork) and run the commands on
+the relevant test branch in this clone. That way origin points to the upstream repo.
 
 To see cherry picking candidates (unmerged PR with the appropriate milestone), from the test
 branch you can run:
@@ -248,6 +251,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Set your version in `airflow/__init__.py`, `airflow/api_connexion/openapi/v1.yaml` and `docs/` (without the RC tag).
 - Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
 - Replace the version in `README.md` and verify that installation instructions work fine.
+- Check `Apache Airflow is tested with` (stable version) in `README.md` has the same tested versions as in the tip of
+  the stable branch in `dev/breeze/src/airflow_breeze/global_constants.py`
 - Build the release notes:
 
   Preview with:
@@ -569,7 +574,7 @@ Optionally it can be followed with constraints
 
 ```shell script
 pip install apache-airflow==<VERSION>rc<X> \
-  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.7.txt"`
+  --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-<VERSION>/constraints-3.8.txt"`
 ```
 
 Note that the constraints contain python version that you are installing it with.
@@ -581,7 +586,7 @@ There is also an easy way of installation with Breeze if you have the latest sou
 Running the following command will use tmux inside breeze, create `admin` user and run Webserver & Scheduler:
 
 ```shell script
-breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.7 --backend postgres
+breeze start-airflow --use-airflow-version <VERSION>rc<X> --python 3.8 --backend postgres
 ```
 
 Once you install and run Airflow, you should perform any verification you see as necessary to check
@@ -639,6 +644,9 @@ The best way of doing this is to svn cp between the two repos (this avoids havin
 
 ```shell script
 export RC=2.0.2rc5
+export VERSION=${RC/rc?/}
+# cd to the airflow repo directory and set the environment variable below
+export AIRFLOW_REPO_ROOT=$(pwd)
 # start the release process by running the below command
 breeze release-management start-release --release-candidate ${RC} --previous-release <PREVIOUS RELEASE>
 ```
@@ -665,7 +673,7 @@ the older branches, you should set the "skip" field to true.
 ## Verify production images
 
 ```shell script
-for PYTHON in 3.7 3.8 3.9 3.10
+for PYTHON in 3.8 3.9 3.10 3.11
 do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze prod-image verify --image-name apache/airflow:${VERSION}-python${PYTHON}
@@ -761,6 +769,20 @@ Send the same email to announce@apache.org, except change the opening line to `D
 It is more reliable to send it via the web ui at https://lists.apache.org/list.html?announce@apache.org
 (press "c" to compose a new thread)
 
+## Send announcements about security issues fixed in the release
+
+The release manager should review and mark as READY all the security issues fixed in the release.
+Such issues are marked as affecting `< <JUST_RELEASED_VERSION>` in the CVE management tool
+at https://cveprocess.apache.org/. Then the release manager should announced the issues via the tool.
+
+Once announced, each of the issue should be linked with a 'reference' with tag 'vendor advisory' with the
+URL to the announcement published automatically by the CVE management tool.
+Note that the announce@apache.org is moderated, and the link to the email thread will not be published
+immediately, that's why it is recommended to add the link to users@airflow.apache.org which takes usually
+few seconds to be published after the CVE tool sends them.
+
+The ASF Security will be notified and will submit to the CVE project and will set the state to 'PUBLIC'.
+
 ## Add release data to Apache Committee Report Helper
 
 Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
@@ -775,7 +797,8 @@ Create a new release on GitHub with the release notes and assets from the releas
 
 ## Close the milestone
 
-Close the milestone on GitHub. Create the next one if it hasn't been already (it probably has been).
+Before closing the milestone on Github, make sure that all PR marked for it are either part of the release (was cherry picked) or
+postponed to the next release, then close the milestone. Create the next one if it hasn't been already (it probably has been).
 Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
 make sure to update the last updated timestamp as well.
 
@@ -833,7 +856,7 @@ EOF
 This includes:
 
 - Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job.
-- For major/minor release, update version in `setup.py`, `docs/docker-stack/` and `airflow/api_connexion/openapi/v1.yaml` to the next likely minor version release.
+- For major/minor release, update version in `airflow/__init__.py`, `docs/docker-stack/` and `airflow/api_connexion/openapi/v1.yaml` to the next likely minor version release.
 - Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes.
 - Updating `airflow_bug_report.yml` issue template in `.github/ISSUE_TEMPLATE/` with the new version.
@@ -861,10 +884,6 @@ File `airflow/config_templates/config.yml` contains documentation on all configu
 
 - Update `airflow/config_templates/config.yml` with the details, and commit it.
 
-## Update EndOfLife data
-
-- Make a PR [EndOfLife](https://github.com/endoflife-date/endoflife.date) with release date, latest version and updated
-changelog link.
 
 ## API clients
 

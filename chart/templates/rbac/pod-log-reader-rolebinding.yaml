@@ -21,12 +21,12 @@
 ## Airflow Pod Reader Role Binding
 #################################
 {{- if and .Values.rbac.create (or .Values.webserver.allowPodLogReading .Values.triggerer.enabled) }}
+apiVersion: rbac.authorization.k8s.io/v1
 {{- if .Values.multiNamespaceMode }}
 kind: ClusterRoleBinding
 {{- else }}
 kind: RoleBinding
 {{- end }}
-apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   {{- if not .Values.multiNamespaceMode }}
   namespace: "{{ .Release.Namespace }}"

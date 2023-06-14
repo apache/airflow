@@ -21,7 +21,7 @@ import json
 import logging
 from typing import Any
 
-from sqlalchemy import Boolean, Column, Integer, String, Text
+from sqlalchemy import Boolean, Column, Integer, String, Text, delete
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Session, declared_attr, reconstructor, synonym
 
@@ -68,7 +68,7 @@ class Variable(Base, LoggingMixin):
         return f"{self.key} : {self._val}"
 
     def get_val(self):
-        """Get Airflow Variable from Metadata DB and decode it using the Fernet Key"""
+        """Get Airflow Variable from Metadata DB and decode it using the Fernet Key."""
         from cryptography.fernet import InvalidToken as InvalidFernetToken
 
         if self._val is not None and self.is_encrypted:
@@ -93,7 +93,7 @@ class Variable(Base, LoggingMixin):
 
     @declared_attr
     def val(cls):
-        """Get Airflow Variable from Metadata DB and decode it using the Fernet Key"""
+        """Get Airflow Variable from Metadata DB and decode it using the Fernet Key."""
         return synonym("_val", descriptor=property(cls.get_val, cls.set_val))
 
     @classmethod
@@ -127,8 +127,7 @@ class Variable(Base, LoggingMixin):
         default_var: Any = __NO_DEFAULT_SENTINEL,
         deserialize_json: bool = False,
     ) -> Any:
-        """
-        Gets a value for an Airflow Variable Key
+        """Gets a value for an Airflow Variable Key.
 
         :param key: Variable Key
         :param default_var: Default value of the Variable if the Variable doesn't exist
@@ -158,16 +157,15 @@ class Variable(Base, LoggingMixin):
         description: str | None = None,
         serialize_json: bool = False,
         session: Session = None,
-    ):
-        """
-        Sets a value for an Airflow Variable with a given Key.
-        This operation will overwrite an existing variable.
+    ) -> None:
+        """Sets a value for an Airflow Variable with a given Key.
+
+        This operation overwrites an existing variable.
 
         :param key: Variable Key
         :param value: Value to set for the Variable
         :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
-        :param session: SQL Alchemy Sessions
         """
         # check if the secret exists in the custom secrets' backend.
         Variable.check_for_write_conflict(key)
@@ -188,14 +186,12 @@ class Variable(Base, LoggingMixin):
         value: Any,
         serialize_json: bool = False,
         session: Session = None,
-    ):
-        """
-        Updates a given Airflow Variable with the Provided value
+    ) -> None:
+        """Updates a given Airflow Variable with the Provided value.
 
         :param key: Variable Key
         :param value: Value to set for the Variable
         :param serialize_json: Serialize the value to a JSON string
-        :param session: SQL Alchemy Session
         """
         Variable.check_for_write_conflict(key)
 
@@ -212,24 +208,21 @@ class Variable(Base, LoggingMixin):
     @provide_session
     @internal_api_call
     def delete(key: str, session: Session = None) -> int:
-        """
-        Delete an Airflow Variable for a given key
+        """Delete an Airflow Variable for a given key.
 
-        :param key: Variable Key
-        :param session: SQL Alchemy Sessions
+        :param key: Variable Keys
         """
-        return session.query(Variable).filter(Variable.key == key).delete()
+        return session.execute(delete(Variable).where(Variable.key == key)).rowcount
 
     def rotate_fernet_key(self):
-        """Rotate Fernet Key"""
+        """Rotate Fernet Key."""
         fernet = get_fernet()
         if self._val and self.is_encrypted:
             self._val = fernet.rotate(self._val.encode("utf-8")).decode()
 
     @staticmethod
     def check_for_write_conflict(key: str) -> None:
-        """
-        Logs a warning if a variable exists outside of the metastore.
+        """Logs a warning if a variable exists outside of the metastore.
 
         If we try to write a variable to the metastore while the same key
         exists in an environment variable or custom secrets backend, then

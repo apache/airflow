@@ -22,8 +22,9 @@ import inspect
 import os
 import re
 import tempfile
+import unittest
 from pathlib import Path
-from unittest import mock
+from unittest import mock, mock as async_mock
 from unittest.mock import MagicMock, Mock, patch
 
 import boto3
@@ -33,7 +34,11 @@ from moto import mock_s3
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook, provide_bucket_name, unify_bucket_name_and_key
+from airflow.providers.amazon.aws.hooks.s3 import (
+    S3Hook,
+    provide_bucket_name,
+    unify_bucket_name_and_key,
+)
 from airflow.utils.timezone import datetime
 
 
@@ -221,6 +226,9 @@ class TestAwsS3Hook:
         hook = S3Hook()
         bucket = hook.get_bucket(s3_bucket)
         bucket.put_object(Key="a", Body=b"a")
+        bucket.put_object(Key="ba", Body=b"ab")
+        bucket.put_object(Key="bxa", Body=b"axa")
+        bucket.put_object(Key="bxb", Body=b"axb")
         bucket.put_object(Key="dir/b", Body=b"b")
 
         from_datetime = datetime(1992, 3, 8, 18, 52, 51)
@@ -230,14 +238,20 @@ class TestAwsS3Hook:
             return []
 
         assert [] == hook.list_keys(s3_bucket, prefix="non-existent/")
-        assert ["a", "dir/b"] == hook.list_keys(s3_bucket)
-        assert ["a"] == hook.list_keys(s3_bucket, delimiter="/")
+        assert ["a", "ba", "bxa", "bxb", "dir/b"] == hook.list_keys(s3_bucket)
+        assert ["a", "ba", "bxa", "bxb"] == hook.list_keys(s3_bucket, delimiter="/")
         assert ["dir/b"] == hook.list_keys(s3_bucket, prefix="dir/")
-        assert ["dir/b"] == hook.list_keys(s3_bucket, start_after_key="a")
+        assert ["ba", "bxa", "bxb", "dir/b"] == hook.list_keys(s3_bucket, start_after_key="a")
         assert [] == hook.list_keys(s3_bucket, from_datetime=from_datetime, to_datetime=to_datetime)
         assert [] == hook.list_keys(
             s3_bucket, from_datetime=from_datetime, to_datetime=to_datetime, object_filter=dummy_object_filter
         )
+        assert [] == hook.list_keys(s3_bucket, prefix="*a")
+        assert ["a", "ba", "bxa"] == hook.list_keys(s3_bucket, prefix="*a", apply_wildcard=True)
+        assert [] == hook.list_keys(s3_bucket, prefix="b*a")
+        assert ["ba", "bxa"] == hook.list_keys(s3_bucket, prefix="b*a", apply_wildcard=True)
+        assert [] == hook.list_keys(s3_bucket, prefix="b*")
+        assert ["ba", "bxa", "bxb"] == hook.list_keys(s3_bucket, prefix="b*", apply_wildcard=True)
 
     def test_list_keys_paged(self, s3_bucket):
         hook = S3Hook()
@@ -378,6 +392,294 @@ class TestAwsS3Hook:
             response["Grants"][0]["Permission"] == "FULL_CONTROL"
         )
 
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    @pytest.mark.asyncio
+    async def test_s3_key_hook_get_file_metadata_async(self, mock_client):
+        """
+        Test check_wildcard_key for a valid response
+        :return:
+        """
+        test_resp_iter = [
+            {
+                "Contents": [
+                    {"Key": "test_key", "ETag": "etag1", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+                    {"Key": "test_key2", "ETag": "etag2", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+                ]
+            }
+        ]
+        mock_paginator = mock.Mock()
+        mock_paginate = mock.MagicMock()
+        mock_paginate.__aiter__.return_value = test_resp_iter
+        mock_paginator.paginate.return_value = mock_paginate
+
+        s3_hook_async = S3Hook(client_type="S3")
+        mock_client.get_paginator = mock.Mock(return_value=mock_paginator)
+        task = await s3_hook_async.get_file_metadata_async(mock_client, "test_bucket", "test*")
+        assert task == [
+            {"Key": "test_key", "ETag": "etag1", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+            {"Key": "test_key2", "ETag": "etag2", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+        ]
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    async def test_s3_key_hook_get_head_object_with_error_async(self, mock_client):
+        """
+        Test for 404 error if key not found and assert based on response.
+        :return:
+        """
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+
+        mock_client.head_object.side_effect = ClientError(
+            {
+                "Error": {
+                    "Code": "SomeServiceException",
+                    "Message": "Details/context around the exception or error",
+                },
+                "ResponseMetadata": {
+                    "RequestId": "1234567890ABCDEF",
+                    "HostId": "host ID data will appear here as a hash",
+                    "HTTPStatusCode": 404,
+                    "HTTPHeaders": {"header metadata key/values will appear here"},
+                    "RetryAttempts": 0,
+                },
+            },
+            operation_name="s3",
+        )
+        response = await s3_hook_async.get_head_object_async(
+            mock_client, "s3://test_bucket/file", "test_bucket"
+        )
+        assert response is None
+
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    @pytest.mark.asyncio
+    @unittest.expectedFailure
+    async def test_s3_key_hook_get_head_object_raise_exception_async(self, mock_client):
+        """
+        Test for 500 error if key not found and assert based on response.
+        :return:
+        """
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+
+        mock_client.head_object.side_effect = ClientError(
+            {
+                "Error": {
+                    "Code": "SomeServiceException",
+                    "Message": "Details/context around the exception or error",
+                },
+                "ResponseMetadata": {
+                    "RequestId": "1234567890ABCDEF",
+                    "HostId": "host ID data will appear here as a hash",
+                    "HTTPStatusCode": 500,
+                    "HTTPHeaders": {"header metadata key/values will appear here"},
+                    "RetryAttempts": 0,
+                },
+            },
+            operation_name="s3",
+        )
+        with pytest.raises(ClientError) as err:
+            response = await s3_hook_async.get_head_object_async(
+                mock_client, "s3://test_bucket/file", "test_bucket"
+            )
+            assert isinstance(response, err)
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    async def test_s3_key_hook_get_files_without_wildcard_async(self, mock_client):
+        """
+        Test get_files for a valid response
+        :return:
+        """
+        test_resp_iter = [
+            {
+                "Contents": [
+                    {"Key": "test_key", "ETag": "etag1", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+                    {"Key": "test_key2", "ETag": "etag2", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+                ]
+            }
+        ]
+        mock_paginator = mock.Mock()
+        mock_paginate = mock.MagicMock()
+        mock_paginate.__aiter__.return_value = test_resp_iter
+        mock_paginator.paginate.return_value = mock_paginate
+
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+        mock_client.get_paginator = mock.Mock(return_value=mock_paginator)
+        response = await s3_hook_async.get_files_async(mock_client, "test_bucket", "test.txt", False)
+        assert response == []
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    async def test_s3_key_hook_get_files_with_wildcard_async(self, mock_client):
+        """
+        Test get_files for a valid response
+        :return:
+        """
+        test_resp_iter = [
+            {
+                "Contents": [
+                    {"Key": "test_key", "ETag": "etag1", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+                    {"Key": "test_key2", "ETag": "etag2", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+                ]
+            }
+        ]
+        mock_paginator = mock.Mock()
+        mock_paginate = mock.MagicMock()
+        mock_paginate.__aiter__.return_value = test_resp_iter
+        mock_paginator.paginate.return_value = mock_paginate
+
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+        mock_client.get_paginator = mock.Mock(return_value=mock_paginator)
+        response = await s3_hook_async.get_files_async(mock_client, "test_bucket", "test.txt", True)
+        assert response == []
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
+    async def test_s3_key_hook_list_keys_async(self, mock_client):
+        """
+        Test _list_keys for a valid response
+        :return:
+        """
+        test_resp_iter = [
+            {
+                "Contents": [
+                    {"Key": "test_key", "ETag": "etag1", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+                    {"Key": "test_key2", "ETag": "etag2", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
+                ]
+            }
+        ]
+        mock_paginator = mock.Mock()
+        mock_paginate = mock.MagicMock()
+        mock_paginate.__aiter__.return_value = test_resp_iter
+        mock_paginator.paginate.return_value = mock_paginate
+
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+        mock_client.get_paginator = mock.Mock(return_value=mock_paginator)
+        response = await s3_hook_async._list_keys_async(mock_client, "test_bucket", "test*")
+        assert response == ["test_key", "test_key2"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "test_first_prefix, test_second_prefix",
+        [
+            ("async-prefix1/", "async-prefix2/"),
+        ],
+    )
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.async_conn")
+    async def test_s3_prefix_sensor_hook_list_prefixes_async(
+        self, mock_client, test_first_prefix, test_second_prefix
+    ):
+        """
+        Test list_prefixes whether it returns a valid response
+        """
+        test_resp_iter = [{"CommonPrefixes": [{"Prefix": test_first_prefix}, {"Prefix": test_second_prefix}]}]
+        mock_paginator = mock.Mock()
+        mock_paginate = mock.MagicMock()
+        mock_paginate.__aiter__.return_value = test_resp_iter
+        mock_paginator.paginate.return_value = mock_paginate
+
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+        mock_client.get_paginator = mock.Mock(return_value=mock_paginator)
+
+        actual_output = await s3_hook_async.list_prefixes_async(mock_client, "test_bucket", "test")
+        expected_output = [test_first_prefix, test_second_prefix]
+        assert expected_output == actual_output
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "mock_prefix, mock_bucket",
+        [
+            ("async-prefix1", "test_bucket"),
+        ],
+    )
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.async_conn")
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.list_prefixes_async")
+    async def test_s3_prefix_sensor_hook_check_for_prefix_async(
+        self, mock_list_prefixes, mock_client, mock_prefix, mock_bucket
+    ):
+        """
+        Test that _check_for_prefix method returns True when valid prefix is used and returns False
+        when invalid prefix is used
+        """
+        mock_list_prefixes.return_value = ["async-prefix1/", "async-prefix2/"]
+
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+
+        response = await s3_hook_async._check_for_prefix_async(
+            client=mock_client.return_value, prefix=mock_prefix, bucket_name=mock_bucket, delimiter="/"
+        )
+
+        assert response is True
+
+        response = await s3_hook_async._check_for_prefix_async(
+            client=mock_client.return_value,
+            prefix="non-existing-prefix",
+            bucket_name=mock_bucket,
+            delimiter="/",
+        )
+
+        assert response is False
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_s3_bucket_key")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async")
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.async_conn")
+    async def test_s3__check_key_without_wild_card_async(
+        self, mock_client, mock_head_object, mock_get_bucket_key
+    ):
+        """Test _check_key function"""
+        mock_get_bucket_key.return_value = "test_bucket", "test.txt"
+        mock_head_object.return_value = {"ContentLength": 0}
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+        response = await s3_hook_async._check_key_async(
+            mock_client.return_value, "test_bucket", False, "s3://test_bucket/file/test.txt"
+        )
+        assert response is True
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_s3_bucket_key")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async")
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.async_conn")
+    async def test_s3__check_key_none_without_wild_card_async(
+        self, mock_client, mock_head_object, mock_get_bucket_key
+    ):
+        """Test _check_key function when get head object returns none"""
+        mock_get_bucket_key.return_value = "test_bucket", "test.txt"
+        mock_head_object.return_value = None
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+        response = await s3_hook_async._check_key_async(
+            mock_client.return_value, "test_bucket", False, "s3://test_bucket/file/test.txt"
+        )
+        assert response is False
+
+    @pytest.mark.asyncio
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_s3_bucket_key")
+    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_file_metadata_async")
+    @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.async_conn")
+    async def test_s3__check_key_with_wild_card_async(
+        self, mock_client, mock_get_file_metadata, mock_get_bucket_key
+    ):
+        """Test _check_key function"""
+        mock_get_bucket_key.return_value = "test_bucket", "test"
+        mock_get_file_metadata.return_value = [
+            {
+                "Key": "test_key",
+                "ETag": "etag1",
+                "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                "Size": 0,
+            },
+            {
+                "Key": "test_key2",
+                "ETag": "etag2",
+                "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                "Size": 0,
+            },
+        ]
+        s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+        response = await s3_hook_async._check_key_async(
+            mock_client.return_value, "test_bucket", True, "test/example_s3_test_file.txt"
+        )
+        assert response is False
+
     def test_load_bytes(self, s3_bucket):
         hook = S3Hook()
         hook.load_bytes(b"Content", "my_key", s3_bucket)
@@ -444,9 +746,9 @@ class TestAwsS3Hook:
             temp_file.write(b"Content")
             temp_file.seek(0)
             hook.load_file_obj(temp_file, "my_key", s3_bucket)
-            hook.copy_object("my_key", "my_key", s3_bucket, s3_bucket)
+            hook.copy_object("my_key", "my_key2", s3_bucket, s3_bucket)
             response = boto3.client("s3").get_object_acl(
-                Bucket=s3_bucket, Key="my_key", RequestPayer="requester"
+                Bucket=s3_bucket, Key="my_key2", RequestPayer="requester"
             )
             assert (response["Grants"][0]["Permission"] == "FULL_CONTROL") and (len(response["Grants"]) == 1)
 

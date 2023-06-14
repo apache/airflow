@@ -26,7 +26,7 @@ isort:skip_file
 """
 from __future__ import annotations
 
-__version__ = "2.6.0.dev0"
+__version__ = "2.7.0.dev0"
 
 # flake8: noqa: F401
 
@@ -62,6 +62,9 @@ __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 
 # Perform side-effects unless someone has explicitly opted out before import
 # WARNING: DO NOT USE THIS UNLESS YOU REALLY KNOW WHAT YOU'RE DOING.
+# This environment variable prevents proper initialization, and things like
+# configs, logging, the ORM, etc. will be broken. It is only useful if you only
+# access certain trivial constants and free functions (e.g. `__version__`).
 if not os.environ.get("_AIRFLOW__AS_LIBRARY", None):
     settings.initialize()
 
@@ -72,6 +75,7 @@ PY37 = sys.version_info >= (3, 7)
 PY38 = sys.version_info >= (3, 8)
 PY39 = sys.version_info >= (3, 9)
 PY310 = sys.version_info >= (3, 10)
+PY311 = sys.version_info >= (3, 11)
 
 # Things to lazy import in form {local_name: ('target_module', 'target_name')}
 __lazy_imports: dict[str, tuple[str, str]] = {

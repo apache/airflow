@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-AWS Batch service waiters
+AWS Batch service waiters.
 
 .. seealso::
 
@@ -107,7 +107,7 @@ class BatchWaitersHook(BatchClientHook):
     @property
     def default_config(self) -> dict:
         """
-        An immutable default waiter configuration
+        An immutable default waiter configuration.
 
         :return: a waiter configuration for AWS Batch services
         """
@@ -138,7 +138,9 @@ class BatchWaitersHook(BatchClientHook):
         """
         return self._waiter_model
 
-    def get_waiter(self, waiter_name: str, _: dict[str, str] | None = None) -> botocore.waiter.Waiter:
+    def get_waiter(
+        self, waiter_name: str, _: dict[str, str] | None = None, deferrable: bool = False, client=None
+    ) -> botocore.waiter.Waiter:
         """
         Get an AWS Batch service waiter, using the configured ``.waiter_model``.
 

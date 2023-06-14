@@ -21,6 +21,8 @@ import json
 from typing import TYPE_CHECKING, Any, Iterable, Sequence, cast
 
 from bson import json_util
+from pymongo.command_cursor import CommandCursor
+from pymongo.cursor import Cursor
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -31,7 +33,7 @@ if TYPE_CHECKING:
 
 
 class MongoToS3Operator(BaseOperator):
-    """Operator meant to move data from mongo via pymongo to s3 via boto.
+    """Move data from MongoDB to S3.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -91,12 +93,12 @@ class MongoToS3Operator(BaseOperator):
         self.compression = compression
 
     def execute(self, context: Context):
-        """Is written to depend on transform method"""
+        """Is written to depend on transform method."""
         s3_conn = S3Hook(self.aws_conn_id)
 
         # Grab collection and execute query according to whether or not it is a pipeline
         if self.is_pipeline:
-            results = MongoHook(self.mongo_conn_id).aggregate(
+            results: CommandCursor[Any] | Cursor = MongoHook(self.mongo_conn_id).aggregate(
                 mongo_collection=self.mongo_collection,
                 aggregate_query=cast(list, self.mongo_query),
                 mongo_db=self.mongo_db,
@@ -109,6 +111,7 @@ class MongoToS3Operator(BaseOperator):
                 query=cast(dict, self.mongo_query),
                 projection=self.mongo_projection,
                 mongo_db=self.mongo_db,
+                find_one=False,
             )
 
         # Performs transform then stringifies the docs results into json format
@@ -124,23 +127,24 @@ class MongoToS3Operator(BaseOperator):
 
     @staticmethod
     def _stringify(iterable: Iterable, joinable: str = "\n") -> str:
+        """Stringify an iterable of dicts.
+
+        This dumps each dict with JSON, and joins them with ``joinable``.
         """
-        Takes an iterable (pymongo Cursor or Array) containing dictionaries and
-        returns a stringified version using python join
-        """
-        return joinable.join([json.dumps(doc, default=json_util.default) for doc in iterable])
+        return joinable.join(json.dumps(doc, default=json_util.default) for doc in iterable)
 
     @staticmethod
     def transform(docs: Any) -> Any:
-        """This method is meant to be extended by child classes
-        to perform transformations unique to those operators needs.
-        Processes pyMongo cursor and returns an iterable with each element being
-        a JSON serializable dictionary
+        """Transform the data for transfer.
 
-        Base transform() assumes no processing is needed
-        ie. docs is a pyMongo cursor of documents and cursor just
-        needs to be passed through
+        This method is meant to be extended by child classes to perform
+        transformations unique to those operators needs. Processes pyMongo
+        cursor and returns an iterable with each element being a JSON
+        serializable dictionary
 
-        Override this method for custom transformations
+        The default implementation assumes no processing is needed, i.e. input
+        is a pyMongo cursor of documents and just needs to be passed through.
+
+        Override this method for custom transformations.
         """
         return docs

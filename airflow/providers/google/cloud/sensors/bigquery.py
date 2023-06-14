@@ -22,7 +22,7 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTableExistenceTrigger,
@@ -81,7 +81,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
                 warnings.warn(
                     "Argument `poll_interval` is deprecated and will be removed "
                     "in a future release.  Please use `poke_interval` instead.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
             else:
@@ -110,20 +110,24 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
 
     def execute(self, context: Context) -> None:
         """Airflow runs this method on the worker and defers using the trigger."""
-        self.defer(
-            timeout=timedelta(seconds=self.timeout),
-            trigger=BigQueryTableExistenceTrigger(
-                dataset_id=self.dataset_id,
-                table_id=self.table_id,
-                project_id=self.project_id,
-                poll_interval=self.poke_interval,
-                gcp_conn_id=self.gcp_conn_id,
-                hook_params={
-                    "impersonation_chain": self.impersonation_chain,
-                },
-            ),
-            method_name="execute_complete",
-        )
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=BigQueryTableExistenceTrigger(
+                        dataset_id=self.dataset_id,
+                        table_id=self.table_id,
+                        project_id=self.project_id,
+                        poll_interval=self.poke_interval,
+                        gcp_conn_id=self.gcp_conn_id,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
@@ -218,21 +222,22 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context)
         else:
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=BigQueryTablePartitionExistenceTrigger(
-                    dataset_id=self.dataset_id,
-                    table_id=self.table_id,
-                    project_id=self.project_id,
-                    partition_id=self.partition_id,
-                    poll_interval=self.poke_interval,
-                    gcp_conn_id=self.gcp_conn_id,
-                    hook_params={
-                        "impersonation_chain": self.impersonation_chain,
-                    },
-                ),
-                method_name="execute_complete",
-            )
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=BigQueryTablePartitionExistenceTrigger(
+                        dataset_id=self.dataset_id,
+                        table_id=self.table_id,
+                        project_id=self.project_id,
+                        partition_id=self.partition_id,
+                        poll_interval=self.poke_interval,
+                        gcp_conn_id=self.gcp_conn_id,
+                        hook_params={
+                            "impersonation_chain": self.impersonation_chain,
+                        },
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
@@ -279,7 +284,7 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
             "will be removed in a future release. "
             "Please use `BigQueryTableExistenceSensor` and "
             "set `deferrable` attribute to `True` instead",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         super().__init__(deferrable=True, **kwargs)
 
@@ -315,6 +320,6 @@ class BigQueryTableExistencePartitionAsyncSensor(BigQueryTablePartitionExistence
             "will be removed in a future release. "
             "Please use `BigQueryTableExistencePartitionSensor` and "
             "set `deferrable` attribute to `True` instead",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
         )
         super().__init__(deferrable=True, **kwargs)

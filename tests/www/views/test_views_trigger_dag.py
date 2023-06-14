@@ -44,7 +44,7 @@ def initialize_one_dag():
 
 def test_trigger_dag_button_normal_exist(admin_client):
     resp = admin_client.get("/", follow_redirects=True)
-    assert "/trigger?dag_id=example_bash_operator" in resp.data.decode("utf-8")
+    assert "/dags/example_bash_operator/trigger" in resp.data.decode("utf-8")
     assert "return confirmDeleteDag(this, 'example_bash_operator')" in resp.data.decode("utf-8")
 
 
@@ -54,7 +54,7 @@ def test_trigger_dag_button_normal_exist(admin_client):
 )
 def test_trigger_dag_button(admin_client, req, expected_run_id):
     test_dag_id = "example_bash_operator"
-    admin_client.post(f"trigger?dag_id={test_dag_id}{req}")
+    admin_client.post(f"dags/{test_dag_id}/trigger?{req}")
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
     assert run is not None
@@ -65,8 +65,8 @@ def test_trigger_dag_button(admin_client, req, expected_run_id):
 def test_duplicate_run_id(admin_client):
     test_dag_id = "example_bash_operator"
     run_id = "test_run"
-    admin_client.post(f"trigger?dag_id={test_dag_id}&run_id={run_id}", follow_redirects=True)
-    response = admin_client.post(f"trigger?dag_id={test_dag_id}&run_id={run_id}", follow_redirects=True)
+    admin_client.post(f"dags/{test_dag_id}/trigger?run_id={run_id}", follow_redirects=True)
+    response = admin_client.post(f"dags/{test_dag_id}/trigger?run_id={run_id}", follow_redirects=True)
     check_content_in_response(f"The run ID {run_id} already exists", response)
 
 
@@ -74,7 +74,7 @@ def test_trigger_dag_conf(admin_client):
     test_dag_id = "example_bash_operator"
     conf_dict = {"string": "Hello, World!"}
 
-    admin_client.post(f"trigger?dag_id={test_dag_id}", data={"conf": json.dumps(conf_dict)})
+    admin_client.post(f"dags/{test_dag_id}/trigger", data={"conf": json.dumps(conf_dict)})
 
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
@@ -87,7 +87,7 @@ def test_trigger_dag_conf(admin_client):
 def test_trigger_dag_conf_malformed(admin_client):
     test_dag_id = "example_bash_operator"
 
-    response = admin_client.post(f"trigger?dag_id={test_dag_id}", data={"conf": '{"a": "b"'})
+    response = admin_client.post(f"dags/{test_dag_id}/trigger", data={"conf": '{"a": "b"'})
     check_content_in_response("Invalid JSON configuration", response)
 
     with create_session() as session:
@@ -98,7 +98,7 @@ def test_trigger_dag_conf_malformed(admin_client):
 def test_trigger_dag_conf_not_dict(admin_client):
     test_dag_id = "example_bash_operator"
 
-    response = admin_client.post(f"trigger?dag_id={test_dag_id}", data={"conf": "string and not a dict"})
+    response = admin_client.post(f"dags/{test_dag_id}/trigger", data={"conf": "string and not a dict"})
     check_content_in_response("Invalid JSON configuration", response)
 
     with create_session() as session:
@@ -109,7 +109,7 @@ def test_trigger_dag_conf_not_dict(admin_client):
 def test_trigger_dag_wrong_execution_date(admin_client):
     test_dag_id = "example_bash_operator"
 
-    response = admin_client.post(f"trigger?dag_id={test_dag_id}", data={"execution_date": "not_a_date"})
+    response = admin_client.post(f"dags/{test_dag_id}/trigger", data={"execution_date": "not_a_date"})
     check_content_in_response("Invalid execution date", response)
 
     with create_session() as session:
@@ -121,7 +121,7 @@ def test_trigger_dag_execution_date_data_interval(admin_client):
     test_dag_id = "example_bash_operator"
     exec_date = timezone.utcnow()
 
-    admin_client.post(f"trigger?dag_id={test_dag_id}", data={"execution_date": exec_date.isoformat()})
+    admin_client.post(f"dags/{test_dag_id}/trigger", data={"execution_date": exec_date.isoformat()})
 
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
@@ -139,8 +139,9 @@ def test_trigger_dag_execution_date_data_interval(admin_client):
 
 def test_trigger_dag_form(admin_client):
     test_dag_id = "example_bash_operator"
-    resp = admin_client.get(f"trigger?dag_id={test_dag_id}")
-    check_content_in_response(f"Trigger DAG: {test_dag_id}", resp)
+    resp = admin_client.get(f"dags/{test_dag_id}/trigger")
+    check_content_in_response("Trigger DAG: <a href", resp)
+    check_content_in_response(f">{test_dag_id}</a>", resp)
 
 
 @pytest.mark.parametrize(
@@ -164,7 +165,7 @@ def test_trigger_dag_form(admin_client):
 def test_trigger_dag_form_origin_url(admin_client, test_origin, expected_origin):
     test_dag_id = "example_bash_operator"
 
-    resp = admin_client.get(f"trigger?dag_id={test_dag_id}&origin={test_origin}")
+    resp = admin_client.get(f"dags/{test_dag_id}/trigger?origin={test_origin}")
     check_content_in_response(f'<a class="btn" href="{expected_origin}">Cancel</a>', resp)
 
 
@@ -188,17 +189,13 @@ def test_trigger_dag_params_conf(admin_client, request_conf, expected_conf):
     doc_md = "Example Bash Operator"
 
     if not request_conf:
-        resp = admin_client.get(f"trigger?dag_id={test_dag_id}")
+        resp = admin_client.get(f"dags/{test_dag_id}/trigger")
     else:
         test_request_conf = json.dumps(request_conf, indent=4)
-        resp = admin_client.get(f"trigger?dag_id={test_dag_id}&conf={test_request_conf}&doc_md={doc_md}")
-
-    expected_dag_conf = json.dumps(expected_conf, indent=4).replace('"', "&#34;")
-
-    check_content_in_response(
-        f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_conf}</textarea>',
-        resp,
-    )
+        resp = admin_client.get(f"dags/{test_dag_id}/trigger?conf={test_request_conf}&doc_md={doc_md}")
+    for key in expected_conf.keys():
+        check_content_in_response(key, resp)
+        check_content_in_response(str(expected_conf[key]), resp)
 
 
 def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkeypatch):
@@ -228,7 +225,7 @@ def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkey
             EmptyOperator(task_id="task1")
 
         m.setattr(app, "dag_bag", dag_maker.dagbag)
-        resp = admin_client.get(f"trigger?dag_id={DAG_ID}")
+        resp = admin_client.get(f"dags/{DAG_ID}/trigger")
 
     check_content_in_response(
         f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_conf}</textarea>',
@@ -241,7 +238,7 @@ def test_trigger_endpoint_uses_existing_dagbag(admin_client):
     Test that Trigger Endpoint uses the DagBag already created in views.py
     instead of creating a new one.
     """
-    url = "trigger?dag_id=example_bash_operator"
+    url = "dags/example_bash_operator/trigger"
     resp = admin_client.post(url, data={}, follow_redirects=True)
     check_content_in_response("example_bash_operator", resp)
 
@@ -260,7 +257,33 @@ def test_viewer_cant_trigger_dag(app):
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
         ],
     ) as client:
-        url = "trigger?dag_id=example_bash_operator"
+        url = "dags/example_bash_operator/trigger"
         resp = client.get(url, follow_redirects=True)
         response_data = resp.data.decode()
         assert "Access is Denied" in response_data
+
+
+def test_trigger_dag_params_array_value_none_render(admin_client, dag_maker, session, app, monkeypatch):
+    """
+    Test that textarea in Trigger DAG UI is pre-populated
+    with param value None and type ["null", "array"] set in DAG.
+    """
+    expected_conf = {"dag_param": None}
+    expected_dag_conf = json.dumps(expected_conf, indent=4).replace('"', "&#34;")
+    DAG_ID = "params_dag"
+    param = Param(
+        None,
+        type=["null", "array"],
+        minItems=0,
+    )
+    with monkeypatch.context() as m:
+        with dag_maker(dag_id=DAG_ID, serialized=True, session=session, params={"dag_param": param}):
+            EmptyOperator(task_id="task1")
+
+        m.setattr(app, "dag_bag", dag_maker.dagbag)
+        resp = admin_client.get(f"dags/{DAG_ID}/trigger")
+
+    check_content_in_response(
+        f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_conf}</textarea>',
+        resp,
+    )

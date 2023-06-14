@@ -30,7 +30,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | Build argument                           | Default value                            | Description                                 |
 +==========================================+==========================================+=============================================+
-| ``PYTHON_BASE_IMAGE``                    | ``python:3.7-slim-bullseye``             | Base python image.                          |
+| ``PYTHON_BASE_IMAGE``                    | ``python:3.8-slim-bullseye``             | Base python image.                          |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_VERSION``                      | :subst-code:`|airflow-version|`          | version of Airflow.                         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
@@ -45,7 +45,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``23.1.1``                               |  PIP version used.                          |
+| ``AIRFLOW_PIP_VERSION``                  | ``23.1.2``                               |  PIP version used.                          |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``ADDITIONAL_PIP_INSTALL_FLAGS``         |                                          | additional ``pip`` flags passed to the      |
 |                                          |                                          | installation commands (except when          |

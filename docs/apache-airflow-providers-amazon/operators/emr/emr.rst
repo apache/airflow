@@ -89,6 +89,10 @@ Add Steps to an EMR job flow
 
 To add steps to an existing EMR Job flow you can use
 :class:`~airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator`.
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter.
+Using ``deferrable`` mode will release worker slots and leads to efficient utilization of
+resources within Airflow cluster.However this mode will need the Airflow triggerer to be
+available in your deployment.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr.py
     :language: python
@@ -196,6 +200,14 @@ To monitor the state of an EMR job step you can use
     :dedent: 4
     :start-after: [START howto_sensor_emr_step]
     :end-before: [END howto_sensor_emr_step]
+
+Throttling
+----------
+
+Amazon EMR has relatively low service quotas, which can be viewed in detail `here <https://docs.aws.amazon.com/general/latest/gr/emr.html#limits_emr>`__.
+As a consequence, you might experience throttling issues when using any of the operators and sensors listed in this
+page. To circumvent this limitation, consider customizing the AWS connection configuration to modify the default Boto3
+retry strategy. `See AWS connection configuration documentation <https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/connections/aws.html#avoid-throttling-exceptions>`__.
 
 Reference
 ---------

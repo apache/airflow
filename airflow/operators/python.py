@@ -51,15 +51,10 @@ from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_scr
 
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
-    """
-    Deprecated function.
-    Calls @task.python and allows users to turn a python function into
-    an Airflow task. Please use the following instead:
+    """Deprecated. Use :func:`airflow.decorators.task` instead.
 
-    from airflow.decorators import task
-
-    @task
-    def my_task()
+    Calls ``@task.python`` and allows users to turn a Python function into
+    an Airflow task.
 
     :param python_callable: A reference to an object that is callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
@@ -69,7 +64,6 @@ def task(python_callable: Callable | None = None, multiple_outputs: bool | None 
     :param multiple_outputs: if set, function return value will be
         unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
-    :return:
     """
     # To maintain backwards compatibility, we import the task object into this file
     # This prevents breakages in dags that use `from airflow.operators.python import task`
@@ -242,7 +236,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
     :param ignore_downstream_trigger_rules: If set to True, all downstream tasks from this operator task will
         be skipped. This is the default behavior. If set to False, the direct, downstream task(s) will be
-        skipped but the ``trigger_rule`` defined for a other downstream tasks will be respected.
+        skipped but the ``trigger_rule`` defined for all other downstream tasks will be respected.
     """
 
     def __init__(self, *, ignore_downstream_trigger_rules: bool = True, **kwargs) -> None:
@@ -266,12 +260,17 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
             if self.ignore_downstream_trigger_rules is True:
                 self.log.info("Skipping all downstream tasks...")
-                self.skip(dag_run, execution_date, downstream_tasks)
+                self.skip(dag_run, execution_date, downstream_tasks, map_index=context["ti"].map_index)
             else:
                 self.log.info("Skipping downstream tasks while respecting trigger rules...")
                 # Explicitly setting the state of the direct, downstream task(s) to "skipped" and letting the
                 # Scheduler handle the remaining downstream task(s) appropriately.
-                self.skip(dag_run, execution_date, context["task"].get_direct_relatives(upstream=False))
+                self.skip(
+                    dag_run,
+                    execution_date,
+                    context["task"].get_direct_relatives(upstream=False),
+                    map_index=context["ti"].map_index,
+                )
 
         self.log.info("Done.")
 
@@ -401,6 +400,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         output_path = tmp_dir / "script.out"
         string_args_path = tmp_dir / "string_args.txt"
         script_path = tmp_dir / "script.py"
+        termination_log_path = tmp_dir / "termination.log"
         self._write_args(input_path)
         self._write_string_args(string_args_path)
         write_python_script(
@@ -424,11 +424,17 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                     os.fspath(input_path),
                     os.fspath(output_path),
                     os.fspath(string_args_path),
+                    os.fspath(termination_log_path),
                 ]
             )
         except subprocess.CalledProcessError as e:
             if e.returncode in self.skip_on_exit_code:
                 raise AirflowSkipException(f"Process exited with code {e.returncode}. Skipping.")
+            elif termination_log_path.exists() and termination_log_path.stat().st_size > 0:
+                error_msg = f"Process returned non-zero exit status {e.returncode}.\n"
+                with open(termination_log_path) as file:
+                    error_msg += file.read()
+                raise AirflowException(error_msg) from None
             else:
                 raise
 
@@ -721,7 +727,10 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
 
         try:
             result = subprocess.check_output(
-                [self.python, "-c", "from airflow import __version__; print(__version__)"], text=True
+                [self.python, "-c", "from airflow import __version__; print(__version__)"],
+                text=True,
+                # Avoid Airflow logs polluting stdout.
+                env={**os.environ, "_AIRFLOW__AS_LIBRARY": "true"},
             )
             target_airflow_version = result.strip()
             if target_airflow_version != airflow_version:

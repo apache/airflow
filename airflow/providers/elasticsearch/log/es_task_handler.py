@@ -33,6 +33,7 @@ import pendulum
 from elasticsearch_dsl import Search
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
@@ -105,7 +106,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if USE_PER_RUN_LOG_ID and log_id_template is not None:
             warnings.warn(
                 "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
             )
 
         self.log_id_template = log_id_template  # Only used on Airflow < 2.3.2.
@@ -262,7 +263,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return message, metadata
 
     def _format_msg(self, log_line):
-        """Format ES Record to match settings.LOG_FORMAT when used with json_format"""
+        """Format ES Record to match settings.LOG_FORMAT when used with json_format."""
         # Using formatter._style.format makes it future proof i.e.
         # if we change the formatter style from '%' to '{' or '$', this will still work
         if self.json_format:
@@ -394,7 +395,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     @property
     def log_name(self) -> str:
-        """The log name"""
+        """The log name."""
         return self.LOG_NAME
 
     def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
@@ -411,13 +412,13 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     @property
     def supports_external_link(self) -> bool:
-        """Whether we can support external links"""
+        """Whether we can support external links."""
         return bool(self.frontend)
 
 
 def getattr_nested(obj, item, default):
     """
-    Get item from obj but return default if not found
+    Get item from obj but return default if not found.
 
     E.g. calling ``getattr_nested(a, 'b.c', "NA")`` will return
     ``a.b.c`` if such a value exists, and "NA" otherwise.

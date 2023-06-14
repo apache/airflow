@@ -21,7 +21,7 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -73,22 +73,23 @@ class WasbBlobSensor(BaseSensorOperator):
 
     def execute(self, context: Context) -> None:
         """Defers trigger class to poll for state of the job run until
-        it reaches a failure state or success state
+        it reaches a failure state or success state.
         """
         if not self.deferrable:
             super().execute(context=context)
         else:
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=WasbBlobSensorTrigger(
-                    container_name=self.container_name,
-                    blob_name=self.blob_name,
-                    wasb_conn_id=self.wasb_conn_id,
-                    public_read=self.public_read,
-                    poke_interval=self.poke_interval,
-                ),
-                method_name="execute_complete",
-            )
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=WasbBlobSensorTrigger(
+                        container_name=self.container_name,
+                        blob_name=self.blob_name,
+                        wasb_conn_id=self.wasb_conn_id,
+                        public_read=self.public_read,
+                        poke_interval=self.poke_interval,
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """
@@ -122,7 +123,7 @@ class WasbBlobAsyncSensor(WasbBlobSensor):
             "will be removed in a future release. "
             "Please use `WasbBlobSensor` and "
             "set `deferrable` attribute to `True` instead",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         super().__init__(**kwargs, deferrable=True)
@@ -167,21 +168,22 @@ class WasbPrefixSensor(BaseSensorOperator):
 
     def execute(self, context: Context) -> None:
         """Defers trigger class to poll for state of the job run until it
-        reaches a failure state or success state
+        reaches a failure state or success state.
         """
         if not self.deferrable:
             super().execute(context=context)
         else:
-            self.defer(
-                timeout=timedelta(seconds=self.timeout),
-                trigger=WasbPrefixSensorTrigger(
-                    container_name=self.container_name,
-                    prefix=self.prefix,
-                    wasb_conn_id=self.wasb_conn_id,
-                    poke_interval=self.poke_interval,
-                ),
-                method_name="execute_complete",
-            )
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=WasbPrefixSensorTrigger(
+                        container_name=self.container_name,
+                        prefix=self.prefix,
+                        wasb_conn_id=self.wasb_conn_id,
+                        poke_interval=self.poke_interval,
+                    ),
+                    method_name="execute_complete",
+                )
 
     def execute_complete(self, context: Context, event: dict[str, str]) -> None:
         """

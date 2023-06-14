@@ -37,12 +37,11 @@ from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # 
 from contextlib import contextmanager, suppress
 from json.decoder import JSONDecodeError
 from re import Pattern
-from typing import IO, Any, Dict, Iterable, Tuple, Union
+from typing import IO, Any, Dict, Iterable, Set, Tuple, Union
 from urllib.parse import urlsplit
 
 from typing_extensions import overload
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
@@ -147,20 +146,6 @@ def default_config_yaml() -> dict[str, Any]:
         return yaml.safe_load(config_file)
 
 
-SENSITIVE_CONFIG_VALUES = {
-    ("database", "sql_alchemy_conn"),
-    ("core", "fernet_key"),
-    ("celery", "broker_url"),
-    ("celery", "flower_basic_auth"),
-    ("celery", "result_backend"),
-    ("atlas", "password"),
-    ("smtp", "smtp_password"),
-    ("webserver", "secret_key"),
-    # The following options are deprecated
-    ("core", "sql_alchemy_conn"),
-}
-
-
 class AirflowConfigParser(ConfigParser):
     """Custom Airflow Configparser supporting defaults and deprecated options."""
 
@@ -170,13 +155,26 @@ class AirflowConfigParser(ConfigParser):
     # These configs can also be fetched from Secrets backend
     # following the "{section}__{name}__secret" pattern
 
-    sensitive_config_values: set[tuple[str, str]] = SENSITIVE_CONFIG_VALUES
+    @functools.cached_property
+    def sensitive_config_values(self) -> Set[tuple[str, str]]:  # noqa: UP006
+        default_config = default_config_yaml()
+        flattened = {
+            (s, k): item for s, s_c in default_config.items() for k, item in s_c.get("options").items()
+        }
+        sensitive = {(section, key) for (section, key), v in flattened.items() if v.get("sensitive") is True}
+        depr_option = {self.deprecated_options[x][:-1] for x in sensitive if x in self.deprecated_options}
+        depr_section = {
+            (self.deprecated_sections[s][0], k) for s, k in sensitive if s in self.deprecated_sections
+        }
+        sensitive.update(depr_section, depr_option)
+        return sensitive
 
     # A mapping of (new section, new option) -> (old section, old option, since_version).
     # When reading new option, the old option will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
         ("celery", "worker_precheck"): ("core", "worker_precheck", "2.0.0"),
+        ("logging", "interleave_timestamp_parser"): ("core", "interleave_timestamp_parser", "2.6.1"),
         ("logging", "base_log_folder"): ("core", "base_log_folder", "2.0.0"),
         ("logging", "remote_logging"): ("core", "remote_logging", "2.0.0"),
         ("logging", "remote_log_conn_id"): ("core", "remote_log_conn_id", "2.0.0"),
@@ -199,8 +197,8 @@ class AirflowConfigParser(ConfigParser):
             "2.0.0",
         ),
         ("logging", "task_log_reader"): ("core", "task_log_reader", "2.0.0"),
-        ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.5.3"),
-        ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.5.3"),
+        ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.6.0"),
+        ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.6.0"),
         ("metrics", "statsd_on"): ("scheduler", "statsd_on", "2.0.0"),
         ("metrics", "statsd_host"): ("scheduler", "statsd_host", "2.0.0"),
         ("metrics", "statsd_port"): ("scheduler", "statsd_port", "2.0.0"),
@@ -257,11 +255,11 @@ class AirflowConfigParser(ConfigParser):
 
     # Now build the inverse so we can go from old_section/old_key to new_section/new_key
     # if someone tries to retrieve it based on old_section/old_key
-    @cached_property
+    @functools.cached_property
     def inversed_deprecated_options(self):
         return {(sec, name): key for key, (sec, name, ver) in self.deprecated_options.items()}
 
-    @cached_property
+    @functools.cached_property
     def inversed_deprecated_sections(self):
         return {
             old_section: new_section for new_section, (old_section, ver) in self.deprecated_sections.items()
@@ -486,7 +484,7 @@ class AirflowConfigParser(ConfigParser):
         )
 
     def _env_var_name(self, section: str, key: str) -> str:
-        return f"{ENV_VAR_PREFIX}{section.upper()}__{key.upper()}"
+        return f"{ENV_VAR_PREFIX}{section.replace('.', '_').upper()}__{key.upper()}"
 
     def _get_env_var_option(self, section: str, key: str):
         # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)
@@ -1482,7 +1480,7 @@ def initialize_config() -> AirflowConfigParser:
 
     Called for you automatically as part of the Airflow boot process.
     """
-    global FERNET_KEY, AIRFLOW_HOME
+    global FERNET_KEY, AIRFLOW_HOME, WEBSERVER_CONFIG
 
     default_config = _parameterized_config_from_template("default_airflow.cfg")
 
@@ -1547,10 +1545,7 @@ def initialize_config() -> AirflowConfigParser:
         if local_conf.getboolean("core", "unit_test_mode"):
             local_conf.load_test_config()
 
-    # Make it no longer a proxy variable, just set it to an actual string
-    global WEBSERVER_CONFIG
-    WEBSERVER_CONFIG = AIRFLOW_HOME + "/webserver_config.py"
-
+    WEBSERVER_CONFIG = local_conf.get("webserver", "config_file")
     if not os.path.isfile(WEBSERVER_CONFIG):
         import shutil
 
@@ -1785,7 +1780,6 @@ def __getattr__(name):
 AIRFLOW_HOME = get_airflow_home()
 AIRFLOW_CONFIG = get_airflow_config(AIRFLOW_HOME)
 
-
 # Set up dags folder for unit tests
 # this directory won't exist if users install via pip
 _TEST_DAGS_FOLDER = os.path.join(
@@ -1804,7 +1798,6 @@ if os.path.exists(_TEST_PLUGINS_FOLDER):
     TEST_PLUGINS_FOLDER = _TEST_PLUGINS_FOLDER
 else:
     TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, "plugins")
-
 
 TEST_CONFIG_FILE = get_airflow_test_config(AIRFLOW_HOME)
 

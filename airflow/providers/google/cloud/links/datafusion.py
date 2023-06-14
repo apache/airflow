@@ -24,7 +24,7 @@ from airflow.models import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -37,7 +37,7 @@ DATAFUSION_PIPELINE_LINK = "{uri}/pipelines/ns/default/view/{pipeline_name}"
 class BaseGoogleLink(BaseOperatorLink):
     """
     Override the base logic to prevent adding 'https://console.cloud.google.com'
-    in front of every link where uri is used
+    in front of every link where uri is used.
     """
 
     name: ClassVar[str]
@@ -59,7 +59,7 @@ class BaseGoogleLink(BaseOperatorLink):
 
 
 class DataFusionInstanceLink(BaseGoogleLink):
-    """Helper class for constructing Data Fusion Instance link"""
+    """Helper class for constructing Data Fusion Instance link."""
 
     name = "Data Fusion Instance"
     key = "instance_conf"
@@ -85,7 +85,7 @@ class DataFusionInstanceLink(BaseGoogleLink):
 
 
 class DataFusionPipelineLink(BaseGoogleLink):
-    """Helper class for constructing Data Fusion Pipeline link"""
+    """Helper class for constructing Data Fusion Pipeline link."""
 
     name = "Data Fusion Pipeline"
     key = "pipeline_conf"
@@ -109,7 +109,7 @@ class DataFusionPipelineLink(BaseGoogleLink):
 
 
 class DataFusionPipelinesLink(BaseGoogleLink):
-    """Helper class for constructing list of Data Fusion Pipelines link"""
+    """Helper class for constructing list of Data Fusion Pipelines link."""
 
     name = "Data Fusion Pipelines List"
     key = "pipelines_conf"

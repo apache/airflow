@@ -21,8 +21,10 @@ import uuid
 from typing import TYPE_CHECKING
 
 import requests.exceptions
+import yaml
 
-from airflow.providers.openlineage import version as OPENLINEAGE_PROVIDER_VERSION
+from airflow.configuration import conf
+from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.utils.utils import OpenLineageRedactor
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -46,9 +48,11 @@ if TYPE_CHECKING:
 
 _DAG_DEFAULT_NAMESPACE = "default"
 
-_DAG_NAMESPACE = os.getenv("OPENLINEAGE_NAMESPACE", _DAG_DEFAULT_NAMESPACE)
+_DAG_NAMESPACE = conf.get(
+    "openlineage", "namespace", fallback=os.getenv("OPENLINEAGE_NAMESPACE", _DAG_DEFAULT_NAMESPACE)
+)
 
-_PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/" f"{OPENLINEAGE_PROVIDER_VERSION}"
+_PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 
 set_producer(_PRODUCER)
 
@@ -61,7 +65,7 @@ class OpenLineageAdapter(LoggingMixin):
 
     def __init__(self, client: OpenLineageClient | None = None, secrets_masker: SecretsMasker | None = None):
         super().__init__()
-        self._client = client or OpenLineageClient.from_environment()
+        self._client = client
         if not secrets_masker:
             from airflow.utils.log.secrets_masker import _secrets_masker
 
@@ -70,8 +74,31 @@ class OpenLineageAdapter(LoggingMixin):
 
     def get_or_create_openlineage_client(self) -> OpenLineageClient:
         if not self._client:
-            self._client = OpenLineageClient.from_environment()
+            config = self.get_openlineage_config()
+            if config:
+                self._client = OpenLineageClient.from_dict(config=config)
+            else:
+                self._client = OpenLineageClient.from_environment()
         return self._client
+
+    def get_openlineage_config(self) -> dict | None:
+        # First, try to read from YAML file
+        openlineage_config_path = conf.get("openlineage", "config_path")
+        if openlineage_config_path:
+            config = self._read_yaml_config(openlineage_config_path)
+            if config:
+                return config.get("transport", None)
+        # Second, try to get transport config
+        transport = conf.getjson("openlineage", "transport")
+        if not transport:
+            return None
+        elif not isinstance(transport, dict):
+            raise ValueError(f"{transport} is not a dict")
+        return transport
+
+    def _read_yaml_config(self, path: str) -> dict | None:
+        with open(path) as config_file:
+            return yaml.safe_load(config_file)
 
     def build_dag_run_id(self, dag_id, dag_run_id):
         return str(uuid.uuid3(uuid.NAMESPACE_URL, f"{_DAG_NAMESPACE}.{dag_id}.{dag_run_id}"))
@@ -86,9 +113,11 @@ class OpenLineageAdapter(LoggingMixin):
         )
 
     def emit(self, event: RunEvent):
-        event = self._redacter.redact(event, max_depth=20)
+        if not self._client:
+            self._client = self.get_or_create_openlineage_client()
+        redacted_event: RunEvent = self._redacter.redact(event, max_depth=20)  # type: ignore[assignment]
         try:
-            return self._client.emit(event)
+            return self._client.emit(redacted_event)
         except requests.exceptions.RequestException:
             self.log.exception(f"Failed to emit OpenLineage event of id {event.run.runId}")
 
@@ -105,10 +134,10 @@ class OpenLineageAdapter(LoggingMixin):
         nominal_end_time: str,
         owners: list[str],
         task: OperatorLineage | None,
-        run_facets: dict[str, type[BaseFacet]] | None = None,  # Custom run facets
+        run_facets: dict[str, BaseFacet] | None = None,  # Custom run facets
     ):
         """
-        Emits openlineage event of type START
+        Emits openlineage event of type START.
 
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task in dag
@@ -140,9 +169,9 @@ class OpenLineageAdapter(LoggingMixin):
             eventTime=event_time,
             run=self._build_run(
                 run_id,
+                job_name,
                 parent_job_name,
                 parent_run_id,
-                job_name,
                 nominal_start_time,
                 nominal_end_time,
                 run_facets=run_facets,
@@ -162,7 +191,8 @@ class OpenLineageAdapter(LoggingMixin):
 
     def complete_task(self, run_id: str, job_name: str, end_time: str, task: OperatorLineage):
         """
-        Emits openlineage event of type COMPLETE
+        Emits openlineage event of type COMPLETE.
+
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task between dags
         :param end_time: time of task completion
@@ -171,7 +201,7 @@ class OpenLineageAdapter(LoggingMixin):
         event = RunEvent(
             eventType=RunState.COMPLETE,
             eventTime=end_time,
-            run=self._build_run(run_id, run_facets=task.run_facets),
+            run=self._build_run(run_id, job_name=job_name, run_facets=task.run_facets),
             job=self._build_job(job_name, job_facets=task.job_facets),
             inputs=task.inputs,
             outputs=task.outputs,
@@ -181,7 +211,8 @@ class OpenLineageAdapter(LoggingMixin):
 
     def fail_task(self, run_id: str, job_name: str, end_time: str, task: OperatorLineage):
         """
-        Emits openlineage event of type FAIL
+        Emits openlineage event of type FAIL.
+
         :param run_id: globally unique identifier of task in dag run
         :param job_name: globally unique identifier of task between dags
         :param end_time: time of task completion
@@ -190,7 +221,7 @@ class OpenLineageAdapter(LoggingMixin):
         event = RunEvent(
             eventType=RunState.FAIL,
             eventTime=end_time,
-            run=self._build_run(run_id, run_facets=task.run_facets),
+            run=self._build_run(run_id, job_name=job_name, run_facets=task.run_facets),
             job=self._build_job(job_name),
             inputs=task.inputs,
             outputs=task.outputs,
@@ -211,6 +242,7 @@ class OpenLineageAdapter(LoggingMixin):
             job=Job(name=dag_run.dag_id, namespace=_DAG_NAMESPACE),
             run=self._build_run(
                 run_id=self.build_dag_run_id(dag_run.dag_id, dag_run.run_id),
+                job_name=dag_run.dag_id,
                 nominal_start_time=nominal_start_time,
                 nominal_end_time=nominal_end_time,
             ),
@@ -250,14 +282,14 @@ class OpenLineageAdapter(LoggingMixin):
     @staticmethod
     def _build_run(
         run_id: str,
+        job_name: str,
         parent_job_name: str | None = None,
         parent_run_id: str | None = None,
-        job_name: str | None = None,
         nominal_start_time: str | None = None,
         nominal_end_time: str | None = None,
         run_facets: dict[str, BaseFacet] | None = None,
     ) -> Run:
-        facets = {}
+        facets: dict[str, BaseFacet] = {}
         if nominal_start_time:
             facets.update({"nominalTime": NominalTimeRunFacet(nominal_start_time, nominal_end_time)})
         if parent_run_id:
@@ -286,7 +318,7 @@ class OpenLineageAdapter(LoggingMixin):
         owners: list[str] | None = None,
         job_facets: dict[str, BaseFacet] | None = None,
     ):
-        facets = {}
+        facets: dict[str, BaseFacet] = {}
 
         if job_description:
             facets.update({"documentation": DocumentationJobFacet(description=job_description)})

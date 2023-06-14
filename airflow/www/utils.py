@@ -36,7 +36,7 @@ from markupsafe import Markup
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import func, types
+from sqlalchemy import delete, func, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow.exceptions import RemovedInAirflow3Warning
@@ -219,7 +219,7 @@ def should_hide_value_for_key(key_name):
 
 
 def get_params(**kwargs):
-    """Return URL-encoded params"""
+    """Return URL-encoded params."""
     return urlencode({d: v for d, v in kwargs.items() if v is not None}, True)
 
 
@@ -386,12 +386,12 @@ def generate_pages(
 
 
 def epoch(dttm):
-    """Returns an epoch-type date (tuple with no timezone)"""
+    """Returns an epoch-type date (tuple with no timezone)."""
     return (int(time.mktime(dttm.timetuple())) * 1000,)
 
 
 def make_cache_key(*args, **kwargs):
-    """Used by cache to get a unique key per URL"""
+    """Used by cache to get a unique key per URL."""
     path = request.path
     args = str(hash(frozenset(request.args.items())))
     return (path + args).encode("ascii", "ignore")
@@ -426,7 +426,7 @@ def task_instance_link(attr):
 
 
 def state_token(state):
-    """Returns a formatted string with HTML for a given State"""
+    """Returns a formatted string with HTML for a given State."""
     color = State.color(state)
     fg_color = State.color_fg(state)
     return Markup(
@@ -438,13 +438,13 @@ def state_token(state):
 
 
 def state_f(attr):
-    """Gets 'state' & returns a formatted string with HTML for a given State"""
+    """Gets 'state' & returns a formatted string with HTML for a given State."""
     state = attr.get("state")
     return state_token(state)
 
 
 def nobr_f(attr_name):
-    """Returns a formatted string with HTML with a Non-breaking Text element"""
+    """Returns a formatted string with HTML with a Non-breaking Text element."""
 
     def nobr(attr):
         f = attr.get(attr_name)
@@ -454,7 +454,7 @@ def nobr_f(attr_name):
 
 
 def datetime_f(attr_name):
-    """Returns a formatted string with HTML for given DataTime"""
+    """Returns a formatted string with HTML for given DataTime."""
 
     def dt(attr):
         f = attr.get(attr_name)
@@ -464,7 +464,7 @@ def datetime_f(attr_name):
 
 
 def datetime_html(dttm: DateTime | None) -> str:
-    """Return an HTML formatted string with time element to support timezone changes in UI"""
+    """Return an HTML formatted string with time element to support timezone changes in UI."""
     as_iso = dttm.isoformat() if dttm else ""
     if not as_iso:
         return Markup("")
@@ -476,7 +476,7 @@ def datetime_html(dttm: DateTime | None) -> str:
 
 
 def json_f(attr_name):
-    """Returns a formatted string with HTML for given JSON serializable"""
+    """Returns a formatted string with HTML for given JSON serializable."""
 
     def json_(attr):
         f = attr.get(attr_name)
@@ -542,12 +542,12 @@ def format_map_index(attr: dict) -> str:
 
 
 def pygment_html_render(s, lexer=lexers.TextLexer):
-    """Highlight text using a given Lexer"""
+    """Highlight text using a given Lexer."""
     return highlight(s, lexer(), HtmlFormatter(linenos=True))
 
 
 def render(obj, lexer):
-    """Render a given Python object with a given Pygments lexer"""
+    """Render a given Python object with a given Pygments lexer."""
     out = ""
     if isinstance(obj, str):
         out = Markup(pygment_html_render(obj, lexer))
@@ -563,7 +563,7 @@ def render(obj, lexer):
 
 
 def json_render(obj, lexer):
-    """Render a given Python object with json lexer"""
+    """Render a given Python object with json lexer."""
     out = ""
     if isinstance(obj, str):
         out = Markup(pygment_html_render(obj, lexer))
@@ -583,7 +583,7 @@ def wrapped_markdown(s, css_class="rich_doc"):
 
 
 def get_attr_renderer():
-    """Return Dictionary containing different Pygments Lexers for Rendering & Highlighting"""
+    """Return Dictionary containing different Pygments Lexers for Rendering & Highlighting."""
     return {
         "bash": lambda x: render(x, lexers.BashLexer),
         "bash_command": lambda x: render(x, lexers.BashLexer),
@@ -615,7 +615,7 @@ def get_chart_height(dag):
     approximate the size of generated chart (otherwise the charts are tiny and unreadable
     when DAGs have a large number of tasks). Ideally nvd3 should allow for dynamic-height
     charts, that is charts that take up space based on the size of the components within.
-    TODO(aoen): See [AIRFLOW-1263]
+    TODO(aoen): See [AIRFLOW-1263].
     """
     return 600 + len(dag.tasks) * 10
 
@@ -774,8 +774,8 @@ class CustomSQLAInterface(SQLAInterface):
                 continue
             proxy_instance = getattr(self.obj, obj_attr)
             if hasattr(proxy_instance.remote_attr.prop, "columns"):
-                self.list_columns[desc.value_attr] = proxy_instance.remote_attr.prop.columns[0]
-                self.list_properties[desc.value_attr] = proxy_instance.remote_attr.prop
+                self.list_columns[obj_attr] = proxy_instance.remote_attr.prop.columns[0]
+                self.list_properties[obj_attr] = proxy_instance.remote_attr.prop
 
     def is_utcdatetime(self, col_name):
         """Check if the datetime is a UTC one."""
@@ -791,7 +791,7 @@ class CustomSQLAInterface(SQLAInterface):
         return False
 
     def is_extendedjson(self, col_name):
-        """Checks if it is a special extended JSON type"""
+        """Checks if it is a special extended JSON type."""
         from airflow.utils.sqlalchemy import ExtendedJSON
 
         if col_name in self.list_columns:
@@ -821,13 +821,13 @@ class DagRunCustomSQLAInterface(CustomSQLAInterface):
     """
 
     def delete(self, item: Model, raise_exception: bool = False) -> bool:
-        self.session.query(TaskInstance).where(TaskInstance.run_id == item.run_id).delete()
+        self.session.execute(delete(TaskInstance).where(TaskInstance.run_id == item.run_id))
         return super().delete(item, raise_exception=raise_exception)
 
     def delete_all(self, items: list[Model]) -> bool:
-        self.session.query(TaskInstance).where(
-            TaskInstance.run_id.in_(item.run_id for item in items)
-        ).delete()
+        self.session.execute(
+            delete(TaskInstance).where(TaskInstance.run_id.in_(item.run_id for item in items))
+        )
         return super().delete_all(items)
 
 
@@ -841,7 +841,7 @@ FieldConverter.conversion_table = (
 
 class UIAlert:
     """
-    Helper for alerts messages shown on the UI
+    Helper for alerts messages shown on the UI.
 
     :param message: The message to display, either a string or Markup
     :param category: The category of the message, one of "info", "warning", "error", or any custom category.

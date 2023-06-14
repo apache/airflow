@@ -22,10 +22,10 @@ import tempfile
 from unittest.mock import patch
 
 import pytest
-from databricks.sql.types import Row
 
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.providers.databricks.operators.databricks_sql import DatabricksSqlOperator
+from airflow.providers.databricks.operators.databricks_sql import DatabricksSqlOperator, Row
+from airflow.serialization.serde import serialize
 
 DATE = "2017-04-20"
 TASK_ID = "databricks-sql-operator"
@@ -151,8 +151,27 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
         )
 
 
+def test_return_value_serialization():
+    hook_descriptions = [[("id",), ("value",)]]
+    hook_results = [Row(id=1, value="value1"), Row(id=2, value="value2")]
+
+    with patch("airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook") as db_mock_class:
+        op = DatabricksSqlOperator(
+            task_id=TASK_ID,
+            sql="select * from dummy2",
+            do_xcom_push=True,
+            return_last=True,
+        )
+        db_mock = db_mock_class.return_value
+        db_mock.run.return_value = hook_results
+        db_mock.descriptions = hook_descriptions
+        result = op.execute({})
+        serialized_result = serialize(result)
+        assert serialized_result == serialize(([("id",), ("value",)], [(1, "value1"), (2, "value2")]))
+
+
 @pytest.mark.parametrize(
-    "return_last, split_statements, sql, descriptions, hook_results",
+    "return_last, split_statements, sql, descriptions, hook_results, do_xcom_push",
     [
         pytest.param(
             True,
@@ -160,6 +179,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             "select * from dummy",
             [[("id",), ("value",)]],
             [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            True,
             id="Scalar: return_last True and split_statement  False",
         ),
         pytest.param(
@@ -168,6 +188,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             "select * from dummy",
             [[("id",), ("value",)]],
             [[Row(id=1, value="value1"), Row(id=2, value="value2")]],
+            True,
             id="Non-Scalar: return_last False and split_statement True",
         ),
         pytest.param(
@@ -176,6 +197,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             "select * from dummy",
             [[("id",), ("value",)]],
             [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            True,
             id="Scalar: return_last True and no split_statement True",
         ),
         pytest.param(
@@ -184,6 +206,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             "select * from dummy",
             [[("id",), ("value",)]],
             [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            True,
             id="Scalar: return_last False and split_statement is False",
         ),
         pytest.param(
@@ -195,6 +218,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
                 [Row(id2=1, value2="value1"), Row(id2=2, value2="value2")],
                 [Row(id=1, value="value1"), Row(id=2, value="value2")],
             ],
+            True,
             id="Non-Scalar: return_last False and split_statement is True",
         ),
         pytest.param(
@@ -203,6 +227,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             "select * from dummy2; select * from dummy",
             [[("id2",), ("value2",)], [("id",), ("value",)]],
             [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            True,
             id="Scalar: return_last True and split_statement is True",
         ),
         pytest.param(
@@ -211,6 +236,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             "select * from dummy2; select * from dummy",
             [[("id2",), ("value2",)], [("id",), ("value",)]],
             [Row(id=1, value="value1"), Row(id=2, value="value2")],
+            True,
             id="Scalar: return_last True and split_statement is True",
         ),
         pytest.param(
@@ -219,6 +245,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             ["select * from dummy2", "select * from dummy"],
             [[("id2",), ("value2",)], [("id",), ("value",)]],
             [[Row(id=1, value="value1"), Row(id=2, value="value2")]],
+            True,
             id="Non-Scalar: sql is list and return_last is True",
         ),
         pytest.param(
@@ -227,11 +254,21 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
             ["select * from dummy2", "select * from dummy"],
             [[("id2",), ("value2",)], [("id",), ("value",)]],
             [[Row(id=1, value="value1"), Row(id=2, value="value2")]],
+            True,
             id="Non-Scalar: sql is list and return_last is False",
+        ),
+        pytest.param(
+            False,
+            True,
+            ["select * from dummy2", "select * from dummy"],
+            [[("id2",), ("value2",)], [("id",), ("value",)]],
+            [[Row(id=1, value="value1"), Row(id=2, value="value2")]],
+            False,
+            id="Write output when do_xcom_push is False",
         ),
     ],
 )
-def test_exec_write_file(return_last, split_statements, sql, descriptions, hook_results):
+def test_exec_write_file(return_last, split_statements, sql, descriptions, hook_results, do_xcom_push):
     """
     Test the execute function in case where SQL query was successful and data is written as CSV
     """
@@ -242,6 +279,7 @@ def test_exec_write_file(return_last, split_statements, sql, descriptions, hook_
             sql=sql,
             output_path=tempfile_path,
             return_last=return_last,
+            do_xcom_push=do_xcom_push,
             split_statements=split_statements,
         )
         db_mock = db_mock_class.return_value

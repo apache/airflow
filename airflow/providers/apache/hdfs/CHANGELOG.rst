@@ -24,6 +24,71 @@
 Changelog
 ---------
 
+4.1.0
+-----
+
+Features
+~~~~~~~~
+
+* Add ability to read/write task instance logs from HDFS (#31512)
+
+4.0.0
+-----
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The original HDFS Hook and sensor has been removed. It used the old HDFS snakebite-py3 library that had no
+update in years and the protobuf they are using reached end of life.
+
+The 3.* version of the provider is still available and can be used if you need to use the old hooks and
+sensors.
+
+The ``HDFSHook``, ``HDFSSensor``, ``HdfsRegexSensor``, ``HdfsRegexSensor`` that have been removed from
+this provider and they are not available any more. If you want to continue using them,
+you can use 3.* version of the provider, but the recommendation is to switch to the new
+``WebHDFSHook`` and ``WebHDFSSensor`` that use the ``WebHDFS`` API.
+
+
+* ``Remove snakebite-py3 based HDFS hooks and sensors (#31262)``
+
+
+.. note::
+
+   Protobuf 3 required by the snakebite-py3 library has ended its life in June 2023 and Airflow and it's
+   providers stopped supporting it. If you would like to continue using HDFS hooks and sensors
+   based on snakebite-py3 library when you have protobuf library 4.+ you can install the 3.* version
+   of the provider but due to Protobuf incompatibility, you need to do one of the the two things:
+
+   * set ``PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python`` variable in your environment.
+   * downgrade protobuf to latest 3.* version (3.20.3 at this time)
+
+   Setting ``PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python`` will make many libraries using protobuf
+   much slower - including multiple Google client libraries and Kubernetes. Downgrading protobuf to
+   (already End-Of-Life) 3.* version will make some of the latest versions of the new providers
+   incompatible (for example google and grpc) and you will have to downgrade those providers as well.
+   Both should be treated as a temporary workaround only, and you should migrate to WebHDFS
+   as soon as possible.
+
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Add mechanism to suspend providers (#30422)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
+
 3.2.1
 .....
 
@@ -35,8 +100,9 @@ Bug Fixes
 3.2.0
 .....
 
-This release of provider is only available for Airflow 2.3+ as explained in the
-`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Misc
 ~~~~

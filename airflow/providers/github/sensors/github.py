@@ -154,6 +154,7 @@ class GithubTagSensor(BaseGithubRepositorySensor):
             tag_name = templated_fields.get("tag_name")
         else:
             tag_name = self.tag_name
+
         result = None
         try:
             if repo is not None and tag_name is not None:

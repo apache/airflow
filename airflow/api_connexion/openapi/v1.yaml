@@ -86,7 +86,7 @@ info:
 
     ### Delete
 
-    Deleting a resource requires the resource `id` and is typically executing via an HTTP `DELETE` request.
+    Deleting a resource requires the resource `id` and is typically executed via an HTTP `DELETE` request.
     The response usually returns a `204 No Content` response code upon success.
 
     ## Conventions
@@ -97,12 +97,14 @@ info:
     - Field names are in snake_case.
     ```json
     {
+        "description": "string",
         "name": "string",
-        "slots": 0,
         "occupied_slots": 0,
-        "used_slots": 0,
-        "queued_slots": 0,
         "open_slots": 0
+        "queued_slots": 0,
+        "running_slots": 0,
+        "scheduled_slots": 0,
+        "slots": 0,
     }
     ```
 
@@ -148,7 +150,7 @@ info:
     Using a graphical tool such as [Postman](https://www.postman.com/) or [Insomnia](https://insomnia.rest/),
     it is possible to import the API specifications directly:
 
-    1. Download the API specification by clicking the **Download** button at top of this document
+    1. Download the API specification by clicking the **Download** button at the top of this document
     2. Import the JSON specification in the graphical tool of your choice.
       - In *Postman*, you can click the **import** button at the top
       - With *Insomnia*, you can just drag-and-drop the file on the UI
@@ -229,7 +231,7 @@ info:
     This means that the server encountered an unexpected condition that prevented it from
     fulfilling the request.
 
-  version: '2.5.3'
+  version: '2.7.0.dev0'
   license:
     name: Apache 2.0
     url: http://www.apache.org/licenses/LICENSE-2.0.html
@@ -1955,6 +1957,13 @@ paths:
       x-openapi-router-controller: airflow.api_connexion.endpoints.config_endpoint
       operationId: get_config
       tags: [Config]
+      parameters:
+        - name: section
+          in: query
+          schema:
+            type: string
+          required: false
+          description: If given, only return config of this section.
       responses:
         '200':
           description: Success.
@@ -1985,18 +1994,64 @@ paths:
                 smtp_host = localhost
                 smtp_mail_from =  airflow@example.com
 
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /config/section/{section}/option/{option}:
+    get:
+      summary: Get a option from configuration
+      x-openapi-router-controller: airflow.api_connexion.endpoints.config_endpoint
+      operationId: get_value
+      tags: [Config]
+      parameters:
+        - name: section
+          in: path
+          schema:
+            type: string
+          required: true
+        - name: option
+          in: path
+          schema:
+            type: string
+          required: true
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Config'
+              example:
+                sections:
+                  - name: core
+                    options:
+                      - key: dags_folder
+                        value: /home/user/my-dags-folder
+            text/plain:
+              schema:
+                type: string
+              example: |
+                [core]
+                dags_folder = /home/user/my-dags-folder
 
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '403':
           $ref: '#/components/responses/PermissionDenied'
+        '404':
+           $ref: '#/components/responses/NotFound'
+
 
   /health:
     get:
       summary: Get instance status
       description: |
-        Get the status of Airflow's metadatabase and scheduler. It includes info about
-        metadatabase and last heartbeat of scheduler.
+        Get the status of Airflow's metadatabase, triggerer and scheduler. It includes info about
+        metadatabase and last heartbeat of scheduler and triggerer.
       x-openapi-router-controller: airflow.api_connexion.endpoints.health_endpoint
       operationId: get_health
       tags: [Monitoring]
@@ -3027,6 +3082,8 @@ components:
           $ref: '#/components/schemas/MetadatabaseStatus'
         scheduler:
           $ref: '#/components/schemas/SchedulerStatus'
+        triggerer:
+          $ref: '#/components/schemas/TriggererStatus'
 
     MetadatabaseStatus:
       type: object
@@ -3042,7 +3099,23 @@ components:
         status:
           $ref: '#/components/schemas/HealthStatus'
         latest_scheduler_heartbeat:
-          description: The time the scheduler last do a heartbeat.
+          description: The time the scheduler last did a heartbeat.
+          type: string
+          format: datetime
+          readOnly: true
+          nullable: true
+
+    TriggererStatus:
+      type: object
+      description: |
+        The status and the latest triggerer heartbeat.
+
+        *New in version 2.6.2*
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latest_triggerer_heartbeat:
+          description: The time the triggerer last did a heartbeat.
           type: string
           format: datetime
           readOnly: true
@@ -3063,7 +3136,7 @@ components:
           type: integer
           readOnly: true
           description: The number of slots used by running/queued tasks at the moment.
-        used_slots:
+        running_slots:
           type: integer
           readOnly: true
           description: The number of slots used by running tasks at the moment.
@@ -3075,6 +3148,10 @@ components:
           type: integer
           readOnly: true
           description: The number of free slots at the moment.
+        scheduled_slots:
+          type: integer
+          readOnly: true
+          description: The number of slots used by scheduled tasks at the moment.
         description:
           type: string
           description: |
@@ -3433,7 +3510,7 @@ components:
         DAG details.
 
         For details see:
-        [airflow.models.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.DAG)
+        [airflow.models.dag.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/dag/index.html#airflow.models.dag.DAG)
       allOf:
         - $ref: '#/components/schemas/DAG'
         - type: object
@@ -3544,7 +3621,7 @@ components:
       type: object
       description: |
         For details see:
-        [airflow.models.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.BaseOperator)
+        [airflow.models.baseoperator.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/baseoperator/index.html#airflow.models.baseoperator.BaseOperator)
       properties:
         class_ref:
           $ref: '#/components/schemas/ClassReference'
@@ -4188,6 +4265,7 @@ components:
           enum:
             - success
             - failed
+            - skipped
 
     UpdateTaskInstance:
       type: object
@@ -4205,6 +4283,8 @@ components:
           enum:
             - success
             - failed
+            - skipped
+
     SetTaskInstanceNote:
       type: object
       required:
@@ -4599,6 +4679,7 @@ components:
     HealthStatus:
       description: Health status
       type: string
+      nullable: true
       enum:
         - healthy
         - unhealthy

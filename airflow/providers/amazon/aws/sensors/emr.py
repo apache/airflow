@@ -17,20 +17,18 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from deprecated import deprecated
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.links.emr import EmrLogsLink
+from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-from airflow.compat.functools import cached_property
 
 
 class EmrBaseSensor(BaseSensorOperator):
@@ -158,7 +156,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> EmrServerlessHook:
-        """Create and return an EmrServerlessHook"""
+        """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     @staticmethod
@@ -214,7 +212,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> EmrServerlessHook:
-        """Create and return an EmrServerlessHook"""
+        """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     @staticmethod
@@ -294,7 +292,7 @@ class EmrContainerSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> EmrContainerHook:
-        """Create and return an EmrContainerHook"""
+        """Create and return an EmrContainerHook."""
         return EmrContainerHook(self.aws_conn_id, virtual_cluster_id=self.virtual_cluster_id)
 
 
@@ -385,7 +383,10 @@ class EmrJobFlowSensor(EmrBaseSensor):
 
     template_fields: Sequence[str] = ("job_flow_id", "target_states", "failed_states")
     template_ext: Sequence[str] = ()
-    operator_extra_links = (EmrLogsLink(),)
+    operator_extra_links = (
+        EmrClusterLink(),
+        EmrLogsLink(),
+    )
 
     def __init__(
         self,
@@ -412,14 +413,21 @@ class EmrJobFlowSensor(EmrBaseSensor):
         emr_client = self.hook.conn
         self.log.info("Poking cluster %s", self.job_flow_id)
         response = emr_client.describe_cluster(ClusterId=self.job_flow_id)
-        log_uri = S3Hook.parse_s3_url(response["Cluster"]["LogUri"])
+
+        EmrClusterLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            job_flow_id=self.job_flow_id,
+        )
         EmrLogsLink.persist(
             context=context,
             operator=self,
             region_name=self.hook.conn_region_name,
             aws_partition=self.hook.conn_partition,
             job_flow_id=self.job_flow_id,
-            log_uri="/".join(log_uri),
+            log_uri=get_log_uri(cluster=response),
         )
         return response
 
@@ -472,6 +480,10 @@ class EmrStepSensor(EmrBaseSensor):
 
     template_fields: Sequence[str] = ("job_flow_id", "step_id", "target_states", "failed_states")
     template_ext: Sequence[str] = ()
+    operator_extra_links = (
+        EmrClusterLink(),
+        EmrLogsLink(),
+    )
 
     def __init__(
         self,
@@ -500,7 +512,25 @@ class EmrStepSensor(EmrBaseSensor):
         emr_client = self.hook.conn
 
         self.log.info("Poking step %s on cluster %s", self.step_id, self.job_flow_id)
-        return emr_client.describe_step(ClusterId=self.job_flow_id, StepId=self.step_id)
+        response = emr_client.describe_step(ClusterId=self.job_flow_id, StepId=self.step_id)
+
+        EmrClusterLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            job_flow_id=self.job_flow_id,
+        )
+        EmrLogsLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            job_flow_id=self.job_flow_id,
+            log_uri=get_log_uri(emr_client=emr_client, job_flow_id=self.job_flow_id),
+        )
+
+        return response
 
     @staticmethod
     def state_from_response(response: dict[str, Any]) -> str:

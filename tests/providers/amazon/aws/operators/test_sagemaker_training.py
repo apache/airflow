@@ -21,10 +21,11 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTrainingOperator
+from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
 
 EXPECTED_INTEGER_FIELDS: list[list[str]] = [
     ["ResourceConfig", "InstanceCount"],
@@ -113,3 +114,16 @@ class TestSageMakerTrainingOperator:
         }
         with pytest.raises(AirflowException):
             self.sagemaker.execute(None)
+
+    @mock.patch.object(SageMakerHook, "create_training_job")
+    def test_operator_defer(self, mock_training):
+        mock_training.return_value = {
+            "TrainingJobArn": "test_arn",
+            "ResponseMetadata": {"HTTPStatusCode": 200},
+        }
+        self.sagemaker.deferrable = True
+        self.sagemaker.wait_for_completion = True
+        self.sagemaker.check_if_job_exists = False
+        with pytest.raises(TaskDeferred) as exc:
+            self.sagemaker.execute(context=None)
+        assert isinstance(exc.value.trigger, SageMakerTrigger), "Trigger is not a SagemakerTrigger"

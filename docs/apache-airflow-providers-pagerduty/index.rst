@@ -35,6 +35,12 @@ Content
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-pagerduty/>
     Installing from sources <installing-providers-from-sources>
 
+.. toctree::
+    :maxdepth: 1
+    :caption: Guides
+
+    Pagerduty Notifications <notifications/pagerduty_notifier_howto_guide>
+
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
@@ -51,7 +57,7 @@ Package apache-airflow-providers-pagerduty
 `Pagerduty <https://www.pagerduty.com/>`__
 
 
-Release: 3.1.0
+Release: 3.2.0
 
 Provider package
 ----------------
@@ -69,10 +75,12 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.3.0``
+``apache-airflow``  ``>=2.4.0``
 ``pdpyras``         ``>=4.1.2``
 ==================  ==================
 

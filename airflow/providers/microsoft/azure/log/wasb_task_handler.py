@@ -19,20 +19,21 @@ from __future__ import annotations
 
 import os
 import shutil
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from azure.core.exceptions import HttpResponseError
 from packaging.version import Version
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def get_default_delete_local_copy():
-    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
+
     TODO: delete this function when min airflow version >= 2.6
     """
     from airflow.version import version
@@ -128,7 +129,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read_remote_logs(self, ti, try_number, metadata=None):
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
         messages = []
         logs = []
         worker_log_relative_path = self._render_filename(ti, try_number)
@@ -192,7 +193,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     def wasb_log_exists(self, remote_log_location: str) -> bool:
         """
-        Check if remote_log_location exists in remote storage
+        Check if remote_log_location exists in remote storage.
 
         :param remote_log_location: log's location in remote storage
         :return: True if location exists else False

@@ -59,10 +59,10 @@ Container Registry used as cache
 We are using GitHub Container Registry to store the results of the ``Build Images``
 workflow which is used in the ``Tests`` workflow.
 
-Currently in main version of Airflow we run tests in 4 different versions of Python (3.7, 3.8, 3.9, 3.10)
-which means that we have to build 8 images (4 CI ones and 4 PROD ones). Yet we run around 12 jobs
-with each of the CI images. That is a lot of time to just build the environment to run. Therefore
-we are utilising ``pull_request_target`` feature of GitHub Actions.
+Currently in main version of Airflow we run tests in all versions of Python supported,
+which means that we have to build multiple images (one CI and one PROD for each Python version).
+Yet we run many jobs (>15) - for each of the CI images. That is a lot of time to just build the
+environment to run. Therefore we are utilising ``pull_request_target`` feature of GitHub Actions.
 
 This feature allows to run a separate, independent workflow, when the main workflow is run -
 this separate workflow is different than the main one, because by default it runs using ``main`` version
@@ -145,7 +145,7 @@ have to be percent-encoded when you access them via UI (/ = %2F)
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
 
 * <BRANCH> might be either "main" or "v2-*-test"
-* <X.Y> - Python version (Major + Minor).Should be one of ["3.7", "3.8", "3.9"].
+* <X.Y> - Python version (Major + Minor).Should be one of ["3.8", "3.9", "3.10", "3.11"].
 * <COMMIT_SHA> - full-length SHA of commit either from the tip of the branch (for pushes/schedule) or
   commit from the tip of the branch used for the PR.
 
@@ -177,7 +177,7 @@ The variables are automatically set in GitHub actions
 The Variables beginning with ``GITHUB_`` cannot be overridden in GitHub Actions by the workflow.
 Those variables are set by GitHub Actions automatically and they are immutable. Therefore if
 you want to override them in your own CI workflow and use ``breeze``, you need to pass the
-values by corresponding ``breeze`` flags ``--github-repository``, ``--github-username``,
+values by corresponding ``breeze`` flags ``--github-repository``,
 ``--github-token`` rather than by setting them as environment variables in your workflow.
 Unless you want to keep your own copy of constraints in orphaned ``constraints-*``
 branches, the ``CONSTRAINTS_GITHUB_REPOSITORY`` should remain ``apache/airflow``, regardless in which
@@ -523,9 +523,9 @@ For example knowing that the CI job was for commit ``cd27124534b46c9688a1d89e75f
 
 .. code-block:: bash
 
-  docker pull ghcr.io/apache/airflow/main/ci/python3.7:cd27124534b46c9688a1d89e75fcd137ab5137e3
+  docker pull ghcr.io/apache/airflow/main/ci/python3.8:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
-  docker run -it ghcr.io/apache/airflow/main/ci/python3.7:cd27124534b46c9688a1d89e75fcd137ab5137e3
+  docker run -it ghcr.io/apache/airflow/main/ci/python3.8:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
 
 But you usually need to pass more variables and complex setup if you want to connect to a database or

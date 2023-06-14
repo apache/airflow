@@ -28,6 +28,8 @@ from collections import OrderedDict
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Iterable, Mapping
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+
 try:
     import pandas
 except ImportError as e:
@@ -35,7 +37,7 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
-import unicodecsv as csv
+import csv
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -135,7 +137,7 @@ class HiveCliHook(BaseHook):
         return proxy_user_value  # The default proxy user (undefined)
 
     def _prepare_cli_cmd(self) -> list[Any]:
-        """This function creates the command list from available information"""
+        """This function creates the command list from available information."""
         conn = self.conn
         hive_bin = "hive"
         cmd_extra = []
@@ -294,7 +296,7 @@ class HiveCliHook(BaseHook):
                 return stdout
 
     def test_hql(self, hql: str) -> None:
-        """Test an hql statement using the hive cli and EXPLAIN"""
+        """Test an hql statement using the hive cli and EXPLAIN."""
         create, insert, other = [], [], []
         for query in hql.split(";"):  # naive
             query_original = query
@@ -413,7 +415,7 @@ class HiveCliHook(BaseHook):
         tblproperties: dict[str, Any] | None = None,
     ) -> None:
         """
-        Loads a local file into Hive
+        Loads a local file into Hive.
 
         Note that the table generated in Hive uses ``STORED AS textfile``
         which isn't the most efficient serialization format. If a
@@ -473,7 +475,7 @@ class HiveCliHook(BaseHook):
         self.run_cli(hql)
 
     def kill(self) -> None:
-        """Kill Hive cli command"""
+        """Kill Hive cli command."""
         if hasattr(self, "sub_process"):
             if self.sub_process.poll() is None:
                 print("Killing the Hive job")
@@ -484,7 +486,7 @@ class HiveCliHook(BaseHook):
 
 class HiveMetastoreHook(BaseHook):
     """
-    Wrapper to interact with the Hive Metastore
+    Wrapper to interact with the Hive Metastore.
 
     :param metastore_conn_id: reference to the
         :ref: `metastore thrift service connection id <howto/connection:hive_metastore>`.
@@ -529,7 +531,7 @@ class HiveMetastoreHook(BaseHook):
         if "authMechanism" in conn.extra_dejson:
             warnings.warn(
                 "The 'authMechanism' option is deprecated. Please use 'auth_mechanism'.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             conn.extra_dejson["auth_mechanism"] = conn.extra_dejson["authMechanism"]
@@ -585,7 +587,7 @@ class HiveMetastoreHook(BaseHook):
 
     def check_for_partition(self, schema: str, table: str, partition: str) -> bool:
         """
-        Checks whether a partition exists
+        Checks whether a partition exists.
 
         :param schema: Name of hive schema (database) @table belongs to
         :param table: Name of hive table @partition belongs to
@@ -606,7 +608,7 @@ class HiveMetastoreHook(BaseHook):
 
     def check_for_named_partition(self, schema: str, table: str, partition_name: str) -> Any:
         """
-        Checks whether a partition with a given name exists
+        Checks whether a partition with a given name exists.
 
         :param schema: Name of hive schema (database) @table belongs to
         :param table: Name of hive table @partition belongs to
@@ -623,7 +625,7 @@ class HiveMetastoreHook(BaseHook):
             return client.check_for_named_partition(schema, table, partition_name)
 
     def get_table(self, table_name: str, db: str = "default") -> Any:
-        """Get a metastore table object
+        """Get a metastore table object.
 
         >>> hh = HiveMetastoreHook()
         >>> t = hh.get_table(db='airflow', table_name='static_babynames')
@@ -638,13 +640,13 @@ class HiveMetastoreHook(BaseHook):
             return client.get_table(dbname=db, tbl_name=table_name)
 
     def get_tables(self, db: str, pattern: str = "*") -> Any:
-        """Get a metastore table object"""
+        """Get a metastore table object."""
         with self.metastore as client:
             tables = client.get_tables(db_name=db, pattern=pattern)
             return client.get_table_objects_by_name(db, tables)
 
     def get_databases(self, pattern: str = "*") -> Any:
-        """Get a metastore table object"""
+        """Get a metastore table object."""
         with self.metastore as client:
             return client.get_databases(pattern)
 
@@ -772,7 +774,7 @@ class HiveMetastoreHook(BaseHook):
 
     def table_exists(self, table_name: str, db: str = "default") -> bool:
         """
-        Check if table exists
+        Check if table exists.
 
         >>> hh = HiveMetastoreHook()
         >>> hh.table_exists(db='airflow', table_name='static_babynames')
@@ -788,7 +790,7 @@ class HiveMetastoreHook(BaseHook):
 
     def drop_partitions(self, table_name, part_vals, delete_data=False, db="default"):
         """
-        Drop partitions from the given table matching the part_vals input
+        Drop partitions from the given table matching the part_vals input.
 
         :param table_name: table name.
         :param part_vals: list of partition specs.
@@ -814,7 +816,7 @@ class HiveMetastoreHook(BaseHook):
 
 class HiveServer2Hook(DbApiHook):
     """
-    Wrapper around the pyhive library
+    Wrapper around the pyhive library.
 
     Notes:
     * the default auth_mechanism is PLAIN, to override it you
@@ -844,7 +846,7 @@ class HiveServer2Hook(DbApiHook):
         if "authMechanism" in db.extra_dejson:
             warnings.warn(
                 "The 'authMechanism' option is deprecated. Please use 'auth_mechanism'.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             db.extra_dejson["auth_mechanism"] = db.extra_dejson["authMechanism"]
@@ -987,8 +989,8 @@ class HiveServer2Hook(DbApiHook):
         message = None
 
         i = 0
-        with open(csv_filepath, "wb") as file:
-            writer = csv.writer(file, delimiter=delimiter, lineterminator=lineterminator, encoding="utf-8")
+        with open(csv_filepath, "w", encoding="utf-8") as file:
+            writer = csv.writer(file, delimiter=delimiter, lineterminator=lineterminator)
             try:
                 if output_header:
                     self.log.debug("Cursor description is %s", header)
@@ -1035,7 +1037,7 @@ class HiveServer2Hook(DbApiHook):
         **kwargs,
     ) -> pandas.DataFrame:
         """
-        Get a pandas dataframe from a Hive query
+        Get a pandas dataframe from a Hive query.
 
         :param sql: hql to be executed.
         :param schema: target schema, default to 'default'.

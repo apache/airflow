@@ -71,9 +71,8 @@ class TestMsSqlToHiveTransfer:
         mssql_to_hive_transfer.execute(context={})
 
         mock_mssql_hook_cursor.return_value.execute.assert_called_once_with(mssql_to_hive_transfer.sql)
-        mock_csv.writer.assert_called_once_with(
-            mock_tmp_file, delimiter=mssql_to_hive_transfer.delimiter, encoding="utf-8"
-        )
+        mock_tmp_file.assert_called_with(mode="w", encoding="utf-8")
+        mock_csv.writer.assert_called_once_with(mock_tmp_file, delimiter=mssql_to_hive_transfer.delimiter)
         field_dict = OrderedDict()
         for field in mock_mssql_hook_cursor.return_value.description:
             field_dict[field[0]] = mssql_to_hive_transfer.type_map(field[1])

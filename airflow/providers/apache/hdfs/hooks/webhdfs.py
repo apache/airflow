@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for Web HDFS"""
+"""Hook for Web HDFS."""
 from __future__ import annotations
 
 import logging
@@ -41,7 +41,7 @@ if _kerberos_security_mode:
 
 
 class AirflowWebHDFSHookException(AirflowException):
-    """Exception specific for WebHDFS hook"""
+    """Exception specific for WebHDFS hook."""
 
 
 class WebHDFSHook(BaseHook):
@@ -153,3 +153,15 @@ class WebHDFSHook(BaseHook):
             hdfs_path=destination, local_path=source, overwrite=overwrite, n_threads=parallelism, **kwargs
         )
         self.log.debug("Uploaded file %s to %s", source, destination)
+
+    def read_file(self, filename: str) -> bytes:
+        """Read a file from HDFS.
+
+        :param filename: The path of the file to read.
+        :return: File content as a raw string
+        """
+        conn = self.get_conn()
+
+        with conn.read(filename) as reader:
+            content = reader.read()
+        return content

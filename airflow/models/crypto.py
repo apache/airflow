@@ -27,13 +27,13 @@ log = logging.getLogger(__name__)
 
 
 class FernetProtocol(Protocol):
-    """This class is only used for TypeChecking (for IDEs, mypy, etc)"""
+    """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
 
     def decrypt(self, b):
-        """Decrypt with Fernet"""
+        """Decrypt with Fernet."""
 
     def encrypt(self, b):
-        """Encrypt with Fernet"""
+        """Encrypt with Fernet."""
 
 
 class NullFernet:

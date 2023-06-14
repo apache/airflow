@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from googleapiclient.errors import HttpError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.mlengine import MLEngineHook
 from airflow.providers.google.cloud.links.mlengine import (
     MLEngineJobDetailsLink,
@@ -336,7 +336,7 @@ class MLEngineManageModelOperator(GoogleCloudBaseOperator):
         warnings.warn(
             "This operator is deprecated. Consider using operators for specific operations: "
             "MLEngineCreateModelOperator, MLEngineGetModelOperator.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
 
@@ -426,7 +426,7 @@ class MLEngineCreateModelOperator(GoogleCloudBaseOperator):
 
 class MLEngineGetModelOperator(GoogleCloudBaseOperator):
     """
-    Gets a particular model
+    Gets a particular model.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -644,7 +644,7 @@ class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
         warnings.warn(
             "This operator is deprecated. Consider using operators for specific operations: "
             "MLEngineCreateVersion, MLEngineSetDefaultVersion, MLEngineListVersions, MLEngineDeleteVersion.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=3,
         )
 
@@ -679,7 +679,7 @@ class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
 
 class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
     """
-    Creates a new version in the model
+    Creates a new version in the model.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -843,7 +843,7 @@ class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
 
 class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
     """
-    Lists all available versions of the model
+    Lists all available versions of the model.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

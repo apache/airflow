@@ -19,14 +19,13 @@ from __future__ import annotations
 
 import json
 import warnings
-from functools import wraps
+from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Any, Callable
 from urllib.parse import urlsplit
 
 from slack_sdk import WebhookClient
 
-from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.slack.utils import ConnectionExtraConfig
@@ -151,7 +150,7 @@ class SlackWebhookHook(BaseHook):
         if http_conn_id:
             warnings.warn(
                 "Parameter `http_conn_id` is deprecated. Please use `slack_webhook_conn_id` instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             if slack_webhook_conn_id:
@@ -165,7 +164,7 @@ class SlackWebhookHook(BaseHook):
             warnings.warn(
                 "Provide `webhook_token` as hook argument deprecated by security reason and will be removed "
                 "in a future releases. Please specify it in `Slack Webhook` connection.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         if not slack_webhook_conn_id:
@@ -214,7 +213,7 @@ class SlackWebhookHook(BaseHook):
                 f"Provide {','.join(repr(a) for a in deprecated_class_attrs)} as hook argument(s) "
                 f"is deprecated and will be removed in a future releases. "
                 f"Please specify attributes in `{self.__class__.__name__}.send` method instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
 
@@ -234,7 +233,7 @@ class SlackWebhookHook(BaseHook):
         """Return Slack Webhook Token URL."""
         warnings.warn(
             "`SlackHook.webhook_token` property deprecated and will be removed in a future releases.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         return self._get_conn_params()["url"]
@@ -298,7 +297,7 @@ class SlackWebhookHook(BaseHook):
                     f"Found Slack Webhook Token URL in Connection {conn.conn_id!r} `host` "
                     "and `password` field is empty. This behaviour deprecated "
                     "and could expose you token in the UI and will be removed in a future releases.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
             url = (base_url.rstrip("/") + "/" + webhook_token.lstrip("/")).rstrip("/")
@@ -497,7 +496,7 @@ class SlackWebhookHook(BaseHook):
             "`SlackWebhookHook.execute` method deprecated and will be removed in a future releases. "
             "Please use `SlackWebhookHook.send` or `SlackWebhookHook.send_dict` or "
             "`SlackWebhookHook.send_text` methods instead.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         self.send()

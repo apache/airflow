@@ -44,11 +44,11 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.5.3"
+ARG AIRFLOW_VERSION="2.6.1"
 
-ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
+ARG PYTHON_BASE_IMAGE="python:3.8-slim-bullseye"
 
-ARG AIRFLOW_PIP_VERSION=23.1.1
+ARG AIRFLOW_PIP_VERSION=23.1.2
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -94,7 +94,7 @@ fi
 function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
         DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
-freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev \
+freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
 libssl-dev locales lsb-release openssh-client sasl2-bin \
 software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
@@ -433,7 +433,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="23.1.1"
+            export AIRFLOW_PIP_VERSION="23.1.2"
         fi
     fi
 }

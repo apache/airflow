@@ -22,6 +22,7 @@ import csv
 import json
 from typing import TYPE_CHECKING, Any, Sequence
 
+from databricks.sql.types import Row
 from databricks.sql.utils import ParamEscaper
 
 from airflow.exceptions import AirflowException
@@ -33,9 +34,13 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+def make_serializable(val: Row):
+    return tuple(val)
+
+
 class DatabricksSqlOperator(SQLExecuteQueryOperator):
     """
-    Executes SQL code in a Databricks SQL endpoint or a Databricks cluster
+    Executes SQL code in a Databricks SQL endpoint or a Databricks cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -120,9 +125,12 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
         }
         return DatabricksSqlHook(self.databricks_conn_id, **hook_params)
 
+    def _should_run_output_processing(self) -> bool:
+        return self.do_xcom_push or bool(self._output_path)
+
     def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
         if not self._output_path:
-            return list(zip(descriptions, results))
+            return list(zip(descriptions, [[make_serializable(row) for row in res] for res in results]))
         if not self._output_format:
             raise AirflowException("Output format should be specified!")
         # Output to a file only the result of last query
@@ -155,7 +163,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
                     file.write("\n")
         else:
             raise AirflowException(f"Unsupported output format: '{self._output_format}'")
-        return list(zip(descriptions, results))
+        return list(zip(descriptions, [[make_serializable(row) for row in res] for res in results]))
 
 
 COPY_INTO_APPROVED_FORMATS = ["CSV", "JSON", "AVRO", "ORC", "PARQUET", "TEXT", "BINARYFILE"]

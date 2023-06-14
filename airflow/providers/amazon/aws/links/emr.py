@@ -16,22 +16,51 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
+import boto3
+
+from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.base_aws import BASE_AWS_CONSOLE_LINK, BaseAwsLink
+from airflow.utils.helpers import exactly_one
 
 
 class EmrClusterLink(BaseAwsLink):
-    """Helper class for constructing AWS EMR Cluster Link"""
+    """Helper class for constructing AWS EMR Cluster Link."""
 
     name = "EMR Cluster"
     key = "emr_cluster"
-    format_str = (
-        BASE_AWS_CONSOLE_LINK + "/elasticmapreduce/home?region={region_name}#cluster-details:{job_flow_id}"
-    )
+    format_str = BASE_AWS_CONSOLE_LINK + "/emr/home?region={region_name}#/clusterDetails/{job_flow_id}"
 
 
 class EmrLogsLink(BaseAwsLink):
-    """Helper class for constructing AWS EMR Logs Link"""
+    """Helper class for constructing AWS EMR Logs Link."""
 
     name = "EMR Cluster Logs"
     key = "emr_logs"
     format_str = BASE_AWS_CONSOLE_LINK + "/s3/buckets/{log_uri}?region={region_name}&prefix={job_flow_id}/"
+
+    def format_link(self, **kwargs) -> str:
+        if not kwargs["log_uri"]:
+            return ""
+        return super().format_link(**kwargs)
+
+
+def get_log_uri(
+    *, cluster: dict[str, Any] | None = None, emr_client: boto3.client = None, job_flow_id: str | None = None
+) -> str | None:
+    """
+    Retrieves the S3 URI to the EMR Job logs.  Requires either the output of a
+    describe_cluster call or both an EMR Client and a job_flow_id to look it up.
+    """
+    if not exactly_one(bool(cluster), emr_client and job_flow_id):
+        raise AirflowException(
+            "Requires either the output of a describe_cluster call or both an EMR Client and a job_flow_id."
+        )
+
+    cluster_info = (cluster or emr_client.describe_cluster(ClusterId=job_flow_id))["Cluster"]
+    if "LogUri" not in cluster_info:
+        return None
+    log_uri = S3Hook.parse_s3_url(cluster_info["LogUri"])
+    return "/".join(log_uri)

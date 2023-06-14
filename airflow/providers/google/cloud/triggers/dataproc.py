@@ -31,7 +31,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class DataprocBaseTrigger(BaseTrigger):
-    """Base class for Dataproc triggers"""
+    """Base class for Dataproc triggers."""
 
     def __init__(
         self,
@@ -57,7 +57,7 @@ class DataprocBaseTrigger(BaseTrigger):
 
 class DataprocSubmitTrigger(DataprocBaseTrigger):
     """
-    DataprocSubmitTrigger run on the trigger worker to perform create Build operation
+    DataprocSubmitTrigger run on the trigger worker to perform create Build operation.
 
     :param job_id: The ID of a Dataproc job.
     :param project_id: Google Cloud Project where the job is running
@@ -109,7 +109,7 @@ class DataprocSubmitTrigger(DataprocBaseTrigger):
 
 class DataprocClusterTrigger(DataprocBaseTrigger):
     """
-    DataprocClusterTrigger run on the trigger worker to perform create Build operation
+    DataprocClusterTrigger run on the trigger worker to perform create Build operation.
 
     :param cluster_name: The name of the cluster.
     :param project_id: Google Cloud Project where the job is running
@@ -162,7 +162,7 @@ class DataprocClusterTrigger(DataprocBaseTrigger):
 
 class DataprocBatchTrigger(DataprocBaseTrigger):
     """
-    DataprocCreateBatchTrigger run on the trigger worker to perform create Build operation
+    DataprocCreateBatchTrigger run on the trigger worker to perform create Build operation.
 
     :param batch_id: The ID of the build.
     :param project_id: Google Cloud Project where the job is running
@@ -262,7 +262,7 @@ class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Wait until cluster is deleted completely"""
+        """Wait until cluster is deleted completely."""
         while self.end_time > time.time():
             try:
                 cluster = await self.get_async_hook().get_cluster(
@@ -290,16 +290,14 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
     Implementation leverages asynchronous transport.
     """
 
-    def __init__(self, template_name: str, name: str, **kwargs: Any):
+    def __init__(self, name: str, **kwargs: Any):
         super().__init__(**kwargs)
-        self.template_name = template_name
         self.name = name
 
     def serialize(self):
         return (
             "airflow.providers.google.cloud.triggers.dataproc.DataprocWorkflowTrigger",
             {
-                "template_name": self.template_name,
                 "name": self.name,
                 "project_id": self.project_id,
                 "region": self.region,
@@ -324,7 +322,6 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
                                 "message": operation.error.message,
                             }
                         )
-                        return
                     yield TriggerEvent(
                         {
                             "operation_name": operation.name,
@@ -333,7 +330,6 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
                             "message": "Operation is successfully ended.",
                         }
                     )
-                    return
                 else:
                     self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
                     await asyncio.sleep(self.polling_interval_seconds)
