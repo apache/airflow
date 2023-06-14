@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-from functools import cached_property
 from typing import Any
 from airflow.utils.helpers import prune_dict
 
@@ -180,6 +179,9 @@ class EmrCreateJobFlowTrigger(BaseTrigger):
 class EmrTerminateJobFlowTrigger(BaseTrigger):
     """
     Trigger that terminates a running EMR Job Flow.
+    The trigger will asynchronously poll the boto3 API and wait for the
+    JobFlow to finish terminating.
+
     :param job_flow_id: ID of the EMR Job Flow to terminate
     :param poll_interval: The amount of time in seconds to wait between attempts.
     :param max_attempts: The maximum number of attempts to be made.
