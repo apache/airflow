@@ -55,7 +55,7 @@ upgraded or downgraded by ``pip``.
 
 .. code-block:: bash
 
-    pip install "apache-airflow==|version|" apache-airflow-providers-google=10.1.0
+    pip install "apache-airflow==|version|" apache-airflow-providers-google==10.1.0
 
 
 Those are just examples, see further for more explanation why those are the best practices.
