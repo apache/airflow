@@ -536,6 +536,48 @@ class TestBaseOperator:
         teardown1 >> setup2
         assert work1.get_flat_relative_ids(upstream=False) == {"teardown1", "work2", "setup2"}
 
+    def test_get_flat_relative_ids_two_tasks_diff_setup_teardowns(self):
+        with DAG(dag_id="test_dag", start_date=datetime.now()):
+            s1 = BaseOperator.as_setup(task_id="s1")
+            t1 = BaseOperator.as_teardown(task_id="t1")
+            s2 = BaseOperator.as_setup(task_id="s2")
+            t2 = BaseOperator.as_teardown(task_id="t2")
+            w1 = BaseOperator(task_id="w1")
+            w2 = BaseOperator(task_id="w2")
+        s1 >> w1 >> [w2, t1]
+        s1 >> t1
+        s2 >> t2
+        s2 >> w2 >> t2
+
+        assert w1.get_flat_relative_ids(upstream=True, setup_only=True) == {"s1", "t1"}
+        assert w2.get_flat_relative_ids(upstream=True, setup_only=True) == {"s2", "t2"}
+
+    def test_get_flat_relative_ids_one_task_multiple_setup_teardowns(self):
+        with DAG(dag_id="test_dag", start_date=datetime.now()):
+            s1a = BaseOperator.as_setup(task_id="s1a")
+            s1b = BaseOperator.as_setup(task_id="s1b")
+            t1 = BaseOperator.as_teardown(task_id="t1")
+            s2 = BaseOperator.as_setup(task_id="s2")
+            t2 = BaseOperator.as_teardown(task_id="t2")
+            s3 = BaseOperator.as_setup(task_id="s3")
+            t3a = BaseOperator.as_teardown(task_id="t3a")
+            t3b = BaseOperator.as_teardown(task_id="t3b")
+            w1 = BaseOperator(task_id="w1")
+            w2 = BaseOperator(task_id="w2")
+        # teardown t1 has two setups, s1a and s1b
+        [s1a, s1b] >> t1
+        # work 1 requires s1a and s1b, both of which are torn down by t1
+        [s1a, s1b] >> w1 >> [w2, t1]
+
+        # work 2 requires s2, and s3. s2 is torn down by t2. s3 is torn down by two teardowns, t3a and t3b.
+        s2 >> t2
+        s2 >> w2 >> t2
+        s3 >> w2 >> [t3a, t3b]
+        s3 >> [t3a, t3b]
+
+        assert w1.get_flat_relative_ids(upstream=True, setup_only=True) == {"s1a", "s1b", "t1"}
+        assert w2.get_flat_relative_ids(upstream=True, setup_only=True) == {"s2", "t2", "s3", "t3a", "t3b"}
+
     def test_get_flat_relative_ids_with_setup_and_groups(self):
         """This is a dag with a setup / teardown at dag level and two task groups that have
         their own setups / teardowns.
