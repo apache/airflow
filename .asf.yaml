@@ -81,6 +81,9 @@ github:
     - pankajkoti
     - phanikumv
     - pankajastro
+    - utkarsharma2
+    - Lee-W
+    - sunank200
 
 notifications:
   jobs: jobs@airflow.apache.org
