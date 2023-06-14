@@ -2479,3 +2479,18 @@ def test_mapped_task_group_serde():
     serde_tg = serde_dag.task_group.children["tg"]
     assert isinstance(serde_tg, MappedTaskGroup)
     assert serde_tg._expand_input == DictOfListsExpandInput({"a": [".", ".."]})
+
+
+def test_mapped_task_with_operator_extra_links_property():
+    class _DummyOperator(BaseOperator):
+        def __init__(self, inputs, **kwargs):
+            super().__init__(**kwargs)
+            self.inputs = inputs
+
+        @property
+        def operator_extra_links(self):
+            return ()
+
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+        _DummyOperator.partial(task_id="task").expand(inputs=[1, 2, 3])
+    SerializedBaseOperator.serialize(dag)
