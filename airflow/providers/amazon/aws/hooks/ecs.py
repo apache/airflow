@@ -226,25 +226,43 @@ class EcsProtocol(Protocol):
     """
 
     def run_task(self, **kwargs) -> dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501
+        """Run a task.
+
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
+        """
         ...
 
     def get_waiter(self, x: str) -> Waiter:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter"""  # noqa: E501
+        """Get a waiter.
+
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter
+        """
         ...
 
     def describe_tasks(self, cluster: str, tasks) -> dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_tasks"""  # noqa: E501
+        """Describe tasks.
+
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_tasks
+        """
         ...
 
     def stop_task(self, cluster, task, reason: str) -> dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task"""  # noqa: E501
+        """Stop a task.
+
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task
+        """
         ...
 
     def describe_task_definition(self, taskDefinition: str) -> dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_task_definition"""  # noqa: E501
+        """Describe a task definition.
+
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_task_definition
+        """
         ...
 
     def list_tasks(self, cluster: str, launchType: str, desiredStatus: str, family: str) -> dict:
-        """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks"""  # noqa: E501
+        """List tasks.
+
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks
+        """
         ...

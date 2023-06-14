@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.sensors.base import BaseSensorOperator
@@ -87,5 +87,5 @@ class AthenaSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> AthenaHook:
-        """Create and return an AthenaHook"""
+        """Create and return an AthenaHook."""
         return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)

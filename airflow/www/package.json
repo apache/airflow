@@ -66,6 +66,7 @@
     "file-loader": "^6.0.0",
     "imports-loader": "^1.1.0",
     "jest": "^27.3.1",
+    "jest-canvas-mock": "^2.5.1",
     "mini-css-extract-plugin": "^1.6.2",
     "moment": "^2.29.4",
     "moment-locales-webpack-plugin": "^1.2.0",
@@ -86,7 +87,7 @@
     "webpack-manifest-plugin": "^4.0.0"
   },
   "dependencies": {
-    "@chakra-ui/react": "^2.2.0",
+    "@chakra-ui/react": "2.4.2",
     "@emotion/cache": "^11.9.3",
     "@emotion/react": "^11.9.3",
     "@emotion/styled": "^11",
@@ -107,6 +108,7 @@
     "dagre-d3": "^0.6.4",
     "datatables.net": "^1.11.4",
     "datatables.net-bs": "^1.11.4",
+    "echarts": "^5.4.2",
     "elkjs": "^0.7.1",
     "eonasdan-bootstrap-datetimepicker": "^4.17.47",
     "framer-motion": "^6.0.0",

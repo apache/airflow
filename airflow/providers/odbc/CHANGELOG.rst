@@ -24,6 +24,17 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The driver parameter has to be passed via keyword ``driver`` argument when initializing the Hook or via
+``hook_params`` dictionary (with ``driver`` key) when instantiating Hook from SQL Operators. It was possible
+to instantiate it via extras before, but in this version, only setting it via constructor is supported.
+
+
 3.3.0
 .....
 

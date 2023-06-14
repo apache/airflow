@@ -82,6 +82,20 @@ class TestWorker:
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    def test_disable_wait_for_migration(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "waitForMigrations": {"enabled": False},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        actual = jmespath.search(
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
+        )
+        assert actual is None
+
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
             values={

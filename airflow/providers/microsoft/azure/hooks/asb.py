@@ -26,7 +26,7 @@ from airflow.hooks.base import BaseHook
 
 class BaseAzureServiceBusHook(BaseHook):
     """
-    BaseAzureServiceBusHook class to create session and create connection using connection string
+    BaseAzureServiceBusHook class to create session and create connection using connection string.
 
     :param azure_service_bus_conn_id: Reference to the
         :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
@@ -39,7 +39,7 @@ class BaseAzureServiceBusHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["port", "host", "extra", "login", "password"],
             "relabeling": {"schema": "Connection String"},
@@ -61,13 +61,13 @@ class AdminClientHook(BaseAzureServiceBusHook):
     Interacts with ServiceBusAdministrationClient client
     to create, update, list, and delete resources of a
     Service Bus namespace.  This hook uses the same Azure Service Bus client connection inherited
-    from the base class
+    from the base class.
     """
 
     def get_conn(self) -> ServiceBusAdministrationClient:
         """
         Create and returns ServiceBusAdministrationClient by using the connection
-        string in connection details
+        string in connection details.
         """
         conn = self.get_connection(self.conn_id)
 
@@ -82,7 +82,7 @@ class AdminClientHook(BaseAzureServiceBusHook):
         enable_batched_operations: bool = True,
     ) -> QueueProperties:
         """
-        Create Queue by connecting to service Bus Admin client return the QueueProperties
+        Create Queue by connecting to service Bus Admin client return the QueueProperties.
 
         :param queue_name: The name of the queue or a QueueProperties with name.
         :param max_delivery_count: The maximum delivery count. A message is automatically
@@ -106,7 +106,7 @@ class AdminClientHook(BaseAzureServiceBusHook):
 
     def delete_queue(self, queue_name: str) -> None:
         """
-        Delete the queue by queue_name in service bus namespace
+        Delete the queue by queue_name in service bus namespace.
 
         :param queue_name: The name of the queue or a QueueProperties with name.
         """
@@ -118,7 +118,7 @@ class AdminClientHook(BaseAzureServiceBusHook):
 
     def delete_subscription(self, subscription_name: str, topic_name: str) -> None:
         """
-        Delete a topic subscription entities under a ServiceBus Namespace
+        Delete a topic subscription entities under a ServiceBus Namespace.
 
         :param subscription_name: The subscription name that will own the rule in topic
         :param topic_name: The topic that will own the subscription rule.
@@ -140,7 +140,7 @@ class MessageHook(BaseAzureServiceBusHook):
     """
 
     def get_conn(self) -> ServiceBusClient:
-        """Create and returns ServiceBusClient by using the connection string in connection details"""
+        """Create and returns ServiceBusClient by using the connection string in connection details."""
         conn = self.get_connection(self.conn_id)
         connection_string: str = str(conn.schema)
 
@@ -150,7 +150,7 @@ class MessageHook(BaseAzureServiceBusHook):
     def send_message(self, queue_name: str, messages: str | list[str], batch_message_flag: bool = False):
         """
         By using ServiceBusClient Send message(s) to a Service Bus Queue. By using
-        batch_message_flag it enables and send message as batch message
+        batch_message_flag it enables and send message as batch message.
 
         :param queue_name: The name of the queue or a QueueProperties with name.
         :param messages: Message which needs to be sent to the queue. It can be string or list of string.
@@ -193,7 +193,7 @@ class MessageHook(BaseAzureServiceBusHook):
         self, queue_name, max_message_count: int | None = 1, max_wait_time: float | None = None
     ):
         """
-        Receive a batch of messages at once in a specified Queue name
+        Receive a batch of messages at once in a specified Queue name.
 
         :param queue_name: The name of the queue name or a QueueProperties with name.
         :param max_message_count: Maximum number of messages in the batch.

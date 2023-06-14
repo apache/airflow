@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-An Airflow operator for AWS Batch services
+"""AWS Batch services.
 
 .. seealso::
 
@@ -26,9 +25,9 @@ An Airflow operator for AWS Batch services
 from __future__ import annotations
 
 import warnings
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
@@ -38,6 +37,7 @@ from airflow.providers.amazon.aws.links.batch import (
     BatchJobQueueLink,
 )
 from airflow.providers.amazon.aws.links.logs import CloudWatchEventsLink
+from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger
 from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
@@ -45,8 +45,7 @@ if TYPE_CHECKING:
 
 
 class BatchOperator(BaseOperator):
-    """
-    Execute a job on AWS Batch
+    """Execute a job on AWS Batch.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -79,6 +78,8 @@ class BatchOperator(BaseOperator):
         Override the region_name in connection (if provided)
     :param tags: collection of tags to apply to the AWS Batch job submission
         if None, no tags are submitted
+    :param deferrable: Run operator in the deferrable mode.
+    :param poll_interval: (Deferrable mode only) Time in seconds to wait between polling.
 
     .. note::
         Any custom waiters must return a waiter for these calls:
@@ -142,9 +143,10 @@ class BatchOperator(BaseOperator):
         region_name: str | None = None,
         tags: dict | None = None,
         wait_for_completion: bool = True,
+        deferrable: bool = False,
+        poll_interval: int = 30,
         **kwargs,
-    ):
-
+    ) -> None:
         BaseOperator.__init__(self, **kwargs)
         self.job_id = job_id
         self.job_name = job_name
@@ -175,6 +177,8 @@ class BatchOperator(BaseOperator):
         self.waiters = waiters
         self.tags = tags or {}
         self.wait_for_completion = wait_for_completion
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
         # params for hook
         self.max_retries = max_retries
@@ -192,25 +196,43 @@ class BatchOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        """
-        Submit and monitor an AWS Batch job
+        """Submit and monitor an AWS Batch job.
 
         :raises: AirflowException
         """
         self.submit_job(context)
+
+        if self.deferrable:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=BatchOperatorTrigger(
+                    job_id=self.job_id,
+                    max_retries=self.max_retries or 10,
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    poll_interval=self.poll_interval,
+                ),
+                method_name="execute_complete",
+            )
 
         if self.wait_for_completion:
             self.monitor_job(context)
 
         return self.job_id
 
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+        else:
+            self.log.info("Job completed.")
+        return event["job_id"]
+
     def on_kill(self):
         response = self.hook.client.terminate_job(jobId=self.job_id, reason="Task killed by the user")
         self.log.info("AWS Batch job (%s) terminated: %s", self.job_id, response)
 
     def submit_job(self, context: Context):
-        """
-        Submit an AWS Batch job
+        """Submit an AWS Batch job.
 
         :raises: AirflowException
         """
@@ -261,13 +283,10 @@ class BatchOperator(BaseOperator):
         )
 
     def monitor_job(self, context: Context):
-        """
-        Monitor an AWS Batch job
-        monitor_job can raise an exception or an AirflowTaskTimeout can be raised if execution_timeout
-        is given while creating the task. These exceptions should be handled in taskinstance.py
-        instead of here like it was previously done
+        """Monitor an AWS Batch job.
 
-        :raises: AirflowException
+        This can raise an exception or an AirflowTaskTimeout if the task was
+        created with ``execution_timeout``.
         """
         if not self.job_id:
             raise AirflowException("AWS Batch job - job_id was not found")
@@ -330,43 +349,34 @@ class BatchOperator(BaseOperator):
 
 
 class BatchCreateComputeEnvironmentOperator(BaseOperator):
-    """
-    Create an AWS Batch compute environment
+    """Create an AWS Batch compute environment.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:BatchCreateComputeEnvironmentOperator`
 
-    :param compute_environment_name: the name of the AWS batch compute environment (templated)
-
-    :param environment_type: the type of the compute-environment
-
-    :param state: the state of the compute-environment
-
-    :param compute_resources: details about the resources managed by the compute-environment (templated).
-        See more details here
+    :param compute_environment_name: Name of the AWS batch compute
+        environment (templated).
+    :param environment_type: Type of the compute-environment.
+    :param state: State of the compute-environment.
+    :param compute_resources: Details about the resources managed by the
+        compute-environment (templated). More details:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html#Batch.Client.create_compute_environment
-
-    :param unmanaged_v_cpus: the maximum number of vCPU for an unmanaged compute environment.
-        This parameter is only supported when the ``type`` parameter is set to ``UNMANAGED``.
-
-    :param service_role: the IAM role that allows Batch to make calls to other AWS services on your behalf
-        (templated)
-
-    :param tags: the tags that you apply to the compute-environment to help you categorize and organize your
-        resources
-
-    :param max_retries: exponential back-off retries, 4200 = 48 hours;
-        polling is only used when waiters is None
-
-    :param status_retries: number of HTTP retries to get job status, 10;
-        polling is only used when waiters is None
-
-    :param aws_conn_id: connection id of AWS credentials / region name. If None,
+    :param unmanaged_v_cpus: Maximum number of vCPU for an unmanaged compute
+        environment. This parameter is only supported when the ``type``
+        parameter is set to ``UNMANAGED``.
+    :param service_role: IAM role that allows Batch to make calls to other AWS
+        services on your behalf (templated).
+    :param tags: Tags that you apply to the compute-environment to help you
+        categorize and organize your resources.
+    :param max_retries: Exponential back-off retries, 4200 = 48 hours; polling
+        is only used when waiters is None.
+    :param status_retries: Number of HTTP retries to get job status, 10; polling
+        is only used when waiters is None.
+    :param aws_conn_id: Connection ID of AWS credentials / region name. If None,
         credential boto3 strategy will be used.
-
-    :param region_name: region name to use in AWS Hook.
-        Override the region_name in connection (if provided)
+    :param region_name: Region name to use in AWS Hook. Overrides the
+        ``region_name`` in connection if provided.
     """
 
     template_fields: Sequence[str] = (
@@ -406,7 +416,7 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
 
     @cached_property
     def hook(self):
-        """Create and return a BatchClientHook"""
+        """Create and return a BatchClientHook."""
         return BatchClientHook(
             max_retries=self.max_retries,
             status_retries=self.status_retries,
@@ -415,7 +425,7 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         )
 
     def execute(self, context: Context):
-        """Create an AWS batch compute environment"""
+        """Create an AWS batch compute environment."""
         kwargs: dict[str, Any] = {
             "computeEnvironmentName": self.compute_environment_name,
             "type": self.environment_type,

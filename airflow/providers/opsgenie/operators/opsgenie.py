@@ -129,7 +129,7 @@ class OpsgenieCreateAlertOperator(BaseOperator):
         return payload
 
     def execute(self, context: Context) -> None:
-        """Call the OpsgenieAlertHook to post message"""
+        """Call the OpsgenieAlertHook to post message."""
         self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
         self.hook.create_alert(self._build_opsgenie_payload())
 
@@ -201,7 +201,7 @@ class OpsgenieCloseAlertOperator(BaseOperator):
         return payload
 
     def execute(self, context: Context) -> None:
-        """Call the OpsgenieAlertHook to close alert"""
+        """Call the OpsgenieAlertHook to close alert."""
         self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
         self.hook.close_alert(
             identifier=self.identifier,
@@ -254,7 +254,7 @@ class OpsgenieDeleteAlertOperator(BaseOperator):
         self.source = source
 
     def execute(self, context: Context) -> None:
-        """Call the OpsgenieAlertHook to delete alert"""
+        """Call the OpsgenieAlertHook to delete alert."""
         hook = OpsgenieAlertHook(self.opsgenie_conn_id)
         hook.delete_alert(
             identifier=self.identifier,

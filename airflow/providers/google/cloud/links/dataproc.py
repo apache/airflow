@@ -42,7 +42,7 @@ DATAPROC_BATCHES_LINK = DATAPROC_BASE_LINK + "/batches?project={project_id}"
 
 
 class DataprocLink(BaseOperatorLink):
-    """Helper class for constructing Dataproc resource link"""
+    """Helper class for constructing Dataproc resource link."""
 
     name = "Dataproc resource"
     key = "conf"
@@ -82,7 +82,7 @@ class DataprocLink(BaseOperatorLink):
 
 
 class DataprocListLink(BaseOperatorLink):
-    """Helper class for constructing list of Dataproc resources link"""
+    """Helper class for constructing list of Dataproc resources link."""
 
     name = "Dataproc resources"
     key = "list_conf"

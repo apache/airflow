@@ -30,7 +30,22 @@ class OdbcHook(DbApiHook):
     """
     Interact with odbc data sources using pyodbc.
 
+    To configure driver, in addition to supplying as constructor arg, the following are also supported:
+        * set ``driver`` parameter in ``hook_params`` dictionary when instantiating hook by SQL operators.
+        * set ``driver`` extra in the connection and set ``allow_driver_in_extra`` to True in
+          section ``providers.odbc`` section of airflow config.
+        * patch ``OdbcHook.default_driver`` in ``local_settings.py`` file.
+
     See :doc:`/connections/odbc` for full documentation.
+
+    :param args: passed to DbApiHook
+    :param database: database to use -- overrides connection ``schema``
+    :param driver: name of driver or path to driver. see above for more info
+    :param dsn: name of DSN to use.  overrides DSN supplied in connection ``extra``
+    :param connect_kwargs: keyword arguments passed to ``pyodbc.connect``
+    :param sqlalchemy_scheme: Scheme sqlalchemy connection.  Default is ``mssql+pyodbc`` Only used for
+        ``get_sqlalchemy_engine`` and ``get_sqlalchemy_connection`` methods.
+    :param kwargs: passed to DbApiHook
     """
 
     DEFAULT_SQLALCHEMY_SCHEME = "mssql+pyodbc"
@@ -39,6 +54,8 @@ class OdbcHook(DbApiHook):
     conn_type = "odbc"
     hook_name = "ODBC"
     supports_autocommit = True
+
+    default_driver: str | None = None
 
     def __init__(
         self,
@@ -50,16 +67,6 @@ class OdbcHook(DbApiHook):
         sqlalchemy_scheme: str | None = None,
         **kwargs,
     ) -> None:
-        """
-        :param args: passed to DbApiHook
-        :param database: database to use -- overrides connection ``schema``
-        :param driver: name of driver or path to driver. overrides driver supplied in connection ``extra``
-        :param dsn: name of DSN to use.  overrides DSN supplied in connection ``extra``
-        :param connect_kwargs: keyword arguments passed to ``pyodbc.connect``
-        :param sqlalchemy_scheme: Scheme sqlalchemy connection.  Default is ``mssql+pyodbc`` Only used for
-          ``get_sqlalchemy_engine`` and ``get_sqlalchemy_connection`` methods.
-        :param kwargs: passed to DbApiHook
-        """
         super().__init__(*args, **kwargs)
         self._database = database
         self._driver = driver
@@ -71,7 +78,7 @@ class OdbcHook(DbApiHook):
 
     @property
     def connection(self):
-        """``airflow.Connection`` object with connection id ``odbc_conn_id``"""
+        """The Connection object with ID ``odbc_conn_id``."""
         if not self._connection:
             self._connection = self.get_connection(getattr(self, self.conn_name_attr))
         return self._connection
@@ -83,7 +90,7 @@ class OdbcHook(DbApiHook):
 
     @property
     def sqlalchemy_scheme(self) -> str:
-        """Sqlalchemy scheme either from constructor, connection extras or default."""
+        """SQLAlchemy scheme either from constructor, connection extras or default."""
         return (
             self._sqlalchemy_scheme
             or self.connection_extra_lower.get("sqlalchemy_scheme")
@@ -102,11 +109,22 @@ class OdbcHook(DbApiHook):
     @property
     def driver(self) -> str | None:
         """Driver from init param if given; else try to find one in connection extra."""
+        extra_driver = self.connection_extra_lower.get("driver")
+        from airflow.configuration import conf
+
+        if extra_driver and conf.getboolean("providers.odbc", "allow_driver_in_extra", fallback=False):
+            self._driver = extra_driver
+        else:
+            self.log.warning(
+                "You have supplied 'driver' via connection extra but it will not be used. In order to "
+                "use 'driver' from extra you must set airflow config setting `allow_driver_in_extra = True` "
+                "in section `providers.odbc`. Alternatively you may specify driver via 'driver' parameter of "
+                "the hook constructor or via 'hook_params' dictionary with key 'driver' if using SQL "
+                "operators."
+            )
         if not self._driver:
-            driver = self.connection_extra_lower.get("driver")
-            if driver:
-                self._driver = driver
-        return self._driver and self._driver.strip().lstrip("{").rstrip("}").strip()
+            self._driver = self.default_driver
+        return self._driver.strip().lstrip("{").rstrip("}").strip() if self._driver else None
 
     @property
     def dsn(self) -> str | None:
@@ -119,10 +137,11 @@ class OdbcHook(DbApiHook):
 
     @property
     def odbc_connection_string(self):
-        """
-        ODBC connection string
-        We build connection string instead of using ``pyodbc.connect`` params because, for example, there is
-        no param representing ``ApplicationIntent=ReadOnly``.  Any key-value pairs provided in
+        """ODBC connection string.
+
+        We build connection string instead of using ``pyodbc.connect`` params
+        because, for example, there is no param representing
+        ``ApplicationIntent=ReadOnly``.  Any key-value pairs provided in
         ``Connection.extra`` will be added to the connection string.
         """
         if not self._conn_str:
@@ -155,13 +174,14 @@ class OdbcHook(DbApiHook):
 
     @property
     def connect_kwargs(self) -> dict:
-        """
-        Returns effective kwargs to be passed to ``pyodbc.connect`` after merging between conn extra,
-        ``connect_kwargs`` and hook init.
+        """Effective kwargs to be passed to ``pyodbc.connect``.
 
-        Hook ``connect_kwargs`` precedes ``connect_kwargs`` from conn extra.
+        The kwargs are merged from connection extra, ``connect_kwargs``, and
+        the hook's init arguments. Values received to the hook precede those
+        from the connection.
 
-        If ``attrs_before`` provided, keys and values are converted to int, as required by pyodbc.
+        If ``attrs_before`` is provided, keys and values are converted to int,
+        as required by pyodbc.
         """
         conn_connect_kwargs = self.connection_extra_lower.get("connect_kwargs", {})
         hook_connect_kwargs = self._connect_kwargs or {}
@@ -180,10 +200,7 @@ class OdbcHook(DbApiHook):
         return conn
 
     def get_uri(self) -> str:
-        """
-        URI invoked in :py:meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.get_sqlalchemy_engine`
-        method.
-        """
+        """URI invoked in :meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.get_sqlalchemy_engine`."""
         quoted_conn_str = quote_plus(self.odbc_connection_string)
         uri = f"{self.sqlalchemy_scheme}:///?odbc_connect={quoted_conn_str}"
         return uri
@@ -191,7 +208,7 @@ class OdbcHook(DbApiHook):
     def get_sqlalchemy_connection(
         self, connect_kwargs: dict | None = None, engine_kwargs: dict | None = None
     ) -> Any:
-        """Sqlalchemy connection object"""
+        """SQLAlchemy connection object."""
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         cnx = engine.connect(**(connect_kwargs or {}))
         return cnx

@@ -70,8 +70,8 @@ hooks:
 
 triggers:
   - integration-name: Apache Livy
-    class-names:
-      - airflow.providers.apache.livy.triggers.livy.LivyTrigger
+    python-modules:
+      - airflow.providers.apache.livy.triggers.livy
 
 
 connection-types:

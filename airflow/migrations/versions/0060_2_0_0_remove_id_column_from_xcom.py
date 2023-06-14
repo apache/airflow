@@ -27,7 +27,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from alembic import op
-from sqlalchemy import Column, Integer, inspect
+from sqlalchemy import Column, Integer, inspect, text
 
 # revision identifiers, used by Alembic.
 revision = "bbf4a7ad0465"
@@ -49,12 +49,14 @@ def get_table_constraints(conn, table_name) -> dict[tuple[str, str], list[str]]:
     :param table_name: table name
     :return: a dictionary of ((constraint name, constraint type), column name) of table
     """
-    query = f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
+    query = text(
+        f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
      JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS ccu ON ccu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
      WHERE tc.TABLE_NAME = '{table_name}' AND
      (tc.CONSTRAINT_TYPE = 'PRIMARY KEY' or UPPER(tc.CONSTRAINT_TYPE) = 'UNIQUE')
     """
+    )
     result = conn.execute(query).fetchall()
     constraint_dict = defaultdict(list)
     for constraint, constraint_type, column in result:

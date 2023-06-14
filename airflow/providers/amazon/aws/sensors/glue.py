@@ -17,9 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.sensors.base import BaseSensorOperator
@@ -30,7 +30,8 @@ if TYPE_CHECKING:
 
 class GlueJobSensor(BaseSensorOperator):
     """
-    Waits for an AWS Glue Job to reach any of the status below
+    Waits for an AWS Glue Job to reach any of the status below.
+
     'FAILED', 'STOPPED', 'SUCCEEDED'
 
     .. seealso::

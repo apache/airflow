@@ -69,6 +69,7 @@ class Neo4jHook(BaseHook):
     def get_client(self, conn: Connection, encrypted: bool, uri: str) -> Driver:
         """
         Function to determine that relevant driver based on extras.
+
         :param conn: Connection object.
         :param encrypted: boolean if encrypted connection or not.
         :param uri: uri string for connection.
@@ -82,7 +83,8 @@ class Neo4jHook(BaseHook):
 
     def get_uri(self, conn: Connection) -> str:
         """
-        Build the uri based on extras
+        Build the uri based on extras.
+
         - Default - uses bolt scheme(bolt://)
         - neo4j_scheme - neo4j://
         - certs_self_signed - neo4j+ssc://

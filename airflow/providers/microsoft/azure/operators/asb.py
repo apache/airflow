@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 class AzureServiceBusCreateQueueOperator(BaseOperator):
     """
-    Creates a Azure Service Bus queue under a Service Bus Namespace by using ServiceBusAdministrationClient
+    Creates a Azure Service Bus queue under a Service Bus Namespace by using ServiceBusAdministrationClient.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -68,7 +68,7 @@ class AzureServiceBusCreateQueueOperator(BaseOperator):
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
     def execute(self, context: Context) -> None:
-        """Creates Queue in Azure Service Bus namespace, by connecting to Service Bus Admin client in hook"""
+        """Creates Queue in Azure Service Bus namespace, by connecting to Service Bus Admin client in hook."""
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
         # create queue with name
@@ -83,7 +83,7 @@ class AzureServiceBusCreateQueueOperator(BaseOperator):
 
 class AzureServiceBusSendMessageOperator(BaseOperator):
     """
-    Send Message or batch message to the Service Bus queue
+    Send Message or batch message to the Service Bus queue.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -118,7 +118,7 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         """
         Sends Message to the specific queue in Service Bus namespace, by
-        connecting to Service Bus  client
+        connecting to Service Bus  client.
         """
         # Create the hook
         hook = MessageHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
@@ -129,7 +129,7 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
 
 class AzureServiceBusReceiveMessageOperator(BaseOperator):
     """
-    Receive a batch of messages at once in a specified Queue name
+    Receive a batch of messages at once in a specified Queue name.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -163,7 +163,7 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         """
         Receive Message in specific queue in Service Bus namespace,
-        by connecting to Service Bus client
+        by connecting to Service Bus client.
         """
         # Create the hook
         hook = MessageHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
@@ -176,7 +176,7 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
 
 class AzureServiceBusDeleteQueueOperator(BaseOperator):
     """
-    Deletes the Queue in the Azure Service Bus namespace
+    Deletes the Queue in the Azure Service Bus namespace.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -202,7 +202,7 @@ class AzureServiceBusDeleteQueueOperator(BaseOperator):
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
     def execute(self, context: Context) -> None:
-        """Delete Queue in Service Bus namespace, by connecting to Service Bus Admin client"""
+        """Delete Queue in Service Bus namespace, by connecting to Service Bus Admin client."""
         # Create the hook
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
@@ -212,7 +212,7 @@ class AzureServiceBusDeleteQueueOperator(BaseOperator):
 
 class AzureServiceBusTopicCreateOperator(BaseOperator):
     """
-    Create an Azure Service Bus Topic under a Service Bus Namespace by using ServiceBusAdministrationClient
+    Create an Azure Service Bus Topic under a Service Bus Namespace by using ServiceBusAdministrationClient.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -296,7 +296,7 @@ class AzureServiceBusTopicCreateOperator(BaseOperator):
         self.max_message_size_in_kilobytes = max_message_size_in_kilobytes
 
     def execute(self, context: Context) -> str:
-        """Creates Topic in Service Bus namespace, by connecting to Service Bus Admin client"""
+        """Creates Topic in Service Bus namespace, by connecting to Service Bus Admin client."""
         if self.topic_name is None:
             raise TypeError("Topic name cannot be None.")
 
@@ -332,7 +332,7 @@ class AzureServiceBusTopicCreateOperator(BaseOperator):
 class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
     """
     Create an Azure Service Bus Topic Subscription under a Service Bus Namespace
-    by using ServiceBusAdministrationClient
+    by using ServiceBusAdministrationClient.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -409,7 +409,7 @@ class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
     def execute(self, context: Context) -> None:
-        """Creates Subscription in Service Bus namespace, by connecting to Service Bus Admin client"""
+        """Creates Subscription in Service Bus namespace, by connecting to Service Bus Admin client."""
         if self.subscription_name is None:
             raise TypeError("Subscription name cannot be None.")
         if self.topic_name is None:
@@ -440,7 +440,7 @@ class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
 class AzureServiceBusUpdateSubscriptionOperator(BaseOperator):
     """
     Update an Azure ServiceBus Topic Subscription under a ServiceBus Namespace
-    by using ServiceBusAdministrationClient
+    by using ServiceBusAdministrationClient.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -481,7 +481,7 @@ class AzureServiceBusUpdateSubscriptionOperator(BaseOperator):
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
     def execute(self, context: Context) -> None:
-        """Updates Subscription properties, by connecting to Service Bus Admin client"""
+        """Updates Subscription properties, by connecting to Service Bus Admin client."""
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
         with hook.get_conn() as service_mgmt_conn:
@@ -542,7 +542,7 @@ class ASBReceiveSubscriptionMessageOperator(BaseOperator):
     def execute(self, context: Context) -> None:
         """
         Receive Message in specific queue in Service Bus namespace,
-        by connecting to Service Bus client
+        by connecting to Service Bus client.
         """
         # Create the hook
         hook = MessageHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
@@ -555,7 +555,7 @@ class ASBReceiveSubscriptionMessageOperator(BaseOperator):
 
 class AzureServiceBusSubscriptionDeleteOperator(BaseOperator):
     """
-    Deletes the topic subscription in the Azure ServiceBus namespace
+    Deletes the topic subscription in the Azure ServiceBus namespace.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -584,7 +584,7 @@ class AzureServiceBusSubscriptionDeleteOperator(BaseOperator):
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
     def execute(self, context: Context) -> None:
-        """Delete topic subscription in Service Bus namespace, by connecting to Service Bus Admin client"""
+        """Delete topic subscription in Service Bus namespace, by connecting to Service Bus Admin client."""
         # Create the hook
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
@@ -594,7 +594,7 @@ class AzureServiceBusSubscriptionDeleteOperator(BaseOperator):
 
 class AzureServiceBusTopicDeleteOperator(BaseOperator):
     """
-    Deletes the topic in the Azure Service Bus namespace
+    Deletes the topic in the Azure Service Bus namespace.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -620,7 +620,7 @@ class AzureServiceBusTopicDeleteOperator(BaseOperator):
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
     def execute(self, context: Context) -> None:
-        """Delete topic in Service Bus namespace, by connecting to Service Bus Admin client"""
+        """Delete topic in Service Bus namespace, by connecting to Service Bus Admin client."""
         if self.topic_name is None:
             raise TypeError("Topic name cannot be None.")
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
