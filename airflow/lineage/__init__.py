@@ -25,10 +25,10 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
 from airflow.configuration import conf
 from airflow.lineage.backend import LineageBackend
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
 
 PIPELINE_OUTLETS = "pipeline_outlets"
 PIPELINE_INLETS = "pipeline_inlets"
@@ -133,13 +133,16 @@ def prepare_lineage(func: T) -> T:
 
             # Remove auto and task_ids
             self.inlets = [i for i in self.inlets if not isinstance(i, str)]
-            _inlets = self.xcom_pull(context, task_ids=task_ids, dag_id=self.dag_id, key=PIPELINE_OUTLETS)
 
-            # re-instantiate the obtained inlets
-            # xcom_pull returns a list of items for each given task_id
-            _inlets = [item for item in itertools.chain.from_iterable(_inlets)]
-
-            self.inlets.extend(_inlets)
+            # We manually create a session here since xcom_pull returns a LazyXComAccess iterator.
+            # If we do not pass a session a new session will be created, however that session will not be
+            # properly closed and will remain open. After we are done iterating we can safely close this
+            # session.
+            with create_session() as session:
+                _inlets = self.xcom_pull(
+                    context, task_ids=task_ids, dag_id=self.dag_id, key=PIPELINE_OUTLETS, session=session
+                )
+                self.inlets.extend(i for i in itertools.chain.from_iterable(_inlets))
 
         elif self.inlets:
             raise AttributeError("inlets is not a list, operator, string or attr annotated object")

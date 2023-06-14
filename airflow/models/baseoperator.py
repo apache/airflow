@@ -1453,12 +1453,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         context["ti"].xcom_push(key=key, value=value, execution_date=execution_date)
 
     @staticmethod
+    @provide_session
     def xcom_pull(
         context: Any,
         task_ids: str | list[str] | None = None,
         dag_id: str | None = None,
         key: str = XCOM_RETURN_KEY,
         include_prior_dates: bool | None = None,
+        session: Session = NEW_SESSION,
     ) -> Any:
         """
         Pull XComs that optionally meet certain criteria.
@@ -1487,7 +1489,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             are returned as well.
         """
         return context["ti"].xcom_pull(
-            key=key, task_ids=task_ids, dag_id=dag_id, include_prior_dates=include_prior_dates
+            key=key,
+            task_ids=task_ids,
+            dag_id=dag_id,
+            include_prior_dates=include_prior_dates,
+            session=session,
         )
 
     @classmethod
