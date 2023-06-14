@@ -282,6 +282,9 @@ def check_remote_ghcr_io_commands():
                 "[error]\nYou seem to be offline. This command requires access to network.[/]\n"
             )
             sys.exit(2)
+        get_console().print("[error]Response:[/]\n")
+        get_console().print(response.stdout.decode("utf-8"))
+        get_console().print(response.stderr.decode("utf-8"))
         if os.environ.get("CI"):
             get_console().print(
                 "\n[error]We are extremely sorry but you've hit the rare case that the "
