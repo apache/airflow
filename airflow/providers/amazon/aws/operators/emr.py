@@ -28,10 +28,11 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
-from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger, EmrCreateJobFlowTrigger
-from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
-from airflow.providers.amazon.aws.triggers.emr import EmrTerminateJobFlowTrigger
-from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger, EmrTerminateJobFlowTrigger
+from airflow.providers.amazon.aws.triggers.emr import (
+    EmrAddStepsTrigger,
+    EmrCreateJobFlowTrigger,
+    EmrTerminateJobFlowTrigger,
+)
 from airflow.providers.amazon.aws.utils.waiter import waiter
 from airflow.utils.helpers import exactly_one, prune_dict
 from airflow.utils.types import NOTSET, ArgNotSet
