@@ -274,7 +274,7 @@ class TestTriggerRunner:
 
     @pytest.mark.asyncio
     @patch("airflow.jobs.triggerer_job_runner.TriggerRunner.set_individual_trigger_logging")
-    async def test_run_trigger_timeout(self, session) -> None:
+    async def test_run_trigger_timeout(self, session, caplog) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {1: {"task": MagicMock(), "name": "mock_name", "events": 0}}
         mock_trigger = MagicMock()
@@ -283,6 +283,7 @@ class TestTriggerRunner:
 
         with pytest.raises(asyncio.CancelledError):
             await trigger_runner.run_trigger(1, mock_trigger)
+        assert "Trigger cancelled due to timeout" in caplog.text
 
 
 def test_trigger_create_race_condition_18392(session, tmp_path):

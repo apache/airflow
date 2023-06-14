@@ -617,7 +617,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
 
                 if trigger_timeout < timezone.utcnow():
                     self.log.info("Trigger cancelled due to timeout")
-                    raise asyncio.CancelledError("Trigger cancelled due to timeout")
+                    raise
 
             self.log.info("Trigger cancelled; message=%s", str(err))
             raise
