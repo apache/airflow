@@ -33,7 +33,7 @@ isort:skip_file
 """
 from _typeshed import Incomplete
 from airflow.hooks.dbapi import DbApiHook as BaseForDbApiHook
-from typing import Any, Callable, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence, Union
 from typing_extensions import Protocol
 
 def return_single_query_results(

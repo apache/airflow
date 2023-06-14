@@ -292,6 +292,42 @@ repos:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
           - --exclude-file=.codespellignorelines
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.0.0
+    hooks:
+        - id: mypy
+          name: Run mypy for type checking
+          language: python
+          args: [ "--namespace-packages"]
+          files: \.py$
+          exclude: ^.*/.*_vendor/|^airflow/migrations|^provider_packages|^tests/dags/test_imports.py|^tests/system|^tests/providers|^dev
+          require_serial: true
+          additional_dependencies: [
+            "rich>=12.4.4",
+            "inputimeout",
+            "pyyaml",
+            "mypy==1.0.0",
+            "attrs>=22.1.0",
+            "types-boto",
+            "types-certifi",
+            "types-croniter",
+            "types-Deprecated",
+            "types-docutils",
+            "types-paramiko",
+            "types-protobuf",
+            "types-python-dateutil",
+            "types-python-slugify",
+            "types-pytz",
+            "types-redis",
+            "types-requests",
+            "types-setuptools",
+            "types-termcolor",
+            "types-tabulate",
+            "types-toml",
+            "types-Markdown",
+            "types-PyMySQL",
+            "types-PyYAML",
+          ]
   - repo: local
     # Note that this is the 2nd "local" repo group in the .pre-commit-config.yaml file. This is because
     # we try to minimise the number of passes that must happen in order to apply some of the changes
