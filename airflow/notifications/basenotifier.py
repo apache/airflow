@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING, Sequence
 
 import jinja2
 
+from airflow.models import SlaMiss
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.template.templater import Templater
 from airflow.utils.context import Context, context_merge
 
@@ -79,15 +81,32 @@ class BaseNotifier(Templater):
         """
         ...
 
-    def __call__(self, context: Context) -> None:
+    def __call__(
+        self,
+        context: Context | None = None,
+        dag: DAG | None = None,
+        task_list: list[str] | None = None,
+        blocking_task_list: list[str] | None = None,
+        slas: list[SlaMiss] | None = None,
+        blocking_tis: list[TI] | None = None,
+    ) -> None:
         """
         Send a notification.
 
         :param context: The airflow context
         """
-        context = self._update_context(context)
-        self.render_template_fields(context)
+        _context = context
+        if _context is None:
+            _context = Context(
+                task_list=task_list,
+                blocking_task_list=blocking_task_list,
+                slas=slas,
+                blocking_tis=blocking_tis,
+                dag=dag,
+            )
+        self._update_context(_context)
+        self.render_template_fields(_context)
         try:
-            self.notify(context)
+            self.notify(_context)
         except Exception as e:
             self.log.exception("Failed to send notification: %s", e)

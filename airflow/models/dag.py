@@ -1358,7 +1358,7 @@ class DAG(LoggingMixin):
             for callback in callbacks:
                 self.log.info("Executing dag callback function: %s", callback)
                 try:
-                    callback(context)
+                    callback(context=context)
                 except Exception:
                     self.log.exception("failed to invoke dag state update callback")
                     Stats.incr("dag.callback_exceptions", tags={"dag_id": dagrun.dag_id})

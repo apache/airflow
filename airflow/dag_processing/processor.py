@@ -530,7 +530,13 @@ class DagFileProcessor(LoggingMixin):
                 for callback in callbacks:
                     cls.logger().info("Calling SLA miss callback %s", callback)
                     try:
-                        callback(dag, task_list, blocking_task_list, slas, blocking_tis)
+                        callback(
+                            dag=dag,
+                            task_list=task_list,
+                            blocking_task_list=blocking_task_list,
+                            slas=slas,
+                            blocking_tis=blocking_tis,
+                        )
                         notification_sent = True
                     except Exception:
                         Stats.incr(
