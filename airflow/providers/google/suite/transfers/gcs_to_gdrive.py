@@ -62,7 +62,10 @@ class GCSToGoogleDriveOperator(BaseOperator):
         For example, with prefix ``foo/*`` and destination_object ``blah/``, the file ``foo/baz`` will be
         copied to ``blah/baz``; to retain the prefix write the destination_object as e.g. ``blah/foo``, in
         which case the copied file will be named ``blah/foo/baz``.
-    :param destination_folder_id: The folder ID where the objects will be placed.
+    :param destination_folder_id: The folder ID where the destination objects will be placed.  It is
+        an additive prefix for anything specified in destination_object.
+        For example, if folder ID ``xXyYzZ`` is called ``foo``, destination is ``bar/baz`` and source object
+         is ``qux``, the file will end up in `foo/bar/baz`.
         This can be used to target an existing folder that is already visible to other users.  The credentials
         provided must have access to this folder.
     :param move_object: When move object is True, the object is moved instead of copied to the new location.
