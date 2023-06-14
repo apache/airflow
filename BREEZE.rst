@@ -1955,6 +1955,21 @@ These are all of the available flags for the ``release-prod-images`` command:
   :width: 100%
   :alt: Breeze release management release prod images
 
+Generating SBOM information
+...........................
+
+Thanks to our constraints captured for all versions of Airflow we can easily generate SBOM information for
+Apache Airflow. SBOM information contains information about Airflow dependencies that are possible to consume
+by our users and allow them to determine whether security issues in dependencies affect them. The SBOM
+information is written directly to ``docs-archive`` in airflow-site repository.
+
+These are all of the available flags for the ``update-sbom-information`` command:
+
+.. image:: ./images/breeze/output_release-management_update-sbom-information.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_update-sbom-information.svg
+  :width: 100%
+  :alt: Breeze release management update sbom information
+
 
 Details of Breeze usage
 =======================
