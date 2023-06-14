@@ -316,6 +316,9 @@ Building the image is triggered by running the
 When you trigger it you need to pass Airflow Version (including the right rc suffix). Make sure to use the
 ``v2-*-stable`` branch for the workflow.
 
+You can leave the "skip latest" field empty.
+
+
 ![Release prod image](images/release_prod_image_rc.png)
 
 The manual building is described in [MANUALLY_BUILDING_IMAGES.md](MANUALLY_BUILDING_IMAGES.md).
