@@ -218,7 +218,6 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         pickle_dags: bool,
         async_mode: bool,
     ) -> None:
-
         # Make this process start as a new process group - that makes it easy
         # to kill all sub-process of this at the OS-level, rather than having
         # to iterate the child processes
@@ -589,6 +588,7 @@ class DagFileProcessorManager(LoggingMixin):
                     pass
                 elif isinstance(agent_signal, CallbackRequest):
                     self._add_callback_to_queue(agent_signal)
+                    self.log.warning("_add_callback_to_queue; agent signal; %s", agent_signal)
                 else:
                     raise ValueError(f"Invalid message {type(agent_signal)}")
 
@@ -617,7 +617,7 @@ class DagFileProcessorManager(LoggingMixin):
                 self.waitables.pop(sentinel)
                 self._processors.pop(processor.file_path)
 
-            if self.standalone_dag_processor:
+            if True:  # self.standalone_dag_processor:
                 self._fetch_callbacks(max_callbacks_per_loop)
             self._scan_stale_dags()
             DagWarning.purge_inactive_dag_warnings()
@@ -694,7 +694,7 @@ class DagFileProcessorManager(LoggingMixin):
     @retry_db_transaction
     def _fetch_callbacks_with_retries(self, max_callbacks: int, session: Session):
         """Fetches callbacks from database and add them to the internal queue for execution."""
-        self.log.debug("Fetching callbacks from the database.")
+        self.log.warning("Fetching callbacks from the database.")
         with prohibit_commit(session) as guard:
             query = session.query(DbCallbackRequest)
             if self.standalone_dag_processor:
@@ -705,7 +705,9 @@ class DagFileProcessorManager(LoggingMixin):
             callbacks = with_row_locks(
                 query, of=DbCallbackRequest, session=session, **skip_locked(session=session)
             ).all()
+            self.log.warning("read callbacks from db: %s", callbacks)
             for callback in callbacks:
+                self.log.warning("fetched callback from db: %s", callback)
                 try:
                     self._add_callback_to_queue(callback.get_callback_request())
                     session.delete(callback)
@@ -737,7 +739,7 @@ class DagFileProcessorManager(LoggingMixin):
         # Other callbacks have a higher priority over DAG Run scheduling, so those callbacks gazump, even if
         # already in the file path queue
         else:
-            self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
+            self.log.info("Queuing %s CallbackRequest: %s", type(request).__name__, request)
             self._callback_to_execute[request.full_filepath].append(request)
             if request.full_filepath in self._file_path_queue:
                 # Remove file paths matching request.full_filepath from self._file_path_queue
@@ -985,6 +987,7 @@ class DagFileProcessorManager(LoggingMixin):
         Stats.gauge("dag_processing.file_path_queue_size", len(self._file_path_queue))
 
         callback_paths_to_del = [x for x in self._callback_to_execute if x not in new_file_paths]
+        self.log.warning("deleting callbacks: %s", callback_paths_to_del)
         for path_to_del in callback_paths_to_del:
             del self._callback_to_execute[path_to_del]
 
@@ -1061,6 +1064,7 @@ class DagFileProcessorManager(LoggingMixin):
     @staticmethod
     def _create_process(file_path, pickle_dags, dag_ids, dag_directory, callback_requests):
         """Creates DagFileProcessorProcess instance."""
+        logging.warning("creating processor with callbacks: %s", callback_requests)
         return DagFileProcessorProcess(
             file_path=file_path,
             pickle_dags=pickle_dags,
@@ -1126,7 +1130,6 @@ class DagFileProcessorManager(LoggingMixin):
         file_paths_recently_processed = []
         file_paths_to_stop_watching = set()
         for file_path in self._file_paths:
-
             if is_mtime_mode:
                 try:
                     files_with_mtime[file_path] = os.path.getmtime(file_path)

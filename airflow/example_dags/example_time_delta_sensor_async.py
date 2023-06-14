@@ -26,8 +26,23 @@ import datetime
 import pendulum
 
 from airflow import DAG
+from airflow.notifications.basenotifier import BaseNotifier
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.time_delta import TimeDeltaSensorAsync
+
+
+class FileNotifier(BaseNotifier):
+    template_fields = ("text",)
+
+    def __init__(self, *, text: str = "This is a default message"):
+        super().__init__()
+        self.text = text
+
+    def notify(self, context):
+        """Send a message to a Slack Channel."""
+        with open("/Users/dstandish/code/notif.txt", "at") as f:
+            f.write(self.text + "\n")
+
 
 with DAG(
     dag_id="example_time_delta_sensor_async",
@@ -35,7 +50,14 @@ with DAG(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
+    # on_failure_callback=FileNotifier(text="failure"),
+    # on_success_callback=FileNotifier(text="success"),
 ) as dag:
-    wait = TimeDeltaSensorAsync(task_id="wait", delta=datetime.timedelta(seconds=30))
+    wait = TimeDeltaSensorAsync(
+        task_id="wait",
+        delta=datetime.timedelta(seconds=2),
+        on_failure_callback=FileNotifier(text="task failure"),
+        on_success_callback=FileNotifier(text="task success"),
+    )
     finish = EmptyOperator(task_id="finish")
     wait >> finish

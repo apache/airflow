@@ -20,7 +20,11 @@ import abc
 import logging
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
+from airflow.callbacks.callback_requests import TaskCallbackRequest
+from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import NEW_SESSION
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
@@ -154,7 +158,7 @@ class BaseTaskEndEvent(TriggerEvent):
         super().__init__(payload=self.task_instance_state)
         self.xcoms = xcoms
 
-    def handle_submit(self, *, task_instance: TaskInstance):
+    def handle_submit(self, *, task_instance: TaskInstance, session=NEW_SESSION):
         """
         Submit event for given task instance.
 
@@ -163,6 +167,28 @@ class BaseTaskEndEvent(TriggerEvent):
         # task will be marked with terminal state and will not resume on worker
         task_instance.trigger_id = None
         task_instance.state = self.task_instance_state
+        request = None
+        if (
+            self.task_instance_state == TaskInstanceState.SUCCESS
+        ):  # and task_instance.task.on_success_callback:
+            request = TaskCallbackRequest(
+                full_filepath=task_instance.dag_model.fileloc,
+                simple_task_instance=SimpleTaskInstance.from_ti(task_instance),
+                is_failure_callback=False,
+                task_callback_type=self.task_instance_state,
+            )
+        elif (
+            self.task_instance_state == TaskInstanceState.FAILED
+        ):  # and task_instance.task.on_failure_callback:
+            request = TaskCallbackRequest(
+                full_filepath=task_instance.dag_model.fileloc,
+                simple_task_instance=SimpleTaskInstance.from_ti(task_instance),
+                is_failure_callback=True,
+                task_callback_type=self.task_instance_state,
+            )
+        if request:
+            log.warning("sending callback: %s", request)
+            DatabaseCallbackSink().send(callback=request, session=session)
         if self.xcoms:
             for key, value in self.xcoms.items():
                 task_instance.xcom_push(key=key, value=value)
