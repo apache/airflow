@@ -34,7 +34,8 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 SPANNER_INSTANCE = "instance"
 SPANNER_CONFIGURATION = "configuration"
 SPANNER_DATABASE = "database-name"
-SPANNER_CONN_PARAMS = ("test_project_id", SPANNER_INSTANCE, SPANNER_DATABASE)
+SPANNER_PROJECT_ID = "test_project_id"
+SPANNER_CONN_PARAMS = (SPANNER_PROJECT_ID, SPANNER_INSTANCE, SPANNER_DATABASE)
 
 
 class TestGcpSpannerHookDefaultProjectId:
@@ -433,6 +434,14 @@ class TestGcpSpannerHookDefaultProjectId:
         run_in_transaction_method.assert_called_once_with(mock.ANY)
         assert res is None
 
+    def test_get_uri(self):
+        self.spanner_hook_default_project_id._get_conn_params = MagicMock(return_value=SPANNER_CONN_PARAMS)
+        uri = self.spanner_hook_default_project_id.get_uri()
+        assert (
+            uri
+            == f"spanner+spanner:///projects/{SPANNER_PROJECT_ID}/instances/{SPANNER_INSTANCE}/databases/{SPANNER_DATABASE}"
+        )
+
     def test_get_sqlalchemy_engine(self):
         self.spanner_hook_default_project_id._get_conn_params = MagicMock(return_value=SPANNER_CONN_PARAMS)
         engine = self.spanner_hook_default_project_id.get_sqlalchemy_engine()
@@ -683,6 +692,14 @@ class TestGcpSpannerHookNoDefaultProjectID:
         database_method.assert_called_once_with(database_id="database-name")
         run_in_transaction_method.assert_called_once_with(mock.ANY)
         assert res is None
+
+    def test_get_uri(self):
+        self.spanner_hook_no_default_project_id._get_conn_params = MagicMock(return_value=SPANNER_CONN_PARAMS)
+        uri = self.spanner_hook_no_default_project_id.get_uri()
+        assert (
+            uri
+            == f"spanner+spanner:///projects/{SPANNER_PROJECT_ID}/instances/{SPANNER_INSTANCE}/databases/{SPANNER_DATABASE}"
+        )
 
     def test_get_sqlalchemy_engine(self):
         self.spanner_hook_no_default_project_id._get_conn_params = MagicMock(return_value=SPANNER_CONN_PARAMS)

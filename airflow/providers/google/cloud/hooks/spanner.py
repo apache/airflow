@@ -18,7 +18,7 @@
 """This module contains a Google Cloud Spanner Hook."""
 from __future__ import annotations
 
-from typing import Callable, Sequence
+from typing import Callable, NamedTuple, Sequence
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.spanner_v1.client import Client
@@ -32,6 +32,14 @@ from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook, get_field
+
+
+class SpannerConnectionParams(NamedTuple):
+    """Information about Google Spanner connection parameters."""
+
+    project_id: str | None
+    instance_id: str | None
+    database_id: str | None
 
 
 class SpannerHook(GoogleBaseHook, DbApiHook):
@@ -77,19 +85,19 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
             )
         return self._client
 
-    def _get_conn_params(self) -> tuple:
+    def _get_conn_params(self) -> SpannerConnectionParams:
         """Extract spanner database connection parameters."""
         extras = self.get_connection(self.gcp_conn_id).extra_dejson
         project_id = get_field(extras, "project_id") or self.project_id
         instance_id = get_field(extras, "instance_id")
         database_id = get_field(extras, "database_id")
-        return project_id, instance_id, database_id
+        return SpannerConnectionParams(project_id, instance_id, database_id)
 
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
         project_id, instance_id, database_id = self._get_conn_params()
         if not instance_id or not database_id:
-            raise AirflowException("The instance_id or database_id were not specify")
+            raise AirflowException("The instance_id or database_id were not specified")
         return f"spanner+spanner:///projects/{project_id}/instances/{instance_id}/databases/{database_id}"
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
