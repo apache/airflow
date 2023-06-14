@@ -304,10 +304,11 @@ to have an environment prepared to build multi-platform images. You can achieve 
 Building the image is triggered by running the
 [Release PROD Images](https://github.com/apache/airflow/actions/workflows/release_dockerhub_image.yml) workflow.
 
-When you trigger it you need to pass:
+When you trigger it you need to pass Airflow Version (including the right rc suffix). Make sure to use the
+``v2-*-stable`` branch for the workflow.
 
-* Airflow Version (including the right rc suffix)
-* Optional "true" in the "Skip latest:" field if you do not want to re-tag the latest image
+You can leave the "skip latest" field empty.
+
 
 ![Release prod image](images/release_prod_image_rc.png)
 
@@ -652,7 +653,9 @@ Building the image is triggered by running the
 When you trigger it you need to pass:
 
 * Airflow Version
-* Optional "true" in skip latest field if you do not want to retag the latest image
+* Optional "true" in skip latest field if you do not want to re-tag the latest image
+
+Make sure you use v2-*-stable branch to run the workflow.
 
 ![Release prod image](images/release_prod_image.png)
 
