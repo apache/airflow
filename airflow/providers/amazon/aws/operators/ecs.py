@@ -264,9 +264,6 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         family: str,
         container_definitions: list[dict],
         register_task_kwargs: dict | None = None,
-        wait_for_completion: bool = True,  # obsolete
-        waiter_delay: int | None = None,  # obsolete
-        waiter_max_attempts: int | None = None,  # obsolete
         **kwargs,
     ):
         if "wait_for_completion" in kwargs or "waiter_delay" in kwargs or "waiter_max_attempts" in kwargs:

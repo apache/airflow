@@ -795,4 +795,6 @@ class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
 
     def test_deprecation(self):
         with pytest.warns(AirflowProviderDeprecationWarning):
-            EcsRegisterTaskDefinitionOperator(task_id="id", task_definition="def", wait_for_completion=True)
+            EcsRegisterTaskDefinitionOperator(
+                task_id="id", wait_for_completion=True, **TASK_DEFINITION_CONFIG
+            )
