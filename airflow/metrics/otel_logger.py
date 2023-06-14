@@ -140,7 +140,7 @@ class _OtelTimer(Timer):
     :param tags: Tags to append to the timer.
     """
 
-    def __init__(self, otel_logger, name, tags):
+    def __init__(self, otel_logger: SafeOtelLogger, name: str | None, tags: Attributes):
         super().__init__()
         self.otel_logger = otel_logger
         self.name = name
@@ -263,14 +263,13 @@ class SafeOtelLogger:
         tags: Attributes = None,
     ) -> None:
         """
-        OpenTelemetry does not have a native timer, we will store
-        them as a Gauge whose value represents the seconds elapsed.
+        OpenTelemetry does not have a native timer, they are stored
+        as a Gauge whose value represents the seconds elapsed.
         """
         if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
             if isinstance(dt, datetime.timedelta):
                 dt = dt.total_seconds()
             self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), float(dt), False, tags)
-        return None
 
     def timer(
         self,
@@ -331,7 +330,7 @@ class MetricsMap:
         if key in self.map.keys():
             del self.map[key]
 
-    def set_gauge_value(self, name: str, value: float, delta: bool, tags: Attributes):
+    def set_gauge_value(self, name: str, value: float | None, delta: bool, tags: Attributes):
         """
         Overrides the last reading for a Gauge with a new value.
 
@@ -342,7 +341,7 @@ class MetricsMap:
         :returns: None
         """
         key: str = _generate_key_name(name, tags)
-        new_value = value
+        new_value = value or DEFAULT_GAUGE_VALUE
         old_value = self.poke_gauge(name, tags)
         if delta:
             new_value += old_value
