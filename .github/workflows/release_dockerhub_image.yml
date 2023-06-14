@@ -29,6 +29,7 @@ on:  # yamllint disable-line rule:truthy
         required: false
 permissions:
   contents: read
+  packages: read
 concurrency:
   group: ${{ github.event.inputs.airflowVersion }}
   cancel-in-progress: true
