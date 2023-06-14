@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-14T14:11:09Z
+# This constraints file was automatically generated on 2023-06-14T19:41:32Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-6-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -295,7 +295,7 @@ google-cloud-language==2.10.0
 google-cloud-logging==3.5.0
 google-cloud-memcache==1.7.1
 google-cloud-monitoring==2.15.0
-google-cloud-orchestration-airflow==1.8.0
+google-cloud-orchestration-airflow==1.9.0
 google-cloud-os-login==2.9.1
 google-cloud-pubsub==2.17.1
 google-cloud-redis==2.13.0
