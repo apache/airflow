@@ -605,6 +605,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
                     cluster=self.cluster,
                     task_arn=self.arn,
                     waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
                     region=self.region,
                     log_group=self.awslogs_group,

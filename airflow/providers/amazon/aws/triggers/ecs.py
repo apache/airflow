@@ -113,7 +113,8 @@ class TaskDoneTrigger(BaseTrigger):
         self,
         cluster: str,
         task_arn: str,
-        waiter_delay: int | None,
+        waiter_delay: int,
+        waiter_max_attempts: int,
         aws_conn_id: str | None,
         region: str | None,
         log_group: str | None = None,
@@ -122,7 +123,8 @@ class TaskDoneTrigger(BaseTrigger):
         self.cluster = cluster
         self.task_arn = task_arn
 
-        self.waiter_delay = waiter_delay or 15
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
         self.region = region
 
@@ -136,6 +138,7 @@ class TaskDoneTrigger(BaseTrigger):
                 "cluster": self.cluster,
                 "task_arn": self.task_arn,
                 "waiter_delay": self.waiter_delay,
+                "waiter_max_attempts": self.waiter_max_attempts,
                 "aws_conn_id": self.aws_conn_id,
                 "region": self.region,
                 "log_group": self.log_group,
@@ -150,7 +153,8 @@ class TaskDoneTrigger(BaseTrigger):
             # fmt: on
             waiter = ecs_client.get_waiter("tasks_stopped")
             logs_token = None
-            while True:
+            while self.waiter_max_attempts >= 1:
+                self.waiter_max_attempts = self.waiter_max_attempts - 1
                 try:
                     await waiter.wait(
                         cluster=self.cluster, tasks=[self.task_arn], WaiterConfig={"MaxAttempts": 1}

@@ -24,6 +24,7 @@ from botocore.exceptions import WaiterError
 
 from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.triggers.ecs import ClusterWaiterTrigger, TaskDoneTrigger
 from airflow.triggers.base import TriggerEvent
 
@@ -82,7 +83,9 @@ class TestClusterWaiterTrigger:
 class TestTaskDoneTrigger:
     @pytest.mark.asyncio
     @mock.patch.object(EcsHook, "async_conn")
-    async def test_run_until_error(self, client_mock):
+    # this mock is only necessary to avoid a "No module named 'aiobotocore'" error in the LatestBoto CI step
+    @mock.patch.object(AwsLogsHook, "async_conn")
+    async def test_run_until_error(self, _, client_mock):
         a_mock = mock.MagicMock()
         client_mock.__aenter__.return_value = a_mock
         wait_mock = AsyncMock()
@@ -93,8 +96,7 @@ class TestTaskDoneTrigger:
         ]
         a_mock.get_waiter().wait = wait_mock
 
-        trigger = TaskDoneTrigger("cluster", "task_arn", 0, None, None)
-        trigger.waiter_delay = 0  # cannot be set to 0 in __init__ because 0 is treated as None
+        trigger = TaskDoneTrigger("cluster", "task_arn", 0, 10, None, None)
 
         with pytest.raises(WaiterError):
             generator = trigger.run()
@@ -104,13 +106,15 @@ class TestTaskDoneTrigger:
 
     @pytest.mark.asyncio
     @mock.patch.object(EcsHook, "async_conn")
-    async def test_run_success(self, client_mock):
+    # this mock is only necessary to avoid a "No module named 'aiobotocore'" error in the LatestBoto CI step
+    @mock.patch.object(AwsLogsHook, "async_conn")
+    async def test_run_success(self, _, client_mock):
         a_mock = mock.MagicMock()
         client_mock.__aenter__.return_value = a_mock
         wait_mock = AsyncMock()
         a_mock.get_waiter().wait = wait_mock
 
-        trigger = TaskDoneTrigger("cluster", "my_task_arn", 0, None, None)
+        trigger = TaskDoneTrigger("cluster", "my_task_arn", 0, 10, None, None)
 
         generator = trigger.run()
         response: TriggerEvent = await generator.asend(None)
