@@ -29,8 +29,8 @@
 {{- $revisionHistoryLimit := or .Values.flower.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.flower) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.flower) }}
-kind: Deployment
 apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: {{ .Release.Name }}-flower
   labels:
