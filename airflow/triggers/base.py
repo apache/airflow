@@ -95,7 +95,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         Returns the information needed to reconstruct this Trigger.
 
         In most cases the default implementation should work but there may be some cases where
-        you will need to implement.
+        you will need to override this method.
 
         :return: Tuple of (class path, keyword arguments needed to re-instantiate).
         """
