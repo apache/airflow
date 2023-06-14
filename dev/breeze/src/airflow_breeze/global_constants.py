@@ -138,7 +138,11 @@ ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
 MULTI_PLATFORM = "linux/amd64,linux/arm64"
 SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
+
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
+
+
+ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
 
 
 def get_available_documentation_packages(short_version=False) -> list[str]:
