@@ -130,7 +130,7 @@ to install Airflow instead of the one provided by the community.
 .. code-block:: bash
 
     pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
-    pip install "apache-airflow[celery]==|version|" dbt-core==0.20.0
+    pip install "apache-airflow==|version|" dbt-core==0.20.0
     pip freeze > my-constraints.txt
 
 
