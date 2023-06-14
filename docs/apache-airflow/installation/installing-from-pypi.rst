@@ -141,7 +141,7 @@ reasons. Installing such dependencies should be done without constraints as a se
 
 When you do such an upgrade, you should make sure to also add the ``apache-airflow`` package to the list of
 packages to install and pin it to the version that you have, otherwise you might end up with a
-different version of Airflow than you expect as ``pip`` can upgrade/downgrade it automatically when
+different version of Airflow than you expect because ``pip`` can upgrade/downgrade it automatically when
 performing dependency resolution.
 
 
