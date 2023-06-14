@@ -17,12 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import csv
 import os
 from tempfile import TemporaryDirectory
 from unittest import mock
 from unittest.mock import MagicMock
-
-import unicodecsv as csv
 
 from airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake import (
     OracleToAzureDataLakeOperator,
@@ -69,8 +68,8 @@ class TestOracleToAzureDataLakeTransfer:
 
             assert os.path.exists(os.path.join(temp, filename)) == 1
 
-            with open(os.path.join(temp, filename), "rb") as csvfile:
-                temp_file = csv.reader(csvfile, delimiter=delimiter, encoding=encoding)
+            with open(os.path.join(temp, filename), encoding=encoding) as csvfile:
+                temp_file = csv.reader(csvfile, delimiter=delimiter)
 
                 rownum = 0
                 for row in temp_file:

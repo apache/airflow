@@ -37,7 +37,10 @@
 {{- $tolerations := or .Values.scheduler.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.scheduler.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.scheduler.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowSecurityContext" (list . .Values.scheduler) }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.scheduler) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.scheduler) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.scheduler.waitForMigrations) }}
+{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.scheduler.logGroomerSidecar) }}
 kind: {{ if $stateful }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
 metadata:
@@ -136,6 +139,7 @@ spec:
           resources: {{- toYaml .Values.scheduler.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
@@ -167,6 +171,7 @@ spec:
         - name: scheduler
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if .Values.scheduler.command }}
           command: {{ tpl (toYaml .Values.scheduler.command) . | nindent 12 }}
           {{- end }}
@@ -227,6 +232,7 @@ spec:
           resources: {{- toYaml .Values.scheduler.logGroomerSidecar.resources | nindent 12 }}
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContextLogGroomerSidecar | nindent 12 }}
           {{- if .Values.scheduler.logGroomerSidecar.command }}
           command: {{ tpl (toYaml .Values.scheduler.logGroomerSidecar.command) . | nindent 12 }}
           {{- end }}

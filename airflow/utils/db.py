@@ -40,7 +40,7 @@ from airflow.models import import_all_models
 from airflow.utils import helpers
 
 # TODO: remove create_session once we decide to break backward compatibility
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session  # noqa: F401
 
 if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext

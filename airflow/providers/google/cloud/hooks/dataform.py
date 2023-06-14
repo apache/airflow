@@ -277,7 +277,7 @@ class DataformHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Repository:
         """
-        Creates repository
+        Creates repository.
 
         :param project_id: Required. The ID of the Google Cloud project where repository should be.
         :param region: Required. The ID of the Google Cloud region where repository should be.
@@ -606,7 +606,7 @@ class DataformHook(GoogleBaseHook):
     ) -> InstallNpmPackagesResponse:
         """
         Installs npm dependencies in the provided workspace. Requires "package.json"
-        to be created in workspace
+        to be created in workspace.
 
         :param project_id: Required. The ID of the Google Cloud project where workspace located.
         :param region: Required. The ID of the Google Cloud region where workspace located.

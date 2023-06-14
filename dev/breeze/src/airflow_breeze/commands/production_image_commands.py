@@ -49,7 +49,6 @@ from airflow_breeze.utils.common_options import (
     option_empty_image,
     option_github_repository,
     option_github_token,
-    option_github_username,
     option_image_name,
     option_image_tag_for_building,
     option_image_tag_for_pulling,
@@ -132,16 +131,15 @@ def run_build_in_parallel(
     )
 
 
-def start_building(prod_image_params: BuildProdParams):
+def prepare_for_building_prod_image(prod_image_params: BuildProdParams):
     make_sure_builder_configured(params=prod_image_params)
     if prod_image_params.cleanup_context:
         clean_docker_context_files()
     check_docker_context_files(prod_image_params.install_packages_from_context)
-    if prod_image_params.prepare_buildx_cache or prod_image_params.push:
-        login_to_github_docker_registry(
-            image_params=prod_image_params,
-            output=None,
-        )
+    login_to_github_docker_registry(
+        github_token=prod_image_params.github_token,
+        output=None,
+    )
 
 
 @click.group(
@@ -163,7 +161,6 @@ def prod_image():
 @option_upgrade_on_failure
 @option_platform_multiple
 @option_github_token
-@option_github_username
 @option_docker_cache
 @option_image_tag_for_building
 @option_prepare_buildx_cache
@@ -259,7 +256,7 @@ def build(
             params = BuildProdParams(**parameters_passed)
             params.python = python
             params_list.append(params)
-        start_building(prod_image_params=params_list[0])
+        prepare_for_building_prod_image(prod_image_params=params_list[0])
         run_build_in_parallel(
             image_params_list=params_list,
             python_version_list=python_version_list,
@@ -270,7 +267,7 @@ def build(
         )
     else:
         params = BuildProdParams(**parameters_passed)
-        start_building(prod_image_params=params)
+        prepare_for_building_prod_image(prod_image_params=params)
         run_build(prod_image_params=params)
 
 
@@ -310,6 +307,10 @@ def pull_prod_image(
     """Pull and optionally verify Production images - possibly in parallel for all Python versions."""
     perform_environment_checks()
     check_remote_ghcr_io_commands()
+    login_to_github_docker_registry(
+        github_token=github_token,
+        output=None,
+    )
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
         prod_image_params_list = [
@@ -342,7 +343,7 @@ def pull_prod_image(
             output=None,
             wait_for_image=wait_for_image,
             tag_as_latest=tag_as_latest,
-            poll_time=10.0,
+            poll_time_seconds=10.0,
         )
         if return_code != 0:
             get_console().print(f"[error]There was an error when pulling PROD image: {info}[/]")
@@ -366,6 +367,7 @@ def pull_prod_image(
     is_flag=True,
 )
 @option_github_repository
+@option_github_token
 @option_verbose
 @option_dry_run
 @click.argument("extra_pytest_args", nargs=-1, type=click.UNPROCESSED)
@@ -376,13 +378,21 @@ def verify(
     image_tag: str | None,
     pull: bool,
     slim_image: bool,
+    github_token: str,
     extra_pytest_args: tuple,
 ):
     """Verify Production image."""
     perform_environment_checks()
+    login_to_github_docker_registry(
+        github_token=github_token,
+        output=None,
+    )
     if image_name is None:
         build_params = BuildProdParams(
-            python=python, image_tag=image_tag, github_repository=github_repository
+            python=python,
+            image_tag=image_tag,
+            github_repository=github_repository,
+            github_token=github_token,
         )
         image_name = build_params.airflow_image_name_with_tag
     if pull:
