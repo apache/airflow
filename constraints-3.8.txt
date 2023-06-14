@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-14T09:17:38Z
+# This constraints file was automatically generated on 2023-06-14T20:01:32Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -296,7 +296,7 @@ google-cloud-language==2.10.0
 google-cloud-logging==3.5.0
 google-cloud-memcache==1.7.1
 google-cloud-monitoring==2.15.0
-google-cloud-orchestration-airflow==1.8.0
+google-cloud-orchestration-airflow==1.9.0
 google-cloud-os-login==2.9.1
 google-cloud-pubsub==2.17.1
 google-cloud-redis==2.13.0
@@ -362,7 +362,7 @@ jsonschema-spec==0.1.6
 jsonschema==4.17.3
 junit-xml==1.9
 jupyter_client==8.2.0
-jupyter_core==5.3.0
+jupyter_core==5.3.1
 keyring==23.13.1
 kombu==5.3.0
 krb5==0.5.0
@@ -548,7 +548,7 @@ sarif-om==1.0.4
 sasl==0.3.1
 scramp==1.4.4
 scrapbook==0.5.0
-semver==3.0.0
+semver==3.0.1
 sendgrid==6.10.0
 sentinels==1.0.0
 sentry-sdk==1.25.1
