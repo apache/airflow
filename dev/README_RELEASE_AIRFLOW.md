@@ -284,7 +284,12 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     pip install -e ./dev/breeze
     ```
 
-- Set `GITHUB_TOKEN` environment variable. Needed in patch release for generating issue for testing of the RC
+- Set `GITHUB_TOKEN` environment variable. Needed in patch release for generating issue for testing of the RC.
+    You can generate the token by following [this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
+
+    ```shell script
+    export GITHUB_TOKEN="my_token"
+    ```
 
 - Start the release candidate process by running the below command (If you have not generated a key yet, generate it by following instructions on
     http://www.apache.org/dev/openpgp.html#key-gen-generate-key):
