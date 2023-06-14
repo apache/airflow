@@ -84,6 +84,9 @@ github:
     - utkarsharma2
     - Lee-W
     - sunank200
+    - amoghrajesh
+    - jens-scheffler-bosch
+    - nathadfield
 
 notifications:
   jobs: jobs@airflow.apache.org
