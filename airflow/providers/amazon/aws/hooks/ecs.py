@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import itertools
 import time
 from datetime import datetime, timedelta
 from logging import Logger
@@ -197,14 +196,18 @@ class EcsTaskLogFetcher(Thread):
         return f"[{formatted_event_dt}] {message}"
 
     def get_last_log_messages(self, number_messages) -> list:
-        last_logs_iterator = self.logs_hook.get_log_events(
-            self.log_group, self.log_stream_name, start_from_head=False
+        """
+        Gets the last logs messages in one single request, so restrictions apply:
+         - if logs are too old, the response will be empty
+         - the max number of messages we can retrieve is constrained by cloudwatch limits (10,000).
+        """
+        response = self.logs_hook.conn.get_log_events(
+            logGroupName=self.log_group,
+            logStreamName=self.log_stream_name,
+            startFromHead=False,
+            limit=number_messages,
         )
-        truncated_iterator = itertools.islice(last_logs_iterator, number_messages)
-        messages = [log["message"] for log in truncated_iterator]
-        # need to reverse the order to put the logs back in order after getting them from the end
-        messages.reverse()
-        return messages
+        return [log["message"] for log in response["events"]]
 
     def get_last_log_message(self) -> str | None:
         try:

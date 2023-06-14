@@ -21,8 +21,10 @@ functionality for interacting with AWS CloudWatch.
 """
 from __future__ import annotations
 
+import warnings
 from typing import Generator
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 # Guidance received from the AWS team regarding the correct way to check for the end of a stream is that the
@@ -51,12 +53,7 @@ class AwsLogsHook(AwsBaseHook):
         super().__init__(*args, **kwargs)
 
     def get_log_events(
-        self,
-        log_group: str,
-        log_stream_name: str,
-        start_time: int = 0,
-        skip: int = 0,
-        start_from_head: bool = True,
+        self, log_group: str, log_stream_name: str, start_time: int = 0, skip: int = 0, **kwargs
     ) -> Generator:
         """
         A generator for log items in a single stream. This will yield all the
@@ -70,14 +67,27 @@ class AwsLogsHook(AwsBaseHook):
         :param start_time: The time stamp value to start reading the logs from (default: 0).
         :param skip: The number of log entries to skip at the start (default: 0).
             This is for when there are multiple entries at the same timestamp.
-        :param start_from_head: whether to start from the beginning (True) of the log or
-            at the end of the log (False).
-            If iterating from the end of the file, the logs are returned in reverse order.
+        :param start_from_head: Do not use with False, logs would be retrieved out of order.
+            If possible, retrieve logs in one query, or implement pagination yourself.
         :return: | A CloudWatch log event with the following key-value pairs:
                  |   'timestamp' (int): The time in milliseconds of the event.
                  |   'message' (str): The log event data.
                  |   'ingestionTime' (int): The time in milliseconds the event was ingested.
         """
+        start_from_head = kwargs.get("start_from_head", True)
+        if "start_from_head" in kwargs:
+            message = (
+                "start_from_head is deprecated, please remove this parameter."
+                if start_from_head
+                else "Do not use this method with start_from_head=False, logs will be returned out of order. "
+                "If possible, retrieve logs in one query, or implement pagination yourself."
+            )
+            warnings.warn(
+                message,
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+
         num_consecutive_empty_response = 0
         next_token = None
         while True:
@@ -104,12 +114,7 @@ class AwsLogsHook(AwsBaseHook):
                 skip -= event_count
                 events = []
 
-            if not start_from_head:
-                # if we are not reading from head, it doesn't make sense to return events in "normal" order
-                # while hiding the subsequent calls, bc 1-9 queried by batches of 3 would return 789 456 123
-                yield from reversed(events)
-            else:
-                yield from events
+            yield from events
 
             if not event_count:
                 num_consecutive_empty_response += 1

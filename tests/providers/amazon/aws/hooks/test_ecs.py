@@ -161,22 +161,18 @@ class TestEcsTaskLogFetcher:
             ]
         )
 
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
-        return_value=(),
-    )
-    def test_get_last_log_message_with_no_log_events(self, mock_log_events):
+    @mock.patch.object(AwsLogsHook, "conn")
+    def test_get_last_log_message_with_no_log_events(self, conn_mock):
         assert self.log_fetcher.get_last_log_message() is None
 
     @mock.patch.object(AwsLogsHook, "conn")
     def test_get_last_log_message_with_log_events(self, log_conn_mock):
         log_conn_mock.get_log_events.return_value = {
             "events": [
-                {"timestamp": 1617400267123, "message": "First"},
-                {"timestamp": 1617400367456, "message": "Second"},
+                {"timestamp": 1617400267123, "message": "Last"},
             ]
         }
-        assert self.log_fetcher.get_last_log_message() == "Second"
+        assert self.log_fetcher.get_last_log_message() == "Last"
 
     @mock.patch.object(AwsLogsHook, "conn")
     def test_get_last_log_messages_with_log_events(self, log_conn_mock):
@@ -187,11 +183,8 @@ class TestEcsTaskLogFetcher:
                 {"timestamp": 1617400367458, "message": "Third"},
             ]
         }
-        assert self.log_fetcher.get_last_log_messages(2) == ["Second", "Third"]
+        assert self.log_fetcher.get_last_log_messages(2) == ["First", "Second", "Third"]
 
-    @mock.patch(
-        "airflow.providers.amazon.aws.hooks.logs.AwsLogsHook.get_log_events",
-        return_value=(),
-    )
-    def test_get_last_log_messages_with_no_log_events(self, mock_log_events):
+    @mock.patch.object(AwsLogsHook, "conn")
+    def test_get_last_log_messages_with_no_log_events(self, mock_conn):
         assert self.log_fetcher.get_last_log_messages(2) == []
