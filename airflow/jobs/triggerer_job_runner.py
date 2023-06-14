@@ -615,7 +615,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 self.log.info("Trigger cancelled due to timeout")
                 raise asyncio.CancelledError("Trigger cancelled due to timeout")
         except asyncio.CancelledError as err:
-            self.log.info("Trigger cancelled due to %s", str(err))
+            self.log.info("Trigger cancelled; message=%s", str(err))
             raise
         finally:
             # CancelledError will get injected when we're stopped - which is
