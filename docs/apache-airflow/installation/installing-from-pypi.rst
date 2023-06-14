@@ -192,8 +192,9 @@ Using your own constraints
 ==========================
 
 When you decide to install your own dependencies, or want to upgrade or downgrade providers, you might want
-to continue being able to keep reproducible installation of Airflow and those dependencies via a single command. In order to do that, you can produce your own constraints file and use it
-to install Airflow instead of the one provided by the community.
+to continue being able to keep reproducible installation of Airflow and those dependencies via a single command.
+In order to do that, you can produce your own constraints file and use it to install Airflow instead of the 
+one provided by the community.
 
 .. code-block:: bash
 
