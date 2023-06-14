@@ -35,6 +35,7 @@ from airflow.utils.sqlalchemy import skip_locked, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.weight_rule import WeightRule
 
 TaskStateChangeCallback = Callable[[Context], None]
@@ -156,7 +157,12 @@ class AbstractOperator(Templater, DAGNode):
         return self.downstream_task_ids
 
     def get_flat_relative_ids(
-        self, *, upstream: bool = False, setup_only: bool = False, teardown_only: bool = False
+        self,
+        *,
+        upstream: bool = False,
+        setup_only: bool = False,
+        teardown_only: bool = False,
+        follow_setups: ArgNotSet | bool = NOTSET,
     ) -> set[str]:
         """
         Get a flat set of relative IDs, upstream or downstream.
@@ -167,11 +173,18 @@ class AbstractOperator(Templater, DAGNode):
         :param upstream: Whether to look for upstream or downstream relatives.
         :param setup_only: If true, will only return upstream setups and their teardowns.
         :param teardown_only: If true, will only return teardown tasks.
+        :param follow_setups: If True, for given object task, its setups will be
+            included in returned relatives.  If not set, it will be implied by either
+            setup_only or teardown_only.
         """
         if setup_only and not upstream:
             raise RuntimeError("Unexpected combination: downstream and setup only.")
         if teardown_only and upstream:
             raise RuntimeError("Unexpected combination: upstream and teardown only.")
+        if follow_setups is False and (setup_only or teardown_only):
+            raise RuntimeError("Unexpected combination: teardown_only or setup_only and not follow_setups")
+        if follow_setups is NOTSET and (setup_only or teardown_only):
+            follow_setups = True
 
         dag = self.get_dag()
         if not dag:
@@ -182,9 +195,26 @@ class AbstractOperator(Templater, DAGNode):
 
         downstream_teardowns = set()
         if not teardown_only:
-            downstream_teardowns.update(self.get_flat_relative_ids(teardown_only=True))
+            downstream_teardowns.update(self.get_flat_relative_ids(upstream=False, teardown_only=True))
 
         relatives: set[str] = set()
+
+        def process_setup_teardown():
+            """Add setups / teardowns for the task, subject to filters setup only and teardown only."""
+            if teardown_only and task.is_teardown:
+                relatives.add(task_id)
+            if task.is_setup:
+                is_relevant_setup = not task.downstream_task_ids.isdisjoint(downstream_teardowns)
+                if setup_only and not is_relevant_setup:
+                    # not a setup for self
+                    return
+                # either this setup is relevant to self, or setup only is not requested
+                relatives.add(task_id)
+                # add the setup's teardowns
+                relatives.update([x.task_id for x in task.downstream_list if x.is_teardown and not x == self])
+            elif not setup_only:
+                if task.is_teardown or not teardown_only:
+                    relatives.add(task_id)
 
         task_ids_to_trace = self.get_direct_relative_ids(upstream)
         while task_ids_to_trace:
@@ -193,19 +223,13 @@ class AbstractOperator(Templater, DAGNode):
                 if task_id in relatives:
                     continue
                 task = dag.task_dict[task_id]
-                if teardown_only and task.is_teardown:
-                    relatives.add(task_id)
                 task_ids_to_trace_next |= task.get_direct_relative_ids(upstream)
-                if task.is_setup:
-                    is_relevant_setup = not task.downstream_task_ids.isdisjoint(downstream_teardowns)
-                    if setup_only and not is_relevant_setup:
-                        continue
-                    relatives.add(task_id)  # add the setup task
-                    relatives.update(  # add the setup's teardowns
-                        [x.task_id for x in task.downstream_list if x.is_teardown and not x == self]
-                    )
-                elif not setup_only:
+                # this is an optimization to short circuit the setup / teardown logic
+                # this legacy behavior is invoked in calculation of priority weight.
+                if follow_setups is not True:
                     relatives.add(task_id)
+                else:
+                    process_setup_teardown()
             task_ids_to_trace = task_ids_to_trace_next
         return relatives
 
@@ -216,6 +240,9 @@ class AbstractOperator(Templater, DAGNode):
         :param upstream: If True will look upstream else downstream.
         :param setup_only: If true, will only return upstream setups and their teardowns.
         """
+        if setup_only and not upstream:
+            raise RuntimeError("Unexpected combination: downstream and setup only.")
+
         dag = self.get_dag()
 
         if not dag:
