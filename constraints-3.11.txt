@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-13T20:14:33Z
+# This constraints file was automatically generated on 2023-06-14T09:20:53Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -452,7 +452,7 @@ pluggy==1.0.0
 ply==3.11
 plyvel==1.5.0
 portalocker==2.7.0
-pre-commit==3.3.2
+pre-commit==3.3.3
 presto-python-client==0.8.3
 prison==0.2.1
 prometheus-client==0.17.0
@@ -490,7 +490,7 @@ pyparsing==3.0.9
 pypsrp==0.8.1
 pyrsistent==0.19.3
 pyspark==3.4.0
-pyspnego==0.9.0
+pyspnego==0.9.1
 pytest-asyncio==0.21.0
 pytest-capture-warnings==0.0.4
 pytest-cov==4.1.0
