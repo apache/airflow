@@ -40,13 +40,37 @@ Only ``pip`` installation is currently officially supported.
   the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
   newer versions of ``bazel`` will handle it.
 
-Typical command to install airflow from PyPI looks like below:
+Typical command to install airflow from scratch in a reproducible way from PyPI looks like below:
 
 .. code-block:: bash
 
     pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
 
-This is an example, see further for more explanation.
+
+Typically, you can add other dependencies and providers as separate command after the reproducible
+installation - this way you can upgrade or downgrade the dependencies as you see fit, without limiting them to
+constraints. Good practice for those is to extend such ``pip install`` command with the ``apache-airflow``
+pinned to the version you have already installed to make sure it is not accidentally
+upgraded or downgraded by ``pip``.
+
+.. code-block:: bash
+
+    pip install "apache-airflow==|version|" apache-airflow-providers-google=10.1.0
+
+
+Those are just examples, see further for more explanation why those are the best practices.
+
+.. note::
+
+   Generally speaking, Python community established practice is to perform application installation in a
+   virtualenv created with ``virtualenv`` or ``venv`` tools. You can also use ``pipx`` to install Airflow in a
+   application dedicated virtual environment created for you. There are also other tools that can be used
+   to manage your virtualenv installation and you are free to choose how you are managing the environments,
+   Airflow has no limitation regarding to the tool of your choice when it comes to virtual environment.
+
+   The only exception where you might consider not using virtualenv is when you are building a container
+   image with only Airflow installed - this is for example how Airflow is installed in the official Container
+   image.
 
 .. _installation:constraints:
 
@@ -87,7 +111,28 @@ where:
 - ``AIRFLOW_VERSION`` - Airflow version (e.g. :subst-code:`|version|`) or ``main``, ``2-0``, for latest development version
 - ``PYTHON_VERSION`` Python version e.g. ``3.8``, ``3.9``
 
-**However, that should not prevent you from being able to upgrade or downgrade providers and dependencies to other versions**
+The examples below assume that you want to use install airflow in a reproducible way with the ``celery`` extra,
+but you can pick your own set of extras and providers to install.
+
+.. code-block:: bash
+
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
+
+
+.. note::
+
+    The reproducible installation guarantees that this initial installation steps will always work for you -
+    providing that you use the right Python version and that you have appropriate Operating System dependencies
+    installed for the providers to be installed. Some of the providers require additional OS dependencies to
+    be installed such us ``build-essential`` in order to compile libraries, or for example database client
+    libraries in case you install a database provider, etc.. You need to figure out which system dependencies
+    you need when your installation fails and install them before retrying the installation.
+
+Upgrading and installing dependencies (including providers)
+===========================================================
+
+**The reproducible installation above should not prevent you from being able to upgrade or downgrade
+providers and other dependencies to other versions**
 
 You can, for example, install new versions of providers and dependencies after the release to use the latest
 version and up-to-date with latest security fixes - even if you do not want upgrade airflow core version.
@@ -98,6 +143,7 @@ When you do such an upgrade, you should make sure to also add the ``apache-airfl
 packages to install and pin it to the version that you have, otherwise you might end up with a
 different version of Airflow than you expect as ``pip`` can upgrade/downgrade it automatically when
 performing dependency resolution.
+
 
 .. code-block:: bash
 
@@ -112,12 +158,34 @@ those dependencies that are stored in the original constraints file:
     pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
     pip install "apache-airflow[celery]==|version|" dbt-core==0.20.0
 
+.. warning::
 
-Such an upgrade is not always possible - you might have conflicting dependencies. However, by not using constraints,
-you give ``pip`` a chance to resolve the conflicts for you, while keeping within the limits of dependencies
-that Apache Airflow and other providers require. The combination of those dependencies might not be as well
-tested as the "golden" set of dependencies, but it should work in most cases. You can also always run
-the ``pip check`` command to test if the set of your Python packages is consistent and not conflicting.
+    Not all dependencies can be installed this way - you might have dependencies conflicting with basic
+    requirements of Airflow or other dependencies installed in your system. However, by skipping constraints
+    when you install or upgrade dependencies, you give ``pip`` a chance to resolve the conflicts for you,
+    while keeping dependencies within the limits that Apache Airflow, providers and other dependencies require.
+    The resulting combination of those dependencies might not be tested together before as well as the set
+    of dependencies that come with constraints, but it should work in most cases as we usually add
+    requirements, when Airflow depends on particular versions of some dependencies. In cases you cannot
+    install some dependencies in the same environment as Airflow - you can attempt to use other approaches.
+    See :ref:`best practices for handling conflicting/complex Python dependencies <best_practices/handling_conflicting_complex_python_dependencies>`
+
+
+Verifying installed dependencies
+================================
+
+You can also always run the ``pip check`` command to test if the set of your Python packages is
+consistent and not conflicting.
+
+
+.. code-block:: bash
+
+    > pip check
+    No broken requirements found.
+
+
+When you see such message and the exit code from ``pip check`` is 0, you can be sure, that there are no
+conflicting dependencies in your environment.
 
 
 Using your own constraints
@@ -142,16 +210,11 @@ a local constraints file:
     pip install "apache-airflow[celery]==|version|" --constraint "my-constraints.txt"
 
 
-The constraint file might also be hosted via a webserver of your choice and made available for remote use:
+Similarly as in case of Airflow original constraints, you can also host your constraints at your own
+repository or server and use it remotely from there.
 
-
-.. code-block:: bash
-
-    pip install "apache-airflow[celery]==|version|" --constraint "https://my-company.org/my-constraints.txt"
-
-
-Fixing Constraint files at release time
-'''''''''''''''''''''''''''''''''''''''
+Fixing Constraints at release time
+''''''''''''''''''''''''''''''''''
 
 The released "versioned" constraints are mostly ``fixed`` when we release Airflow version and we only
 update them in exceptional circumstances. For example when we find out that the released constraints might prevent
@@ -190,16 +253,15 @@ a one-liner (the example below installs Postgres and Google providers, as well a
     pip install "apache-airflow[async,postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 Note, that it will install the versions of providers that were available at the moment this version of Airflow
-has been prepared. You need to follow next steps if you want to upgrade provider packages in case they were
-released afterwards.
+has been released. You need to run separate ``pip`` commands without constraints, if you want to upgrade
+provider packages in case they were released afterwards.
 
-
-Upgrading Airflow with providers
-================================
+Upgrading Airflow together with providers
+=========================================
 
 You can upgrade airflow together with extras (providers available at the time of the release of Airflow
-being installed.
-
+being installed. This will bring ``apache-airflow`` and all providers to the versions that were
+released and tested together when the version of Airflow you are installing was released.
 
 .. code-block:: bash
     :substitutions:
@@ -209,27 +271,21 @@ being installed.
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
-Installing/upgrading/downgrading providers separately from Airflow core
-=======================================================================
+
+Managing providers separately from Airflow core
+===============================================
 
 In order to add new features, implement bug-fixes or simply maintain backwards compatibility, you might need
-to install, upgrade or downgrade any of the providers you need. We release providers independently from the
-core of Airflow, so often new versions of providers are released before Airflow is, also if you do not want
-yet to upgrade Airflow to the latest version, you might want to install newly released providers separately.
-For installing the providers you should not use any constraint files (the constraints are for installing
-Airflow with providers, not to install providers separately).
+to install, upgrade or downgrade any of the providers - separately from the Airflow Core package. We release
+providers independently from the core of Airflow, so often new versions of providers are released before
+Airflow is, also if you do not want yet to upgrade Airflow to the latest version, you might want to
+install just some (or all) newly released providers separately.
 
-You should run provider's installation as a separate command after Airflow has been installed (usually
-with constraints). Constraints are only effective during the ``pip install`` command they were used with.
+As you saw above, when installing the providers separately, you should not use any constraint files.
 
-.. code-block:: bash
-
-    pip install "apache-airflow-providers-google==8.0.0"
-
-Note, that installing, upgrading, downgrading providers separately is not guaranteed to work with all
-Airflow versions or other providers. Some providers have minimum-required version of Airflow and some
-versions of providers might have conflicting requirements with Airflow or other dependencies you
-might have installed.
+If you build your environment automatically, You should run provider's installation as a
+separate command after Airflow has been installed (usually with constraints).
+Constraints are only effective during the ``pip install`` command they were used with.
 
 It is the best practice to install apache-airflow in the same version as the one that comes from the
 original image. This way you can be sure that ``pip`` will not try to downgrade or upgrade apache
@@ -240,11 +296,25 @@ that conflicts with the version of apache-airflow that you are using:
 
     pip install "apache-airflow==|version|" "apache-airflow-providers-google==8.0.0"
 
+.. note::
 
-Installation and upgrade of Airflow core
-========================================
+    Installing, upgrading, downgrading providers separately is not guaranteed to work with all
+    Airflow versions or other providers. Some providers have minimum-required version of Airflow and some
+    versions of providers might have conflicting requirements with Airflow or other dependencies you
+    might have installed. In cases you cannot install dependencies in the same environment as Airflow -
+    you can attempt to use other approaches.
+    See :ref:`best practices for handling conflicting/complex Python dependencies <best_practices/handling_conflicting_complex_python_dependencies>`
 
-If you don't want to install any extra providers, initially you can use the command set below.
+
+Managing just Airflow core without providers
+============================================
+
+If you don't want to install any providers you have, just install or upgrade Apache Airflow, you can simply
+install airflow in the version you need. You can use the special ``constraints-no-providers`` constraints
+file, which is smaller and limits the dependencies to the core of Airflow only, however this can lead to
+conflicts if your environment already has some of the dependencies installed in different versions and
+in case you have other providers installed. This command, however, gives you the latest versions of
+dependencies compatible with just airflow core at the moment Airflow was released.
 
 .. code-block:: bash
     :substitutions:
