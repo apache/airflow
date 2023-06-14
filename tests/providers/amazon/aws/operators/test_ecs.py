@@ -24,7 +24,7 @@ from unittest import mock
 import boto3
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.operators.ecs import (
@@ -757,6 +757,10 @@ class TestEcsDeregisterTaskDefinitionOperator(EcsBaseTestCase):
             mock_client_method.assert_called_once_with(taskDefinition=TASK_DEFINITION_NAME)
         assert result == "foo-bar"
 
+    def test_deprecation(self):
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            EcsDeregisterTaskDefinitionOperator(task_id="id", task_definition="def", wait_for_completion=True)
+
 
 class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
     def test_execute_immediate_create(self):
@@ -788,3 +792,7 @@ class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
 
         mock_ti.xcom_push.assert_called_once_with(key="task_definition_arn", value="foo-bar")
         assert result == "foo-bar"
+
+    def test_deprecation(self):
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            EcsRegisterTaskDefinitionOperator(task_id="id", task_definition="def", wait_for_completion=True)

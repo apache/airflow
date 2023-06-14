@@ -19,13 +19,14 @@ from __future__ import annotations
 
 import re
 import sys
+import warnings
 from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 import boto3
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, XCom
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -201,22 +202,28 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
 
     :param task_definition: The family and revision (family:revision) or full Amazon Resource Name (ARN)
         of the task definition to deregister. If you use a family name, you must specify a revision.
-    :param wait_for_completion: obsolete, the operation completes instantly
-    :param waiter_delay: obsolete
-    :param waiter_max_attempts: obsolete
     """
 
-    template_fields: Sequence[str] = ("task_definition", "wait_for_completion")
+    template_fields: Sequence[str] = "task_definition"
 
     def __init__(
         self,
         *,
         task_definition: str,
-        wait_for_completion: bool = True,  # obsolete
-        waiter_delay: int | None = None,  # obsolete
-        waiter_max_attempts: int | None = None,  # obsolete
         **kwargs,
     ):
+        if "wait_for_completion" in kwargs or "waiter_delay" in kwargs or "waiter_max_attempts" in kwargs:
+            warnings.warn(
+                "'wait_for_completion' and waiter related params have no effect and are deprecated, "
+                "please remove them.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            # remove args to not trigger Invalid arguments exception
+            kwargs.pop("wait_for_completion", None)
+            kwargs.pop("waiter_delay", None)
+            kwargs.pop("waiter_max_attempts", None)
+
         super().__init__(**kwargs)
         self.task_definition = task_definition
 
@@ -243,16 +250,12 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
     :param container_definitions: A list of container definitions in JSON format that describe
         the different containers that make up your task.
     :param register_task_kwargs: Extra arguments for Register Task Definition.
-    :param wait_for_completion: obsolete, the operation completes instantly
-    :param waiter_delay: obsolete
-    :param waiter_max_attempts: obsolete
     """
 
     template_fields: Sequence[str] = (
         "family",
         "container_definitions",
         "register_task_kwargs",
-        "wait_for_completion",
     )
 
     def __init__(
@@ -266,6 +269,18 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         waiter_max_attempts: int | None = None,  # obsolete
         **kwargs,
     ):
+        if "wait_for_completion" in kwargs or "waiter_delay" in kwargs or "waiter_max_attempts" in kwargs:
+            warnings.warn(
+                "'wait_for_completion' and waiter related params have no effect and are deprecated, "
+                "please remove them.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            # remove args to not trigger Invalid arguments exception
+            kwargs.pop("wait_for_completion", None)
+            kwargs.pop("waiter_delay", None)
+            kwargs.pop("waiter_max_attempts", None)
+
         super().__init__(**kwargs)
         self.family = family
         self.container_definitions = container_definitions
