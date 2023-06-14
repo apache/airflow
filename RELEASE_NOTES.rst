@@ -97,7 +97,8 @@ Doc only changes
 - Add an example for dynamic task mapping with non-TaskFlow operator (#29762)
 - Few doc fixes - links, grammar and wording (#31719)
 - Add description in a few more places about adding airflow to pip install (#31448)
-
+- Fix table formatting in docker build documentation (#31472)
+- Update documentation for constraints installation (#31882)
 
 Airflow 2.6.1 (2023-05-16)
 --------------------------
