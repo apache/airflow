@@ -164,7 +164,7 @@ those dependencies that are stored in the original constraints file:
     requirements of Airflow or other dependencies installed in your system. However, by skipping constraints
     when you install or upgrade dependencies, you give ``pip`` a chance to resolve the conflicts for you,
     while keeping dependencies within the limits that Apache Airflow, providers and other dependencies require.
-    The resulting combination of those dependencies and the set of dependencies that come with the 
+    The resulting combination of those dependencies and the set of dependencies that come with the
     constraints might not be tested before, but it should work in most cases as we usually add
     requirements, when Airflow depends on particular versions of some dependencies. In cases you cannot
     install some dependencies in the same environment as Airflow - you can attempt to use other approaches.
@@ -193,7 +193,7 @@ Using your own constraints
 
 When you decide to install your own dependencies, or want to upgrade or downgrade providers, you might want
 to continue being able to keep reproducible installation of Airflow and those dependencies via a single command.
-In order to do that, you can produce your own constraints file and use it to install Airflow instead of the 
+In order to do that, you can produce your own constraints file and use it to install Airflow instead of the
 one provided by the community.
 
 .. code-block:: bash
@@ -301,9 +301,11 @@ that conflicts with the version of apache-airflow that you are using:
 
     Installing, upgrading, downgrading providers separately is not guaranteed to work with all
     Airflow versions or other providers. Some providers have minimum-required version of Airflow and some
-    versions of providers might have conflicting requirements with Airflow or other dependencies you
-    might have installed. In cases you cannot install dependencies in the same environment as Airflow -
-    you can attempt to use other approaches.
+    versions of providers might have limits on dependencies that are conflicting with limits of other
+    providers or other dependencies installed. For example google provider before 10.1.0 version had limit
+    of protobuf library ``<=3.20.0`` while for example ``google-ads`` library that is supported by google
+    has requirement for protobuf library ``>=4``. In such cases installing those two dependencies alongside
+    in a single environment will not work. In such cases you can attempt to use other approaches.
     See :ref:`best practices for handling conflicting/complex Python dependencies <best_practices/handling_conflicting_complex_python_dependencies>`
 
 
