@@ -88,7 +88,7 @@ class DagWarning(Base):
         else:
             query = delete(cls).where(cls.dag_id == DagModel.dag_id, DagModel.is_active == false())
 
-        session.execute(query, execution_options={"synchronize_session": False})
+        session.execute(query.execution_options(synchronize_session=False))
         session.commit()
 
 
