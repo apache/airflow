@@ -64,6 +64,48 @@ def cleared_upstream(task):
     )
 
 
+def make_tasks(dag, input_str):
+    """
+    Helper for building setup and teardown tasks for testing.
+
+    Given an input such as 's1, w1, t1, tf1', returns setup task "s1", normal task "w1"
+    (the w means *work*), teardown task "t1", and teardown task "tf1" where the f means
+    on_failure_fail_dagrun has been set to true.
+    """
+
+    def teardown_task(task_id):
+        return BaseOperator.as_teardown(task_id=task_id)
+
+    def teardown_task_f(task_id):
+        return BaseOperator.as_teardown(task_id=task_id, on_failure_fail_dagrun=True)
+
+    def work_task(task_id):
+        return BaseOperator(task_id=task_id)
+
+    def setup_task(task_id):
+        return BaseOperator.as_setup(task_id=task_id)
+
+    def make_task(task_id):
+        """
+        Task factory helper.
+
+        Will give a setup, teardown, work, or teardown-with-dagrun-failure task depending on input.
+        """
+        if task_id.startswith("s"):
+            factory = setup_task
+        elif task_id.startswith("w"):
+            factory = work_task
+        elif task_id.startswith("tf"):
+            factory = teardown_task_f
+        elif task_id.startswith("t"):
+            factory = teardown_task
+        else:
+            raise ValueError("unexpected")
+        return dag.task_dict.get(task_id) or factory(task_id=task_id)
+
+    return (make_task(x) for x in input_str.split(", "))
+
+
 class ClassWithCustomAttributes:
     """Class for testing purpose: allows to create objects with custom attributes in one single statement."""
 
@@ -455,12 +497,8 @@ class TestBaseOperator:
         assert test_task.email_on_failure is True
 
     def test_get_flat_relative_ids_with_setup(self):
-        dag = DAG(dag_id="test_dag", start_date=datetime.now())
-        s1 = BaseOperator.as_setup(task_id="s1", dag=dag)
-        w1 = BaseOperator(task_id="w1", dag=dag)
-        w2 = BaseOperator(task_id="w2", dag=dag)
-        w3 = BaseOperator(task_id="w3", dag=dag)
-        t1 = BaseOperator.as_teardown(task_id="t1", dag=dag)
+        with DAG(dag_id="test_dag", start_date=datetime.now()) as dag:
+            s1, w1, w2, w3, t1 = make_tasks(dag, "s1, w1, w2, w3, t1")
 
         s1 >> w1 >> w2 >> w3
 
@@ -492,28 +530,19 @@ class TestBaseOperator:
 
     def test_get_flat_relative_ids_with_setup_nested_ctx_mgr(self):
         """Let's test some gnarlier cases here"""
-        dag = DAG(dag_id="test_dag", start_date=datetime.now())
-        s1 = BaseOperator.as_setup(task_id="s1", dag=dag)
-        t1 = BaseOperator.as_teardown(task_id="t1", dag=dag)
-        s2 = BaseOperator.as_setup(task_id="s2", dag=dag)
-        t2 = BaseOperator.as_teardown(task_id="t2", dag=dag)
-        with s1 >> t1:
-            BaseOperator(task_id="w1", dag=dag)
-            with s2 >> t2:
-                BaseOperator(task_id="w2", dag=dag)
-                BaseOperator(task_id="w3", dag=dag)
+        with DAG(dag_id="test_dag", start_date=datetime.now()) as dag:
+            s1, t1, s2, t2 = make_tasks(dag, "s1, t1, s2, t2")
+            with s1 >> t1:
+                BaseOperator(task_id="w1")
+                with s2 >> t2:
+                    BaseOperator(task_id="w2")
+                    BaseOperator(task_id="w3")
         # todo: implement tests
 
     def test_get_flat_relative_ids_with_setup_nested_no_ctx_mgr(self):
         """Let's test some gnarlier cases here"""
-        dag = DAG(dag_id="test_dag", start_date=datetime.now())
-        s1 = BaseOperator.as_setup(task_id="s1", dag=dag)
-        t1 = BaseOperator.as_teardown(task_id="t1", dag=dag)
-        s2 = BaseOperator.as_setup(task_id="s2", dag=dag)
-        t2 = BaseOperator.as_teardown(task_id="t2", dag=dag)
-        w1 = BaseOperator(task_id="w1", dag=dag)
-        w2 = BaseOperator(task_id="w2", dag=dag)
-        w3 = BaseOperator(task_id="w3", dag=dag)
+        with DAG(dag_id="test_dag", start_date=datetime.now()) as dag:
+            s1, t1, s2, t2, w1, w2, w3 = make_tasks(dag, "s1, t1, s2, t2, w1, w2, w3")
         s1 >> t1
         s1 >> w1 >> t1
         s1 >> s2
@@ -530,11 +559,8 @@ class TestBaseOperator:
         assert cleared_downstream(w3) == {s2, w3, t2}
 
     def test_get_flat_relative_ids_follows_teardowns(self):
-        dag = DAG(dag_id="test_dag", start_date=datetime.now())
-        s1 = BaseOperator.as_setup(task_id="s1", dag=dag)
-        w1 = BaseOperator(task_id="w1", dag=dag)
-        w2 = BaseOperator(task_id="w2", dag=dag)
-        t1 = BaseOperator.as_teardown(task_id="t1", dag=dag)
+        with DAG(dag_id="test_dag", start_date=datetime.now()) as dag:
+            s1, w1, w2, t1 = make_tasks(dag, "s1, w1, w2, t1")
         s1 >> w1 >> [w2, t1]
         s1 >> t1
         # w2, we infer, does not require s1, since t1 does not come after it
@@ -550,13 +576,8 @@ class TestBaseOperator:
         assert w1.get_flat_relative_ids(upstream=False) == {"t1", "w2", "s2"}
 
     def test_get_flat_relative_ids_two_tasks_diff_setup_teardowns(self):
-        with DAG(dag_id="test_dag", start_date=datetime.now()):
-            s1 = BaseOperator.as_setup(task_id="s1")
-            t1 = BaseOperator.as_teardown(task_id="t1")
-            s2 = BaseOperator.as_setup(task_id="s2")
-            t2 = BaseOperator.as_teardown(task_id="t2")
-            w1 = BaseOperator(task_id="w1")
-            w2 = BaseOperator(task_id="w2")
+        with DAG(dag_id="test_dag", start_date=datetime.now()) as dag:
+            s1, t1, s2, t2, w1, w2 = make_tasks(dag, "s1, t1, s2, t2, w1, w2")
         s1 >> w1 >> [w2, t1]
         s1 >> t1
         s2 >> t2
@@ -568,17 +589,10 @@ class TestBaseOperator:
         assert cleared_downstream(w2) == {s2, w2, t2}
 
     def test_get_flat_relative_ids_one_task_multiple_setup_teardowns(self):
-        with DAG(dag_id="test_dag", start_date=datetime.now()):
-            s1a = BaseOperator.as_setup(task_id="s1a")
-            s1b = BaseOperator.as_setup(task_id="s1b")
-            t1 = BaseOperator.as_teardown(task_id="t1")
-            s2 = BaseOperator.as_setup(task_id="s2")
-            t2 = BaseOperator.as_teardown(task_id="t2")
-            s3 = BaseOperator.as_setup(task_id="s3")
-            t3a = BaseOperator.as_teardown(task_id="t3a")
-            t3b = BaseOperator.as_teardown(task_id="t3b")
-            w1 = BaseOperator(task_id="w1")
-            w2 = BaseOperator(task_id="w2")
+        with DAG(dag_id="test_dag", start_date=datetime.now()) as dag:
+            s1a, s1b, t1, s2, t2, s3, t3a, t3b, w1, w2 = make_tasks(
+                dag, "s1a, s1b, t1, s2, t2, s3, t3a, t3b, w1, w2"
+            )
         # teardown t1 has two setups, s1a and s1b
         [s1a, s1b] >> t1
         # work 1 requires s1a and s1b, both of which are torn down by t1
@@ -647,18 +661,14 @@ class TestBaseOperator:
     def test_get_flat_relative_ids_teardown_roots_ignored(self):
         dag = DAG(dag_id="test_dag", start_date=datetime.now())
         with dag:
-            dag_setup = BaseOperator.as_setup(task_id="dag_setup")
-            dag_teardown = BaseOperator.as_teardown(task_id="dag_teardown")
-            w1 = BaseOperator(task_id="w1")
-            w2 = BaseOperator(task_id="w2")
-            w3 = BaseOperator(task_id="w3")
-            dag_setup >> [w1, w2] >> w3
-            w3 >> dag_teardown
-            dag_setup >> dag_teardown
-        assert dag_setup.get_direct_relative_ids(upstream=False) == {"w1", "w2", "dag_teardown"}
-        assert dag_teardown.get_direct_relative_ids(upstream=True) == {"w3", "dag_setup"}
+            s_dag, t_dag, w1, w2, w3 = make_tasks(dag, "s_dag, t_dag, w1, w2, w3")
+            s_dag >> [w1, w2] >> w3
+            w3 >> t_dag
+            s_dag >> t_dag
+        assert s_dag.get_direct_relative_ids(upstream=False) == {"w1", "w2", "t_dag"}
+        assert t_dag.get_direct_relative_ids(upstream=True) == {"w3", "s_dag"}
         # clearing a teardown should not clear the setups
-        assert dag_teardown.get_direct_relative_ids(upstream=False) == set()
+        assert t_dag.get_direct_relative_ids(upstream=False) == set()
 
     def test_cross_downstream(self):
         """Test if all dependencies between tasks are all set correctly."""

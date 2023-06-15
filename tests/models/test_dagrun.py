@@ -2512,7 +2512,7 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
     def work_task():
         print(1)
 
-    @task
+    @setup
     def setup_task():
         print(1)
 
