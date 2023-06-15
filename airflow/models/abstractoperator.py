@@ -163,23 +163,20 @@ class AbstractOperator(Templater, DAGNode):
 
         :param upstream: Whether to look for upstream or downstream relatives.
         """
-        dag = self.get_dag()
-        if not dag:
-            return set()
-
-        def get_relatives(task):
-            for rel_task_id in task.get_direct_relative_ids(upstream=upstream):
-                yield rel_task_id
-                yield from get_relatives(dag.task_dict[rel_task_id])
-
-        return set(get_relatives(self))
+        return {x.task_id for x in self.get_flat_relatives(upstream=upstream)}
 
     def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
         """Get a flat list of relatives, either upstream or downstream."""
         dag = self.get_dag()
         if not dag:
             return set()
-        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
+
+        def get_relatives(task):
+            for rel_task_id in task.get_direct_relative_ids(upstream=upstream):
+                yield (rel_task := dag.task_dict[rel_task_id])
+                yield from get_relatives(rel_task)
+
+        return set(get_relatives(self))
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that are direct dependencies of the current task.
