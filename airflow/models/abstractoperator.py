@@ -179,6 +179,13 @@ class AbstractOperator(Templater, DAGNode):
             task_ids_to_trace = task_ids_to_trace_next
         return relatives
 
+    def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
+        """Get a flat list of relatives, either upstream or downstream."""
+        dag = self.get_dag()
+        if not dag:
+            return set()
+        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
+
     def get_upstreams_follow_setups(self) -> set[Operator]:
         """All upstreams and, for each upstream setup, its respective teardowns."""
         relatives: set[Operator] = set()
@@ -187,13 +194,6 @@ class AbstractOperator(Templater, DAGNode):
             if task.is_setup:
                 relatives.update(x for x in task.downstream_list if x.is_teardown and not x == self)
         return relatives
-
-    def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
-        """Get a flat list of relatives, either upstream or downstream."""
-        dag = self.get_dag()
-        if not dag:
-            return set()
-        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
 
     def get_upstreams_only_setups_and_teardowns(self) -> set[Operator]:
         """
