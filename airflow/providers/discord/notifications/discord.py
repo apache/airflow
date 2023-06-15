@@ -30,7 +30,7 @@ except ImportError:
 
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
 
-ICON_URL: str = "https://raw.githubusercontent.com/apache/airflow/2.5.0/airflow/www/static/pin_100.png"
+ICON_URL: str = "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static/pin_100.png"
 
 
 class DiscordNotifier(BaseNotifier):
