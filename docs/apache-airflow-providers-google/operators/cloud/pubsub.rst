@@ -88,6 +88,14 @@ and pass them through XCom.
     :start-after: [START howto_operator_gcp_pubsub_pull_message_with_sensor]
     :end-before: [END howto_operator_gcp_pubsub_pull_message_with_sensor]
 
+Also for this action you can use sensor in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/pubsub/example_pubsub_deferrable.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcp_pubsub_pull_message_with_async_sensor]
+    :end-before: [END howto_operator_gcp_pubsub_pull_message_with_async_sensor]
+
 .. exampleinclude:: /../../tests/system/providers/google/cloud/pubsub/example_pubsub.py
     :language: python
     :start-after: [START howto_operator_gcp_pubsub_pull_message_with_operator]

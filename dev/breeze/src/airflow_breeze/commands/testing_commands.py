@@ -51,6 +51,7 @@ from airflow_breeze.utils.common_options import (
     option_python,
     option_run_in_parallel,
     option_skip_cleanup,
+    option_use_airflow_version,
     option_verbose,
 )
 from airflow_breeze.utils.console import Output, get_console
@@ -322,6 +323,7 @@ def run_tests_in_parallel(
 @option_mssql_version
 @option_integration
 @option_image_tag_for_running
+@option_use_airflow_version
 @option_mount_sources
 @click.option(
     "--test-type",
@@ -390,6 +392,7 @@ def command_for_tests(
     test_timeout: int,
     db_reset: bool,
     image_tag: str | None,
+    use_airflow_version: str | None,
     run_in_parallel: bool,
     parallelism: int,
     skip_cleanup: bool,
@@ -414,6 +417,7 @@ def command_for_tests(
         mysql_version=mysql_version,
         mssql_version=mssql_version,
         image_tag=image_tag,
+        use_airflow_version=use_airflow_version,
         mount_sources=mount_sources,
         forward_ports=False,
         test_type=test_type,

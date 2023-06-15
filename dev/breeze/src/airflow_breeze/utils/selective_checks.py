@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import json
-import multiprocessing as mp
 import os
 import sys
 from enum import Enum
@@ -48,6 +47,7 @@ from airflow_breeze.global_constants import (
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
+    SELF_HOSTED_RUNNERS_CPU_COUNT,
     GithubEvents,
     SelectiveUnitTestTypes,
     all_helm_test_packages,
@@ -55,7 +55,6 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
-from airflow_breeze.utils.github_actions import get_ga_output
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_ROOT,
@@ -322,6 +321,8 @@ class SelectiveChecks:
         )
 
     def __str__(self) -> str:
+        from airflow_breeze.utils.github import get_ga_output
+
         output = []
         for field_name in dir(self):
             if not field_name.startswith("_"):
@@ -574,6 +575,9 @@ class SelectiveChecks:
         return "allow suspended provider changes" not in self._pr_labels
 
     def _get_test_types_to_run(self) -> list[str]:
+        if self.full_tests_needed:
+            return list(all_selective_test_types())
+
         candidate_test_types: set[str] = {"Always"}
         matched_files: set[str] = set()
         matched_files.update(
@@ -656,10 +660,7 @@ class SelectiveChecks:
     def parallel_test_types_list_as_string(self) -> str | None:
         if not self.run_tests:
             return None
-        if self.full_tests_needed:
-            current_test_types = set(all_selective_test_types())
-        else:
-            current_test_types = set(self._get_test_types_to_run())
+        current_test_types = set(self._get_test_types_to_run())
         if self._default_branch != "main":
             test_types_to_remove: set[str] = set()
             for test_type in current_test_types:
@@ -735,13 +736,22 @@ class SelectiveChecks:
 
     @cached_property
     def skip_pre_commits(self) -> str:
-        return "identity" if self._default_branch == "main" else "identity,check-airflow-2-2-compatibility"
+        return (
+            "identity"
+            if self._default_branch == "main"
+            else "identity,check-airflow-provider-compatibility,"
+            "check-extra-packages-references,check-provider-yaml-valid"
+        )
 
     @cached_property
     def skip_provider_tests(self) -> bool:
-        return self._default_branch != "main" or not any(
-            test_type.startswith("Providers") for test_type in self._get_test_types_to_run()
-        )
+        if self._default_branch != "main":
+            return True
+        if self.full_tests_needed:
+            return False
+        if any(test_type.startswith("Providers") for test_type in self._get_test_types_to_run()):
+            return False
+        return True
 
     @cached_property
     def cache_directive(self) -> str:
@@ -799,4 +809,4 @@ class SelectiveChecks:
     @cached_property
     def mssql_parallelism(self) -> int:
         # Limit parallelism for MSSQL to 1 for public runners due to race conditions generated there
-        return mp.cpu_count() if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1
+        return SELF_HOSTED_RUNNERS_CPU_COUNT if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1
