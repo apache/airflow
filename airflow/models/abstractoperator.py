@@ -168,6 +168,7 @@ class AbstractOperator(Templater, DAGNode):
             return set()
 
         relatives: set[str] = set()
+
         task_ids_to_trace = self.get_direct_relative_ids(upstream)
         while task_ids_to_trace:
             task_ids_to_trace_next: set[str] = set()
@@ -177,6 +178,7 @@ class AbstractOperator(Templater, DAGNode):
                 task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
                 relatives.add(task_id)
             task_ids_to_trace = task_ids_to_trace_next
+
         return relatives
 
     def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
