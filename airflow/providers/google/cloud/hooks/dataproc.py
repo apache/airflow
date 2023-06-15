@@ -249,7 +249,7 @@ class DataprocHook(GoogleBaseHook):
         )
 
     def get_batch_client(self, region: str | None = None) -> BatchControllerClient:
-        """Returns BatchControllerClient"""
+        """Returns BatchControllerClient."""
         client_options = None
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
@@ -259,7 +259,7 @@ class DataprocHook(GoogleBaseHook):
         )
 
     def get_operations_client(self, region):
-        """Returns OperationsClient"""
+        """Returns OperationsClient."""
         return self.get_batch_client(region=region).transport.operations_client
 
     def wait_for_operation(
@@ -398,7 +398,7 @@ class DataprocHook(GoogleBaseHook):
     ):
         """
         Gets cluster diagnostic information. After the operation completes GCS uri to
-        diagnose is returned
+        diagnose is returned.
 
         :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
         :param region: Required. The Cloud Dataproc region in which to handle the request.
@@ -1106,7 +1106,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         return self._cached_client
 
     def get_batch_client(self, region: str | None = None) -> BatchControllerAsyncClient:
-        """Returns BatchControllerAsyncClient"""
+        """Returns BatchControllerAsyncClient."""
         client_options = None
         if region and region != "global":
             client_options = ClientOptions(api_endpoint=f"{region}-dataproc.googleapis.com:443")
@@ -1116,7 +1116,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         )
 
     def get_operations_client(self, region: str) -> OperationsClient:
-        """Returns OperationsClient"""
+        """Returns OperationsClient."""
         return self.get_template_client(region=region).transport.operations_client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -1242,7 +1242,7 @@ class DataprocAsyncHook(GoogleBaseHook):
     ):
         """
         Gets cluster diagnostic information. After the operation completes GCS uri to
-        diagnose is returned
+        diagnose is returned.
 
         :param project_id: Required. The ID of the Google Cloud project that the cluster belongs to.
         :param region: Required. The Cloud Dataproc region in which to handle the request.

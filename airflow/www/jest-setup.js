@@ -22,6 +22,7 @@
 import "@testing-library/jest-dom";
 import axios from "axios";
 import { setLogger } from "react-query";
+import "jest-canvas-mock";
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import moment from "moment-timezone";

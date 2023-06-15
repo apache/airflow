@@ -62,7 +62,7 @@ BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={pr
 
 
 class BigQueryUIColors(enum.Enum):
-    """Hex colors for BigQuery operators"""
+    """Hex colors for BigQuery operators."""
 
     CHECK = "#C0D7FF"
     QUERY = "#A1BBFF"
@@ -71,7 +71,7 @@ class BigQueryUIColors(enum.Enum):
 
 
 class IfExistAction(enum.Enum):
-    """Action to take if the resource exist"""
+    """Action to take if the resource exist."""
 
     IGNORE = "ignore"
     LOG = "log"
@@ -133,7 +133,7 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
 
 class _BigQueryDbHookMixin:
     def get_db_hook(self: BigQueryCheckOperator) -> BigQueryHook:  # type:ignore[misc]
-        """Get BigQuery DB Hook"""
+        """Get BigQuery DB Hook."""
         return BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             use_legacy_sql=self.use_legacy_sql,
@@ -252,16 +252,18 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
             )
             job = self._submit_job(hook, job_id="")
             context["ti"].xcom_push(key="job_id", value=job.job_id)
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=BigQueryCheckTrigger(
-                    conn_id=self.gcp_conn_id,
-                    job_id=job.job_id,
-                    project_id=hook.project_id,
-                    poll_interval=self.poll_interval,
-                ),
-                method_name="execute_complete",
-            )
+            if job.running():
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=BigQueryCheckTrigger(
+                        conn_id=self.gcp_conn_id,
+                        job_id=job.job_id,
+                        project_id=hook.project_id,
+                        poll_interval=self.poll_interval,
+                    ),
+                    method_name="execute_complete",
+                )
+            self.log.info("Current state of job %s is %s", job.job_id, job.state)
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         """
@@ -898,7 +900,8 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     def generate_query(self, hook: BigQueryHook) -> str:
         """
         Generate a select query if selected fields are given or with *
-        for the given dataset and table id
+        for the given dataset and table id.
+
         :param hook BigQuery Hook
         """
         query = "select "
@@ -1078,7 +1081,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
 
     @property
     def operator_extra_links(self):
-        """Return operator extra links"""
+        """Return operator extra links."""
         if isinstance(self.sql, str):
             return (BigQueryConsoleLink(),)
         return (BigQueryConsoleIndexableLink(i) for i, _ in enumerate(self.sql))
@@ -1431,13 +1434,13 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
                 table_resource=self.table_resource,
                 exists_ok=self.if_exists == IfExistAction.IGNORE,
             )
-            BigQueryTableLink.persist(
-                context=context,
-                task_instance=self,
-                dataset_id=table.to_api_repr()["tableReference"]["datasetId"],
-                project_id=table.to_api_repr()["tableReference"]["projectId"],
-                table_id=table.to_api_repr()["tableReference"]["tableId"],
-            )
+            persist_kwargs = {
+                "context": context,
+                "task_instance": self,
+                "project_id": table.to_api_repr()["tableReference"]["projectId"],
+                "dataset_id": table.to_api_repr()["tableReference"]["datasetId"],
+                "table_id": table.to_api_repr()["tableReference"]["tableId"],
+            }
             self.log.info(
                 "Table %s.%s.%s created successfully", table.project, table.dataset_id, table.table_id
             )
@@ -1445,10 +1448,19 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
             error_msg = f"Table {self.dataset_id}.{self.table_id} already exists."
             if self.if_exists == IfExistAction.LOG:
                 self.log.info(error_msg)
+                persist_kwargs = {
+                    "context": context,
+                    "task_instance": self,
+                    "project_id": self.project_id or bq_hook.project_id,
+                    "dataset_id": self.dataset_id,
+                    "table_id": self.table_id,
+                }
             elif self.if_exists == IfExistAction.FAIL:
                 raise AirflowException(error_msg)
             else:
                 raise AirflowSkipException(error_msg)
+
+        BigQueryTableLink.persist(**persist_kwargs)
 
 
 class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
@@ -1743,6 +1755,7 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
 class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator deletes an existing dataset from your Project in Big query.
+
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/delete
 
     .. seealso::
@@ -1817,6 +1830,7 @@ class BigQueryDeleteDatasetOperator(GoogleCloudBaseOperator):
 class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
     """
     This operator is used to create new dataset for your Project in BigQuery.
+
     https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets#resource
 
     .. seealso::
@@ -1909,14 +1923,24 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
                 location=self.location,
                 exists_ok=self.if_exists == IfExistAction.IGNORE,
             )
-            BigQueryDatasetLink.persist(
-                context=context,
-                task_instance=self,
-                dataset_id=dataset["datasetReference"]["datasetId"],
-                project_id=dataset["datasetReference"]["projectId"],
-            )
+            persist_kwargs = {
+                "context": context,
+                "task_instance": self,
+                "project_id": dataset["datasetReference"]["projectId"],
+                "dataset_id": dataset["datasetReference"]["datasetId"],
+            }
+
         except Conflict:
             dataset_id = self.dataset_reference.get("datasetReference", {}).get("datasetId", self.dataset_id)
+            project_id = self.dataset_reference.get("datasetReference", {}).get(
+                "projectId", self.project_id or bq_hook.project_id
+            )
+            persist_kwargs = {
+                "context": context,
+                "task_instance": self,
+                "project_id": project_id,
+                "dataset_id": dataset_id,
+            }
             error_msg = f"Dataset {dataset_id} already exists."
             if self.if_exists == IfExistAction.LOG:
                 self.log.info(error_msg)
@@ -1924,6 +1948,7 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
                 raise AirflowException(error_msg)
             else:
                 raise AirflowSkipException(error_msg)
+        BigQueryDatasetLink.persist(**persist_kwargs)
 
 
 class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
@@ -1988,7 +2013,7 @@ class BigQueryGetDatasetOperator(GoogleCloudBaseOperator):
             dataset_id=dataset_api_repr["datasetReference"]["datasetId"],
             project_id=dataset_api_repr["datasetReference"]["projectId"],
         )
-        return dataset
+        return dataset_api_repr
 
 
 class BigQueryGetDatasetTablesOperator(GoogleCloudBaseOperator):
@@ -2285,12 +2310,12 @@ class BigQueryUpdateDatasetOperator(GoogleCloudBaseOperator):
             dataset_id=dataset_api_repr["datasetReference"]["datasetId"],
             project_id=dataset_api_repr["datasetReference"]["projectId"],
         )
-        return dataset
+        return dataset_api_repr
 
 
 class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
     """
-    Deletes BigQuery tables
+    Deletes BigQuery tables.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -2349,7 +2374,7 @@ class BigQueryDeleteTableOperator(GoogleCloudBaseOperator):
 
 class BigQueryUpsertTableOperator(GoogleCloudBaseOperator):
     """
-    Upsert BigQuery table
+    Upsert BigQuery table.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -2531,6 +2556,7 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
 class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
     """
     Executes a BigQuery job. Waits for the job to complete and returns job id.
+
     This operator work in the following way:
 
     - it calculates a unique hash of the job using job's configuration or uuid if ``force_rerun`` is True
@@ -2700,7 +2726,8 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
             QueryJob._JOB_TYPE: ["destinationTable"],
         }
 
-        if self.project_id:
+        project_id = self.project_id or hook.project_id
+        if project_id:
             for job_type, tables_prop in job_types.items():
                 job_configuration = job.to_api_repr()["configuration"]
                 if job_type in job_configuration:
@@ -2710,13 +2737,13 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
                             persist_kwargs = {
                                 "context": context,
                                 "task_instance": self,
-                                "project_id": self.project_id,
+                                "project_id": project_id,
                                 "table_id": table,
                             }
                             if not isinstance(table, str):
                                 persist_kwargs["table_id"] = table["tableId"]
                                 persist_kwargs["dataset_id"] = table["datasetId"]
-
+                                persist_kwargs["project_id"] = table["projectId"]
                             BigQueryTableLink.persist(**persist_kwargs)
         self.job_id = job.job_id
         job_id_params = {

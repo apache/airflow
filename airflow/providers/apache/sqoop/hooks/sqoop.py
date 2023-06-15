@@ -27,9 +27,9 @@ from airflow.hooks.base import BaseHook
 
 
 class SqoopHook(BaseHook):
-    """
-    This hook is a wrapper around the sqoop 1 binary. To be able to use the hook
-    it is required that "sqoop" is in the PATH.
+    """Wrapper around the sqoop 1 binary.
+
+    To be able to use the hook, it is required that "sqoop" is in the PATH.
 
     Additional arguments that can be passed via the 'extra' JSON field of the
     sqoop connection:
@@ -95,8 +95,7 @@ class SqoopHook(BaseHook):
         return cmd
 
     def popen(self, cmd: list[str], **kwargs: Any) -> None:
-        """
-        Remote Popen.
+        """Remote Popen.
 
         :param cmd: command to remotely execute
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
@@ -223,9 +222,9 @@ class SqoopHook(BaseHook):
         extra_import_options: dict[str, Any] | None = None,
         schema: str | None = None,
     ) -> Any:
-        """
-        Imports table from remote location to target dir. Arguments are
-        copies of direct sqoop command line arguments.
+        """Import table from remote location to target dir.
+
+        Arguments are copies of direct sqoop command line arguments.
 
         :param table: Table to read
         :param schema: Schema name
@@ -266,8 +265,7 @@ class SqoopHook(BaseHook):
         driver: Any | None = None,
         extra_import_options: dict[str, Any] | None = None,
     ) -> Any:
-        """
-        Imports a specific query from the rdbms to hdfs.
+        """Import a specific query from the rdbms to hdfs.
 
         :param query: Free format query to run
         :param target_dir: HDFS destination dir
@@ -375,9 +373,9 @@ class SqoopHook(BaseHook):
         extra_export_options: dict[str, Any] | None = None,
         schema: str | None = None,
     ) -> None:
-        """
-        Exports Hive table to remote location. Arguments are copies of direct
-        sqoop command line Arguments.
+        """Export Hive table to remote location.
+
+        Arguments are copies of direct Sqoop command line Arguments
 
         :param table: Table remote destination
         :param schema: Schema name

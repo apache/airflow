@@ -71,7 +71,7 @@ The Apache Airflow image provided as convenience package is optimized for size, 
 it provides just a bare minimal set of the extras and dependencies installed and in most cases
 you want to either extend or customize the image. You can see all possible extras in :doc:`apache-airflow:extra-packages-ref`.
 The set of extras used in Airflow Production image are available in the
-`Dockerfile <https://github.com/apache/airflow/blob/2c6c7fdb2308de98e142618836bdf414df9768c8/Dockerfile#L37>`_.
+`Dockerfile <https://github.com/apache/airflow/blob/main/Dockerfile>`_.
 
 However, Airflow has more than 60 community-managed providers (installable via extras) and some of the
 default extras/providers installed are not used by everyone, sometimes others extras/providers

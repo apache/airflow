@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class LifeSciencesRunPipelineOperator(GoogleCloudBaseOperator):
     """
-    Runs a Life Sciences Pipeline
+    Runs a Life Sciences Pipeline.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

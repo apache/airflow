@@ -73,8 +73,8 @@ dependencies:
   - mypy-boto3-rds>=1.24.0
   - mypy-boto3-redshift-data>=1.24.0
   - mypy-boto3-appflow>=1.24.0
+  - asgiref
   - mypy-boto3-s3>=1.24.0
-
 
 integrations:
   - integration-name: Amazon Athena
@@ -504,6 +504,33 @@ hooks:
   - integration-name: Amazon Appflow
     python-modules:
       - airflow.providers.amazon.aws.hooks.appflow
+
+triggers:
+  - integration-name: AWS Batch
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.batch
+  - integration-name: Amazon EC2
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.ec2
+  - integration-name: Amazon Redshift
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.redshift_cluster
+  - integration-name: Amazon SageMaker
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.sagemaker
+  - integration-name: AWS Glue
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.glue
+      - airflow.providers.amazon.aws.triggers.glue_crawler
+  - integration-name: Amazon Simple Storage Service (S3)
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.s3
+  - integration-name: Amazon EMR
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.emr
+  - integration-name: Amazon Elastic Kubernetes Service (EKS)
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.eks
 
 transfers:
   - source-integration-name: Amazon DynamoDB

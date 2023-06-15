@@ -80,7 +80,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         self.private_key: Any = None
 
     def get_private_key(self) -> None:
-        """Gets the private key from snowflake connection"""
+        """Gets the private key from snowflake connection."""
         conn = self.get_connection(self.snowflake_conn_id)
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private key.
@@ -120,7 +120,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         self, sql: str, statement_count: int, query_tag: str = "", bindings: dict[str, Any] | None = None
     ) -> list[str]:
         """
-        Using SnowflakeSQL API, run the query in snowflake by making API request
+        Using SnowflakeSQL API, run the query in snowflake by making API request.
 
         :param sql: the sql string to be executed with possibly multiple statements
         :param statement_count: set the MULTI_STATEMENT_COUNT field to the number of SQL statements
@@ -170,7 +170,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
     def get_headers(self) -> dict[str, Any]:
         """Based on the private key, and with connection details JWT Token is generated and header
-        is formed
+        is formed.
         """
         if not self.private_key:
             self.get_private_key()
@@ -196,7 +196,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
     def get_request_url_header_params(self, query_id: str) -> tuple[dict[str, Any], dict[str, Any], str]:
         """
-        Build the request header Url with account name identifier and query id from the connection params
+        Build the request header Url with account name identifier and query id from the connection params.
 
         :param query_id: statement handles query ids for the individual statements.
         """
@@ -210,7 +210,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     def check_query_output(self, query_ids: list[str]) -> None:
         """
         Based on the query ids passed as the parameter make HTTP request to snowflake SQL API and logs
-         the response
+        the response.
 
         :param query_ids: statement handles query id for the individual statements.
         """

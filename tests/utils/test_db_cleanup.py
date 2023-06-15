@@ -110,7 +110,7 @@ class TestDBCleanup:
             confirm=False,
             **kwargs,
         )
-        assert cleanup_table_mock.call_args[1]["skip_archive"] is should_skip
+        assert cleanup_table_mock.call_args.kwargs["skip_archive"] is should_skip
 
     @pytest.mark.parametrize(
         "table_names",
