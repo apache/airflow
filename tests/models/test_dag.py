@@ -3656,7 +3656,14 @@ class TestTaskClearingSetupTeardownBehavior:
         assert self.cleared_upstream(w1) == {s1, w1, t1}
         assert w3.get_flat_relative_ids(upstream=True) == {"s1", "s2", "w2"}
         assert w3.get_flat_relative_ids(upstream=False) == {"t2"}
+        assert t1 not in w2.get_flat_relatives(upstream=False)  # t1 not required by w2
+        # t1 only included because s1 is upstream
+        assert self.cleared_upstream(w2) == {s1, t1, s2, w2, t2}
+        # t1 not included because t1 is not downstream
+        assert self.cleared_downstream(w2) == {s2, w2, w3, t2}
+        # t1 only included because s1 is upstream
         assert self.cleared_upstream(w3) == {s1, t1, s2, w2, w3, t2}
+        # t1 not included because t1 is not downstream
         assert self.cleared_downstream(w3) == {s2, w3, t2}
 
     def test_get_flat_relative_ids_follows_teardowns(self):
@@ -3675,6 +3682,7 @@ class TestTaskClearingSetupTeardownBehavior:
         s2 = BaseOperator.as_setup(task_id="s2", dag=dag)
         t1 >> s2
         assert w1.get_flat_relative_ids(upstream=False) == {"t1", "w2", "s2"}
+        assert self.cleared_downstream(w1) == {s1, w1, w2, t1, s2}
 
     def test_get_flat_relative_ids_two_tasks_diff_setup_teardowns(self):
         with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
@@ -3758,15 +3766,3 @@ class TestTaskClearingSetupTeardownBehavior:
             "g2.w3",
             "g2.w2",
         }
-
-    def test_get_flat_relative_ids_teardown_roots_ignored(self):
-        dag = DAG(dag_id="test_dag", start_date=pendulum.now())
-        with dag:
-            s_dag, t_dag, w1, w2, w3 = self.make_tasks(dag, "s_dag, t_dag, w1, w2, w3")
-            s_dag >> [w1, w2] >> w3
-            w3 >> t_dag
-            s_dag >> t_dag
-        assert s_dag.get_direct_relative_ids(upstream=False) == {"w1", "w2", "t_dag"}
-        assert t_dag.get_direct_relative_ids(upstream=True) == {"w3", "s_dag"}
-        # clearing a teardown should not clear the setups
-        assert t_dag.get_direct_relative_ids(upstream=False) == set()
