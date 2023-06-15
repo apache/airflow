@@ -155,25 +155,6 @@ class AbstractOperator(Templater, DAGNode):
             return self.upstream_task_ids
         return self.downstream_task_ids
 
-    def get_flat_relatives(self, upstream: bool = False) -> set[Operator]:
-        """
-        Get a flat list of relatives, either upstream or downstream.
-
-        :param upstream: If True will look upstream else downstream.
-        :param setup_only: If true, will only return upstream setups and their teardowns.
-        """
-        dag = self.get_dag()
-
-        if not dag:
-            return set()
-
-        def get_relatives(task):
-            for rel_task_id in task.get_direct_relative_ids(upstream=upstream):
-                yield (rel_task := dag.task_dict[rel_task_id])
-                yield from get_relatives(rel_task)
-
-        return set(get_relatives(self))
-
     def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
         """
         Get a flat set of relative IDs, upstream or downstream.
@@ -182,7 +163,21 @@ class AbstractOperator(Templater, DAGNode):
 
         :param upstream: Whether to look for upstream or downstream relatives.
         """
-        return {x.task_id for x in self.get_flat_relatives(upstream=upstream)}
+        dag = self.get_dag()
+        if not dag:
+            return set()
+
+        relatives: set[str] = set()
+        task_ids_to_trace = self.get_direct_relative_ids(upstream)
+        while task_ids_to_trace:
+            task_ids_to_trace_next: set[str] = set()
+            for task_id in task_ids_to_trace:
+                if task_id in relatives:
+                    continue
+                task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
+                relatives.add(task_id)
+            task_ids_to_trace = task_ids_to_trace_next
+        return relatives
 
     def get_upstreams_follow_setups(self) -> set[Operator]:
         """All upstreams and, for each upstream setup, its respective teardowns."""
@@ -192,6 +187,13 @@ class AbstractOperator(Templater, DAGNode):
             if task.is_setup:
                 relatives.update(x for x in task.downstream_list if x.is_teardown and not x == self)
         return relatives
+
+    def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
+        """Get a flat list of relatives, either upstream or downstream."""
+        dag = self.get_dag()
+        if not dag:
+            return set()
+        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
 
     def get_upstreams_only_setups_and_teardowns(self) -> set[Operator]:
         """
