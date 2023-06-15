@@ -3739,16 +3739,33 @@ class TestTaskClearingSetupTeardownBehavior:
                     group_setup >> group_teardown
                 dag_setup >> tg >> dag_teardown
         g2_w2 = dag.task_dict["g2.w2"]
+        g2_w3 = dag.task_dict["g2.w3"]
+        g2_group_teardown = dag.task_dict["g2.group_teardown"]
 
-        # the line `dag_setup >> tg >> dag_teardown` should be equivalent to
-        # dag_setup >> group_setup; w3 >> dag_teardown
-        # i.e. not group_teardown >> dag_teardown
-        # let's verify...
+        with pytest.raises(Exception):
+            # fixme
+            #   the line `dag_setup >> tg >> dag_teardown` should be equivalent to
+            #   dag_setup >> group_setup; w3 >> dag_teardown
+            #   i.e. not group_teardown >> dag_teardown
+            assert g2_group_teardown.downstream_task_ids == {}
+            assert g2_w3.downstream_task_ids == {"g2.group_teardown", "dag_teardown"}
+
         assert {x.task_id for x in g2_w2.get_upstreams_only_setups_and_teardowns()} == {
             "dag_setup",
             "dag_teardown",
             "g2.group_setup",
             "g2.group_teardown",
+        }
+
+        # clearing g2.w2 clears all setups and teardowns and g2.w2 and g2.w2
+        # but not anything from g1
+        assert {x.task_id for x in self.cleared_downstream(g2_w2)} == {
+            "dag_setup",
+            "dag_teardown",
+            "g2.group_setup",
+            "g2.group_teardown",
+            "g2.w3",
+            "g2.w2",
         }
         assert {x.task_id for x in self.cleared_upstream(g2_w2)} == {
             "dag_setup",
@@ -3756,13 +3773,5 @@ class TestTaskClearingSetupTeardownBehavior:
             "g2.group_setup",
             "g2.group_teardown",
             "g2.w1",
-            "g2.w2",
-        }
-        assert {x.task_id for x in self.cleared_downstream(g2_w2)} == {
-            "dag_setup",
-            "dag_teardown",
-            "g2.group_setup",
-            "g2.group_teardown",
-            "g2.w3",
             "g2.w2",
         }
