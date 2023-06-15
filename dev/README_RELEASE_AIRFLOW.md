@@ -34,6 +34,7 @@
   - [Licence check](#licence-check)
   - [Signature check](#signature-check)
   - [SHA512 sum check](#sha512-sum-check)
+  - [Source code check](#source-code-check)
 - [Verify release candidates by Contributors](#verify-release-candidates-by-contributors)
 - [Publish the final Apache Airflow release](#publish-the-final-apache-airflow-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
@@ -562,6 +563,85 @@ You should get output similar to:
 Checking apache-airflow-2.0.2rc4.tar.gz.sha512
 Checking apache_airflow-2.0.2rc4-py2.py3-none-any.whl.sha512
 Checking apache-airflow-2.0.2rc4-source.tar.gz.sha512
+```
+
+## Source code check
+
+You should check if the sources in the packages produced are the same as coming from the tag in git.
+
+In checked out sources of Airflow:
+
+```bash
+git checkout X.Y.Zrc1
+export SOURCE_DIR=$(pwd)
+```
+
+Change to the directory where you have the packages from svn:
+
+Check if sources are the same as in the tag:
+
+```bash
+cd X.Y.Zrc1
+tar -xvzf *-source.tar.gz
+pushd apache-airflow-X.Y.Zrc1
+diff -r airflow "${SOURCE_DIR}"
+popd && rm -rf apache-airflow-X.Y.Zrc1
+```
+
+The output should only miss some files - but they should not show any differences in the files:
+
+```
+⌂6.50 [jarek:~/asf-dist/dev/airflow/2.6.2rc2/a] * 1 ‡ diff -r airflow ~/code/airflow/
+Only in /Users/jarek/code/airflow: .DS_Store
+Only in /Users/jarek/code/airflow: .asf.yaml
+Only in /Users/jarek/code/airflow: .bash_aliases
+Only in /Users/jarek/code/airflow: .bash_completion
+Only in /Users/jarek/code/airflow: .bash_history
+...
+```
+
+
+Check if .whl is the same as in tag:
+
+```
+unzip -d a *-.whl
+pushd a
+diff -r airflow "${SOURCE_DIR}"
+popd && rm -rf a
+```
+
+The output should only miss some files - but they should not show any differences in the files:
+
+```
+⌂6.50 [jarek:~/asf-dist/dev/airflow/2.6.2rc2/a] * 1 ‡ diff -r airflow ~/code/airflow/
+Only in /Users/jarek/code/airflow: .DS_Store
+Only in /Users/jarek/code/airflow: .asf.yaml
+Only in /Users/jarek/code/airflow: .bash_aliases
+Only in /Users/jarek/code/airflow: .bash_completion
+Only in /Users/jarek/code/airflow: .bash_history
+...
+```
+
+Check if sdist are the same as in the tag:
+
+```bash
+cd X.Y.Zrc1
+tar -xvzf apachae-airflow-X.Y.Z.tar.gz
+pushd apache-airflow-X.Y.Z
+diff -r airflow "${SOURCE_DIR}"
+popd && rm -rf apache-airflow-X.Y.Z
+```
+
+The output should only miss some files - but they should not show any differences in the files:
+
+```
+⌂6.50 [jarek:~/asf-dist/dev/airflow/2.6.2rc2/a] * 1 ‡ diff -r airflow ~/code/airflow/
+Only in /Users/jarek/code/airflow: .DS_Store
+Only in /Users/jarek/code/airflow: .asf.yaml
+Only in /Users/jarek/code/airflow: .bash_aliases
+Only in /Users/jarek/code/airflow: .bash_completion
+Only in /Users/jarek/code/airflow: .bash_history
+...
 ```
 
 # Verify release candidates by Contributors
