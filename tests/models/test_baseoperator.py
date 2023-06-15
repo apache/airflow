@@ -864,6 +864,7 @@ def test_render_template_fields_logging(
     caplog, monkeypatch, task, context, expected_exception, expected_rendering, expected_log, not_expected_log
 ):
     """Verify if operator attributes are correctly templated."""
+
     # Trigger templating and verify results
     def _do_render():
         task.render_template_fields(context=context)
@@ -902,3 +903,20 @@ def test_find_mapped_dependants_in_another_group(dag_maker):
 
     dependants = list(gen_result.operator.iter_mapped_dependants())
     assert dependants == [add_result.operator]
+
+
+def test_get_flat_relative_ids():
+    with DAG("test-dag", start_date=DEFAULT_DATE):
+        t1 = BaseOperator(task_id="t1")
+        t2 = BaseOperator(task_id="t2")
+        t3 = BaseOperator(task_id="t3")
+        t4 = BaseOperator(task_id="t4")
+        t5 = BaseOperator(task_id="t5")
+        t6 = BaseOperator(task_id="t6")
+        t7 = BaseOperator(task_id="t7")
+        t1 >> [t2, t3] >> t4
+        t4 >> [t5, t6]
+        t5 >> t7
+    assert t4.get_flat_relative_ids(upstream=True) == {"t1", "t2", "t3"}
+    assert t4.get_flat_relative_ids(upstream=False) == {"t5", "t6", "t7"}
+    assert t1.get_flat_relative_ids(upstream=False) == {"t2", "t3", "t4", "t5", "t6", "t7"}

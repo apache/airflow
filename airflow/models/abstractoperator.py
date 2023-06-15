@@ -167,19 +167,12 @@ class AbstractOperator(Templater, DAGNode):
         if not dag:
             return set()
 
-        relatives: set[str] = set()
+        def get_relatives(task):
+            for rel_task in task.get_direct_relatives(upstream=upstream):
+                yield rel_task.task_id
+                yield from get_relatives(rel_task)
 
-        task_ids_to_trace = self.get_direct_relative_ids(upstream)
-        while task_ids_to_trace:
-            task_ids_to_trace_next: set[str] = set()
-            for task_id in task_ids_to_trace:
-                if task_id in relatives:
-                    continue
-                task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
-                relatives.add(task_id)
-            task_ids_to_trace = task_ids_to_trace_next
-
-        return relatives
+        return set(get_relatives(self))
 
     def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
         """Get a flat list of relatives, either upstream or downstream."""
