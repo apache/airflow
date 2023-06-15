@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import call, patch, MagicMock, Mock
+from unittest.mock import MagicMock, Mock, call, patch
 
 import pendulum
 import pytest
@@ -275,7 +275,8 @@ class TestCliDb:
     def test_check(self):
         retry, retry_delay = 6, 9  # arbitrary but distinct number
         args = self.parser.parse_args(
-            ["db", "check", "--retry", str(retry), "--retry-delay", str(retry_delay)])
+            ["db", "check", "--retry", str(retry), "--retry-delay", str(retry_delay)]
+        )
         sleep = MagicMock()
         always_pass = Mock()
         always_fail = Mock(side_effect=OperationalError("", None, None))

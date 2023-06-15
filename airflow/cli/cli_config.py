@@ -510,7 +510,7 @@ ARG_DB_RETRY_DELAY = Arg(
     ("--retry-delay",),
     default=1,
     type=positive_int(allow_zero=False),
-    help="Wait time between retries in seconds"
+    help="Wait time between retries in seconds",
 )
 
 # pool

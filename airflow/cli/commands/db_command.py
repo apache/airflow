@@ -32,8 +32,8 @@ from airflow.utils.db import REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
 from airflow.utils.process_utils import execute_interactive
 
-
 log = logging.getLogger(__name__)
+
 
 def initdb(args):
     """Initializes the metadata database."""
@@ -198,7 +198,7 @@ def check(args):
 
     def _warn_remaining_retries(retrystate: RetryCallState):
         remain = retries - retrystate.attempt_number
-        log.warning(f"{remain} retries remain, will retry after {retry_delay} seconds")
+        log.warning("%d retries remain. Will retry in %d seconds", remain, retry_delay)
 
     for attempt in Retrying(
         stop=stop_after_attempt(1 + retries),
