@@ -156,55 +156,74 @@ class AbstractOperator(Templater, DAGNode):
             return self.upstream_task_ids
         return self.downstream_task_ids
 
-    def get_flat_relative_ids(
-        self,
-        *,
-        upstream: bool = False,
-        setup_only: bool = False,
-        teardown_only: bool = False,
-        follow_setups: ArgNotSet | bool = NOTSET,
-    ) -> set[str]:
+    def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
         """
         Get a flat set of relative IDs, upstream or downstream.
 
         Will recurse each relative found in the direction specified.
-        Whenever a setup is found, its teardowns are always returned.
 
         :param upstream: Whether to look for upstream or downstream relatives.
-        :param setup_only: If true, will only return upstream setups and their teardowns.
-        :param teardown_only: If true, will only return teardown tasks.
-        :param follow_setups: If True, for given object task, its setups will be
-            included in returned relatives.  If not set, it will be implied by either
-            setup_only or teardown_only.
         """
-        if setup_only and not upstream:
-            raise RuntimeError("Unexpected combination: downstream and setup only.")
-        if teardown_only and upstream:
-            raise RuntimeError("Unexpected combination: upstream and teardown only.")
-        if follow_setups is False and (setup_only or teardown_only):
-            raise RuntimeError("Unexpected combination: teardown_only or setup_only and not follow_setups")
-        if follow_setups is NOTSET and (setup_only or teardown_only):
-            follow_setups = True
-
         dag = self.get_dag()
         if not dag:
             return set()
 
-        # todo: shall we be smart about inferring setups.... i.e. don't clear it if not connected to
-        #    a downstream teardown
+        def get_relatives(task):
+            for rel_task_id in task.get_direct_relative_ids(upstream=upstream):
+                yield rel_task_id
+                yield from get_relatives(dag.task_dict[rel_task_id])
 
-        downstream_teardowns = set()
-        if not teardown_only:
-            downstream_teardowns.update(self.get_flat_relative_ids(upstream=False, teardown_only=True))
+        return set(get_relatives(self))
 
-        relatives: set[str] = set()
+    def _get_downstream_teardown_ids(self) -> set[str]:
+        dag = self.get_dag()
+        if not dag:
+            return set()
+
+        def get_teardowns(task):
+            for down_id in task.downstream_list:
+                if (down_task := dag.task_dict[down_id]).is_teardown:
+                    yield down_id
+                yield from get_teardowns(down_task)
+
+        return set(get_teardowns(self))
+
+    def _get_upstream_tasks(self, task) -> set[BaseOperator]:
+        dag = task.get_dag()
+        if not dag:
+            return set()
+
+        for up_id in task.upstream_list:
+            if (up_task := dag.task_dict[up_id]).is_setup:
+                yield up_task
+            yield from self._get_upstream_tasks(up_task)
+
+    def _get_upstream_ids_follow_setups(self) -> set[str]:
+        """All upstreams and, for each upstream setup, its respective teardowns."""
+        relatives = set()
+        for task in self._get_upstream_tasks(self):
+            relatives.add(task.task_id)
+            if task.is_setup:
+                relatives.update([x.task_id for x in task.downstream_list if x.is_teardown and not x == self])
+        return relatives
+
+    def _get_upstream_ids_only_setups_and_teardowns(self) -> set[str]:
+        downstream_teardown_ids = self._get_downstream_teardown_ids()
+        relatives = set()
+        for task in self._get_upstream_tasks(self):
+            if not task.is_setup:
+                continue
+            if not task.downstream_task_ids.isdisjoint(downstream_teardown_ids)
+                relatives.add(task)
+                relatives.update([x.task_id for x in task.downstream_list if x.is_teardown and not x == self])
+        return relatives
 
         def process_setup_teardown():
             """Add setups / teardowns for the task, subject to filters setup only and teardown only."""
             if teardown_only and task.is_teardown:
                 relatives.add(task_id)
             if task.is_setup:
-                is_relevant_setup = not task.downstream_task_ids.isdisjoint(downstream_teardowns)
+                is_relevant_setup = not task.downstream_task_ids.isdisjoint(downstream_teardown_ids)
                 if setup_only and not is_relevant_setup:
                     # not a setup for self
                     return
