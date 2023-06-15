@@ -168,9 +168,9 @@ class AbstractOperator(Templater, DAGNode):
             return set()
 
         def get_relatives(task):
-            for rel_task in task.get_direct_relatives(upstream=upstream):
-                yield rel_task.task_id
-                yield from get_relatives(rel_task)
+            for rel_task_id in task.get_direct_relative_ids(upstream=upstream):
+                yield rel_task_id
+                yield from get_relatives(dag.task_dict[rel_task_id])
 
         return set(get_relatives(self))
 
