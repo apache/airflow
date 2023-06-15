@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.triggers.s3 import S3KeysUnchangedTrigger, S3KeyTrigger
-from airflow.sensors.base import BaseSensorOperator
+from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 
 class S3KeySensor(BaseSensorOperator):
@@ -187,6 +187,7 @@ class S3KeySensor(BaseSensorOperator):
         return S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
 
+@poke_mode_only
 class S3KeysUnchangedSensor(BaseSensorOperator):
     """
     Return True if inactivity_period has passed with no increase in the number of objects matching prefix.
