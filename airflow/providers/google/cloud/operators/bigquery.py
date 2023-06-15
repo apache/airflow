@@ -58,7 +58,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
-BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={job_id}"
+BIGQUERY_JOB_DETAILS_LINK_FMT = "https://console.cloud.google.com/bigquery?j={project_id}:{location}:{job_id}"
 
 
 class BigQueryUIColors(enum.Enum):
@@ -90,8 +90,17 @@ class BigQueryConsoleLink(BaseOperatorLink):
         *,
         ti_key: TaskInstanceKey,
     ):
-        job_id = XCom.get_value(key="job_id", ti_key=ti_key)
-        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ""
+        job_id_params = XCom.get_value(key="job_id_params", ti_key=ti_key)
+
+        return (
+            BIGQUERY_JOB_DETAILS_LINK_FMT.format(
+                job_id=job_id_params["job_id"],
+                project_id=job_id_params["project_id"],
+                location=job_id_params["location"],
+            )
+            if job_id_params
+            else ""
+        )
 
 
 @attr.s(auto_attribs=True)
@@ -110,13 +119,16 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
         *,
         ti_key: TaskInstanceKey,
     ):
-        job_ids = XCom.get_value(key="job_id", ti_key=ti_key)
+        job_ids_params = XCom.get_value(key="job_id_params", ti_key=ti_key)
+        job_ids = job_ids_params["job_id"]
         if not job_ids:
             return None
         if len(job_ids) < self.index:
             return None
         job_id = job_ids[self.index]
-        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
+        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(
+            job_id=job_id, project_id=job_ids_params["project_id"], location=job_ids_params["location"]
+        )
 
 
 class _BigQueryDbHookMixin:
@@ -1184,7 +1196,13 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
             ]
         else:
             raise AirflowException(f"argument 'sql' of type {type(str)} is neither a string nor an iterable")
-        context["task_instance"].xcom_push(key="job_id", value=job_id)
+        job_id_params = {
+            "job_id": job_id,
+            "project_id": self.hook.project_id,
+            "location": self.location if self.location else "US",
+        }
+        context["task_instance"].xcom_push(key="job_id_params", value=job_id_params)
+        return job_id
 
     def on_kill(self) -> None:
         super().on_kill()
@@ -2727,9 +2745,13 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
                                 persist_kwargs["dataset_id"] = table["datasetId"]
                                 persist_kwargs["project_id"] = table["projectId"]
                             BigQueryTableLink.persist(**persist_kwargs)
-
         self.job_id = job.job_id
-        context["ti"].xcom_push(key="job_id", value=self.job_id)
+        job_id_params = {
+            "job_id": job_id,
+            "project_id": self.project_id or self.hook.project_id,
+            "location": self.location if self.location else "US",
+        }
+        context["ti"].xcom_push(key="job_id_params", value=job_id_params)
         # Wait for the job to complete
         if not self.deferrable:
             job.result(timeout=self.result_timeout, retry=self.result_retry)
