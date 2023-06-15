@@ -173,3 +173,76 @@ class EmrCreateJobFlowTrigger(BaseTrigger):
                     "job_flow_id": self.job_flow_id,
                 }
             )
+
+
+class EmrTerminateJobFlowTrigger(BaseTrigger):
+    """
+    Trigger that terminates a running EMR Job Flow.
+    The trigger will asynchronously poll the boto3 API and wait for the
+    JobFlow to finish terminating.
+
+    :param job_flow_id: ID of the EMR Job Flow to terminate
+    :param poll_interval: The amount of time in seconds to wait between attempts.
+    :param max_attempts: The maximum number of attempts to be made.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    """
+
+    def __init__(
+        self,
+        job_flow_id: str,
+        poll_interval: int,
+        max_attempts: int,
+        aws_conn_id: str,
+    ):
+        self.job_flow_id = job_flow_id
+        self.poll_interval = poll_interval
+        self.max_attempts = max_attempts
+        self.aws_conn_id = aws_conn_id
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            self.__class__.__module__ + "." + self.__class__.__qualname__,
+            {
+                "job_flow_id": self.job_flow_id,
+                "poll_interval": str(self.poll_interval),
+                "max_attempts": str(self.max_attempts),
+                "aws_conn_id": self.aws_conn_id,
+            },
+        )
+
+    async def run(self):
+        self.hook = EmrHook(aws_conn_id=self.aws_conn_id)
+        async with self.hook.async_conn as client:
+            attempt = 0
+            waiter = self.hook.get_waiter("job_flow_terminated", deferrable=True, client=client)
+            while attempt < int(self.max_attempts):
+                attempt = attempt + 1
+                try:
+                    await waiter.wait(
+                        ClusterId=self.job_flow_id,
+                        WaiterConfig=prune_dict(
+                            {
+                                "Delay": self.poll_interval,
+                                "MaxAttempts": 1,
+                            }
+                        ),
+                    )
+                    break
+                except WaiterError as error:
+                    if "terminal failure" in str(error):
+                        raise AirflowException(f"JobFlow termination failed: {error}")
+                    self.log.info(
+                        "Status of jobflow is %s - %s",
+                        error.last_response["Cluster"]["Status"]["State"],
+                        error.last_response["Cluster"]["Status"]["StateChangeReason"],
+                    )
+                    await asyncio.sleep(int(self.poll_interval))
+        if attempt >= int(self.max_attempts):
+            raise AirflowException(f"JobFlow termination failed - max attempts reached: {self.max_attempts}")
+        else:
+            yield TriggerEvent(
+                {
+                    "status": "success",
+                    "message": "JobFlow terminated successfully",
+                }
+            )
