@@ -61,5 +61,5 @@ static-checks:9985d1db64592e29ab71b8a000ce302e
 testing:docker-compose-tests:70167e67853cacd9ca784695d65a7846
 testing:helm-tests:936cf28fd84ce4ff5113795fdae9624b
 testing:integration-tests:35f0ac57157bf8fe227fd080cf216622
-testing:tests:588b368745765d4c434eae40f1aab31e
-testing:0d6f1e07f8c14ecb6c31f85c0f1be998
+testing:tests:d7f379870208941452fdd54e08130065
+testing:38994916f0782b907a8c3e1ede073337

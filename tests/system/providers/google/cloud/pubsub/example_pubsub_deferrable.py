@@ -24,14 +24,12 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.pubsub import (
     PubSubCreateSubscriptionOperator,
     PubSubCreateTopicOperator,
     PubSubDeleteSubscriptionOperator,
     PubSubDeleteTopicOperator,
     PubSubPublishMessageOperator,
-    PubSubPullOperator,
 )
 from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
 from airflow.utils.trigger_rule import TriggerRule
@@ -39,19 +37,11 @@ from airflow.utils.trigger_rule import TriggerRule
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-DAG_ID = "pubsub"
+DAG_ID = "pubsub_async"
 
 TOPIC_ID = f"topic-{DAG_ID}-{ENV_ID}"
 MESSAGE = {"data": b"Tool", "attributes": {"name": "wrench", "mass": "1.3kg", "count": "3"}}
-MESSAGE_TWO = {"data": b"Tool", "attributes": {"name": "wrench", "mass": "1.2kg", "count": "2"}}
 
-# [START howto_operator_gcp_pubsub_pull_messages_result_cmd]
-echo_cmd = """
-{% for m in task_instance.xcom_pull('pull_messages') %}
-    echo "AckID: {{ m.get('ackId') }}, Base64-Encoded: {{ m.get('message') }}"
-{% endfor %}
-"""
-# [END howto_operator_gcp_pubsub_pull_messages_result_cmd]
 
 with models.DAG(
     DAG_ID,
@@ -59,88 +49,53 @@ with models.DAG(
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-    # [START howto_operator_gcp_pubsub_create_topic]
     create_topic = PubSubCreateTopicOperator(
         task_id="create_topic", topic=TOPIC_ID, project_id=PROJECT_ID, fail_if_exists=False
     )
-    # [END howto_operator_gcp_pubsub_create_topic]
 
-    # [START howto_operator_gcp_pubsub_create_subscription]
     subscribe_task = PubSubCreateSubscriptionOperator(
         task_id="subscribe_task", project_id=PROJECT_ID, topic=TOPIC_ID
     )
-    # [END howto_operator_gcp_pubsub_create_subscription]
 
-    # [START howto_operator_gcp_pubsub_pull_message_with_sensor]
-    subscription = subscribe_task.output
-
-    pull_messages = PubSubPullSensor(
-        task_id="pull_messages",
-        ack_messages=True,
-        project_id=PROJECT_ID,
-        subscription=subscription,
-    )
-    # [END howto_operator_gcp_pubsub_pull_message_with_sensor]
-
-    # [START howto_operator_gcp_pubsub_pull_messages_result]
-    pull_messages_result = BashOperator(task_id="pull_messages_result", bash_command=echo_cmd)
-    # [END howto_operator_gcp_pubsub_pull_messages_result]
-
-    # [START howto_operator_gcp_pubsub_pull_message_with_operator]
-
-    pull_messages_operator = PubSubPullOperator(
-        task_id="pull_messages_operator",
-        ack_messages=True,
-        project_id=PROJECT_ID,
-        subscription=subscription,
-    )
-    # [END howto_operator_gcp_pubsub_pull_message_with_operator]
-
-    # [START howto_operator_gcp_pubsub_publish]
     publish_task = PubSubPublishMessageOperator(
         task_id="publish_task",
         project_id=PROJECT_ID,
         topic=TOPIC_ID,
         messages=[MESSAGE, MESSAGE],
     )
-    # [END howto_operator_gcp_pubsub_publish]
+    subscription = subscribe_task.output
 
-    publish_task2 = PubSubPublishMessageOperator(
-        task_id="publish_task2",
+    # [START howto_operator_gcp_pubsub_pull_message_with_async_sensor]
+    pull_messages_async = PubSubPullSensor(
+        task_id="pull_messages_async",
+        ack_messages=True,
         project_id=PROJECT_ID,
-        topic=TOPIC_ID,
-        messages=[MESSAGE_TWO, MESSAGE_TWO],
+        subscription=subscription,
+        deferrable=True,
     )
+    # [END howto_operator_gcp_pubsub_pull_message_with_async_sensor]
 
-    # [START howto_operator_gcp_pubsub_unsubscribe]
     unsubscribe_task = PubSubDeleteSubscriptionOperator(
         task_id="unsubscribe_task",
         project_id=PROJECT_ID,
         subscription=subscription,
     )
-    # [END howto_operator_gcp_pubsub_unsubscribe]
     unsubscribe_task.trigger_rule = TriggerRule.ALL_DONE
 
-    # [START howto_operator_gcp_pubsub_delete_topic]
     delete_topic = PubSubDeleteTopicOperator(task_id="delete_topic", topic=TOPIC_ID, project_id=PROJECT_ID)
-    # [END howto_operator_gcp_pubsub_delete_topic]
     delete_topic.trigger_rule = TriggerRule.ALL_DONE
 
     (
         create_topic
         >> subscribe_task
         >> publish_task
-        >> pull_messages
-        >> pull_messages_result
-        >> publish_task2
-        >> pull_messages_operator
+        >> pull_messages_async
         >> unsubscribe_task
         >> delete_topic
     )
 
     # Task dependencies created via `XComArgs`:
-    #   subscribe_task >> pull_messages
-    #   subscribe_task >> pull_messages_operator
+    #   subscribe_task >> pull_messages_async
     #   subscribe_task >> unsubscribe_task
 
     # ### Everything below this line is not part of example ###
