@@ -35,9 +35,9 @@ class ChimeWebhookHook(HttpHook):
     :param http_conn_id: Http connection ID with host as "https://hooks.chime.aws" and
                          default webhook endpoint in the extra field in the form of
                          {"webhook_endpoint": "incomingwebhooks/{webhook.id}?token{webhook.token}"}
-    :param webhook_endpoint: Discord webhook endpoint in the form of
+    :param webhook_endpoint: Chime webhook endpoint in the form of
                              "incomingwebhooks/{webhook.id}?token={webhook.token}"
-    :param message: The message you want to send to your Discord channel
+    :param message: The message you want to send to your Chime room.
                     (max 4096 characters)
     """
 
@@ -50,12 +50,10 @@ class ChimeWebhookHook(HttpHook):
         self,
         http_conn_id: str | None = None,
         webhook_endpoint: str | None = None,
-        message: str = "",
         *args: Any,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.message = message
         self.webhook_endpoint = self._get_webhook_endpoint(http_conn_id, webhook_endpoint)
 
     def _get_webhook_endpoint(self, http_conn_id: str | None, webhook_endpoint: str | None) -> str:
@@ -74,7 +72,9 @@ class ChimeWebhookHook(HttpHook):
             extra = conn.extra_dejson
             endpoint = extra.get("webhook_endpoint", "")
         else:
-            raise AirflowException()
+            raise AirflowException(
+                "Missing one of http_conn_id or webhook_endpoint arguments which are required."
+            )
 
         # Check to make sure the endpoint matches what Chime expects
         if not re.match("^incomingwebhooks/[a-zA-Z0-9_-]+\?token=[a-zA-Z0-9_-]+$", endpoint):
@@ -85,20 +85,20 @@ class ChimeWebhookHook(HttpHook):
 
         return endpoint
 
-    def _build_chime_payload(self) -> str:
+    def _build_chime_payload(self, message: str) -> str:
         """Builds payload for Chime and ensures messages do not exceed max length allowed."""
         payload: dict[str, Any] = {}
         # We need to make sure that the message does not exceed the max length for Chime
-        if len(self.message) <= 4096:
-            payload["Content"] = self.message
+        if len(message) <= 4096:
+            payload["Content"] = message
         else:
             raise AirflowException("Chime message must be 4096 characters or less.")
 
         return json.dumps(payload)
 
-    def execute(self) -> None:
+    def send_message(self, message: str) -> None:
         """Execute calling the Chime webhook endpoint."""
-        chime_payload = self._build_chime_payload()
+        chime_payload = self._build_chime_payload(message)
         self.run(
             endpoint=self.webhook_endpoint, data=chime_payload, headers={"Content-type": "application/json"}
         )
