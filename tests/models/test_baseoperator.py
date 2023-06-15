@@ -35,7 +35,7 @@ from airflow.models.baseoperator import (
     BaseOperator,
     BaseOperatorMeta,
     chain,
-    chain_sequential,
+    chain_reduce,
     cross_downstream,
 )
 from airflow.utils.context import Context
@@ -521,11 +521,11 @@ class TestBaseOperator:
         assert [op2] == tgop3.get_direct_relatives(upstream=False)
         assert [op2] == tgop4.get_direct_relatives(upstream=False)
 
-    def test_chain_sequential(self):
-        dag = DAG(dag_id="test_chain_sequential", start_date=datetime.now())
+    def test_chain_reduce(self):
+        dag = DAG(dag_id="test_chain_reduce", start_date=datetime.now())
 
         t1, t2, t3, t4, t5, t6, t7 = (BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 8))
-        chain_sequential(t1, [t2, t3, t4], [t5, t6], t7)
+        chain_reduce(t1, [t2, t3, t4], [t5, t6], t7)
 
         assert set(t1.get_direct_relatives(upstream=False)) == {t2, t3, t4}
         assert set(t2.get_direct_relatives(upstream=False)) == {t5, t6}
@@ -536,7 +536,7 @@ class TestBaseOperator:
             task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
             for i in range(1, 7)
         )
-        chain_sequential(t1, [t2, t3], [t4, t5], t6)
+        chain_reduce(t1, [t2, t3], [t4, t5], t6)
 
         assert set(t1.operator.get_direct_relatives(upstream=False)) == {t2.operator, t3.operator}
         assert set(t2.operator.get_direct_relatives(upstream=False)) == {t4.operator, t5.operator}
@@ -552,7 +552,7 @@ class TestBaseOperator:
         tgop3, tgop4 = (
             BaseOperator(task_id=f"task_group_task{i}", task_group=tg2, dag=dag) for i in range(1, 3)
         )
-        chain_sequential(op1, tg1, tg2, op2)
+        chain_reduce(op1, tg1, tg2, op2)
 
         assert set(op1.get_direct_relatives(upstream=False)) == {tgop1, tgop2}
         assert set(tgop1.get_direct_relatives(upstream=False)) == {tgop3, tgop4}
@@ -562,7 +562,7 @@ class TestBaseOperator:
 
         t1, t2 = (BaseOperator(task_id=f"t-{i}", dag=dag) for i in range(1, 3))
         with pytest.raises(ValueError, match="Labels are not supported"):
-            chain_sequential(t1, Label("hi"), t2)
+            chain_reduce(t1, Label("hi"), t2)
 
     def test_chain_not_support_type(self):
         dag = DAG(dag_id="test_chain", start_date=datetime.now())
