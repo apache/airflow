@@ -97,7 +97,7 @@ class TrinoHook(DbApiHook):
         elif extra.get("auth") == "jwt":
             if("jwt__file" in extra):
                 with open(extra.get("jwt__file"), 'r') as jwt_file:
-                    token = json.load(jwt_file)
+                    token = jwt_file.read()
             else:
                 token = extra.get("jwt__token")
             auth = trino.auth.JWTAuthentication(token=token)
