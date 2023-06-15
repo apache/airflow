@@ -24,6 +24,13 @@
 Changelog
 ---------
 
+5.0.0
+.....
+
+.. note::
+  This release of provider removes the elasticsearch-dbapi and elasticsearch-dsl package.
+  Only the official elasticsearch package will be used for the provider.
+
 4.5.0
 .....
 

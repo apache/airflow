@@ -211,7 +211,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         grouped_logs = defaultdict(list)
         for log in logs:
             key = getattr_nested(log, self.host_field, None) or "default_host"
-            print(f"es_task_handler.py _group_logs_by_host...key = {key}")
             grouped_logs[key].append(log)
 
         return grouped_logs
