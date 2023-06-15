@@ -454,14 +454,14 @@ class TestBaseOperator:
         cleared_tasks = partial(tasks_to_clear, dag)
 
         # there is no teardown downstream of w2, so we assume w2 does not need s1
-        assert w2.get_upstreams_only_setups_and_teardowns() == set()
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == set()
 
         w3 >> t1
 
         # now, w2 has a downstream teardown, but it's not connected directly to s1
         # (this is how we signal "this is the teardown for this setup")
         # so still, we don't regard s1 as a setup for w2
-        assert w2.get_upstreams_only_setups_and_teardowns() == set()
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == set()
 
         s1 >> t1
 
@@ -469,13 +469,13 @@ class TestBaseOperator:
         # w2, so we can infer that w2 requires it, so now when we clear w2,
         # we will get s1 (because it's a setup for w2) and t1 (because
         # it is a teardown for s1)
-        assert w2.get_upstreams_only_setups_and_teardowns() == {s1, t1}
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
         assert w2.get_flat_relative_ids(upstream=True) == {"s1", "w1"}
-        assert w2.get_upstreams_follow_setups() == {s1, w1, t1}
+        assert set(w2.get_upstreams_follow_setups()) == {s1, w1, t1}
         assert w2.get_flat_relative_ids(upstream=False) == {"w3", "t1"}
         assert w3.get_flat_relative_ids(upstream=False) == {"t1"}
         assert w1.get_flat_relative_ids(upstream=False) == {"w2", "w3", "t1"}
-        assert w1.get_upstreams_only_setups_and_teardowns() == {s1, t1}
+        assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
 
         assert cleared_tasks(w3, upstream=False) == {s1, w3, t1}
 
@@ -530,9 +530,9 @@ class TestBaseOperator:
         cleared_tasks = partial(tasks_to_clear, dag)
 
         # w2, we infer, does not require s1, since t1 does not come after it
-        assert w2.get_upstreams_only_setups_and_teardowns() == set()
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == set()
         # w1, however, *does* require s1, since t1 is downstream of it
-        assert w1.get_upstreams_only_setups_and_teardowns() == {s1, t1}
+        assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
         # downstream is just downstream and includes teardowns
         assert cleared_tasks(w1, upstream=False) == {s1, w1, w2, t1}
         assert cleared_tasks(w2, upstream=False) == {w2}
@@ -555,9 +555,9 @@ class TestBaseOperator:
         s2 >> w2 >> t2
         cleared_tasks = partial(tasks_to_clear, dag)
 
-        assert w1.get_upstreams_only_setups_and_teardowns() == {s1, t1}
+        assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
         assert cleared_tasks(w1, upstream=False) == {s1, w1, t1, w2, t2}
-        assert w2.get_upstreams_only_setups_and_teardowns() == {s2, t2}
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == {s2, t2}
         assert cleared_tasks(w2, upstream=False) == {s2, w2, t2}
 
     def test_get_flat_relative_ids_one_task_multiple_setup_teardowns(self):
@@ -583,9 +583,9 @@ class TestBaseOperator:
         s3 >> w2 >> [t3a, t3b]
         s3 >> [t3a, t3b]
         cleared_tasks = partial(tasks_to_clear, dag)
-        assert w1.get_upstreams_only_setups_and_teardowns() == {s1a, s1b, t1}
+        assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1a, s1b, t1}
         assert cleared_tasks(w1, upstream=False) == {s1a, s1b, w1, t1, t3a, t3b, w2, t2}
-        assert w2.get_upstreams_only_setups_and_teardowns() == {s2, t2, s3, t3a, t3b}
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == {s2, t2, s3, t3a, t3b}
         assert cleared_tasks(w2, upstream=False) == {s2, s3, w2, t2, t3a, t3b}
 
     def test_get_flat_relative_ids_with_setup_and_groups(self):
