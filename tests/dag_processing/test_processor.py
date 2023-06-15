@@ -140,11 +140,11 @@ class TestDagFileProcessor:
 
         assert sla_callback.called
         sla_callback.assert_called_once_with(
-            dag=dag,
-            task_list=f"dummy on {test_start_date.isoformat()}",
-            blocking_task_list="",
-            slas=slas_miss_objects,
-            blocking_tis=[],
+            dag,
+            f"dummy on {test_start_date.isoformat()}",
+            "",
+            slas_miss_objects,
+            [],
         )
 
     @mock.patch("airflow.dag_processing.processor.DagFileProcessor._get_dagbag")

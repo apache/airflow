@@ -81,28 +81,26 @@ class BaseNotifier(Templater):
         """
         ...
 
-    def __call__(
-        self,
-        context: Context | None = None,
-        dag: DAG | None = None,
-        task_list: list[str] | None = None,
-        blocking_task_list: list[str] | None = None,
-        slas: list[SlaMiss] | None = None,
-        blocking_tis: list[TI] | None = None,
-    ) -> None:
+    def __call__(self, *args) -> None:
         """
         Send a notification.
 
         :param context: The airflow context
         """
-        _context = context
-        if _context is None:
+        # Currently, there are two ways a callback is invoked
+        # 1. callback(context) - for on_*_callbacks
+        # 2. callback(dag, task_list, blocking_task_list, slas, blocking_tis) - for sla_miss_callback
+        # we have to distinguish between the two calls so that we can prepare the correct contex,
+        # comparing len(args) is one straightforward way of checking this.
+        if len(args) == 1:
+            _context = args[0]
+        else:
             _context = Context(
-                task_list=task_list,
-                blocking_task_list=blocking_task_list,
-                slas=slas,
-                blocking_tis=blocking_tis,
-                dag=dag,
+                dag=args[0],
+                task_list=args[1],
+                blocking_task_list=args[2],
+                slas=args[3],
+                blocking_tis=args[4],
             )
         self._update_context(_context)
         self.render_template_fields(_context)

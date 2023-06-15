@@ -73,7 +73,7 @@ class TestBaseNotifier:
         notifier = MockNotifier(message="Hello {{ dag.dag_id }}")
         notifier.notify = MagicMock()
         context: Context = {"dag": dag}
-        notifier(context=context)
+        notifier(context)
         notifier.notify.assert_called_once_with({"dag": dag, "message": "Hello {{ dag.dag_id }}"})
         assert notifier.message == "Hello test_render_message_with_template_works"
 
@@ -82,14 +82,14 @@ class TestBaseNotifier:
             EmptyOperator(task_id="test_id")
         notifier = MockNotifier(message="task: {{ task_list[0] }}")
         notifier.notify = MagicMock()
-        notifier(task_list=["some_task"])
+        notifier(None, ["some_task"], None, None, None)
         notifier.notify.assert_called_once_with(
             Context(
+                dag=None,
                 task_list=["some_task"],
                 blocking_task_list=None,
                 slas=None,
                 blocking_tis=None,
-                dag=None,
                 message="task: {{ task_list[0] }}",
             )
         )
