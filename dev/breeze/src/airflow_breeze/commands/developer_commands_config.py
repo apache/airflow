@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
-    "name": "Basic developer commands",
+    "name": "Developer commands",
     "commands": [
         "start-airflow",
         "static-checks",

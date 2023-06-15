@@ -151,28 +151,6 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         }
     ],
-    "breeze release-management update-sbom-information": [
-        {
-            "name": "Update SBOM information flags",
-            "options": [
-                "--airflow-site-dir",
-                "--airflow-version",
-                "--python",
-                "--include-provider-dependencies",
-                "--force",
-            ],
-        },
-        {
-            "name": "Parallel running",
-            "options": [
-                "--run-in-parallel",
-                "--parallelism",
-                "--skip-cleanup",
-                "--debug-resources",
-                "--include-success-outputs",
-            ],
-        },
-    ],
     "breeze release-management start-rc-process": [
         {
             "name": "Start RC process flags",

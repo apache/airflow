@@ -287,6 +287,10 @@ AVAILABLE_INTEGRATIONS = [
     "trino",
 ]
 ALL_PROVIDER_YAML_FILES = Path(AIRFLOW_SOURCES_ROOT).glob("airflow/providers/**/provider.yaml")
+
+with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
+    PROVIDER_DEPENDENCIES = json.load(f)
+
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
     "setup.py",

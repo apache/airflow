@@ -260,7 +260,11 @@ def dict_hash(dictionary: dict[str, Any]) -> str:
     """MD5 hash of a dictionary. Sorted and dumped via json to account for random sequence)"""
     # noinspection InsecureHash
     dhash = hashlib.md5()
-    encoded = json.dumps(dictionary, sort_keys=True, default=vars).encode()
+    try:
+        encoded = json.dumps(dictionary, sort_keys=True, default=vars).encode()
+    except TypeError:
+        get_console().print(dictionary)
+        raise
     dhash.update(encoded)
     return dhash.hexdigest()
 

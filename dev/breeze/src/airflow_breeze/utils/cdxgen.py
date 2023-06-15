@@ -27,8 +27,12 @@ from dataclasses import dataclass
 from multiprocessing.pool import Pool
 from pathlib import Path
 
+import yaml
+
+from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
 from airflow_breeze.utils.console import Output, get_console
 from airflow_breeze.utils.github import download_file_from_github
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, FILES_DIR
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
@@ -113,6 +117,98 @@ def get_cdxgen_port_mapping(parallelism: int, pool: Pool) -> dict[str, int]:
     """
     port_map: dict[str, int] = dict(pool.map(get_port_mapping, range(parallelism)))
     return port_map
+
+
+def get_provider_requirement_image_name(airflow_version: str, python_version: str) -> str:
+    return f"apache/airflow-dev/base_requirements/{airflow_version}/python{python_version}"
+
+
+def build_providers_base_image(airflow_version: str, python_version: str):
+    image_name = get_provider_requirement_image_name(
+        airflow_version=airflow_version, python_version=python_version
+    )
+    dockerfile = f"""
+FROM ghcr.io/apache/airflow/main/ci/python{python_version}
+RUN pip install --upgrade pip
+# Remove all packages
+RUN python -m venv /opt/airflow/providers
+RUN /opt/airflow/providers/bin/pip install --upgrade pip
+RUN /opt/airflow/providers/bin/pip install apache-airflow=={airflow_version} \
+    --constraint https://raw.githubusercontent.com/apache/airflow/\
+constraints-{airflow_version}/constraints-{python_version}.txt
+"""
+    run_command(["docker", "build", "--tag", image_name, "-"], input=dockerfile, text=True, check=True)
+
+
+TARGET_DIR_NAME = "provider_requirements"
+DOCKER_FILE_PREFIX = f"/files/{TARGET_DIR_NAME}/"
+
+
+def get_requirements_for_provider(
+    provider_id: str,
+    airflow_version: str,
+    provider_version: str | None = None,
+    python_version: str = DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+):
+    provider_path_array = provider_id.split(".")
+    if not provider_version:
+        provider_file = (AIRFLOW_SOURCES_ROOT / "airflow" / "providers").joinpath(
+            *provider_path_array
+        ) / "provider.yaml"
+        provider_version = yaml.safe_load(provider_file.read_text())["versions"][0]
+    airflow_file_name = f"provider-{provider_id}-{provider_version}-base-requirements.txt"
+    provider_with_airflow_file_name = f"provider-{provider_id}-{provider_version}-airflow-requirements.txt"
+    provider_file_name = f"provider-{provider_id}-{provider_version}-requirements.txt"
+    command = f"""
+mkdir -pv {DOCKER_FILE_PREFIX}
+/opt/airflow/providers/bin/pip freeze | sort > {DOCKER_FILE_PREFIX}{airflow_file_name}
+/opt/airflow/providers/bin/pip install apache-airflow=={airflow_version} \
+    apache-airflow-providers-{provider_id}=={provider_version}
+/opt/airflow/providers/bin/pip freeze | sort > {DOCKER_FILE_PREFIX}{provider_with_airflow_file_name}
+chown --recursive {os.getuid()}:{os.getgid()} {DOCKER_FILE_PREFIX}
+"""
+    run_command(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "-e",
+            f"HOST_USER_ID={os.getuid()}",
+            "-e",
+            f"HOST_GROUP_ID={os.getgid()}",
+            "-v",
+            f"{AIRFLOW_SOURCES_ROOT}/files:/files",
+            get_provider_requirement_image_name(
+                airflow_version=airflow_version, python_version=python_version
+            ),
+            "-c",
+            ";".join(command.split("\n")[1:-1]),
+        ]
+    )
+    target_dir = FILES_DIR / TARGET_DIR_NAME
+    airflow_file = target_dir / airflow_file_name
+    provider_with_airflow_file = target_dir / provider_with_airflow_file_name
+    get_console().print(f"[info]Airflow requirements in {airflow_file}")
+    get_console().print(f"[info]Provider requirements in {provider_with_airflow_file}")
+    base_packages = set([package.split("==")[0] for package in airflow_file.read_text().split("\n")])
+    base_packages.add("apache-airflow-providers-" + provider_id.replace(".", "-"))
+    provider_packages = sorted(
+        [
+            line
+            for line in provider_with_airflow_file.read_text().split("\n")
+            if line.split("==")[0] not in base_packages
+        ]
+    )
+    get_console().print(
+        f"[info]Provider {provider_id} has {len(provider_packages)} transitively "
+        f"dependent packages (excluding airflow and it's dependencies)"
+    )
+    get_console().print(provider_packages)
+    provider_file = target_dir / provider_file_name
+    provider_file.write_text("\n".join(provider_packages) + "\n")
+    get_console().print(
+        f"[success]Generated {provider_id}:{provider_version} requirements in {provider_file}"
+    )
 
 
 @dataclass

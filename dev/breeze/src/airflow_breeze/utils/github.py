@@ -67,7 +67,7 @@ def download_file_from_github(tag: str, path: str, output_file: Path) -> bool:
 ACTIVE_TAG_MATCH = re.compile(r"^(\d+)\.\d+\.\d+$")
 
 
-def get_active_airflow_versions() -> list[str]:
+def get_active_airflow_versions(confirm: bool = True) -> list[str]:
     """
     Gets list of active Airflow versions from GitHub.
     :return: list of active Airflow versions
@@ -100,11 +100,12 @@ def get_active_airflow_versions() -> list[str]:
         if match and match.group(1) == "2":
             all_active_tags.append(tag)
     airflow_versions = sorted(all_active_tags, key=lambda x: Version(x))
-    get_console().print(f"All Airflow 2 versions: {all_active_tags}")
-    answer = user_confirm(
-        "Should we continue with those versions?", quit_allowed=False, default_answer=Answer.YES
-    )
-    if answer == Answer.NO:
-        get_console().print("[red]Aborting[/]")
-        sys.exit(1)
+    if confirm:
+        get_console().print(f"All Airflow 2 versions: {all_active_tags}")
+        answer = user_confirm(
+            "Should we continue with those versions?", quit_allowed=False, default_answer=Answer.YES
+        )
+        if answer == Answer.NO:
+            get_console().print("[red]Aborting[/]")
+            sys.exit(1)
     return airflow_versions
