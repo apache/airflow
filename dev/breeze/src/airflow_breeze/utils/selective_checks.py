@@ -55,7 +55,6 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
-from airflow_breeze.utils.github_actions import get_ga_output
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_ROOT,
@@ -322,6 +321,8 @@ class SelectiveChecks:
         )
 
     def __str__(self) -> str:
+        from airflow_breeze.utils.github import get_ga_output
+
         output = []
         for field_name in dir(self):
             if not field_name.startswith("_"):

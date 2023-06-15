@@ -171,17 +171,20 @@ class EcsTaskLogFetcher(Thread):
         self.hook = AwsLogsHook(aws_conn_id=aws_conn_id, region_name=region_name)
 
     def run(self) -> None:
-        logs_to_skip = 0
+        continuation_token = AwsLogsHook.ContinuationToken()
         while not self.is_stopped():
             time.sleep(self.fetch_interval.total_seconds())
-            log_events = self._get_log_events(logs_to_skip)
+            log_events = self._get_log_events(continuation_token)
             for log_event in log_events:
                 self.logger.info(self._event_to_str(log_event))
-                logs_to_skip += 1
 
-    def _get_log_events(self, skip: int = 0) -> Generator:
+    def _get_log_events(self, skip_token: AwsLogsHook.ContinuationToken | None = None) -> Generator:
+        if skip_token is None:
+            skip_token = AwsLogsHook.ContinuationToken()
         try:
-            yield from self.hook.get_log_events(self.log_group, self.log_stream_name, skip=skip)
+            yield from self.hook.get_log_events(
+                self.log_group, self.log_stream_name, continuation_token=skip_token
+            )
         except ClientError as error:
             if error.response["Error"]["Code"] != "ResourceNotFoundException":
                 self.logger.warning("Error on retrieving Cloudwatch log events", error)
