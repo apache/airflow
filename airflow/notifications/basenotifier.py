@@ -22,8 +22,6 @@ from typing import TYPE_CHECKING, Sequence
 
 import jinja2
 
-from airflow.models import SlaMiss
-from airflow.models.taskinstance import TaskInstance as TI
 from airflow.template.templater import Templater
 from airflow.utils.context import Context, context_merge
 
@@ -90,7 +88,7 @@ class BaseNotifier(Templater):
         # Currently, there are two ways a callback is invoked
         # 1. callback(context) - for on_*_callbacks
         # 2. callback(dag, task_list, blocking_task_list, slas, blocking_tis) - for sla_miss_callback
-        # we have to distinguish between the two calls so that we can prepare the correct contex,
+        # we have to distinguish between the two calls so that we can prepare the correct context,
         # comparing len(args) is one straightforward way of checking this.
         if len(args) == 1:
             _context = args[0]
