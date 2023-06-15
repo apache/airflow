@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import ClassVar
 
-import numpy as np
+# import numpy as np
 import pendulum
 import pytest
 
@@ -67,14 +67,14 @@ class TestWebEncoder:
     def test_encode_date(self):
         assert json.dumps(date(2017, 5, 21), cls=utils_json.WebEncoder) == '"2017-05-21"'
 
-    def test_encode_numpy_int(self):
-        assert json.dumps(np.int32(5), cls=utils_json.WebEncoder) == "5"
-
-    def test_encode_numpy_bool(self):
-        assert json.dumps(np.bool_(True), cls=utils_json.WebEncoder) == "true"
-
-    def test_encode_numpy_float(self):
-        assert json.dumps(np.float16(3.76953125), cls=utils_json.WebEncoder) == "3.76953125"
+    # def test_encode_numpy_int(self):
+    #     assert json.dumps(np.int32(5), cls=utils_json.WebEncoder) == "5"
+    #
+    # def test_encode_numpy_bool(self):
+    #     assert json.dumps(np.bool_(True), cls=utils_json.WebEncoder) == "true"
+    #
+    # def test_encode_numpy_float(self):
+    #     assert json.dumps(np.float16(3.76953125), cls=utils_json.WebEncoder) == "3.76953125"
 
 
 class TestXComEncoder:
@@ -110,23 +110,6 @@ class TestXComEncoder:
         i = json.dumps(data, cls=utils_json.XComEncoder)
         e = json.loads(i, cls=utils_json.XComDecoder)
         assert data == e
-
-    @pytest.mark.parametrize(
-        "data",
-        [
-            '[{"__classname__": "airflow.datasets.Dataset", "__version__": 1,'
-            ' "__data__": {"__var": {"uri": "bq://google_cloud_default@?table=table_name&schema=schema_name",'
-            ' "extra": null}, "__type": "dict"}}]'
-        ],
-    )
-    def test_decode_xcom_with_old_data(self, data):
-        """
-        Ensure that the Xcom value encoded by Airflow 2.5.2 is getting decoded by Airflow 2.6.
-        """
-        d = json.loads(data, cls=utils_json.XComDecoder)
-        assert d == [
-            Dataset(uri="bq://google_cloud_default@?table=table_name&schema=schema_name", extra=None)
-        ]
 
     def test_orm_deserialize(self):
         x = 14

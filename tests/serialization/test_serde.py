@@ -272,6 +272,25 @@ class TestSerDe:
         dataset = deserialize(data)
         assert dataset.uri == uri
 
+    def test_backwards_compat_airflow_252(self):
+        """
+        Ensure that the Xcom value encoded by Airflow 2.5.2 is getting decoded by Airflow 2.6.
+        """
+        uri = "s3://dag1/output_1.txt"
+        data = {
+            "__classname__": "airflow.datasets.Dataset",
+            "__version__": 1,
+            "__data__": {
+                "__var": {
+                    "uri": "s3://dag1/output_1.txt",
+                    "extra": {"__var": {"hi": "bye"}, "__type": "dict"},
+                },
+                "__type": "dict",
+            },
+        }
+        datasets = deserialize(data)
+        assert datasets.uri == uri
+
     def test_encode_dataset(self):
         dataset = Dataset("mytest://dataset")
         obj = deserialize(serialize(dataset))
