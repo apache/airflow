@@ -284,7 +284,12 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     pip install -e ./dev/breeze
     ```
 
-- Set `GITHUB_TOKEN` environment variable. Needed in patch release for generating issue for testing of the RC
+- Set `GITHUB_TOKEN` environment variable. Needed in patch release for generating issue for testing of the RC.
+    You can generate the token by following [this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
+
+    ```shell script
+    export GITHUB_TOKEN="my_token"
+    ```
 
 - Start the release candidate process by running the below command (If you have not generated a key yet, generate it by following instructions on
     http://www.apache.org/dev/openpgp.html#key-gen-generate-key):
@@ -308,10 +313,11 @@ to have an environment prepared to build multi-platform images. You can achieve 
 Building the image is triggered by running the
 [Release PROD Images](https://github.com/apache/airflow/actions/workflows/release_dockerhub_image.yml) workflow.
 
-When you trigger it you need to pass:
+When you trigger it you need to pass Airflow Version (including the right rc suffix). Make sure to use the
+``v2-*-stable`` branch for the workflow.
 
-* Airflow Version (including the right rc suffix)
-* Optional "true" in the "Skip latest:" field if you do not want to re-tag the latest image
+You can leave the "skip latest" field empty.
+
 
 ![Release prod image](images/release_prod_image_rc.png)
 
@@ -659,7 +665,9 @@ Building the image is triggered by running the
 When you trigger it you need to pass:
 
 * Airflow Version
-* Optional "true" in skip latest field if you do not want to retag the latest image
+* Optional "true" in skip latest field if you do not want to re-tag the latest image
+
+Make sure you use v2-*-stable branch to run the workflow.
 
 ![Release prod image](images/release_prod_image.png)
 
