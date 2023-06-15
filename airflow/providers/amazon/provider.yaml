@@ -406,6 +406,9 @@ hooks:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.hooks.athena
+  - integration-name: Amazon Chime
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.chime
   - integration-name: Amazon DynamoDB
     python-modules:
       - airflow.providers.amazon.aws.hooks.dynamodb
@@ -624,6 +627,8 @@ connection-types:
     connection-type: emr
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
+  - hook-class-name: airflow.providers.amazon.aws.hooks.chime.ChimeWebhookHook
+    connection-type: chime
 
 secrets-backends:
   - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
