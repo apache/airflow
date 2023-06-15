@@ -50,6 +50,12 @@ class AwsLogsHook(AwsBaseHook):
         kwargs["client_type"] = "logs"
         super().__init__(*args, **kwargs)
 
+    class ContinuationToken:
+        """Just a wrapper around a str token to allow updating it from the caller."""
+
+        def __init__(self):
+            self.value: str | None = None
+
     def get_log_events(
         self,
         log_group: str,
@@ -57,6 +63,7 @@ class AwsLogsHook(AwsBaseHook):
         start_time: int = 0,
         skip: int = 0,
         start_from_head: bool = True,
+        continuation_token: ContinuationToken | None = None,
     ) -> Generator:
         """
         A generator for log items in a single stream. This will yield all the
@@ -72,16 +79,20 @@ class AwsLogsHook(AwsBaseHook):
             This is for when there are multiple entries at the same timestamp.
         :param start_from_head: whether to start from the beginning (True) of the log or
             at the end of the log (False).
+        :param continuation_token: a token indicating where to read logs from.
+            Will be updated as this method reads new logs, to be reused in subsequent calls.
         :return: | A CloudWatch log event with the following key-value pairs:
                  |   'timestamp' (int): The time in milliseconds of the event.
                  |   'message' (str): The log event data.
                  |   'ingestionTime' (int): The time in milliseconds the event was ingested.
         """
+        if continuation_token is None:
+            continuation_token = AwsLogsHook.ContinuationToken()
+
         num_consecutive_empty_response = 0
-        next_token = None
         while True:
-            if next_token is not None:
-                token_arg: dict[str, str] = {"nextToken": next_token}
+            if continuation_token.value is not None:
+                token_arg: dict[str, str] = {"nextToken": continuation_token.value}
             else:
                 token_arg = {}
 
@@ -105,16 +116,16 @@ class AwsLogsHook(AwsBaseHook):
 
             yield from events
 
+            if continuation_token.value == response["nextForwardToken"]:
+                return
+
             if not event_count:
                 num_consecutive_empty_response += 1
                 if num_consecutive_empty_response >= NUM_CONSECUTIVE_EMPTY_RESPONSE_EXIT_THRESHOLD:
                     # Exit if there are more than NUM_CONSECUTIVE_EMPTY_RESPONSE_EXIT_THRESHOLD consecutive
                     # empty responses
                     return
-            elif next_token != response["nextForwardToken"]:
-                num_consecutive_empty_response = 0
             else:
-                # Exit if the value of nextForwardToken is same in subsequent calls
-                return
+                num_consecutive_empty_response = 0
 
-            next_token = response["nextForwardToken"]
+            continuation_token.value = response["nextForwardToken"]
