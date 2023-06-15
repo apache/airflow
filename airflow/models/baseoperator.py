@@ -1846,16 +1846,16 @@ def chain_sequential(*elements: DependencyMixin | Sequence[DependencyMixin]):
     E.g.: suppose you want precedence like so::
 
             ╭─op2─╮ ╭─op4─╮
-        op1─┤     ├─┤     ├─op6
-            ╰-op3─╯ ╰-op5─╯
+        op1─┤     ├─├─op5─┤─op7
+            ╰-op3─╯ ╰-op6─╯
 
     Then you can accomplish like so::
 
         chain_sequential(
             op1,
             [op2, op3],
-            [op4, op5],
-            op6
+            [op4, op5, op6],
+            op7
         )
 
     Args:
