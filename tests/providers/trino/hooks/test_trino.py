@@ -110,6 +110,21 @@ class TestTrinoHookConn:
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, auth=mock_jwt_auth)
 
+    @patch(JWT_AUTHENTICATION)
+    @patch(TRINO_DBAPI_CONNECT)
+    @patch(HOOK_GET_CONNECTION)
+    def test_get_conn_jwt_file(self, mock_get_connection, mock_connect, mock_jwt_auth):
+        extras = {
+            "auth": "jwt",
+            "jwt__file": "/path/to/jwt_file",
+        }
+        self.set_get_connection_return_value(
+            mock_get_connection,
+            extra=json.dumps(extras),
+        )
+        TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, auth=mock_jwt_auth)
+
     @patch(CERT_AUTHENTICATION)
     @patch(TRINO_DBAPI_CONNECT)
     @patch(HOOK_GET_CONNECTION)
