@@ -165,7 +165,7 @@ class AbstractOperator(Templater, DAGNode):
         """
         return {x.task_id for x in self.get_flat_relatives(upstream=upstream)}
 
-    def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
+    def get_flat_relatives(self, upstream: bool = False) -> set[Operator]:
         """Get a flat list of relatives, either upstream or downstream."""
         dag = self.get_dag()
         if not dag:
