@@ -35,7 +35,6 @@ from airflow.utils.sqlalchemy import skip_locked, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.weight_rule import WeightRule
 
 TaskStateChangeCallback = Callable[[Context], None]
@@ -156,6 +155,25 @@ class AbstractOperator(Templater, DAGNode):
             return self.upstream_task_ids
         return self.downstream_task_ids
 
+    def get_flat_relatives(self, upstream: bool = False) -> set[Operator]:
+        """
+        Get a flat list of relatives, either upstream or downstream.
+
+        :param upstream: If True will look upstream else downstream.
+        :param setup_only: If true, will only return upstream setups and their teardowns.
+        """
+        dag = self.get_dag()
+
+        if not dag:
+            return set()
+
+        def get_relatives(task):
+            for rel_task_id in task.get_direct_relative_ids(upstream=upstream):
+                yield (rel_task := dag.task_dict[rel_task_id])
+                yield from get_relatives(rel_task)
+
+        return set(get_relatives(self))
+
     def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
         """
         Get a flat set of relative IDs, upstream or downstream.
@@ -164,112 +182,34 @@ class AbstractOperator(Templater, DAGNode):
 
         :param upstream: Whether to look for upstream or downstream relatives.
         """
-        dag = self.get_dag()
-        if not dag:
-            return set()
+        return {x.task_id for x in self.get_flat_relatives(upstream=upstream)}
 
-        def get_relatives(task):
-            for rel_task_id in task.get_direct_relative_ids(upstream=upstream):
-                yield rel_task_id
-                yield from get_relatives(dag.task_dict[rel_task_id])
-
-        return set(get_relatives(self))
-
-    def _get_downstream_teardown_ids(self) -> set[str]:
-        dag = self.get_dag()
-        if not dag:
-            return set()
-
-        def get_teardowns(task):
-            for down_id in task.downstream_list:
-                if (down_task := dag.task_dict[down_id]).is_teardown:
-                    yield down_id
-                yield from get_teardowns(down_task)
-
-        return set(get_teardowns(self))
-
-    def _get_upstream_tasks(self, task) -> set[BaseOperator]:
-        dag = task.get_dag()
-        if not dag:
-            return set()
-
-        for up_id in task.upstream_list:
-            if (up_task := dag.task_dict[up_id]).is_setup:
-                yield up_task
-            yield from self._get_upstream_tasks(up_task)
-
-    def _get_upstream_ids_follow_setups(self) -> set[str]:
+    def get_upstreams_follow_setups(self) -> set[Operator]:
         """All upstreams and, for each upstream setup, its respective teardowns."""
-        relatives = set()
-        for task in self._get_upstream_tasks(self):
-            relatives.add(task.task_id)
+        relatives: set[Operator] = set()
+        for task in self.get_flat_relatives(upstream=True):
+            relatives.add(task)
             if task.is_setup:
-                relatives.update([x.task_id for x in task.downstream_list if x.is_teardown and not x == self])
+                relatives.update(x for x in task.downstream_list if x.is_teardown and not x == self)
         return relatives
 
-    def _get_upstream_ids_only_setups_and_teardowns(self) -> set[str]:
-        downstream_teardown_ids = self._get_downstream_teardown_ids()
-        relatives = set()
-        for task in self._get_upstream_tasks(self):
+    def get_upstreams_only_setups_and_teardowns(self) -> set[Operator]:
+        """
+        Only *relevant* upstream setups and their teardowns.
+
+        Relevant in this case means, the setup has a teardown that is downstream of ``self``.
+        """
+        downstream_teardown_ids = {
+            x.task_id for x in self.get_flat_relatives(upstream=False) if x.is_teardown
+        }
+        relatives: set[Operator] = set()
+        for task in self.get_flat_relatives(upstream=True):
             if not task.is_setup:
                 continue
-            if not task.downstream_task_ids.isdisjoint(downstream_teardown_ids)
+            if not task.downstream_task_ids.isdisjoint(downstream_teardown_ids):
                 relatives.add(task)
-                relatives.update([x.task_id for x in task.downstream_list if x.is_teardown and not x == self])
+                relatives.update(x for x in task.downstream_list if x.is_teardown and not x == self)
         return relatives
-
-        def process_setup_teardown():
-            """Add setups / teardowns for the task, subject to filters setup only and teardown only."""
-            if teardown_only and task.is_teardown:
-                relatives.add(task_id)
-            if task.is_setup:
-                is_relevant_setup = not task.downstream_task_ids.isdisjoint(downstream_teardown_ids)
-                if setup_only and not is_relevant_setup:
-                    # not a setup for self
-                    return
-                # either this setup is relevant to self, or setup only is not requested
-                relatives.add(task_id)
-                # add the setup's teardowns
-                relatives.update([x.task_id for x in task.downstream_list if x.is_teardown and not x == self])
-            elif not setup_only:
-                if task.is_teardown or not teardown_only:
-                    relatives.add(task_id)
-
-        task_ids_to_trace = self.get_direct_relative_ids(upstream)
-        while task_ids_to_trace:
-            task_ids_to_trace_next: set[str] = set()
-            for task_id in task_ids_to_trace:
-                if task_id in relatives:
-                    continue
-                task = dag.task_dict[task_id]
-                task_ids_to_trace_next |= task.get_direct_relative_ids(upstream)
-                # this is an optimization to short circuit the setup / teardown logic
-                # this legacy behavior is invoked in calculation of priority weight.
-                if follow_setups is not True:
-                    relatives.add(task_id)
-                else:
-                    process_setup_teardown()
-            task_ids_to_trace = task_ids_to_trace_next
-        return relatives
-
-    def get_flat_relatives(self, upstream: bool = False, setup_only: bool = False) -> Collection[Operator]:
-        """
-        Get a flat list of relatives, either upstream or downstream.
-
-        :param upstream: If True will look upstream else downstream.
-        :param setup_only: If true, will only return upstream setups and their teardowns.
-        """
-        if setup_only and not upstream:
-            raise RuntimeError("Unexpected combination: downstream and setup only.")
-
-        dag = self.get_dag()
-
-        if not dag:
-            return set()
-        return [
-            dag.task_dict[task_id]
-            for task_id in self.get_flat_relative_ids(upstream=upstream, setup_only=setup_only)
-        ]
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that are direct dependencies of the current task.
