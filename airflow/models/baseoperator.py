@@ -1868,7 +1868,7 @@ def chain_sequential(*elements: DependencyMixin | Sequence[DependencyMixin]):
         if prev_elem is not None:
             for task in prev_elem:
                 task >> curr_elem
-        prev_elem = curr_elem if isinstance(curr_elem, list) else [curr_elem]
+        prev_elem = [curr_elem] if isinstance(curr_elem, DependencyMixin) else curr_elem
 
 
 # pyupgrade assumes all type annotations can be lazily evaluated, but this is
