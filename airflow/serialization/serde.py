@@ -276,6 +276,7 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 def _convert(old: dict) -> dict:
     """Converts an old style serialization to new style."""
     if OLD_TYPE in old and OLD_DATA in old:
+        # Added to handle for handling xcom data from airflow 2.5.2
         if old[OLD_TYPE] == "dict":
             return old[OLD_DATA]
         else:
