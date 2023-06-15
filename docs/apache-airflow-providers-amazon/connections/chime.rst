@@ -58,16 +58,17 @@ Examples
 --------
 
 **Connection**
-* **Login:
-* **Password:
-* **Host: hooks.chime.aws
-* **Port:
-* ** Schema: https
+
+* **Login**:
+* **Password**:
+* **Host**: hooks.chime.aws
+* **Port**:
+* **Schema**: https
 
 * **Extras**:
 
 .. code-block:: json
 
-{
-"webhook_endpoint": "incomingwebhooks/abceasd-3423-a1237-ffff-000cccccccc?token=somechimetoken"
-}
+    {
+      "webhook_endpoint": "incomingwebhooks/abceasd-3423-a1237-ffff-000cccccccc?token=somechimetoken"
+    }
