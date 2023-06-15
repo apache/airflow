@@ -39,6 +39,7 @@ from typing import (
     Any,
     Callable,
     Collection,
+    Deque,
     Iterable,
     Iterator,
     List,
@@ -1703,6 +1704,7 @@ class DAG(LoggingMixin):
 
         # Next, get any of them from our parent DAG (if there is one)
         if include_parentdag and self.parent_dag is not None:
+
             if visited_external_tis is None:
                 visited_external_tis = set()
 
@@ -3756,6 +3758,7 @@ def dag(
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
+
     from airflow.models.serialized_dag import SerializedDagModel
 
     DagModel.serialized_dag = relationship(SerializedDagModel)
@@ -3783,7 +3786,7 @@ class DagContext:
 
     """
 
-    _context_managed_dags: collections.deque[DAG] = deque()
+    _context_managed_dags: Deque[DAG] = deque()
     autoregistered_dags: set[tuple[DAG, ModuleType]] = set()
     current_autoregister_module_name: str | None = None
 
