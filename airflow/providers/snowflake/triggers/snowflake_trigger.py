@@ -67,10 +67,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """
-        Makes a GET API request to snowflake with query_id to get the status of the query
-        by get_sql_api_query_status async function.
-        """
+        """Wait for the query the snowflake query to complete"""
         hook = SnowflakeSqlApiHook(
             self.snowflake_conn_id,
             self.token_life_time,
