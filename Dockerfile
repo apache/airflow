@@ -1034,6 +1034,7 @@ set -euo pipefail
 
 readonly DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
 readonly RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+readonly RETENTION="${AIRFLOW__LOG_DELETE_FOLDERS:-true}"
 
 trap "exit" INT TERM
 

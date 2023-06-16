@@ -224,6 +224,8 @@ spec:
           env:
             - name: AIRFLOW__LOG_RETENTION_DAYS
               value: "{{ .Values.triggerer.logGroomerSidecar.retentionDays }}"
+            - name: AIRFLOW__LOG_DELETE_FOLDERS
+              value: "{{ .Values.dagProcessor.logGroomerSidecar.deleteLogFolders }}" 
           {{- end }}
           volumeMounts:
             - name: logs
