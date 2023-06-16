@@ -304,7 +304,10 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         wait_mock.assert_called_once_with()
         check_mock.assert_called_once_with()
         assert self.ecs.arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
-        assert self.ecs.ecs_task_id == TASK_ID
+
+    def test_task_id_parsing(self):
+        id = EcsRunTaskOperator._get_ecs_task_id(f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}")
+        assert id == TASK_ID
 
     @mock.patch.object(EcsBaseOperator, "client")
     def test_execute_with_failures(self, client_mock):
@@ -571,7 +574,6 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         check_mock.assert_called_once_with()
         xcom_del_mock.assert_called_once()
         assert self.ecs.arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
-        assert self.ecs.ecs_task_id == TASK_ID
 
     @pytest.mark.parametrize(
         "launch_type, tags",
@@ -620,7 +622,6 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         check_mock.assert_called_once_with()
         xcom_del_mock.assert_called_once()
         assert self.ecs.arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
-        assert self.ecs.ecs_task_id == TASK_ID
 
     @mock.patch.object(EcsBaseOperator, "client")
     @mock.patch("airflow.providers.amazon.aws.hooks.ecs.EcsTaskLogFetcher")

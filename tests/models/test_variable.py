@@ -258,3 +258,38 @@ class TestVariable:
             ]
         finally:
             session.rollback()
+
+
+@pytest.mark.parametrize(
+    "variable_value, deserialize_json, expected_masked_values",
+    [
+        ("s3cr3t", False, ["s3cr3t"]),
+        ('{"api_key": "s3cr3t"}', True, ["s3cr3t"]),
+        ('{"api_key": "s3cr3t", "normal_key": "normal_value"}', True, ["s3cr3t"]),
+        ('{"api_key": "s3cr3t", "another_secret": "123456"}', True, ["s3cr3t", "123456"]),
+    ],
+)
+def test_masking_only_secret_values(variable_value, deserialize_json, expected_masked_values):
+    from airflow.utils.log.secrets_masker import _secrets_masker
+
+    session = settings.Session()
+
+    try:
+        var = Variable(
+            key=f"password-{os.getpid()}",
+            val=variable_value,
+        )
+        session.add(var)
+        session.flush()
+
+        # Make sure we re-load it, not just get the cached object back
+        session.expunge(var)
+        _secrets_masker().patterns = set()
+
+        Variable.get(var.key, deserialize_json=deserialize_json)
+
+        for expected_masked_value in expected_masked_values:
+            assert expected_masked_value in _secrets_masker().patterns
+    finally:
+        session.rollback()
+        db.clear_db_variables()
