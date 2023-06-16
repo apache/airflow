@@ -19,20 +19,20 @@ from __future__ import annotations
 
 import re
 import sys
+import warnings
 from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 import boto3
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, XCom
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.ecs import (
     EcsClusterStates,
     EcsHook,
-    EcsTaskDefinitionStates,
     EcsTaskLogFetcher,
     should_retry_eni,
 )
@@ -202,53 +202,39 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
 
     :param task_definition: The family and revision (family:revision) or full Amazon Resource Name (ARN)
         of the task definition to deregister. If you use a family name, you must specify a revision.
-    :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
-    :param waiter_delay: The amount of time in seconds to wait between attempts,
-        if not set then the default waiter value will be used.
-    :param waiter_max_attempts: The maximum number of attempts to be made,
-        if not set then the default waiter value will be used.
     """
 
-    template_fields: Sequence[str] = ("task_definition", "wait_for_completion")
+    template_fields: Sequence[str] = "task_definition"
 
     def __init__(
         self,
         *,
         task_definition: str,
-        wait_for_completion: bool = True,
-        waiter_delay: int | None = None,
-        waiter_max_attempts: int | None = None,
         **kwargs,
     ):
+        if "wait_for_completion" in kwargs or "waiter_delay" in kwargs or "waiter_max_attempts" in kwargs:
+            warnings.warn(
+                "'wait_for_completion' and waiter related params have no effect and are deprecated, "
+                "please remove them.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            # remove args to not trigger Invalid arguments exception
+            kwargs.pop("wait_for_completion", None)
+            kwargs.pop("waiter_delay", None)
+            kwargs.pop("waiter_max_attempts", None)
+
         super().__init__(**kwargs)
         self.task_definition = task_definition
-        self.wait_for_completion = wait_for_completion
-        self.waiter_delay = waiter_delay
-        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context):
         self.log.info("Deregistering task definition %s.", self.task_definition)
         result = self.client.deregister_task_definition(taskDefinition=self.task_definition)
         task_definition_details = result["taskDefinition"]
         task_definition_arn = task_definition_details["taskDefinitionArn"]
-        task_definition_state = task_definition_details.get("status")
-
-        if task_definition_state == EcsTaskDefinitionStates.INACTIVE:
-            # In some circumstances the ECS Task Definition is deleted immediately,
-            # so there is no reason to wait for completion.
-            self.log.info("Task Definition %r in state: %r.", task_definition_arn, task_definition_state)
-        elif self.wait_for_completion:
-            waiter = self.hook.get_waiter("task_definition_inactive")
-            waiter.wait(
-                taskDefinition=task_definition_arn,
-                WaiterConfig=prune_dict(
-                    {
-                        "Delay": self.waiter_delay,
-                        "MaxAttempts": self.waiter_max_attempts,
-                    }
-                ),
-            )
-
+        self.log.info(
+            "Task Definition %r in state: %r.", task_definition_arn, task_definition_details.get("status")
+        )
         return task_definition_arn
 
 
@@ -264,18 +250,12 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
     :param container_definitions: A list of container definitions in JSON format that describe
         the different containers that make up your task.
     :param register_task_kwargs: Extra arguments for Register Task Definition.
-    :param wait_for_completion: If True, waits for creation of the cluster to complete. (default: True)
-    :param waiter_delay: The amount of time in seconds to wait between attempts,
-        if not set then the default waiter value will be used.
-    :param waiter_max_attempts: The maximum number of attempts to be made,
-        if not set then the default waiter value will be used.
     """
 
     template_fields: Sequence[str] = (
         "family",
         "container_definitions",
         "register_task_kwargs",
-        "wait_for_completion",
     )
 
     def __init__(
@@ -284,18 +264,24 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         family: str,
         container_definitions: list[dict],
         register_task_kwargs: dict | None = None,
-        wait_for_completion: bool = True,
-        waiter_delay: int | None = None,
-        waiter_max_attempts: int | None = None,
         **kwargs,
     ):
+        if "wait_for_completion" in kwargs or "waiter_delay" in kwargs or "waiter_max_attempts" in kwargs:
+            warnings.warn(
+                "'wait_for_completion' and waiter related params have no effect and are deprecated, "
+                "please remove them.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            # remove args to not trigger Invalid arguments exception
+            kwargs.pop("wait_for_completion", None)
+            kwargs.pop("waiter_delay", None)
+            kwargs.pop("waiter_max_attempts", None)
+
         super().__init__(**kwargs)
         self.family = family
         self.container_definitions = container_definitions
         self.register_task_kwargs = register_task_kwargs or {}
-        self.wait_for_completion = wait_for_completion
-        self.waiter_delay = waiter_delay
-        self.waiter_max_attempts = waiter_max_attempts
 
     def execute(self, context: Context):
         self.log.info(
@@ -311,24 +297,10 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         )
         task_definition_details = response["taskDefinition"]
         task_definition_arn = task_definition_details["taskDefinitionArn"]
-        task_definition_state = task_definition_details.get("status")
 
-        if task_definition_state == EcsTaskDefinitionStates.ACTIVE:
-            # In some circumstances the ECS Task Definition is created immediately,
-            # so there is no reason to wait for completion.
-            self.log.info("Task Definition %r in state: %r.", task_definition_arn, task_definition_state)
-        elif self.wait_for_completion:
-            waiter = self.hook.get_waiter("task_definition_active")
-            waiter.wait(
-                taskDefinition=task_definition_arn,
-                WaiterConfig=prune_dict(
-                    {
-                        "Delay": self.waiter_delay,
-                        "MaxAttempts": self.waiter_max_attempts,
-                    }
-                ),
-            )
-
+        self.log.info(
+            "Task Definition %r in state: %r.", task_definition_arn, task_definition_details.get("status")
+        )
         context["ti"].xcom_push(key="task_definition_arn", value=task_definition_arn)
         return task_definition_arn
 

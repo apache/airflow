@@ -24,7 +24,7 @@ from unittest import mock
 import boto3
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.operators.ecs import (
@@ -745,33 +745,7 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
 
 
 class TestEcsDeregisterTaskDefinitionOperator(EcsBaseTestCase):
-    @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
-    def test_execute_with_waiter(self, patch_hook_waiters, waiter_delay, waiter_max_attempts):
-        mocked_waiters = mock.MagicMock(name="MockedHookWaitersMethod")
-        patch_hook_waiters.return_value = mocked_waiters
-        op = EcsDeregisterTaskDefinitionOperator(
-            task_id="task",
-            task_definition=TASK_DEFINITION_NAME,
-            wait_for_completion=True,
-            waiter_delay=waiter_delay,
-            waiter_max_attempts=waiter_max_attempts,
-        )
-        with mock.patch.object(self.client, "deregister_task_definition") as mock_client_method:
-            result = op.execute({})
-            mock_client_method.assert_called_once_with(taskDefinition=TASK_DEFINITION_NAME)
-        patch_hook_waiters.assert_called_once_with("task_definition_inactive")
-
-        expected_waiter_config = {}
-        if waiter_delay:
-            expected_waiter_config["Delay"] = waiter_delay
-        if waiter_max_attempts:
-            expected_waiter_config["MaxAttempts"] = waiter_max_attempts
-        mocked_waiters.wait.assert_called_once_with(
-            taskDefinition=mock.ANY, WaiterConfig=expected_waiter_config
-        )
-        assert result is not None
-
-    def test_execute_immediate_delete(self, patch_hook_waiters):
+    def test_execute_immediate_delete(self):
         """Test if task definition deleted during initial request."""
         op = EcsDeregisterTaskDefinitionOperator(
             task_id="task", task_definition=TASK_DEFINITION_NAME, wait_for_completion=True
@@ -782,69 +756,15 @@ class TestEcsDeregisterTaskDefinitionOperator(EcsBaseTestCase):
             }
             result = op.execute({})
             mock_client_method.assert_called_once_with(taskDefinition=TASK_DEFINITION_NAME)
-        patch_hook_waiters.assert_not_called()
         assert result == "foo-bar"
 
-    def test_execute_without_waiter(self, patch_hook_waiters):
-        op = EcsDeregisterTaskDefinitionOperator(
-            task_id="task", task_definition=TASK_DEFINITION_NAME, wait_for_completion=False
-        )
-        with mock.patch.object(self.client, "deregister_task_definition") as mock_client_method:
-            result = op.execute({})
-            mock_client_method.assert_called_once_with(taskDefinition=TASK_DEFINITION_NAME)
-        patch_hook_waiters.assert_not_called()
-        assert result is not None
+    def test_deprecation(self):
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            EcsDeregisterTaskDefinitionOperator(task_id="id", task_definition="def", wait_for_completion=True)
 
 
 class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
-    @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
-    def test_execute_with_waiter(self, patch_hook_waiters, waiter_delay, waiter_max_attempts):
-        mock_ti = mock.MagicMock(name="MockedTaskInstance")
-        mocked_waiters = mock.MagicMock(name="MockedHookWaitersMethod")
-        patch_hook_waiters.return_value = mocked_waiters
-        expected_task_definition_config = {
-            "family": "family_name",
-            "containerDefinitions": [
-                {
-                    "name": CONTAINER_NAME,
-                    "image": "ubuntu",
-                    "workingDirectory": "/usr/bin",
-                    "entryPoint": ["sh", "-c"],
-                    "command": ["ls"],
-                }
-            ],
-            "cpu": "256",
-            "memory": "512",
-            "networkMode": "awsvpc",
-        }
-        op = EcsRegisterTaskDefinitionOperator(
-            task_id="task",
-            **TASK_DEFINITION_CONFIG,
-            wait_for_completion=True,
-            waiter_delay=waiter_delay,
-            waiter_max_attempts=waiter_max_attempts,
-        )
-        with mock.patch.object(self.client, "register_task_definition") as mock_client_method:
-            result = op.execute({"ti": mock_ti})
-            mock_client_method.assert_called_once_with(**expected_task_definition_config)
-        patch_hook_waiters.assert_called_once_with("task_definition_active")
-        mock_ti.xcom_push.assert_called_once_with(key="task_definition_arn", value=mock.ANY)
-
-        expected_waiter_config = {}
-        if waiter_delay:
-            expected_waiter_config["Delay"] = waiter_delay
-        if waiter_max_attempts:
-            expected_waiter_config["MaxAttempts"] = waiter_max_attempts
-        mocked_waiters.wait.assert_called_once_with(
-            taskDefinition=mock.ANY, WaiterConfig=expected_waiter_config
-        )
-        mocked_waiters.wait.assert_called_once_with(
-            taskDefinition=mock.ANY, WaiterConfig=expected_waiter_config
-        )
-
-        assert result is not None
-
-    def test_execute_immediate_create(self, patch_hook_waiters):
+    def test_execute_immediate_create(self):
         """Test if task definition created during initial request."""
         mock_ti = mock.MagicMock(name="MockedTaskInstance")
         expected_task_definition_config = {
@@ -863,39 +783,19 @@ class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
             "networkMode": "awsvpc",
         }
         op = EcsRegisterTaskDefinitionOperator(task_id="task", **TASK_DEFINITION_CONFIG)
+
         with mock.patch.object(self.client, "register_task_definition") as mock_client_method:
             mock_client_method.return_value = {
                 "taskDefinition": {"status": "ACTIVE", "taskDefinitionArn": "foo-bar"}
             }
             result = op.execute({"ti": mock_ti})
             mock_client_method.assert_called_once_with(**expected_task_definition_config)
-        patch_hook_waiters.assert_not_called()
+
         mock_ti.xcom_push.assert_called_once_with(key="task_definition_arn", value="foo-bar")
         assert result == "foo-bar"
 
-    def test_execute_without_waiter(self, patch_hook_waiters):
-        mock_context = mock.MagicMock()
-        expected_task_definition_config = {
-            "family": "family_name",
-            "containerDefinitions": [
-                {
-                    "name": CONTAINER_NAME,
-                    "image": "ubuntu",
-                    "workingDirectory": "/usr/bin",
-                    "entryPoint": ["sh", "-c"],
-                    "command": ["ls"],
-                }
-            ],
-            "cpu": "256",
-            "memory": "512",
-            "networkMode": "awsvpc",
-        }
-
-        op = EcsRegisterTaskDefinitionOperator(
-            task_id="task", **TASK_DEFINITION_CONFIG, wait_for_completion=False
-        )
-        with mock.patch.object(self.client, "register_task_definition") as mock_client_method:
-            result = op.execute(mock_context)
-            mock_client_method.assert_called_once_with(**expected_task_definition_config)
-        patch_hook_waiters.assert_not_called()
-        assert result is not None
+    def test_deprecation(self):
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            EcsRegisterTaskDefinitionOperator(
+                task_id="id", wait_for_completion=True, **TASK_DEFINITION_CONFIG
+            )
