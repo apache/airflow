@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from functools import cached_property
 from time import sleep
-from typing import Callable, NoReturn
+from typing import TYPE_CHECKING, Callable, NoReturn
 
 from sqlalchemy import Column, Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
@@ -41,6 +41,9 @@ from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
+
+if TYPE_CHECKING:
+    from airflow.executors.base_executor import BaseExecutor
 
 
 def _resolve_dagrun_model():
@@ -117,7 +120,7 @@ class Job(Base, LoggingMixin):
         super().__init__(**kwargs)
 
     @cached_property
-    def executor(self):
+    def executor(self) -> BaseExecutor:
         return ExecutorLoader.get_default_executor()
 
     def is_alive(self, grace_multiplier=2.1):

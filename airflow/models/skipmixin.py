@@ -26,7 +26,7 @@ from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -72,7 +72,7 @@ class SkipMixin(LoggingMixin):
             TaskInstance.task_id.in_(d.task_id for d in tasks),
         ).update(
             {
-                TaskInstance.state: State.SKIPPED,
+                TaskInstance.state: TaskInstanceState.SKIPPED,
                 TaskInstance.start_date: now,
                 TaskInstance.end_date: now,
             },

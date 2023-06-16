@@ -111,7 +111,7 @@ class DagRun(Base, LoggingMixin):
     execution_date = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
-    _state = Column("state", String(50), default=State.QUEUED)
+    _state = Column("state", String(50), default=DagRunState.QUEUED)
     run_id = Column(StringID(), nullable=False)
     creating_job_id = Column(Integer)
     external_trigger = Column(Boolean, default=True)
@@ -218,7 +218,7 @@ class DagRun(Base, LoggingMixin):
         if state is not None:
             self.state = state
         if queued_at is NOTSET:
-            self.queued_at = timezone.utcnow() if state == State.QUEUED else None
+            self.queued_at = timezone.utcnow() if state == DagRunState.QUEUED else None
         else:
             self.queued_at = queued_at
         self.run_type = run_type
@@ -256,7 +256,7 @@ class DagRun(Base, LoggingMixin):
         if self._state != state:
             self._state = state
             self.end_date = timezone.utcnow() if self._state in State.finished else None
-            if state == State.QUEUED:
+            if state == DagRunState.QUEUED:
                 self.queued_at = timezone.utcnow()
 
     @declared_attr
@@ -289,9 +289,9 @@ class DagRun(Base, LoggingMixin):
             # because SQLAlchemy doesn't accept a set here.
             query = query.filter(cls.dag_id.in_(set(dag_ids)))
         if only_running:
-            query = query.filter(cls.state == State.RUNNING)
+            query = query.filter(cls.state == DagRunState.RUNNING)
         else:
-            query = query.filter(cls.state.in_([State.RUNNING, State.QUEUED]))
+            query = query.filter(cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)))
         query = query.group_by(cls.dag_id)
         return {dag_id: count for dag_id, count in query.all()}
 
@@ -323,7 +323,7 @@ class DagRun(Base, LoggingMixin):
             .join(DagModel, DagModel.dag_id == cls.dag_id)
             .filter(DagModel.is_paused == false(), DagModel.is_active == true())
         )
-        if state == State.QUEUED:
+        if state == DagRunState.QUEUED:
             # For dag runs in the queued state, we check if they have reached the max_active_runs limit
             # and if so we drop them
             running_drs = (
@@ -462,7 +462,7 @@ class DagRun(Base, LoggingMixin):
                 tis = tis.filter(TI.state == state)
             else:
                 # this is required to deal with NULL values
-                if State.NONE in state:
+                if None in state:
                     if all(x is None for x in state):
                         tis = tis.filter(TI.state.is_(None))
                     else:
@@ -734,9 +734,9 @@ class DagRun(Base, LoggingMixin):
                 try:
                     ti.task = dag.get_task(ti.task_id)
                 except TaskNotFound:
-                    if ti.state != State.REMOVED:
+                    if ti.state != TaskInstanceState.REMOVED:
                         self.log.error("Failed to get task for ti %s. Marking it as removed.", ti)
-                        ti.state = State.REMOVED
+                        ti.state = TaskInstanceState.REMOVED
                         session.flush()
                 else:
                     yield ti
@@ -945,7 +945,7 @@ class DagRun(Base, LoggingMixin):
             self.log.warning("Failed to record first_task_scheduling_delay metric:", exc_info=True)
 
     def _emit_duration_stats_for_finished_state(self):
-        if self.state == State.RUNNING:
+        if self.state == DagRunState.RUNNING:
             return
         if self.start_date is None:
             self.log.warning("Failed to record duration of %s: start_date is not set.", self)
@@ -1017,22 +1017,22 @@ class DagRun(Base, LoggingMixin):
             try:
                 task = dag.get_task(ti.task_id)
 
-                should_restore_task = (task is not None) and ti.state == State.REMOVED
+                should_restore_task = (task is not None) and ti.state == TaskInstanceState.REMOVED
                 if should_restore_task:
                     self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
                     Stats.incr(f"task_restored_to_dag.{dag.dag_id}", tags=self.stats_tags)
                     # Same metric with tagging
                     Stats.incr("task_restored_to_dag", tags={**self.stats_tags, "dag_id": dag.dag_id})
-                    ti.state = State.NONE
+                    ti.state = None
             except AirflowException:
-                if ti.state == State.REMOVED:
+                if ti.state == TaskInstanceState.REMOVED:
                     pass  # ti has already been removed, just ignore it
-                elif self.state != State.RUNNING and not dag.partial:
+                elif self.state != DagRunState.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
                     Stats.incr(f"task_removed_from_dag.{dag.dag_id}", tags=self.stats_tags)
                     # Same metric with tagging
                     Stats.incr("task_removed_from_dag", tags={**self.stats_tags, "dag_id": dag.dag_id})
-                    ti.state = State.REMOVED
+                    ti.state = TaskInstanceState.REMOVED
                 continue
 
             try:
@@ -1049,7 +1049,7 @@ class DagRun(Base, LoggingMixin):
                         self.log.debug(
                             "Removing the unmapped TI '%s' as the mapping can't be resolved yet", ti
                         )
-                        ti.state = State.REMOVED
+                        ti.state = TaskInstanceState.REMOVED
                     continue
                 # Upstreams finished, check there aren't any extras
                 if ti.map_index >= total_length:
@@ -1058,7 +1058,7 @@ class DagRun(Base, LoggingMixin):
                         ti,
                         total_length,
                     )
-                    ti.state = State.REMOVED
+                    ti.state = TaskInstanceState.REMOVED
             else:
                 # Check if the number of mapped literals has changed, and we need to mark this TI as removed.
                 if ti.map_index >= num_mapped_tis:
@@ -1067,10 +1067,10 @@ class DagRun(Base, LoggingMixin):
                         ti,
                         num_mapped_tis,
                     )
-                    ti.state = State.REMOVED
+                    ti.state = TaskInstanceState.REMOVED
                 elif ti.map_index < 0:
                     self.log.debug("Removing the unmapped TI '%s' as the mapping can now be performed", ti)
-                    ti.state = State.REMOVED
+                    ti.state = TaskInstanceState.REMOVED
 
         return task_ids
 
@@ -1342,7 +1342,7 @@ class DagRun(Base, LoggingMixin):
                         TI.run_id == self.run_id,
                         tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids_chunk),
                     )
-                    .update({TI.state: State.SCHEDULED}, synchronize_session=False)
+                    .update({TI.state: TaskInstanceState.SCHEDULED}, synchronize_session=False)
                 )
 
         # Tasks using EmptyOperator should not be executed, mark them as success
@@ -1358,7 +1358,7 @@ class DagRun(Base, LoggingMixin):
                     )
                     .update(
                         {
-                            TI.state: State.SUCCESS,
+                            TI.state: TaskInstanceState.SUCCESS,
                             TI.start_date: timezone.utcnow(),
                             TI.end_date: timezone.utcnow(),
                             TI.duration: 0,

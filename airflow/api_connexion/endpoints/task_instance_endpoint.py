@@ -50,7 +50,7 @@ from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState
 
 T = TypeVar("T")
 
@@ -264,7 +264,7 @@ def get_mapped_task_instances(
 def _convert_state(states: Iterable[str] | None) -> list[str | None] | None:
     if not states:
         return None
-    return [State.NONE if s == "none" else s for s in states]
+    return [None if s == "none" else s for s in states]
 
 
 def _apply_array_filter(query: Query, key: ClauseElement, values: Iterable[Any] | None) -> Query:
