@@ -480,6 +480,17 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
 
+        if self._aws_logs_enabled() and not self.wait_for_completion:
+            self.log.warning(
+                "Trying to get logs without waiting for the task to complete is undefined behavior."
+            )
+
+    @staticmethod
+    def _get_ecs_task_id(task_arn: str | None) -> str | None:
+        if task_arn is None:
+            return None
+        return task_arn.split("/")[-1]
+
     @provide_session
     def execute(self, context, session=None):
         self.log.info(
@@ -506,9 +517,11 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
     @AwsBaseHook.retry(should_retry_eni)
     def _start_wait_check_task(self, context):
-
         if not self.arn:
             self._start_task(context)
+
+        if not self.wait_for_completion:
+            return
 
         if self._aws_logs_enabled():
             self.log.info("Starting ECS Task Log Fetcher")
@@ -516,15 +529,12 @@ class EcsRunTaskOperator(EcsBaseOperator):
             self.task_log_fetcher.start()
 
             try:
-                if self.wait_for_completion:
-                    self._wait_for_task_ended()
+                self._wait_for_task_ended()
             finally:
                 self.task_log_fetcher.stop()
-
             self.task_log_fetcher.join()
         else:
-            if self.wait_for_completion:
-                self._wait_for_task_ended()
+            self._wait_for_task_ended()
 
         self._check_success_task()
 
@@ -566,8 +576,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.log.info("ECS Task started: %s", response)
 
         self.arn = response["tasks"][0]["taskArn"]
-        self.ecs_task_id = self.arn.split("/")[-1]
-        self.log.info("ECS task ID is: %s", self.ecs_task_id)
+        self.log.info("ECS task ID is: %s", self._get_ecs_task_id(self.arn))
 
         if self.reattach:
             # Save the task ARN in XCom to be able to reattach it if needed
@@ -590,7 +599,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
         )
         if previous_task_arn in running_tasks:
             self.arn = previous_task_arn
-            self.ecs_task_id = self.arn.split("/")[-1]
             self.log.info("Reattaching previously launched task: %s", self.arn)
         else:
             self.log.info("No active previously launched task found to reattach")
@@ -620,7 +628,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
     def _get_task_log_fetcher(self) -> EcsTaskLogFetcher:
         if not self.awslogs_group:
             raise ValueError("must specify awslogs_group to fetch task logs")
-        log_stream_name = f"{self.awslogs_stream_prefix}/{self.ecs_task_id}"
+        log_stream_name = f"{self.awslogs_stream_prefix}/{self._get_ecs_task_id(self.arn)}"
 
         return EcsTaskLogFetcher(
             aws_conn_id=self.aws_conn_id,
