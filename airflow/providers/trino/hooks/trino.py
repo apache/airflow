@@ -95,8 +95,8 @@ class TrinoHook(DbApiHook):
         elif db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
         elif extra.get("auth") == "jwt":
-            if("jwt__file" in extra):
-                with open(extra.get("jwt__file"), 'r') as jwt_file:
+            if "jwt__file" in extra:
+                with open(extra.get("jwt__file")) as jwt_file:
                     token = jwt_file.read()
             else:
                 token = extra.get("jwt__token")

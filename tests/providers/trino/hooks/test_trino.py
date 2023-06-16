@@ -18,9 +18,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from tempfile import TemporaryDirectory
-import os
 from unittest import mock
 from unittest.mock import patch
 
@@ -37,6 +37,19 @@ KERBEROS_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.Kerber
 TRINO_DBAPI_CONNECT = "airflow.providers.trino.hooks.trino.trino.dbapi.connect"
 JWT_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.JWTAuthentication"
 CERT_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.CertificateAuthentication"
+
+
+@pytest.fixture()
+def jwt_token_file():
+    # Couldn't get this working with TemporaryFile, using TemporaryDirectory instead
+    # Save a phony jwt to a temporary file for the trino hook to read from
+    with TemporaryDirectory() as tmp_dir:
+        tmp_jwt_file = os.path.join(tmp_dir, "jwt.json")
+
+        with open(tmp_jwt_file, "w") as tmp_file:
+            tmp_file.write('{"phony":"jwt"}')
+
+        yield tmp_jwt_file
 
 
 class TestTrinoHookConn:
@@ -115,27 +128,17 @@ class TestTrinoHookConn:
     @patch(JWT_AUTHENTICATION)
     @patch(TRINO_DBAPI_CONNECT)
     @patch(HOOK_GET_CONNECTION)
-    def test_get_conn_jwt_file(self, mock_get_connection, mock_connect, mock_jwt_auth):
-
-        # Couldn't get this working with TemporaryFile, using TemporaryDirectory instead
-        # Save a phony jwt to a temporary file for the trino hook to read from
-        with TemporaryDirectory() as tmp_dir:
-            tmp_jwt_file = os.path.join(tmp_dir, 'jwt.json')
-
-            with open(tmp_jwt_file, 'w') as tmp_file:
-                tmp_file.write('{"phony":"jwt"}')
-
-            extras = {
-                "auth": "jwt",
-                "jwt__file": tmp_jwt_file,
-            }
-            self.set_get_connection_return_value(
-                mock_get_connection,
-                extra=json.dumps(extras),
-            )
-            TrinoHook().get_conn()
-            self.assert_connection_called_with(mock_connect, auth=mock_jwt_auth)
-            
+    def test_get_conn_jwt_file(self, mock_get_connection, mock_connect, mock_jwt_auth, jwt_token_file):
+        extras = {
+            "auth": "jwt",
+            "jwt__file": jwt_token_file,
+        }
+        self.set_get_connection_return_value(
+            mock_get_connection,
+            extra=json.dumps(extras),
+        )
+        TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, auth=mock_jwt_auth)
 
     @patch(CERT_AUTHENTICATION)
     @patch(TRINO_DBAPI_CONNECT)
