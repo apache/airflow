@@ -546,6 +546,17 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
 
+        if self._aws_logs_enabled() and not self.wait_for_completion:
+            self.log.warning(
+                "Trying to get logs without waiting for the task to complete is undefined behavior."
+            )
+
+    @staticmethod
+    def _get_ecs_task_id(task_arn: str | None) -> str | None:
+        if task_arn is None:
+            return None
+        return task_arn.split("/")[-1]
+
     @provide_session
     def execute(self, context, session=None):
         self.log.info(
@@ -595,7 +606,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
 
     @AwsBaseHook.retry(should_retry_eni)
     def _start_wait_task(self, context):
-
         if not self.arn:
             self._start_task(context)
 
@@ -616,19 +626,21 @@ class EcsRunTaskOperator(EcsBaseOperator):
                 # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
-        elif self._aws_logs_enabled():
+
+        if not self.wait_for_completion:
+            return
+
+        if self._aws_logs_enabled():
             self.log.info("Starting ECS Task Log Fetcher")
             self.task_log_fetcher = self._get_task_log_fetcher()
             self.task_log_fetcher.start()
 
             try:
-                if self.wait_for_completion:
-                    self._wait_for_task_ended()
+                self._wait_for_task_ended()
             finally:
                 self.task_log_fetcher.stop()
-
             self.task_log_fetcher.join()
-        elif self.wait_for_completion:
+        else:
             self._wait_for_task_ended()
 
     def _xcom_del(self, session, task_id):
@@ -669,8 +681,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.log.info("ECS Task started: %s", response)
 
         self.arn = response["tasks"][0]["taskArn"]
-        self.ecs_task_id = self.arn.split("/")[-1]
-        self.log.info("ECS task ID is: %s", self.ecs_task_id)
+        self.log.info("ECS task ID is: %s", self._get_ecs_task_id(self.arn))
 
         if self.reattach:
             # Save the task ARN in XCom to be able to reattach it if needed
@@ -693,7 +704,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
         )
         if previous_task_arn in running_tasks:
             self.arn = previous_task_arn
-            self.ecs_task_id = self.arn.split("/")[-1]
             self.log.info("Reattaching previously launched task: %s", self.arn)
         else:
             self.log.info("No active previously launched task found to reattach")
@@ -719,7 +729,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         return self.awslogs_group and self.awslogs_stream_prefix
 
     def _get_logs_stream_name(self) -> str:
-        return f"{self.awslogs_stream_prefix}/{self.ecs_task_id}"
+        return f"{self.awslogs_stream_prefix}/{self._get_ecs_task_id(self.arn)}"
 
     def _get_task_log_fetcher(self) -> EcsTaskLogFetcher:
         if not self.awslogs_group:
