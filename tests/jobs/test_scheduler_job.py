@@ -24,7 +24,7 @@ import os
 import shutil
 from datetime import timedelta
 from tempfile import mkdtemp
-from typing import Deque, Generator
+from typing import Generator
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -4745,8 +4745,8 @@ class TestSchedulerJob:
 
             return spy
 
-        num_queued_tis: Deque[int] = collections.deque([], 3)
-        num_finished_events: Deque[int] = collections.deque([], 3)
+        num_queued_tis: collections.deque[int] = collections.deque([], 3)
+        num_finished_events: collections.deque[int] = collections.deque([], 3)
 
         do_scheduling_spy = mock.patch.object(
             job_runner,

@@ -28,7 +28,7 @@ from collections import deque
 from contextlib import suppress
 from copy import copy
 from queue import SimpleQueue
-from typing import TYPE_CHECKING, Deque
+from typing import TYPE_CHECKING
 
 from sqlalchemy import func
 
@@ -429,16 +429,16 @@ class TriggerRunner(threading.Thread, LoggingMixin):
     trigger_cache: dict[str, type[BaseTrigger]]
 
     # Inbound queue of new triggers
-    to_create: Deque[tuple[int, BaseTrigger]]
+    to_create: deque[tuple[int, BaseTrigger]]
 
     # Inbound queue of deleted triggers
-    to_cancel: Deque[int]
+    to_cancel: deque[int]
 
     # Outbound queue of events
-    events: Deque[tuple[int, TriggerEvent]]
+    events: deque[tuple[int, TriggerEvent]]
 
     # Outbound queue of failed triggers
-    failed_triggers: Deque[tuple[int, BaseException]]
+    failed_triggers: deque[tuple[int, BaseException]]
 
     # Should-we-stop flag
     stop: bool = False

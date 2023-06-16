@@ -101,7 +101,6 @@ class DagBag(LoggingMixin):
         collect_dags: bool = True,
     ):
         # Avoid circular import
-        from airflow.models.dag import DAG
 
         super().__init__()
 
