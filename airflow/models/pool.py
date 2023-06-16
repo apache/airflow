@@ -17,10 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Any, Iterable
+from typing import Any
 
 from sqlalchemy import Column, Integer, String, Text, func, select
-from sqlalchemy.engine import Row
 from sqlalchemy.orm.session import Session
 
 from airflow.exceptions import AirflowException, PoolNotFound
@@ -168,7 +167,7 @@ class Pool(Base):
         if lock_rows:
             query = with_row_locks(query, session=session, **nowait(session))
 
-        pool_rows: Iterable[Row] = session.execute(query).all()
+        pool_rows = session.execute(query).all()
         for (pool_name, total_slots) in pool_rows:
             if total_slots == -1:
                 total_slots = float("inf")  # type: ignore

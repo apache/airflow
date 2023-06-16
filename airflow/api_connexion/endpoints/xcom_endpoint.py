@@ -101,7 +101,6 @@ def get_xcom_entry(
     query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
     query = query.where(DR.run_id == dag_run_id)
 
-    # TODO: Unify the query. Can't figure it out right now.
     if deserialize:
         item = session.execute(query).one_or_none()
     else:
