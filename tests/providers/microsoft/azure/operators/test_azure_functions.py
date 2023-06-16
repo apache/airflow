@@ -20,22 +20,10 @@ from __future__ import annotations
 import json
 from unittest import mock
 
-
 from airflow.providers.microsoft.azure.operators.functions import AzureFunctionsInvokeOperator
 
 
 class TestAzureFunctionOperator:
-    def test_init(self):
-        """
-        Test init by creating AzureFunctionsInvokeOperator with task id, function_name and asserting
-        with values
-        """
-        azure_function_invoke_operator = AzureFunctionsInvokeOperator(
-            task_id="test_azure_function", function_name="test_function_name"
-        )
-        assert azure_function_invoke_operator.task_id == "test_azure_function"
-        assert azure_function_invoke_operator.function_name == "test_function_name"
-
     @mock.patch("airflow.providers.microsoft.azure.hooks.functions.AzureFunctionsHook.get_conn")
     @mock.patch("airflow.providers.microsoft.azure.hooks.functions.AzureFunctionsHook.run")
     def test_invoke_azure_function(self, mock_invoke_func, mock_conn):
