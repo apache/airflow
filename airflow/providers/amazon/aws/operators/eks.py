@@ -59,7 +59,54 @@ NODEGROUP_FULL_NAME = "Amazon EKS managed node groups"
 FARGATE_FULL_NAME = "AWS Fargate profiles"
 
 
-class EksCreateClusterOperator(BaseOperator):
+class BaseEksCreateOperator(BaseOperator):
+    """
+    Base class for EKS Operators that create cluster resources. This includes
+    EksCreateClusterOperator, EksCreateNodeGroupOperator and EksCreateFargateProfileOperator.
+
+    """
+
+    def create_compute(cls):
+
+        if cls.compute == "nodegroup":
+            try:
+                subnets = cls.nodegroup_subnets
+            except AttributeError:
+                subnets = cast(List[str], cls.resources_vpc_config.get("subnetIds"))
+            cls.eks_hook.create_nodegroup(
+                clusterName=cls.cluster_name,
+                nodegroupName=cls.nodegroup_name,
+                subnets=subnets,
+                nodeRole=cls.nodegroup_role_arn,
+                **cls.create_nodegroup_kwargs,
+            )
+            if cls.wait_for_completion:
+                cls.log.info("Waiting for nodegroup to provision.  This will take some time.")
+                cls.eks_hook.conn.get_waiter("nodegroup_active").wait(
+                    clusterName=cls.cluster_name,
+                    nodegroupName=cls.nodegroup_name,
+                    WaiterConfig={"Delay": cls.waiter_delay, "MaxAttempts": cls.waiter_max_attempts},
+                )
+        elif cls.compute == "fargate":
+            cls.fargate_pod_execution_role_arn = cls.pod_execution_role_arn
+
+            cls.eks_hook.create_fargate_profile(
+                clusterName=cls.cluster_name,
+                fargateProfileName=cls.fargate_profile_name,
+                podExecutionRoleArn=cls.fargate_pod_execution_role_arn,
+                selectors=cls.fargate_selectors,
+                **cls.create_fargate_profile_kwargs,
+            )
+            if cls.wait_for_completion:
+                cls.log.info("Waiting for Fargate profile to provision.  This will take some time.")
+                cls.eks_hook.conn.get_waiter("fargate_profile_active").wait(
+                    clusterName=cls.cluster_name,
+                    fargateProfileName=cls.fargate_profile_name,
+                    WaiterConfig={"Delay": cls.waiter_delay, "MaxAttempts": cls.waiter_max_attempts},
+                )
+
+
+class EksCreateClusterOperator(BaseEksCreateOperator):
     """
     Creates an Amazon EKS Cluster control plane.
 
@@ -184,12 +231,12 @@ class EksCreateClusterOperator(BaseOperator):
                     )
                 )
 
-        eks_hook = EksHook(
+        self.eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
 
-        eks_hook.create_cluster(
+        self.eks_hook.create_cluster(
             name=self.cluster_name,
             roleArn=self.cluster_role_arn,
             resourcesVpcConfig=self.resources_vpc_config,
@@ -202,47 +249,19 @@ class EksCreateClusterOperator(BaseOperator):
             return None
 
         self.log.info("Waiting for EKS Cluster to provision.  This will take some time.")
-        client = eks_hook.conn
+        client = self.eks_hook.conn
 
         try:
             client.get_waiter("cluster_active").wait(name=self.cluster_name)
         except (ClientError, WaiterError) as e:
             self.log.error("Cluster failed to start and will be torn down.\n %s", e)
-            eks_hook.delete_cluster(name=self.cluster_name)
+            self.eks_hook.delete_cluster(name=self.cluster_name)
             client.get_waiter("cluster_deleted").wait(name=self.cluster_name)
             raise
-
-        if self.compute == "nodegroup":
-            eks_hook.create_nodegroup(
-                clusterName=self.cluster_name,
-                nodegroupName=self.nodegroup_name,
-                subnets=cast(List[str], self.resources_vpc_config.get("subnetIds")),
-                nodeRole=self.nodegroup_role_arn,
-                **self.create_nodegroup_kwargs,
-            )
-            if self.wait_for_completion:
-                self.log.info("Waiting for nodegroup to provision.  This will take some time.")
-                client.get_waiter("nodegroup_active").wait(
-                    clusterName=self.cluster_name,
-                    nodegroupName=self.nodegroup_name,
-                )
-        elif self.compute == "fargate":
-            eks_hook.create_fargate_profile(
-                clusterName=self.cluster_name,
-                fargateProfileName=self.fargate_profile_name,
-                podExecutionRoleArn=self.fargate_pod_execution_role_arn,
-                selectors=self.fargate_selectors,
-                **self.create_fargate_profile_kwargs,
-            )
-            if self.wait_for_completion:
-                self.log.info("Waiting for Fargate profile to provision.  This will take some time.")
-                client.get_waiter("fargate_profile_active").wait(
-                    clusterName=self.cluster_name,
-                    fargateProfileName=self.fargate_profile_name,
-                )
+        self.create_compute()
 
 
-class EksCreateNodegroupOperator(BaseOperator):
+class EksCreateNodegroupOperator(BaseEksCreateOperator):
     """
     Creates an Amazon EKS managed node group for an existing Amazon EKS Cluster.
 
@@ -299,6 +318,7 @@ class EksCreateNodegroupOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.nodegroup_subnets = nodegroup_subnets
+        self.compute = "nodegroup"
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
@@ -314,27 +334,14 @@ class EksCreateNodegroupOperator(BaseOperator):
                         self.nodegroup_subnets,
                     )
             self.nodegroup_subnets = nodegroup_subnets_list
-
-        eks_hook = EksHook(
+        self.eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
-        eks_hook.create_nodegroup(
-            clusterName=self.cluster_name,
-            nodegroupName=self.nodegroup_name,
-            subnets=self.nodegroup_subnets,
-            nodeRole=self.nodegroup_role_arn,
-            **self.create_nodegroup_kwargs,
-        )
-
-        if self.wait_for_completion:
-            self.log.info("Waiting for nodegroup to provision.  This will take some time.")
-            eks_hook.conn.get_waiter("nodegroup_active").wait(
-                clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
-            )
+        self.create_compute()
 
 
-class EksCreateFargateProfileOperator(BaseOperator):
+class EksCreateFargateProfileOperator(BaseEksCreateOperator):
     """
     Creates an AWS Fargate profile for an Amazon EKS cluster.
 
@@ -393,50 +400,40 @@ class EksCreateFargateProfileOperator(BaseOperator):
     ) -> None:
         self.cluster_name = cluster_name
         self.pod_execution_role_arn = pod_execution_role_arn
+        self.fargate_pod_execution_role_arn = pod_execution_role_arn
         self.selectors = selectors
+        self.fargate_selectors = selectors
         self.fargate_profile_name = fargate_profile_name
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
-        self.wait_for_completion = wait_for_completion
+        self.wait_for_completion = False if deferrable else wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
+        self.compute = "fargate"
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
-        eks_hook = EksHook(
+        self.eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
         )
-
-        eks_hook.create_fargate_profile(
-            clusterName=self.cluster_name,
-            fargateProfileName=self.fargate_profile_name,
-            podExecutionRoleArn=self.pod_execution_role_arn,
-            selectors=self.selectors,
-            **self.create_fargate_profile_kwargs,
-        )
+        self.create_compute()
         if self.deferrable:
             self.defer(
                 trigger=EksCreateFargateProfileTrigger(
                     cluster_name=self.cluster_name,
                     fargate_profile_name=self.fargate_profile_name,
                     aws_conn_id=self.aws_conn_id,
-                    poll_interval=self.waiter_delay,
-                    max_attempts=self.waiter_max_attempts,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    region=self.region,
                 ),
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
                 # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
                 timeout=timedelta(seconds=(self.waiter_max_attempts * self.waiter_delay + 60)),
-            )
-        elif self.wait_for_completion:
-            self.log.info("Waiting for Fargate profile to provision.  This will take some time.")
-            eks_hook.conn.get_waiter("fargate_profile_active").wait(
-                clusterName=self.cluster_name,
-                fargateProfileName=self.fargate_profile_name,
-                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
 
     def execute_complete(self, context, event=None):
@@ -677,8 +674,9 @@ class EksDeleteFargateProfileOperator(BaseOperator):
                     cluster_name=self.cluster_name,
                     fargate_profile_name=self.fargate_profile_name,
                     aws_conn_id=self.aws_conn_id,
-                    poll_interval=self.waiter_delay,
-                    max_attempts=self.waiter_max_attempts,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    region=self.region,
                 ),
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
