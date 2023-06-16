@@ -45,6 +45,12 @@ class VerticaHook(DbApiHook):
             conn_config["port"] = 5433
         else:
             conn_config["port"] = int(conn.port)
-
+            
+        if conn.extra_dejson.get("connection_load_balance", False):
+            conn_config["connection_load_balance"] = bool(conn.extra_dejson["connection_load_balance"])
+            
+        if conn.extra_dejson.get("session_label", False):
+            conn_config["session_label"] = conn.extra_dejson["session_label"]
+            
         conn = connect(**conn_config)
         return conn
