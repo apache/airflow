@@ -3599,34 +3599,49 @@ class TestTaskClearingSetupTeardownBehavior:
         with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
             s1, w1, w2, w3, t1 = self.make_tasks(dag, "s1, w1, w2, w3, t1")
 
+        # w2 has no upstream setups
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == set()
+
         s1 >> w1 >> w2 >> w3
 
-        # there is no teardown downstream of w2, so we assume w2 does not need s1
-        assert set(w2.get_upstreams_only_setups_and_teardowns()) == set()
-        assert self.cleared_downstream(w2) == {w2, w3}
+        # s1 is upstream of w2 and s2 has *no* teardowns connected, so we assume it
+        # is required by all its downstreams
+        for t in (w1, w2, w3):
+            assert set(t.get_upstreams_only_setups_and_teardowns()) == {s1}
+        assert self.cleared_downstream(w1) == {s1, w1, w2, w3}
+        assert self.cleared_downstream(w2) == {s1, w2, w3}
+        assert self.cleared_downstream(w3) == {s1, w3}
 
-        w3 >> t1
-
-        # now, w2 has a downstream teardown, but it's not connected directly to s1
-        # (this is how we signal "this is the teardown for this setup")
-        # so still, we don't regard s1 as a setup for w2
-        assert set(w2.get_upstreams_only_setups_and_teardowns()) == set()
-        assert self.cleared_downstream(w2) == {w2, w3, t1}
-
+        # let's add a teardown for s1
         s1 >> t1
 
-        # now, we know that t1 is the teardown for s1, and it's downstream of
-        # w2, so we can infer that w2 requires it, so now when we clear w2,
-        # we will get s1 (because it's a setup for w2) and t1 (because
-        # it is a teardown for s1)
+        # now s1 has a teardown. now s1 has a scope.  it will be there as long as t1 hasn't run.
+        # so any task downstream of s1 and upstream of t1 will "require" s1
+        # since w1, w2, and w3 now might run *after* t1, we must infer they don't require s1
+        # so let's redo those asserts
+        for t in (w1, w2, w3):
+            assert set(t.get_upstreams_only_setups_and_teardowns()) == set()
+        assert self.cleared_downstream(w1) == {w1, w2, w3}
+        assert self.cleared_downstream(w2) == {w2, w3}
+        assert self.cleared_downstream(w3) == {w3}
+
+        # we can see in the asserts above that now s1 is not cleared when any of w1, w2, w3 are cleared
+
+        # let us examine what happens when we add w2 >> t1
+        w2 >> t1
+
+        # now both w1 and w2 require s1, but w3 doesn't.  let's verify with some asserts.
+
         assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
-        assert self.cleared_downstream(w1) == {s1, w1, w2, w3, t1}
-        assert self.cleared_upstream(w1) == {s1, w1, t1}
         assert set(w2.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
-        assert set(w2.get_upstreams_follow_setups()) == {s1, w1, t1}
+        assert set(w3.get_upstreams_only_setups_and_teardowns()) == set()
+        assert self.cleared_downstream(w1) == {s1, w1, w2, w3, t1}
         assert self.cleared_downstream(w2) == {s1, w2, w3, t1}
+        assert self.cleared_downstream(w3) == {w3}
+
+        # and let's check clearing upstream just cus
+        assert self.cleared_upstream(w1) == {s1, w1, t1}
         assert self.cleared_upstream(w2) == {s1, w1, w2, t1}
-        assert self.cleared_downstream(w3) == {s1, w3, t1}
         assert self.cleared_upstream(w3) == {s1, w1, w2, w3, t1}
 
     def test_get_flat_relative_ids_with_setup_nested_ctx_mgr(self):

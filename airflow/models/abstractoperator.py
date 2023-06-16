@@ -201,7 +201,11 @@ class AbstractOperator(Templater, DAGNode):
         """
         Only *relevant* upstream setups and their teardowns.
 
-        Relevant in this case means, the setup has a teardown that is downstream of ``self``.
+        This method is meant to be used when we are clearing the task (non-upstream) and we need
+        to add in the *relevant* setups and their teardowns.
+
+        Relevant in this case means, the setup has a teardown that is downstream of ``self``,
+        *or*, the setup has *no teardowns*.
         """
         downstream_teardown_ids = {
             x.task_id for x in self.get_flat_relatives(upstream=False) if x.is_teardown
@@ -209,7 +213,14 @@ class AbstractOperator(Templater, DAGNode):
         for task in self.get_flat_relatives(upstream=True):
             if not task.is_setup:
                 continue
+            is_relevant = False
+            # setup has teardown downstream of `self`
             if not task.downstream_task_ids.isdisjoint(downstream_teardown_ids):
+                is_relevant = True
+            # setup has no teardowns
+            elif not [x for x in task.downstream_list if x.is_teardown]:
+                is_relevant = True
+            if is_relevant:
                 yield task
                 for t in task.downstream_list:
                     if t.is_teardown and not t == self:
