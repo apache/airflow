@@ -610,14 +610,10 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 self.triggers[trigger_id]["events"] += 1
                 self.events.append((trigger_id, event))
         except asyncio.CancelledError as err:
-            trigger_timeout = trigger.task_instance.trigger_timeout
-            if trigger_timeout:
-                if not trigger_timeout.tzinfo:
-                    trigger_timeout = trigger_timeout.replace(tzinfo=timezone.utc)
-
-                if trigger_timeout < timezone.utcnow():
+            if timeout := trigger.task_instance.trigger_timeout:
+                timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
+                if timeout < timezone.utcnow():
                     self.log.error("Trigger cancelled due to timeout")
-
             self.log.error("Trigger cancelled; message=%s", err)
             raise
         finally:
