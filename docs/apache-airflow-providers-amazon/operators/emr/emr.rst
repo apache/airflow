@@ -47,6 +47,10 @@ Create an EMR job flow
 
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator` to
 create a new EMR job flow.  The cluster will be terminated automatically after finishing the steps.
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter.
+Using ``deferrable`` mode will release worker slots and leads to efficient utilization of
+resources within Airflow cluster.However this mode will need the Airflow triggerer to be
+available in your deployment.
 
 JobFlow configuration
 """""""""""""""""""""
@@ -107,6 +111,10 @@ Terminate an EMR job flow
 
 To terminate an EMR Job Flow you can use
 :class:`~airflow.providers.amazon.aws.operators.emr.EmrTerminateJobFlowOperator`.
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter.
+Using ``deferrable`` mode will release worker slots and leads to efficient utilization of
+resources within Airflow cluster.However this mode will need the Airflow triggerer to be
+available in your deployment.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr.py
     :language: python
