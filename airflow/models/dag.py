@@ -103,7 +103,7 @@ from airflow.utils.helpers import at_most_one, exactly_one, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, tuple_in_condition, with_row_locks
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
@@ -1281,7 +1281,7 @@ class DAG(LoggingMixin):
         TI = TaskInstance
         qry = session.query(func.count(TI.task_id)).filter(
             TI.dag_id == self.dag_id,
-            TI.state == State.RUNNING,
+            TI.state == TaskInstanceState.RUNNING,
         )
         return qry.scalar() >= self.max_active_tasks
 
@@ -1368,7 +1368,7 @@ class DAG(LoggingMixin):
 
         :return: List of execution dates
         """
-        runs = DagRun.find(dag_id=self.dag_id, state=State.RUNNING)
+        runs = DagRun.find(dag_id=self.dag_id, state=DagRunState.RUNNING)
 
         active_dates = []
         for run in runs:
@@ -1388,9 +1388,9 @@ class DAG(LoggingMixin):
         # .count() is inefficient
         query = session.query(func.count()).filter(DagRun.dag_id == self.dag_id)
         if only_running:
-            query = query.filter(DagRun.state == State.RUNNING)
+            query = query.filter(DagRun.state == DagRunState.RUNNING)
         else:
-            query = query.filter(DagRun.state.in_({State.RUNNING, State.QUEUED}))
+            query = query.filter(DagRun.state.in_({DagRunState.RUNNING, DagRunState.QUEUED}))
 
         if external_trigger is not None:
             query = query.filter(
@@ -2077,7 +2077,7 @@ class DAG(LoggingMixin):
     @provide_session
     def set_dag_runs_state(
         self,
-        state: str = State.RUNNING,
+        state: DagRunState = DagRunState.RUNNING,
         session: Session = NEW_SESSION,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
@@ -2160,10 +2160,10 @@ class DAG(LoggingMixin):
 
         state = []
         if only_failed:
-            state += [State.FAILED, State.UPSTREAM_FAILED]
+            state += [TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED]
         if only_running:
             # Yes, having `+=` doesn't make sense, but this was the existing behaviour
-            state += [State.RUNNING]
+            state += [TaskInstanceState.RUNNING]
 
         tis = self._get_task_instances(
             task_ids=task_ids,
@@ -2694,7 +2694,7 @@ class DAG(LoggingMixin):
         # Instead of starting a scheduler, we run the minimal loop possible to check
         # for task readiness and dependency management. This is notably faster
         # than creating a BackfillJob and allows us to surface logs to the user
-        while dr.state == State.RUNNING:
+        while dr.state == DagRunState.RUNNING:
             schedulable_tis, _ = dr.update_state(session=session)
             try:
                 for ti in schedulable_tis:
