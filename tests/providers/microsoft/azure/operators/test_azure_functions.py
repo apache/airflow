@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 from unittest import mock
 
-from requests import Response
 
 from airflow.providers.microsoft.azure.operators.functions import AzureFunctionsInvokeOperator
 
@@ -41,6 +40,7 @@ class TestAzureFunctionOperator:
     @mock.patch("airflow.providers.microsoft.azure.hooks.functions.AzureFunctionsHook.run")
     def test_invoke_azure_function(self, mock_invoke_func, mock_conn):
         test_event_input = {"TestInput": "Testdata"}
+        Response = mock.MagicMock()
         Response.text = "Test"
         mock_invoke_func.return_value = Response
         invoke_azure_function = AzureFunctionsInvokeOperator(
