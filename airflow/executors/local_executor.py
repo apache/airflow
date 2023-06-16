@@ -94,7 +94,7 @@ class LocalWorkerBase(Process, LoggingMixin):
         # Remove the command since the worker is done executing the task
         setproctitle("airflow worker -- LocalExecutor")
 
-    def _execute_work_in_subprocess(self, command: CommandType) -> str:
+    def _execute_work_in_subprocess(self, command: CommandType) -> TaskInstanceState:
         try:
             subprocess.check_call(command, close_fds=True)
             return TaskInstanceState.SUCCESS
@@ -102,7 +102,7 @@ class LocalWorkerBase(Process, LoggingMixin):
             self.log.error("Failed to execute task %s.", str(e))
             return TaskInstanceState.FAILED
 
-    def _execute_work_in_fork(self, command: CommandType) -> str:
+    def _execute_work_in_fork(self, command: CommandType) -> TaskInstanceState:
         pid = os.fork()
         if pid:
             # In parent, wait for the child
