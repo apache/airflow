@@ -68,8 +68,8 @@ class ChimeWebhookHook(HttpHook):
         elif http_conn_id:
             conn = self.get_connection(http_conn_id)
             extra = conn.extra_dejson
-            endpoint = extra.get("webhook_endpoint", "")
-            if endpoint == "":
+            endpoint = extra.get("webhook_endpoint")
+            if endpoint is None:
                 raise AirflowException("webhook_endpoint missing from extras and is required.")
         else:
             raise AirflowException(

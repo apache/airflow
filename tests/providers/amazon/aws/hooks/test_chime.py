@@ -50,6 +50,13 @@ class TestChimeWebhookHook:
                 extra='{"webhook_endpoint": "incomingwebhooks/abcd-1134?token=somechimetoken_111"}',
             )
         )
+        db.merge_conn(
+            Connection(
+                conn_id="chime-webhook-missing-extra",
+                conn_type="chime",
+                host="https://hooks.chime.aws"
+            )
+        )
 
     def test_get_webhook_endpoint_manual_token(self):
         # Given
@@ -70,6 +77,14 @@ class TestChimeWebhookHook:
         expected_message = "Expected Chime webhook endpoint in the form of"
         with pytest.raises(AirflowException, match=expected_message):
             ChimeWebhookHook(webhook_endpoint=provided_endpoint)
+
+    def test_get_webhook_endpoint_conn_id_missing_extras(self):
+        # Given
+        conn_id = "chime-webhook-missing-extra"
+        hook = ChimeWebhookHook(http_conn_id="chime-webhook-missing-extra")
+        expected_message = "webhook_endpoint missing from extras and is required."
+        with pytest.raises(AirflowException, match=expected_message):
+            hook._get_webhook_endpoint(conn_id)
 
     def test_get_webhook_endpoint_conn_id(self):
         # Given
