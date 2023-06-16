@@ -174,7 +174,6 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         """Sets relatives for the task or task list."""
         from airflow.models.baseoperator import BaseOperator
         from airflow.models.mappedoperator import MappedOperator
-        from airflow.models.operator import Operator
 
         if not isinstance(task_or_task_list, Sequence):
             task_or_task_list = [task_or_task_list]
