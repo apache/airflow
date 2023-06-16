@@ -53,7 +53,7 @@ from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin, remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType
@@ -228,12 +228,16 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # since kube server have received request to delete pod set TI state failed
             if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
                 self.log.info("Event: Failed to start pod %s, annotations: %s", pod_name, annotations_string)
-                self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
+                self.watcher_queue.put(
+                    (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version),
+                )
             else:
                 self.log.debug("Event: %s Pending, annotations: %s", pod_name, annotations_string)
         elif status == "Failed":
             self.log.error("Event: %s Failed, annotations: %s", pod_name, annotations_string)
-            self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
+            self.watcher_queue.put(
+                (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version),
+            )
         elif status == "Succeeded":
             # We get multiple events once the pod hits a terminal state, and we only want to
             # send it along to the scheduler once.
@@ -261,7 +265,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     pod_name,
                     annotations_string,
                 )
-                self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
+                self.watcher_queue.put(
+                    (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version),
+                )
             else:
                 self.log.info("Event: %s is Running, annotations: %s", pod_name, annotations_string)
         else:
@@ -700,7 +706,7 @@ class KubernetesExecutor(BaseExecutor):
                     last_resource_version[namespace] = resource_version
                     self.log.info("Changing state of %s to %s", results, state)
                     try:
-                        self._change_state(key, state, pod_name, namespace)
+                        self._change_state(key, TaskInstanceState(state), pod_name, namespace)
                     except Exception as e:
                         self.log.exception(
                             "Exception: %s when attempting to change state of %s to %s, re-queueing.",
@@ -767,7 +773,7 @@ class KubernetesExecutor(BaseExecutor):
     def _change_state(
         self,
         key: TaskInstanceKey,
-        state: str | None,
+        state: TaskInstanceState | None,
         pod_name: str,
         namespace: str,
         session: Session = NEW_SESSION,
@@ -776,12 +782,12 @@ class KubernetesExecutor(BaseExecutor):
             assert self.kube_scheduler
         from airflow.models.taskinstance import TaskInstance
 
-        if state == State.RUNNING:
+        if state == TaskInstanceState.RUNNING:
             self.event_buffer[key] = state, None
             return
 
         if self.kube_config.delete_worker_pods:
-            if state != State.FAILED or self.kube_config.delete_worker_pods_on_failure:
+            if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
                 self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
                 self.log.info("Deleted pod: %s in namespace %s", str(key), str(namespace))
         else:
@@ -1011,7 +1017,7 @@ class KubernetesExecutor(BaseExecutor):
                         "Changing state of %s to %s : resource_version=%d", results, state, resource_version
                     )
                     try:
-                        self._change_state(key, state, pod_name, namespace)
+                        self._change_state(key, TaskInstanceState(state), pod_name, namespace)
                     except Exception as e:
                         self.log.exception(
                             "Ignoring exception: %s when attempting to change state of %s to %s.",

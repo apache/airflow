@@ -46,6 +46,7 @@ from airflow.stats import Stats
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
+from airflow.utils.state import TaskInstanceState
 from airflow.utils.timeout import timeout
 
 log = logging.getLogger(__name__)
@@ -192,9 +193,10 @@ def send_task_to_executor(
     return key, command, result
 
 
-def fetch_celery_task_state(async_result: AsyncResult) -> tuple[str, str | ExceptionWithTraceback, Any]:
-    """
-    Fetch and return the state of the given celery task.
+def fetch_celery_task_state(
+    async_result: AsyncResult,
+) -> tuple[str, TaskInstanceState | ExceptionWithTraceback, Any]:
+    """Fetch and return the state of the given celery task.
 
     The scope of this function is global so that it can be called by subprocesses in the pool.
 

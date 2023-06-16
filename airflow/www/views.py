@@ -754,7 +754,7 @@ class Airflow(AirflowBaseView):
 
             # find DAGs which have a RUNNING DagRun
             running_dags = dags_query.join(DagRun, DagModel.dag_id == DagRun.dag_id).filter(
-                DagRun.state == State.RUNNING
+                DagRun.state == DagRunState.RUNNING
             )
 
             # find DAGs for which the latest DagRun is FAILED
@@ -765,7 +765,7 @@ class Airflow(AirflowBaseView):
             )
             subq_failed = (
                 session.query(DagRun.dag_id, func.max(DagRun.start_date).label("start_date"))
-                .filter(DagRun.state == State.FAILED)
+                .filter(DagRun.state == DagRunState.FAILED)
                 .group_by(DagRun.dag_id)
                 .subquery()
             )
@@ -1101,7 +1101,7 @@ class Airflow(AirflowBaseView):
         running_dag_run_query_result = (
             session.query(DagRun.dag_id, DagRun.run_id)
             .join(DagModel, DagModel.dag_id == DagRun.dag_id)
-            .filter(DagRun.state == State.RUNNING, DagModel.is_active)
+            .filter(DagRun.state == DagRunState.RUNNING, DagModel.is_active)
         )
 
         running_dag_run_query_result = running_dag_run_query_result.filter(DagRun.dag_id.in_(filter_dag_ids))
@@ -1125,7 +1125,7 @@ class Airflow(AirflowBaseView):
             last_dag_run = (
                 session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label("execution_date"))
                 .join(DagModel, DagModel.dag_id == DagRun.dag_id)
-                .filter(DagRun.state != State.RUNNING, DagModel.is_active)
+                .filter(DagRun.state != DagRunState.RUNNING, DagModel.is_active)
                 .group_by(DagRun.dag_id)
             )
 
@@ -1820,7 +1820,7 @@ class Airflow(AirflowBaseView):
                 "Airflow administrator for assistance.".format(
                     "- This task instance already ran and had it's state changed manually "
                     "(e.g. cleared in the UI)<br>"
-                    if ti and ti.state == State.NONE
+                    if ti and ti.state is None
                     else ""
                 ),
             )
@@ -2119,7 +2119,7 @@ class Airflow(AirflowBaseView):
                 run_type=DagRunType.MANUAL,
                 execution_date=execution_date,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=execution_date),
-                state=State.QUEUED,
+                state=DagRunState.QUEUED,
                 conf=run_conf,
                 external_trigger=True,
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
@@ -5337,14 +5337,14 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
     @action_logging
     def action_set_queued(self, drs: list[DagRun]):
         """Set state to queued."""
-        return self._set_dag_runs_to_active_state(drs, State.QUEUED)
+        return self._set_dag_runs_to_active_state(drs, DagRunState.QUEUED)
 
     @action("set_running", "Set state to 'running'", "", single=False)
     @action_has_dag_edit_access
     @action_logging
     def action_set_running(self, drs: list[DagRun]):
         """Set state to running."""
-        return self._set_dag_runs_to_active_state(drs, State.RUNNING)
+        return self._set_dag_runs_to_active_state(drs, DagRunState.RUNNING)
 
     @provide_session
     def _set_dag_runs_to_active_state(self, drs: list[DagRun], state: str, session: Session = NEW_SESSION):
@@ -5353,7 +5353,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
             count = 0
             for dr in session.query(DagRun).filter(DagRun.id.in_(dagrun.id for dagrun in drs)):
                 count += 1
-                if state == State.RUNNING:
+                if state == DagRunState.RUNNING:
                     dr.start_date = timezone.utcnow()
                 dr.state = state
             session.commit()
@@ -5790,7 +5790,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     @action_logging
     def action_set_running(self, tis):
         """Set state to 'running'."""
-        self.set_task_instance_state(tis, State.RUNNING)
+        self.set_task_instance_state(tis, TaskInstanceState.RUNNING)
         self.update_redirect()
         return redirect(self.get_redirect())
 
@@ -5799,7 +5799,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     @action_logging
     def action_set_failed(self, tis):
         """Set state to 'failed'."""
-        self.set_task_instance_state(tis, State.FAILED)
+        self.set_task_instance_state(tis, TaskInstanceState.FAILED)
         self.update_redirect()
         return redirect(self.get_redirect())
 
@@ -5808,7 +5808,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     @action_logging
     def action_set_success(self, tis):
         """Set state to 'success'."""
-        self.set_task_instance_state(tis, State.SUCCESS)
+        self.set_task_instance_state(tis, TaskInstanceState.SUCCESS)
         self.update_redirect()
         return redirect(self.get_redirect())
 
@@ -5817,7 +5817,7 @@ class TaskInstanceModelView(AirflowPrivilegeVerifierModelView):
     @action_logging
     def action_set_retry(self, tis):
         """Set state to 'up_for_retry'."""
-        self.set_task_instance_state(tis, State.UP_FOR_RETRY)
+        self.set_task_instance_state(tis, TaskInstanceState.UP_FOR_RETRY)
         self.update_redirect()
         return redirect(self.get_redirect())
 
