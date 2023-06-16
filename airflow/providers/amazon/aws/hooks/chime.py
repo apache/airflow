@@ -69,6 +69,8 @@ class ChimeWebhookHook(HttpHook):
             conn = self.get_connection(http_conn_id)
             extra = conn.extra_dejson
             endpoint = extra.get("webhook_endpoint", "")
+            if endpoint == "":
+                raise AirflowException("webhook_endpoint missing from extras and is required.")
         else:
             raise AirflowException(
                 "Missing one of http_conn_id or webhook_endpoint arguments which are required."
@@ -92,11 +94,10 @@ class ChimeWebhookHook(HttpHook):
         """
         payload: dict[str, Any] = {}
         # We need to make sure that the message does not exceed the max length for Chime
-        if len(message) <= 4096:
-            payload["Content"] = message
-        else:
+        if len(message) > 4096:
             raise AirflowException("Chime message must be 4096 characters or less.")
 
+        payload["Content"] = message
         return json.dumps(payload)
 
     def send_message(self, message: str) -> None:
