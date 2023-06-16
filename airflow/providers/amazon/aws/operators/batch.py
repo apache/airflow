@@ -402,6 +402,14 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         **kwargs,
     ):
         super().__init__(**kwargs)
+        if status_retries is not None:
+            warnings.warn(
+                "The `status_retries` parameter is unused and should be removed. "
+                "It'll be deleted in a future version.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+
         self.compute_environment_name = compute_environment_name
         self.environment_type = environment_type
         self.state = state
@@ -410,7 +418,6 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         self.service_role = service_role
         self.tags = tags or {}
         self.max_retries = max_retries
-        self.status_retries = status_retries
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
 
@@ -418,8 +425,6 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
     def hook(self):
         """Create and return a BatchClientHook."""
         return BatchClientHook(
-            max_retries=self.max_retries,
-            status_retries=self.status_retries,
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,
         )
