@@ -31,7 +31,7 @@ echo "Running the improved cleaning logs..."
 echo "Cleaning logs every $EVERY seconds"
 
 while true; do
-  if [ "${DELETE_LOGS_FOLDERS}" = true ]
+  if [[ "${DELETE_LOGS_FOLDERS}" == "true" ]]
   then
     echo "Trimming airflow logs folders to ${RETENTION} days."
     find "${DIRECTORY}"/logs \
