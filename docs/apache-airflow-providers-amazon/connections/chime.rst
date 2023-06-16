@@ -52,7 +52,7 @@ Schema (optional)
 
 Extras (optional)
     Specify webhook_endpoint here which will start with ``incomingwebhooks/``
-If you are configuring the connection via a URI, ensure that all components of the URI are URL-encoded.
+
 
 Examples
 --------
