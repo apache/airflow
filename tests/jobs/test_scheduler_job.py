@@ -24,7 +24,7 @@ import os
 import shutil
 from datetime import timedelta
 from tempfile import mkdtemp
-from typing import Deque, Generator
+from typing import Generator
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
@@ -377,7 +377,7 @@ class TestSchedulerJob:
             processor_subdir=None,
             msg="Executor reports task instance "
             "<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> "
-            "finished (failed) although the task says its queued. (Info: None) "
+            "finished (failed) although the task says it's queued. (Info: None) "
             "Was the task killed externally?",
         )
         scheduler_job.executor.callback_sink.send.assert_called_once_with(task_callback)
@@ -4745,8 +4745,8 @@ class TestSchedulerJob:
 
             return spy
 
-        num_queued_tis: Deque[int] = collections.deque([], 3)
-        num_finished_events: Deque[int] = collections.deque([], 3)
+        num_queued_tis: collections.deque[int] = collections.deque([], 3)
+        num_finished_events: collections.deque[int] = collections.deque([], 3)
 
         do_scheduling_spy = mock.patch.object(
             job_runner,
