@@ -1839,7 +1839,7 @@ def cross_downstream(
         task.set_downstream(to_tasks)
 
 
-def chain_reduce(*elements: DependencyMixin | Sequence[DependencyMixin]):
+def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
     """
     Helper to simplify task dependency definition.
 
@@ -1851,7 +1851,7 @@ def chain_reduce(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     Then you can accomplish like so::
 
-        chain_reduce(
+        chain_linear(
             op1,
             [op2, op3],
             [op4, op5, op6],
@@ -1864,7 +1864,7 @@ def chain_reduce(*elements: DependencyMixin | Sequence[DependencyMixin]):
     prev_elem = None
     for curr_elem in elements:
         if isinstance(curr_elem, EdgeModifier):
-            raise ValueError("Labels are not supported by chain_reduce")
+            raise ValueError("Labels are not supported by chain_linear")
         if prev_elem is not None:
             for task in prev_elem:
                 task >> curr_elem
