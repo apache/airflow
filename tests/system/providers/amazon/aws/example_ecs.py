@@ -69,9 +69,6 @@ def get_region():
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def clean_logs(group_name: str):
     client = boto3.client("logs")
-    # A bit brutal to delete the whole group, I know,
-    # but we don't have the access to the arn of the task which is used in the stream name
-    # and also those logs just contain "hello world", which is not very interesting.
     client.delete_log_group(logGroupName=group_name)
 
 
@@ -93,7 +90,7 @@ with DAG(
     asg_name = f"{env_id}-asg"
 
     aws_region = get_region()
-    log_group_name = "/ecs/hello-world"
+    log_group_name = f"/ecs_test/{env_id}"
 
     # [START howto_operator_ecs_create_cluster]
     create_cluster = EcsCreateClusterOperator(
