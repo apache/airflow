@@ -37,6 +37,8 @@ PY_IDENTIFIER = r"[a-zA-Z_][a-zA-Z0-9_\.]*"
 
 sys.path.insert(0, AIRFLOW_SOURCES_DIR)
 
+os.environ["_SKIP_PYTHON_VERSION_CHECK"] = "true"
+
 from setup import (  # noqa # isort:skip
     add_all_provider_packages,
     EXTRAS_DEPRECATED_ALIASES,
