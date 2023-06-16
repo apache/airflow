@@ -377,7 +377,7 @@ class TestSchedulerJob:
             processor_subdir=None,
             msg="Executor reports task instance "
             "<TaskInstance: test_process_executor_events_with_callback.dummy_task test [queued]> "
-            "finished (failed) although the task says its queued. (Info: None) "
+            "finished (failed) although the task says it's queued. (Info: None) "
             "Was the task killed externally?",
         )
         scheduler_job.executor.callback_sink.send.assert_called_once_with(task_callback)
