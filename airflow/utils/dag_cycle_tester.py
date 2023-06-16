@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from typing import TYPE_CHECKING, Deque
+from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowDagCycleException, RemovedInAirflow3Warning
 
@@ -53,7 +53,7 @@ def check_cycle(dag: DAG) -> None:
     """
     # default of int is 0 which corresponds to CYCLE_NEW
     visited: dict[str, int] = defaultdict(int)
-    path_stack: Deque[str] = deque()
+    path_stack: deque[str] = deque()
     task_dict = dag.task_dict
 
     def _check_adjacent_tasks(task_id, current_task):
