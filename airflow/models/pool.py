@@ -167,7 +167,7 @@ class Pool(Base):
         if lock_rows:
             query = with_row_locks(query, session=session, **nowait(session))
 
-        pool_rows = session.execute(query).all()
+        pool_rows = session.execute(query)
         for (pool_name, total_slots) in pool_rows:
             if total_slots == -1:
                 total_slots = float("inf")  # type: ignore

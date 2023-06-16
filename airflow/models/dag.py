@@ -256,13 +256,8 @@ def get_dataset_triggered_next_run_info(
                 ),
                 isouter=True,
             )
-            .join(
-                DatasetModel,
-                DatasetModel.id == DagScheduleDatasetReference.dataset_id,
-            )
-            .group_by(
-                DagScheduleDatasetReference.dag_id,
-            )
+            .join(DatasetModel, DatasetModel.id == DagScheduleDatasetReference.dataset_id)
+            .group_by(DagScheduleDatasetReference.dag_id)
             .where(DagScheduleDatasetReference.dag_id.in_(dag_ids))
         ).all()
     }
@@ -2216,7 +2211,7 @@ class DAG(LoggingMixin):
         if dry_run:
             return session.scalars(tis).all()
 
-        tis = list(session.scalars(tis).all())
+        tis = session.scalars(tis).all()
 
         count = len(tis)
         do_it = True
@@ -3155,7 +3150,7 @@ class DAG(LoggingMixin):
         """
         for dag in session.scalars(
             select(DagModel).where(DagModel.last_parsed_time < expiration_date, DagModel.is_active)
-        ).all():
+        ):
             log.info(
                 "Deactivating DAG ID %s since it was last touched by the scheduler at %s",
                 dag.dag_id,
@@ -3495,7 +3490,7 @@ class DagModel(Base):
             select(DagModel.dag_id)
             .where(DagModel.is_paused == expression.true())
             .where(DagModel.dag_id.in_(dag_ids))
-        ).all()
+        )
 
         paused_dag_ids = {paused_dag_id for paused_dag_id, in paused_dag_ids}
         return paused_dag_ids
@@ -3589,7 +3584,7 @@ class DagModel(Base):
                 .join(DagScheduleDatasetReference.queue_records, isouter=True)
                 .group_by(DagScheduleDatasetReference.dag_id)
                 .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
-            ).all()
+            )
         }
         dataset_triggered_dag_ids = set(dataset_triggered_dag_info.keys())
         if dataset_triggered_dag_ids:
