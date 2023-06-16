@@ -88,8 +88,6 @@ class BaseEksCreateOperator(BaseOperator):
                     WaiterConfig={"Delay": cls.waiter_delay, "MaxAttempts": cls.waiter_max_attempts},
                 )
         elif cls.compute == "fargate":
-            cls.fargate_pod_execution_role_arn = cls.pod_execution_role_arn
-
             cls.eks_hook.create_fargate_profile(
                 clusterName=cls.cluster_name,
                 fargateProfileName=cls.fargate_profile_name,
@@ -159,6 +157,8 @@ class EksCreateClusterOperator(BaseEksCreateOperator):
     :param fargate_selectors: The selectors to match for pods to use this AWS Fargate profile. (templated)
     :param create_fargate_profile_kwargs: Optional parameters to pass to the CreateFargateProfile API
          (templated)
+    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check cluster status
+    :param waiter_max_attempts: The maximum number of attempts to check the status of the cluster.
 
     """
 
@@ -197,6 +197,8 @@ class EksCreateClusterOperator(BaseEksCreateOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 40,
         **kwargs,
     ) -> None:
         self.compute = compute
@@ -214,6 +216,8 @@ class EksCreateClusterOperator(BaseEksCreateOperator):
         self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
@@ -252,11 +256,17 @@ class EksCreateClusterOperator(BaseEksCreateOperator):
         client = self.eks_hook.conn
 
         try:
-            client.get_waiter("cluster_active").wait(name=self.cluster_name)
+            client.get_waiter("cluster_active").wait(
+                name=self.cluster_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
         except (ClientError, WaiterError) as e:
             self.log.error("Cluster failed to start and will be torn down.\n %s", e)
             self.eks_hook.delete_cluster(name=self.cluster_name)
-            client.get_waiter("cluster_deleted").wait(name=self.cluster_name)
+            client.get_waiter("cluster_deleted").wait(
+                name=self.cluster_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
+            )
             raise
         self.create_compute()
 
@@ -284,6 +294,8 @@ class EksCreateNodegroupOperator(BaseEksCreateOperator):
          maintained on each worker node).
     :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
+    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check nodegroup status
+    :param waiter_max_attempts: The maximum number of attempts to check the status of the nodegroup.
 
     """
 
@@ -308,6 +320,8 @@ class EksCreateNodegroupOperator(BaseEksCreateOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 80,
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
@@ -319,6 +333,8 @@ class EksCreateNodegroupOperator(BaseEksCreateOperator):
         self.region = region
         self.nodegroup_subnets = nodegroup_subnets
         self.compute = "nodegroup"
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
