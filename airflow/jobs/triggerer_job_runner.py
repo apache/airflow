@@ -40,6 +40,7 @@ from airflow.serialization.pydantic.job import JobPydantic
 from airflow.stats import Stats
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.typing_compat import TypedDict
+from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.trigger_handler import (
@@ -615,6 +616,14 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 self.log.info("Trigger %s fired: %s", self.triggers[trigger_id]["name"], event)
                 self.triggers[trigger_id]["events"] += 1
                 self.events.append((trigger_id, event))
+        except asyncio.CancelledError as err:
+            timeout = trigger.task_instance.trigger_timeout
+            if timeout:
+                timeout = timeout.replace(tzinfo=timezone.utc) if not timeout.tzinfo else timeout
+                if timeout < timezone.utcnow():
+                    self.log.error("Trigger cancelled due to timeout")
+            self.log.error("Trigger cancelled; message=%s", err)
+            raise
         finally:
             # CancelledError will get injected when we're stopped - which is
             # fine, the cleanup process will understand that, but we want to
