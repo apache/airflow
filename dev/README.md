@@ -24,7 +24,7 @@
   - [Apache Airflow Package](#apache-airflow-package)
   - [Provider packages](#provider-packages)
 - [Prerequisites for the release manager preparing the release](#prerequisites-for-the-release-manager-preparing-the-release)
-  - [Upload Public keys to id.apache.org](#upload-public-keys-to-idapacheorg)
+  - [Upload Public keys to id.apache.org and GitHub](#upload-public-keys-to-idapacheorg-and-github)
   - [Configure PyPI uploads](#configure-pypi-uploads)
   - [Hardware used to prepare and verify the packages](#hardware-used-to-prepare-and-verify-the-packages)
 
@@ -116,12 +116,13 @@ to be committer to assume the release manager role, but there are final steps in
 final releases to SVN) that can only be done by PMC member. If needed, the release manager
 can ask PMC to perform that final step of release.
 
-## Upload Public keys to id.apache.org
+## Upload Public keys to id.apache.org and GitHub
 
 Make sure your public key is on id.apache.org and in KEYS. You will need to sign the release artifacts
 with your pgp key. After you have created a key, make sure you:
 
 - Add your GPG pub key to https://dist.apache.org/repos/dist/release/airflow/KEYS, follow the instructions at the top of that file. Upload your GPG public key to https://pgp.mit.edu
+- Add your GPG pub key to GPG keys in https://github.com/settings/keys
 - Add your key fingerprint to https://id.apache.org/ (login with your apache credentials, paste your fingerprint into the pgp fingerprint field and hit save).
 
 ```shell script
