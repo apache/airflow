@@ -613,9 +613,3 @@ def test_queue_listener():
     assert qh.__class__ == LocalQueueHandler
     assert qh.queue == listener.queue
     listener.stop()
-    listener = setup_queue_listener()
-    assert handler not in non_pytest_handlers(log.handlers)
-    qh = log.handlers[-1]
-    assert qh.__class__ == LocalQueueHandler
-    assert qh.queue == listener.queue
-    listener.stop()
