@@ -2213,7 +2213,7 @@ class DAG(LoggingMixin):
 
         tis = session.scalars(tis).all()
 
-        count = len(tis)
+        count = len(list(tis))
         do_it = True
         if count == 0:
             return 0
@@ -2226,7 +2226,7 @@ class DAG(LoggingMixin):
 
         if do_it:
             clear_task_instances(
-                tis,
+                list(tis),
                 session,
                 dag=self,
                 dag_run_state=dag_run_state,
@@ -3589,16 +3589,16 @@ class DagModel(Base):
         dataset_triggered_dag_ids = set(dataset_triggered_dag_info.keys())
         if dataset_triggered_dag_ids:
             exclusion_list = {
-                x.dag_id
+                x
                 for x in (
-                    session.execute(
+                    session.scalars(
                         select(DagModel.dag_id)
                         .join(DagRun.dag_model)
                         .where(DagRun.state.in_((DagRunState.QUEUED, DagRunState.RUNNING)))
                         .where(DagModel.dag_id.in_(dataset_triggered_dag_ids))
                         .group_by(DagModel.dag_id)
                         .having(func.count() >= func.max(DagModel.max_active_runs))
-                    ).all()
+                    )
                 )
             }
             if exclusion_list:
