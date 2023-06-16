@@ -20,9 +20,7 @@ import asyncio
 from datetime import timedelta
 from typing import Any, AsyncIterator
 
-from airflow.providers.snowflake.hooks.snowflake_sql_api import (
-    SnowflakeSqlApiHook,
-)
+from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
