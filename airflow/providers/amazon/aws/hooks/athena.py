@@ -41,7 +41,7 @@ class AthenaHook(AwsBaseHook):
     Provide thick wrapper around
     :external+boto3:py:class:`boto3.client("athena") <Athena.Client>`.
 
-    :param sleep_time: obsolete, please use the parameter of poll_query_status instead
+    :param sleep_time: obsolete, please use the parameter of `poll_query_status` method instead
     :param log_query: Whether to log athena query and other execution params
         when it's executed. Defaults to *True*.
 
