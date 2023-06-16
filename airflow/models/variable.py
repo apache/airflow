@@ -143,7 +143,7 @@ class Variable(Base, LoggingMixin):
         else:
             if deserialize_json:
                 obj = json.loads(var_val)
-                mask_secret(var_val, key)
+                mask_secret(obj, key)
                 return obj
             else:
                 mask_secret(var_val, key)
