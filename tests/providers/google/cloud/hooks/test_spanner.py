@@ -442,7 +442,8 @@ class TestGcpSpannerHookDefaultProjectId:
             == f"spanner+spanner:///projects/{SPANNER_PROJECT_ID}/instances/{SPANNER_INSTANCE}/databases/{SPANNER_DATABASE}"
         )
 
-    def test_get_sqlalchemy_engine(self):
+    @mock.patch("airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client")
+    def test_get_sqlalchemy_engine(self, get_client):
         self.spanner_hook_default_project_id._get_conn_params = MagicMock(return_value=SPANNER_CONN_PARAMS)
         engine = self.spanner_hook_default_project_id.get_sqlalchemy_engine()
         assert isinstance(engine, sqlalchemy.engine.Engine)
@@ -701,7 +702,8 @@ class TestGcpSpannerHookNoDefaultProjectID:
             == f"spanner+spanner:///projects/{SPANNER_PROJECT_ID}/instances/{SPANNER_INSTANCE}/databases/{SPANNER_DATABASE}"
         )
 
-    def test_get_sqlalchemy_engine(self):
+    @mock.patch("airflow.providers.google.cloud.hooks.spanner.SpannerHook._get_client")
+    def test_get_sqlalchemy_engine(self, get_client):
         self.spanner_hook_no_default_project_id._get_conn_params = MagicMock(return_value=SPANNER_CONN_PARAMS)
         engine = self.spanner_hook_no_default_project_id.get_sqlalchemy_engine()
         assert isinstance(engine, sqlalchemy.engine.Engine)
