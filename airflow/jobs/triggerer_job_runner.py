@@ -616,7 +616,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                     trigger_timeout = trigger_timeout.replace(tzinfo=timezone.utc)
 
                 if trigger_timeout < timezone.utcnow():
-                    self.log.info("Trigger cancelled due to timeout")
+                    self.log.error("Trigger cancelled due to timeout")
                     raise
 
             self.log.info("Trigger cancelled; message=%s", str(err))
