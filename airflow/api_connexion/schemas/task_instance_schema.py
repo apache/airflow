@@ -160,7 +160,9 @@ class SetTaskInstanceStateFormSchema(Schema):
     include_past = fields.Boolean(required=True)
     new_state = TaskInstanceStateField(
         required=True,
-        validate=validate.OneOf([TaskInstanceState.SUCCESS, TaskInstanceState.FAILED]),
+        validate=validate.OneOf(
+            [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
+        ),
     )
 
     @validates_schema
@@ -176,7 +178,9 @@ class SetSingleTaskInstanceStateFormSchema(Schema):
     dry_run = fields.Boolean(dump_default=True)
     new_state = TaskInstanceStateField(
         required=True,
-        validate=validate.OneOf([TaskInstanceState.SUCCESS, TaskInstanceState.FAILED]),
+        validate=validate.OneOf(
+            [TaskInstanceState.SUCCESS, TaskInstanceState.FAILED, TaskInstanceState.SKIPPED]
+        ),
     )
 
 

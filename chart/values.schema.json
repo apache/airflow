@@ -44,12 +44,6 @@
             "default": "",
             "x-docsSection": null
         },
-        "kubeVersionOverride": {
-            "description": "Provide a Kubernetes version (used for API Version selection) to override the auto-detected version",
-            "type": "string",
-            "default": "",
-            "x-docsSection": null
-        },
         "uid": {
             "description": "User of airflow user.",
             "type": "integer",

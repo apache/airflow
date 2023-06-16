@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import pathlib
 import re
 import shlex
 import sys
@@ -37,6 +38,7 @@ from airflow_breeze.commands.minor_release_command import create_minor_version_b
 from airflow_breeze.commands.release_candidate_command import publish_release_candidate
 from airflow_breeze.commands.release_command import airflow_release
 from airflow_breeze.global_constants import (
+    ALL_HISTORICAL_PYTHON_VERSIONS,
     ALLOWED_PLATFORMS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -46,6 +48,7 @@ from airflow_breeze.global_constants import (
     MULTI_PLATFORM,
 )
 from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.cdxgen import SbomApplicationJob, get_cdxgen_port_mapping
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
@@ -84,11 +87,17 @@ from airflow_breeze.utils.docker_command_utils import (
 )
 from airflow_breeze.utils.parallel import (
     GenericRegexpProgressMatcher,
+    ShowLastLineProgressMatcher,
     SummarizeAfter,
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DIST_DIR, cleanup_python_generated_files
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_SOURCES_ROOT,
+    AIRFLOW_TMP_DIR_PATH,
+    DIST_DIR,
+    cleanup_python_generated_files,
+)
 from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
@@ -97,7 +106,7 @@ from airflow_breeze.utils.run_utils import (
     run_command,
     run_compile_www_assets,
 )
-from airflow_breeze.utils.shared_options import get_forced_answer
+from airflow_breeze.utils.shared_options import get_dry_run, get_forced_answer
 from airflow_breeze.utils.suspended_providers import get_suspended_provider_ids
 
 option_debug_release_management = click.option(
@@ -1101,6 +1110,181 @@ def generate_issue_content_providers(
                 users.add("@" + pr.user.login)
         get_console().print("All users involved in the PRs:")
         get_console().print(" ".join(users))
+
+
+SBOM_INDEX_TEMPLATE = """
+<html>
+<head><title>CycloneDX SBOMs for Apache Airflow {{ version }}</title></head>
+<body>
+    <h1>CycloneDX SBOMs for Apache Airflow {{ version }}</h1>
+    <ul>
+    {% for sbom_file in sbom_files %}
+        <li><a href="{{ sbom_file.name }}">{{ sbom_file.name }}</a></li>
+    {% endfor %}
+    </ul>
+</body>
+</html>
+"""
+
+
+@release_management.command(
+    name="update-sbom-information", help="Update SBOM information in airflow-site project."
+)
+@click.option(
+    "--airflow-site-dir",
+    type=click.Path(file_okay=False, dir_okay=True, path_type=pathlib.Path, exists=True),
+    required=True,
+    envvar="AIRFLOW_SITE_DIR",
+    help="Directory where airflow-site directory is located.",
+)
+@click.option(
+    "--airflow-version",
+    type=str,
+    required=False,
+    envvar="AIRFLOW_VERSION",
+    help="Version of airflow to update sbom from. (defaulted to all active airflow versions)",
+)
+@click.option(
+    "--python",
+    type=BetterChoice(ALL_HISTORICAL_PYTHON_VERSIONS),
+    required=False,
+    envvar="PYTHON_VERSION",
+    help="Python version to update sbom from. (defaults to all python versions)",
+)
+@click.option(
+    "--include-provider-dependencies",
+    is_flag=True,
+    help="Whether to include provider dependencies in SBOM generation.",
+)
+@option_run_in_parallel
+@option_parallelism
+@option_debug_resources
+@option_include_success_outputs
+@option_skip_cleanup
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Force update of sbom even if it already exists.",
+)
+@option_verbose
+@option_dry_run
+@option_answer
+def update_sbom_information(
+    airflow_site_dir: Path,
+    airflow_version: str | None,
+    python: str | None,
+    include_provider_dependencies: bool,
+    run_in_parallel: bool,
+    parallelism: int,
+    debug_resources: bool,
+    include_success_outputs: bool,
+    skip_cleanup: bool,
+    force: bool,
+):
+    import jinja2
+    from jinja2 import StrictUndefined
+
+    from airflow_breeze.utils.cdxgen import (
+        produce_sbom_for_application_via_cdxgen_server,
+        start_cdxgen_server,
+    )
+    from airflow_breeze.utils.github import get_active_airflow_versions
+
+    if airflow_version is None:
+        airflow_versions = get_active_airflow_versions()
+    else:
+        airflow_versions = [airflow_version]
+    if python is None:
+        python_versions = ALL_HISTORICAL_PYTHON_VERSIONS
+    else:
+        python_versions = [python]
+    application_root_path = AIRFLOW_TMP_DIR_PATH
+    start_cdxgen_server(application_root_path, run_in_parallel, parallelism)
+
+    jobs_to_run: list[SbomApplicationJob] = []
+
+    apache_airflow_dir = airflow_site_dir / "docs-archive" / "apache-airflow"
+
+    for airflow_v in airflow_versions:
+        airflow_version_dir = apache_airflow_dir / airflow_v
+        if not airflow_version_dir.exists():
+            get_console().print(f"[warning]The {airflow_version_dir} does not exist. Skipping")
+            continue
+        destination_dir = airflow_version_dir / "sbom"
+        destination_dir.mkdir(parents=True, exist_ok=True)
+        if destination_dir.exists():
+            if not force:
+                get_console().print(f"[warning]The {destination_dir} already exists. Skipping")
+                continue
+            else:
+                get_console().print(f"[warning]The {destination_dir} already exists. Forcing update")
+        get_console().print(f"[info]Attempting to update sbom for {airflow_v}.")
+        get_console().print(f"[success]The {destination_dir} exists. Proceeding.")
+        for python_version in python_versions:
+            target_sbom_file_name = f"apache-airflow-sbom-{airflow_v}-python{python_version}.json"
+            target_sbom_path = destination_dir / target_sbom_file_name
+            if target_sbom_path.exists():
+                if not force:
+                    get_console().print(f"[warning]The {target_sbom_path} already exists. Skipping")
+                    continue
+                else:
+                    get_console().print(f"[warning]The {target_sbom_path} already exists. Forcing update")
+            jobs_to_run.append(
+                SbomApplicationJob(
+                    airflow_version=airflow_v,
+                    python_version=python_version,
+                    application_root_path=application_root_path,
+                    include_provider_dependencies=include_provider_dependencies,
+                    target_path=target_sbom_path,
+                )
+            )
+    if run_in_parallel:
+        parallelism = min(parallelism, len(jobs_to_run))
+        get_console().print(f"[info]Running {len(jobs_to_run)} jobs in parallel")
+        with ci_group(f"Generating SBoMs for {airflow_versions}:{python_versions}"):
+            all_params = [f"CI {job.airflow_version}:{job.python_version}" for job in jobs_to_run]
+            with run_with_pool(
+                parallelism=parallelism,
+                all_params=all_params,
+                debug_resources=debug_resources,
+                progress_matcher=ShowLastLineProgressMatcher(),
+            ) as (pool, outputs):
+                port_map = get_cdxgen_port_mapping(parallelism, pool)
+                results = [
+                    pool.apply_async(
+                        produce_sbom_for_application_via_cdxgen_server,
+                        kwds={
+                            "job": job,
+                            "output": outputs[index],
+                            "port_map": port_map,
+                        },
+                    )
+                    for index, job in enumerate(jobs_to_run)
+                ]
+        check_async_run_results(
+            results=results,
+            success="All SBoMs were generated successfully",
+            outputs=outputs,
+            include_success_outputs=include_success_outputs,
+            skip_cleanup=skip_cleanup,
+        )
+    else:
+        for job in jobs_to_run:
+            produce_sbom_for_application_via_cdxgen_server(job, output=None)
+
+    for airflow_v in airflow_versions:
+        airflow_version_dir = apache_airflow_dir / airflow_v
+        destination_dir = airflow_version_dir / "sbom"
+        destination_index_path = destination_dir / "index.html"
+        get_console().print(f"[info]Generating index for {destination_dir}")
+        sbom_files = sorted(destination_dir.glob("apache-airflow-sbom-*"))
+        html_template = SBOM_INDEX_TEMPLATE
+        if not get_dry_run():
+            destination_index_path.write_text(
+                jinja2.Template(html_template, autoescape=True, undefined=StrictUndefined).render(
+                    version=airflow_v, sbom_files=sbom_files
+                )
+            )
 
 
 # AIRFLOW RELEASE COMMANDS

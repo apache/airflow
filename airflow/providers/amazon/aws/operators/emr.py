@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import ast
 import warnings
+from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 from uuid import uuid4
@@ -27,6 +28,11 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
+from airflow.providers.amazon.aws.triggers.emr import (
+    EmrAddStepsTrigger,
+    EmrCreateJobFlowTrigger,
+    EmrTerminateJobFlowTrigger,
+)
 from airflow.providers.amazon.aws.utils.waiter import waiter
 from airflow.utils.helpers import exactly_one, prune_dict
 from airflow.utils.types import NOTSET, ArgNotSet
@@ -55,6 +61,10 @@ class EmrAddStepsOperator(BaseOperator):
     :param wait_for_completion: If True, the operator will wait for all the steps to be completed.
     :param execution_role_arn: The ARN of the runtime role for a step on the cluster.
     :param do_xcom_push: if True, job_flow_id is pushed to XCom with key job_flow_id.
+    :param wait_for_completion: Whether to wait for job run completion. (default: True)
+    :param deferrable: If True, the operator will wait asynchronously for the job to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     template_fields: Sequence[str] = (
@@ -84,6 +94,7 @@ class EmrAddStepsOperator(BaseOperator):
         waiter_delay: int | None = None,
         waiter_max_attempts: int | None = None,
         execution_role_arn: str | None = None,
+        deferrable: bool = False,
         **kwargs,
     ):
         if not exactly_one(job_flow_id is None, job_flow_name is None):
@@ -96,10 +107,11 @@ class EmrAddStepsOperator(BaseOperator):
         self.job_flow_name = job_flow_name
         self.cluster_states = cluster_states
         self.steps = steps
-        self.wait_for_completion = wait_for_completion
+        self.wait_for_completion = False if deferrable else wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.execution_role_arn = execution_role_arn
+        self.deferrable = deferrable
 
     def execute(self, context: Context) -> list[str]:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
@@ -137,7 +149,7 @@ class EmrAddStepsOperator(BaseOperator):
         steps = self.steps
         if isinstance(steps, str):
             steps = ast.literal_eval(steps)
-        return emr_hook.add_job_flow_steps(
+        step_ids = emr_hook.add_job_flow_steps(
             job_flow_id=job_flow_id,
             steps=steps,
             wait_for_completion=self.wait_for_completion,
@@ -145,6 +157,26 @@ class EmrAddStepsOperator(BaseOperator):
             waiter_max_attempts=self.waiter_max_attempts,
             execution_role_arn=self.execution_role_arn,
         )
+        if self.deferrable:
+            self.defer(
+                trigger=EmrAddStepsTrigger(
+                    job_flow_id=job_flow_id,
+                    step_ids=step_ids,
+                    aws_conn_id=self.aws_conn_id,
+                    max_attempts=self.waiter_max_attempts,
+                    poll_interval=self.waiter_delay,
+                ),
+                method_name="execute_complete",
+            )
+
+        return step_ids
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error resuming cluster: {event}")
+        else:
+            self.log.info("Steps completed successfully")
+        return event["step_ids"]
 
 
 class EmrStartNotebookExecutionOperator(BaseOperator):
@@ -597,6 +629,9 @@ class EmrCreateJobFlowOperator(BaseOperator):
         wait_for_completion=True, None = no limit) (Deprecated.  Please use waiter_max_attempts.)
     :param waiter_check_interval_seconds: Number of seconds between polling the jobflow state. Defaults to 60
         seconds. (Deprecated.  Please use waiter_delay.)
+    :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     template_fields: Sequence[str] = (
@@ -625,6 +660,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         waiter_delay: int | None | ArgNotSet = NOTSET,
         waiter_countdown: int | None = None,
         waiter_check_interval_seconds: int = 60,
+        deferrable: bool = False,
         **kwargs: Any,
     ):
         if waiter_max_attempts is NOTSET:
@@ -649,10 +685,9 @@ class EmrCreateJobFlowOperator(BaseOperator):
         self.job_flow_overrides = job_flow_overrides or {}
         self.region_name = region_name
         self.wait_for_completion = wait_for_completion
-        self.waiter_max_attempts = waiter_max_attempts
-        self.waiter_delay = waiter_delay
-
-        self._job_flow_id: str | None = None
+        self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
+        self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
+        self.deferrable = deferrable
 
     @cached_property
     def _emr_hook(self) -> EmrHook:
@@ -693,7 +728,19 @@ class EmrCreateJobFlowOperator(BaseOperator):
                     job_flow_id=self._job_flow_id,
                     log_uri=get_log_uri(emr_client=self._emr_hook.conn, job_flow_id=self._job_flow_id),
                 )
-
+            if self.deferrable:
+                self.defer(
+                    trigger=EmrCreateJobFlowTrigger(
+                        job_flow_id=self._job_flow_id,
+                        aws_conn_id=self.aws_conn_id,
+                        poll_interval=self.waiter_delay,
+                        max_attempts=self.waiter_max_attempts,
+                    ),
+                    method_name="execute_complete",
+                    # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                    # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+                )
             if self.wait_for_completion:
                 self._emr_hook.get_waiter("job_flow_waiting").wait(
                     ClusterId=self._job_flow_id,
@@ -706,6 +753,13 @@ class EmrCreateJobFlowOperator(BaseOperator):
                 )
 
             return self._job_flow_id
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error creating jobFlow: {event}")
+        else:
+            self.log.info("JobFlow created successfully")
+        return event["job_flow_id"]
 
     def on_kill(self) -> None:
         """
@@ -792,6 +846,11 @@ class EmrTerminateJobFlowOperator(BaseOperator):
 
     :param job_flow_id: id of the JobFlow to terminate. (templated)
     :param aws_conn_id: aws connection to uses
+    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check JobFlow status
+    :param waiter_max_attempts: The maximum number of times to poll for JobFlow status.
+    :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     template_fields: Sequence[str] = ("job_flow_id",)
@@ -802,10 +861,22 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         EmrLogsLink(),
     )
 
-    def __init__(self, *, job_flow_id: str, aws_conn_id: str = "aws_default", **kwargs):
+    def __init__(
+        self,
+        *,
+        job_flow_id: str,
+        aws_conn_id: str = "aws_default",
+        waiter_delay: int = 60,
+        waiter_max_attempts: int = 20,
+        deferrable: bool = False,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.aws_conn_id = aws_conn_id
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
 
     def execute(self, context: Context) -> None:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
@@ -833,7 +904,28 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         if not response["ResponseMetadata"]["HTTPStatusCode"] == 200:
             raise AirflowException(f"JobFlow termination failed: {response}")
         else:
-            self.log.info("JobFlow with id %s terminated", self.job_flow_id)
+            self.log.info("Terminating JobFlow with id %s", self.job_flow_id)
+
+        if self.deferrable:
+            self.defer(
+                trigger=EmrTerminateJobFlowTrigger(
+                    job_flow_id=self.job_flow_id,
+                    poll_interval=self.waiter_delay,
+                    max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+            )
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error terminating JobFlow: {event}")
+        else:
+            self.log.info("Jobflow terminated successfully.")
+        return
 
 
 class EmrServerlessCreateApplicationOperator(BaseOperator):
@@ -963,10 +1055,16 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
     template_fields: Sequence[str] = (
         "application_id",
+        "config",
         "execution_role_arn",
         "job_driver",
         "configuration_overrides",
     )
+
+    template_fields_renderers = {
+        "config": "json",
+        "configuration_overrides": "json",
+    }
 
     def __init__(
         self,

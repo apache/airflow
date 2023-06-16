@@ -99,7 +99,9 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   if (ti.task_id !== undefined) {
     tt += `Task_id: ${escapeHtml(ti.task_id)}<br>`;
   }
-  tt += `Run: ${formatDateTime(ti.execution_date)}<br>`;
+  if (ti.execution_date !== undefined) {
+    tt += `Run: ${formatDateTime(ti.execution_date)}<br>`;
+  }
   if (ti.run_id !== undefined) {
     tt += `Run Id: <nobr>${escapeHtml(ti.run_id)}</nobr><br>`;
   }
@@ -149,8 +151,8 @@ export function taskNoInstanceTooltip(taskId, task) {
   if (taskId) {
     tt += `Task_id: ${escapeHtml(taskId)}<br>`;
   }
-  if (task.task_type !== undefined) {
-    tt += `Operator: ${escapeHtml(task.task_type)}<br>`;
+  if (task.operator_name !== undefined) {
+    tt += `Operator: ${escapeHtml(task.operator_name)}<br>`;
   }
   tt += "<br><em>DAG has yet to run.</em>";
   return tt;
