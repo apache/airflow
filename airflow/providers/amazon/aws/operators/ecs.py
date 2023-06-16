@@ -619,7 +619,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
                     aws_conn_id=self.aws_conn_id,
                     region=self.region,
                     log_group=self.awslogs_group,
-                    log_stream=f"{self.awslogs_stream_prefix}/{self.ecs_task_id}",
+                    log_stream=self._get_logs_stream_name(),
                 ),
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
