@@ -21,7 +21,7 @@
 
 .. towncrier release notes start
 
-Airflow 2.6.2 (2023-06-17)
+Airflow 2.6.2 (2023-06-12)
 --------------------------
 
 Significant Changes
