@@ -120,8 +120,8 @@ class TriggerDagRunOperator(BaseDeferrableOperator):
         self.reset_dag_run = reset_dag_run
         self.wait_for_completion = wait_for_completion
         self.poke_interval = poke_interval
-        self.allowed_states = allowed_states or [DagRunState.SUCCESS]
-        self.failed_states = failed_states or [DagRunState.FAILED]
+        self.allowed_states = allowed_states or [State.SUCCESS]
+        self.failed_states = failed_states or [State.FAILED]
 
         if execution_date is not None and not isinstance(execution_date, (str, datetime.datetime)):
             raise TypeError(
@@ -131,7 +131,6 @@ class TriggerDagRunOperator(BaseDeferrableOperator):
         self.execution_date = execution_date
 
     def execute(self, context: Context):
-
         if isinstance(self.execution_date, datetime.datetime):
             parsed_execution_date = self.execution_date
         elif isinstance(self.execution_date, str):
@@ -183,7 +182,6 @@ class TriggerDagRunOperator(BaseDeferrableOperator):
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
         if self.wait_for_completion:
-
             # Kick off the deferral process
             if self.deferrable:
                 self.defer(
@@ -215,7 +213,6 @@ class TriggerDagRunOperator(BaseDeferrableOperator):
 
     @provide_session
     def execute_complete(self, context: Context, session: Session, event: tuple[str, dict[str, Any]]):
-
         # This execution date is parsed from the return trigger event
         provided_execution_date = event[1]["execution_dates"][0]
         try:
