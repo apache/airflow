@@ -237,12 +237,6 @@ class EksCreateClusterOperator(BaseEksCreateOperator):
                         compute=FARGATE_FULL_NAME, requirement="fargate_pod_execution_role_arn"
                     )
                 )
-
-        self.eks_hook = EksHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
-
         self.eks_hook.create_cluster(
             name=self.cluster_name,
             roleArn=self.cluster_role_arn,
