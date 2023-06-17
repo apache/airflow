@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-What is Airflow ™?
+What is Airflow™?
 =========================================
 
 `Apache Airflow™ <https://github.com/apache/airflow>`_ is an open-source platform for developing, scheduling,
