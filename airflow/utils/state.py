@@ -98,9 +98,14 @@ class State:
     finished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.SUCCESS, DagRunState.FAILED])
     unfinished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.QUEUED, DagRunState.RUNNING])
 
-    task_states: tuple[TaskInstanceState | None, ...] = (None, *TaskInstanceState)
+    task_states: tuple[TaskInstanceState | None, ...] = (None,) + tuple(TaskInstanceState)
 
-    dag_states: tuple[DagRunState, ...] = tuple(DagRunState)
+    dag_states: tuple[DagRunState, ...] = (
+        DagRunState.QUEUED,
+        DagRunState.SUCCESS,
+        DagRunState.RUNNING,
+        DagRunState.FAILED,
+    )
 
     state_color: dict[TaskInstanceState | None, str] = {
         None: "lightblue",

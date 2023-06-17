@@ -58,7 +58,7 @@ def _draw_task(
 ) -> None:
     """Draw a single task on the given parent_graph."""
     if states_by_task_id:
-        state = states_by_task_id.get(task.task_id, None)
+        state = states_by_task_id.get(task.task_id, State.NONE)
         color = State.color_fg(state)
         fill_color = State.color(state)
     else:

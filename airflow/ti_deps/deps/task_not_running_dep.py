@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import State
 
 
 class TaskNotRunningDep(BaseTIDep):
@@ -37,7 +37,7 @@ class TaskNotRunningDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context=None):
-        if ti.state != TaskInstanceState.RUNNING:
+        if ti.state != State.RUNNING:
             yield self._passing_status(reason="Task is not in running state.")
             return
 

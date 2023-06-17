@@ -155,7 +155,7 @@ def set_state(
         for task_instance in tis_altered:
             # The try_number was decremented when setting to up_for_reschedule and deferred.
             # Increment it back when changing the state again
-            if task_instance.state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
+            if task_instance.state in [State.DEFERRED, State.UP_FOR_RESCHEDULE]:
                 task_instance._try_number += 1
             task_instance.set_state(state, session=session)
         session.flush()
@@ -362,7 +362,7 @@ def _set_dag_run_state(dag_id: str, run_id: str, state: DagRunState, session: SA
         select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
     ).scalar_one()
     dag_run.state = state
-    if state == DagRunState.RUNNING:
+    if state == State.RUNNING:
         dag_run.start_date = timezone.utcnow()
         dag_run.end_date = None
     else:
@@ -415,13 +415,7 @@ def set_dag_run_state_to_success(
     # Mark all task instances of the dag run to success.
     for task in dag.tasks:
         task.dag = dag
-    return set_state(
-        tasks=dag.tasks,
-        run_id=run_id,
-        state=TaskInstanceState.SUCCESS,
-        commit=commit,
-        session=session,
-    )
+    return set_state(tasks=dag.tasks, run_id=run_id, state=State.SUCCESS, commit=commit, session=session)
 
 
 @provide_session
@@ -474,9 +468,7 @@ def set_dag_run_state_to_failed(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id == run_id,
             TaskInstance.task_id.in_(task_ids),
-            TaskInstance.state.in_(
-                (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE),
-            ),
+            TaskInstance.state.in_([State.RUNNING, State.DEFERRED, State.UP_FOR_RESCHEDULE]),
         )
     )
 
@@ -495,24 +487,16 @@ def set_dag_run_state_to_failed(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id == run_id,
             TaskInstance.state.not_in(State.finished),
-            TaskInstance.state.not_in(
-                (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE),
-            ),
+            TaskInstance.state.not_in([State.RUNNING, State.DEFERRED, State.UP_FOR_RESCHEDULE]),
         )
     )
 
     tis = [ti for ti in tis]
     if commit:
         for ti in tis:
-            ti.set_state(TaskInstanceState.SKIPPED)
+            ti.set_state(State.SKIPPED)
 
-    return tis + set_state(
-        tasks=tasks,
-        run_id=run_id,
-        state=TaskInstanceState.FAILED,
-        commit=commit,
-        session=session,
-    )
+    return tis + set_state(tasks=tasks, run_id=run_id, state=State.FAILED, commit=commit, session=session)
 
 
 def __set_dag_run_state_to_running_or_queued(

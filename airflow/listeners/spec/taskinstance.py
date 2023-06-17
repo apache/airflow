@@ -34,18 +34,18 @@ hookspec = HookspecMarker("airflow")
 def on_task_instance_running(
     previous_state: TaskInstanceState, task_instance: TaskInstance, session: Session | None
 ):
-    """Called when task state changes to RUNNING. Previous state can be None."""
+    """Called when task state changes to RUNNING. Previous_state can be State.NONE."""
 
 
 @hookspec
 def on_task_instance_success(
     previous_state: TaskInstanceState, task_instance: TaskInstance, session: Session | None
 ):
-    """Called when task state changes to SUCCESS. Previous state can be None."""
+    """Called when task state changes to SUCCESS. Previous_state can be State.NONE."""
 
 
 @hookspec
 def on_task_instance_failed(
     previous_state: TaskInstanceState, task_instance: TaskInstance, session: Session | None
 ):
-    """Called when task state changes to FAIL. Previous state can be None."""
+    """Called when task state changes to FAIL. Previous_state can be State.NONE."""

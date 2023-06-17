@@ -20,7 +20,7 @@ from __future__ import annotations
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import State
 
 
 class NotInRetryPeriodDep(BaseTIDep):
@@ -38,7 +38,7 @@ class NotInRetryPeriodDep(BaseTIDep):
             )
             return
 
-        if ti.state != TaskInstanceState.UP_FOR_RETRY:
+        if ti.state != State.UP_FOR_RETRY:
             yield self._passing_status(reason="The task instance was not marked for retrying.")
             return
 
