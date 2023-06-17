@@ -591,7 +591,7 @@ class TaskInstance(Base, LoggingMixin):
         database, in all other cases this will be incremented.
         """
         # This is designed so that task logs end up in the right file.
-        if self.state == TaskInstanceState.RUNNING:
+        if self.state == State.RUNNING:
             return self._try_number
         return self._try_number + 1
 
@@ -804,7 +804,7 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         """
         self.log.error("Recording the task instance as FAILED")
-        self.state = TaskInstanceState.FAILED
+        self.state = State.FAILED
         session.merge(self)
         session.commit()
 
@@ -931,7 +931,7 @@ class TaskInstance(Base, LoggingMixin):
         self.log.debug("Setting task state for %s to %s", self, state)
         self.state = state
         self.start_date = self.start_date or current_time
-        if self.state in State.finished or self.state == TaskInstanceState.UP_FOR_RETRY:
+        if self.state in State.finished or self.state == State.UP_FOR_RETRY:
             self.end_date = self.end_date or current_time
             self.duration = (self.end_date - self.start_date).total_seconds()
         session.merge(self)
@@ -944,7 +944,7 @@ class TaskInstance(Base, LoggingMixin):
         has elapsed.
         """
         # is the task still in the retry waiting period?
-        return self.state == TaskInstanceState.UP_FOR_RETRY and not self.ready_for_retry()
+        return self.state == State.UP_FOR_RETRY and not self.ready_for_retry()
 
     @provide_session
     def are_dependents_done(self, session: Session = NEW_SESSION) -> bool:
@@ -967,7 +967,7 @@ class TaskInstance(Base, LoggingMixin):
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id.in_(task.downstream_task_ids),
             TaskInstance.run_id == self.run_id,
-            TaskInstance.state.in_((TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS)),
+            TaskInstance.state.in_([State.SKIPPED, State.SUCCESS]),
         )
         count = ti[0][0]
         return count == len(task.downstream_task_ids)
@@ -1204,7 +1204,7 @@ class TaskInstance(Base, LoggingMixin):
         Checks on whether the task instance is in the right state and timeframe
         to be retried.
         """
-        return self.state == TaskInstanceState.UP_FOR_RETRY and self.next_retry_datetime() < timezone.utcnow()
+        return self.state == State.UP_FOR_RETRY and self.next_retry_datetime() < timezone.utcnow()
 
     @provide_session
     def get_dagrun(self, session: Session = NEW_SESSION) -> DagRun:
@@ -1273,7 +1273,7 @@ class TaskInstance(Base, LoggingMixin):
         self.hostname = get_hostname()
         self.pid = None
 
-        if not ignore_all_deps and not ignore_ti_state and self.state == TaskInstanceState.SUCCESS:
+        if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
             Stats.incr("previously_succeeded", tags=self.stats_tags)
 
         if not mark_success:
@@ -1301,7 +1301,7 @@ class TaskInstance(Base, LoggingMixin):
             # start date that is recorded in task_reschedule table
             # If the task continues after being deferred (next_method is set), use the original start_date
             self.start_date = self.start_date if self.next_method else timezone.utcnow()
-            if self.state == TaskInstanceState.UP_FOR_RESCHEDULE:
+            if self.state == State.UP_FOR_RESCHEDULE:
                 task_reschedule: TR = TR.query_for_task_instance(self, session=session).first()
                 if task_reschedule:
                     self.start_date = task_reschedule.start_date
@@ -1319,7 +1319,7 @@ class TaskInstance(Base, LoggingMixin):
                 description="requeueable deps",
             )
             if not self.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
-                self.state = None
+                self.state = State.NONE
                 self.log.warning(
                     "Rescheduling due to concurrency limits reached "
                     "at task runtime. Attempt %s of "
@@ -1339,10 +1339,10 @@ class TaskInstance(Base, LoggingMixin):
         self._try_number += 1
 
         if not test_mode:
-            session.add(Log(TaskInstanceState.RUNNING, self))
+            session.add(Log(State.RUNNING, self))
 
-        self.state = TaskInstanceState.RUNNING
-        self.emit_state_change_metric(TaskInstanceState.RUNNING)
+        self.state = State.RUNNING
+        self.emit_state_change_metric(State.RUNNING)
         self.external_executor_id = external_executor_id
         self.end_date = None
         if not test_mode:
@@ -1398,7 +1398,7 @@ class TaskInstance(Base, LoggingMixin):
             return
 
         # switch on state and deduce which metric to send
-        if new_state == TaskInstanceState.RUNNING:
+        if new_state == State.RUNNING:
             metric_name = "queued_duration"
             if self.queued_dttm is None:
                 # this should not really happen except in tests or rare cases,
@@ -1410,7 +1410,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
                 return
             timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
-        elif new_state == TaskInstanceState.QUEUED:
+        elif new_state == State.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
                 # same comment as above
@@ -1497,7 +1497,7 @@ class TaskInstance(Base, LoggingMixin):
                 self._execute_task_with_callbacks(context, test_mode)
             if not test_mode:
                 self.refresh_from_db(lock_for_update=True, session=session)
-            self.state = TaskInstanceState.SUCCESS
+            self.state = State.SUCCESS
         except TaskDeferred as defer:
             # The task has signalled it wants to defer execution based on
             # a trigger.
@@ -1521,7 +1521,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.log.info(e)
             if not test_mode:
                 self.refresh_from_db(lock_for_update=True, session=session)
-            self.state = TaskInstanceState.SKIPPED
+            self.state = State.SKIPPED
         except AirflowRescheduleException as reschedule_exception:
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
             session.commit()
@@ -1744,7 +1744,7 @@ class TaskInstance(Base, LoggingMixin):
         # Then, update ourselves so it matches the deferral request
         # Keep an eye on the logic in `check_and_change_state_before_execution()`
         # depending on self.next_method semantics
-        self.state = TaskInstanceState.DEFERRED
+        self.state = State.DEFERRED
         self.trigger_id = trigger_row.id
         self.next_method = defer.method_name
         self.next_kwargs = defer.kwargs or {}
@@ -1863,7 +1863,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
         # set state
-        self.state = TaskInstanceState.UP_FOR_RESCHEDULE
+        self.state = State.UP_FOR_RESCHEDULE
 
         # Decrement try_number so subsequent runs will use the same try number and write
         # to same log file.
@@ -1928,7 +1928,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr("ti_failures", tags=self.stats_tags)
 
         if not test_mode:
-            session.add(Log(TaskInstanceState.FAILED, self))
+            session.add(Log(State.FAILED, self))
 
             # Log failure duration
             session.add(TaskFail(ti=self))
@@ -1962,7 +1962,7 @@ class TaskInstance(Base, LoggingMixin):
             self.log.error("Unable to unmap task to determine if we need to send an alert email")
 
         if force_fail or not self.is_eligible_to_retry():
-            self.state = TaskInstanceState.FAILED
+            self.state = State.FAILED
             email_for_state = operator.attrgetter("email_on_failure")
             callbacks = task.on_failure_callback if task else None
             callback_type = "on_failure"
@@ -1971,10 +1971,10 @@ class TaskInstance(Base, LoggingMixin):
                 tis = self.get_dagrun(session).get_task_instances()
                 stop_all_tasks_in_dag(tis, session, self.task_id)
         else:
-            if self.state == TaskInstanceState.QUEUED:
+            if self.state == State.QUEUED:
                 # We increase the try_number so as to fail the task if it fails to start after sometime
                 self._try_number += 1
-            self.state = TaskInstanceState.UP_FOR_RETRY
+            self.state = State.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
             callback_type = "on_retry"
@@ -1995,7 +1995,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry."""
-        if self.state == TaskInstanceState.RESTARTING:
+        if self.state == State.RESTARTING:
             # If a task is cleared when running, it goes into RESTARTING state and is always
             # eligible for retry
             return True
@@ -2336,8 +2336,8 @@ class TaskInstance(Base, LoggingMixin):
             'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 
-        # This function is called after changing the state from RUNNING, so we
-        # need to subtract 1 from try_number here.
+        # This function is called after changing the state from State.RUNNING,
+        # so we need to subtract 1 from self.try_number here.
         current_try_number = self.try_number - 1
         additional_context: dict[str, Any] = {
             "exception": exception,
@@ -2563,7 +2563,7 @@ class TaskInstance(Base, LoggingMixin):
         num_running_task_instances_query = session.query(func.count()).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
-            TaskInstance.state == TaskInstanceState.RUNNING,
+            TaskInstance.state == State.RUNNING,
         )
         if same_dagrun:
             num_running_task_instances_query = num_running_task_instances_query.filter(
@@ -2885,7 +2885,7 @@ def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
 
 # State of the task instance.
 # Stores string version of the task state.
-TaskInstanceStateType = Tuple[TaskInstanceKey, TaskInstanceState]
+TaskInstanceStateType = Tuple[TaskInstanceKey, str]
 
 
 class SimpleTaskInstance:

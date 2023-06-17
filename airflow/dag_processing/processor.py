@@ -56,7 +56,7 @@ from airflow.utils.file import iter_airflow_imports, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
@@ -432,11 +432,9 @@ class DagFileProcessor(LoggingMixin):
         qry = (
             session.query(TI.task_id, func.max(DR.execution_date).label("max_ti"))
             .join(TI.dag_run)
-            .filter(
-                TI.dag_id == dag.dag_id,
-                or_(TI.state == TaskInstanceState.SUCCESS, TI.state == TaskInstanceState.SKIPPED),
-                TI.task_id.in_(dag.task_ids),
-            )
+            .filter(TI.dag_id == dag.dag_id)
+            .filter(or_(TI.state == State.SUCCESS, TI.state == State.SKIPPED))
+            .filter(TI.task_id.in_(dag.task_ids))
             .group_by(TI.task_id)
             .subquery("sq")
         )
@@ -502,11 +500,7 @@ class DagFileProcessor(LoggingMixin):
             sla_dates: list[datetime] = [sla.execution_date for sla in slas]
             fetched_tis: list[TI] = (
                 session.query(TI)
-                .filter(
-                    TI.state != TaskInstanceState.SUCCESS,
-                    TI.execution_date.in_(sla_dates),
-                    TI.dag_id == dag.dag_id,
-                )
+                .filter(TI.state != State.SUCCESS, TI.execution_date.in_(sla_dates), TI.dag_id == dag.dag_id)
                 .all()
             )
             blocking_tis: list[TI] = []

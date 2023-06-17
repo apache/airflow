@@ -31,7 +31,7 @@ from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import State
 
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
@@ -54,7 +54,7 @@ if TYPE_CHECKING:
 
     # Event_buffer dict value type
     # Tuple of: state, info
-    EventBufferValueType = Tuple[Optional[TaskInstanceState], Any]
+    EventBufferValueType = Tuple[Optional[str], Any]
 
     # Task tuple to send to be executed
     TaskTuple = Tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
@@ -298,7 +298,7 @@ class BaseExecutor(LoggingMixin):
             self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
             self.running.add(key)
 
-    def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
+    def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
         """
         Changes state of the task.
 
@@ -320,7 +320,7 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, TaskInstanceState.FAILED, info)
+        self.change_state(key, State.FAILED, info)
 
     def success(self, key: TaskInstanceKey, info=None) -> None:
         """
@@ -329,7 +329,7 @@ class BaseExecutor(LoggingMixin):
         :param info: Executor information for the task instance
         :param key: Unique key for the task instance
         """
-        self.change_state(key, TaskInstanceState.SUCCESS, info)
+        self.change_state(key, State.SUCCESS, info)
 
     def get_event_buffer(self, dag_ids=None) -> dict[TaskInstanceKey, EventBufferValueType]:
         """

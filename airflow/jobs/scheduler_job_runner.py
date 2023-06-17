@@ -610,7 +610,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             )
 
             for ti in executable_tis:
-                ti.emit_state_change_metric(TaskInstanceState.QUEUED)
+                ti.emit_state_change_metric(State.QUEUED)
 
         for ti in executable_tis:
             make_transient(ti)
@@ -626,7 +626,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         # actually enqueue them
         for ti in task_instances:
             if ti.dag_run.state in State.finished:
-                ti.set_state(None, session=session)
+                ti.set_state(State.NONE, session=session)
                 continue
             command = ti.command_as_list(
                 local=True,
@@ -682,13 +682,13 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         # Report execution
         for ti_key, value in event_buffer.items():
-            state: TaskInstanceState | None
+            state: str
             state, _ = value
             # We create map (dag_id, task_id, execution_date) -> in-memory try_number
             ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
 
             self.log.info("Received executor event with state %s for task instance %s", state, ti_key)
-            if state in (TaskInstanceState.FAILED, TaskInstanceState.SUCCESS, TaskInstanceState.QUEUED):
+            if state in (State.FAILED, State.SUCCESS, State.QUEUED):
                 tis_with_right_state.append(ti_key)
 
         # Return if no finished tasks
@@ -712,7 +712,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             buffer_key = ti.key.with_try_number(try_number)
             state, info = event_buffer.pop(buffer_key)
 
-            if state == TaskInstanceState.QUEUED:
+            if state == State.QUEUED:
                 ti.external_executor_id = info
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
@@ -1535,7 +1535,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
         tasks_stuck_in_queued = session.scalars(
             select(TI).where(
-                TI.state == TaskInstanceState.QUEUED,
+                TI.state == State.QUEUED,
                 TI.queued_dttm < (timezone.utcnow() - timedelta(seconds=self._task_queued_timeout)),
                 TI.queued_by_job_id == self.job.id,
             )
@@ -1602,19 +1602,20 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
                         Stats.incr(self.__class__.__name__.lower() + "_end", num_failed)
 
+                    resettable_states = [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING]
                     query = (
                         select(TI)
-                        .where(TI.state.in_((TaskInstanceState.QUEUED, TaskInstanceState.RUNNING)))
+                        .where(TI.state.in_(resettable_states))
                         # outerjoin is because we didn't use to have queued_by_job
                         # set, so we need to pick up anything pre upgrade. This (and the
                         # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
                         # released.
                         .outerjoin(TI.queued_by_job)
-                        .where(or_(TI.queued_by_job_id.is_(None), Job.state != TaskInstanceState.RUNNING))
+                        .where(or_(TI.queued_by_job_id.is_(None), Job.state != State.RUNNING))
                         .join(TI.dag_run)
                         .where(
                             DagRun.run_type != DagRunType.BACKFILL_JOB,
-                            DagRun.state == DagRunState.RUNNING,
+                            DagRun.state == State.RUNNING,
                         )
                         .options(load_only(TI.dag_id, TI.task_id, TI.run_id))
                     )
@@ -1629,7 +1630,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     reset_tis_message = []
                     for ti in to_reset:
                         reset_tis_message.append(repr(ti))
-                        ti.state = None
+                        ti.state = State.NONE
                         ti.queued_by_job_id = None
 
                     for ti in set(tis_to_reset_or_adopt) - set(to_reset):
@@ -1696,7 +1697,12 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     .join(Job, TI.job_id == Job.id)
                     .join(DM, TI.dag_id == DM.dag_id)
                     .where(TI.state == TaskInstanceState.RUNNING)
-                    .where(or_(Job.state != State.RUNNING, Job.latest_heartbeat < limit_dttm))
+                    .where(
+                        or_(
+                            Job.state != State.RUNNING,
+                            Job.latest_heartbeat < limit_dttm,
+                        )
+                    )
                     .where(Job.job_type == "LocalTaskJob")
                     .where(TI.queued_by_job_id == self.job.id)
                 )

@@ -16,38 +16,38 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import State
 
 EXECUTION_STATES = {
-    TaskInstanceState.RUNNING,
-    TaskInstanceState.QUEUED,
+    State.RUNNING,
+    State.QUEUED,
 }
 
 # In order to be able to get queued a task must have one of these states
 SCHEDULEABLE_STATES = {
-    None,
-    TaskInstanceState.UP_FOR_RETRY,
-    TaskInstanceState.UP_FOR_RESCHEDULE,
+    State.NONE,
+    State.UP_FOR_RETRY,
+    State.UP_FOR_RESCHEDULE,
 }
 
 RUNNABLE_STATES = {
     # For cases like unit tests and run manually
-    None,
-    TaskInstanceState.UP_FOR_RETRY,
-    TaskInstanceState.UP_FOR_RESCHEDULE,
+    State.NONE,
+    State.UP_FOR_RETRY,
+    State.UP_FOR_RESCHEDULE,
     # For normal scheduler/backfill cases
-    TaskInstanceState.QUEUED,
+    State.QUEUED,
 }
 
 QUEUEABLE_STATES = {
-    TaskInstanceState.SCHEDULED,
+    State.SCHEDULED,
 }
 
 BACKFILL_QUEUEABLE_STATES = {
     # For cases like unit tests and run manually
-    None,
-    TaskInstanceState.UP_FOR_RESCHEDULE,
-    TaskInstanceState.UP_FOR_RETRY,
+    State.NONE,
+    State.UP_FOR_RESCHEDULE,
+    State.UP_FOR_RETRY,
     # For normal backfill cases
-    TaskInstanceState.SCHEDULED,
+    State.SCHEDULED,
 }
