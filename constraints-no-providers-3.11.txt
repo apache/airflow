@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-15T06:44:13Z
+# This constraints file was automatically generated on 2023-06-18T14:35:05Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-6-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -54,14 +54,14 @@ botocore==1.29.76
 cachelib==0.9.0
 cachetools==5.3.1
 cattrs==23.1.2
-celery==5.3.0
+celery==5.3.1
 certifi==2023.5.7
 cffi==1.15.1
 cgroupspy==0.2.2
 charset-normalizer==3.1.0
 click-didyoumean==0.3.0
 click-plugins==1.1.1
-click-repl==0.2.0
+click-repl==0.3.0
 click==8.1.3
 clickclick==20.10.2
 cloudpickle==2.2.1
@@ -69,7 +69,7 @@ colorama==0.4.6
 colorlog==4.8.0
 connexion==2.14.2
 cron-descriptor==1.4.0
-croniter==1.3.15
+croniter==1.4.1
 cryptography==41.0.1
 dask==2023.6.0
 decorator==5.1.1
@@ -81,7 +81,7 @@ docutils==0.20.1
 email-validator==1.3.1
 eventlet==0.33.3
 filelock==3.12.2
-flower==1.2.0
+flower==2.0.0
 frozenlist==1.3.3
 fsspec==2023.6.0
 gevent==22.10.2
@@ -103,7 +103,7 @@ inflection==0.5.1
 itsdangerous==2.1.2
 jmespath==1.0.1
 jsonschema==4.17.3
-kombu==5.3.0
+kombu==5.3.1
 krb5==0.5.0
 kubernetes-asyncio==24.2.3
 kubernetes==23.6.0
@@ -122,7 +122,7 @@ mdit-py-plugins==0.4.0
 mdurl==0.1.2
 msgpack==1.0.5
 multidict==6.0.4
-numpy==1.24.3
+numpy==1.25.0
 oauthlib==3.2.2
 opentelemetry-api==1.15.0
 opentelemetry-exporter-otlp-proto-grpc==1.15.0
@@ -138,7 +138,7 @@ pandas==2.0.2
 partd==1.4.0
 pathspec==0.9.0
 pendulum==2.1.2
-platformdirs==3.5.3
+platformdirs==3.6.0
 pluggy==1.0.0
 plyvel==1.5.0
 prison==0.2.1
@@ -190,9 +190,9 @@ uc-micro-py==1.0.2
 unicodecsv==0.14.1
 urllib3==1.26.16
 vine==5.0.0
-virtualenv==20.23.0
+virtualenv==20.23.1
 wcwidth==0.2.6
-websocket-client==1.5.3
+websocket-client==1.6.0
 wrapt==1.15.0
 yarl==1.9.2
 zict==3.0.0
