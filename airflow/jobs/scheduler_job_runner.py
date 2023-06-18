@@ -770,7 +770,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                 )
                 msg = (
                     "Executor reports task instance %s finished (%s) although the "
-                    "task says its %s. (Info: %s) Was the task killed externally?"
+                    "task says it's %s. (Info: %s) Was the task killed externally?"
                 )
                 self.log.error(msg, ti, state, ti.state, info)
 

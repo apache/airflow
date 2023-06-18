@@ -864,6 +864,9 @@ triggers:
   - integration-name: Google Machine Learning Engine
     python-modules:
       - airflow.providers.google.cloud.triggers.mlengine
+  - integration-name: Google Cloud Pub/Sub
+    python-modules:
+      - airflow.providers.google.cloud.triggers.pubsub
 
 transfers:
   - source-integration-name: Presto

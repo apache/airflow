@@ -426,6 +426,7 @@ deps
 deques
 deregister
 desc
+descendents
 deserialization
 Deserialize
 deserialize
@@ -604,6 +605,7 @@ fqdn
 frontend
 fs
 fsGroup
+fullname
 func
 Fundera
 ga
@@ -929,6 +931,7 @@ metadatabase
 metarouter
 Metastore
 metastore
+metavar
 mget
 mgmt
 microservice
@@ -1029,6 +1032,7 @@ onboarded
 OnFailure
 onkill
 Oozie
+openapi
 openfaas
 openlineage
 oper
@@ -1217,6 +1221,7 @@ redbubble
 Reddit
 Redhat
 redis
+rediss
 redoc
 redownloading
 redshift

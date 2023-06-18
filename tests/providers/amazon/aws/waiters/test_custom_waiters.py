@@ -129,8 +129,6 @@ class TestCustomECSServiceWaiters:
         hook_waiters = EcsHook(aws_conn_id=None).list_waiters()
         assert "cluster_active" in hook_waiters
         assert "cluster_inactive" in hook_waiters
-        assert "task_definition_active" in hook_waiters
-        assert "task_definition_inactive" in hook_waiters
 
     @staticmethod
     def describe_clusters(
@@ -221,35 +219,6 @@ class TestCustomECSServiceWaiters:
                 "status": status,
             }
         }
-
-    def test_task_definition_active(self, mock_describe_task_definition):
-        """Test task definition reach active state during creation."""
-        mock_describe_task_definition.side_effect = [
-            self.describe_task_definition(EcsTaskDefinitionStates.INACTIVE),
-            self.describe_task_definition(EcsTaskDefinitionStates.INACTIVE),
-            self.describe_task_definition(EcsTaskDefinitionStates.ACTIVE),
-        ]
-        waiter = EcsHook(aws_conn_id=None).get_waiter("task_definition_active")
-        waiter.wait(taskDefinition="spam-egg", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
-
-    def test_task_definition_failure(self, mock_describe_task_definition):
-        """Test task definition reach delete in progress state during creation."""
-        mock_describe_task_definition.side_effect = [
-            self.describe_task_definition(EcsTaskDefinitionStates.DELETE_IN_PROGRESS),
-        ]
-        waiter = EcsHook(aws_conn_id=None).get_waiter("task_definition_active")
-        with pytest.raises(WaiterError, match='matched expected path: "DELETE_IN_PROGRESS"'):
-            waiter.wait(taskDefinition="spam-egg", WaiterConfig={"Delay": 0.01, "MaxAttempts": 1})
-
-    def test_task_definition_inactive(self, mock_describe_task_definition):
-        """Test task definition reach inactive state during deletion."""
-        mock_describe_task_definition.side_effect = [
-            self.describe_task_definition(EcsTaskDefinitionStates.ACTIVE),
-            self.describe_task_definition(EcsTaskDefinitionStates.ACTIVE),
-            self.describe_task_definition(EcsTaskDefinitionStates.INACTIVE),
-        ]
-        waiter = EcsHook(aws_conn_id=None).get_waiter("task_definition_inactive")
-        waiter.wait(taskDefinition="spam-egg", WaiterConfig={"Delay": 0.01, "MaxAttempts": 3})
 
 
 class TestCustomDynamoDBServiceWaiters:

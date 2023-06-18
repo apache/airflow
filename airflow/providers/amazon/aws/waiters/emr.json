@@ -58,19 +58,38 @@
             "acceptors": [
                 {
                     "matcher": "path",
-                    "argument": "cluster.status",
+                    "argument": "Cluster.Status.State",
                     "expected": "WAITING",
                     "state": "success"
                 },
                 {
                     "matcher": "path",
-                    "argument": "cluster.status",
+                    "argument": "Cluster.Status.State",
                     "expected": "TERMINATED",
                     "state": "success"
                 },
                 {
                     "matcher": "path",
-                    "argument": "cluster.status",
+                    "argument": "Cluster.Status.State",
+                    "expected": "TERMINATED_WITH_ERRORS",
+                    "state": "failure"
+                }
+            ]
+        },
+        "job_flow_terminated": {
+            "operation": "DescribeCluster",
+            "delay": 30,
+            "maxAttempts": 60,
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "Cluster.Status.State",
+                    "expected": "TERMINATED",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "Cluster.Status.State",
                     "expected": "TERMINATED_WITH_ERRORS",
                     "state": "failure"
                 }
