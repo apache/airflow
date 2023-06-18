@@ -173,6 +173,14 @@ Difference between Mode='reschedule' and Deferrable=True in Sensors
 
 In Airflow, Sensors wait for specific conditions to be met before proceeding with downstream tasks. Sensors have two options for managing idle periods: mode='reschedule' and deferrable=True.
 
-* Mode='reschedule': The sensor continuously reschedules itself until the condition is met or the maximum retries are reached, suitable for conditions expected to change    over time.Resource consumption may be higher as the sensor is repeatedly executed.
-
-* Deferrable=True: The sensor pauses execution when idle, freeing up worker slots for other tasks, ideal for sensors waiting for external events or resources. Requires proper implementation of deferring logic and coordination with the event or resource.
++--------------------------------------------------------+--------------------------------------------------------+
+|           Mode='reschedule'                            |          Deferrable=True                               |
++========================================================+========================================================+
+| Continuously reschedules                               |  Pauses execution when idle                            |
++--------------------------------------------------------+--------------------------------------------------------+
+| Resource Usage is Higher                               |  Resource Usage is Lower                               |
++--------------------------------------------------------+--------------------------------------------------------+
+| Changing conditions over time                          |  Waiting for external events                           |
++--------------------------------------------------------+--------------------------------------------------------+
+| For Implementation it has Built-in functionality       |  It Requires custom logic to implement                 |                                             
++--------------------------------------------------------+--------------------------------------------------------+
