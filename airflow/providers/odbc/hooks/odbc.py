@@ -91,11 +91,10 @@ class OdbcHook(DbApiHook):
     @property
     def sqlalchemy_scheme(self) -> str:
         """SQLAlchemy scheme either from constructor, connection extras or default."""
-        return (
-            self._sqlalchemy_scheme
-            or self.connection_extra_lower.get("sqlalchemy_scheme")
-            or self.DEFAULT_SQLALCHEMY_SCHEME
-        )
+        extra_scheme = self.connection_extra_lower.get("sqlalchemy_scheme")
+        if not self._sqlalchemy_scheme and extra_scheme and (":" in extra_scheme or "/" in extra_scheme):
+            raise RuntimeError("sqlalchemy_scheme in connection extra should not contain : or / characters")
+        return self._sqlalchemy_scheme or extra_scheme or self.DEFAULT_SQLALCHEMY_SCHEME
 
     @property
     def connection_extra_lower(self) -> dict:
