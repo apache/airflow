@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback } from "react";
 import {
   Flex,
   Divider,
@@ -65,10 +65,9 @@ const tabToIndex = (tab?: string) => {
     case "graph":
       return 1;
     case "code":
-      return 2;
     case "logs":
     case "mapped_tasks":
-      return 3;
+      return 2;
     case "details":
     default:
       return 0;
@@ -77,6 +76,7 @@ const tabToIndex = (tab?: string) => {
 
 const indexToTab = (
   index: number,
+  taskId: string | null,
   showLogs: boolean,
   showMappedTasks: boolean
 ) => {
@@ -84,8 +84,7 @@ const indexToTab = (
     case 1:
       return "graph";
     case 2:
-      return "code";
-    case 3:
+      if (!taskId) return "code";
       if (showMappedTasks) return "mapped_tasks";
       if (showLogs) return "logs";
       return undefined;
@@ -117,7 +116,7 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const isGroup = !!children;
   const isGroupOrMappedTaskSummary = isGroup || isMappedTaskSummary;
   const showLogs = !!(isTaskInstance && !isGroupOrMappedTaskSummary);
-  const showDagCode = !(isTaskInstance && !isGroupOrMappedTaskSummary);
+  const showDagCode = !taskId;
   const showMappedTasks = !!(isTaskInstance && isMappedTaskSummary && !isGroup);
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -127,19 +126,13 @@ const Details = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const onChangeTab = useCallback(
     (index: number) => {
       const params = new URLSearchParamsWrapper(searchParams);
-      const newTab = indexToTab(index, showLogs, showMappedTasks);
+      const newTab = indexToTab(index, taskId, showLogs, showMappedTasks);
       if (newTab) params.set(TAB_PARAM, newTab);
       else params.delete(TAB_PARAM);
       setSearchParams(params);
     },
-    [setSearchParams, searchParams, showLogs, showMappedTasks]
+    [setSearchParams, searchParams, showLogs, showMappedTasks, taskId]
   );
-
-  useEffect(() => {
-    if ((!taskId || isGroup) && tabIndex > 2) {
-      onChangeTab(1);
-    }
-  }, [runId, taskId, tabIndex, isGroup, onChangeTab]);
 
   const run = dagRuns.find((r) => r.runId === runId);
   const { data: mappedTaskInstance } = useTaskInstance({

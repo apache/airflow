@@ -23,7 +23,7 @@ Released packages
 
 .. jinja:: official_download_page
 
-    This page describes downloading and verifying ``Apache Airflow`` version
+    This page describes downloading and verifying Airflow™ version
     ``{{ airflow_version }}`` using officially released packages.
     You can also install ``Apache Airflow`` - as most Python packages - via :doc:`PyPI <installing-from-pypi>`.
     You can choose different version of Airflow by selecting different version from the drop-down at
@@ -35,7 +35,7 @@ the packages. The packages are available via the
 `Official Apache Software Foundations Downloads <http://ws.apache.org/mirrors.cgi>`_
 
 
-The |version| downloads are available at:
+The |version| downloads of Airflow™ are available at:
 
 .. jinja:: official_download_page
 

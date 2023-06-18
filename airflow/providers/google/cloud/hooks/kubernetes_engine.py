@@ -18,7 +18,7 @@
 """
 This module contains a Google Kubernetes Engine Hook.
 
-.. spelling::
+.. spelling:word-list::
 
     gapic
     enums

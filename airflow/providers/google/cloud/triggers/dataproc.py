@@ -279,8 +279,10 @@ class DataprocDeleteClusterTrigger(DataprocBaseTrigger):
                 await asyncio.sleep(self.polling_interval_seconds)
             except NotFound:
                 yield TriggerEvent({"status": "success", "message": ""})
+                return
             except Exception as e:
                 yield TriggerEvent({"status": "error", "message": str(e)})
+                return
         yield TriggerEvent({"status": "error", "message": "Timeout"})
 
 
@@ -322,6 +324,7 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
                                 "message": operation.error.message,
                             }
                         )
+                        return
                     yield TriggerEvent(
                         {
                             "operation_name": operation.name,
@@ -330,6 +333,7 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
                             "message": "Operation is successfully ended.",
                         }
                     )
+                    return
                 else:
                     self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
                     await asyncio.sleep(self.polling_interval_seconds)
@@ -341,3 +345,4 @@ class DataprocWorkflowTrigger(DataprocBaseTrigger):
                         "message": str(e),
                     }
                 )
+                return
