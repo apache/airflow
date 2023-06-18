@@ -95,9 +95,10 @@ class TestBeamRunPythonPipelineOperator:
             "staging_location": "gs://test/staging",
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": TEST_VERSION},
+            "requirements_file": gcs_provide_file.return_value.__enter__.return_value.name,
         }
-        gcs_provide_file.assert_called_with(object_url=PY_FILE)
-        gcs_provide_file.assert_called_with(object_url=REQURIEMENTS_FILE)
+        gcs_provide_file.assert_any_call(object_url=PY_FILE)
+        gcs_provide_file.assert_any_call(object_url=REQURIEMENTS_FILE)
         start_python_hook.assert_called_once_with(
             variables=expected_options,
             py_file=gcs_provide_file.return_value.__enter__.return_value.name,
@@ -138,9 +139,10 @@ class TestBeamRunPythonPipelineOperator:
             "labels": {"foo": "bar", "airflow-version": TEST_VERSION},
             "region": "us-central1",
             "impersonate_service_account": TEST_IMPERSONATION_ACCOUNT,
+            "requirements_file": gcs_provide_file.return_value.__enter__.return_value.name,
         }
-        gcs_provide_file.assert_called_with(object_url=PY_FILE)
-        gcs_provide_file.assert_called_with(object_url=REQURIEMENTS_FILE)
+        gcs_provide_file.assert_any_call(object_url=PY_FILE)
+        gcs_provide_file.assert_any_call(object_url=REQURIEMENTS_FILE)
         persist_link_mock.assert_called_once_with(
             self.operator,
             None,
