@@ -214,6 +214,11 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Set environment variables
 
     ```shell script
+
+    # You can avoid repeating this command for every release if you will set it in .zshrc
+    # see https://unix.stackexchange.com/questions/608842/zshrc-export-gpg-tty-tty-says-not-a-tty
+    export GPG_TTY=$(tty)
+
     # Set Version
     export VERSION=2.1.2rc3
     export VERSION_SUFFIX=rc3
