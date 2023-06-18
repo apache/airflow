@@ -101,16 +101,18 @@ class DataFusionStartPipelineTrigger(BaseTrigger):
                             "message": "Pipeline is running",
                         }
                     )
+                    return
                 elif response_from_hook == "pending":
                     self.log.info("Pipeline is not still in running state...")
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
                 else:
                     yield TriggerEvent({"status": "error", "message": response_from_hook})
-
+                    return
             except Exception as e:
                 self.log.exception("Exception occurred while checking for pipeline state")
                 yield TriggerEvent({"status": "error", "message": str(e)})
+                return
 
     def _get_async_hook(self) -> DataFusionAsyncHook:
         return DataFusionAsyncHook(

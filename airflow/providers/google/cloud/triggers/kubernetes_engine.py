@@ -176,7 +176,7 @@ class GKEOperationTrigger(BaseTrigger):
                             "operation_name": operation.name,
                         }
                     )
-
+                    return
                 elif status == Operation.Status.RUNNING or status == Operation.Status.PENDING:
                     self.log.info("Operation is still running.")
                     self.log.info("Sleeping for %ss...", self.poll_interval)
@@ -189,6 +189,7 @@ class GKEOperationTrigger(BaseTrigger):
                             "message": f"Operation has failed with status: {operation.status}",
                         }
                     )
+                    return
             except Exception as e:
                 self.log.exception("Exception occurred while checking operation status")
                 yield TriggerEvent(
@@ -197,6 +198,7 @@ class GKEOperationTrigger(BaseTrigger):
                         "message": str(e),
                     }
                 )
+                return
 
     def _get_hook(self) -> GKEAsyncHook:
         if self._hook is None:
