@@ -2201,11 +2201,11 @@ dags:
     securityContexts:
       container: {}
 
-   # Mount additional volumes into git-sync. It can be templated like in the following example:
-   #   extraVolumeMounts:
-   #     - name: my-templated-extra-volume
-   #       mountPath: "{{ .Values.my_custom_path }}"
-   #       readOnly: true
+    # Mount additional volumes into git-sync. It can be templated like in the following example:
+    #   extraVolumeMounts:
+    #     - name: my-templated-extra-volume
+    #       mountPath: "{{ .Values.my_custom_path }}"
+    #       readOnly: true
     extraVolumeMounts: []
     env: []
     # Supported env vars for gitsync can be found at https://github.com/kubernetes/git-sync
