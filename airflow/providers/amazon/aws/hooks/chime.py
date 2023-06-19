@@ -32,11 +32,9 @@ class ChimeWebhookHook(HttpHook):
 
     .. warning:: This hook is only designed to work with web hooks and not chat bots.
 
-    :param http_conn_id: Http connection ID with host as "https://hooks.chime.aws" and
-                         default webhook endpoint in the extra field in the form of
-                         ``{"webhook_endpoint": "incomingwebhooks/{webhook.id}?token{webhook.token}"}``
-    :param webhook_endpoint: Chime webhook endpoint in the form of
-                             ``"incomingwebhooks/{webhook.id}?token={webhook.token}"``
+    :param chime_conn_id: Chime connection ID with Endpoint as "https://hooks.chime.aws" and
+                         the webhook token in the form of ```{webhook.id}?token{webhook.token}```
+
     """
 
     conn_name_attr = "http_conn_id"
@@ -46,41 +44,31 @@ class ChimeWebhookHook(HttpHook):
 
     def __init__(
         self,
-        http_conn_id: str | None = None,
-        webhook_endpoint: str | None = None,
+        chime_conn_id: str,
         *args: Any,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, **kwargs)
-        self.webhook_endpoint = self._get_webhook_endpoint(http_conn_id, webhook_endpoint)
+        self.webhook_endpoint = self._get_webhook_endpoint(chime_conn_id)
 
-    def _get_webhook_endpoint(self, http_conn_id: str | None, webhook_endpoint: str | None) -> str:
+    def _get_webhook_endpoint(self, conn_id: str | None) -> str:
         """
         Given a Chime http_conn_id return the default webhook endpoint or override if
         webhook_endpoint is manually provided.
 
-        :param http_conn_id: The provided connection ID.
-        :param webhook_endpoint: The manually provided endpoint for the chime webhook.
+        :param conn_id: The provided connection ID.
         :return: Endpoint(str) for chime webhook.
         """
-        if webhook_endpoint:
-            endpoint = webhook_endpoint
-        elif http_conn_id:
-            conn = self.get_connection(http_conn_id)
-            extra = conn.extra_dejson
-            endpoint = extra.get("webhook_endpoint")
-            if endpoint is None:
-                raise AirflowException("webhook_endpoint missing from extras and is required.")
-        else:
-            raise AirflowException(
-                "Missing one of http_conn_id or webhook_endpoint arguments which are required."
-            )
 
+        conn = self.get_connection(conn_id)
+        token = conn.get_password()
+        url = conn.schema + "://" + conn.host
+        endpoint = url + token
         # Check to make sure the endpoint matches what Chime expects
-        if not re.match("^incomingwebhooks/[a-zA-Z0-9_-]+\?token=[a-zA-Z0-9_-]+$", endpoint):
+        if not re.match("^incomingwebhooks/[a-zA-Z0-9_-]+\?token=[a-zA-Z0-9_-]+$", token):
             raise AirflowException(
-                "Expected Chime webhook endpoint in the form of "
-                '"incomingwebhooks/{webhook.id}?token={webhook.token}".'
+                "Expected Chime webhook token in the form of "
+                '"{webhook.id}?token={webhook.token}".'
             )
 
         return endpoint
@@ -111,3 +99,19 @@ class ChimeWebhookHook(HttpHook):
         self.run(
             endpoint=self.webhook_endpoint, data=chime_payload, headers={"Content-type": "application/json"}
         )
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Returns custom field behaviour to only get what is needed for Chime webhooks to function."""
+        return {
+            "hidden_fields": ["login", "port", "extra"],
+            "relabeling": {
+                "host": "Chime Webhook Endpoint",
+                "password": "Webhook Token",
+            },
+            "placeholders": {
+                "schema": "https",
+                "host": "hooks.chime.aws/incomingwebhook/",
+                "password": "T00000000?token=XXXXXXXXXXXXXXXXXXXXXXXX"
+            },
+        }
