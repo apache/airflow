@@ -2690,6 +2690,13 @@ class DAG(LoggingMixin):
         :param variable_file_path: file path to a variable file in either yaml or json
         :param session: database connection (optional)
         """
+        # If DAG is paused, unpaused it to avoid test being stuck in case of deferrable operator or retry.
+        if self.is_paused:
+            self.log.info("The DAG %s is paused. Unpausing it.", self.dag_id)
+            session.query(DagModel).filter(DagModel.dag_id == self.dag_id).update(
+                {DagModel.is_paused: False, DagModel.is_active: True}
+            )
+            session.commit()
 
         def add_logger_if_needed(ti: TaskInstance):
             """Add a formatted logger to the task instance.
@@ -3888,7 +3895,10 @@ def _run_task(ti: TaskInstance, session):
     try:
         ti._run_raw_task(session=session)
         session.flush()
-        log.info("%s ran successfully!", ti.task_id)
+        if ti.state == State.DEFERRED:
+            log.info("%s has deferred", ti.task_id)
+        else:
+            log.info("%s ran successfully!", ti.task_id)
     except AirflowSkipException:
         log.info("Task Skipped, continuing")
     log.info("*****************************************************")
