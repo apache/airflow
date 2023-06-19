@@ -1419,7 +1419,11 @@ class Airflow(AirflowBaseView):
             ti.dag_run = DagRun(dag_id=dag_id, execution_date=dttm)
         else:
             ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index, session=session)
-            ti.refresh_from_task(raw_task)
+            if ti:
+                ti.refresh_from_task(raw_task)
+            else:
+                # When there is no task instance with the given map_index
+                ti = TaskInstance(raw_task, map_index=map_index)
 
         try:
             ti.get_rendered_template_fields(session=session)
