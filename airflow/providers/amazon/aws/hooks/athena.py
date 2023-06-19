@@ -33,13 +33,15 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
 class AthenaHook(AwsBaseHook):
-    """
-    Interact with Amazon Athena.
-    Provide thick wrapper around :external+boto3:py:class:`boto3.client("athena") <Athena.Client>`.
+    """Interact with Amazon Athena.
 
-    :param sleep_time: Time (in seconds) to wait between two consecutive calls to check query status on Athena
-    :param log_query: Whether to log athena query and other execution params when it's executed.
-        Defaults to *True*.
+    Provide thick wrapper around
+    :external+boto3:py:class:`boto3.client("athena") <Athena.Client>`.
+
+    :param sleep_time: Time (in seconds) to wait between two consecutive calls
+        to check query status on Athena.
+    :param log_query: Whether to log athena query and other execution params
+        when it's executed. Defaults to *True*.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
@@ -76,17 +78,20 @@ class AthenaHook(AwsBaseHook):
         client_request_token: str | None = None,
         workgroup: str = "primary",
     ) -> str:
-        """
-        Run Presto query on athena with provided config and return submitted query_execution_id.
+        """Run a Presto query on Athena with provided config.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.start_query_execution`
 
-        :param query: Presto query to run
-        :param query_context: Context in which query need to be run
-        :param result_configuration: Dict with path to store results in and config related to encryption
-        :param client_request_token: Unique token created by user to avoid multiple executions of same query
-        :param workgroup: Athena workgroup name, when not specified, will be 'primary'
+        :param query: Presto query to run.
+        :param query_context: Context in which query need to be run.
+        :param result_configuration: Dict with path to store results in and
+            config related to encryption.
+        :param client_request_token: Unique token created by user to avoid
+            multiple executions of same query.
+        :param workgroup: Athena workgroup name, when not specified, will be
+            ``'primary'``.
+        :return: Submitted query execution ID.
         """
         params = {
             "QueryString": query,
@@ -104,13 +109,14 @@ class AthenaHook(AwsBaseHook):
         return query_execution_id
 
     def check_query_status(self, query_execution_id: str) -> str | None:
-        """
-        Fetch the status of submitted athena query. Returns None or one of valid query states.
+        """Fetch the state of a submitted query.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.get_query_execution`
 
         :param query_execution_id: Id of submitted athena query
+        :return: One of valid query states, or *None* if the response is
+            malformed.
         """
         response = self.get_conn().get_query_execution(QueryExecutionId=query_execution_id)
         state = None
@@ -151,10 +157,7 @@ class AthenaHook(AwsBaseHook):
     def get_query_results(
         self, query_execution_id: str, next_token_id: str | None = None, max_results: int = 1000
     ) -> dict | None:
-        """
-        Fetch submitted athena query results.
-
-        Returns none if query is in intermediate state or failed/cancelled state else dict of query output.
+        """Fetch submitted query results.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.get_query_results`
@@ -162,6 +165,8 @@ class AthenaHook(AwsBaseHook):
         :param query_execution_id: Id of submitted athena query
         :param next_token_id:  The token that specifies where to start pagination.
         :param max_results: The maximum number of results (rows) to return in this request.
+        :return: *None* if the query is in intermediate, failed, or cancelled
+            state. Otherwise a dict of query outputs.
         """
         query_state = self.check_query_status(query_execution_id)
         if query_state is None:
@@ -186,10 +191,7 @@ class AthenaHook(AwsBaseHook):
         page_size: int | None = None,
         starting_token: str | None = None,
     ) -> PageIterator | None:
-        """
-        Fetch submitted athena query results. returns none if query is in intermediate state or
-        failed/cancelled state else a paginator to iterate through pages of results. If you
-        wish to get all results at once, call build_full_result() on the returned PageIterator.
+        """Fetch submitted Athena query results.
 
         .. seealso::
             - :external+boto3:py:class:`Athena.Paginator.GetQueryResults`
@@ -198,6 +200,11 @@ class AthenaHook(AwsBaseHook):
         :param max_items: The total number of items to return.
         :param page_size: The size of each page.
         :param starting_token: A token to specify where to start paginating.
+        :return: *None* if the query is in intermediate, failed, or cancelled
+            state. Otherwise a paginator to iterate through pages of results.
+
+        Call :meth`.build_full_result()` on the returned paginator to get all
+        results at once.
         """
         query_state = self.check_query_status(query_execution_id)
         if query_state is None:
@@ -226,13 +233,12 @@ class AthenaHook(AwsBaseHook):
         query_execution_id: str,
         max_polling_attempts: int | None = None,
     ) -> str | None:
-        """
-        Poll the status of submitted athena query until query state reaches final state.
+        """Poll the state of a submitted query until it reaches final state.
 
-        Returns one of the final states.
-
-        :param query_execution_id: Id of submitted athena query
-        :param max_polling_attempts: Number of times to poll for query state before function exits
+        :param query_execution_id: ID of submitted athena query
+        :param max_polling_attempts: Number of times to poll for query state
+            before function exits
+        :return: One of the final states
         """
         try_number = 1
         final_query_state = None  # Query state when query reaches final state or max_polling_attempts reached
@@ -270,9 +276,7 @@ class AthenaHook(AwsBaseHook):
         return final_query_state
 
     def get_output_location(self, query_execution_id: str) -> str:
-        """
-        Function to get the output location of the query results
-        in s3 uri format.
+        """Get the output location of the query results in S3 URI format.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.get_query_execution`
@@ -299,8 +303,7 @@ class AthenaHook(AwsBaseHook):
         return output_location
 
     def stop_query(self, query_execution_id: str) -> dict:
-        """
-        Cancel the submitted athena query.
+        """Cancel the submitted query.
 
         .. seealso::
             - :external+boto3:py:meth:`Athena.Client.stop_query_execution`

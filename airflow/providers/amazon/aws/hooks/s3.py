@@ -18,6 +18,7 @@
 """Interact with AWS S3, using the boto3 library."""
 from __future__ import annotations
 
+import asyncio
 import fnmatch
 import gzip as gz
 import io
@@ -38,6 +39,13 @@ from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+if TYPE_CHECKING:
+    try:
+        from aiobotocore.client import AioBaseClient
+    except ImportError:
+        pass
+
+from asgiref.sync import sync_to_async
 from boto3.s3.transfer import TransferConfig
 from botocore.exceptions import ClientError
 
@@ -84,6 +92,29 @@ def provide_bucket_name(func: T) -> T:
                 bound_args.arguments["bucket_name"] = self.conn_config.schema
 
         return func(*bound_args.args, **bound_args.kwargs)
+
+    return cast(T, wrapper)
+
+
+def provide_bucket_name_async(func: T) -> T:
+    """
+    Function decorator that provides a bucket name taken from the connection
+    in case no bucket name has been passed to the function.
+    """
+    function_signature = signature(func)
+
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        bound_args = function_signature.bind(*args, **kwargs)
+
+        if "bucket_name" not in bound_args.arguments:
+            self = args[0]
+            if self.aws_conn_id:
+                connection = await sync_to_async(self.get_connection)(self.aws_conn_id)
+                if connection.schema:
+                    bound_args.arguments["bucket_name"] = connection.schema
+
+        return await func(*bound_args.args, **bound_args.kwargs)
 
     return cast(T, wrapper)
 
@@ -228,7 +259,6 @@ class S3Hook(AwsBaseHook):
                 f"If `{bucket_param_name}` is provided, {key_param_name} should be a relative path "
                 "from root level, rather than a full s3:// url"
             )
-
         return bucket, key
 
     @provide_bucket_name
@@ -362,6 +392,226 @@ class S3Hook(AwsBaseHook):
                 prefixes.extend(common_prefix["Prefix"] for common_prefix in page["CommonPrefixes"])
 
         return prefixes
+
+    @provide_bucket_name_async
+    @unify_bucket_name_and_key
+    async def get_head_object_async(
+        self, client: AioBaseClient, key: str, bucket_name: str | None = None
+    ) -> dict[str, Any] | None:
+        """
+        Retrieves metadata of an object.
+
+        :param client: aiobotocore client
+        :param bucket_name: Name of the bucket in which the file is stored
+        :param key: S3 key that will point to the file
+        """
+        head_object_val: dict[str, Any] | None = None
+        try:
+            head_object_val = await client.head_object(Bucket=bucket_name, Key=key)
+            return head_object_val
+        except ClientError as e:
+            if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
+                return head_object_val
+            else:
+                raise e
+
+    async def list_prefixes_async(
+        self,
+        client: AioBaseClient,
+        bucket_name: str | None = None,
+        prefix: str | None = None,
+        delimiter: str | None = None,
+        page_size: int | None = None,
+        max_items: int | None = None,
+    ) -> list[Any]:
+        """
+        Lists prefixes in a bucket under prefix.
+
+        :param client: ClientCreatorContext
+        :param bucket_name: the name of the bucket
+        :param prefix: a key prefix
+        :param delimiter: the delimiter marks key hierarchy.
+        :param page_size: pagination size
+        :param max_items: maximum items to return
+        :return: a list of matched prefixes
+        """
+        prefix = prefix or ""
+        delimiter = delimiter or ""
+        config = {
+            "PageSize": page_size,
+            "MaxItems": max_items,
+        }
+
+        paginator = client.get_paginator("list_objects_v2")
+        response = paginator.paginate(
+            Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
+        )
+
+        prefixes = []
+        async for page in response:
+            if "CommonPrefixes" in page:
+                for common_prefix in page["CommonPrefixes"]:
+                    prefixes.append(common_prefix["Prefix"])
+
+        return prefixes
+
+    @provide_bucket_name_async
+    async def get_file_metadata_async(self, client: AioBaseClient, bucket_name: str, key: str) -> list[Any]:
+        """
+        Gets a list of files that a key matching a wildcard expression exists in a bucket asynchronously.
+
+        :param client: aiobotocore client
+        :param bucket_name: the name of the bucket
+        :param key: the path to the key
+        """
+        prefix = re.split(r"[\[\*\?]", key, 1)[0]
+        delimiter = ""
+        paginator = client.get_paginator("list_objects_v2")
+        response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter)
+        files = []
+        async for page in response:
+            if "Contents" in page:
+                files += page["Contents"]
+        return files
+
+    async def _check_key_async(
+        self,
+        client: AioBaseClient,
+        bucket_val: str,
+        wildcard_match: bool,
+        key: str,
+    ) -> bool:
+        """
+        Function to check if wildcard_match is True get list of files that a key matching a wildcard
+        expression exists in a bucket asynchronously and return the boolean value. If  wildcard_match
+        is False get the head object from the bucket and return the boolean value.
+
+        :param client: aiobotocore client
+        :param bucket_val: the name of the bucket
+        :param key: S3 keys that will point to the file
+        :param wildcard_match: the path to the key
+        """
+        bucket_name, key = self.get_s3_bucket_key(bucket_val, key, "bucket_name", "bucket_key")
+        if wildcard_match:
+            keys = await self.get_file_metadata_async(client, bucket_name, key)
+            key_matches = [k for k in keys if fnmatch.fnmatch(k["Key"], key)]
+            if len(key_matches) == 0:
+                return False
+        else:
+            obj = await self.get_head_object_async(client, key, bucket_name)
+            if obj is None:
+                return False
+
+        return True
+
+    async def check_key_async(
+        self,
+        client: AioBaseClient,
+        bucket: str,
+        bucket_keys: str | list[str],
+        wildcard_match: bool,
+    ) -> bool:
+        """
+        Checks for all keys in bucket and returns boolean value.
+
+        :param client: aiobotocore client
+        :param bucket: the name of the bucket
+        :param bucket_keys: S3 keys that will point to the file
+        :param wildcard_match: the path to the key
+        """
+        if isinstance(bucket_keys, list):
+            return all(
+                await asyncio.gather(
+                    *(self._check_key_async(client, bucket, wildcard_match, key) for key in bucket_keys)
+                )
+            )
+        return await self._check_key_async(client, bucket, wildcard_match, bucket_keys)
+
+    async def check_for_prefix_async(
+        self, client: AioBaseClient, prefix: str, delimiter: str, bucket_name: str | None = None
+    ) -> bool:
+        """
+        Checks that a prefix exists in a bucket.
+
+        :param bucket_name: the name of the bucket
+        :param prefix: a key prefix
+        :param delimiter: the delimiter marks key hierarchy.
+        :return: False if the prefix does not exist in the bucket and True if it does.
+        """
+        prefix = prefix + delimiter if prefix[-1] != delimiter else prefix
+        prefix_split = re.split(rf"(\w+[{delimiter}])$", prefix, 1)
+        previous_level = prefix_split[0]
+        plist = await self.list_prefixes_async(client, bucket_name, previous_level, delimiter)
+        return prefix in plist
+
+    async def _check_for_prefix_async(
+        self, client: AioBaseClient, prefix: str, delimiter: str, bucket_name: str | None = None
+    ) -> bool:
+        return await self.check_for_prefix_async(
+            client, prefix=prefix, delimiter=delimiter, bucket_name=bucket_name
+        )
+
+    async def get_files_async(
+        self,
+        client: AioBaseClient,
+        bucket: str,
+        bucket_keys: str | list[str],
+        wildcard_match: bool,
+        delimiter: str | None = "/",
+    ) -> list[Any]:
+        """Gets a list of files in the bucket."""
+        keys: list[Any] = []
+        for key in bucket_keys:
+            prefix = key
+            if wildcard_match:
+                prefix = re.split(r"[\[\*\?]", key, 1)[0]
+
+            paginator = client.get_paginator("list_objects_v2")
+            response = paginator.paginate(Bucket=bucket, Prefix=prefix, Delimiter=delimiter)
+            async for page in response:
+                if "Contents" in page:
+                    _temp = [k for k in page["Contents"] if isinstance(k.get("Size", None), (int, float))]
+                    keys = keys + _temp
+        return keys
+
+    @staticmethod
+    async def _list_keys_async(
+        client: AioBaseClient,
+        bucket_name: str | None = None,
+        prefix: str | None = None,
+        delimiter: str | None = None,
+        page_size: int | None = None,
+        max_items: int | None = None,
+    ) -> list[str]:
+        """
+        Lists keys in a bucket under prefix and not containing delimiter.
+
+        :param bucket_name: the name of the bucket
+        :param prefix: a key prefix
+        :param delimiter: the delimiter marks key hierarchy.
+        :param page_size: pagination size
+        :param max_items: maximum items to return
+        :return: a list of matched keys
+        """
+        prefix = prefix or ""
+        delimiter = delimiter or ""
+        config = {
+            "PageSize": page_size,
+            "MaxItems": max_items,
+        }
+
+        paginator = client.get_paginator("list_objects_v2")
+        response = paginator.paginate(
+            Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
+        )
+
+        keys = []
+        async for page in response:
+            if "Contents" in page:
+                for k in page["Contents"]:
+                    keys.append(k["Key"])
+
+        return keys
 
     def _list_key_object_filter(
         self, keys: list, from_datetime: datetime | None = None, to_datetime: datetime | None = None

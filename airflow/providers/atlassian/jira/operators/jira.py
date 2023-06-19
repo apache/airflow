@@ -75,9 +75,9 @@ class JiraOperator(BaseOperator):
             hook = JiraHook(jira_conn_id=self.jira_conn_id)
             resource = hook.client
 
-        jira_result = getattr(resource, self.method_name)(**self.jira_method_args)
+        jira_result: Any = getattr(resource, self.method_name)(**self.jira_method_args)
 
-        output = jira_result.get("id", None) if jira_result is not None else None
+        output = jira_result.get("id", None) if isinstance(jira_result, dict) else None
         self.xcom_push(context, key="id", value=output)
 
         if self.result_processor:

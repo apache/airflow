@@ -220,10 +220,13 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         resource_version: str,
         event: Any,
     ) -> None:
+        pod = event["object"]
         annotations_string = annotations_for_logging_task_metadata(annotations)
         """Process status response."""
         if status == "Pending":
-            if event["type"] == "DELETED":
+            # deletion_timestamp is set by kube server when a graceful deletion is requested.
+            # since kube server have received request to delete pod set TI state failed
+            if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
                 self.log.info("Event: Failed to start pod %s, annotations: %s", pod_name, annotations_string)
                 self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
             else:
@@ -237,7 +240,6 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # If our event type is DELETED, we have the POD_EXECUTOR_DONE_KEY, or the pod has
             # a deletion timestamp, we've already seen the initial Succeeded event and sent it
             # along to the scheduler.
-            pod = event["object"]
             if (
                 event["type"] == "DELETED"
                 or POD_EXECUTOR_DONE_KEY in pod.metadata.labels
@@ -251,7 +253,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             self.log.info("Event: %s Succeeded, annotations: %s", pod_name, annotations_string)
             self.watcher_queue.put((pod_name, namespace, None, annotations, resource_version))
         elif status == "Running":
-            if event["type"] == "DELETED":
+            # deletion_timestamp is set by kube server when a graceful deletion is requested.
+            # since kube server have received request to delete pod set TI state failed
+            if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
                 self.log.info(
                     "Event: Pod %s deleted before it could complete, annotations: %s",
                     pod_name,

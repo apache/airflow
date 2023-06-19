@@ -720,16 +720,6 @@ server_tls_key_file = /etc/pgbouncer/server.key
   {{ $config | toJson | print }}
 {{- end }}
 
-{{/* Allow Kubernetes Version to be overridden. Credit to https://github.com/prometheus-community/helm-charts for Regex. */}}
-{{- define "kubeVersion" }}
-  {{- $kubeVersion := default .Capabilities.KubeVersion.Version .Values.kubeVersionOverride -}}
-  {{/* Special use case for Amazon EKS, Google GKE */}}
-  {{- if and (regexMatch "\\d+\\.\\d+\\.\\d+-(?:eks|gke).+" $kubeVersion) (not .Values.kubeVersionOverride) -}}
-    {{- $kubeVersion = regexFind "\\d+\\.\\d+\\.\\d+" $kubeVersion -}}
-  {{- end -}}
-  {{- $kubeVersion -}}
-{{- end }}
-
 {{/*
 Set the default value for pod securityContext
 If no value is passed for securityContexts.pod or <node>.securityContexts.pod or legacy securityContext and <node>.securityContext, defaults to global uid and gid.

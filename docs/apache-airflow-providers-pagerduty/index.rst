@@ -35,6 +35,12 @@ Content
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-pagerduty/>
     Installing from sources <installing-providers-from-sources>
 
+.. toctree::
+    :maxdepth: 1
+    :caption: Guides
+
+    Pagerduty Notifications <notifications/pagerduty_notifier_howto_guide>
+
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 

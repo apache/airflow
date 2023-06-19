@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import functools
 import gzip as gz
+import json
 import os
 import shutil
 import time
@@ -29,12 +30,12 @@ from functools import partial
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import IO, Callable, Generator, Sequence, TypeVar, cast, overload
+from typing import IO, Any, Callable, Generator, Sequence, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
 from aiohttp import ClientSession
 from gcloud.aio.storage import Storage
-from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import GoogleAPICallError, NotFound
 from google.api_core.retry import Retry
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
@@ -461,6 +462,7 @@ class GCSHook(GoogleBaseHook):
         timeout: int | None = DEFAULT_TIMEOUT,
         num_max_attempts: int = 1,
         metadata: dict | None = None,
+        cache_control: str | None = None,
     ) -> None:
         """
         Uploads a local file or file data as string or bytes to Google Cloud Storage.
@@ -476,6 +478,7 @@ class GCSHook(GoogleBaseHook):
         :param timeout: Request timeout in seconds.
         :param num_max_attempts: Number of attempts to try to upload the file.
         :param metadata: The metadata to be uploaded with the file.
+        :param cache_control: Cache-Control metadata field.
         """
 
         def _call_with_retry(f: Callable[[], None]) -> None:
@@ -511,6 +514,9 @@ class GCSHook(GoogleBaseHook):
 
         if metadata:
             blob.metadata = metadata
+
+        if cache_control:
+            blob.cacheControl = cache_control
 
         if filename and data:
             raise ValueError(
@@ -1225,6 +1231,36 @@ def gcs_object_is_directory(bucket: str) -> bool:
     _, blob = _parse_gcs_url(bucket)
 
     return len(blob) == 0 or blob.endswith("/")
+
+
+def parse_json_from_gcs(gcp_conn_id: str, file_uri: str) -> Any:
+    """
+    Downloads and parses json file from Google cloud Storage.
+
+    :param gcp_conn_id: Airflow Google Cloud connection ID.
+    :param file_uri: full path to json file
+        example: ``gs://test-bucket/dir1/dir2/file``
+    """
+    gcs_hook = GCSHook(gcp_conn_id=gcp_conn_id)
+    bucket, blob = _parse_gcs_url(file_uri)
+    with NamedTemporaryFile(mode="w+b") as file:
+        try:
+            gcs_hook.download(bucket_name=bucket, object_name=blob, filename=file.name)
+        except GoogleAPICallError as ex:
+            raise AirflowException(f"Failed to download file with query result: {ex}")
+
+        file.seek(0)
+        try:
+            json_data = file.read()
+        except (ValueError, OSError, RuntimeError) as ex:
+            raise AirflowException(f"Failed to read file: {ex}")
+
+        try:
+            result = json.loads(json_data)
+        except json.JSONDecodeError as ex:
+            raise AirflowException(f"Failed to decode query result from bytes to json: {ex}")
+
+        return result
 
 
 def _parse_gcs_url(gsurl: str) -> tuple[str, str]:

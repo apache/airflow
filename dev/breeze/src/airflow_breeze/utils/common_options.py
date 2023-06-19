@@ -24,6 +24,7 @@ from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
+    ALLOWED_CELERY_BROKERS,
     ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_CONSTRAINTS_MODES_PROD,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
@@ -37,7 +38,10 @@ from airflow_breeze.global_constants import (
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     AUTOCOMPLETE_INTEGRATIONS,
+    DEFAULT_CELERY_BROKER,
     SINGLE_PLATFORMS,
+    START_AIRFLOW_ALLOWED_EXECUTORS,
+    START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
     get_available_documentation_packages,
 )
 from airflow_breeze.utils.custom_param_types import (
@@ -530,6 +534,21 @@ option_debug_resources = click.option(
     help="Whether to show resource information while running in parallel.",
     envvar="DEBUG_RESOURCES",
 )
+option_executor = click.option(
+    "--executor",
+    type=click.Choice(START_AIRFLOW_ALLOWED_EXECUTORS, case_sensitive=False),
+    help="Specify the executor to use with airflow.",
+    default=START_AIRFLOW_DEFAULT_ALLOWED_EXECUTORS,
+    show_default=True,
+)
+option_celery_broker = click.option(
+    "--celery-broker",
+    type=click.Choice(ALLOWED_CELERY_BROKERS, case_sensitive=False),
+    help="Specify the celery message broker",
+    default=DEFAULT_CELERY_BROKER,
+    show_default=True,
+)
+option_celery_flower = click.option("--celery-flower", help="Start celery flower", is_flag=True)
 option_install_selected_providers = click.option(
     "--install-selected-providers",
     help="Comma-separated list of providers selected to be installed (implies --use-packages-from-dist).",

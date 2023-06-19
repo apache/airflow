@@ -28,6 +28,7 @@ Content
 
     Connection types <connections>
     Operators <operators/index>
+    Logging for Tasks <logging/index>
 
 .. toctree::
     :maxdepth: 1
@@ -54,7 +55,7 @@ Package apache-airflow-providers-apache-hdfs
 and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 
-Release: 4.0.0
+Release: 4.1.0
 
 Provider package
 ----------------
