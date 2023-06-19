@@ -156,8 +156,7 @@ class AbstractOperator(Templater, DAGNode):
         return self.downstream_task_ids
 
     def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
-        """
-        Get a flat set of relative IDs, upstream or downstream.
+        """Get a flat set of relative IDs, upstream or downstream.
 
         Will recurse each relative found in the direction specified.
 
@@ -169,6 +168,10 @@ class AbstractOperator(Templater, DAGNode):
 
         relatives: set[str] = set()
 
+        # This is intentionally implemented as a loop, instead of calling
+        # get_direct_relative_ids() recursively, since Python has significant
+        # limitation on stack level, and a recursive implementation can blow up
+        # if a DAG contains very long routes.
         task_ids_to_trace = self.get_direct_relative_ids(upstream)
         while task_ids_to_trace:
             task_ids_to_trace_next: set[str] = set()
