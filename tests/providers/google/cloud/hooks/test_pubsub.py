@@ -28,7 +28,7 @@ from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1.types import ReceivedMessage
 from googleapiclient.errors import HttpError
 
-from airflow.providers.google.cloud.hooks.pubsub import PubSubException, PubSubHook
+from airflow.providers.google.cloud.hooks.pubsub import PubSubAsyncHook, PubSubException, PubSubHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.version import version
 
@@ -576,3 +576,52 @@ class TestPubSubHook:
         with pytest.raises(PubSubException) as ctx:
             PubSubHook._validate_messages(messages)
         assert str(ctx.value) == error_message
+
+
+class TestPubSubAsyncHook:
+    @pytest.fixture
+    def hook(self):
+        return PubSubAsyncHook()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubAsyncHook._get_subscriber_client")
+    async def test_pull(self, mock_subscriber_client, hook):
+        client = mock_subscriber_client.return_value
+
+        await hook.pull(
+            project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=10, return_immediately=False
+        )
+
+        mock_subscriber_client.assert_called_once()
+        client.pull.assert_called_once_with(
+            request=dict(
+                subscription=EXPANDED_SUBSCRIPTION,
+                max_messages=10,
+                return_immediately=False,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubAsyncHook._get_subscriber_client")
+    async def test_acknowledge(self, mock_subscriber_client, hook):
+        client = mock_subscriber_client.return_value
+
+        await hook.acknowledge(
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            messages=_generate_messages(3),
+        )
+
+        mock_subscriber_client.assert_called_once()
+        client.acknowledge.assert_called_once_with(
+            request=dict(
+                subscription=EXPANDED_SUBSCRIPTION,
+                ack_ids=["1", "2", "3"],
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )

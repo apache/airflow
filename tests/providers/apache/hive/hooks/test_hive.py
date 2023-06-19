@@ -891,3 +891,14 @@ class TestHiveCli:
 
         # Verify
         assert "hive.server2.proxy.user=a_user_proxy" in result[2]
+
+    def test_get_wrong_principal(self):
+        hook = MockHiveCliHook()
+        returner = mock.MagicMock()
+        returner.extra_dejson = {"principal": "principal with ; semicolon"}
+        hook.use_beeline = True
+        hook.conn = returner
+
+        # Run
+        with pytest.raises(RuntimeError, match="The principal should not contain the ';' character"):
+            hook._prepare_cli_cmd()

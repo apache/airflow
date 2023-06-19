@@ -28,8 +28,8 @@
 {{- $revisionHistoryLimit := or .Values.pgbouncer.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.pgbouncer) }}
 {{- $containerSecurityContextMetricsExporter := include "containerSecurityContext" (list . .Values.pgbouncer.metricsExporterSidecar) }}
-kind: Deployment
 apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: {{ .Release.Name }}-pgbouncer
   labels:

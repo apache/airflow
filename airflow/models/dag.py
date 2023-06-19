@@ -39,7 +39,6 @@ from typing import (
     Any,
     Callable,
     Collection,
-    Deque,
     Iterable,
     Iterator,
     List,
@@ -3784,7 +3783,7 @@ class DagContext:
 
     """
 
-    _context_managed_dags: Deque[DAG] = deque()
+    _context_managed_dags: collections.deque[DAG] = deque()
     autoregistered_dags: set[tuple[DAG, ModuleType]] = set()
     current_autoregister_module_name: str | None = None
 
