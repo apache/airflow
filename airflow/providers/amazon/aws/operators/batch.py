@@ -37,7 +37,10 @@ from airflow.providers.amazon.aws.links.batch import (
     BatchJobQueueLink,
 )
 from airflow.providers.amazon.aws.links.logs import CloudWatchEventsLink
-from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger
+from airflow.providers.amazon.aws.triggers.batch import (
+    BatchCreateComputeEnvironmentTrigger,
+    BatchOperatorTrigger,
+)
 from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
@@ -395,10 +398,12 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         unmanaged_v_cpus: int | None = None,
         service_role: str | None = None,
         tags: dict | None = None,
-        max_retries: int | None = None,
+        poll_interval: int = 30,
+        max_retries: int = 120,
         status_retries: int | None = None,
         aws_conn_id: str | None = None,
         region_name: str | None = None,
+        deferrable: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -417,9 +422,11 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         self.compute_resources = compute_resources
         self.service_role = service_role
         self.tags = tags or {}
+        self.poll_interval = poll_interval
         self.max_retries = max_retries
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
+        self.deferrable = deferrable
 
     @cached_property
     def hook(self):
@@ -440,6 +447,21 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
             "serviceRole": self.service_role,
             "tags": self.tags,
         }
-        self.hook.client.create_compute_environment(**trim_none_values(kwargs))
+        response = self.hook.client.create_compute_environment(**trim_none_values(kwargs))
+        arn = response["computeEnvironmentArn"]
+
+        if self.deferrable:
+            self.defer(
+                trigger=BatchCreateComputeEnvironmentTrigger(
+                    arn, self.poll_interval, self.max_retries, self.aws_conn_id, self.region_name
+                ),
+                method_name="execute_complete",
+            )
 
         self.log.info("AWS Batch compute environment created successfully")
+        return
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while waiting for the compute environment to be ready: {event}")
+        return event["value"]
