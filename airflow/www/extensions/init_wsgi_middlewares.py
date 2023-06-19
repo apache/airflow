@@ -38,7 +38,7 @@ def _root_app(env: WSGIEnvironment, resp: StartResponse) -> Iterable[bytes]:
 
 def init_wsgi_middleware(flask_app: Flask) -> None:
     """Handle X-Forwarded-* headers and base_url support."""
-    webserver_base_url = conf.get("webserver", "BASE_URL")
+    webserver_base_url = conf.get_mandatory_value("webserver", "BASE_URL", fallback="")
     if webserver_base_url.endswith("/"):
         raise AirflowConfigException("webserver.base_url conf cannot have a trailing slash.")
     # Apply DispatcherMiddleware
