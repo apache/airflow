@@ -303,7 +303,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         dbt_task: dict[str, str | list[str]] | None = None,
         new_cluster: dict[str, object] | None = None,
         existing_cluster_id: str | None = None,
-        libraries: list[dict[str, str]] | None = None,
+        libraries: list[dict[str, Any]] | None = None,
         run_name: str | None = None,
         timeout_seconds: int | None = None,
         databricks_conn_id: str = "databricks_default",
