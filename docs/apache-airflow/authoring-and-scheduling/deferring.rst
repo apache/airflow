@@ -176,11 +176,15 @@ In Airflow, Sensors wait for specific conditions to be met before proceeding wit
 +--------------------------------------------------------+--------------------------------------------------------+
 |           Mode='reschedule'                            |          Deferrable=True                               |
 +========================================================+========================================================+
-| Continuously reschedules                               |  Pauses execution when idle                            |
+| Continuously reschedules itself until condition is met |  Pauses execution when idle, resumes when condition    |
+|                                                        |  changes                                               |
 +--------------------------------------------------------+--------------------------------------------------------+
-| Resource Usage is Higher                               |  Resource Usage is Lower                               |
+| Resource Usage is Higher (repeated execution)          |  Resource Usage is Lower (pauses when idle, frees      |
+|                                                        |  up worker slots)                                      |
 +--------------------------------------------------------+--------------------------------------------------------+
-| Changing conditions over time                          |  Waiting for external events                           |
+| Conditions expected to change over time                |  Waiting for external events or resources              |
+| (e.g., file creation)                                  |  (e.g., API response)                                  |
 +--------------------------------------------------------+--------------------------------------------------------+
-| For Implementation it has Built-in functionality       |  It Requires custom logic to implement                 |                                             
+| Built-in functionality for rescheduling                |  Requires custom logic to defer task and handle        |
+|                                                        |  external changes                                      |
 +--------------------------------------------------------+--------------------------------------------------------+
