@@ -145,11 +145,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
     def run(
         self,
         sql: str | Iterable[str],
-        autocommit: bool = False,
-        parameters: Iterable | Mapping[str, Any] | None = None,
-        handler: None = None,
-        split_statements: bool = True,
-        return_last: bool = True,
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: None = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
     ) -> None:
         ...
 
@@ -157,11 +157,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
     def run(
         self,
         sql: str | Iterable[str],
-        autocommit: bool = False,
-        parameters: Iterable | Mapping[str, Any] | None = None,
-        handler: Callable[[Any], T] = None,  # type: ignore[assignment]
-        split_statements: bool = True,
-        return_last: bool = True,
+        autocommit: bool = ...,
+        parameters: Iterable | Mapping[str, Any] | None = ...,
+        handler: Callable[[Any], T] = ...,
+        split_statements: bool = ...,
+        return_last: bool = ...,
     ) -> T | list[T]:
         ...
 
