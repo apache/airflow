@@ -65,7 +65,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Wait for the query the snowflake query to complete."""
-        hook = SnowflakeSqlApiHook(
+        SnowflakeSqlApiHook(
             self.snowflake_conn_id,
             self.token_life_time,
             self.token_renewal_delta,
@@ -73,9 +73,11 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
         try:
             statement_query_ids: list[str] = []
             for query_id in self.query_ids:
-                while await self.is_still_running(query_id):
+                while True:
+                    statement_status = await self.get_query_status(query_id)
+                    if statement_status["status"] not in ["running"]:
+                        break
                     await asyncio.sleep(self.poll_interval)
-                statement_status = await hook.get_sql_api_query_status_async(query_id)
                 if statement_status["status"] == "error":
                     yield TriggerEvent(statement_status)
                 if statement_status["status"] == "success":
@@ -89,7 +91,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
 
-    async def is_still_running(self, query_id: str) -> bool:
+    async def get_query_status(self, query_id: str) -> dict[str, Any]:
         """
         Async function to check whether the query statement submitted via SQL API is still
         running state and returns True if it is still running else
@@ -100,10 +102,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
             self.token_life_time,
             self.token_renewal_delta,
         )
-        statement_status = await hook.get_sql_api_query_status_async(query_id)
-        if statement_status["status"] in ["running"]:
-            return True
-        return False
+        return await hook.get_sql_api_query_status_async(query_id)
 
     def _set_context(self, context):
         pass
