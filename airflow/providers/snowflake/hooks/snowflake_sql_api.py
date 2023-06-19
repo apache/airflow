@@ -60,7 +60,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
     :param token_life_time: lifetime of the JWT Token in timedelta
-    :param token_renewal_delta: Renewal time of the JWT Token in  timedelta
+    :param token_renewal_delta: Renewal time of the JWT Token in timedelta
     :param deferrable: Run operator in the deferrable mode.
     """
 

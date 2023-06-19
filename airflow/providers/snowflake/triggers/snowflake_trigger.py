@@ -28,10 +28,11 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
     """
     Fetch the status for the query ids passed.
 
-    :param task_id: Reference to task id of the Dag
     :param poll_interval:  polling period in seconds to check for the status
     :param query_ids: List of Query ids to run and poll for the status
     :param snowflake_conn_id: Reference to Snowflake connection id
+    :param token_life_time: lifetime of the JWT Token in timedelta
+    :param token_renewal_delta: Renewal time of the JWT Token in timedelta
     """
 
     def __init__(
