@@ -27,6 +27,23 @@ Changelog
 .. note::
   This release dropped support for Python 3.7
 
+6.1.2
+.....
+
+Misc
+~~~~
+
+* ``Replace unicodecsv with standard csv library (#31693)``
+* ``Removed unused variables in AzureBlobStorageToGCSOperator (#31765)``
+* ``Remove Python 3.7 support (#30963)``
+* ``Add docstring and signature for _read_remote_logs (#31623)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace spelling directive with spelling:word-list (#31752)``
+   * ``Add D400 pydocstyle check - Microsoft provider only (#31425)``
+   * ``Add discoverability for triggers in provider.yaml (#31576)``
+
 6.1.1
 .....
 

@@ -27,6 +27,18 @@ Changelog
 .. note::
   This release dropped support for Python 3.7
 
+1.1.1
+.....
+
+Misc
+~~~~
+
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check - Apache providers only (#31424)``
+
 1.1.0
 .....
 

@@ -27,6 +27,20 @@ Changelog
 .. note::
   This release dropped support for Python 3.7
 
+1.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add notifier for Smtp (#31359)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Fix ruff static check (#31762)``
+
 1.1.0
 .....
 

@@ -92,6 +92,10 @@ Misc
    * ``Fixing circular import error in providers caused by airflow version check (#31379)``
    * ``Prepare docs for May 2023 wave of Providers (#31252)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Updates release notes for snakebite-py3 incompatibility with protobuf (#31756)``
+   * ``Add D400 pydocstyle check - Apache providers only (#31424)``
+
 3.2.1
 .....
 

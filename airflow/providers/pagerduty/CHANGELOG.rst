@@ -27,6 +27,19 @@ Changelog
 .. note::
   This release dropped support for Python 3.7
 
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add notifier for pagerduty (#31207)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add send_event method in PagerdutyEventsHook (#31290)``
+
 3.2.0
 .....
 

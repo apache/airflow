@@ -27,6 +27,20 @@ Changelog
 .. note::
   This release dropped support for Python 3.7
 
+4.1.1
+.....
+
+Misc
+~~~~
+
+* ``SparkSubmitOperator: rename spark_conn_id to conn_id (#31952)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check - Apache providers only (#31424)``
+   * ``Apache provider docstring improvements (#31730)``
+   * ``Improve docstrings in providers (#31681)``
+
 4.1.0
 .....
 

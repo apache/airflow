@@ -26,6 +26,18 @@ Changelog
 .. note::
   This release dropped support for Python 3.7
 
+5.1.1
+.....
+
+Misc
+~~~~
+
+* ``Replace unicodecsv with standard csv library (#31693)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+
 5.1.0
 .....
 

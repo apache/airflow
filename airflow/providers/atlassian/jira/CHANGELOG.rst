@@ -27,6 +27,19 @@ Changelog
 .. note::
   This release dropped support for Python 3.7
 
+2.1.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: JiraOperator support any return response from Jira client (#31672)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+
 2.1.0
 .....
 
