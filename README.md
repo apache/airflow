@@ -118,7 +118,7 @@ The work to add Windows support is tracked via [#10388](https://github.com/apach
 it is not a high priority. You should only use Linux-based distros as "Production" execution environment
 as this is the only environment that is supported. The only distro that is used in our CI tests and that
 is used in the [Community managed DockerHub image](https://hub.docker.com/p/apache/airflow) is
-`Debian Bullseye`.
+`Debian bookworm`.
 
 <!-- END Requirements, please keep comment here to allow auto update of PyPI readme.md -->
 <!-- START Getting started, please keep comment here to allow auto update of PyPI readme.md -->
@@ -347,8 +347,8 @@ stable versions - as soon as all Airflow dependencies support building, and we s
 building and testing the OS version. Approximately 6 months before the end-of-life of a previous stable
 version of the OS, Airflow switches the images released to use the latest supported version of the OS.
 For example since ``Debian Buster`` end-of-life was August 2022, Airflow switched the images in `main` branch
-to use ``Debian Bullseye`` in February/March 2022. The version was used in the next MINOR release after
-the switch happened. In case of the Bullseye switch - 2.3.0 version used ``Debian Bullseye``.
+to use ``Debian Bookworm`` in February/March 2022. The version was used in the next MINOR release after
+the switch happened. In case of the Bookworm switch - 2.3.0 version used ``Debian Bookworm``.
 The images released  in the previous MINOR version continue to use the version that all other releases
 for the MINOR version used.
 

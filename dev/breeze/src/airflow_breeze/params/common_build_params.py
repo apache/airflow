@@ -121,7 +121,7 @@ class CommonBuildParams:
         """Construct Python Base Image"""
         if self.python_image is not None:
             return self.python_image
-        return f"python:{self.python}-slim-bullseye"
+        return f"python:{self.python}-slim-bookworm"
 
     @property
     def airflow_image_repository(self):
