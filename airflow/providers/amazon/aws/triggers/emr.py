@@ -23,7 +23,7 @@ from typing import Any, AsyncIterator
 from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.emr import EmrHook, EmrContainerHook
+from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.helpers import prune_dict
 
