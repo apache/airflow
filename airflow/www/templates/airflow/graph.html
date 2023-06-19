@@ -90,7 +90,7 @@
   <div class="legend-row">
     <div>
       {% for op in operators %}<span class="legend-item" style="color: {{ op.ui_fgcolor }};background: {{ op.ui_color }};">
-        {{ op.task_type }}</span>{% endfor %}
+        {{ op.operator_name }}</span>{% endfor %}
     </div>
     <div>
       {% for state, state_color in state_color_mapping.items() %}
