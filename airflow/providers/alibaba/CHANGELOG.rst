@@ -32,6 +32,7 @@ Changelog
 
 Misc
 ~~~~
+
 * ``Remove Python 3.7 support (#30963)``
 
 .. Below changes are excluded from the changelog. Move them to

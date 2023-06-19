@@ -69,7 +69,7 @@ Misc
 * ``Add docstring and signature for _read_remote_logs (#31623)``
 * ``Deprecate 'wait_for_completion' from 'EcsRegisterTaskDefinitionOperator' and 'EcsDeregisterTaskDefinitionOperator' (#31884)``
 * ``Remove Python 3.7 support (#30963)``
-* `` Change Deferrable implementation for RedshiftResumeClusterOperator to follow standard (#30864)``
+* ``Change Deferrable implementation for RedshiftResumeClusterOperator to follow standard (#30864)``
 * ``Change Deferrable implementation for RedshiftPauseClusterOperator to follow standard (#30853)``
 
 .. Below changes are excluded from the changelog. Move them to
