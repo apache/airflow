@@ -27,12 +27,11 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
-from botocore.exceptions import WaiterError
 from botocore.paginate import PageIterator
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.utils.helpers import prune_dict
+from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 
 class AthenaHook(AwsBaseHook):
@@ -252,21 +251,18 @@ class AthenaHook(AwsBaseHook):
         :return: One of the final states
         """
         try:
-            self.get_waiter("query_complete").wait(
-                QueryExecutionId=query_execution_id,
-                WaiterConfig=prune_dict(
-                    {
-                        "Delay": sleep_time or self.sleep_time,
-                        "MaxAttempts": max_polling_attempts,
-                    }
-                ),
+            wait(
+                waiter=self.get_waiter("query_complete"),
+                waiter_delay=sleep_time or self.sleep_time,
+                max_attempts=max_polling_attempts,
+                state_args={"QueryExecutionId": query_execution_id},
+                failure_message=f"Error while waiting for query {query_execution_id} to complete",
+                status_message=f"Query execution id: {query_execution_id}, "
+                f"Query is still in non-terminal state",
             )
-        except WaiterError as error:
-            self.log.info(
-                "Query execution id: %s: Error while waiting for query to complete: %s",
-                query_execution_id,
-                error,
-            )
+        except AirflowException as error:
+            # this function does not raise errors to keep previous behavior.
+            self.log.warning(error)
         finally:
             return self.check_query_status(query_execution_id)
 
