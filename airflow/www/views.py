@@ -3087,6 +3087,7 @@ class Airflow(AirflowBaseView):
             t.task_id: {
                 "dag_id": t.dag_id,
                 "task_type": t.task_type,
+                "operator_name": t.operator_name,
                 "extra_links": t.extra_links,
                 "is_mapped": isinstance(t, MappedOperator),
                 "trigger_rule": t.trigger_rule,
@@ -3115,7 +3116,9 @@ class Airflow(AirflowBaseView):
             state_token=wwwutils.state_token(dt_nr_dr_data["dr_state"]),
             doc_md=doc_md,
             arrange=arrange,
-            operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
+            operators=sorted(
+                {op.operator_name: op for op in dag.tasks}.values(), key=lambda x: x.operator_name
+            ),
             root=root or "",
             task_instances=task_instances,
             tasks=tasks,
@@ -4159,11 +4162,9 @@ class ConfigurationView(AirflowBaseView):
         # TODO remove "if raw" usage in Airflow 3.0. Configuration can be fetched via the REST API.
         if raw:
             if expose_config == "non-sensitive-only":
-                from airflow.configuration import SENSITIVE_CONFIG_VALUES
-
                 updater = configupdater.ConfigUpdater()
                 updater.read(AIRFLOW_CONFIG)
-                for sect, key in SENSITIVE_CONFIG_VALUES:
+                for sect, key in conf.sensitive_config_values:
                     if updater.has_option(sect, key):
                         updater[sect][key].value = "< hidden >"
                 config = str(updater)

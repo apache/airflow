@@ -34,8 +34,8 @@
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.workers.waitForMigrations) }}
 {{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.workers.logGroomerSidecar) }}
 {{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list . .Values.workers.kerberosSidecar) }}
-kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 apiVersion: apps/v1
+kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
   name: {{ .Release.Name }}-worker
   labels:

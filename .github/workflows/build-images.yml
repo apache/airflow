@@ -25,6 +25,7 @@ permissions:
   # all other permissions are set to none
   contents: read
   pull-requests: read
+  packages: read
 env:
   ANSWER: "yes"
   DB_RESET: "true"

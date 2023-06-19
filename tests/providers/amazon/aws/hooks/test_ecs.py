@@ -18,12 +18,14 @@ from __future__ import annotations
 
 from datetime import timedelta
 from unittest import mock
+from unittest.mock import PropertyMock
 
 import pytest
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook, EcsTaskLogFetcher, should_retry, should_retry_eni
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
 DEFAULT_CONN_ID: str = "aws_default"
 REGION: str = "us-east-1"
@@ -145,6 +147,20 @@ class TestEcsTaskLogFetcher:
     def test_get_log_events_with_unexpected_error(self, get_log_events_mock):
         with pytest.raises(Exception):
             next(self.log_fetcher._get_log_events())
+
+    @mock.patch.object(AwsLogsHook, "conn", new_callable=PropertyMock)
+    def test_get_log_events_updates_token(self, logs_conn_mock):
+        logs_conn_mock().get_log_events.return_value = {
+            "events": ["my_event"],
+            "nextForwardToken": "my_next_token",
+        }
+
+        token = AwsLogsHook.ContinuationToken()
+        list(self.log_fetcher._get_log_events(token))
+
+        assert token.value == "my_next_token"
+        # 2 calls expected, it's only on the second one that the stop condition old_token == next_token is met
+        assert logs_conn_mock().get_log_events.call_count == 2
 
     def test_event_to_str(self):
         events = [

@@ -27,8 +27,8 @@
 {{- $topologySpreadConstraints := or .Values.redis.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "localPodSecurityContext" .Values.redis }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.redis) }}
-kind: StatefulSet
 apiVersion: apps/v1
+kind: StatefulSet
 metadata:
   name: {{ .Release.Name }}-redis
   labels:

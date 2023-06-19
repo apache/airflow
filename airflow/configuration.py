@@ -37,7 +37,7 @@ from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # 
 from contextlib import contextmanager, suppress
 from json.decoder import JSONDecodeError
 from re import Pattern
-from typing import IO, Any, Dict, Iterable, Tuple, Union
+from typing import IO, Any, Dict, Iterable, Set, Tuple, Union
 from urllib.parse import urlsplit
 
 from typing_extensions import overload
@@ -146,21 +146,6 @@ def default_config_yaml() -> dict[str, Any]:
         return yaml.safe_load(config_file)
 
 
-SENSITIVE_CONFIG_VALUES = {
-    ("database", "sql_alchemy_conn"),
-    ("core", "fernet_key"),
-    ("celery", "broker_url"),
-    ("celery", "flower_basic_auth"),
-    ("celery", "result_backend"),
-    ("atlas", "password"),
-    ("smtp", "smtp_password"),
-    ("webserver", "secret_key"),
-    ("secrets", "backend_kwargs"),
-    # The following options are deprecated
-    ("core", "sql_alchemy_conn"),
-}
-
-
 class AirflowConfigParser(ConfigParser):
     """Custom Airflow Configparser supporting defaults and deprecated options."""
 
@@ -170,7 +155,19 @@ class AirflowConfigParser(ConfigParser):
     # These configs can also be fetched from Secrets backend
     # following the "{section}__{name}__secret" pattern
 
-    sensitive_config_values: set[tuple[str, str]] = SENSITIVE_CONFIG_VALUES
+    @functools.cached_property
+    def sensitive_config_values(self) -> Set[tuple[str, str]]:  # noqa: UP006
+        default_config = default_config_yaml()
+        flattened = {
+            (s, k): item for s, s_c in default_config.items() for k, item in s_c.get("options").items()
+        }
+        sensitive = {(section, key) for (section, key), v in flattened.items() if v.get("sensitive") is True}
+        depr_option = {self.deprecated_options[x][:-1] for x in sensitive if x in self.deprecated_options}
+        depr_section = {
+            (self.deprecated_sections[s][0], k) for s, k in sensitive if s in self.deprecated_sections
+        }
+        sensitive.update(depr_section, depr_option)
+        return sensitive
 
     # A mapping of (new section, new option) -> (old section, old option, since_version).
     # When reading new option, the old option will be checked to see if it exists. If it does a

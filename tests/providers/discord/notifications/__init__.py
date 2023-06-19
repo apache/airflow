@@ -14,17 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from typing import Any
-
-from rich.markup import escape
-
-from airflow_breeze.utils.console import get_console
-
-
-def get_ga_output(name: str, value: Any) -> str:
-    output_name = name.replace("_", "-")
-    printed_value = str(value).lower() if isinstance(value, bool) else value
-    get_console().print(f"[info]{output_name}[/] = [green]{escape(str(printed_value))}[/]")
-    return f"{output_name}={printed_value}"

@@ -1956,6 +1956,43 @@ These are all of the available flags for the ``release-prod-images`` command:
   :alt: Breeze release management release prod images
 
 
+SBOM generation tasks
+----------------------
+
+Maintainers also can use Breeze for SBOM generation:
+
+.. image:: ./images/breeze/output_sbom.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom.svg
+  :width: 100%
+  :alt: Breeze sbom
+
+Generating SBOM information
+...........................
+
+Thanks to our constraints captured for all versions of Airflow we can easily generate SBOM information for
+Apache Airflow. SBOM information contains information about Airflow dependencies that are possible to consume
+by our users and allow them to determine whether security issues in dependencies affect them. The SBOM
+information is written directly to ``docs-archive`` in airflow-site repository.
+
+These are all of the available flags for the ``update-sbom-information`` command:
+
+.. image:: ./images/breeze/output_sbom_update-sbom-information.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbomt_update-sbom-information.svg
+  :width: 100%
+  :alt: Breeze update sbom information
+
+Generating Provider requirements
+.................................
+
+In order to generate SBOM information for providers, we need to generate requirements for them. This is
+done by the ``generate-provider-requirements`` command. This command generates requirements for the
+selected provider and python version, using the airflow version specified.
+
+.. image:: ./images/breeze/output_sbom_generate-provider-requirements.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_generate-provider-requirements.svg
+  :width: 100%
+  :alt: Breeze generate SBOM provider requirements
+
 Details of Breeze usage
 =======================
 

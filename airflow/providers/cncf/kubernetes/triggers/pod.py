@@ -149,6 +149,7 @@ class KubernetesPodTrigger(BaseTrigger):
                                 "message": "All containers inside pod have started successfully.",
                             }
                         )
+                        return
                 elif self.should_wait(pod_phase=pod_status, container_state=container_state):
                     self.log.info("Container is not completed and still working.")
 
@@ -180,6 +181,7 @@ class KubernetesPodTrigger(BaseTrigger):
                             "message": pod.status.message,
                         }
                     )
+                    return
             except CancelledError:
                 # That means that task was marked as failed
                 if self.get_logs:

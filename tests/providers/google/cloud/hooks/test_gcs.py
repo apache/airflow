@@ -27,6 +27,7 @@ from unittest import mock
 
 import dateutil
 import pytest
+from google.api_core.exceptions import GoogleAPICallError
 
 # dynamic storage type in google.cloud needs to be type-ignored
 from google.cloud import exceptions, storage  # type: ignore[attr-defined]
@@ -45,6 +46,8 @@ GCS_STRING = "airflow.providers.google.cloud.hooks.gcs.{}"
 
 EMPTY_CONTENT = b""
 PROJECT_ID_TEST = "project-id"
+GCP_CONN_ID = "google_cloud_default"
+GCS_FILE_URI = "gs://bucket/file"
 
 
 @pytest.fixture(scope="module")
@@ -84,6 +87,41 @@ class TestGCSHookHelperFunctions:
 
         # bucket only
         assert gcs._parse_gcs_url("gs://bucket/") == ("bucket", "")
+
+    @pytest.mark.parametrize(
+        "json_value, parsed_value",
+        [
+            ("[1, 2, 3]", [1, 2, 3]),
+            ('"string value"', "string value"),
+            ('{"key1": [1], "key2": {"subkey": 2}}', {"key1": [1], "key2": {"subkey": 2}}),
+        ],
+    )
+    @mock.patch(GCS_STRING.format("GCSHook"))
+    @mock.patch(GCS_STRING.format("NamedTemporaryFile"))
+    def test_parse_json_from_gcs(self, temp_file, gcs_hook, json_value, parsed_value):
+        temp_file.return_value.__enter__.return_value.read.return_value = json_value
+        assert gcs.parse_json_from_gcs(gcp_conn_id=GCP_CONN_ID, file_uri=GCS_FILE_URI) == parsed_value
+
+    @mock.patch(GCS_STRING.format("GCSHook"))
+    def test_parse_json_from_gcs_fail_download(self, gsc_hook):
+        gsc_hook.return_value.download.return_value.side_effect = GoogleAPICallError
+        with pytest.raises(AirflowException):
+            gcs.parse_json_from_gcs(gcp_conn_id=GCP_CONN_ID, file_uri=GCS_FILE_URI)
+
+    @mock.patch(GCS_STRING.format("GCSHook"))
+    @mock.patch(GCS_STRING.format("NamedTemporaryFile"))
+    def test_parse_json_from_gcs_fail_read_file(self, temp_file, gcs_hook):
+        for exception_class in (ValueError, OSError, RuntimeError):
+            temp_file.return_value.__enter__.return_value.read.side_effect = exception_class
+            with pytest.raises(AirflowException):
+                gcs.parse_json_from_gcs(gcp_conn_id=GCP_CONN_ID, file_uri=GCS_FILE_URI)
+
+    @mock.patch(GCS_STRING.format("GCSHook"))
+    @mock.patch(GCS_STRING.format("NamedTemporaryFile"))
+    def test_parse_json_from_gcs_fail_json_loads(self, temp_file, gcs_hook):
+        temp_file.return_value.__enter__.return_value.read.return_value = "Invalid json"
+        with pytest.raises(AirflowException):
+            gcs.parse_json_from_gcs(gcp_conn_id=GCP_CONN_ID, file_uri=GCS_FILE_URI)
 
 
 class TestFallbackObjectUrlToObjectNameAndBucketName:
