@@ -1311,7 +1311,7 @@ operators:
       version_added: ~
       type: boolean
       example: ~
-      default: "false"
+      default: "False"
     default_cpus:
       description: ~
       version_added: ~
@@ -1952,7 +1952,7 @@ sentry:
       version_added: 2.0.0
       type: string
       example: ~
-      default: "false"
+      default: "False"
     sentry_dsn:
       description: ~
       version_added: 1.10.6
@@ -2047,7 +2047,7 @@ celery:
       description: |
         Specify if remote control of the workers is enabled.
         In some cases when the broker does not support remote control, Celery creates lots of
-        ``.*reply-celery-pidbox`` queues. You can prevent this by setting this to false.
+        ``.*reply-celery-pidbox`` queues. You can prevent this by setting this to False.
         However, with this disabled Flower won't work.
         https://docs.celeryq.dev/en/stable/getting-started/backends-and-brokers/index.html#broker-overview
       version_added: 2.3.0
@@ -2914,7 +2914,7 @@ kubernetes_executor:
       default: "6"
     verify_ssl:
       description: |
-        Set this to false to skip verifying SSL certificate of Kubernetes python client.
+        Set this to False to skip verifying SSL certificate of Kubernetes python client.
       version_added: 2.1.0
       type: boolean
       example: ~
