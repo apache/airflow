@@ -72,14 +72,13 @@ class AzureFunctionsHook(HttpHook):
         azure_functions_conn_id: str = default_conn_name,
     ) -> None:
         super().__init__()
-        self.azure_functions_conn_id = azure_functions_conn_id
         self.conn_id = azure_functions_conn_id
 
     def get_conn(self, *args, **kwargs) -> requests.Session:
         """Returns http session for use with requests."""
         session = requests.Session()
         auth_type = "client_key_type"
-        conn = self.get_connection(self.azure_functions_conn_id)
+        conn = self.get_connection(self.conn_id)
 
         if conn.host and "://" in conn.host:
             self.base_url = conn.host
