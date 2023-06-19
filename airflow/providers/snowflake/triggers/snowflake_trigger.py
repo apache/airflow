@@ -26,9 +26,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class SnowflakeSqlApiTrigger(BaseTrigger):
     """
-    SnowflakeSqlApi Trigger inherits from the BaseTrigger,it is fired as
-    deferred class with params to run the task in trigger worker and
-    fetch the status for the query ids passed.
+    Fetch the status for the query ids passed.
 
     :param task_id: Reference to task id of the Dag
     :param poll_interval:  polling period in seconds to check for the status
