@@ -680,6 +680,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 # Either the trigger code or the path to it is bad. Fail the trigger.
                 self.failed_triggers.append((new_id, e))
                 continue
+
             try:
                 new_trigger_instance = trigger_class(**new_trigger_orm.kwargs)
             except TypeError as err:
