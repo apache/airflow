@@ -26,14 +26,12 @@ pushd "${TEMP_DOCKER_DIR}"
 cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 
 # [START build]
-export AIRFLOW_VERSION=2.3.4
 export DOCKER_BUILDKIT=1
 
 docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bookworm" \
-    --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
-    --tag "my-pypi-selected-version:0.0.1"
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-bullseye" \
+    --tag "my-bullseye-airflow:0.0.1"
 # [END build]
-docker rmi --force "my-pypi-selected-version:0.0.1"
+docker rmi --force "my-bullseye-airflow:0.0.1"
 popd
 rm -rf "${TEMP_DOCKER_DIR}"
