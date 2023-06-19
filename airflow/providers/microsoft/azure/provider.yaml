@@ -142,7 +142,7 @@ integrations:
     external-doc-url: https://azure.microsoft.com/en-us/products/functions/
     logo: /integration-logos/azure/Function-Apps.svg
     how-to-guide:
-      - /docs/apache-airflow-providers-microsoft-azure/operators/azure_functions.rst
+      - /docs/apache-airflow-providers-microsoft-azure/operators/functions.rst
     tags: [azure]
 
 operators:
