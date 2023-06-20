@@ -369,6 +369,20 @@ def test_graph_trigger_origin_graph_view(app, admin_client):
     check_content_in_response(href, resp)
 
 
+def test_graph_view_without_dag_permission(app, one_dag_perm_user_client):
+    url = "/dags/example_bash_operator/graph"
+    resp = one_dag_perm_user_client.get(url, follow_redirects=True)
+    assert resp.status_code == 200
+    assert resp.request.url == "http://localhost/dags/example_bash_operator/graph"
+    check_content_in_response("example_bash_operator", resp)
+
+    url = "/dags/example_xcom/graph"
+    resp = one_dag_perm_user_client.get(url, follow_redirects=True)
+    assert resp.status_code == 200
+    assert resp.request.url == "http://localhost/home"
+    check_content_in_response("Access is Denied", resp)
+
+
 def test_dag_details_trigger_origin_dag_details_view(app, admin_client):
     app.dag_bag.get_dag("test_graph_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
@@ -578,6 +592,39 @@ def per_dag_perm_user_client(app, new_dag_to_delete):
     )
 
     delete_user(app, username="test_user_per_dag_perms")  # type: ignore
+    delete_roles(app)
+
+
+@pytest.fixture()
+def one_dag_perm_user_client(app):
+    username = "test_user_one_dag_perm"
+    dag_id = "example_bash_operator"
+    sm = app.appbuilder.sm
+    perm = f"{permissions.RESOURCE_DAG_PREFIX}{dag_id}"
+
+    sm.create_permission(permissions.ACTION_CAN_READ, perm)
+
+    create_user(
+        app,
+        username=username,
+        role_name="User with permission to access only one dag",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, perm),
+        ],
+    )
+
+    sm.find_user(username=username)
+
+    yield client_with_login(
+        app,
+        username=username,
+        password=username,
+    )
+
+    delete_user(app, username=username)  # type: ignore
     delete_roles(app)
 
 
