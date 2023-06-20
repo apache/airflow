@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import datetime as dt
 import os
-from unittest import TestCase, mock
+from unittest import mock
 
 from airflow.providers.amazon.aws.executors.ecs_fargate_executor import (
     AwsEcsFargateExecutor,
@@ -49,69 +49,12 @@ def unset_conf():
             os.environ.pop(env)
 
 
-class TestEcsTaskCollection(TestCase):
+class TestEcsTaskCollection:
     """Tests EcsTaskCollection Class"""
 
-    def test_get_and_add(self):
-        """Test add_task, task_by_arn, cmd_by_key"""
-        self.assertEqual(len(self.collection), 2)
-
-        # Check basic get for first task
-        self.assertEqual(self.collection.task_by_arn("001"), self.first_task)
-        self.assertEqual(self.collection["001"], self.first_task)
-        self.assertEqual(self.collection.task_by_key(self.first_airflow_key), self.first_task)
-        self.assertEqual(self.collection.info_by_key(self.first_airflow_key).cmd, self.first_airflow_cmd)
-        self.assertEqual(self.collection.info_by_key(self.first_airflow_key).queue, self.first_airflow_queue)
-        self.assertEqual(
-            self.collection.info_by_key(self.first_airflow_key).config, self.first_airflow_exec_config
-        )
-
-        # Check basic get for second task
-        self.assertEqual(self.collection.task_by_arn("002"), self.second_task)
-        self.assertEqual(self.collection["002"], self.second_task)
-        self.assertEqual(self.collection.task_by_key(self.second_airflow_key), self.second_task)
-        self.assertEqual(self.collection.info_by_key(self.second_airflow_key).cmd, self.second_airflow_cmd)
-        self.assertEqual(
-            self.collection.info_by_key(self.second_airflow_key).queue, self.second_airflow_queue
-        )
-        self.assertEqual(
-            self.collection.info_by_key(self.second_airflow_key).config, self.second_airflow_exec_config
-        )
-
-    def test_list(self):
-        """Test get_all_arns() and get_all_task_keys()"""
-        # Check basic list by ARNs & airflow-task-keys
-        self.assertListEqual(self.collection.get_all_arns(), ["001", "002"])
-        self.assertListEqual(
-            self.collection.get_all_task_keys(), [self.first_airflow_key, self.second_airflow_key]
-        )
-
-    def test_pop(self):
-        """Test pop_by_key()"""
-        # pop first task & ensure that it's removed
-        self.assertEqual(self.collection.pop_by_key(self.first_airflow_key), self.first_task)
-        self.assertNotIn("001", self.collection.get_all_arns())
-
-    def test_update(self):
-        """Test update_task"""
-        # update arn with new task object
-        self.assertEqual(self.collection["001"], self.first_task)
-        updated_task = mock.Mock(spec=EcsFargateTask)
-        updated_task.task_arn = "001"
-        self.collection.update_task(updated_task)
-        self.assertEqual(self.collection["001"], updated_task)
-
-    def test_failure(self):
-        """Test collection failure increments and counts"""
-        self.assertEqual(0, self.collection.failure_count_by_key(self.first_airflow_key))
-        for i in range(5):
-            self.collection.increment_failure_count(self.first_airflow_key)
-            self.assertEqual(i + 1, self.collection.failure_count_by_key(self.first_airflow_key))
-        self.assertEqual(0, self.collection.failure_count_by_key(self.second_airflow_key))
-
-    def setUp(self):
+    def setup_method(self):
         """
-        Create a ECS Task Collection and add 2 airflow tasks. Populates self.collection,
+        Create an ECS Task Collection and add 2 Airflow tasks. Populates self.collection,
         self.first/second_task, self.first/second_airflow_key, and self.first/second_airflow_cmd.
         """
         self.collection = EcsFargateTaskCollection()
@@ -144,8 +87,57 @@ class TestEcsTaskCollection(TestCase):
             self.second_airflow_exec_config,
         )
 
+    def test_get_and_add(self):
+        """Test add_task, task_by_arn, cmd_by_key"""
+        assert len(self.collection) == 2
 
-class TestEcsFargateTask(TestCase):
+        # Check basic get for first task
+        assert self.collection.task_by_arn("001") == self.first_task
+        assert self.collection["001"] == self.first_task
+        assert self.collection.task_by_key(self.first_airflow_key) == self.first_task
+        assert self.collection.info_by_key(self.first_airflow_key).cmd == self.first_airflow_cmd
+        assert self.collection.info_by_key(self.first_airflow_key).queue == self.first_airflow_queue
+        assert self.collection.info_by_key(self.first_airflow_key).config == self.first_airflow_exec_config
+
+        # Check basic get for second task
+        assert self.collection.task_by_arn("002") == self.second_task
+        assert self.collection["002"] == self.second_task
+        assert self.collection.task_by_key(self.second_airflow_key) == self.second_task
+        assert self.collection.info_by_key(self.second_airflow_key).cmd == self.second_airflow_cmd
+        assert self.collection.info_by_key(self.second_airflow_key).queue == self.second_airflow_queue
+        assert self.collection.info_by_key(self.second_airflow_key).config == self.second_airflow_exec_config
+
+    def test_list(self):
+        """Test get_all_arns() and get_all_task_keys()"""
+        # Check basic list by ARNs & airflow-task-keys
+        assert self.collection.get_all_arns() == ["001", "002"]
+        assert self.collection.get_all_task_keys() == [self.first_airflow_key, self.second_airflow_key]
+
+    def test_pop(self):
+        """Test pop_by_key()"""
+        # pop first task & ensure that it's removed
+        assert self.collection.pop_by_key(self.first_airflow_key) == self.first_task
+        assert "001" not in self.collection.get_all_arns()
+
+    def test_update(self):
+        """Test update_task"""
+        # update arn with new task object
+        assert self.collection["001"] == self.first_task
+        updated_task = mock.Mock(spec=EcsFargateTask)
+        updated_task.task_arn = "001"
+        self.collection.update_task(updated_task)
+        assert self.collection["001"] == updated_task
+
+    def test_failure(self):
+        """Test collection failure increments and counts"""
+        assert 0 == self.collection.failure_count_by_key(self.first_airflow_key)
+        for i in range(5):
+            self.collection.increment_failure_count(self.first_airflow_key)
+            assert i + 1 == self.collection.failure_count_by_key(self.first_airflow_key)
+        assert 0 == self.collection.failure_count_by_key(self.second_airflow_key)
+
+
+class TestEcsFargateTask:
     """Tests the EcsFargateTask DTO"""
 
     def test_queued_tasks(self):
@@ -160,14 +152,14 @@ class TestEcsFargateTask(TestCase):
             ),
         ]
         for task in queued_tasks:
-            self.assertEqual(State.QUEUED, task.get_task_state())
+            assert State.QUEUED == task.get_task_state()
 
     def test_running_tasks(self):
         """Tasks that have been launched are identified as 'running'"""
         running_task = EcsFargateTask(
             task_arn="AAA", last_status="RUNNING", desired_status="RUNNING", containers=[{}]
         )
-        self.assertEqual(State.RUNNING, running_task.get_task_state())
+        assert State.RUNNING == running_task.get_task_state()
 
     def test_removed_tasks(self):
         """Tasks that failed to launch are identified as 'removed'"""
@@ -181,7 +173,7 @@ class TestEcsFargateTask(TestCase):
             ),
         ]
         for task in deprovisioning_tasks:
-            self.assertEqual(State.REMOVED, task.get_task_state())
+            assert State.REMOVED == task.get_task_state()
 
         removed_task = EcsFargateTask(
             task_arn="DEAD",
@@ -190,7 +182,7 @@ class TestEcsFargateTask(TestCase):
             containers=[{}],
             stopped_reason="Timeout waiting for network interface provisioning to complete.",
         )
-        self.assertEqual(State.REMOVED, removed_task.get_task_state())
+        assert State.REMOVED == removed_task.get_task_state()
 
     def test_stopped_tasks(self):
         """Tasks that have terminated are identified as either 'success' or 'failure'"""
@@ -206,7 +198,7 @@ class TestEcsFargateTask(TestCase):
                 started_at=dt.datetime.now(),
                 containers=[successful_container],
             )
-            self.assertEqual(State.SUCCESS, success_task.get_task_state())
+            assert State.SUCCESS == success_task.get_task_state()
 
         for status in ("DEACTIVATING", "STOPPING", "DEPROVISIONING", "STOPPED"):
             failed_task = EcsFargateTask(
@@ -217,11 +209,21 @@ class TestEcsFargateTask(TestCase):
                 started_at=dt.datetime.now(),
                 containers=[successful_container, successful_container, error_container],
             )
-            self.assertEqual(State.FAILED, failed_task.get_task_state())
+            assert State.FAILED == failed_task.get_task_state()
 
 
-class TestAwsEcsFargateExecutor(TestCase):
+class TestAwsEcsFargateExecutor:
     """Tests the AWS ECS Executor itself"""
+
+    def setup_method(self) -> None:
+        """Creates Botocore Loader (used for asserting botocore calls) and a mocked ecs client"""
+        set_conf()
+        self.ecs_model = get_botocore_model("ecs")
+        self.__set_mocked_executor()
+
+    @classmethod
+    def teardown_method(cls) -> None:
+        unset_conf()
 
     def test_execute(self):
         """Test execution from end-to-end"""
@@ -240,9 +242,9 @@ class TestAwsEcsFargateExecutor(TestCase):
             "failures": [],
         }
 
-        self.assertEqual(0, len(self.executor.pending_tasks))
+        assert 0 == len(self.executor.pending_tasks)
         self.executor.execute_async(airflow_key, airflow_cmd)
-        self.assertEqual(1, len(self.executor.pending_tasks))
+        assert 1 == len(self.executor.pending_tasks)
 
         self.executor.attempt_task_runs()
 
@@ -251,8 +253,8 @@ class TestAwsEcsFargateExecutor(TestCase):
         self.assert_botocore_call("RunTask", *self.executor.ecs.run_task.call_args)
 
         # task is stored in active worker
-        self.assertEqual(1, len(self.executor.active_workers))
-        self.assertIn(self.executor.active_workers.task_by_key(airflow_key).task_arn, "001")
+        assert 1 == len(self.executor.active_workers)
+        assert "001" in self.executor.active_workers.task_by_key(airflow_key).task_arn
 
     def test_failed_execute_api(self):
         """Test what happens when FARGATE refuses to execute a task"""
@@ -271,7 +273,7 @@ class TestAwsEcsFargateExecutor(TestCase):
         for _ in range(self.executor.MAX_FAILURE_CHECKS * 2):
             self.executor.attempt_task_runs()
             # task is not stored in active workers
-            self.assertEqual(len(self.executor.active_workers), 0)
+            assert len(self.executor.active_workers) == 0
 
     @mock.patch("airflow.executors.base_executor.BaseExecutor.fail")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.success")
@@ -279,7 +281,7 @@ class TestAwsEcsFargateExecutor(TestCase):
         """Test synch from end-to-end"""
         after_fargate_json = self.__mock_sync()
         loaded_fargate_json = BotoTaskSchema().load(after_fargate_json)
-        self.assertEqual(State.SUCCESS, loaded_fargate_json.get_task_state())
+        assert State.SUCCESS == loaded_fargate_json.get_task_state()
 
         self.executor.sync_running_tasks()
 
@@ -288,10 +290,10 @@ class TestAwsEcsFargateExecutor(TestCase):
         self.assert_botocore_call("DescribeTasks", *self.executor.ecs.describe_tasks.call_args)
 
         # task is not stored in active workers
-        self.assertEqual(len(self.executor.active_workers), 0)
+        assert len(self.executor.active_workers) == 0
         # Task is immediately succeeded
         success_mock.assert_called_once()
-        self.assertFalse(fail_mock.called)
+        fail_mock.assert_not_called()
 
     @mock.patch("airflow.executors.base_executor.BaseExecutor.fail")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.success")
@@ -301,7 +303,7 @@ class TestAwsEcsFargateExecutor(TestCase):
 
         # set container's exit code to failure
         after_fargate_json["containers"][0]["exitCode"] = 100
-        self.assertEqual(State.FAILED, BotoTaskSchema().load(after_fargate_json).get_task_state())
+        assert State.FAILED == BotoTaskSchema().load(after_fargate_json).get_task_state()
         self.executor.sync()
 
         # ensure that run_task is called correctly as defined by Botocore docs
@@ -309,10 +311,10 @@ class TestAwsEcsFargateExecutor(TestCase):
         self.assert_botocore_call("DescribeTasks", *self.executor.ecs.describe_tasks.call_args)
 
         # task is not stored in active workers
-        self.assertEqual(len(self.executor.active_workers), 0)
+        assert len(self.executor.active_workers) == 0
         # Task is immediately succeeded
         fail_mock.assert_called_once()
-        self.assertFalse(success_mock.called)
+        success_mock.assert_not_called()
 
     @mock.patch("airflow.executors.base_executor.BaseExecutor.fail")
     @mock.patch("airflow.executors.base_executor.BaseExecutor.success")
@@ -330,31 +332,31 @@ class TestAwsEcsFargateExecutor(TestCase):
         for check_count in range(AwsEcsFargateExecutor.MAX_FAILURE_CHECKS):
             self.executor.sync_running_tasks()
             # ensure that run_task is called correctly as defined by Botocore docs
-            self.assertEqual(self.executor.ecs.describe_tasks.call_count, check_count + 1)
+            assert self.executor.ecs.describe_tasks.call_count == check_count + 1
             self.assert_botocore_call("DescribeTasks", *self.executor.ecs.describe_tasks.call_args)
 
             # Ensure task arn is not removed from active
-            self.assertIn("ABC", self.executor.active_workers.get_all_arns())
+            assert "ABC" in self.executor.active_workers.get_all_arns()
 
             # Task is not failed or succeeded
-            self.assertFalse(fail_mock.called)
-            self.assertFalse(success_mock.called)
+            fail_mock.assert_not_called()
+            success_mock.assert_not_called()
 
         # Last call should fail the task
         self.executor.sync_running_tasks()
-        self.assertNotIn("ABC", self.executor.active_workers.get_all_arns())
-        self.assertTrue(fail_mock.called)
-        self.assertFalse(success_mock.called)
+        assert "ABC" not in self.executor.active_workers.get_all_arns()
+        fail_mock.assert_called()
+        success_mock.asswer_not_called()
 
     def test_terminate(self):
         """Test that executor can shut everything down; forcing all tasks to unnaturally exit"""
         after_fargate_task = self.__mock_sync()
         after_fargate_task["containers"][0]["exitCode"] = 100
-        self.assertEqual(State.FAILED, BotoTaskSchema().load(after_fargate_task).get_task_state())
+        assert State.FAILED == BotoTaskSchema().load(after_fargate_task).get_task_state()
 
         self.executor.terminate()
 
-        self.assertTrue(self.executor.ecs.stop_task.called)
+        self.executor.ecs.stop_task.assert_called()
         self.assert_botocore_call("StopTask", *self.executor.ecs.stop_task.call_args)
 
     def assert_botocore_call(self, method_name, args, kwargs):
@@ -377,19 +379,6 @@ class TestAwsEcsFargateExecutor(TestCase):
         self.executor.end(heartbeat_interval=0)
 
         self.executor.sync = sync_func
-
-    def setUp(self) -> None:
-        """Creates Botocore Loader (used for asserting botocore calls) and a mocked ecs client"""
-        self.ecs_model = get_botocore_model("ecs")
-        self.__set_mocked_executor()
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        set_conf()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        unset_conf()
 
     def __set_mocked_executor(self):
         """Mock ECS such that there's nothing wrong with anything"""
