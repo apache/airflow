@@ -359,7 +359,7 @@ class TestPytestSnowflakeHook:
         }
         with unittest.mock.patch.dict(
             'os.environ', AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
-        ), pytest.raises(AirflowException, match="The private_key_file path points to an empty or invalid file."):
+        ), pytest.raises(ValueError, match="The private_key_file path points to an empty or invalid file."):
             SnowflakeHook(snowflake_conn_id='test_conn').get_conn()
 
     def test_should_add_partner_info(self):

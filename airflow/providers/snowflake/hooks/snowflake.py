@@ -218,11 +218,11 @@ class SnowflakeHook(DbApiHook):
         elif private_key_file:
             private_key_file_path = Path(private_key_file)
             if not private_key_file_path.is_file() or private_key_file_path.stat().st_size == 0:
-                raise AirflowException(
+                raise ValueError(
                     "The private_key_file path points to an empty or invalid file."
                 )
             if private_key_file_path.stat().st_size > 4096:
-                raise AirflowException(
+                raise ValueError(
                     "File size of private_key_file is too big."
                 )
             private_key_pem = Path(private_key_file_path).read_bytes()
