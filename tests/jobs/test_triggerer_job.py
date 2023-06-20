@@ -296,10 +296,8 @@ class TestTriggerRunner:
 
         trigger_runner.update_triggers({1})
 
-        assert (
-            "Trigger failed; message=__init__() got an unexpected keyword argument 'not_exists_arg'"
-            in caplog.text
-        )
+        assert "Trigger failed" in caplog.text
+        assert "got an unexpected keyword argument 'not_exists_arg'" in caplog.text
 
 
 def test_trigger_create_race_condition_18392(session, tmp_path):
