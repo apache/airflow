@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 from functools import cached_property
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Iterable
 
 from botocore.exceptions import WaiterError
 
@@ -249,7 +249,7 @@ class EmrTerminateJobFlowTrigger(BaseTrigger):
             )
 
 
-class EmrContainerSensorTrigger(BaseTrigger):
+class EmrContainerTrigger(BaseTrigger):
     """
     Poll for the status of EMR container until reaches terminal state.
 
@@ -278,9 +278,9 @@ class EmrContainerSensorTrigger(BaseTrigger):
         return EmrContainerHook(self.aws_conn_id, virtual_cluster_id=self.virtual_cluster_id)
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serializes EmrContainerSensorTrigger arguments and classpath."""
+        """Serializes EmrContainerTrigger arguments and classpath."""
         return (
-            "airflow.providers.amazon.aws.triggers.emr.EmrContainerSensorTrigger",
+            "airflow.providers.amazon.aws.triggers.emr.EmrContainerTrigger",
             {
                 "virtual_cluster_id": self.virtual_cluster_id,
                 "job_id": self.job_id,
@@ -317,3 +317,75 @@ class EmrContainerSensorTrigger(BaseTrigger):
                     await asyncio.sleep(int(self.poll_interval))
 
             yield TriggerEvent({"status": "success", "job_id": self.job_id})
+
+
+class EmrStepSensorTrigger(BaseTrigger):
+    """
+    Poll for the status of EMR container until reaches terminal state.
+
+    :param virtual_cluster_id: Reference Emr cluster id
+    :param job_id:  job_id to check the state
+    :param aws_conn_id: Reference to AWS connection id
+    :param poll_interval: polling period in seconds to check for the status
+    """
+
+    def __init__(
+        self,
+        job_flow_id: str,
+        step_id: str,
+        target_states: Iterable[str],
+        aws_conn_id: str = "aws_default",
+        poll_interval: int = 30,
+        **kwargs: Any,
+    ):
+        self.job_flow_id = job_flow_id
+        self.step_id = step_id
+        self.target_states = target_states
+        self.aws_conn_id = aws_conn_id
+        self.poll_interval = poll_interval
+        super().__init__(**kwargs)
+
+    @cached_property
+    def hook(self) -> EmrHook:
+        return EmrHook(self.aws_conn_id)
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.amazon.aws.triggers.emr.EmrStepSensorTrigger",
+            {
+                "job_flow_id": self.job_flow_id,
+                "step_id": self.step_id,
+                "target_states": self.target_states,
+                "aws_conn_id": self.aws_conn_id,
+                "poll_interval": self.poll_interval,
+            },
+        )
+
+    async def run(self) -> AsyncIterator[TriggerEvent]:
+        async with self.hook.async_conn as client:
+            waiter = self.hook.get_waiter("job_step_wait_for_terminal", deferrable=True, client=client)
+            attempt = 0
+            while True:
+                attempt = attempt + 1
+                try:
+                    await waiter.wait(
+                        ClusterId=self.job_flow_id,
+                        StepId=self.step_id,
+                        WaiterConfig={
+                            "Delay": self.poll_interval,
+                            "MaxAttempts": 1,
+                        },
+                    )
+                    break
+                except WaiterError as error:
+                    if "terminal failure" in str(error):
+                        yield TriggerEvent({"status": "failure", "message": f"Job Failed: {error}"})
+                        break
+                    self.log.info(
+                        "Job status is %s. Retrying attempt %s",
+                        error.last_response["Step"]["Status"]["State"],
+                        attempt,
+                    )
+                    await asyncio.sleep(int(self.poll_interval))
+
+        yield TriggerEvent({"status": "success"})
