@@ -85,7 +85,7 @@ def variables_export(args):
         for row in rows:
             try:
                 value = decoder.decode(row.val)
-            except json.decoder.JSONDecodeError:
+            except JSONDecodeError:
                 value = row.val
             var_dict[row.key] = value
 
