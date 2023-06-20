@@ -1021,20 +1021,15 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
 
         self.log.info("EMR serverless application created: %s", application_id)
         waiter = self.hook.get_waiter("serverless_app_created")
-        state_args = {
-            "applicationId": application_id,
-        }
-        status_message = {
-            "message": "Serverless Application status is: ",
-            "args": [["application", "state"], ["application", "stateDetails"]],
-        }
+
         wait(
             waiter=waiter,
             waiter_delay=self.waiter_delay,
             max_attempts=self.waiter_max_attempts,
-            state_args=state_args,
-            failure_message="Serverless Application Creation failed",
-            status_message=status_message,
+            args={"applicationId": application_id},
+            failure_message="Serverless Application creation failed",
+            status_message="Serverless Application status is",
+            status_args=["application.state", "application.stateDetails"],
         )
         self.log.info("Starting application %s", application_id)
         self.hook.conn.start_application(applicationId=application_id)
@@ -1045,12 +1040,10 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
                 waiter=waiter,
                 max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
-                state_args={"applicationId": application_id},
+                args={"applicationId": application_id},
                 failure_message="Serverless Application failed to start",
-                status_message={
-                    "message": "Serverless Application status is",
-                    "args": [["application", "state"], ["application", "stateDetails"]],
-                },
+                status_message="Serverless Application status is",
+                status_args=["application.state", "application.stateDetails"],
             )
         return application_id
 
@@ -1167,12 +1160,10 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 waiter=waiter,
                 max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
-                state_args={"applicationId": self.application_id},
+                args={"applicationId": self.application_id},
                 failure_message="Serverless Application failed to start",
-                status_message={
-                    "message": "Serverless Application status is ",
-                    "args": [["application", "state"], ["application", "stateDetails"]],
-                },
+                status_message="Serverless Application status is",
+                status_args=["application.state", "application.stateDetails"],
             )
 
         response = self.hook.conn.start_job_run(
@@ -1196,12 +1187,10 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 waiter=waiter,
                 max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
-                state_args={"applicationId": self.application_id, "jobRunId": self.job_id},
+                args={"applicationId": self.application_id, "jobRunId": self.job_id},
                 failure_message="Serverless Job failed",
-                status_message={
-                    "message": "Serverless Job status is ",
-                    "args": [["jobRun", "state"], ["jobRun", "stateDetails"]],
-                },
+                status_message="Serverless Job status is",
+                status_args=["jobRun.state", "jobRun.stateDetails"],
             )
 
         return self.job_id
@@ -1327,12 +1316,10 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
                 waiter=waiter,
                 max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
-                state_args={"applicationId": self.application_id},
+                args={"applicationId": self.application_id},
                 failure_message="Error stopping application",
-                status_message={
-                    "message": "Serverless application is %s - %s",
-                    "args": [["application", "state"], ["application", "stateDetails"]],
-                },
+                status_message="Serverless Application status is",
+                status_args=["application.state", "application.stateDetails"],
             )
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)
 
@@ -1424,12 +1411,10 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
                 waiter=waiter,
                 max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
-                state_args={"applicationId": self.application_id},
+                args={"applicationId": self.application_id},
                 failure_message="Error terminating application",
-                status_message={
-                    "message": "Serverless Application status is ",
-                    "args": [["application", "state"], ["application", "stateDetails"]],
-                },
+                status_message="Serverless Application status is",
+                status_args=["application.state", "application.stateDetails"],
             )
 
         self.log.info("EMR serverless application deleted")

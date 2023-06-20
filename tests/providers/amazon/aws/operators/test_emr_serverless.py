@@ -83,7 +83,6 @@ class TestEmrServerlessCreateApplicationOperator:
         mock_waiter().wait.assert_called_with(
             applicationId=application_id,
             WaiterConfig={
-                "Delay": 1,
                 "MaxAttempts": 1,
             },
         )
@@ -176,7 +175,7 @@ class TestEmrServerlessCreateApplicationOperator:
         with pytest.raises(AirflowException) as ex_message:
             operator.execute(None)
 
-        assert "Serverless Application Creation failed:" in str(ex_message.value)
+        assert "Serverless Application creation failed:" in str(ex_message.value)
 
         mock_conn.create_application.assert_called_once_with(
             clientToken=client_request_token,
@@ -206,7 +205,7 @@ class TestEmrServerlessCreateApplicationOperator:
         with pytest.raises(AirflowException) as ex_message:
             operator.execute(None)
 
-        assert "Serverless Application Creation failed:" in str(ex_message.value)
+        assert "Serverless Application creation failed:" in str(ex_message.value)
 
         mock_conn.create_application.assert_called_with(
             clientToken=client_request_token,
@@ -298,7 +297,7 @@ class TestEmrServerlessCreateApplicationOperator:
         with pytest.raises(AirflowException) as ex_message:
             operator.execute(None)
 
-        assert str(ex_message.value) == f"Serverless Application Creation failed: {error}"
+        assert str(ex_message.value) == f"Serverless Application creation failed: {error}"
 
         mock_conn.create_application.assert_called_once_with(
             clientToken=client_request_token,

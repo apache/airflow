@@ -254,11 +254,12 @@ class AthenaHook(AwsBaseHook):
             wait(
                 waiter=self.get_waiter("query_complete"),
                 waiter_delay=sleep_time or self.sleep_time,
-                max_attempts=max_polling_attempts,
-                state_args={"QueryExecutionId": query_execution_id},
+                max_attempts=max_polling_attempts or 120,
+                args={"QueryExecutionId": query_execution_id},
                 failure_message=f"Error while waiting for query {query_execution_id} to complete",
                 status_message=f"Query execution id: {query_execution_id}, "
                 f"Query is still in non-terminal state",
+                status_args=["QueryExecution.Status.State"],
             )
         except AirflowException as error:
             # this function does not raise errors to keep previous behavior.
