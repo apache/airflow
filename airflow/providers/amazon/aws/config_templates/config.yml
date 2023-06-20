@@ -15,56 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-batch:
-  description: |
-    This section only applies if you are using the BatchExecutor in
-    Airflow's ``[core]`` configuration.
-    For more information on any of these execution parameters, see the link below:
-    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch/client/submit_job.html
-    For boto3 credential management, see
-    https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
-  options:
-    region:
-      description: |
-        The name of the AWS Region where AWS Batch is configured.
-      version_added: 2.5.1
-      type: string
-      example: us-east-1
-      default: ~
-    job_name:
-      description: |
-        The name of the Airflow Job configured in AWS Batch.
-      version_added: 2.5.1
-      type: string
-      example: airflow-job-name
-      default: ~
-    job_queue:
-      description: |
-        The job queue where the Airflow job is submitted. You can specify either the name or the Amazon
-        Resource Name (ARN) of the queue.
-      version_added: 2.5.1
-      type: string
-      example: airflow-job-name or airflow-job-name:2
-      default: ~
-    job_definition:
-      description: |
-        The name of the Airflow Job Queue configured in AWS Batch;
-        optionally includes revision number.
-      version_added: 2.5.1
-      type: string
-      example:
-      default: ~
-    submit_job_kwargs:
-      description: |
-        Points to a Python dictionary which provides **kwargs for boto3's Batch submit_job API. Most
-        implementations can leave this to the default value. This API is provided for maximum extensibility
-        for submitting Airflow Jobs on AWS Batch (i.e: retry strategy, timeouts, etc). More documentation
-        can be found in the "Extensibility" section of the AWS Executors Readme.
-      version_added: 2.5.1
-      type: string
-      example: path.to.your.python_package.variable_name
-      default: airflow.providers.amazon.aws.executors.batch_conf.BATCH_SUBMIT_JOB_KWARGS
-
 aws_ecs:
   description: |
     This section only applies if you are using the AwsEcsExecutor in
