@@ -24,6 +24,29 @@
 Changelog
 ---------
 
+3.5.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Push Spark appId to XCOM for LivyOperator with deferrable mode (#31201)``
+
+Misc
+~~~~
+
+* ``Optimize deferred mode execution (#31685)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apache provider docstring improvements (#31730)``
+   * ``Add discoverability for triggers in provider.yaml (#31576)``
+   * ``Add D400 pydocstyle check - Apache providers only (#31424)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
+
 3.5.0
 .....
 
