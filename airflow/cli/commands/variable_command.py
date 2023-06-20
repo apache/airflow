@@ -79,15 +79,15 @@ def variables_export(args):
     """Exports all the variables to the file."""
     var_dict = {}
     with create_session() as session:
-        query = session.query(Variable).all()
+        rows = session.query(Variable)
 
-        data = json.JSONDecoder()
-        for variable in query:
+        decoder = json.JSONDecoder()
+        for row in rows:
             try:
-                value = data.decode(variable.val)
+                value = decoder.decode(row.val)
             except json.decoder.JSONDecodeError:
-                value = variable.val
-            var_dict[variable.key] = value
+                value = row.val
+            var_dict[row.key] = value
 
     with args.file as f:
         f.write(json.dumps(var_dict, sort_keys=True, indent=4))
