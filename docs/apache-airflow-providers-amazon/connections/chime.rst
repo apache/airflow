@@ -34,24 +34,15 @@ The default connection ID is ``chime_default``.
 
 Configuring the Connection
 --------------------------
-
-Login (optional)
-    Chime does not require a login for a webhook, this field can be left blank.
-
-Password (optional)
-    The token for authentication should be included in extras. No passwords are used for Chime webhooks.
-
-Host (optional)
+Chime Webhook Endpoint:
     Specify the entire url or the base of the url for the service.
 
-Port (optional)
-    Specify a port number if applicable.
 
-Schema (optional)
-    Specify the service type etc: http/https.
+Chime Webhook token:
+    The token for authentication including the webhook ID.
 
-Extras (optional)
-    Specify webhook_endpoint here which will start with ``incomingwebhooks/``
+Schema:
+    Whether or not the endpoint should be http or https
 
 
 Examples
@@ -59,16 +50,10 @@ Examples
 
 **Connection**
 
-* **Login**:
-* **Password**:
-* **Host**: hooks.chime.aws
-* **Port**:
+* **Chime Webhook Endpoint**: hooks.chime.aws
+* **Chime Webhook Token**:
+
+.. code-block:: text
+
+    abceasd-3423-a1237-ffff-000cccccccc?token=somechimetoken
 * **Schema**: https
-
-* **Extras**:
-
-.. code-block:: json
-
-    {
-      "webhook_endpoint": "incomingwebhooks/abceasd-3423-a1237-ffff-000cccccccc?token=somechimetoken"
-    }
