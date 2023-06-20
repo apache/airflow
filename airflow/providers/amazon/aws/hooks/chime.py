@@ -37,7 +37,7 @@ class ChimeWebhookHook(HttpHook):
 
     """
 
-    conn_name_attr = "http_conn_id"
+    conn_name_attr = "chime_conn_id"
     default_conn_name = "chime_default"
     conn_type = "chime"
     hook_name = "Chime Web Hook"
@@ -61,12 +61,14 @@ class ChimeWebhookHook(HttpHook):
         """
         conn = self.get_connection(conn_id)
         token = conn.get_password()
+        if token is None:
+            raise AirflowException("Webhook token field is missing and is required.")
         url = conn.schema + "://" + conn.host
         endpoint = url + token
         # Check to make sure the endpoint matches what Chime expects
         if not re.match("^incomingwebhooks/[a-zA-Z0-9_-]+\?token=[a-zA-Z0-9_-]+$", token):
             raise AirflowException(
-                "Expected Chime webhook token in the form of " '"{webhook.id}?token={webhook.token}".'
+                "Expected Chime webhook token in the form of '{webhook.id}?token={webhook.token}'."
             )
 
         return endpoint
