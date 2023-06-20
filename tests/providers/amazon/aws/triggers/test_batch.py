@@ -22,7 +22,12 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger, BatchSensorTrigger
+from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.triggers.batch import (
+    BatchCreateComputeEnvironmentTrigger,
+    BatchOperatorTrigger,
+    BatchSensorTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 BATCH_JOB_ID = "job_id"
@@ -181,3 +186,38 @@ class TestBatchSensorTrigger:
         assert actual_response == TriggerEvent(
             {"status": "failure", "message": f"Job Failed: Waiter {name} failed: {reason}"}
         )
+
+
+class TestBatchCreateComputeEnvironmentTrigger:
+    @pytest.mark.asyncio
+    @mock.patch.object(BatchClientHook, "async_conn")
+    @mock.patch.object(BatchClientHook, "get_waiter")
+    async def test_success(self, get_waiter_mock, conn_mock):
+        get_waiter_mock().wait = AsyncMock(
+            side_effect=[
+                WaiterError(
+                    "situation normal", "first try", {"computeEnvironments": [{"status": "my_status"}]}
+                ),
+                {},
+            ]
+        )
+        trigger = BatchCreateComputeEnvironmentTrigger("my_arn", poll_interval=0, max_retries=3)
+
+        generator = trigger.run()
+        response: TriggerEvent = await generator.asend(None)
+
+        assert response.payload["status"] == "success"
+        assert response.payload["value"] == "my_arn"
+
+    @pytest.mark.asyncio
+    @mock.patch.object(BatchClientHook, "async_conn")
+    @mock.patch.object(BatchClientHook, "get_waiter")
+    async def test_failure(self, get_waiter_mock, conn_mock):
+        get_waiter_mock().wait = AsyncMock(
+            side_effect=[WaiterError("terminal failure", "terminal failure reason", {})]
+        )
+        trigger = BatchCreateComputeEnvironmentTrigger("my_arn", poll_interval=0, max_retries=3)
+
+        with pytest.raises(WaiterError):
+            generator = trigger.run()
+            await generator.asend(None)
