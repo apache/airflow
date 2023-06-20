@@ -47,20 +47,13 @@ Content
     Detailed list of commits <commits>
 
 
-.. toctree::
-    :maxdepth: 1
-    :caption: Guides
-
-    SMTP Notifications <notifications/smtp_notifier_howto_guide>
-
-
 Package apache-airflow-providers-smtp
 ------------------------------------------------------
 
 `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
 
-Release: 1.1.0
+Release: 1.2.0
 
 Provider package
 ----------------
