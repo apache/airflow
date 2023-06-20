@@ -405,14 +405,16 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         services on your behalf (templated).
     :param tags: Tags that you apply to the compute-environment to help you
         categorize and organize your resources.
-    :param max_retries: Exponential back-off retries, 4200 = 48 hours; polling
-        is only used when waiters is None.
-    :param status_retries: Number of HTTP retries to get job status, 10; polling
-        is only used when waiters is None.
+    :param poll_interval: How long to wait in seconds between 2 polls at the environment status.
+        Only useful when deferrable is True.
+    :param max_retries: How many times to poll for the environment status.
+        Only useful when deferrable is True.
     :param aws_conn_id: Connection ID of AWS credentials / region name. If None,
         credential boto3 strategy will be used.
     :param region_name: Region name to use in AWS Hook. Overrides the
         ``region_name`` in connection if provided.
+    :param deferrable: If True, the operator will wait asynchronously for the environment to be created.
+        This mode requires aiobotocore module to be installed. (default: False)
     """
 
     template_fields: Sequence[str] = (
@@ -436,7 +438,7 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         status_retries: int | None = None,
         aws_conn_id: str | None = None,
         region_name: str | None = None,
-        deferrable: bool = True,
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -492,7 +494,7 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
             )
 
         self.log.info("AWS Batch compute environment created successfully")
-        return
+        return arn
 
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
