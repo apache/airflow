@@ -380,6 +380,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
                     method_name="execute_complete",
                 )
             self._handle_job_error(job)
+            self.log.info("Current state of job %s is %s", job.job_id, job.state)
 
     @staticmethod
     def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
