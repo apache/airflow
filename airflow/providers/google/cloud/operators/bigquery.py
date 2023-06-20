@@ -51,6 +51,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryIntervalCheckTrigger,
     BigQueryValueCheckTrigger,
 )
+from airflow.providers.google.cloud.utils.bigquery import convert_job_id
 
 if TYPE_CHECKING:
     from google.cloud.bigquery import UnknownJob
@@ -90,8 +91,8 @@ class BigQueryConsoleLink(BaseOperatorLink):
         *,
         ti_key: TaskInstanceKey,
     ):
-        job_id = XCom.get_value(key="job_id", ti_key=ti_key)
-        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id) if job_id else ""
+        job_id_path = XCom.get_value(key="job_id_path", ti_key=ti_key)
+        return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id_path) if job_id_path else ""
 
 
 @attr.s(auto_attribs=True)
@@ -110,7 +111,7 @@ class BigQueryConsoleIndexableLink(BaseOperatorLink):
         *,
         ti_key: TaskInstanceKey,
     ):
-        job_ids = XCom.get_value(key="job_id", ti_key=ti_key)
+        job_ids = XCom.get_value(key="job_id_path", ti_key=ti_key)
         if not job_ids:
             return None
         if len(job_ids) < self.index:
@@ -1184,7 +1185,11 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
             ]
         else:
             raise AirflowException(f"argument 'sql' of type {type(str)} is neither a string nor an iterable")
-        context["task_instance"].xcom_push(key="job_id", value=job_id)
+        project_id = self.hook.project_id
+        if project_id:
+            job_id_path = convert_job_id(job_id=job_id, project_id=project_id, location=self.location)
+            context["task_instance"].xcom_push(key="job_id_path", value=job_id_path)
+        return job_id
 
     def on_kill(self) -> None:
         super().on_kill()
@@ -2727,9 +2732,11 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
                                 persist_kwargs["dataset_id"] = table["datasetId"]
                                 persist_kwargs["project_id"] = table["projectId"]
                             BigQueryTableLink.persist(**persist_kwargs)
-
         self.job_id = job.job_id
-        context["ti"].xcom_push(key="job_id", value=self.job_id)
+        project_id = self.project_id or self.hook.project_id
+        if project_id:
+            job_id_path = convert_job_id(job_id=job_id, project_id=project_id, location=self.location)
+            context["ti"].xcom_push(key="job_id_path", value=job_id_path)
         # Wait for the job to complete
         if not self.deferrable:
             job.result(timeout=self.result_timeout, retry=self.result_retry)
