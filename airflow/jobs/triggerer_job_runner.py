@@ -426,7 +426,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
     triggers: dict[int, TriggerDetails]
 
     # Cache for looking up triggers by classpath
-    trigger_cache: dict[str, type[BaseTrigger]]
+    trigger_cache: dict[str, tuple[type[BaseTrigger], float]]
 
     # Inbound queue of new triggers
     to_create: deque[tuple[int, BaseTrigger]]
@@ -709,5 +709,13 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         Uses a cache dictionary to speed up lookups after the first time.
         """
         if classpath not in self.trigger_cache:
-            self.trigger_cache[classpath] = import_string(classpath)
-        return self.trigger_cache[classpath]
+            trigger_class = import_string(classpath)
+            trigger_last_modified_time = os.path.getmtime(trigger_class.__file__)
+            self.trigger_cache[classpath] = (trigger_class, trigger_last_modified_time)
+        else:
+            trigger_class, trigger_last_modified_time = self.trigger_cache[classpath]
+            if trigger_last_modified_time < os.path.getmtime(trigger_class.__file__):
+                trigger_class = import_string(classpath, reload_module=True)
+                self.trigger_cache[classpath] = (trigger_class, trigger_last_modified_time)
+
+        return trigger_class

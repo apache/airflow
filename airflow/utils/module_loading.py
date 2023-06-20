@@ -18,12 +18,12 @@
 from __future__ import annotations
 
 import pkgutil
-from importlib import import_module
+from importlib import import_module, reload
 from types import ModuleType
 from typing import Callable
 
 
-def import_string(dotted_path: str):
+def import_string(dotted_path: str, reload_module: bool = False):
     """
     Import a dotted module path and return the attribute/class designated by the
     last name in the path. Raise ImportError if the import failed.
@@ -34,6 +34,8 @@ def import_string(dotted_path: str):
         raise ImportError(f"{dotted_path} doesn't look like a module path")
 
     module = import_module(module_path)
+    if reload_module:
+        module = reload(module)
 
     try:
         return getattr(module, class_name)
