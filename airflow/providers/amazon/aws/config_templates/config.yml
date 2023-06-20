@@ -26,14 +26,14 @@ aws_ecs:
   options:
     region:
       description: |
-        The name of the AWS Region where AWS ECS/Fargate is configured.
+        The name of the AWS Region where AWS ECS/Fargate is configured. Required.
       version_added: 2.5.1
       type: string
       example: us-east-1
       default: ~
     cluster:
       description: |
-       Name of AWS ECS or Fargate cluster.
+       Name of AWS ECS or Fargate cluster. Required.
       version_added: 2.5.1
       type: string
       example: ~
@@ -42,7 +42,7 @@ aws_ecs:
       description: |
         Name of registered Airflow container within your AWS cluster. This container will
         receive an airflow CLI command as an additional parameter to its entrypoint.
-        For more info see url to Boto3 docs above.
+        For more info see url to Boto3 docs above. Required.
       version_added: 2.5.1
       type: string
       example: ~
