@@ -11,6 +11,8 @@
   },
   "alibaba": {
     "deps": [
+      "alibabacloud_adb20211201>=1.0.0",
+      "alibabacloud_tea_openapi>=0.3.7",
       "apache-airflow>=2.4.0",
       "oss2>=2.14.0"
     ],

@@ -479,6 +479,19 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="adb_spark_default",
+            conn_type="adb_spark",
+            extra="""{
+                    "auth_type": "AK",
+                    "access_key_id": "<ACCESS_KEY_ID>",
+                    "access_key_secret": "<ACCESS_KEY_SECRET>",
+                    "region": "<YOUR_OSS_REGION>"}
+                    """,
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="pig_cli_default",
             conn_type="pig_cli",
             schema="default",

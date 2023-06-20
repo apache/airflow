@@ -861,6 +861,7 @@ kwargs
 KYLIN
 Kylin
 kylin
+Lakehouse
 LanguageServiceClient
 lastname
 latencies
@@ -1357,6 +1358,7 @@ sourceRepository
 sourceUploadUrl
 Spark
 sparkApplication
+sparkappinfo
 sparkcmd
 SparkPi
 SparkR
