@@ -600,9 +600,9 @@ class EmrContainerOperator(BaseOperator):
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
-        else:
-            self.log.info(event["message"])
-            return event["job_id"]
+
+        self.log.info(event["message"])
+        return event["job_id"]
 
     def on_kill(self) -> None:
         """Cancel the submitted job run."""

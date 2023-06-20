@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 from functools import cached_property
-from typing import Any, AsyncIterator, Iterable
+from typing import Any, AsyncIterator
 
 from botocore.exceptions import WaiterError
 
@@ -323,26 +323,24 @@ class EmrStepSensorTrigger(BaseTrigger):
     """
     Poll for the status of EMR container until reaches terminal state.
 
-    :param virtual_cluster_id: Reference Emr cluster id
-    :param job_id:  job_id to check the state
+    :param job_flow_id: job_flow_id which contains the step check the state of
+    :param step_id:  step to check the state of
     :param aws_conn_id: Reference to AWS connection id
-    :param poll_interval: polling period in seconds to check for the status
+    :param poke_interval: polling period in seconds to check for the status
     """
 
     def __init__(
         self,
         job_flow_id: str,
         step_id: str,
-        target_states: Iterable[str],
         aws_conn_id: str = "aws_default",
-        poll_interval: int = 30,
+        poke_interval: int = 30,
         **kwargs: Any,
     ):
         self.job_flow_id = job_flow_id
         self.step_id = step_id
-        self.target_states = target_states
         self.aws_conn_id = aws_conn_id
-        self.poll_interval = poll_interval
+        self.poke_interval = poke_interval
         super().__init__(**kwargs)
 
     @cached_property
@@ -355,9 +353,8 @@ class EmrStepSensorTrigger(BaseTrigger):
             {
                 "job_flow_id": self.job_flow_id,
                 "step_id": self.step_id,
-                "target_states": self.target_states,
                 "aws_conn_id": self.aws_conn_id,
-                "poll_interval": self.poll_interval,
+                "poke_interval": self.poke_interval,
             },
         )
 
@@ -372,7 +369,7 @@ class EmrStepSensorTrigger(BaseTrigger):
                         ClusterId=self.job_flow_id,
                         StepId=self.step_id,
                         WaiterConfig={
-                            "Delay": self.poll_interval,
+                            "Delay": self.poke_interval,
                             "MaxAttempts": 1,
                         },
                     )
@@ -386,6 +383,6 @@ class EmrStepSensorTrigger(BaseTrigger):
                         error.last_response["Step"]["Status"]["State"],
                         attempt,
                     )
-                    await asyncio.sleep(int(self.poll_interval))
+                    await asyncio.sleep(int(self.poke_interval))
 
         yield TriggerEvent({"status": "success"})

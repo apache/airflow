@@ -79,6 +79,8 @@ class TestEmrContainerSensor:
     def test_sensor_defer(self, mock_poke):
         self.sensor.deferrable = True
         mock_poke.return_value = False
-        with pytest.raises(TaskDeferred) as exc:
+        with pytest.raises(TaskDeferred) as e:
             self.sensor.execute(context=None)
-        assert isinstance(exc.value.trigger, EmrContainerTrigger), "Trigger is not a EmrContainerTrigger"
+        assert isinstance(
+            e.value.trigger, EmrContainerTrigger
+        ), f"{e.value.trigger} is not a EmrContainerTrigger"

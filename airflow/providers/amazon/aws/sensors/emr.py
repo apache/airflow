@@ -536,7 +536,8 @@ class EmrStepSensor(EmrBaseSensor):
     :param job_flow_id: job_flow_id which contains the step check the state of
     :param step_id: step to check the state of
     :param target_states: the target states, sensor waits until
-        step reaches any of these states
+        step reaches any of these states. In case of deferrable sensor it will
+        for reach to terminal state
     :param failed_states: the failure states, sensor fails when
         step reaches any of these states
     :param deferrable: Run sensor in the deferrable mode.
@@ -637,9 +638,8 @@ class EmrStepSensor(EmrBaseSensor):
                 trigger=EmrStepSensorTrigger(
                     job_flow_id=self.job_flow_id,
                     step_id=self.step_id,
-                    target_states=self.target_states,
                     aws_conn_id=self.aws_conn_id,
-                    poke_interval=self.poke_interval,
+                    poke_interval=int(self.poke_interval),
                 ),
                 method_name="execute_complete",
             )
@@ -647,5 +647,5 @@ class EmrStepSensor(EmrBaseSensor):
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
-        else:
-            self.log.info("Job completed.")
+
+        self.log.info("Job completed.")

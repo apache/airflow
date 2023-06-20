@@ -470,17 +470,15 @@ class TestEmrStepSensorTrigger:
         emr_trigger = EmrStepSensorTrigger(
             job_flow_id=TEST_JOB_FLOW_ID,
             step_id=STEP_ID,
-            target_states=TARGET_STATE,
             aws_conn_id=AWS_CONN_ID,
-            poll_interval=POLL_INTERVAL,
+            poke_interval=POLL_INTERVAL,
         )
         class_path, args = emr_trigger.serialize()
         assert class_path == "airflow.providers.amazon.aws.triggers.emr.EmrStepSensorTrigger"
         assert args["job_flow_id"] == TEST_JOB_FLOW_ID
         assert args["step_id"] == STEP_ID
-        assert args["target_states"] == TARGET_STATE
         assert args["aws_conn_id"] == AWS_CONN_ID
-        assert args["poll_interval"] == POLL_INTERVAL
+        assert args["poke_interval"] == POLL_INTERVAL
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.get_waiter")
@@ -494,7 +492,6 @@ class TestEmrStepSensorTrigger:
         emr_trigger = EmrStepSensorTrigger(
             job_flow_id=TEST_JOB_FLOW_ID,
             step_id=STEP_ID,
-            target_states=TARGET_STATE,
             aws_conn_id=AWS_CONN_ID,
             poll_interval=POLL_INTERVAL,
         )
@@ -523,7 +520,6 @@ class TestEmrStepSensorTrigger:
         emr_trigger = EmrStepSensorTrigger(
             job_flow_id=TEST_JOB_FLOW_ID,
             step_id=STEP_ID,
-            target_states=TARGET_STATE,
             aws_conn_id=AWS_CONN_ID,
             poll_interval=POLL_INTERVAL,
         )
@@ -560,7 +556,6 @@ class TestEmrStepSensorTrigger:
         emr_trigger = EmrStepSensorTrigger(
             job_flow_id=TEST_JOB_FLOW_ID,
             step_id=STEP_ID,
-            target_states=TARGET_STATE,
             aws_conn_id=AWS_CONN_ID,
             poll_interval=POLL_INTERVAL,
         )

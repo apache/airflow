@@ -293,4 +293,4 @@ class TestEmrJobFlowSensor:
             sensor.execute(context=None)
         assert isinstance(
             exc.value.trigger, EmrTerminateJobFlowTrigger
-        ), "Trigger is not a EmrTerminateJobFlowTrigger "
+        ), f"{exc.value.trigger} is not a EmrTerminateJobFlowTrigger "
