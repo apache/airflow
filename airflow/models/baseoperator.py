@@ -1858,8 +1858,7 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
             op7
         )
 
-    Args:
-        elements: a list of operators / lists of operators
+    :param elements: a list of operators / lists of operators
     """
     prev_elem = None
     for curr_elem in elements:
