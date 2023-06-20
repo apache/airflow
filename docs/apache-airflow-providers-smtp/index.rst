@@ -27,6 +27,7 @@ Content
     :caption: References
 
     Connection types <connections/smtp>
+    SMTP Notifications <notifications/smtp_notifier_howto_guide>
     Python API <_api/airflow/providers/smtp/index>
 
 .. toctree::

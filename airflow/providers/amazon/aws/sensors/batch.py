@@ -16,13 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from functools import cached_property
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from deprecated import deprecated
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.triggers.batch import BatchSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -41,6 +43,10 @@ class BatchSensor(BaseSensorOperator):
     :param job_id: Batch job_id to check the state for
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     :param region_name: aws region name associated with the client
+    :param deferrable: Run sensor in the deferrable mode.
+    :param poke_interval: polling period in seconds to check for the status of the job.
+    :param max_retries: Number of times to poll for job state before
+        returning the current state.
     """
 
     template_fields: Sequence[str] = ("job_id",)
@@ -53,12 +59,18 @@ class BatchSensor(BaseSensorOperator):
         job_id: str,
         aws_conn_id: str = "aws_default",
         region_name: str | None = None,
+        deferrable: bool = False,
+        poke_interval: float = 5,
+        max_retries: int = 5,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.job_id = job_id
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
+        self.deferrable = deferrable
+        self.poke_interval = poke_interval
+        self.max_retries = max_retries
 
     def poke(self, context: Context) -> bool:
         job_description = self.hook.get_job_description(self.job_id)
@@ -74,6 +86,36 @@ class BatchSensor(BaseSensorOperator):
             raise AirflowException(f"Batch sensor failed. AWS Batch job status: {state}")
 
         raise AirflowException(f"Batch sensor failed. Unknown AWS Batch job status: {state}")
+
+    def execute(self, context: Context) -> None:
+        if not self.deferrable:
+            super().execute(context=context)
+        else:
+            timeout = (
+                timedelta(seconds=self.max_retries * self.poke_interval + 60)
+                if self.max_retries
+                else self.execution_timeout
+            )
+            self.defer(
+                timeout=timeout,
+                trigger=BatchSensorTrigger(
+                    job_id=self.job_id,
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    poke_interval=self.poke_interval,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if "status" in event and event["status"] == "failure":
+            raise AirflowException(event["message"])
+        self.log.info(event["message"])
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> BatchClientHook:
