@@ -2690,13 +2690,6 @@ class DAG(LoggingMixin):
         :param variable_file_path: file path to a variable file in either yaml or json
         :param session: database connection (optional)
         """
-        # If DAG is paused, unpaused it to avoid test being stuck in case of deferrable operator or retry.
-        if self.is_paused:
-            self.log.info("The DAG %s is paused. Unpausing it.", self.dag_id)
-            session.query(DagModel).filter(DagModel.dag_id == self.dag_id).update(
-                {DagModel.is_paused: False, DagModel.is_active: True}
-            )
-            session.commit()
 
         def add_logger_if_needed(ti: TaskInstance):
             """Add a formatted logger to the task instance.
@@ -2745,22 +2738,50 @@ class DAG(LoggingMixin):
         )
 
         tasks = self.task_dict
+        # Special case when retry is set and DAG is paused
+        task_try_number = {}
+
         self.log.debug("starting dagrun")
         # Instead of starting a scheduler, we run the minimal loop possible to check
         # for task readiness and dependency management. This is notably faster
         # than creating a BackfillJob and allows us to surface logs to the user
         while dr.state == DagRunState.RUNNING:
             schedulable_tis, _ = dr.update_state(session=session)
-            try:
-                for ti in schedulable_tis:
+
+            for ti in schedulable_tis:
+                try:
                     add_logger_if_needed(ti)
                     ti.task = tasks[ti.task_id]
-                    _run_task(ti, session=session)
-            except Exception:
-                self.log.info(
-                    "Task failed. DAG will continue to run until finished and be marked as failed.",
-                    exc_info=True,
-                )
+                    if ti.task_id not in task_try_number:
+                        task_try_number[ti.task_id] = 0
+                    ti = _run_task(ti, session=session)
+                except Exception:
+                    if ti.state == State.UP_FOR_RETRY:
+                        try_number = task_try_number.get(ti.task_id, 0)
+                        if try_number > ti.max_tries:
+                            ti.set_state(State.FAILED)
+                        else:
+                            task_try_number[ti.task_id] = try_number + 1
+                    self.log.info(
+                        "Task failed. DAG will continue to run until finished and be marked as failed.",
+                        exc_info=True,
+                    )
+            for ti in dr.get_task_instances():
+                # Special case TI resume from deferred state
+                if ti.state == State.SCHEDULED:
+                    if ti.next_method:
+                        try:
+                            execute_callable = getattr(tasks[ti.task_id], ti.next_method)
+                            execute_callable(context={}, event=ti.next_kwargs)
+                            ti.set_state(State.SUCCESS)
+                        except Exception:
+                            try_number = task_try_number.get(ti.task_id, 0)
+                            if try_number > ti.max_tries:
+                                ti.set_state(State.FAILED)
+                            else:
+                                ti.set_state(State.UP_FOR_RETRY)
+                                task_try_number[ti.task_id] = try_number + 1
+
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
             secrets_backend_list.pop(0)
@@ -3878,7 +3899,7 @@ class DagContext:
             return None
 
 
-def _run_task(ti: TaskInstance, session):
+def _run_task(ti: TaskInstance, session) -> TaskInstance:
     """
     Run a single task instance, and push result to Xcom for downstream tasks. Bypasses a lot of
     extra steps used in `task.run` to keep our local running as fast as possible
@@ -3902,6 +3923,7 @@ def _run_task(ti: TaskInstance, session):
     except AirflowSkipException:
         log.info("Task Skipped, continuing")
     log.info("*****************************************************")
+    return ti
 
 
 def _get_or_create_dagrun(

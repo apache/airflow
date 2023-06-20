@@ -1984,6 +1984,10 @@ class TestDag:
         dag.test()
         mock_object.assert_called_with([0, 1, 2, 3, 4])
 
+    def test_dag_test_with_deferrable(self):
+        # TODO
+        pass
+
     def test_dag_connection_file(self):
         test_connections_string = """
 ---
