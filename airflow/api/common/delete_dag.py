@@ -29,7 +29,7 @@ from airflow.models import DagModel, TaskFail
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.db import get_sqla_model_classes
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import State
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     running_tis = session.scalar(
         select(models.TaskInstance.state)
         .where(models.TaskInstance.dag_id == dag_id)
-        .where(models.TaskInstance.state == TaskInstanceState.RUNNING)
+        .where(models.TaskInstance.state == State.RUNNING)
         .limit(1)
     )
     if running_tis:

@@ -36,9 +36,9 @@ from airflow.providers.amazon.aws.operators.ecs import (
     EcsDeregisterTaskDefinitionOperator,
     EcsRegisterTaskDefinitionOperator,
     EcsRunTaskOperator,
-    EcsTaskLogFetcher,
 )
 from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
+from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.utils.types import NOTSET
 
 CLUSTER_NAME = "test_cluster"
@@ -371,7 +371,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
     @mock.patch.object(EcsBaseOperator, "client")
-    @mock.patch("airflow.providers.amazon.aws.hooks.ecs.EcsTaskLogFetcher")
+    @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
     def test_check_success_tasks_raises_cloudwatch_logs(self, log_fetcher_mock, client_mock):
         self.ecs.arn = "arn"
         self.ecs.task_log_fetcher = log_fetcher_mock
@@ -390,7 +390,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
     @mock.patch.object(EcsBaseOperator, "client")
-    @mock.patch("airflow.providers.amazon.aws.hooks.ecs.EcsTaskLogFetcher")
+    @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
     def test_check_success_tasks_raises_cloudwatch_logs_empty(self, log_fetcher_mock, client_mock):
         self.ecs.arn = "arn"
         self.ecs.task_log_fetcher = log_fetcher_mock
@@ -627,7 +627,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
 
     @mock.patch.object(EcsBaseOperator, "client")
-    @mock.patch("airflow.providers.amazon.aws.hooks.ecs.EcsTaskLogFetcher")
+    @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
     def test_execute_xcom_with_log(self, log_fetcher_mock, client_mock):
         self.ecs.do_xcom_push = True
         self.ecs.task_log_fetcher = log_fetcher_mock
@@ -637,7 +637,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.execute(None) == "Log output"
 
     @mock.patch.object(EcsBaseOperator, "client")
-    @mock.patch("airflow.providers.amazon.aws.hooks.ecs.EcsTaskLogFetcher")
+    @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
     def test_execute_xcom_with_no_log(self, log_fetcher_mock, client_mock):
         self.ecs.do_xcom_push = True
         self.ecs.task_log_fetcher = log_fetcher_mock
@@ -652,7 +652,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.execute(None) is None
 
     @mock.patch.object(EcsBaseOperator, "client")
-    @mock.patch.object(EcsTaskLogFetcher, "get_last_log_message", return_value="Log output")
+    @mock.patch.object(AwsTaskLogFetcher, "get_last_log_message", return_value="Log output")
     def test_execute_xcom_disabled(self, log_fetcher_mock, client_mock):
         self.ecs.do_xcom_push = False
         assert self.ecs.execute(None) is None

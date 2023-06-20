@@ -341,10 +341,7 @@ class FileTaskHandler(logging.Handler):
         )
         log_pos = len(logs)
         messages = "".join([f"*** {x}\n" for x in messages_list])
-        end_of_log = ti.try_number != try_number or ti.state not in (
-            TaskInstanceState.RUNNING,
-            TaskInstanceState.DEFERRED,
-        )
+        end_of_log = ti.try_number != try_number or ti.state not in [State.RUNNING, State.DEFERRED]
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
             logs = logs[previous_chars:]  # Cut off previously passed log test as new tail

@@ -85,10 +85,8 @@ def get_instance_with_map(task_instance, session):
     return get_mapped_summary(task_instance, mapped_instances)
 
 
-def get_try_count(try_number: int, state: TaskInstanceState) -> int:
-    if state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
-        return try_number + 1
-    return try_number
+def get_try_count(try_number: int, state: State):
+    return try_number + 1 if state in [State.DEFERRED, State.UP_FOR_RESCHEDULE] else try_number
 
 
 priority: list[None | TaskInstanceState] = [
@@ -428,7 +426,7 @@ def task_instance_link(attr):
 
 
 def state_token(state):
-    """Returns a formatted string with HTML for a given state."""
+    """Returns a formatted string with HTML for a given State."""
     color = State.color(state)
     fg_color = State.color_fg(state)
     return Markup(
@@ -440,7 +438,7 @@ def state_token(state):
 
 
 def state_f(attr):
-    """Gets 'state' & returns a formatted string with HTML for a given state."""
+    """Gets 'state' & returns a formatted string with HTML for a given State."""
     state = attr.get("state")
     return state_token(state)
 

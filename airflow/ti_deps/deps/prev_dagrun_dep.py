@@ -22,7 +22,7 @@ from sqlalchemy import func
 from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import State
 
 
 class PrevDagrunDep(BaseTIDep):
@@ -107,7 +107,7 @@ class PrevDagrunDep(BaseTIDep):
             )
             return
 
-        if previous_ti.state not in {TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS}:
+        if previous_ti.state not in {State.SKIPPED, State.SUCCESS}:
             yield self._failing_status(
                 reason=(
                     f"depends_on_past is true for this task, but the previous task instance {previous_ti} "
