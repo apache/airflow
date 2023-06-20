@@ -24,6 +24,9 @@
 Changelog
 ---------
 
+.. note::
+  This release dropped support for Python 3.7
+
 2.1.0
 .....
 
