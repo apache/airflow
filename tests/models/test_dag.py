@@ -3639,7 +3639,7 @@ class TestTaskClearingSetupTeardownBehavior:
         assert self.cleared_downstream(w2) == {s1, w2, w3, t1}
         assert self.cleared_downstream(w3) == {w3}
 
-        # and let's check clearing upstream just cus
+        # and let's check clearing upstream
         assert self.cleared_upstream(w1) == {s1, w1, t1}
         assert self.cleared_upstream(w2) == {s1, w1, w2, t1}
         assert self.cleared_upstream(w3) == {s1, w1, w2, w3, t1}
