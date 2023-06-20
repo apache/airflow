@@ -58,7 +58,7 @@ Package apache-airflow-providers-plexus
 `Plexus <https://plexus.corescientific.com/>`__
 
 
-Release: 3.2.0
+Release: 3.2.1
 
 Provider package
 ----------------
