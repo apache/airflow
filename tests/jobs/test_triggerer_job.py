@@ -37,7 +37,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.triggers.base import TriggerEvent
-from airflow.triggers.temporal import TimeDeltaTrigger
+from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import RedirectStdHandler
@@ -280,6 +280,26 @@ class TestTriggerRunner:
         with pytest.raises(asyncio.CancelledError):
             await trigger_runner.run_trigger(1, mock_trigger)
         assert "Trigger cancelled due to timeout" in caplog.text
+
+    @patch("airflow.models.trigger.Trigger.bulk_fetch")
+    @patch(
+        "airflow.jobs.triggerer_job_runner.TriggerRunner.get_trigger_by_classpath",
+        return_value=DateTimeTrigger,
+    )
+    def test_update_trigger_with_triggerer_argument_change(
+        self, mock_bulk_fetch, mock_get_trigger_by_classpath, session, caplog
+    ) -> None:
+        trigger_runner = TriggerRunner()
+        mock_trigger_orm = MagicMock()
+        mock_trigger_orm.kwargs = {"moment": ..., "not_exists_arg": ...}
+        mock_get_trigger_by_classpath.return_value = {1: mock_trigger_orm}
+
+        trigger_runner.update_triggers({1})
+
+        assert (
+            "Trigger failed; message=__init__() got an unexpected keyword argument 'not_exists_arg'"
+            in caplog.text
+        )
 
 
 def test_trigger_create_race_condition_18392(session, tmp_path):
