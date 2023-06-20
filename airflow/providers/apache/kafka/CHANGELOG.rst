@@ -23,11 +23,11 @@
 Changelog
 ---------
 
-.. note::
-  This release dropped support for Python 3.7
-
 1.1.1
 .....
+
+.. note::
+  This release dropped support for Python 3.7
 
 Misc
 ~~~~
@@ -38,6 +38,7 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add discoverability for triggers in provider.yaml (#31576)``
    * ``Add D400 pydocstyle check - Apache providers only (#31424)``
+   * ``Add note about dropping Python 3.7 for kafka and impala (#32017)``
 
 1.1.0
 .....
