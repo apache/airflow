@@ -183,7 +183,7 @@ In Airflow, Sensors wait for specific conditions to be met before proceeding wit
 |                                                        |  up worker slots)                                      |
 +--------------------------------------------------------+--------------------------------------------------------+
 | Conditions expected to change over time                |  Waiting for external events or resources              |
-| (e.g., file creation)                                  |  (e.g., API response)                                  |
+| (e.g. file creation)                                  |  (e.g. API response)                                  |
 +--------------------------------------------------------+--------------------------------------------------------+
 | Built-in functionality for rescheduling                |  Requires custom logic to defer task and handle        |
 |                                                        |  external changes                                      |
