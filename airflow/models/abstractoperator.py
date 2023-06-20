@@ -218,7 +218,7 @@ class AbstractOperator(Templater, DAGNode):
             if not task.downstream_task_ids.isdisjoint(downstream_teardown_ids):
                 is_relevant = True
             # setup has no teardowns
-            elif not [x for x in task.downstream_list if x.is_teardown]:
+            elif not any(x.is_teardown for x in task.downstream_list):
                 is_relevant = True
             if is_relevant:
                 yield task
