@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.1.1
 .....
 
-Latest change: 2023-06-18
+Latest change: 2023-06-20
 
 =================================================================================================  ===========  ==============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `6724eeb621 <https://github.com/apache/airflow/commit/6724eeb6210d5965937eaf9dae3e476eb30f8268>`_  2023-06-18   ``Sanitize beeline principal parameter (#31983)``
 `13890788ae <https://github.com/apache/airflow/commit/13890788ae939328d451daeaea54f493f4aaaa69>`_  2023-06-07   ``Apache provider docstring improvements (#31730)``
 `fbeb01cb17 <https://github.com/apache/airflow/commit/fbeb01cb17b7cb9c2e27ac7010f423a2bced78b4>`_  2023-06-07   ``Replace unicodecsv with standard csv library (#31693)``

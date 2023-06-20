@@ -24,11 +24,12 @@
 Changelog
 ---------
 
+3.5.1
+.....
+
 .. note::
   This release dropped support for Python 3.7
 
-3.5.1
-.....
 Bug Fixes
 ~~~~~~~~~
 
@@ -44,6 +45,7 @@ Misc
    * ``Apache provider docstring improvements (#31730)``
    * ``Add discoverability for triggers in provider.yaml (#31576)``
    * ``Add D400 pydocstyle check - Apache providers only (#31424)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 3.5.0
 .....

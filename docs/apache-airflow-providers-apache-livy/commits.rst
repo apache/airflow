@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.5.1
 .....
 
-Latest change: 2023-06-07
+Latest change: 2023-06-20
 
 =================================================================================================  ===========  ===========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `13890788ae <https://github.com/apache/airflow/commit/13890788ae939328d451daeaea54f493f4aaaa69>`_  2023-06-07   ``Apache provider docstring improvements (#31730)``
 `361aa77d5d <https://github.com/apache/airflow/commit/361aa77d5df47dfece9617147724e9657f14492f>`_  2023-06-05   ``Optimize deferred mode execution (#31685)``
 `dc5bf3fd02 <https://github.com/apache/airflow/commit/dc5bf3fd02c589578209cb0dd5b7d005b1516ae9>`_  2023-06-02   ``Add discoverability for triggers in provider.yaml (#31576)``

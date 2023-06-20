@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.1.1
 .....
 
-Latest change: 2023-06-16
+Latest change: 2023-06-20
 
 =================================================================================================  ===========  =================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `6becb70316 <https://github.com/apache/airflow/commit/6becb7031618867bc253aefc9e3e216629575d2d>`_  2023-06-16   ``SparkSubmitOperator: rename spark_conn_id to conn_id (#31952)``
 `13890788ae <https://github.com/apache/airflow/commit/13890788ae939328d451daeaea54f493f4aaaa69>`_  2023-06-07   ``Apache provider docstring improvements (#31730)``
 `9276310a43 <https://github.com/apache/airflow/commit/9276310a43d17a9e9e38c2cb83686a15656896b2>`_  2023-06-05   ``Improve docstrings in providers (#31681)``

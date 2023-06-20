@@ -24,11 +24,11 @@
 Changelog
 ---------
 
-.. note::
-  This release dropped support for Python 3.7
-
 3.7.1
 .....
+
+.. note::
+  This release dropped support for Python 3.7
 
 Misc
 ~~~~
@@ -40,6 +40,7 @@ Misc
    * ``Improve docstrings in providers (#31681)``
    * ``Add D400 pydocstyle check (#31742)``
    * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 3.7.0
 .....

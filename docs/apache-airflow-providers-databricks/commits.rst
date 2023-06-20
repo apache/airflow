@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.3.0
 .....
 
-Latest change: 2023-06-19
+Latest change: 2023-06-20
 
 =================================================================================================  ===========  ===========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `69bc90b824 <https://github.com/apache/airflow/commit/69bc90b82403b705b3c30176cc3d64b767f2252e>`_  2023-06-19   ``Fix type annotation (#31888)``
 `66299338eb <https://github.com/apache/airflow/commit/66299338eb24aa71eb2e27ebd8b76079b39fd305>`_  2023-06-18   ``add a return when the event is yielded in a loop to stop the execution (#31985)``
 `7b096483fa <https://github.com/apache/airflow/commit/7b096483fa20df921101a09816a1d2701e9ae1dd>`_  2023-06-14   ``Making Databricks run related multi-query string in one session again (#31898) (#31899)``

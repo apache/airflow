@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.1.2
 .....
 
-Latest change: 2023-06-08
+Latest change: 2023-06-20
 
 =================================================================================================  ===========  ======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
+`4266a545b0 <https://github.com/apache/airflow/commit/4266a545b0cb523d162cb65ad40415593122cbc4>`_  2023-06-20   ``Microsoft provider docstring improvements (#31708)``
 `94128303e1 <https://github.com/apache/airflow/commit/94128303e17412315aacd529d75a2ef549cce1f5>`_  2023-06-08   ``Removed unused variables in AzureBlobStorageToGCSOperator (#31765)``
 `fbeb01cb17 <https://github.com/apache/airflow/commit/fbeb01cb17b7cb9c2e27ac7010f423a2bced78b4>`_  2023-06-07   ``Replace unicodecsv with standard csv library (#31693)``
 `9e268e13b1 <https://github.com/apache/airflow/commit/9e268e13b147401a5665e497aee87ac107ade8d1>`_  2023-06-07   ``Replace spelling directive with spelling:word-list (#31752)``

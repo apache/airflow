@@ -24,11 +24,12 @@
 Changelog
 ---------
 
+7.1.0
+.....
+
 .. note::
   This release dropped support for Python 3.7
 
-7.1.0
-.....
 
 Features
 ~~~~~~~~
@@ -53,6 +54,7 @@ Misc
    * ``Add D400 pydocstyle check (#31742)``
    * ``Add discoverability for triggers in provider.yaml (#31576)``
    * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 7.0.0
 .....

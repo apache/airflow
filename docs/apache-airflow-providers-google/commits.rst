@@ -38,11 +38,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.2.0
 ......
 
-Latest change: 2023-06-19
+Latest change: 2023-06-20
 
 =================================================================================================  ===========  ========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `f2ebc292fe <https://github.com/apache/airflow/commit/f2ebc292fe63d2ddd0686d90c3acc0630f017a07>`_  2023-06-19   ``Provide missing project id and creds for TabularDataset (#31991)``
 `66299338eb <https://github.com/apache/airflow/commit/66299338eb24aa71eb2e27ebd8b76079b39fd305>`_  2023-06-18   ``add a return when the event is yielded in a loop to stop the execution (#31985)``
 `e6960f1ad6 <https://github.com/apache/airflow/commit/e6960f1ad63f40ff4ccde6c86b17e051b302c104>`_  2023-06-15   ``Revert "Fix 'BIGQUERY_JOB_DETAILS_LINK_FMT' in 'BigQueryConsoleLink' (#31457)" (#31935)``

@@ -23,11 +23,11 @@
 Changelog
 ---------
 
-.. note::
-  This release dropped support for Python 3.7
-
 10.2.0
 ......
+
+.. note::
+  This release dropped support for Python 3.7
 
 Features
 ~~~~~~~~
@@ -67,6 +67,7 @@ Misc
    * ``Add discoverability for triggers in provider.yaml (#31576)``
    * ``Revert "Fix 'BIGQUERY_JOB_DETAILS_LINK_FMT' in 'BigQueryConsoleLink' (#31457)" (#31935)``
    * ``Fix 'BIGQUERY_JOB_DETAILS_LINK_FMT' in 'BigQueryConsoleLink' (#31457)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 10.1.1
 ......

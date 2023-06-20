@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.0.0
 .....
 
-Latest change: 2023-06-18
+Latest change: 2023-06-20
 
 =================================================================================================  ===========  ==============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `b683698684 <https://github.com/apache/airflow/commit/b6836986846058e9e5fa271fb7b22ae721020787>`_  2023-06-18   ``Check if sqlalchemy_scheme extra contains forbidden characters (#31984)``
 `438ba41e14 <https://github.com/apache/airflow/commit/438ba41e142593f2b0916893eccbd08fbe4d277b>`_  2023-06-07   ``Control permissibility of driver config in extra from airflow.cfg (#31754)``
 `2844dad1c7 <https://github.com/apache/airflow/commit/2844dad1c762f5c7dd1271866d3661bf66657300>`_  2023-06-06   ``Disable setting ODBC driver via extra by default (#31713)``

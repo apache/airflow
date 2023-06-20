@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.2.0
 .....
 
-Latest change: 2023-06-17
+Latest change: 2023-06-20
 
 =================================================================================================  ===========  ===============================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================================================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
+`f0b91ac6a7 <https://github.com/apache/airflow/commit/f0b91ac6a75a9f6f74663f8300078db09337cb16>`_  2023-06-20   ``Add 'deferrable' param in 'EmrContainerSensor' (#30945)``
+`e01ff4749c <https://github.com/apache/airflow/commit/e01ff4749cb2469b21f467a1b0089d0115f39368>`_  2023-06-19   ``Add realtime container execution logs for BatchOperator (#31837)``
 `41fb9b4c49 <https://github.com/apache/airflow/commit/41fb9b4c493dc74be7c21f68a2877cb2de97d983>`_  2023-06-17   ``Deprecate 'wait_for_completion' from 'EcsRegisterTaskDefinitionOperator' and 'EcsDeregisterTaskDefinitionOperator' (#31884)``
 `e0f21f43c6 <https://github.com/apache/airflow/commit/e0f21f43c63b13fd48f55aa660746edc37df1458>`_  2023-06-16   ``Various fixes on ECS run task operator (#31838)``
 `3689cee485 <https://github.com/apache/airflow/commit/3689cee485215651bdb5ef434f24ab8774995a37>`_  2023-06-15   ``Use a continuation token to get logs in ecs (#31824)``

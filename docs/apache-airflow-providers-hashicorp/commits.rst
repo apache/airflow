@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.4.1
 .....
 
-Latest change: 2023-06-02
+Latest change: 2023-06-20
 
 =================================================================================================  ===========  =============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `a59076eaee <https://github.com/apache/airflow/commit/a59076eaeed03dd46e749ad58160193b4ef3660c>`_  2023-06-02   ``Add D400 pydocstyle check - Providers (#31427)``
 `41ea700cbd <https://github.com/apache/airflow/commit/41ea700cbdce99cddd0f7b51b33b9fab51b993af>`_  2023-05-30   ``Fix hashicorp some client authentication methods (#31593)``
 `9fa75aaf7a <https://github.com/apache/airflow/commit/9fa75aaf7a391ebf0e6b6949445c060f6de2ceb9>`_  2023-05-29   ``Remove Python 3.7 support (#30963)``

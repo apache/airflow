@@ -24,11 +24,12 @@
 Changelog
 ---------
 
+8.2.0
+.....
+
 .. note::
   This release dropped support for Python 3.7
 
-8.2.0
-.....
 
 Features
 ~~~~~~~~
@@ -46,7 +47,8 @@ Features
 * ``Deferrable mode for EksCreateFargateProfileOperator and EksDeleteFargateProfileOperator (#31657)``
 * ``allow anonymous AWS access (#31659)``
 * ``Support of wildcard in S3ListOperator and S3ToGCSOperator (#31640)``
-
+* ``Add 'deferrable' param in 'EmrContainerSensor' (#30945)``
+* ``Add realtime container execution logs for BatchOperator (#31837)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -80,6 +82,8 @@ Misc
    * ``Amazon provider docstring improvements (#31729)``
    * ``Replace spelling directive with spelling:word-list (#31752)``
    * ``Remove aws unused code (#31610)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
+
 
 8.1.0
 .....

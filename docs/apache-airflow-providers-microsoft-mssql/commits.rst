@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.4.1
 .....
 
-Latest change: 2023-06-18
+Latest change: 2023-06-20
 
 =================================================================================================  ===========  ===========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `b683698684 <https://github.com/apache/airflow/commit/b6836986846058e9e5fa271fb7b22ae721020787>`_  2023-06-18   ``Check if sqlalchemy_scheme extra contains forbidden characters (#31984)``
 `3a0b8bded9 <https://github.com/apache/airflow/commit/3a0b8bded98a1f8256765e5b829c2ba4f1b0369a>`_  2023-06-05   ``Add D400 pydocstyle check - Microsoft provider only (#31425)``
 =================================================================================================  ===========  ===========================================================================

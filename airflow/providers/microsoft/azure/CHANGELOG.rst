@@ -24,11 +24,11 @@
 Changelog
 ---------
 
-.. note::
-  This release dropped support for Python 3.7
-
 6.1.2
 .....
+
+.. note::
+  This release dropped support for Python 3.7
 
 Misc
 ~~~~
@@ -43,6 +43,8 @@ Misc
    * ``Replace spelling directive with spelling:word-list (#31752)``
    * ``Add D400 pydocstyle check - Microsoft provider only (#31425)``
    * ``Add discoverability for triggers in provider.yaml (#31576)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
+   * ``Microsoft provider docstring improvements (#31708)``
 
 6.1.1
 .....

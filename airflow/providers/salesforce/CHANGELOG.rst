@@ -24,11 +24,11 @@
 Changelog
 ---------
 
-.. note::
-  This release dropped support for Python 3.7
-
 5.4.1
 .....
+
+.. note::
+  This release dropped support for Python 3.7
 
 Misc
 ~~~~
@@ -38,6 +38,7 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 5.4.0
 .....

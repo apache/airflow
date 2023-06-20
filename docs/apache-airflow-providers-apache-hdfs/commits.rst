@@ -32,11 +32,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.1.0
 .....
 
-Latest change: 2023-06-08
+Latest change: 2023-06-20
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `d3c8881cc6 <https://github.com/apache/airflow/commit/d3c8881cc607337d3bede1f1b9a9284227e5ebd1>`_  2023-06-08   ``Add HdfsTaskHandler to store task instance logs on HDFS (#31512)``
 `0261bc57bc <https://github.com/apache/airflow/commit/0261bc57bcad3c1f3c0b7f3a4683584462cf1e0e>`_  2023-06-07   ``Updates release notes for snakebite-py3 incompatibility with protobuf (#31756)``
 `a473facf6c <https://github.com/apache/airflow/commit/a473facf6c0b36f7d051ecc2d1aa94ba6957468d>`_  2023-06-01   ``Add D400 pydocstyle check - Apache providers only (#31424)``

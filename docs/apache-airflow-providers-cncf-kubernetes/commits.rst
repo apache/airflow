@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 7.1.0
 .....
 
-Latest change: 2023-06-18
+Latest change: 2023-06-20
 
 =================================================================================================  ===========  =============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `66299338eb <https://github.com/apache/airflow/commit/66299338eb24aa71eb2e27ebd8b76079b39fd305>`_  2023-06-18   ``add a return when the event is yielded in a loop to stop the execution (#31985)``
 `07ea574fed <https://github.com/apache/airflow/commit/07ea574fed5d56ca9405ee9e47828841289e3a3c>`_  2023-06-07   ``Add D400 pydocstyle check (#31742)``
 `d8086a3db5 <https://github.com/apache/airflow/commit/d8086a3db5ef020ef28158249105e7ce5639b1a5>`_  2023-06-05   ``Add possibility to disable logging the pod template in a case when task fails (#31595)``
