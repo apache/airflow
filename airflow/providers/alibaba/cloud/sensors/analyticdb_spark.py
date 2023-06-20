@@ -56,8 +56,6 @@ class AnalyticDBSparkSensor(BaseSensorOperator):
     def get_hook(self) -> AnalyticDBSparkHook:
         """
         Get valid hook.
-
-        :return: hook
         """
         if self._adb_spark_hook is None or not isinstance(self._adb_spark_hook, AnalyticDBSparkHook):
             self._adb_spark_hook = AnalyticDBSparkHook(

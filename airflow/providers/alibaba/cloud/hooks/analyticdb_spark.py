@@ -176,9 +176,7 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
             )
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(
-                f"Errors when fetching log for spark application: {app_id}"
-            ) from e
+            raise AirflowException(f"Errors when fetching log for spark application: {app_id}") from e
 
     def kill_spark_app(self, app_id: str) -> None:
         """
@@ -209,7 +207,7 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
         name: str | None = None,
     ) -> dict:
         """
-        Build the submit application request data
+        Build the submit application request data.
 
         :param file: path of the file containing the application to execute.
         :param class_name: name of the application Java/Spark main class.
@@ -302,7 +300,6 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
         Check the values in the provided list can be converted to strings.
 
         :param vals: list to validate
-        :return: true if valid
         """
         if (
             vals is None
@@ -318,7 +315,6 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
         Check configuration values are either strings or ints.
 
         :param conf: configuration variable
-        :return: true if valid
         """
         if conf:
             if not isinstance(conf, dict):
@@ -356,7 +352,6 @@ class AnalyticDBSparkHook(BaseHook, LoggingMixin):
 
     def get_default_region(self) -> str | None:
         """Get default region from connection."""
-
         extra_config = self.adb_spark_conn.extra_dejson
         auth_type = extra_config.get("auth_type", None)
         if not auth_type:

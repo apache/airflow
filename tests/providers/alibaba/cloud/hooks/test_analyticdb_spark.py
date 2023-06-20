@@ -52,6 +52,7 @@ class TestAnalyticDBSparkHook:
             self.hook = AnalyticDBSparkHook(adb_spark_conn_id=MOCK_ADB_SPARK_CONN_ID)
 
     def test_build_submit_app_data(self):
+        """Test build submit application data for analyticDB spark as expected."""
         res_data = self.hook.build_submit_app_data(
             file="oss://test_file",
             class_name="com.aliyun.spark.SparkPi",
@@ -85,6 +86,7 @@ class TestAnalyticDBSparkHook:
         assert res_data == except_data
 
     def test_build_submit_sql_data(self):
+        """Test build submit sql data for analyticDB spark as expected."""
         res_data = self.hook.build_submit_sql_data(
             sql="""
             set spark.executor.instances=1;
@@ -96,13 +98,16 @@ class TestAnalyticDBSparkHook:
             num_executors=3,
             name="test",
         )
-        except_data = "set spark.driver.resourceSpec = medium;set spark.executor.resourceSpec = medium;set " \
-                      "spark.executor.instances = 2;set spark.app.name = test;\n            set " \
-                      "spark.executor.instances=1;\n            show databases;"
+        except_data = (
+            "set spark.driver.resourceSpec = medium;set spark.executor.resourceSpec = medium;set "
+            "spark.executor.instances = 2;set spark.app.name = test;\n            set "
+            "spark.executor.instances=1;\n            show databases;"
+        )
         assert res_data == except_data
 
     @mock.patch(ADB_SPARK_STRING.format("AnalyticDBSparkHook.get_adb_spark_client"))
     def test_submit_spark_app(self, mock_service):
+        """Test submit_spark_app function works as expected."""
         # Given
         mock_client = mock_service.return_value
         exists_method = mock_client.submit_spark_app
@@ -117,6 +122,7 @@ class TestAnalyticDBSparkHook:
 
     @mock.patch(ADB_SPARK_STRING.format("AnalyticDBSparkHook.get_adb_spark_client"))
     def test_submit_spark_sql(self, mock_service):
+        """Test submit_spark_app function works as expected."""
         # Given
         mock_client = mock_service.return_value
         exists_method = mock_client.submit_spark_app
@@ -131,6 +137,7 @@ class TestAnalyticDBSparkHook:
 
     @mock.patch(ADB_SPARK_STRING.format("AnalyticDBSparkHook.get_adb_spark_client"))
     def test_get_spark_state(self, mock_service):
+        """Test get_spark_state function works as expected."""
         # Given
         mock_client = mock_service.return_value
         exists_method = mock_client.get_spark_app_state
@@ -147,6 +154,7 @@ class TestAnalyticDBSparkHook:
 
     @mock.patch(ADB_SPARK_STRING.format("AnalyticDBSparkHook.get_adb_spark_client"))
     def test_get_spark_web_ui_address(self, mock_service):
+        """Test get_spark_web_ui_address function works as expected."""
         # Given
         mock_client = mock_service.return_value
         exists_method = mock_client.get_spark_app_web_ui_address
@@ -165,6 +173,7 @@ class TestAnalyticDBSparkHook:
 
     @mock.patch(ADB_SPARK_STRING.format("AnalyticDBSparkHook.get_adb_spark_client"))
     def test_get_spark_log(self, mock_service):
+        """Test get_spark_log function works as expected."""
         # Given
         mock_client = mock_service.return_value
         exists_method = mock_client.get_spark_app_log
@@ -181,6 +190,7 @@ class TestAnalyticDBSparkHook:
 
     @mock.patch(ADB_SPARK_STRING.format("AnalyticDBSparkHook.get_adb_spark_client"))
     def test_kill_spark_app(self, mock_service):
+        """Test kill_spark_app function works as expected."""
         # Given
         mock_client = mock_service.return_value
         exists_method = mock_client.kill_spark_app

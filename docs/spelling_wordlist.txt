@@ -1357,8 +1357,8 @@ sourceArchiveUrl
 sourceRepository
 sourceUploadUrl
 Spark
-sparkApplication
 sparkappinfo
+sparkApplication
 sparkcmd
 SparkPi
 SparkR
