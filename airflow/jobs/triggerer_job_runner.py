@@ -676,10 +676,14 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             try:
                 new_trigger_orm = new_triggers[new_id]
                 trigger_class = self.get_trigger_by_classpath(new_trigger_orm.classpath)
+            except BaseException as e:
+                # Either the trigger code or the path to it is bad. Fail the trigger.
+                self.failed_triggers.append((new_id, e))
+                continue
+
+            try:
                 new_trigger_instance = trigger_class(**new_trigger_orm.kwargs)
-            except (BaseException, TypeError) as err:
-                # BaseException: Either the trigger code or the path to it is bad. Fail the trigger.
-                # TypeError: The argument of the __init__ method in the trigger might have been changed.
+            except TypeError as err:
                 self.log.error("Trigger failed; message=%s", err)
                 self.failed_triggers.append((new_id, err))
                 continue
