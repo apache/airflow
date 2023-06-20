@@ -83,7 +83,6 @@ class TestEmrServerlessCreateApplicationOperator:
         mock_waiter().wait.assert_called_with(
             applicationId=application_id,
             WaiterConfig={
-                "Delay": 1,
                 "MaxAttempts": 1,
             },
         )

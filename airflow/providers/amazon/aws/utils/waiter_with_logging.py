@@ -20,58 +20,71 @@ from __future__ import annotations
 import logging
 import time
 
+import jmespath
 from botocore.exceptions import WaiterError
+from botocore.waiter import Waiter
 
 from airflow.exceptions import AirflowException
 
 
 def wait(
-    waiter,
-    waiter_delay,
-    max_attempts,
-    state_args,
-    failure_message,
-    status_message,
+    waiter: Waiter,
+    waiter_delay: int,
+    max_attempts: int,
+    state_args: dict,
+    failure_message: str,
+    status_message: dict,
 ):
+    """
+    Use a boto waiter to poll an AWS service for the specified state. Although this function
+    uses boto waiters to poll the state of the service, it logs the response of the service
+    after every attempt, which is not currently supported by boto waiters.
+
+    :param waiter: The boto waiter to use.
+    :param waiter_delay: The amount of time in seconds to wait between attempts.
+    :param max_attempts: The maximum number of attempts to be made.
+    :param state_args: The arguments to pass to the waiter.
+    :param failure_message: The message to log if a failure state is reached.
+    :param status_message: A dict that specifies the status message, as well as
+        how to retrieve that message from the waiter's response, using jmespath syntax.
+        e.g.
+        status_message = {
+        "message": "Waiting for cluster to reach a desired state",
+        "args": ["Cluster.Status"]
+        }
+        For responses that contain a list,
+        status_message = {
+        "message": "Waiting for cluster to reach a desired state",
+        "args": ["Clusters[0].Status"]
+        }
+    """
     log = logging.getLogger(__name__)
     attempt = 0
-    while attempt < max_attempts:
+    while True:
         attempt += 1
         try:
-            waiter.wait(
-                **state_args,
-                WaiterConfig={
-                    "Delay": 1,
-                    "MaxAttempts": 1,
-                },
-            )
+            waiter.wait(**state_args, WaiterConfig={"MaxAttempts": 1})
             break
         except WaiterError as error:
             if "terminal failure" in str(error):
                 raise AirflowException(f"{failure_message}: {error}")
-            response_data = []
-            for arg in status_message["args"]:
-                response_data.append(get_state(error.last_response, arg))
-
-            log.info(status_message["message"] + " : " + " - ".join(response_data))
+            status_string = _format_status_string(status_message["args"], error.last_response)
+            log.info("%s: %s", status_message["message"], status_string)
             time.sleep(waiter_delay)
-    if attempt >= max_attempts:
-        raise AirflowException("Waiter error: max attempts reached")
+
+            if attempt >= max_attempts:
+                raise AirflowException("Waiter error: max attempts reached")
 
 
-def get_state(response, keys) -> str:
-    value = response
-    for key in keys:
-        if value != "":
-            if isinstance(value, list):
-                try:
-                    index = int(key)
-                    if 0 <= index < len(value):
-                        value = value[index]
-                    else:
-                        value = ""
-                except ValueError:
-                    value = ""  # Invalid index, set value to empty string
-            else:
-                value = value.get(key, "")
-    return value
+def _format_status_string(args, response):
+    """
+    Loops through the supplied args list and generates a string
+    which contains values from the waiter response.
+    """
+    values = []
+    for arg in args:
+        value = jmespath.search(arg, response)
+        if value is not None:
+            values.append(str(value))
+
+    return " - ".join(values)

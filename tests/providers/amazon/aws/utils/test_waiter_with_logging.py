@@ -53,13 +53,12 @@ class TestWaiter:
             max_attempts=456,
             state_args={"test_arg": "test_value"},
             failure_message="test failure message",
-            status_message={"message": "test status message", "args": [["Status", "State"]]},
+            status_message={"message": "test status message", "args": ["Status.State"]},
         )
 
         mock_waiter.wait.assert_called_with(
             **{"test_arg": "test_value"},
             WaiterConfig={
-                "Delay": 1,
                 "MaxAttempts": 1,
             },
         )
@@ -71,7 +70,7 @@ class TestWaiter:
                 (
                     "airflow.providers.amazon.aws.utils.waiter_with_logging",
                     logging.INFO,
-                    "test status message : Pending",
+                    "test status message: Pending",
                 )
             ]
             * 2
@@ -94,13 +93,12 @@ class TestWaiter:
                 max_attempts=2,
                 state_args={"test_arg": "test_value"},
                 failure_message="test failure message",
-                status_message={"message": "test status message", "args": [["Status", "State"]]},
+                status_message={"message": "test status message", "args": ["Status.State"]},
             )
         assert "Waiter error: max attempts reached" in str(exc)
         mock_waiter.wait.assert_called_with(
             **{"test_arg": "test_value"},
             WaiterConfig={
-                "Delay": 1,
                 "MaxAttempts": 1,
             },
         )
@@ -113,7 +111,7 @@ class TestWaiter:
                 (
                     "airflow.providers.amazon.aws.utils.waiter_with_logging",
                     logging.INFO,
-                    "test status message : Pending",
+                    "test status message: Pending",
                 )
             ]
             * 2
@@ -141,13 +139,12 @@ class TestWaiter:
                 max_attempts=10,
                 state_args={"test_arg": "test_value"},
                 failure_message="test failure message",
-                status_message={"message": "test status message", "args": [["Status", "State"]]},
+                status_message={"message": "test status message", "args": ["Status.State"]},
             )
         assert "test failure message" in str(exc)
         mock_waiter.wait.assert_called_with(
             **{"test_arg": "test_value"},
             WaiterConfig={
-                "Delay": 1,
                 "MaxAttempts": 1,
             },
         )
@@ -158,7 +155,7 @@ class TestWaiter:
                 (
                     "airflow.providers.amazon.aws.utils.waiter_with_logging",
                     logging.INFO,
-                    "test status message : Pending",
+                    "test status message: Pending",
                 )
             ]
             * 3
@@ -189,13 +186,12 @@ class TestWaiter:
             max_attempts=456,
             state_args={"test_arg": "test_value"},
             failure_message="test failure message",
-            status_message={"message": "test status message", "args": [["Clusters", 0, "Status"]]},
+            status_message={"message": "test status message", "args": ["Clusters[0].Status"]},
         )
 
         mock_waiter.wait.assert_called_with(
             **{"test_arg": "test_value"},
             WaiterConfig={
-                "Delay": 1,
                 "MaxAttempts": 1,
             },
         )
@@ -207,7 +203,7 @@ class TestWaiter:
                 (
                     "airflow.providers.amazon.aws.utils.waiter_with_logging",
                     logging.INFO,
-                    "test status message : Pending",
+                    "test status message: Pending",
                 )
             ]
             * 2
@@ -240,14 +236,13 @@ class TestWaiter:
             failure_message="test failure message",
             status_message={
                 "message": "test status message",
-                "args": [["Clusters", 0, "State"]],
+                "args": ["Clusters[0].State"],
             },  # this does not exist in the response
         )
 
         mock_waiter.wait.assert_called_with(
             **{"test_arg": "test_value"},
             WaiterConfig={
-                "Delay": 1,
                 "MaxAttempts": 1,
             },
         )
@@ -259,7 +254,50 @@ class TestWaiter:
                 (
                     "airflow.providers.amazon.aws.utils.waiter_with_logging",
                     logging.INFO,
-                    "test status message : ",
+                    "test status message: ",
+                )
+            ]
+            * 2
+        )
+
+    @mock.patch("time.sleep")
+    def test_wait_with_multiple_args(self, mock_sleep, caplog):
+        mock_sleep.return_value = True
+        mock_waiter = mock.MagicMock()
+        error = WaiterError(
+            name="test_waiter",
+            reason="test_reason",
+            last_response={
+                "Clusters": [
+                    {
+                        "Status": "Pending",
+                        "StatusDetails": "test_details",
+                        "ClusterName": "test_name",
+                    },
+                ]
+            },
+        )
+        mock_waiter.wait.side_effect = [error, error, True]
+        wait(
+            waiter=mock_waiter,
+            waiter_delay=123,
+            max_attempts=456,
+            state_args={"test_arg": "test_value"},
+            failure_message="test failure message",
+            status_message={
+                "message": "test status message",
+                "args": ["Clusters[0].Status", "Clusters[0].StatusDetails", "Clusters[0].ClusterName"],
+            },
+        )
+        mock_waiter.wait.call_count == 3
+        mock_sleep.assert_called_with(123)
+        assert (
+            caplog.record_tuples
+            == [
+                (
+                    "airflow.providers.amazon.aws.utils.waiter_with_logging",
+                    logging.INFO,
+                    "test status message: Pending - test_details - test_name",
                 )
             ]
             * 2
