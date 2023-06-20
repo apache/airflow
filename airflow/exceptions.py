@@ -174,7 +174,7 @@ class AirflowClusterPolicySkipDag(AirflowException):
 
 
 class AirflowClusterPolicyError(AirflowException):
-    """Raise when there is an error except AirflowClusterPolicyViolation AirflowClusterPolicySkipDag and in Cluster Policy."""
+    """Raise when there is an error except AirflowClusterPolicyViolation and AirflowClusterPolicySkipDag in Cluster Policy."""
 
 
 class AirflowTimetableInvalid(AirflowException):
