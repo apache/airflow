@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from airflow.providers.google.cloud.operators.cloud_batch import CloudBatchSubmitJobOperator
+from airflow.providers.google.cloud.operators.cloud_batch import CloudBatchSubmitJobOperator, CloudBatchDeleteJobOperator
 from airflow import models
 
 import os
 from datetime import datetime
-from typing import Any, cast
 
 from google.cloud import batch_v1
 
@@ -71,7 +70,7 @@ with models.DAG(
     tags=["example"],
 ) as dag:
     t1 = CloudBatchSubmitJobOperator(
-        task_id='test',
+        task_id='submit',
         project_id=PROJECT_ID,
         region="us-central1",
         job_name="job_name",
@@ -79,6 +78,15 @@ with models.DAG(
         dag=dag
     )
 
+    t2 = CloudBatchDeleteJobOperator(
+        task_id='delete',
+        project_id=PROJECT_ID,
+        region='us-central1',
+        job_name='job_name',
+        dag=dag
+    )
+
+    t1>>t2
 
     from tests.system.utils.watcher import watcher
 

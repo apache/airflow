@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Sequence
+from typing import Sequence, Union
 
 from time import sleep
 
 from google.cloud.batch_v1 import BatchServiceClient, BatchServiceAsyncClient, JobStatus, Job, CreateJobRequest, DeleteJobRequest
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.exceptions import AirflowException
 from google.api_core import operation  # type: ignore
 
 
@@ -51,8 +52,14 @@ class CloudBatchHook(GoogleBaseHook):
         return self.client.delete_job(name=f"projects/{project_id}/locations/{region}/jobs/{job_name}")
        
 
-    def wait_for_job(self, job_name) -> Job:
-        while True:
+    def wait_for_job(
+            self,
+            job_name: str,
+            polling_period_seconds: float = 10,
+            timeout: Union[float, None] = None
+    ) -> Job:
+        
+        while timeout == None or timeout > 0:
             try:
                 job = self.client.get_job(name=f"{job_name}")
                 status: JobStatus.State = job.status.state
@@ -61,14 +68,18 @@ class CloudBatchHook(GoogleBaseHook):
                 or status == JobStatus.State.DELETION_IN_PROGRESS:
                     return job
                 else:
-                    sleep(10)
+                    sleep(polling_period_seconds)
             except Exception as e:
                 self.log.exception(
                     "Exception occurred while checking for job completion.")
                 raise e
+            
+            if timeout != None:
+                timeout -= polling_period_seconds
+        
+        raise AirflowException(f"Job with name [{job_name}] timed out")
 
     def get_job(self, job_name) -> Job:
-        print("Freddy", self.client)
         return self.client.get_job(name=f"{job_name}")
 
 

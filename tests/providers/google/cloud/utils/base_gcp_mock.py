@@ -31,7 +31,6 @@ def mock_base_gcp_hook_default_project_id(
     impersonation_chain=None,
     delegate_to=None,
 ):
-    print("FREDDY1")
     self.extras_list = {"project": GCP_PROJECT_ID_HOOK_UNIT_TEST}
     self._conn = gcp_conn_id
     self.impersonation_chain = impersonation_chain
@@ -40,7 +39,6 @@ def mock_base_gcp_hook_default_project_id(
     self._cached_credentials = None
     self._cached_project_id = None
     self.delegate_to = delegate_to
-    print("FREDDY")
 
 
 def mock_base_gcp_hook_no_default_project_id(

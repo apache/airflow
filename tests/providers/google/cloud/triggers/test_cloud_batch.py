@@ -15,7 +15,8 @@ JOB_NAME = 'jobName'
 PROJECT_ID = 'projectId'
 LOCATION = 'us-central1'
 GCP_CONNECTION_ID = 'gcp_connection_id'
-POLL_SLEEP = 11
+POLL_SLEEP = 0.01
+TIMEOUT = 0.02
 IMPERSONATION_CHAIN = 'impersonation_chain'
 
 @pytest.fixture
@@ -25,7 +26,8 @@ def trigger():
         project_id=PROJECT_ID,
         location=LOCATION,
         gcp_conn_id=GCP_CONNECTION_ID,
-        poll_sleep=POLL_SLEEP,
+        polling_period_seconds=POLL_SLEEP,
+        timeout=TIMEOUT,
         impersonation_chain=IMPERSONATION_CHAIN
     )
 
@@ -39,7 +41,8 @@ class TestCloudBatchJobFinishedTrigger:
             "job_name": JOB_NAME,
             "location": LOCATION,
             "gcp_conn_id": GCP_CONNECTION_ID,
-            "poll_sleep": POLL_SLEEP,
+            "polling_period_seconds": POLL_SLEEP,
+            "timeout" : TIMEOUT,
             "impersonation_chain": IMPERSONATION_CHAIN,
         }
 
@@ -109,21 +112,27 @@ class TestCloudBatchJobFinishedTrigger:
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.google.cloud.triggers.cloud_batch.CloudBatchAsyncHook")
-    async def test_trigger_running(self, mock_hook, trigger: CloudBatchJobFinishedTrigger):
-        state = batch_v1.JobStatus.State.RUNNING
-        mock_hook.return_value.get_build_job.return_value = self._mock_job_with_state(state)
+    async def test_trigger_timeout(self, mock_hook, trigger: CloudBatchJobFinishedTrigger):
 
-        task = asyncio.create_task(trigger.run().__anext__())
-        await asyncio.sleep(0.5)
+        async def _mock_job(job_name):
+            job = mock.MagicMock()
+            job.status.state = batch_v1.JobStatus.State.RUNNING
+            return job
+        
+        mock_hook.return_value.get_build_job = _mock_job
 
-        # TriggerEvent was not returned
-        assert task.done() is False
-
-        # assert "Build is still running..." in caplog.text
-        # assert f"Sleeping for {TEST_POLL_INTERVAL} seconds." in caplog.text
-
-        # Prevents error when task is destroyed while in "pending" state
-        asyncio.get_event_loop().stop()
+        generator = trigger.run()
+        actual = await generator.asend(None)
+        assert (
+            TriggerEvent(
+                {
+                    "job_name": JOB_NAME,
+                    "status": "timed out",
+                    "message": f"Batch job with name {JOB_NAME} timed out",
+                }
+            )
+            == actual
+        )
 
 
     async def _mock_job_with_state(self, state: batch_v1.JobStatus.State):

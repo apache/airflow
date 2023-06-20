@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator, Sequence
+from typing import Any, AsyncIterator, Sequence, Union
 
 
 from google.cloud import batch_v1
@@ -31,7 +31,7 @@ DEFAULT_BATCH_LOCATION = "us-central1"
 
 class CloudBatchJobFinishedTrigger(BaseTrigger):
     """Cloud Batch trigger to check if templated job has been finished.
-    
+
     :param job_name: Required. Name of the job.
     :param project_id: Required. the Google Cloud project ID in which the job was started.
     :param location: Optional. the location where job is executed. If set to None then
@@ -46,7 +46,7 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param poll_sleep: Polling period in seconds to check for the status
-    
+
     """
 
     def __init__(
@@ -56,16 +56,16 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
         location: str = DEFAULT_BATCH_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        poll_sleep: int = 10,
-        
-        
+        polling_period_seconds: float = 10,
+        timeout: Union[float, None] = None
     ):
         super().__init__()
         self.project_id = project_id
         self.job_name = job_name
         self.location = location
         self.gcp_conn_id = gcp_conn_id
-        self.poll_sleep = poll_sleep
+        self.polling_period_seconds = polling_period_seconds
+        self.timeout = timeout
         self.impersonation_chain = impersonation_chain
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -77,7 +77,8 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
                 "job_name": self.job_name,
                 "location": self.location,
                 "gcp_conn_id": self.gcp_conn_id,
-                "poll_sleep": self.poll_sleep,
+                "polling_period_seconds": self.polling_period_seconds,
+                "timeout" : self.timeout,
                 "impersonation_chain": self.impersonation_chain,
             },
         )
@@ -87,16 +88,19 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
         Main loop of the class in where it is fetching the job status and yields certain Event.
 
         If the job has status success then it yields TriggerEvent with success status, if job has
-        status failed - with error status. In any other case Trigger will wait for specified
-        amount of time stored in self.poll_sleep variable.
+        status failed - with error status and if the job is being deleted - with deleted status.
+        In any other case Trigger will wait for specified amount of time
+        stored in self.polling_period_seconds variable.
         """
+        timeout = self.timeout
         hook = self._get_async_hook()
-        while True:
+        while timeout == None or timeout > 0:
+            
             try:
-                job : batch_v1.Job = await hook.get_build_job(
+                job: batch_v1.Job = await hook.get_build_job(
                     job_name=self.job_name
                 )
-
+                
                 status: batch_v1.JobStatus.State = job.status.state
                 if status == batch_v1.JobStatus.State.SUCCEEDED:
                     yield TriggerEvent(
@@ -128,12 +132,28 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
                 else:
                     self.log.info("Job is still running...")
                     self.log.info("Current job status is: %s", status)
-                    self.log.info("Sleeping for %s seconds.", self.poll_sleep)
-                    await asyncio.sleep(self.poll_sleep)
+                    self.log.info("Sleeping for %s seconds.",
+                                  self.polling_period_seconds)
+                    timeout -= self.polling_period_seconds
+                    await asyncio.sleep(self.polling_period_seconds)
+                   
+                    
             except Exception as e:
-                self.log.exception("Exception occurred while checking for job completion.")
+                self.log.exception(
+                    "Exception occurred while checking for job completion.")
                 yield TriggerEvent({"status": "error", "message": str(e)})
                 return
+            
+        
+        self.log.exception(f"Job with name [{self.job_name}] timed out")
+        yield TriggerEvent(
+                {
+                    "job_name": self.job_name,
+                    "status": "timed out",
+                    "message": f"Batch job with name {self.job_name} timed out",
+                }
+            )
+        return
 
     def _get_async_hook(self) -> CloudBatchAsyncHook:
         return CloudBatchAsyncHook(
