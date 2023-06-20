@@ -379,7 +379,12 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
                     ),
                     method_name="execute_complete",
                 )
-            self.log.info("Current state of job %s is %s", job.job_id, job.state)
+            self._handle_job_error(job)
+
+    @staticmethod
+    def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
+        if job.error_result:
+            raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         """
