@@ -170,11 +170,14 @@ class AirflowClusterPolicyViolation(AirflowException):
 
 
 class AirflowClusterPolicySkipDag(AirflowException):
-    """Raise when dag skip is needed in Cluster Policy."""
+    """Raise when skipping dag is needed in Cluster Policy."""
 
 
 class AirflowClusterPolicyError(AirflowException):
-    """Raise when there is an error except AirflowClusterPolicyViolation and AirflowClusterPolicySkipDag in Cluster Policy."""
+    """
+    Raise when there is an error in Cluster Policy,
+    except AirflowClusterPolicyViolation and AirflowClusterPolicySkipDag.
+    """
 
 
 class AirflowTimetableInvalid(AirflowException):
