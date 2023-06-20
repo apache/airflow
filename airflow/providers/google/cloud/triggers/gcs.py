@@ -79,6 +79,7 @@ class GCSBlobTrigger(BaseTrigger):
                 )
                 if res == "success":
                     yield TriggerEvent({"status": "success", "message": res})
+                    return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
@@ -159,6 +160,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
                 )
                 if status:
                     yield TriggerEvent(res)
+                    return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
@@ -262,6 +264,7 @@ class GCSPrefixBlobTrigger(GCSBlobTrigger):
                     yield TriggerEvent(
                         {"status": "success", "message": "Successfully completed", "matches": res}
                     )
+                    return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
@@ -364,6 +367,7 @@ class GCSUploadSessionTrigger(GCSPrefixBlobTrigger):
                 res = self._is_bucket_updated(set(list_blobs))
                 if res["status"] in ("success", "error"):
                     yield TriggerEvent(res)
+                    return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
