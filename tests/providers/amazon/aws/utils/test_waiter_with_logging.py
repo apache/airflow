@@ -51,9 +51,10 @@ class TestWaiter:
             waiter=mock_waiter,
             waiter_delay=123,
             max_attempts=456,
-            state_args={"test_arg": "test_value"},
+            args={"test_arg": "test_value"},
             failure_message="test failure message",
-            status_message={"message": "test status message", "args": ["Status.State"]},
+            status_message="test status message",
+            status_args=["Status.State"],
         )
 
         mock_waiter.wait.assert_called_with(
@@ -91,9 +92,10 @@ class TestWaiter:
                 waiter=mock_waiter,
                 waiter_delay=123,
                 max_attempts=2,
-                state_args={"test_arg": "test_value"},
+                args={"test_arg": "test_value"},
                 failure_message="test failure message",
-                status_message={"message": "test status message", "args": ["Status.State"]},
+                status_message="test status message",
+                status_args=["Status.State"],
             )
         assert "Waiter error: max attempts reached" in str(exc)
         mock_waiter.wait.assert_called_with(
@@ -137,9 +139,10 @@ class TestWaiter:
                 waiter=mock_waiter,
                 waiter_delay=123,
                 max_attempts=10,
-                state_args={"test_arg": "test_value"},
+                args={"test_arg": "test_value"},
                 failure_message="test failure message",
-                status_message={"message": "test status message", "args": ["Status.State"]},
+                status_message="test status message",
+                status_args=["Status.State"],
             )
         assert "test failure message" in str(exc)
         mock_waiter.wait.assert_called_with(
@@ -184,9 +187,10 @@ class TestWaiter:
             waiter=mock_waiter,
             waiter_delay=123,
             max_attempts=456,
-            state_args={"test_arg": "test_value"},
+            args={"test_arg": "test_value"},
             failure_message="test failure message",
-            status_message={"message": "test status message", "args": ["Clusters[0].Status"]},
+            status_message="test status message",
+            status_args=["Clusters[0].Status"],
         )
 
         mock_waiter.wait.assert_called_with(
@@ -232,12 +236,10 @@ class TestWaiter:
             waiter=mock_waiter,
             waiter_delay=123,
             max_attempts=456,
-            state_args={"test_arg": "test_value"},
+            args={"test_arg": "test_value"},
             failure_message="test failure message",
-            status_message={
-                "message": "test status message",
-                "args": ["Clusters[0].State"],
-            },  # this does not exist in the response
+            status_message="test status message",
+            status_args=["Clusters[0].State"],  # this does not exist in the response
         )
 
         mock_waiter.wait.assert_called_with(
@@ -282,12 +284,10 @@ class TestWaiter:
             waiter=mock_waiter,
             waiter_delay=123,
             max_attempts=456,
-            state_args={"test_arg": "test_value"},
+            args={"test_arg": "test_value"},
             failure_message="test failure message",
-            status_message={
-                "message": "test status message",
-                "args": ["Clusters[0].Status", "Clusters[0].StatusDetails", "Clusters[0].ClusterName"],
-            },
+            status_message="test status message",
+            status_args=["Clusters[0].Status", "Clusters[0].StatusDetails", "Clusters[0].ClusterName"],
         )
         mock_waiter.wait.call_count == 3
         mock_sleep.assert_called_with(123)
