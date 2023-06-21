@@ -370,6 +370,13 @@ class PlainXComArg(XComArg):
             return result
         if self.key == XCOM_RETURN_KEY:
             return None
+        if getattr(self.operator, "multiple_outputs", False):
+            # If the operator is set to have multiple outputs and it was not executed,
+            # we should return "None" instead of showing an error. This is because when
+            # multiple outputs XComs are created, the XCom keys associated with them will have
+            # different names than the predefined "XCOM_RETURN_KEY" and won't be found.
+            # Therefore, it's better to return "None" like we did above where self.key==XCOM_RETURN_KEY.
+            return None
         raise XComNotFound(ti.dag_id, task_id, self.key)
 
 
