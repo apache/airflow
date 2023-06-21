@@ -229,12 +229,12 @@ class TestSecurityContext:
             ],
         )
 
-        for index in range(len(docs)-2):
+        for index in range(len(docs) - 2):
             assert ctx_value_container == jmespath.search(
                 "spec.template.spec.containers[0].securityContext", docs[index]
             )
             assert ctx_value_pod == jmespath.search("spec.template.spec.securityContext", docs[index])
-        for index in range(len(docs)-2, len(docs)):
+        for index in range(len(docs) - 2, len(docs)):
             assert ctx_value_container != jmespath.search(
                 "spec.template.spec.containers[0].securityContext", docs[index]
             )
