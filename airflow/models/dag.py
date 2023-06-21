@@ -686,6 +686,20 @@ class DAG(LoggingMixin):
         self.params.validate()
         self.timetable.validate()
 
+    def validate_setup_teardown(self):
+        """
+        Validate that setup and teardown tasks are configured properly.
+
+        :meta private:
+        """
+        for task in self.tasks:
+            if not task.is_setup:
+                continue
+            if not any(x.is_teardown for x in task.downstream_list):
+                raise AirflowDagInconsistent(
+                    "Dag has setup without teardown: dag='%s', task='%s'", self.dag_id, task.task_id
+                )
+
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
 
