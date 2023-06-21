@@ -43,6 +43,8 @@ Content
     Python API <_api/airflow/providers/apprise/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apprise/>
     Installing from sources <installing-providers-from-sources>
+    Apprise Notifications <notifications/apprise_notifier_howto_guide>
+
 
 Package apache-airflow-providers-apprise
 -----------------------------------------
