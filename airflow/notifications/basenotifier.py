@@ -79,19 +79,24 @@ class BaseNotifier(Templater):
         """
         ...
 
-    def __call__(self, *args) -> None:
-        """
-        Send a notification.
-
-        :param context: The airflow context
-        """
+    @staticmethod
+    def is_called_from_on_callback(*args, **kwargs) -> bool:
+        """Check if the notifier is called as sla_miss_callback or on_*_callback."""
         # Currently, there are two ways a callback is invoked
         # 1. callback(context) - for on_*_callbacks
         # 2. callback(dag, task_list, blocking_task_list, slas, blocking_tis) - for sla_miss_callback
         # we have to distinguish between the two calls so that we can prepare the correct context,
         # comparing len(args) is one straightforward way of checking this.
-        if len(args) == 1:
-            _context = args[0]
+        return len(args) == 1 or (len(kwargs.keys()) == 1 and kwargs.get("context"))
+
+    def __call__(self, *args, **kwargs) -> None:
+        """
+        Send a notification.
+
+        :param context: The airflow context
+        """
+        if self.is_called_from_on_callback(*args, **kwargs):
+            _context = kwargs.get("context") or args[0]
         else:
             _context = Context(
                 dag=args[0],
