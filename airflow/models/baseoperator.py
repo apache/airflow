@@ -1860,6 +1860,8 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     :param elements: a list of operators / lists of operators
     """
+    if len(elements) == 1:
+        raise ValueError("elements has length 1; did you forget to add a `*`?")
     prev_elem = None
     for curr_elem in elements:
         if isinstance(curr_elem, EdgeModifier):

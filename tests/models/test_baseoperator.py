@@ -564,6 +564,9 @@ class TestBaseOperator:
         with pytest.raises(ValueError, match="Labels are not supported"):
             chain_linear(t1, Label("hi"), t2)
 
+        with pytest.raises(ValueError, match="length 1"):
+            chain_linear(t1)
+
     def test_chain_not_support_type(self):
         dag = DAG(dag_id="test_chain", start_date=datetime.now())
         [op1, op2] = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 3)]
