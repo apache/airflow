@@ -365,19 +365,27 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
 
             job = self._submit_job(hook, job_id="")
             context["ti"].xcom_push(key="job_id", value=job.job_id)
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=BigQueryValueCheckTrigger(
-                    conn_id=self.gcp_conn_id,
-                    job_id=job.job_id,
-                    project_id=hook.project_id,
-                    sql=self.sql,
-                    pass_value=self.pass_value,
-                    tolerance=self.tol,
-                    poll_interval=self.poll_interval,
-                ),
-                method_name="execute_complete",
-            )
+            if job.running():
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=BigQueryValueCheckTrigger(
+                        conn_id=self.gcp_conn_id,
+                        job_id=job.job_id,
+                        project_id=hook.project_id,
+                        sql=self.sql,
+                        pass_value=self.pass_value,
+                        tolerance=self.tol,
+                        poll_interval=self.poll_interval,
+                    ),
+                    method_name="execute_complete",
+                )
+            self._handle_job_error(job)
+            self.log.info("Current state of job %s is %s", job.job_id, job.state)
+
+    @staticmethod
+    def _handle_job_error(job: BigQueryJob | UnknownJob) -> None:
+        if job.error_result:
+            raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         """
