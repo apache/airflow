@@ -370,7 +370,7 @@ class PlainXComArg(XComArg):
             return result
         if self.key == XCOM_RETURN_KEY:
             return None
-        if self.operator.multiple_outputs:  # type: ignore
+        if getattr(self.operator, "multiple_outputs", False):
             # If the operator is set to have multiple outputs and it was not executed,
             # we should return "None" instead of showing an error. This is because when
             # multiple outputs XComs are created, the XCom keys associated with them will have
