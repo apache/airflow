@@ -87,7 +87,7 @@ class BaseNotifier(Templater):
         # 2. callback(dag, task_list, blocking_task_list, slas, blocking_tis) - for sla_miss_callback
         # we have to distinguish between the two calls so that we can prepare the correct context,
         # comparing len(args) is one straightforward way of checking this.
-        return len(args) == 1 or (len(kwargs.keys()) == 1 and kwargs.get("context"))
+        return len(args) == 1 or (len(kwargs.keys()) == 1 and kwargs.get("context", False))
 
     def __call__(self, *args, **kwargs) -> None:
         """
