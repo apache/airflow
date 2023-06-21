@@ -185,6 +185,8 @@ def test_connection() -> APIResponse:
     conn_env_var = f"{CONN_ENV_PREFIX}{transient_conn_id.upper()}"
     try:
         data = connection_schema.load(body)
+        print(data)
+        print("i was here")
         data["conn_id"] = transient_conn_id
         conn = Connection(**data)
         os.environ[conn_env_var] = conn.get_uri()
