@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-21T09:24:16Z
+# This constraints file was automatically generated on 2023-06-21T14:16:28Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -62,6 +62,7 @@ anyio==3.7.0
 apache-beam==2.48.0
 apispec==5.2.2
 appdirs==1.4.4
+apprise==1.4.0
 argcomplete==3.1.1
 arrow==1.2.3
 asana==3.2.1
@@ -370,7 +371,7 @@ pipdeptree==2.9.3
 pipx==1.2.0
 pkginfo==1.9.6
 platformdirs==3.7.0
-pluggy==1.0.0
+pluggy==1.2.0
 ply==3.11
 plyvel==1.5.0
 portalocker==2.7.0
@@ -539,7 +540,7 @@ types-python-slugify==8.0.0.2
 types-pytz==2023.3.0.0
 types-redis==4.5.5.2
 types-requests==2.31.0.1
-types-setuptools==67.8.0.0
+types-setuptools==68.0.0.0
 types-tabulate==0.9.0.2
 types-termcolor==1.1.6.2
 types-toml==0.10.8.6
