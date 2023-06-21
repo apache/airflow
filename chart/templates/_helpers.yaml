@@ -244,7 +244,7 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
   {{- end }}
   {{- if .Values.dags.gitSync.extraVolumeMounts }}
-    {{- tpl (toYaml .Values.dags.gitSync.extraVolumeMounts) . | nindent 2 }}
+    {{- toYaml .Values.dags.gitSync.extraVolumeMounts | nindent 2 }}
   {{- end }}
 {{- end }}
 
