@@ -264,7 +264,7 @@ class TestSerDe:
             "__var": {
                 "__var": {
                     "uri": uri,
-                    "extra": None,
+                    "extra": {"__var": {"hi": "bye"}, "__type": "dict"},
                 },
                 "__type": "dict",
             },
