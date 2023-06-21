@@ -481,7 +481,6 @@ class TestDag:
         session.close()
 
     def test_get_task_instances_before(self):
-
         BASE_DATE = timezone.datetime(2022, 7, 20, 20)
 
         test_dag_id = "test_get_task_instances_before"
@@ -644,7 +643,6 @@ class TestDag:
         assert isinstance(jinja_env, expected_env)
 
     def test_resolve_template_files_value(self):
-
         with NamedTemporaryFile(suffix=".template") as f:
             f.write(b"{{ ds }}")
             f.flush()
@@ -662,7 +660,6 @@ class TestDag:
         assert task.test_field == "{{ ds }}"
 
     def test_resolve_template_files_list(self):
-
         with NamedTemporaryFile(suffix=".template") as f:
             f.write(b"{{ ds }}")
             f.flush()
@@ -1275,7 +1272,6 @@ class TestDag:
         session.close()
 
     def test_existing_dag_default_view(self):
-
         with create_session() as session:
             session.add(DagModel(dag_id="dag_default_view_old", default_view=None))
             session.commit()
@@ -2495,7 +2491,6 @@ my_postgres_conn:
                 pass
 
     def test_continuous_schedule_interval_limits_max_active_runs(self):
-
         dag = DAG("continuous", start_date=DEFAULT_DATE, schedule_interval="@continuous", max_active_runs=1)
         assert isinstance(dag.timetable, ContinuousTimetable)
         assert dag.max_active_runs == 1
