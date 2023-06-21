@@ -202,6 +202,14 @@
     "cross-providers-deps": [],
     "excluded-python-versions": []
   },
+  "apprise": {
+    "deps": [
+      "apache-airflow>=2.4.0",
+      "apprise"
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": []
+  },
   "arangodb": {
     "deps": [
       "apache-airflow>=2.4.0",
