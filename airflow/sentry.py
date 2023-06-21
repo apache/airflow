@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING
 from airflow.configuration import conf
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.session import find_session_idx, provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import State
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -143,7 +143,7 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
                 return
             dr = task_instance.get_dagrun(session)
             task_instances = dr.get_task_instances(
-                state={TaskInstanceState.SUCCESS, TaskInstanceState.FAILED},
+                state={State.SUCCESS, State.FAILED},
                 session=session,
             )
 

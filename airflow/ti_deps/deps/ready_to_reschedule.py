@@ -22,7 +22,7 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
-from airflow.utils.state import TaskInstanceState
+from airflow.utils.state import State
 
 
 class ReadyToRescheduleDep(BaseTIDep):
@@ -31,7 +31,7 @@ class ReadyToRescheduleDep(BaseTIDep):
     NAME = "Ready To Reschedule"
     IGNORABLE = True
     IS_TASK_DEP = True
-    RESCHEDULEABLE_STATES = {None, TaskInstanceState.UP_FOR_RESCHEDULE}
+    RESCHEDULEABLE_STATES = {State.UP_FOR_RESCHEDULE, State.NONE}
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):

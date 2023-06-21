@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import State
 
 
 class DagrunRunningDep(BaseTIDep):
@@ -31,7 +31,7 @@ class DagrunRunningDep(BaseTIDep):
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
         dr = ti.get_dagrun(session)
-        if dr.state != DagRunState.RUNNING:
+        if dr.state != State.RUNNING:
             yield self._failing_status(
                 reason=f"Task instance's dagrun was not in the 'running' state but in the state '{dr.state}'."
             )

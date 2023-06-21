@@ -58,7 +58,7 @@ Package apache-airflow-providers-singularity
 `Singularity <https://sylabs.io/guides/latest/user-guide/>`__
 
 
-Release: 3.2.0
+Release: 3.2.1
 
 Provider package
 ----------------
