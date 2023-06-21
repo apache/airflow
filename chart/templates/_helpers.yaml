@@ -722,11 +722,11 @@ server_tls_key_file = /etc/pgbouncer/server.key
 
 {{/*
 Set the default value for pod securityContext
-If no value is passed for securityContexts.pod or <node>.securityContexts.pod or legacy securityContext and <node>.securityContext, defaults to <node>.uid if set and to global uid and gid otherwise.
+If no value is passed for securityContexts.pod or <node>.securityContexts.pod or legacy securityContext and <node>.securityContext, defaults to global uid and gid.
 
-    +-----------------------------+      +------------------------+      +----------------------+      +-----------------+      +------------+      +-------------------------+
-    | <node>.securityContexts.pod |  ->  | <node>.securityContext |  ->  | securityContexts.pod |  ->  | securityContext |  ->  | <node>.uid |  ->  | Values.uid + Values.gid |
-    +-----------------------------+      +------------------------+      +----------------------+      +-----------------+      +------------+      +-------------------------+
+    +-----------------------------+      +------------------------+      +----------------------+      +-----------------+      +-------------------------+
+    | <node>.securityContexts.pod |  ->  | <node>.securityContext |  ->  | securityContexts.pod |  ->  | securityContext |  ->  | Values.uid + Values.gid |
+    +-----------------------------+      +------------------------+      +----------------------+      +-----------------+      +-------------------------+
 
 Values are not accumulated meaning that if runAsUser is set to 10 in <node>.securityContexts.pod,
 any extra values set to securityContext or uid+gid will be ignored.
@@ -747,8 +747,6 @@ Where `.` is the global variables scope and `.Values.webserver` the local variab
       {{ toYaml $.Values.securityContexts.pod | print }}
     {{- else if $.Values.securityContext -}}
       {{ toYaml $.Values.securityContext | print }}
-    {{- else if not (kindIs "invalid"  .uid) -}}
-runAsUser: {{ .uid }}
     {{- else -}}
 runAsUser: {{ $.Values.uid }}
 fsGroup: {{ $.Values.gid }}
