@@ -434,21 +434,22 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         service_role: str | None = None,
         tags: dict | None = None,
         poll_interval: int = 30,
-        max_retries: int = 120,
-        status_retries: int | None = None,
+        max_retries: int | None = None,
         aws_conn_id: str | None = None,
         region_name: str | None = None,
         deferrable: bool = False,
         **kwargs,
     ):
-        super().__init__(**kwargs)
-        if status_retries is not None:
+        if "status_retries" in kwargs:
             warnings.warn(
                 "The `status_retries` parameter is unused and should be removed. "
                 "It'll be deleted in a future version.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
+            kwargs.pop("status_retries")  # remove before calling super() to prevent unexpected arg error
+
+        super().__init__(**kwargs)
 
         self.compute_environment_name = compute_environment_name
         self.environment_type = environment_type
@@ -458,7 +459,7 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         self.service_role = service_role
         self.tags = tags or {}
         self.poll_interval = poll_interval
-        self.max_retries = max_retries
+        self.max_retries = max_retries or 120
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
         self.deferrable = deferrable
