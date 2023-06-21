@@ -25,13 +25,12 @@ import re
 import zipfile
 from collections import OrderedDict
 from pathlib import Path
-from typing import TYPE_CHECKING, Generator, NamedTuple, Pattern, Protocol, overload
+from typing import Generator, NamedTuple, Protocol, overload
 
 from pathspec.patterns import GitWildMatchPattern
 
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.typing_compat import Protocol
 
 log = logging.getLogger(__name__)
 

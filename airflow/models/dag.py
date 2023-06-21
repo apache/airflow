@@ -40,7 +40,6 @@ from typing import (
     Callable,
     Collection,
     Container,
-    Deque,
     Iterable,
     Iterator,
     List,
