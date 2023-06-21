@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-21T14:16:28Z
+# This constraints file was automatically generated on 2023-06-21T19:53:31Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -406,7 +406,7 @@ pyexasol==0.25.2
 pygraphviz==1.11
 pyhcl==0.4.4
 pykerberos==1.2.4
-pymongo==4.3.3
+pymongo==4.4.0
 pymssql==2.2.7
 pyodbc==4.0.39
 pyparsing==3.1.0
@@ -530,7 +530,7 @@ types-PyMySQL==1.0.19.7
 types-PyYAML==6.0.12.10
 types-boto==2.49.18.8
 types-certifi==2021.10.8.3
-types-croniter==1.3.2.9
+types-croniter==1.4.0.0
 types-docutils==0.20.0.1
 types-paramiko==3.2.0.0
 types-protobuf==4.23.0.1
