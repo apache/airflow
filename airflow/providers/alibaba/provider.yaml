@@ -49,7 +49,7 @@ integrations:
       - /docs/apache-airflow-providers-alibaba/operators/oss.rst
     tags: [alibaba]
   - integration-name: Alibaba Cloud AnalyticDB Spark
-    external-doc-url: https://www.alibabacloud.com/help/en/analyticdb-for-mysql/latest/spark-offline-application-development
+    external-doc-url: https://www.alibabacloud.com/help/en/analyticdb-for-mysql/latest/spark-developerment
     how-to-guide:
       - /docs/apache-airflow-providers-alibaba/operators/analyticdb_spark.rst
     tags: [alibaba]
