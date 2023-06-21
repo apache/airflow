@@ -546,21 +546,35 @@ def pygment_html_render(s, lexer=lexers.TextLexer):
     return highlight(s, lexer(), HtmlFormatter(linenos=True))
 
 
-def render(obj, lexer):
+def render(obj: Any, lexer, handler=None):
     """Render a given Python object with a given Pygments lexer."""
-    out = ""
+
     if isinstance(obj, str):
-        out = Markup(pygment_html_render(obj, lexer))
-    elif isinstance(obj, (tuple, list)):
+        return Markup(pygment_html_render(obj, lexer))
+
+    if isinstance(obj, (tuple, list)):
+        out = ""
         for i, text_to_render in enumerate(obj):
+            if lexer == lexers.PythonLexer:
+                text_to_render = repr(text_to_render)
             out += Markup("<div>List item #{}</div>").format(i)
             out += Markup("<div>" + pygment_html_render(text_to_render, lexer) + "</div>")
-    elif isinstance(obj, dict):
+            return out
+
+    if isinstance(obj, dict):
+        out = ""
         for k, v in obj.items():
+            if lexer == lexers.PythonLexer:
+                v = repr(v)
             out += Markup('<div>Dict item "{}"</div>').format(k)
             out += Markup("<div>" + pygment_html_render(v, lexer) + "</div>")
-    return out
+        return out
 
+    if obj and handler:
+        return Markup(pygment_html_render(handler(obj), lexer))
+
+    # Return empty string otherwise
+    return ""
 
 def json_render(obj, lexer):
     """Render a given Python object with json lexer."""
@@ -600,8 +614,8 @@ def get_attr_renderer():
         "mysql": lambda x: render(x, lexers.MySqlLexer),
         "postgresql": lambda x: render(x, lexers.PostgresLexer),
         "powershell": lambda x: render(x, lexers.PowerShellLexer),
-        "py": lambda x: render(get_python_source(x), lexers.PythonLexer),
-        "python_callable": lambda x: render(get_python_source(x), lexers.PythonLexer),
+        "py": lambda x: render(x, lexers.PythonLexer, get_python_source),
+        "python_callable": lambda x: render(x, lexers.PythonLexer, get_python_source),
         "rst": lambda x: render(x, lexers.RstLexer),
         "sql": lambda x: render(x, lexers.SqlLexer),
         "tsql": lambda x: render(x, lexers.TransactSqlLexer),
