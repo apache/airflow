@@ -58,7 +58,7 @@ class TestAnalyticDBSparkBaseOperator:
     def test_poll_for_termination(self, mock_hook):
         """Test poll_for_termination works as expected with COMPLETED application."""
         # Given
-        mock_hook.return_value.get_spark_state.return_value = "COMPLETED"
+        mock_hook.get_spark_state.return_value = "COMPLETED"
 
         # When
         self.operator.poll_for_termination(MOCK_APP_ID)
@@ -67,7 +67,7 @@ class TestAnalyticDBSparkBaseOperator:
     def test_poll_for_termination_with_exception(self, mock_hook):
         """Test poll_for_termination raises AirflowException with FATAL application."""
         # Given
-        mock_hook.return_value.get_spark_state.return_value = "FATAL"
+        mock_hook.get_spark_state.return_value = "FATAL"
 
         # When
         with pytest.raises(AirflowException, match="Application mock_app_id did not succeed"):
@@ -111,7 +111,7 @@ class TestAnalyticDBSparkBatchOperator:
     def test_execute_with_exception(self, mock_hook):
         """Test submit AnalyticDB Spark Batch Application raises ValueError with invalid parameter."""
         # Given
-        mock_hook.return_value.submit_spark_app.side_effect = ValueError("List of strings expected")
+        mock_hook.submit_spark_app.side_effect = ValueError("List of strings expected")
 
         # When
         operator = AnalyticDBSparkBatchOperator(
@@ -159,7 +159,7 @@ class TestAnalyticDBSparklSQLOperator:
     def test_execute_with_exception(self, mock_hook):
         """Test submit AnalyticDB Spark SQL Application raises ValueError with invalid parameter."""
         # Given
-        mock_hook.return_value.submit_spark_sql.side_effect = ValueError("List of strings expected")
+        mock_hook.submit_spark_sql.side_effect = ValueError("List of strings expected")
 
         # When
         operator = AnalyticDBSparkSQLOperator(

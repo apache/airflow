@@ -49,24 +49,24 @@ class TestAnalyticDBSparkSensor:
     def test_poke_terminal_state(self, mock_service):
         """Test poke_terminal_state works as expected with COMPLETED application."""
         # Given
-        mock_service.return_value.get_spark_state.return_value = "COMPLETED"
+        mock_service.get_spark_state.return_value = "COMPLETED"
 
         # When
         res = self.sensor.poke(None)
 
         # Then
         assert res is True
-        mock_service.return_value.get_spark_state.assert_called_once_with(MOCK_ADB_SPARK_ID)
+        mock_service.get_spark_state.assert_called_once_with(MOCK_ADB_SPARK_ID)
 
     @mock.patch(ADB_SPARK_SENSOR_STRING.format("AnalyticDBSparkSensor.get_hook"))
     def test_poke_non_terminal_state(self, mock_service):
         """Test poke_terminal_state works as expected with RUNNING application."""
         # Given
-        mock_service.return_value.get_spark_state.return_value = "RUNNING"
+        mock_service.get_spark_state.return_value = "RUNNING"
 
         # When
         res = self.sensor.poke(None)
 
         # Then
         assert res is False
-        mock_service.return_value.get_spark_state.assert_called_once_with(MOCK_ADB_SPARK_ID)
+        mock_service.get_spark_state.assert_called_once_with(MOCK_ADB_SPARK_ID)
