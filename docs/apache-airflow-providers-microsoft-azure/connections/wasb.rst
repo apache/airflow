@@ -71,6 +71,7 @@ Extra (optional)
     * ``shared_access_key``: Specify the shared access key. Needed for shared access key authentication.
     * ``connection_string``: Connection string for use with connection string authentication.
     * ``sas_token``: SAS Token for use with SAS Token authentication.
+    * ``client_secret_auth_config``: Extra config to pass while authenticating as a service principal using `ClientSecretCredential <https://learn.microsoft.com/en-in/python/api/azure-identity/azure.identity.clientsecretcredential?view=azure-python>`_
 
 When specifying the connection in environment variable you should specify
 it using URI syntax.
