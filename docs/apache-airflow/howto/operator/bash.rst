@@ -105,7 +105,6 @@ template to it, which will fail.
         # bash_command="/home/batcher/test.sh",
         # This works (has a space after)
         bash_command="/home/batcher/test.sh ",
-        dag=dag,
     )
 
 However, if you want to use templating in your bash script, do not add the space
@@ -121,7 +120,6 @@ as shown below:
         task_id="bash_example",
         # "scripts" folder is under "/usr/local/airflow/dags"
         bash_command="scripts/test.sh",
-        dag=dag,
     )
 
 Creating separate folder for bash scripts may be desirable for many reasons, like
@@ -141,7 +139,6 @@ Example:
         task_id="bash_example",
         # "test.sh" is a file under "/opt/scripts"
         bash_command="test.sh ",
-        dag=dag,
     )
 
 

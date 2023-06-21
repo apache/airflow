@@ -456,28 +456,26 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
             dag_id="branch_without_trigger",
             schedule="@once",
             start_date=pendulum.datetime(2019, 2, 28, tz="UTC"),
-        ) as dag:
+        ):
 
-          run_this_first = EmptyOperator(task_id="run_this_first")
+            run_this_first = EmptyOperator(task_id="run_this_first")
 
+            @task.branch(task_id="branching")
+            def do_branching():
+                return "branch_a"
 
-          @task.branch(task_id="branching")
-          def do_branching():
-              return "branch_a"
+            branching = do_branching()
 
+            branch_a = EmptyOperator(task_id="branch_a")
+            follow_branch_a = EmptyOperator(task_id="follow_branch_a")
 
-          branching = do_branching()
+            branch_false = EmptyOperator(task_id="branch_false")
 
-          branch_a = EmptyOperator(task_id="branch_a")
-          follow_branch_a = EmptyOperator(task_id="follow_branch_a")
+            join = EmptyOperator(task_id="join")
 
-          branch_false = EmptyOperator(task_id="branch_false")
-
-          join = EmptyOperator(task_id="join")
-
-          run_this_first >> branching
-          branching >> branch_a >> follow_branch_a >> join
-          branching >> branch_false >> join
+            run_this_first >> branching
+            branching >> branch_a >> follow_branch_a >> join
+            branching >> branch_false >> join
 
     ``join`` is downstream of ``follow_branch_a`` and ``branch_false``. The ``join`` task will show up as skipped because its ``trigger_rule`` is set to ``all_success`` by default, and the skip caused by the branching operation cascades down to skip a task marked as ``all_success``.
 
@@ -659,10 +657,10 @@ This is especially useful if your tasks are built dynamically from configuration
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         schedule="@daily",
         catchup=False,
-        doc_md=__doc__
-    ) as dag:
-      t = EmptyOperator(task_id="foo")
-      t.doc_md = """\
+        doc_md=__doc__,
+    ):
+        t = EmptyOperator(task_id="foo")
+        t.doc_md = """\
       #Title"
       Here's a [url](www.airbnb.com)
       """

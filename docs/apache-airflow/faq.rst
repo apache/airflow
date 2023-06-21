@@ -357,19 +357,18 @@ commonly attempted in ``user_defined_macros``.
 
 .. code-block:: python
 
-        dag = DAG(
+        with DAG(
             # ...
             user_defined_macros={"my_custom_macro": "day={{ ds }}"}
-        )
-
-        bo = BashOperator(task_id="my_task", bash_command="echo {{ my_custom_macro }}", dag=dag)
+        ):
+            BashOperator(task_id="my_task", bash_command="echo {{ my_custom_macro }}")
 
 This will echo "day={{ ds }}" instead of "day=2020-01-01" for a DAG run with a
 ``data_interval_start`` of 2020-01-01 00:00:00.
 
 .. code-block:: python
 
-        bo = BashOperator(task_id="my_task", bash_command="echo day={{ ds }}", dag=dag)
+        BashOperator(task_id="my_task", bash_command="echo day={{ ds }}")
 
 By using the ds macros directly in the template_field, the rendered value results in "day=2020-01-01".
 
