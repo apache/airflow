@@ -668,7 +668,7 @@ class TestCliDags:
         dag_command.dag_pause(args)
 
         args = self.parser.parse_args(["dags", "trigger", "example_bash_operator"])
-        with pytest.raises(AirflowException) as e:
+        with pytest.raises(SystemExit) as e:
             dag_command.dag_trigger(args)
         assert str(e.value) == f"DAG with dag_id: {args.dag_id} is paused."
 

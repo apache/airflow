@@ -149,7 +149,7 @@ def dag_trigger(args) -> None:
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
     if dag.is_paused:
-        raise AirflowException(f"DAG with dag_id: {args.dag_id} is paused.")
+        raise SystemExit(f"DAG with dag_id: {args.dag_id} is paused.")
     api_client = get_current_api_client()
     try:
         message = api_client.trigger_dag(
