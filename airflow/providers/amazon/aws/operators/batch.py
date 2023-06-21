@@ -25,6 +25,7 @@
 from __future__ import annotations
 
 import warnings
+from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
@@ -39,6 +40,7 @@ from airflow.providers.amazon.aws.links.batch import (
 from airflow.providers.amazon.aws.links.logs import CloudWatchEventsLink
 from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger
 from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -79,6 +81,10 @@ class BatchOperator(BaseOperator):
     :param tags: collection of tags to apply to the AWS Batch job submission
         if None, no tags are submitted
     :param deferrable: Run operator in the deferrable mode.
+    :param awslogs_enabled: Specifies whether logs from CloudWatch
+        should be printed or not, False.
+        If it is an array job, only the logs of the first task will be printed.
+    :param awslogs_fetch_interval: The interval with which cloudwatch logs are to be fetched, 30 sec.
     :param poll_interval: (Deferrable mode only) Time in seconds to wait between polling.
 
     .. note::
@@ -104,6 +110,8 @@ class BatchOperator(BaseOperator):
         "waiters",
         "tags",
         "wait_for_completion",
+        "awslogs_enabled",
+        "awslogs_fetch_interval",
     )
     template_fields_renderers = {
         "container_overrides": "json",
@@ -145,6 +153,8 @@ class BatchOperator(BaseOperator):
         wait_for_completion: bool = True,
         deferrable: bool = False,
         poll_interval: int = 30,
+        awslogs_enabled: bool = False,
+        awslogs_fetch_interval: timedelta = timedelta(seconds=30),
         **kwargs,
     ) -> None:
         BaseOperator.__init__(self, **kwargs)
@@ -179,6 +189,8 @@ class BatchOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.deferrable = deferrable
         self.poll_interval = poll_interval
+        self.awslogs_enabled = awslogs_enabled
+        self.awslogs_fetch_interval = awslogs_fetch_interval
 
         # params for hook
         self.max_retries = max_retries
@@ -319,10 +331,16 @@ class BatchOperator(BaseOperator):
                 job_queue_arn=job_queue_arn,
             )
 
-        if self.waiters:
-            self.waiters.wait_for_job(self.job_id)
+        if self.awslogs_enabled:
+            if self.waiters:
+                self.waiters.wait_for_job(self.job_id, get_batch_log_fetcher=self._get_batch_log_fetcher)
+            else:
+                self.hook.wait_for_job(self.job_id, get_batch_log_fetcher=self._get_batch_log_fetcher)
         else:
-            self.hook.wait_for_job(self.job_id)
+            if self.waiters:
+                self.waiters.wait_for_job(self.job_id)
+            else:
+                self.hook.wait_for_job(self.job_id)
 
         awslogs = self.hook.get_job_all_awslogs_info(self.job_id)
         if awslogs:
@@ -346,6 +364,21 @@ class BatchOperator(BaseOperator):
 
         self.hook.check_job_success(self.job_id)
         self.log.info("AWS Batch job (%s) succeeded", self.job_id)
+
+    def _get_batch_log_fetcher(self, job_id: str) -> AwsTaskLogFetcher | None:
+        awslog_info = self.hook.get_job_awslogs_info(job_id)
+
+        if not awslog_info:
+            return None
+
+        return AwsTaskLogFetcher(
+            aws_conn_id=self.aws_conn_id,
+            region_name=awslog_info["awslogs_region"],
+            log_group=awslog_info["awslogs_group"],
+            log_stream_name=awslog_info["awslogs_stream_name"],
+            fetch_interval=self.awslogs_fetch_interval,
+            logger=self.log,
+        )
 
 
 class BatchCreateComputeEnvironmentOperator(BaseOperator):
