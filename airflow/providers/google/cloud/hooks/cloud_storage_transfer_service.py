@@ -127,10 +127,11 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
-        if kwargs.get("delegate_to") is not None:
+        if "delegate_to" in kwargs:
             raise RuntimeError(
-                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
-                " of Google Provider. You MUST convert it to `impersonate_chain`"
+                "The `delegate_to` parameter has been deprecated before and "
+                "finally removed in this version of Google Provider. You MUST "
+                "convert it to `impersonate_chain`."
             )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -154,10 +155,9 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
     def create_transfer_job(self, body: dict) -> dict:
         """Create a transfer job that runs periodically.
 
-        :param body: (Required) A request body, as described in
+        :param body: (Required) The request body, as described in
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/patch#request-body
-        :return: transfer job.
-            See:
+        :return: The transfer job. See:
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs#TransferJob
         """
         body = self._inject_project_id(body, BODY, PROJECT_ID)
@@ -338,12 +338,10 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         :param request_filter: (Required) A request filter, as described in
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs/list#body.QUERY_PARAMETERS.filter
             With one additional improvement:
-
-            * project_id is optional if you have a project id defined
-              in the connection
-              See: :doc:`/connections/gcp`
-
         :return: transfer operation
+
+        The ``project_id`` parameter is optional if you have a project ID
+        defined in the connection. See: :doc:`/connections/gcp`
         """
         # To preserve backward compatibility
         # TODO: remove one day
@@ -399,14 +397,12 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
     ) -> None:
         """Wait until the job reaches the expected state.
 
-        :param job: Transfer job
-            See:
+        :param job: The transfer job to wait for. See:
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferJobs#TransferJob
-        :param expected_statuses: State that is expected
-            See:
+        :param expected_statuses: The expected state. See:
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Status
-        :param timeout: Time in which the operation must end in seconds. If not specified, defaults to 60
-            seconds.
+        :param timeout: Time in which the operation must end in seconds. If not
+            specified, defaults to 60 seconds.
         """
         expected_statuses = (
             {GcpTransferOperationStatus.SUCCESS} if not expected_statuses else expected_statuses
@@ -446,13 +442,12 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
         """Check whether an operation exists with the expected status.
 
         :param operations: (Required) List of transfer operations to check.
-        :param expected_statuses: (Required) status that is expected
-            See:
+        :param expected_statuses: (Required) The expected status. See:
             https://cloud.google.com/storage-transfer/docs/reference/rest/v1/transferOperations#Status
-        :return: If there is an operation with the expected state
-            in the operation list, returns true,
-        :raises :class:`~airflow.exceptions.AirflowException`: If it encounters operations
-            with state FAILED or ABORTED in the list
+        :return: If there is an operation with the expected state in the
+            operation list, returns true,
+        :raises AirflowException: If it encounters operations with state FAILED
+            or ABORTED in the list.
         """
         expected_statuses_set = (
             {expected_statuses} if isinstance(expected_statuses, str) else set(expected_statuses)
