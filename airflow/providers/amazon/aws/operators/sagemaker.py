@@ -695,16 +695,25 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         )
         response = self.hook.create_tuning_job(
             self.config,
-            wait_for_completion=self.wait_for_completion,
+            wait_for_completion=False,  # we handle this here
             check_interval=self.check_interval,
             max_ingestion_time=self.max_ingestion_time,
         )
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker Tuning Job creation failed: {response}")
+
+        if self.wait_for_completion:
+            description = self.hook.check_status(
+                self.config["HyperParameterTuningJobName"],
+                "HyperParameterTuningJobStatus",
+                self.hook.describe_tuning_job,
+                self.check_interval,
+                self.max_ingestion_time,
+            )
         else:
-            return {
-                "Tuning": serialize(self.hook.describe_tuning_job(self.config["HyperParameterTuningJobName"]))
-            }
+            description = self.hook.describe_tuning_job(self.config["HyperParameterTuningJobName"])
+
+        return {"Tuning": serialize(description)}
 
 
 class SageMakerModelOperator(SageMakerBaseOperator):
