@@ -179,7 +179,7 @@ class DataSyncHook(AwsBaseHook):
         self.get_conn().delete_task(TaskArn=task_arn)
 
     def _refresh_tasks(self) -> None:
-        """Refreshes the local list of Tasks"""
+        """Refreshes the local list of Tasks."""
         self.tasks = []
         next_token = None
         while True:

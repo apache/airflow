@@ -1368,11 +1368,16 @@ def test_override_dag_default_args_in_multi_level_nested_tg():
                 "execution_timeout": timedelta(seconds=10),
             },
         ):
-            with TaskGroup(group_id="first_nested_task_group"):
+            with TaskGroup(
+                group_id="first_nested_task_group",
+                default_args={
+                    "owner": "z",
+                },
+            ):
                 with TaskGroup(group_id="second_nested_task_group"):
                     with TaskGroup(group_id="third_nested_task_group"):
                         task = EmptyOperator(task_id="task")
 
     assert task.retries == 1
-    assert task.owner == "y"
+    assert task.owner == "z"
     assert task.execution_timeout == timedelta(seconds=10)

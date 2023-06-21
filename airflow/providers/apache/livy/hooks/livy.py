@@ -35,7 +35,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class BatchState(Enum):
-    """Batch session states"""
+    """Batch session states."""
 
     NOT_STARTED = "not_started"
     STARTING = "starting"
@@ -92,7 +92,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
     def get_conn(self, headers: dict[str, Any] | None = None) -> Any:
         """
-        Returns http session for use with requests
+        Returns http session for use with requests.
 
         :param headers: additional headers to be passed through as a dictionary
         :return: requests session
@@ -111,7 +111,7 @@ class LivyHook(HttpHook, LoggingMixin):
         retry_args: dict[str, Any] | None = None,
     ) -> Any:
         """
-        Wrapper for HttpHook, allows to change method on the same HttpHook
+        Wrapper for HttpHook, allows to change method on the same HttpHook.
 
         :param method: http method
         :param endpoint: endpoint
@@ -146,7 +146,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
     def post_batch(self, *args: Any, **kwargs: Any) -> int:
         """
-        Perform request to submit batch
+        Perform request to submit batch.
 
         :return: batch session id
         """
@@ -179,7 +179,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
     def get_batch(self, session_id: int | str) -> dict:
         """
-        Fetch info about the specified batch
+        Fetch info about the specified batch.
 
         :param session_id: identifier of the batch sessions
         :return: response body
@@ -201,7 +201,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
     def get_batch_state(self, session_id: int | str, retry_args: dict[str, Any] | None = None) -> BatchState:
         """
-        Fetch the state of the specified batch
+        Fetch the state of the specified batch.
 
         :param session_id: identifier of the batch sessions
         :param retry_args: Arguments which define the retry behaviour.
@@ -230,7 +230,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
     def delete_batch(self, session_id: int | str) -> dict:
         """
-        Delete the specified batch
+        Delete the specified batch.
 
         :param session_id: identifier of the batch sessions
         :return: response body
@@ -255,6 +255,7 @@ class LivyHook(HttpHook, LoggingMixin):
     def get_batch_logs(self, session_id: int | str, log_start_position, log_batch_size) -> dict:
         """
         Gets the session logs for a specified batch.
+
         :param session_id: identifier of the batch sessions
         :param log_start_position: Position from where to pull the logs
         :param log_batch_size: Number of lines to pull in one batch
@@ -278,7 +279,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
     def dump_batch_logs(self, session_id: int | str) -> None:
         """
-        Dumps the session logs for a specified batch
+        Dumps the session logs for a specified batch.
 
         :param session_id: identifier of the batch sessions
         :return: response body
@@ -300,7 +301,7 @@ class LivyHook(HttpHook, LoggingMixin):
     @staticmethod
     def _validate_session_id(session_id: int | str) -> None:
         """
-        Validate session id is a int
+        Validate session id is a int.
 
         :param session_id: session id
         """
@@ -312,7 +313,7 @@ class LivyHook(HttpHook, LoggingMixin):
     @staticmethod
     def _parse_post_response(response: dict[Any, Any]) -> int | None:
         """
-        Parse batch response for batch id
+        Parse batch response for batch id.
 
         :param response: response body
         :return: session id
@@ -322,7 +323,7 @@ class LivyHook(HttpHook, LoggingMixin):
     @staticmethod
     def _parse_request_response(response: dict[Any, Any], parameter):
         """
-        Parse batch response for batch id
+        Parse batch response for batch id.
 
         :param response: response body
         :return: value of parameter
@@ -454,7 +455,7 @@ class LivyHook(HttpHook, LoggingMixin):
 
 class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     """
-    Hook for Apache Livy through the REST API asynchronously
+    Hook for Apache Livy through the REST API asynchronously.
 
     :param livy_conn_id: reference to a pre-defined Livy Connection.
     :param extra_options: A dictionary of options passed to Livy.
@@ -497,7 +498,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         extra_options: dict[str, Any] | None = None,
     ) -> Any:
         """
-        Performs an asynchronous HTTP request call
+        Performs an asynchronous HTTP request call.
 
         :param endpoint: the endpoint to be called i.e. resource/v1/query?
         :param data: payload to be uploaded or request parameters
@@ -590,7 +591,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         headers: dict[str, Any] | None = None,
     ) -> Any:
         """
-        Wrapper for HttpAsyncHook, allows to change method on the same HttpAsyncHook
+        Wrapper for HttpAsyncHook, allows to change method on the same HttpAsyncHook.
 
         :param method: http method
         :param endpoint: endpoint
@@ -661,7 +662,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
 
     async def dump_batch_logs(self, session_id: int | str) -> Any:
         """
-        Dumps the session logs for a specified batch asynchronously
+        Dumps the session logs for a specified batch asynchronously.
 
         :param session_id: identifier of the batch sessions
         :return: response body
@@ -687,7 +688,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     @staticmethod
     def _validate_session_id(session_id: int | str) -> None:
         """
-        Validate session id is a int
+        Validate session id is a int.
 
         :param session_id: session id
         """
@@ -699,7 +700,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     @staticmethod
     def _parse_post_response(response: dict[Any, Any]) -> Any:
         """
-        Parse batch response for batch id
+        Parse batch response for batch id.
 
         :param response: response body
         :return: session id
@@ -709,7 +710,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
     @staticmethod
     def _parse_request_response(response: dict[Any, Any], parameter: Any) -> Any:
         """
-        Parse batch response for batch id
+        Parse batch response for batch id.
 
         :param response: response body
         :return: value of parameter

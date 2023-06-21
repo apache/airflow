@@ -18,12 +18,12 @@
 """This module contains an operator to move data from MSSQL to Hive."""
 from __future__ import annotations
 
+import csv
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
 import pymssql
-import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
@@ -113,8 +113,8 @@ class MsSqlToHiveOperator(BaseOperator):
         with mssql.get_conn() as conn:
             with conn.cursor() as cursor:
                 cursor.execute(self.sql)
-                with NamedTemporaryFile("w") as tmp_file:
-                    csv_writer = csv.writer(tmp_file, delimiter=self.delimiter, encoding="utf-8")
+                with NamedTemporaryFile(mode="w", encoding="utf-8") as tmp_file:
+                    csv_writer = csv.writer(tmp_file, delimiter=self.delimiter)
                     field_dict = OrderedDict()
                     for col_count, field in enumerate(cursor.description, start=1):
                         col_position = f"Column{col_count}"

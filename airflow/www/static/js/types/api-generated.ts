@@ -1431,7 +1431,7 @@ export interface components {
      * @description DAG details.
      *
      * For details see:
-     * [airflow.models.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.DAG)
+     * [airflow.models.dag.DAG](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/dag/index.html#airflow.models.dag.DAG)
      */
     DAGDetail: components["schemas"]["DAG"] & {
       timezone?: components["schemas"]["Timezone"];
@@ -1499,7 +1499,7 @@ export interface components {
     };
     /**
      * @description For details see:
-     * [airflow.models.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/index.html#airflow.models.BaseOperator)
+     * [airflow.models.baseoperator.BaseOperator](https://airflow.apache.org/docs/apache-airflow/stable/_api/airflow/models/baseoperator/index.html#airflow.models.baseoperator.BaseOperator)
      */
     Task: {
       class_ref?: components["schemas"]["ClassReference"];
@@ -1874,7 +1874,7 @@ export interface components {
        * @description Expected new state.
        * @enum {string}
        */
-      new_state?: "success" | "failed";
+      new_state?: "success" | "failed" | "skipped";
     };
     UpdateTaskInstance: {
       /**
@@ -1888,7 +1888,7 @@ export interface components {
        * @description Expected new state.
        * @enum {string}
        */
-      new_state?: "success" | "failed";
+      new_state?: "success" | "failed" | "skipped";
     };
     SetTaskInstanceNote: {
       /** @description The custom note to set for this Task Instance. */

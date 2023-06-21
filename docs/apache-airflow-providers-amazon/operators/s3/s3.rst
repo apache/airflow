@@ -248,6 +248,26 @@ multiple files can match one key. The list of matched S3 object attributes conta
     :start-after: [START howto_sensor_s3_key_function]
     :end-before: [END howto_sensor_s3_key_function]
 
+You can also run this operator in deferrable mode by setting the parameter ``deferrable`` to True.
+This will lead to efficient utilization of Airflow workers as polling for job status happens on
+the triggerer asynchronously. Note that this will need triggerer to be available on your Airflow deployment.
+
+To check one file:
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_s3_key_single_key_deferrable]
+    :end-before: [END howto_sensor_s3_key_single_key_deferrable]
+
+To check multiple files:
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_s3_key_multiple_keys_deferrable]
+    :end-before: [END howto_sensor_s3_key_multiple_keys_deferrable]
+
 .. _howto/sensor:S3KeysUnchangedSensor:
 
 Wait on Amazon S3 prefix changes

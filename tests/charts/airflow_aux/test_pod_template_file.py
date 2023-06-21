@@ -733,3 +733,16 @@ class TestPodTemplateFile:
 
         assert "127.0.0.2" == jmespath.search("spec.hostAliases[0].ip", docs[0])
         assert "test.hostname" == jmespath.search("spec.hostAliases[0].hostnames[0]", docs[0])
+
+    def test_workers_priority_class_name(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "priorityClassName": "test-priority",
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert "test-priority" == jmespath.search("spec.priorityClassName", docs[0])

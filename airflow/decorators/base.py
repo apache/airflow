@@ -342,6 +342,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             if "trigger_rule" in self.kwargs:
                 raise ValueError("Trigger rule not configurable for teardown tasks.")
             self.kwargs.update(trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
+        on_failure_fail_dagrun = self.kwargs.pop("on_failure_fail_dagrun", self.on_failure_fail_dagrun)
         op = self.operator_class(
             python_callable=self.function,
             op_args=args,
@@ -351,7 +352,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         )
         op.is_setup = self.is_setup
         op.is_teardown = self.is_teardown
-        op.on_failure_fail_dagrun = self.on_failure_fail_dagrun
+        op.on_failure_fail_dagrun = on_failure_fail_dagrun
         op_doc_attrs = [op.doc, op.doc_json, op.doc_md, op.doc_rst, op.doc_yaml]
         # Set the task's doc_md to the function's docstring if it exists and no other doc* args are set.
         if self.function.__doc__ and not any(op_doc_attrs):

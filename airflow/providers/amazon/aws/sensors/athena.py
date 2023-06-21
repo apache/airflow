@@ -87,5 +87,5 @@ class AthenaSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> AthenaHook:
-        """Create and return an AthenaHook"""
+        """Create and return an AthenaHook."""
         return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)

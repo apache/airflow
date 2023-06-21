@@ -21,20 +21,22 @@ import os.path
 import urllib.parse
 from typing import TYPE_CHECKING, Sequence
 
+from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
+from airflow.providers.amazon.aws.triggers.glue import GlueJobCompleteTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
 class GlueJobOperator(BaseOperator):
-    """
-    Creates an AWS Glue Job. AWS Glue is a serverless Spark
-    ETL service for running Spark Jobs on the AWS cloud.
-    Language support: Python and Scala
+    """Create an AWS Glue Job.
+
+    AWS Glue is a serverless Spark ETL service for running Spark Jobs on the AWS
+    cloud. Language support: Python and Scala.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -52,7 +54,10 @@ class GlueJobOperator(BaseOperator):
     :param iam_role_name: AWS IAM Role for Glue Job Execution
     :param create_job_kwargs: Extra arguments for Glue Job Creation
     :param run_job_kwargs: Extra arguments for Glue Job Run
-    :param wait_for_completion: Whether or not wait for job run completion. (default: True)
+    :param wait_for_completion: Whether to wait for job run completion. (default: True)
+    :param deferrable: If True, the operator will wait asynchronously for the job to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     :param verbose: If True, Glue Job Run logs show in the Airflow Task Logs.  (default: False)
     :param update_config: If True, Operator will update job configuration.  (default: False)
     """
@@ -91,6 +96,7 @@ class GlueJobOperator(BaseOperator):
         create_job_kwargs: dict | None = None,
         run_job_kwargs: dict | None = None,
         wait_for_completion: bool = True,
+        deferrable: bool = False,
         verbose: bool = False,
         update_config: bool = False,
         **kwargs,
@@ -114,12 +120,12 @@ class GlueJobOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.verbose = verbose
         self.update_config = update_config
+        self.deferrable = deferrable
 
     def execute(self, context: Context):
-        """
-        Executes AWS Glue Job from Airflow
+        """Execute AWS Glue Job from Airflow.
 
-        :return: the id of the current glue job.
+        :return: the current Glue job ID.
         """
         if self.script_location is None:
             s3_script_location = None
@@ -167,7 +173,18 @@ class GlueJobOperator(BaseOperator):
             job_run_id=glue_job_run["JobRunId"],
         )
         self.log.info("You can monitor this Glue Job run at: %s", glue_job_run_url)
-        if self.wait_for_completion:
+
+        if self.deferrable:
+            self.defer(
+                trigger=GlueJobCompleteTrigger(
+                    job_name=self.job_name,
+                    run_id=glue_job_run["JobRunId"],
+                    verbose=self.verbose,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+            )
+        elif self.wait_for_completion:
             glue_job_run = glue_job.job_completion(self.job_name, glue_job_run["JobRunId"], self.verbose)
             self.log.info(
                 "AWS Glue Job: %s status: %s. Run Id: %s",
@@ -178,3 +195,8 @@ class GlueJobOperator(BaseOperator):
         else:
             self.log.info("AWS Glue Job: %s. Run Id: %s", self.job_name, glue_job_run["JobRunId"])
         return glue_job_run["JobRunId"]
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error in glue job: {event}")
+        return event["value"]

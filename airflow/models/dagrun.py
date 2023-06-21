@@ -533,6 +533,31 @@ class DagRun(Base, LoggingMixin):
             .first()
         )
 
+    def _tis_for_dagrun_state(self, *, dag, tis):
+        """
+        Return the collection of tasks that should be considered for evaluation of terminal dag run state.
+
+        Teardown tasks by default are not considered for the purpose of dag run state.  But
+        users may enable such consideration with on_failure_fail_dagrun.
+        """
+
+        def is_effective_leaf(task):
+            for down_task_id in task.downstream_task_ids:
+                down_task = dag.get_task(down_task_id)
+                if not down_task.is_teardown or down_task.on_failure_fail_dagrun:
+                    # we found a down task that is not ignorable; not a leaf
+                    return False
+            # we found no ignorable downstreams
+            # evaluate whether task is itself ignorable
+            return not task.is_teardown or task.on_failure_fail_dagrun
+
+        leaf_task_ids = {x.task_id for x in dag.tasks if is_effective_leaf(x)}
+        if not leaf_task_ids:
+            # can happen if dag is exclusively teardown tasks
+            leaf_task_ids = {x.task_id for x in dag.tasks if not x.downstream_list}
+        leaf_tis = {ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED}
+        return leaf_tis
+
     @provide_session
     def update_state(
         self, session: Session = NEW_SESSION, execute_callbacks: bool = True
@@ -595,23 +620,10 @@ class DagRun(Base, LoggingMixin):
                     if changed_by_upstream:  # Something changed, we need to recalculate!
                         unfinished = unfinished.recalculate()
 
-        leaf_task_ids = {t.task_id for t in dag.leaves}
-        leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED]
-        # TODO: Remove 'getattr' if setup/teardown is available for mapped task
-        if dag.teardowns:
-            # when on_failure_fail_dagrun is `False`, the final state of the DagRun
-            # will be computed as if the teardown task simply didn't exist.
-            teardown_task_ids = [t.task_id for t in dag.teardowns]
-            upstream_of_teardowns = [t.task_id for t in dag.tasks_upstream_of_teardowns]
-            teardown_tis = [ti for ti in tis if ti.task_id in teardown_task_ids]
-            on_failure_fail_tis = [ti for ti in teardown_tis if getattr(ti.task, "on_failure_fail_dagrun")]
-            tis_upstream_of_teardowns = [ti for ti in tis if ti.task_id in upstream_of_teardowns]
-            leaf_tis = list(set(leaf_tis) - set(teardown_tis))
-            leaf_tis.extend(on_failure_fail_tis)
-            leaf_tis.extend(tis_upstream_of_teardowns)
+        tis_for_dagrun_state = self._tis_for_dagrun_state(dag=dag, tis=tis)
 
-        # if all roots finished and at least one failed, the run failed
-        if not unfinished.tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
+        # if all tasks finished and at least one failed, the run failed
+        if not unfinished.tis and any(x.state in State.failed_states for x in tis_for_dagrun_state):
             self.log.error("Marking run %s failed", self)
             self.set_state(DagRunState.FAILED)
             self.notify_dagrun_state_changed(msg="task_failure")
@@ -632,7 +644,7 @@ class DagRun(Base, LoggingMixin):
                 )
 
         # if all leaves succeeded and no unfinished tasks, the run succeeded
-        elif not unfinished.tis and all(leaf_ti.state in State.success_states for leaf_ti in leaf_tis):
+        elif not unfinished.tis and all(x.state in State.success_states for x in tis_for_dagrun_state):
             self.log.info("Marking run %s successful", self)
             self.set_state(DagRunState.SUCCESS)
             self.notify_dagrun_state_changed(msg="success")
@@ -1009,6 +1021,8 @@ class DagRun(Base, LoggingMixin):
                 if should_restore_task:
                     self.log.info("Restoring task '%s' which was previously removed from DAG '%s'", ti, dag)
                     Stats.incr(f"task_restored_to_dag.{dag.dag_id}", tags=self.stats_tags)
+                    # Same metric with tagging
+                    Stats.incr("task_restored_to_dag", tags={**self.stats_tags, "dag_id": dag.dag_id})
                     ti.state = State.NONE
             except AirflowException:
                 if ti.state == State.REMOVED:
@@ -1016,6 +1030,8 @@ class DagRun(Base, LoggingMixin):
                 elif self.state != State.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
                     Stats.incr(f"task_removed_from_dag.{dag.dag_id}", tags=self.stats_tags)
+                    # Same metric with tagging
+                    Stats.incr("task_removed_from_dag", tags={**self.stats_tags, "dag_id": dag.dag_id})
                     ti.state = State.REMOVED
                 continue
 
@@ -1172,6 +1188,8 @@ class DagRun(Base, LoggingMixin):
 
             for task_type, count in created_counts.items():
                 Stats.incr(f"task_instance_created-{task_type}", count, tags=self.stats_tags)
+                # Same metric with tagging
+                Stats.incr("task_instance_created", count, tags={**self.stats_tags, "task_type": task_type})
             session.flush()
         except IntegrityError:
             self.log.info(

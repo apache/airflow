@@ -28,11 +28,12 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_quer
 
 
 class ExasolHook(DbApiHook):
-    """
-    Interact with Exasol.
+    """Interact with Exasol.
+
     You can specify the pyexasol ``compression``, ``encryption``, ``json_lib``
     and ``client_name``  parameters in the extra field of your connection
     as ``{"compression": True, "json_lib": "rapidjson", etc}``.
+
     See `pyexasol reference
     <https://github.com/badoo/pyexasol/blob/master/docs/REFERENCE.md#connect>`_
     for more details.
@@ -66,13 +67,14 @@ class ExasolHook(DbApiHook):
         return conn
 
     def get_pandas_df(self, sql: str, parameters: dict | None = None, **kwargs) -> pd.DataFrame:
-        """
-        Executes the sql and returns a pandas dataframe
+        """Execute the SQL and return a Pandas dataframe.
 
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
+        :param sql: The sql statement to be executed (str) or a list of
+            sql statements to execute.
         :param parameters: The parameters to render the SQL query with.
-        :param kwargs: (optional) passed into pyexasol.ExaConnection.export_to_pandas method
+
+        Other keyword arguments are all forwarded into
+        ``pyexasol.ExaConnection.export_to_pandas``.
         """
         with closing(self.get_conn()) as conn:
             df = conn.export_to_pandas(sql, query_params=parameters, **kwargs)
@@ -83,8 +85,7 @@ class ExasolHook(DbApiHook):
         sql: str | list[str],
         parameters: Iterable | Mapping | None = None,
     ) -> list[dict | tuple[Any, ...]]:
-        """
-        Executes the sql and returns a set of records.
+        """Execute the SQL and return a set of records.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -95,8 +96,7 @@ class ExasolHook(DbApiHook):
                 return cur.fetchall()
 
     def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
-        """
-        Executes the sql and returns the first resulting row.
+        """Execute the SQL and return the first resulting row.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -113,8 +113,7 @@ class ExasolHook(DbApiHook):
         query_params: dict | None = None,
         export_params: dict | None = None,
     ) -> None:
-        """
-        Exports data to a file.
+        """Export data to a file.
 
         :param filename: Path to the file to which the data has to be exported
         :param query_or_table: the sql statement to be executed or table name to export
@@ -135,9 +134,11 @@ class ExasolHook(DbApiHook):
 
     @staticmethod
     def get_description(statement: ExaStatement) -> Sequence[Sequence]:
-        """
-        Copied implementation from DB2-API wrapper.
-        More info https://github.com/exasol/pyexasol/blob/master/docs/DBAPI_COMPAT.md#db-api-20-wrapper
+        """Copied implementation from DB2-API wrapper.
+
+        For more info, see
+        https://github.com/exasol/pyexasol/blob/master/docs/DBAPI_COMPAT.md#db-api-20-wrapper
+
         :param statement: Exasol statement
         :return: description sequence of t
         """
@@ -165,10 +166,10 @@ class ExasolHook(DbApiHook):
         split_statements: bool = False,
         return_last: bool = True,
     ) -> Any | list[Any] | None:
-        """
-        Runs a command or a list of commands. Pass a list of sql
-        statements to the sql parameter to get them to execute
-        sequentially
+        """Run a command or a list of commands.
+
+        Pass a list of SQL statements to the SQL parameter to get them to
+        execute sequentially.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -224,8 +225,7 @@ class ExasolHook(DbApiHook):
             return results
 
     def set_autocommit(self, conn, autocommit: bool) -> None:
-        """
-        Sets the autocommit flag on the connection
+        """Set the autocommit flag on the connection.
 
         :param conn: Connection to set autocommit setting to.
         :param autocommit: The autocommit setting to set.
@@ -238,14 +238,12 @@ class ExasolHook(DbApiHook):
         conn.set_autocommit(autocommit)
 
     def get_autocommit(self, conn) -> bool:
-        """
-        Get autocommit setting for the provided connection.
-        Return True if autocommit is set.
-        Return False if autocommit is not set or set to False or conn
-        does not support autocommit.
+        """Get autocommit setting for the provided connection.
 
         :param conn: Connection to get autocommit setting from.
-        :return: connection autocommit setting.
+        :return: connection autocommit setting. True if ``autocommit`` is set
+            to True on the connection. False if it is either not set, set to
+            False, or the connection does not support auto-commit.
         """
         autocommit = conn.attr.get("autocommit")
         if autocommit is None:
@@ -254,8 +252,9 @@ class ExasolHook(DbApiHook):
 
     @staticmethod
     def _serialize_cell(cell, conn=None) -> Any:
-        """
-        Exasol will adapt all arguments to the execute() method internally,
+        """Override to disable cell serialization.
+
+        Exasol will adapt all arguments to the ``execute()`` method internally,
         hence we return cell without any conversion.
 
         :param cell: The cell to insert into the table
@@ -268,12 +267,10 @@ class ExasolHook(DbApiHook):
 def exasol_fetch_all_handler(statement: ExaStatement) -> list[tuple] | None:
     if statement.result_type == "resultSet":
         return statement.fetchall()
-    else:
-        return None
+    return None
 
 
 def exasol_fetch_one_handler(statement: ExaStatement) -> list[tuple] | None:
     if statement.result_type == "resultSet":
         return statement.fetchone()
-    else:
-        return None
+    return None

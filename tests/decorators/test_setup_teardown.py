@@ -21,6 +21,7 @@ import pytest
 
 from airflow import AirflowException
 from airflow.decorators import setup, task, task_group, teardown
+from airflow.decorators.setup_teardown import context_wrapper
 from airflow.operators.bash import BashOperator
 
 
@@ -166,6 +167,30 @@ class TestSetupTearDownTask:
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["mytask2"]
         assert setup_task.is_setup
+
+    def test_teardown_on_failure_fail_dagrun_can_be_overriden(self, dag_maker):
+        @teardown
+        def mytask():
+            print("I am a teardown task")
+
+        with dag_maker() as dag:
+            mytask.override(on_failure_fail_dagrun=True)()
+        assert len(dag.task_group.children) == 1
+        teardown_task = dag.task_group.children["mytask"]
+        assert teardown_task.is_teardown
+        assert teardown_task.on_failure_fail_dagrun
+
+    def test_retain_on_failure_fail_dagrun_when_other_attrs_are_overriden(self, dag_maker):
+        @teardown(on_failure_fail_dagrun=True)
+        def mytask():
+            print("I am a teardown task")
+
+        with dag_maker() as dag:
+            mytask.override(task_id="mytask2")()
+        assert len(dag.task_group.children) == 1
+        teardown_task = dag.task_group.children["mytask2"]
+        assert teardown_task.is_teardown
+        assert teardown_task.on_failure_fail_dagrun
 
     def test_setup_teardown_mixed_up_in_a_dag(self, dag_maker):
         @setup
@@ -847,3 +872,307 @@ class TestSetupTearDownTask:
             "mytask2",
         }
         assert dag.task_group.children["teardowntask2"].downstream_task_ids == {"teardowntask"}
+
+    def test_setup_decorator_context_manager_with_list_on_left(self, dag_maker):
+        @setup
+        def setuptask():
+            print("setup")
+
+        @setup
+        def setuptask2():
+            print("setup")
+
+        @task()
+        def mytask():
+            print("mytask")
+
+        @teardown
+        def teardowntask():
+            print("teardown")
+
+        with dag_maker() as dag:
+            with [setuptask(), setuptask2()] >> teardowntask():
+                mytask()
+
+        assert len(dag.task_group.children) == 4
+        assert not dag.task_group.children["setuptask"].upstream_task_ids
+        assert not dag.task_group.children["setuptask2"].upstream_task_ids
+        assert dag.task_group.children["setuptask"].downstream_task_ids == {"mytask", "teardowntask"}
+        assert dag.task_group.children["setuptask2"].downstream_task_ids == {"mytask", "teardowntask"}
+        assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask", "setuptask2"}
+        assert dag.task_group.children["mytask"].downstream_task_ids == {"teardowntask"}
+        assert dag.task_group.children["teardowntask"].upstream_task_ids == {
+            "setuptask",
+            "setuptask2",
+            "mytask",
+        }
+
+    def test_setup_decorator_context_manager_with_list_on_right(self, dag_maker):
+        @setup
+        def setuptask():
+            print("setup")
+
+        @setup
+        def setuptask2():
+            print("setup")
+
+        @task()
+        def mytask():
+            print("mytask")
+
+        @teardown
+        def teardowntask():
+            print("teardown")
+
+        with dag_maker() as dag:
+            with teardowntask() << context_wrapper([setuptask(), setuptask2()]):
+                mytask()
+
+        assert len(dag.task_group.children) == 4
+        assert not dag.task_group.children["setuptask"].upstream_task_ids
+        assert not dag.task_group.children["setuptask2"].upstream_task_ids
+        assert dag.task_group.children["setuptask"].downstream_task_ids == {"mytask", "teardowntask"}
+        assert dag.task_group.children["setuptask2"].downstream_task_ids == {"mytask", "teardowntask"}
+        assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask", "setuptask2"}
+        assert dag.task_group.children["mytask"].downstream_task_ids == {"teardowntask"}
+        assert dag.task_group.children["teardowntask"].upstream_task_ids == {
+            "setuptask",
+            "setuptask2",
+            "mytask",
+        }
+
+    def test_setup_decorator_context_manager_errors_with_mixed_up_tasks(self, dag_maker):
+        @setup
+        def setuptask():
+            print("setup")
+
+        @setup
+        def setuptask2():
+            print("setup")
+
+        @task()
+        def mytask():
+            print("mytask")
+
+        @teardown
+        def teardowntask():
+            print("teardown")
+
+        with pytest.raises(ValueError, match="All tasks in the list must be either setup or teardown tasks"):
+            with dag_maker():
+                with setuptask() << context_wrapper([teardowntask(), setuptask2()]):
+                    mytask()
+
+    def test_teardown_decorator_context_manager_with_list_on_left(self, dag_maker):
+        @setup
+        def setuptask():
+            print("setup")
+
+        @task()
+        def mytask():
+            print("mytask")
+
+        @teardown
+        def teardowntask():
+            print("teardown")
+
+        @teardown
+        def teardowntask2():
+            print("teardown")
+
+        with dag_maker() as dag:
+            with [teardowntask(), teardowntask2()] << setuptask():
+                mytask()
+
+        assert len(dag.task_group.children) == 4
+        assert not dag.task_group.children["setuptask"].upstream_task_ids
+        assert dag.task_group.children["setuptask"].downstream_task_ids == {
+            "mytask",
+            "teardowntask",
+            "teardowntask2",
+        }
+        assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask"}
+        assert dag.task_group.children["mytask"].downstream_task_ids == {"teardowntask", "teardowntask2"}
+        assert dag.task_group.children["teardowntask"].upstream_task_ids == {
+            "setuptask",
+            "mytask",
+        }
+        assert dag.task_group.children["teardowntask2"].upstream_task_ids == {
+            "setuptask",
+            "mytask",
+        }
+
+    def test_teardown_decorator_context_manager_with_list_on_right(self, dag_maker):
+        @setup
+        def setuptask():
+            print("setup")
+
+        @task()
+        def mytask():
+            print("mytask")
+
+        @teardown
+        def teardowntask():
+            print("teardown")
+
+        @teardown
+        def teardowntask2():
+            print("teardown")
+
+        with dag_maker() as dag:
+            with setuptask() >> context_wrapper([teardowntask(), teardowntask2()]):
+                mytask()
+
+        assert len(dag.task_group.children) == 4
+        assert not dag.task_group.children["setuptask"].upstream_task_ids
+        assert dag.task_group.children["setuptask"].downstream_task_ids == {
+            "mytask",
+            "teardowntask",
+            "teardowntask2",
+        }
+        assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask"}
+        assert dag.task_group.children["mytask"].downstream_task_ids == {"teardowntask", "teardowntask2"}
+        assert dag.task_group.children["teardowntask"].upstream_task_ids == {
+            "setuptask",
+            "mytask",
+        }
+        assert dag.task_group.children["teardowntask2"].upstream_task_ids == {
+            "setuptask",
+            "mytask",
+        }
+
+    def test_classic_operator_context_manager_with_list_on_left(self, dag_maker):
+        @task()
+        def mytask():
+            print("mytask")
+
+        with dag_maker() as dag:
+            teardowntask = BashOperator.as_teardown(task_id="teardowntask", bash_command="echo 1")
+            teardowntask2 = BashOperator.as_teardown(task_id="teardowntask2", bash_command="echo 1")
+            setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
+            with [teardowntask, teardowntask2] << setuptask:
+                mytask()
+
+        assert len(dag.task_group.children) == 4
+        assert not dag.task_group.children["setuptask"].upstream_task_ids
+        assert dag.task_group.children["setuptask"].downstream_task_ids == {
+            "mytask",
+            "teardowntask",
+            "teardowntask2",
+        }
+        assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask"}
+        assert dag.task_group.children["mytask"].downstream_task_ids == {"teardowntask", "teardowntask2"}
+        assert dag.task_group.children["teardowntask"].upstream_task_ids == {
+            "setuptask",
+            "mytask",
+        }
+        assert dag.task_group.children["teardowntask2"].upstream_task_ids == {
+            "setuptask",
+            "mytask",
+        }
+
+    def test_classic_operator_context_manager_with_list_on_right(self, dag_maker):
+        @task()
+        def mytask():
+            print("mytask")
+
+        with dag_maker() as dag:
+            teardowntask = BashOperator.as_teardown(task_id="teardowntask", bash_command="echo 1")
+            teardowntask2 = BashOperator.as_teardown(task_id="teardowntask2", bash_command="echo 1")
+            setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
+            with setuptask >> context_wrapper([teardowntask, teardowntask2]):
+                mytask()
+
+        assert len(dag.task_group.children) == 4
+        assert not dag.task_group.children["setuptask"].upstream_task_ids
+        assert dag.task_group.children["setuptask"].downstream_task_ids == {
+            "mytask",
+            "teardowntask",
+            "teardowntask2",
+        }
+        assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask"}
+        assert dag.task_group.children["mytask"].downstream_task_ids == {"teardowntask", "teardowntask2"}
+        assert dag.task_group.children["teardowntask"].upstream_task_ids == {
+            "setuptask",
+            "mytask",
+        }
+        assert dag.task_group.children["teardowntask2"].upstream_task_ids == {
+            "setuptask",
+            "mytask",
+        }
+
+    def test_work_task_inbetween_setup_n_teardown_tasks(self, dag_maker):
+        @task
+        def mytask():
+            print("mytask")
+
+        @setup
+        def setuptask():
+            print("setuptask")
+
+        @teardown
+        def teardowntask():
+            print("teardowntask")
+
+        with pytest.raises(
+            ValueError, match="All upstream tasks in the context manager must be a setup or teardown task"
+        ):
+            with dag_maker():
+                with setuptask() >> mytask() >> teardowntask():
+                    ...
+
+    def test_errors_when_work_task_is_upstream_of_setup_task(self, dag_maker):
+        @task
+        def mytask():
+            print("mytask")
+
+        @setup
+        def setuptask():
+            print("setuptask")
+
+        with pytest.raises(
+            ValueError, match="All upstream tasks in the context manager must be a setup or teardown task"
+        ):
+            with dag_maker():
+                with mytask() >> setuptask():
+                    ...
+
+    def test_errors_when_work_task_is_upstream_of_context_wrapper_with_teardown(self, dag_maker):
+        @task
+        def mytask():
+            print("mytask")
+
+        @teardown
+        def teardowntask():
+            print("teardowntask")
+
+        @teardown
+        def teardowntask2():
+            print("teardowntask")
+
+        with pytest.raises(
+            ValueError, match="All upstream tasks in the context manager must be a setup or teardown task"
+        ):
+            with dag_maker():
+                with mytask() >> context_wrapper([teardowntask(), teardowntask2()]):
+                    ...
+
+    def test_errors_when_work_task_is_upstream_of_context_wrapper_with_setup(self, dag_maker):
+        @task
+        def mytask():
+            print("mytask")
+
+        @setup
+        def setuptask():
+            print("setuptask")
+
+        @setup
+        def setuptask2():
+            print("setuptask")
+
+        with pytest.raises(
+            ValueError, match="All upstream tasks in the context manager must be a setup or teardown task"
+        ):
+            with dag_maker():
+                with mytask() >> context_wrapper([setuptask(), setuptask2()]):
+                    ...

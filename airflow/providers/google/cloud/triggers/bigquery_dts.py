@@ -106,7 +106,6 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                         }
                     )
                     return
-
                 elif state == TransferState.FAILED:
                     self.log.info("Job has failed")
                     yield TriggerEvent(
@@ -117,7 +116,6 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                         }
                     )
                     return
-
                 if state == TransferState.CANCELLED:
                     self.log.info("Job has been cancelled.")
                     yield TriggerEvent(
@@ -128,12 +126,10 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
                         }
                     )
                     return
-
                 else:
                     self.log.info("Job is still working...")
                     self.log.info("Waiting for %s seconds", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
-
             except Exception as e:
                 yield TriggerEvent(
                     {

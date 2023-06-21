@@ -179,7 +179,7 @@ class TaskGroup(DAGNode):
 
     def _update_default_args(self, parent_group: TaskGroup):
         if parent_group.default_args:
-            self.default_args = {**self.default_args, **parent_group.default_args}
+            self.default_args = {**parent_group.default_args, **self.default_args}
 
     @classmethod
     def create_root(cls, dag: DAG) -> TaskGroup:

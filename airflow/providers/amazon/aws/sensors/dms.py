@@ -64,7 +64,7 @@ class DmsTaskBaseSensor(BaseSensorOperator):
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> DmsHook:
-        """Get DmsHook"""
+        """Get DmsHook."""
         return self.hook
 
     @cached_property

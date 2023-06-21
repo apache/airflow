@@ -191,7 +191,7 @@ class DbtCloudHook(HttpHook):
         tenant: str, endpoint: str, include_related: list[str] | None = None
     ) -> tuple[str, dict[str, Any]]:
         """
-        Form URL from base url and endpoint url
+        Form URL from base url and endpoint url.
 
         :param tenant: The tenant domain name which is need to be replaced in base url.
         :param endpoint: Endpoint url to be requested.
@@ -205,7 +205,7 @@ class DbtCloudHook(HttpHook):
         return url, data
 
     async def get_headers_tenants_from_connection(self) -> tuple[dict[str, Any], str]:
-        """Get Headers, tenants from the connection details"""
+        """Get Headers, tenants from the connection details."""
         headers: dict[str, Any] = {}
         connection: Connection = await sync_to_async(self.get_connection)(self.dbt_cloud_conn_id)
         tenant = self._get_tenant_domain(connection)

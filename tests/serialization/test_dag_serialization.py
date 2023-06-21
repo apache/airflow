@@ -39,6 +39,7 @@ from kubernetes.client import models as k8s
 import airflow
 from airflow.datasets import Dataset
 from airflow.decorators import teardown
+from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import AirflowException, SerializationError
 from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
@@ -615,7 +616,8 @@ class TestStringifiedDAGs:
             # data; checking its entirety basically duplicates this validation
             # function, so we just do some satiny checks.
             serialized_task.operator_class["_task_type"] == type(task).__name__
-            serialized_task.operator_class["_operator_name"] == task._operator_name
+            if isinstance(serialized_task.operator_class, DecoratedOperator):
+                serialized_task.operator_class["_operator_name"] == task._operator_name
 
             # Serialization cleans up default values in partial_kwargs, this
             # adds them back to both sides.

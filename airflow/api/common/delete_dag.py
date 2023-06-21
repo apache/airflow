@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import logging
 
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, delete, or_, select
 from sqlalchemy.orm import Session
 
 from airflow import models
@@ -47,25 +47,28 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     :return count of deleted dags
     """
     log.info("Deleting DAG: %s", dag_id)
-    running_tis = (
-        session.query(models.TaskInstance.state)
-        .filter(models.TaskInstance.dag_id == dag_id)
-        .filter(models.TaskInstance.state == State.RUNNING)
-        .first()
+    running_tis = session.scalar(
+        select(models.TaskInstance.state)
+        .where(models.TaskInstance.dag_id == dag_id)
+        .where(models.TaskInstance.state == State.RUNNING)
+        .limit(1)
     )
     if running_tis:
         raise AirflowException("TaskInstances still running")
-    dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
+    dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).limit(1))
     if dag is None:
         raise DagNotFound(f"Dag id {dag_id} not found")
 
     # deleting a DAG should also delete all of its subdags
-    dags_to_delete_query = session.query(DagModel.dag_id).filter(
-        or_(
-            DagModel.dag_id == dag_id,
-            and_(DagModel.dag_id.like(f"{dag_id}.%"), DagModel.is_subdag),
+    dags_to_delete_query = session.execute(
+        select(DagModel.dag_id).where(
+            or_(
+                DagModel.dag_id == dag_id,
+                and_(DagModel.dag_id.like(f"{dag_id}.%"), DagModel.is_subdag),
+            )
         )
     )
+
     dags_to_delete = [dag_id for dag_id, in dags_to_delete_query]
 
     # Scheduler removes DAGs without files from serialized_dag table every dag_dir_list_interval.
@@ -79,22 +82,24 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
         if hasattr(model, "dag_id"):
             if keep_records_in_log and model.__name__ == "Log":
                 continue
-            count += (
-                session.query(model)
-                .filter(model.dag_id.in_(dags_to_delete))
-                .delete(synchronize_session="fetch")
-            )
+            count += session.execute(
+                delete(model)
+                .where(model.dag_id.in_(dags_to_delete))
+                .execution_options(synchronize_session="fetch")
+            ).rowcount
     if dag.is_subdag:
         parent_dag_id, task_id = dag_id.rsplit(".", 1)
         for model in TaskFail, models.TaskInstance:
-            count += (
-                session.query(model).filter(model.dag_id == parent_dag_id, model.task_id == task_id).delete()
-            )
+            count += session.execute(
+                delete(model).where(model.dag_id == parent_dag_id, model.task_id == task_id)
+            ).rowcount
 
     # Delete entries in Import Errors table for a deleted DAG
     # This handles the case when the dag_id is changed in the file
-    session.query(models.ImportError).filter(models.ImportError.filename == dag.fileloc).delete(
-        synchronize_session="fetch"
+    session.execute(
+        delete(models.ImportError)
+        .where(models.ImportError.filename == dag.fileloc)
+        .execution_options(synchronize_session="fetch")
     )
 
     return count

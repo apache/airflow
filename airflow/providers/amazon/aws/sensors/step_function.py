@@ -89,7 +89,7 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> StepFunctionHook:
-        """Create and return a StepFunctionHook"""
+        """Create and return a StepFunctionHook."""
         return self.hook
 
     @cached_property

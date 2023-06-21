@@ -21,8 +21,8 @@
 ## Airflow StatsD Service
 #################################
 {{- if .Values.statsd.enabled }}
-kind: Service
 apiVersion: v1
+kind: Service
 metadata:
   name: {{ .Release.Name }}-statsd
   labels:

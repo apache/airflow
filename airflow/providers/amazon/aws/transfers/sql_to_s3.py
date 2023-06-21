@@ -188,7 +188,7 @@ class SqlToS3Operator(BaseOperator):
                 )
 
     def _partition_dataframe(self, df: DataFrame) -> Iterable[tuple[str, DataFrame]]:
-        """Partition dataframe using pandas groupby() method"""
+        """Partition dataframe using pandas groupby() method."""
         if not self.groupby_kwargs:
             yield "", df
         else:

@@ -57,7 +57,7 @@ def normalise_json_content(content, json_path: str = "json") -> str | bool | lis
 def validate_trigger_event(event: dict):
     """
     Validates correctness of the event
-    received from :class:`~airflow.providers.databricks.triggers.databricks.DatabricksExecutionTrigger`
+    received from :class:`~airflow.providers.databricks.triggers.databricks.DatabricksExecutionTrigger`.
     """
     keys_to_check = ["run_id", "run_page_url", "run_state"]
     for key in keys_to_check:

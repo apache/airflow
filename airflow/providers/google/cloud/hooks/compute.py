@@ -74,6 +74,7 @@ class ComputeEngineHook(GoogleBaseHook):
     def get_conn(self):
         """
         Retrieves connection to Google Compute Engine.
+
         :return: Google Compute Engine services object
         :rtype: dict
         """

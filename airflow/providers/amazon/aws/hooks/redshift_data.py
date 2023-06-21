@@ -61,7 +61,7 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         poll_interval: int = 10,
     ) -> str:
         """
-        Execute a statement against Amazon Redshift
+        Execute a statement against Amazon Redshift.
 
         :param database: the name of the database
         :param sql: the SQL statement or list of  SQL statement to run

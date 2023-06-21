@@ -22,10 +22,7 @@ from airflow.utils.log.json_formatter import JSONFormatter
 
 
 class ElasticsearchJSONFormatter(JSONFormatter):
-    """
-    ElasticsearchJSONFormatter instances are used to convert a log record
-    to json with ISO 8601 date and time format
-    """
+    """Convert a log record to JSON with ISO 8601 date and time format."""
 
     default_time_format = "%Y-%m-%dT%H:%M:%S"
     default_msec_format = "%s.%03d"

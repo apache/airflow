@@ -738,11 +738,19 @@ can check whether your problem is fixed.
 
 1. If you are on macOS, check if you have enough disk space for Docker (Breeze will warn you if not).
 2. Stop Breeze with ``breeze down``.
-3. Delete the ``.build`` directory and run ``breeze ci-image build``.
-4. Clean up Docker images via ``breeze cleanup`` command.
-5. Restart your Docker Engine and try again.
-6. Restart your machine and try again.
-7. Re-install Docker Desktop and try again.
+3. Git fetch the origin and git rebase the current branch with main branch.
+4. Delete the ``.build`` directory and run ``breeze ci-image build``.
+5. Clean up Docker images via ``breeze cleanup`` command.
+6. Restart your Docker Engine and try again.
+7. Restart your machine and try again.
+8. Re-install Docker Desktop and try again.
+
+.. note::
+  If the pip is taking a significant amount of time and your internet connection is causing pip to be unable to download the libraries within the default timeout, it is advisable to modify the default timeout as follows and run the breeze again.
+
+  .. code-block::
+
+      export PIP_DEFAULT_TIMEOUT=1000
 
 In case the problems are not solved, you can set the VERBOSE_COMMANDS variable to "true":
 
@@ -884,8 +892,7 @@ To run the whole test class:
 You can re-run the tests interactively, add extra parameters to pytest and modify the files before
 re-running the test to iterate over the tests. You can also add more flags when starting the
 ``breeze shell`` command when you run integration tests or system tests. Read more details about it
-in the ``TESTING.rst <TESTING.rst#>`` where all the test types of our are explained and more information
-on how to run them.
+in the `testing doc <TESTING.rst>`_ where all the test types and information on how to run them are explained.
 
 This applies to all kind of tests - all our tests can be run using pytest.
 
@@ -1948,6 +1955,43 @@ These are all of the available flags for the ``release-prod-images`` command:
   :width: 100%
   :alt: Breeze release management release prod images
 
+
+SBOM generation tasks
+----------------------
+
+Maintainers also can use Breeze for SBOM generation:
+
+.. image:: ./images/breeze/output_sbom.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom.svg
+  :width: 100%
+  :alt: Breeze sbom
+
+Generating SBOM information
+...........................
+
+Thanks to our constraints captured for all versions of Airflow we can easily generate SBOM information for
+Apache Airflow. SBOM information contains information about Airflow dependencies that are possible to consume
+by our users and allow them to determine whether security issues in dependencies affect them. The SBOM
+information is written directly to ``docs-archive`` in airflow-site repository.
+
+These are all of the available flags for the ``update-sbom-information`` command:
+
+.. image:: ./images/breeze/output_sbom_update-sbom-information.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbomt_update-sbom-information.svg
+  :width: 100%
+  :alt: Breeze update sbom information
+
+Generating Provider requirements
+.................................
+
+In order to generate SBOM information for providers, we need to generate requirements for them. This is
+done by the ``generate-provider-requirements`` command. This command generates requirements for the
+selected provider and python version, using the airflow version specified.
+
+.. image:: ./images/breeze/output_sbom_generate-provider-requirements.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_generate-provider-requirements.svg
+  :width: 100%
+  :alt: Breeze generate SBOM provider requirements
 
 Details of Breeze usage
 =======================

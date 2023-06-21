@@ -39,7 +39,6 @@ from typing import (
     Any,
     Callable,
     Collection,
-    Deque,
     Iterable,
     Iterator,
     List,
@@ -686,6 +685,20 @@ class DAG(LoggingMixin):
             )
         self.params.validate()
         self.timetable.validate()
+
+    def validate_setup_teardown(self):
+        """
+        Validate that setup and teardown tasks are configured properly.
+
+        :meta private:
+        """
+        for task in self.tasks:
+            if not task.is_setup:
+                continue
+            if not any(x.is_teardown for x in task.downstream_list):
+                raise AirflowDagInconsistent(
+                    "Dag has setup without teardown: dag='%s', task='%s'", self.dag_id, task.task_id
+                )
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -1704,7 +1717,6 @@ class DAG(LoggingMixin):
 
         # Next, get any of them from our parent DAG (if there is one)
         if include_parentdag and self.parent_dag is not None:
-
             if visited_external_tis is None:
                 visited_external_tis = set()
 
@@ -2333,7 +2345,9 @@ class DAG(LoggingMixin):
             if include_downstream:
                 also_include.extend(t.get_flat_relatives(upstream=False))
             if include_upstream:
-                also_include.extend(t.get_flat_relatives(upstream=True))
+                also_include.extend(t.get_upstreams_follow_setups())
+            else:
+                also_include.extend(t.get_upstreams_only_setups_and_teardowns())
 
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
@@ -2697,10 +2711,16 @@ class DAG(LoggingMixin):
         # than creating a BackfillJob and allows us to surface logs to the user
         while dr.state == State.RUNNING:
             schedulable_tis, _ = dr.update_state(session=session)
-            for ti in schedulable_tis:
-                add_logger_if_needed(ti)
-                ti.task = tasks[ti.task_id]
-                _run_task(ti, session=session)
+            try:
+                for ti in schedulable_tis:
+                    add_logger_if_needed(ti)
+                    ti.task = tasks[ti.task_id]
+                    _run_task(ti, session=session)
+            except Exception:
+                self.log.info(
+                    "Task failed. DAG will continue to run until finished and be marked as failed.",
+                    exc_info=True,
+                )
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
             secrets_backend_list.pop(0)
@@ -3750,7 +3770,6 @@ def dag(
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-
     from airflow.models.serialized_dag import SerializedDagModel
 
     DagModel.serialized_dag = relationship(SerializedDagModel)
@@ -3778,7 +3797,7 @@ class DagContext:
 
     """
 
-    _context_managed_dags: Deque[DAG] = deque()
+    _context_managed_dags: collections.deque[DAG] = deque()
     autoregistered_dags: set[tuple[DAG, ModuleType]] = set()
     current_autoregister_module_name: str | None = None
 

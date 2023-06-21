@@ -33,6 +33,7 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
 )
 from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftCreateClusterSnapshotTrigger,
+    RedshiftDeleteClusterTrigger,
     RedshiftPauseClusterTrigger,
     RedshiftResumeClusterTrigger,
 )
@@ -520,3 +521,46 @@ class TestDeleteClusterOperator:
             redshift_operator.execute(None)
 
         assert mock_delete_cluster.call_count == 10
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.delete_cluster")
+    def test_delete_cluster_deferrable_mode(self, mock_delete_cluster):
+        """Test delete cluster operator with defer when deferrable param is true"""
+        mock_delete_cluster.return_value = True
+        delete_cluster = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            deferrable=True,
+            wait_for_completion=False,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            delete_cluster.execute(context=None)
+
+        assert isinstance(
+            exc.value.trigger, RedshiftDeleteClusterTrigger
+        ), "Trigger is not a RedshiftDeleteClusterTrigger"
+
+    def test_delete_cluster_execute_complete_success(self):
+        """Asserts that logging occurs as expected"""
+        task = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            deferrable=True,
+            wait_for_completion=False,
+        )
+        with mock.patch.object(task.log, "info") as mock_log_info:
+            task.execute_complete(context=None, event={"status": "success", "message": "Cluster deleted"})
+        mock_log_info.assert_called_with("Cluster deleted successfully")
+
+    def test_delete_cluster_execute_complete_fail(self):
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            deferrable=True,
+            wait_for_completion=False,
+        )
+
+        with pytest.raises(AirflowException):
+            redshift_operator.execute_complete(
+                context=None, event={"status": "error", "message": "test failure message"}
+            )

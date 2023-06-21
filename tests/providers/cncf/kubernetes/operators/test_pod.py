@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 
 import pendulum
 import pytest
-from kubernetes.client import ApiClient, models as k8s
+from kubernetes.client import ApiClient, V1PodStatus, models as k8s
 from pytest import param
 from urllib3 import HTTPResponse
 from urllib3.packages.six import BytesIO
@@ -34,6 +34,7 @@ from airflow.models import DAG, DagModel, DagRun, TaskInstance
 from airflow.models.xcom import XCom
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator, _optionally_suppress
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -171,7 +172,7 @@ class TestKubernetesPodOperator:
         remote_pod_mock.status.phase = "Succeeded"
         self.await_pod_mock.return_value = remote_pod_mock
         operator.execute(context=context)
-        return self.await_start_mock.call_args[1]["pod"]
+        return self.await_start_mock.call_args.kwargs["pod"]
 
     def sanitize_for_serialization(self, obj):
         return ApiClient().sanitize_for_serialization(obj)
@@ -1537,3 +1538,17 @@ class TestKubernetesPodOperatorAsync:
             post_complete_action.assert_called_once()
         else:
             mock_manager.return_value.read_pod_logs.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "log_pod_spec_on_failure,expect_match",
+        [
+            (True, r"Pod task-.* returned a failure.\nremote_pod:.*"),
+            (False, r"Pod task-.* returned a failure.(?!\nremote_pod:)"),
+        ],
+    )
+    def test_cleanup_log_pod_spec_on_failure(self, log_pod_spec_on_failure, expect_match):
+        k = KubernetesPodOperator(task_id="task", log_pod_spec_on_failure=log_pod_spec_on_failure)
+        pod = k.build_pod_request_obj(create_context(k))
+        pod.status = V1PodStatus(phase=PodPhase.FAILED)
+        with pytest.raises(AirflowException, match=expect_match):
+            k.cleanup(pod, pod)

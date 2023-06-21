@@ -45,7 +45,7 @@ class AppflowHook(AwsBaseHook):
 
     @cached_property
     def conn(self) -> AppflowClient:
-        """Get the underlying boto3 Appflow client (cached)"""
+        """Get the underlying boto3 Appflow client (cached)."""
         return super().conn
 
     def run_flow(self, flow_name: str, poll_interval: int = 20, wait_for_completion: bool = True) -> str:

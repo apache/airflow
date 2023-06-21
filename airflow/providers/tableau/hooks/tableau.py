@@ -48,6 +48,7 @@ class TableauJobFailedException(AirflowException):
 class TableauJobFinishCode(Enum):
     """
     The finish code indicates the status of the job.
+
     .. seealso:: https://help.tableau.com/current/api/rest_api/en-us/REST/rest_api_ref.htm#query_job
     """
 
@@ -135,6 +136,7 @@ class TableauHook(BaseHook):
     def get_all(self, resource_name: str) -> Pager:
         """
         Get all items of the given resource.
+
         .. see also:: https://tableau.github.io/server-client-python/docs/page-through-results
 
         :param resource_name: The name of the resource to paginate.
@@ -150,6 +152,7 @@ class TableauHook(BaseHook):
     def get_job_status(self, job_id: str) -> TableauJobFinishCode:
         """
         Get the current state of a defined Tableau Job.
+
         .. see also:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
 
         :param job_id: The id of the job to check.

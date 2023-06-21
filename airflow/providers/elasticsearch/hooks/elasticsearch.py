@@ -51,7 +51,7 @@ class ElasticsearchSQLHook(DbApiHook):
         self.connection = connection
 
     def get_conn(self) -> ESConnection:
-        """Returns a elasticsearch connection object"""
+        """Returns a elasticsearch connection object."""
         conn_id = getattr(self, self.conn_name_attr)
         conn = self.connection or self.get_connection(conn_id)
 
@@ -132,19 +132,19 @@ class ElasticsearchPythonHook(BaseHook):
         self.es_conn_args = es_conn_args if es_conn_args else {}
 
     def _get_elastic_connection(self):
-        """Returns the Elasticsearch client"""
+        """Returns the Elasticsearch client."""
         client = Elasticsearch(self.hosts, **self.es_conn_args)
 
         return client
 
     @cached_property
     def get_conn(self):
-        """Returns the Elasticsearch client (cached)"""
+        """Returns the Elasticsearch client (cached)."""
         return self._get_elastic_connection()
 
     def search(self, query: dict[Any, Any], index: str = "_all") -> dict:
         """
-        Returns results matching a query using Elasticsearch DSL
+        Returns results matching a query using Elasticsearch DSL.
 
         :param index: str: The index you want to query
         :param query: dict: The query you want to run

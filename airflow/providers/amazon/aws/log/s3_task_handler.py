@@ -31,7 +31,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def get_default_delete_local_copy():
-    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
+
     TODO: delete this function when min airflow version >= 2.6
     """
     from airflow.version import version
@@ -110,7 +111,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read_remote_logs(self, ti, try_number, metadata=None):
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
         # Explicitly getting log relative path is necessary as the given
         # task instance might be different than task instance passed in
         # in set_context method.
@@ -158,7 +159,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     def s3_log_exists(self, remote_log_location: str) -> bool:
         """
-        Check if remote_log_location exists in remote storage
+        Check if remote_log_location exists in remote storage.
 
         :param remote_log_location: log's location in remote storage
         :return: True if location exists else False

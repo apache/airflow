@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import json
-import sys
+from unittest import mock
 
 import aiohttp
 import pytest
@@ -27,11 +27,6 @@ from yarl import URL
 from airflow import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionAsyncHook, DataFusionHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
 
 API_VERSION = "v1beta1"
 GCP_CONN_ID = "google_cloud_default"

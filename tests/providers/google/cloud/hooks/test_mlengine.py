@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 import json
-import sys
 from copy import deepcopy
+from unittest import mock
 from unittest.mock import PropertyMock
 
 import httplib2
@@ -35,11 +35,6 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
     GCP_PROJECT_ID_HOOK_UNIT_TEST,
     mock_base_gcp_hook_default_project_id,
 )
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
 
 pytest.mlengine_hook = MLEngineAsyncHook()
 pytest.PROJECT_ID = "test-project"

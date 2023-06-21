@@ -137,7 +137,7 @@ class OSSHook(BaseHook):
     @provide_bucket_name
     def get_bucket(self, bucket_name: str | None = None) -> oss2.api.Bucket:
         """
-        Returns a oss2.Bucket object
+        Returns a oss2.Bucket object.
 
         :param bucket_name: the name of the bucket
         :return: the bucket object to the bucket name.
@@ -150,7 +150,7 @@ class OSSHook(BaseHook):
     @unify_bucket_name_and_key
     def load_string(self, key: str, content: str, bucket_name: str | None = None) -> None:
         """
-        Loads a string to OSS
+        Loads a string to OSS.
 
         :param key: the path of the object
         :param content: str to set as content for the key.
@@ -170,7 +170,7 @@ class OSSHook(BaseHook):
         bucket_name: str | None = None,
     ) -> None:
         """
-        Upload a local file to OSS
+        Upload a local file to OSS.
 
         :param key: the OSS path of the object
         :param file: local file to upload.
@@ -190,7 +190,7 @@ class OSSHook(BaseHook):
         bucket_name: str | None = None,
     ) -> str | None:
         """
-        Download file from OSS
+        Download file from OSS.
 
         :param key: key of the file-like object to download.
         :param local_file: local path + file name to save.
@@ -212,7 +212,7 @@ class OSSHook(BaseHook):
         bucket_name: str | None = None,
     ) -> None:
         """
-        Delete object from OSS
+        Delete object from OSS.
 
         :param key: key of the object to delete.
         :param bucket_name: the name of the bucket
@@ -231,7 +231,7 @@ class OSSHook(BaseHook):
         bucket_name: str | None = None,
     ) -> None:
         """
-        Delete objects from OSS
+        Delete objects from OSS.
 
         :param key: keys list of the objects to delete.
         :param bucket_name: the name of the bucket
@@ -248,7 +248,7 @@ class OSSHook(BaseHook):
         bucket_name: str | None = None,
     ) -> None:
         """
-        Delete bucket from OSS
+        Delete bucket from OSS.
 
         :param bucket_name: the name of the bucket
         """
@@ -264,7 +264,7 @@ class OSSHook(BaseHook):
         bucket_name: str | None = None,
     ) -> None:
         """
-        Create bucket
+        Create bucket.
 
         :param bucket_name: the name of the bucket
         """
@@ -278,7 +278,7 @@ class OSSHook(BaseHook):
     @unify_bucket_name_and_key
     def append_string(self, bucket_name: str | None, content: str, key: str, pos: int) -> None:
         """
-        Append string to a remote existing file
+        Append string to a remote existing file.
 
         :param bucket_name: the name of the bucket
         :param content: content to be appended
@@ -296,7 +296,7 @@ class OSSHook(BaseHook):
     @unify_bucket_name_and_key
     def read_key(self, bucket_name: str | None, key: str) -> str:
         """
-        Read oss remote object content with the specified key
+        Read oss remote object content with the specified key.
 
         :param bucket_name: the name of the bucket
         :param key: oss bucket key
@@ -312,7 +312,7 @@ class OSSHook(BaseHook):
     @unify_bucket_name_and_key
     def head_key(self, bucket_name: str | None, key: str) -> oss2.models.HeadObjectResult:
         """
-        Get meta info of the specified remote object
+        Get meta info of the specified remote object.
 
         :param bucket_name: the name of the bucket
         :param key: oss bucket key
@@ -328,7 +328,7 @@ class OSSHook(BaseHook):
     @unify_bucket_name_and_key
     def key_exist(self, bucket_name: str | None, key: str) -> bool:
         """
-        Find out whether the specified key exists in the oss remote storage
+        Find out whether the specified key exists in the oss remote storage.
 
         :param bucket_name: the name of the bucket
         :param key: oss bucket key

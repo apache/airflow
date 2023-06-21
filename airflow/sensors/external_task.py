@@ -366,11 +366,14 @@ class ExternalTaskSensor(BaseSensorOperator):
             ) / len(self.external_task_ids)
         elif self.external_task_group_id:
             external_task_group_task_ids = self.get_external_task_group_task_ids(session, dttm_filter)
-            count = (
-                self._count_query(TI, session, states, dttm_filter)
-                .filter(tuple_in_condition((TI.task_id, TI.map_index), external_task_group_task_ids))
-                .scalar()
-            ) / len(external_task_group_task_ids)
+            if not external_task_group_task_ids:
+                count = 0
+            else:
+                count = (
+                    self._count_query(TI, session, states, dttm_filter)
+                    .filter(tuple_in_condition((TI.task_id, TI.map_index), external_task_group_task_ids))
+                    .scalar()
+                ) / len(external_task_group_task_ids)
         else:
             count = self._count_query(DR, session, states, dttm_filter).scalar()
         return count

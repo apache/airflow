@@ -32,7 +32,7 @@ class VerticaHook(DbApiHook):
     supports_autocommit = True
 
     def get_conn(self) -> connect:
-        """Return verticaql connection object"""
+        """Return verticaql connection object."""
         conn = self.get_connection(self.vertica_conn_id)  # type: ignore
         conn_config = {
             "user": conn.login,

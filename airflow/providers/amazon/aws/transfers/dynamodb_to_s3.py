@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
 
 class JSONEncoder(json.JSONEncoder):
-    """Custom json encoder implementation"""
+    """Custom json encoder implementation."""
 
     def default(self, obj):
         """Convert decimal objects in a json serializable format."""
@@ -136,7 +136,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
     @cached_property
     def hook(self):
-        """Create DynamoDBHook"""
+        """Create DynamoDBHook."""
         return DynamoDBHook(aws_conn_id=self.source_aws_conn_id)
 
     def execute(self, context: Context) -> None:

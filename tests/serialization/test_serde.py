@@ -100,6 +100,11 @@ class U(BaseModel):
     u: tuple
 
 
+class C:
+    def __call__(self):
+        return None
+
+
 @pytest.mark.usefixtures("recalculate_patterns")
 class TestSerDe:
     def test_ser_primitives(self):
@@ -331,3 +336,10 @@ class TestSerDe:
         e = serialize(i)
         s = deserialize(e)
         assert i == s
+
+    def test_error_when_serializing_callable_without_name(self):
+        i = C()
+        with pytest.raises(
+            TypeError, match="cannot serialize object of type <class 'tests.serialization.test_serde.C'>"
+        ):
+            serialize(i)

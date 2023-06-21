@@ -131,7 +131,7 @@ class GithubTagSensor(BaseGithubRepositorySensor):
         return GithubSensor.poke(self, context=context)
 
     def tag_checker(self, repo: Any) -> bool | None:
-        """Checking existence of Tag in a Repository"""
+        """Checking existence of Tag in a Repository."""
         result = None
         try:
             if repo is not None and self.tag_name is not None:

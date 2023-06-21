@@ -129,7 +129,7 @@ class DatabricksReposCreateOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Creates a Databricks Repo
+        Creates a Databricks Repo.
 
         :param context: context
         :return: Repo ID

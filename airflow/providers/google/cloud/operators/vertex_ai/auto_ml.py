@@ -89,7 +89,7 @@ class AutoMLTrainingJobBaseOperator(GoogleCloudBaseOperator):
 
 
 class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
-    """Create AutoML Forecasting Training job"""
+    """Create AutoML Forecasting Training job."""
 
     template_fields = (
         "dataset_id",
@@ -213,7 +213,7 @@ class CreateAutoMLForecastingTrainingJobOperator(AutoMLTrainingJobBaseOperator):
 
 
 class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
-    """Create Auto ML Image Training job"""
+    """Create Auto ML Image Training job."""
 
     template_fields = (
         "dataset_id",
@@ -293,7 +293,7 @@ class CreateAutoMLImageTrainingJobOperator(AutoMLTrainingJobBaseOperator):
 
 
 class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
-    """Create Auto ML Tabular Training job"""
+    """Create Auto ML Tabular Training job."""
 
     template_fields = (
         "dataset_id",
@@ -352,11 +352,16 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+        credentials, _ = self.hook.get_credentials_and_project_id()
         model, training_id = self.hook.create_auto_ml_tabular_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
-            dataset=datasets.TabularDataset(dataset_name=self.dataset_id),
+            dataset=datasets.TabularDataset(
+                dataset_name=self.dataset_id,
+                project=self.project_id,
+                credentials=credentials,
+            ),
             target_column=self.target_column,
             optimization_prediction_type=self.optimization_prediction_type,
             optimization_objective=self.optimization_objective,
@@ -399,7 +404,7 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
 
 
 class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
-    """Create Auto ML Text Training job"""
+    """Create Auto ML Text Training job."""
 
     template_fields = [
         "dataset_id",
@@ -470,7 +475,7 @@ class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
 
 
 class CreateAutoMLVideoTrainingJobOperator(AutoMLTrainingJobBaseOperator):
-    """Create Auto ML Video Training job"""
+    """Create Auto ML Video Training job."""
 
     template_fields = (
         "dataset_id",
