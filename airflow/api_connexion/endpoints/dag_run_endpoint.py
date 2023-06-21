@@ -318,6 +318,11 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
             title="DAG cannot be triggered",
             detail=f"DAG with dag_id: '{dag_id}' has import errors",
         )
+    if dm.is_paused:
+        raise BadRequest(
+            title="DAG cannot be triggered",
+            detail=f"DAG with dag_id: '{dag_id}' is paused.",
+        )
     try:
         post_body = dagrun_schema.load(get_json_request_dict(), session=session)
     except ValidationError as err:

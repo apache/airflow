@@ -1119,6 +1119,24 @@ class TestPostDagRun(TestDagRunEndpoint):
             "type": EXCEPTIONS_LINK_MAP[400],
         } == response.json
 
+    def test_should_respond_400_if_a_dag_is_paused(self, session):
+        """Test that if a dagmodel is paused, dags won't be triggered"""
+        dm = self._create_dag("TEST_DAG_ID")
+        dm.has_import_errors = True
+        session.add(dm)
+        session.flush()
+        response = self.client.post(
+            "api/v1/dags/TEST_DAG_ID/dagRuns",
+            json={},
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert {
+            "detail": "DAG with dag_id: 'TEST_DAG_ID' is paused.",
+            "status": 400,
+            "title": "DAG cannot be triggered",
+            "type": EXCEPTIONS_LINK_MAP[400],
+        } == response.json
+
     def test_should_response_200_for_matching_execution_date_logical_date(self):
         execution_date = "2020-11-10T08:25:56.939143+00:00"
         logical_date = "2020-11-10T08:25:56.939143+00:00"

@@ -663,6 +663,15 @@ class TestCliDags:
         assert "trigger_dag_xxx" == parsed_out[0]["dag_run_id"]
         assert {"conf1": "val1", "conf2": "val2"} == parsed_out[0]["conf"]
 
+    def test_trigger_paused_dag(self):
+        args = self.parser.parse_args(["dags", "pause", "example_bash_operator"])
+        dag_command.dag_pause(args)
+
+        args = self.parser.parse_args(["dags", "trigger", "example_bash_operator"])
+        with pytest.raises(AirflowException) as e:
+            dag_command.dag_trigger(args)
+        assert str(e.value) == f"DAG with dag_id: {args.dag_id} is paused."
+
     def test_delete_dag(self):
         DM = DagModel
         key = "my_dag_id"
