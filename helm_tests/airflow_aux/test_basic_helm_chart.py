@@ -140,6 +140,7 @@ class TestBaseChartTest:
             ("Secret", "test-basic-airflow-fernet-key"),
             ("Secret", "test-basic-airflow-webserver-secret-key"),
             ("Secret", "test-basic-airflow-redis-password"),
+            ('Secret', 'test-basic-postgresql'),
             ("ConfigMap", "test-basic-airflow-config"),
             ("ConfigMap", "test-basic-airflow-statsd"),
             ("Role", "test-basic-airflow-pod-launcher-role"),
@@ -148,18 +149,22 @@ class TestBaseChartTest:
             ("RoleBinding", "test-basic-airflow-pod-log-reader-rolebinding"),
             ("Service", "test-basic-airflow-redis"),
             ("Service", "test-basic-airflow-statsd"),
+            ("Service", "test-basic-airflow-triggerer"),
             ("Service", "test-basic-airflow-webserver"),
             ("Service", "test-basic-airflow-worker"),
+            ("Service", "test-basic-postgresql"),
+            ("Service", "test-basic-postgresql-hl"),
             ("Deployment", "test-basic-airflow-scheduler"),
             ("Deployment", "test-basic-airflow-statsd"),
             ("Deployment", "test-basic-airflow-webserver"),
             ("StatefulSet", "test-basic-airflow-redis"),
             ("StatefulSet", "test-basic-airflow-worker"),
+            ("StatefulSet", "test-basic-airflow-triggerer"),
+            ("StatefulSet", "test-basic-postgresql"),
             ("Job", "test-basic-airflow-create-user"),
             ("Job", "test-basic-airflow-run-airflow-migrations"),
         }
-        for kind_name in expected:
-            assert kind_name in list_of_kind_names_tuples
+        assert list_of_kind_names_tuples == expected
 
     @pytest.mark.parametrize("version", ["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_with_standalone_dag_processor(self, version):
@@ -384,7 +389,7 @@ class TestBaseChartTest:
             (f"{release_name}-webserver-secret-key", "Secret", "webserver"),
             (f"{release_name}-webserver", "Service", "webserver"),
             (f"{release_name}-webserver-policy", "NetworkPolicy", "airflow-webserver-policy"),
-            (f"{release_name}-airflow-ingress", "Ingress", "airflow-ingress"),
+            (f"{release_name}-ingress", "Ingress", "airflow-ingress"),
             (f"{release_name}-worker", "Service", "worker"),
             (f"{release_name}-worker", "StatefulSet", "worker"),
             (f"{release_name}-worker-policy", "NetworkPolicy", "airflow-worker-policy"),

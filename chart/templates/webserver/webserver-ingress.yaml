@@ -21,10 +21,11 @@
 ## Airflow Webserver Ingress
 #################################
 {{- if or .Values.ingress.web.enabled .Values.ingress.enabled }}
+{{- $fullname := (include "airflow.fullname" .) }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "airflow.name" . }}-ingress
+  name: {{ $fullname }}-ingress
   labels:
     tier: airflow
     component: airflow-ingress
@@ -65,7 +66,6 @@ spec:
         {{- .Values.ingress.web.hosts | default (list .Values.ingress.web.host) | toYaml | nindent 8 }}
       secretName: {{ .Values.ingress.web.tls.secretName }}
   {{- end }}
-  {{- $fullname := (include "airflow.fullname" .) }}
   rules:
     {{- range .Values.ingress.web.hosts | default (list .Values.ingress.web.host) }}
     - http:
