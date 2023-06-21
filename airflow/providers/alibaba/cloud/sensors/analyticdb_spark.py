@@ -54,9 +54,7 @@ class AnalyticDBSparkSensor(BaseSensorOperator):
 
     @cached_property
     def get_hook(self) -> AnalyticDBSparkHook:
-        """
-        Get valid hook.
-        """
+        """Get valid hook."""
         if self._adb_spark_hook is None or not isinstance(self._adb_spark_hook, AnalyticDBSparkHook):
             self._adb_spark_hook = AnalyticDBSparkHook(
                 adb_spark_conn_id=self._adb_spark_conn_id, region=self._region
