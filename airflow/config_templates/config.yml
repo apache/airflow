@@ -1794,6 +1794,15 @@ webserver:
       type: string
       example: "sha256"
       default: "md5"
+    enable_test_connection:
+      description: |
+        The ability to allow testing connections from UI. By default, it is disabled.
+        If you're enabling it by setting it to True, make sure that you trust your users
+        who can add or edit connections in the UI and that they do not use it maliciously.
+      version_added: 2.6.3
+      type: boolean
+      example: ~
+      default: "False"
 
 email:
   description: |

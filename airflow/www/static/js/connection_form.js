@@ -23,6 +23,8 @@
 /* global document, DOMParser, $, CodeMirror */
 import { getMetaValue } from "./utils";
 
+const configTestConnectionEnabled =
+  getMetaValue("config_test_connection_enabled") === "True";
 const restApiEnabled = getMetaValue("rest_api_enabled") === "True";
 const connectionTestUrl = getMetaValue("test_url");
 
@@ -123,6 +125,16 @@ function applyFieldBehaviours(connection) {
  */
 function handleTestConnection(connectionType, testableConnections) {
   const testButton = document.getElementById("test-connection");
+
+  if (!configTestConnectionEnabled) {
+    // If test connection is not enabled in config, disable button and display toolip
+    // alerting the user.
+    $(testButton)
+      .prop("disabled", true)
+      .attr("title", "Test connection is not enabled in config.");
+    return;
+  }
+
   const testConnEnabled = testableConnections.includes(connectionType);
 
   if (testConnEnabled) {
