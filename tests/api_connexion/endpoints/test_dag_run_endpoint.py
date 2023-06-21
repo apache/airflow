@@ -1122,7 +1122,7 @@ class TestPostDagRun(TestDagRunEndpoint):
     def test_should_respond_400_if_a_dag_is_paused(self, session):
         """Test that if a dagmodel is paused, dags won't be triggered"""
         dm = self._create_dag("TEST_DAG_ID")
-        dm.has_import_errors = True
+        dm.is_paused = True
         session.add(dm)
         session.flush()
         response = self.client.post(
