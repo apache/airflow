@@ -71,9 +71,3 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.4.0``
 ==================  ==================
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Guides
-
-    Apprise Notifications <notifications/apprise_notifier_howto_guide>
