@@ -221,19 +221,24 @@ class TestSecurityContext:
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
-                "templates/statsd/statsd-deployment.yaml",
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
                 "templates/triggerer/triggerer-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
                 "templates/redis/redis-statefulset.yaml",
             ],
         )
 
-        for index in range(len(docs)):
+        for index in range(len(docs)-2):
             assert ctx_value_container == jmespath.search(
                 "spec.template.spec.containers[0].securityContext", docs[index]
             )
             assert ctx_value_pod == jmespath.search("spec.template.spec.securityContext", docs[index])
+        for index in range(len(docs)-2, len(docs)):
+            assert ctx_value_container != jmespath.search(
+                "spec.template.spec.containers[0].securityContext", docs[index]
+            )
+            assert ctx_value_pod != jmespath.search("spec.template.spec.securityContext", docs[index])
 
     # Test securityContexts for main containers
     def test_main_container_setting(self):
