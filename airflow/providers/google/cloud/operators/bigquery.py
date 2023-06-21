@@ -1032,10 +1032,11 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
         US and EU. See details at
         https://cloud.google.com/bigquery/docs/locations#specifying_your_location
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-        **Example**::
+
+        .. code-block:: python
 
             encryption_configuration = {
-                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
             }
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1272,10 +1273,11 @@ class BigQueryCreateEmptyTableOperator(GoogleCloudBaseOperator):
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
     :param materialized_view: [Optional] The materialized view definition.
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-        **Example**::
+
+        .. code-block:: python
 
             encryption_configuration = {
-                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
             }
     :param location: The location used for the operation.
     :param cluster_fields: [Optional] The fields used for clustering.
@@ -1487,10 +1489,11 @@ class BigQueryCreateExternalTableOperator(GoogleCloudBaseOperator):
     :param src_fmt_configs: configure optional fields specific to the source format
     :param labels: a dictionary containing labels for the table, passed to BigQuery
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-        **Example**::
+
+        .. code-block:: python
 
             encryption_configuration = {
-                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
             }
     :param location: The location used for the operation.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -2410,16 +2413,22 @@ class BigQueryUpdateTableSchemaOperator(GoogleCloudBaseOperator):
     :param schema_fields_updates: a partial schema resource. see
         https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableSchema
 
-    **Example**::
+        .. code-block:: python
 
-        schema_fields_updates=[
-            {"name": "emp_name", "description": "Some New Description"},
-            {"name": "salary", "policyTags": {'names': ['some_new_policy_tag']},},
-            {"name": "departments", "fields": [
-                {"name": "name", "description": "Some New Description"},
-                {"name": "type", "description": "Some New Description"}
-            ]},
-        ]
+            schema_fields_updates = [
+                {"name": "emp_name", "description": "Some New Description"},
+                {
+                    "name": "salary",
+                    "policyTags": {"names": ["some_new_policy_tag"]},
+                },
+                {
+                    "name": "departments",
+                    "fields": [
+                        {"name": "name", "description": "Some New Description"},
+                        {"name": "type", "description": "Some New Description"},
+                    ],
+                },
+            ]
 
     :param include_policy_tags: (Optional) If set to True policy tags will be included in
         the update request which requires special permissions even if unchanged (default False)

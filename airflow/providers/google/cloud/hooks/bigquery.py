@@ -371,10 +371,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         :param materialized_view: [Optional] The materialized view definition.
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-            **Example**: ::
+
+            .. code-block:: python
 
                 encryption_configuration = {
-                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
                 }
         :param num_retries: Maximum number of retries in case of connection problems.
         :param location: (Optional) The geographic location where the table should reside.
@@ -610,6 +611,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param labels: A dictionary containing labels for the BiqQuery table.
         :param description: A string containing the description for the BigQuery table.
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+
             .. code-block:: python
 
                 encryption_configuration = {
@@ -769,30 +771,35 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
             The supported schema modifications and unsupported schema modification are listed here:
             https://cloud.google.com/bigquery/docs/managing-table-schemas
-            **Example**: ::
 
-                schema=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                               {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
+            .. code-block:: python
+
+                schema = [
+                    {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                    {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+                ]
 
         :param time_partitioning: [Optional] A dictionary containing time-based partitioning
              definition for the table.
         :param view: [Optional] A dictionary containing definition for the view.
             If set, it will patch a view instead of a table:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
-            **Example**: ::
+
+            .. code-block:: python
 
                 view = {
                     "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 500",
-                    "useLegacySql": False
+                    "useLegacySql": False,
                 }
 
         :param require_partition_filter: [Optional] If true, queries over the this table require a
             partition filter. If false, queries over the table
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-            **Example**: ::
+
+            .. code-block:: python
 
                 encryption_configuration = {
-                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
                 }
 
         """
@@ -1356,16 +1363,19 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param schema_fields_updates: a partial schema resource. see
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableSchema
 
-        **Example**: ::
+            .. code-block:: python
 
-            schema_fields_updates=[
-                {"name": "emp_name", "description": "Some New Description"},
-                {"name": "salary", "description": "Some New Description"},
-                {"name": "departments", "fields": [
-                    {"name": "name", "description": "Some New Description"},
-                    {"name": "type", "description": "Some New Description"}
-                ]},
-            ]
+                schema_fields_updates = [
+                    {"name": "emp_name", "description": "Some New Description"},
+                    {"name": "salary", "description": "Some New Description"},
+                    {
+                        "name": "departments",
+                        "fields": [
+                            {"name": "name", "description": "Some New Description"},
+                            {"name": "type", "description": "Some New Description"},
+                        ],
+                    },
+                ]
 
         :param project_id: The name of the project where we want to update the table.
         """
@@ -1690,6 +1700,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             by one or more columns. BigQuery supports clustering for both partitioned and
             non-partitioned tables. The order of columns given determines the sort order.
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
+
             .. code-block:: python
 
                 encryption_configuration = {
@@ -1878,10 +1889,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param labels: a dictionary containing labels for the job/query,
             passed to BigQuery
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-            **Example**: ::
+
+        .. code-block:: python
 
                 encryption_configuration = {
-                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
                 }
         """
         warnings.warn(
@@ -2085,10 +2097,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             US and EU. See details at
             https://cloud.google.com/bigquery/docs/locations#specifying_your_location
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-            **Example**: ::
+
+        .. code-block:: python
 
                 encryption_configuration = {
-                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
                 }
         """
         warnings.warn(

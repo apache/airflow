@@ -674,16 +674,18 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
 
     The operator will wait until the cluster is re-scaled.
 
-    **Example**: ::
+    Example usage:
+
+    .. code-block:: python
 
         t1 = DataprocClusterScaleOperator(
-                task_id='dataproc_scale',
-                project_id='my-project',
-                cluster_name='cluster-1',
-                num_workers=10,
-                num_preemptible_workers=10,
-                graceful_decommission_timeout='1h',
-                dag=dag)
+            task_id="dataproc_scale",
+            project_id="my-project",
+            cluster_name="cluster-1",
+            num_workers=10,
+            num_preemptible_workers=10,
+            graceful_decommission_timeout="1h",
+        )
 
     .. seealso::
         For more detail on about scaling clusters have a look at the reference:
@@ -1116,13 +1118,13 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     variables for the pig script to be resolved on the cluster or use the parameters to
     be resolved in the script as template parameters.
 
-    **Example**: ::
+    .. code-block:: python
 
         t1 = DataProcPigOperator(
-                task_id='dataproc_pig',
-                query='a_pig_script.pig',
-                variables={'out': 'gs://example/output/{{ds}}'},
-                dag=dag)
+            task_id="dataproc_pig",
+            query="a_pig_script.pig",
+            variables={"out": "gs://example/output/{{ds}}"},
+        )
 
     .. seealso::
         For more detail on about job submission have a look at the reference:
