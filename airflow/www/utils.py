@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import textwrap
 import time
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Sequence, Callable
 from urllib.parse import urlencode
 
 from flask import request, url_for
@@ -36,6 +36,7 @@ from markupsafe import Markup
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
+from pygments.lexer import Lexer
 from sqlalchemy import delete, func, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
@@ -546,7 +547,7 @@ def pygment_html_render(s, lexer=lexers.TextLexer):
     return highlight(s, lexer(), HtmlFormatter(linenos=True))
 
 
-def render(obj: Any, lexer, handler=None):
+def render(obj: Any, lexer: Lexer, handler: Callable[[Any], str] = None):
     """Render a given Python object with a given Pygments lexer."""
 
     if isinstance(obj, str):
@@ -575,6 +576,7 @@ def render(obj: Any, lexer, handler=None):
 
     # Return empty string otherwise
     return ""
+
 
 def json_render(obj, lexer):
     """Render a given Python object with json lexer."""
