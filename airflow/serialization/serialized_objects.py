@@ -1240,7 +1240,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 for dep in SerializedBaseOperator.detect_dependencies(task)
             }
             dag_deps.update(DependencyDetector.detect_dag_dependencies(dag))
-            serialized_dag["dag_dependencies"] = [x.__dict__ for x in dag_deps]
+            serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
             serialized_dag["_task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
@@ -1446,7 +1446,7 @@ class TaskGroupSerialization(BaseSerialization):
         return group
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class DagDependency:
     """Dataclass for representing dependencies between DAGs.
     These are calculated during serialization and attached to serialized DAGs.
