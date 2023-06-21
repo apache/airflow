@@ -339,16 +339,16 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             If provided all other parameters are ignored.
         :param schema_fields: If set, the schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
+
+            .. code-block:: python
+
+                schema_fields = [
+                    {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                    {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+                ]
+
         :param labels: a dictionary containing labels for the table, passed to BigQuery
         :param retry: Optional. How to retry the RPC.
-
-        .. code-block:: python
-
-            schema_fields = [
-                {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
-                {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
-            ]
-
         :param time_partitioning: configure optional time partitioning fields i.e.
             partition by field, type and expiration as per API specifications.
 
@@ -362,12 +362,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             If set, it will create a view instead of a table:
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#ViewDefinition
 
-        .. code-block:: python
+            .. code-block:: python
 
-            view = {
-                "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 1000",
-                "useLegacySql": False,
-            }
+                view = {
+                    "query": "SELECT * FROM `test-project-id.test_dataset_id.test_table_prefix*` LIMIT 1000",
+                    "useLegacySql": False,
+                }
 
         :param materialized_view: [Optional] The materialized view definition.
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
@@ -377,6 +377,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 encryption_configuration = {
                     "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
                 }
+
         :param num_retries: Maximum number of retries in case of connection problems.
         :param location: (Optional) The geographic location where the table should reside.
         :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
@@ -860,9 +861,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param table_id: The name of the table
         :param rows: the rows to insert
 
-        .. code-block:: python
+            .. code-block:: python
 
-            rows = [{"json": {"a_key": "a_value_0"}}, {"json": {"a_key": "a_value_1"}}]
+                rows = [{"json": {"a_key": "a_value_0"}}, {"json": {"a_key": "a_value_1"}}]
 
         :param ignore_unknown_values: [Optional] Accept rows that contain values
             that do not match the schema. The unknown values are ignored.
@@ -1360,7 +1361,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             see https://cloud.google.com/bigquery/docs/column-level-security#roles
         :param dataset_id: the dataset ID of the requested table to be updated
         :param table_id: the table ID of the table to be updated
-        :param schema_fields_updates: a partial schema resource. see
+        :param schema_fields_updates: a partial schema resource. See
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#TableSchema
 
             .. code-block:: python
@@ -1706,6 +1707,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 encryption_configuration = {
                     "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
                 }
+
         :param labels: A dictionary containing labels for the BiqQuery table.
         :param description: A string containing the description for the BigQuery table.
         """
@@ -1890,11 +1892,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             passed to BigQuery
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
 
-        .. code-block:: python
+            .. code-block:: python
 
-                encryption_configuration = {
-                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
-                }
+                    encryption_configuration = {
+                        "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
+                    }
         """
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.insert_job` method.",
@@ -2098,11 +2100,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             https://cloud.google.com/bigquery/docs/locations#specifying_your_location
         :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
 
-        .. code-block:: python
+            .. code-block:: python
 
-                encryption_configuration = {
-                    "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
-                }
+                    encryption_configuration = {
+                        "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
+                    }
         """
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.insert_job` method.",
