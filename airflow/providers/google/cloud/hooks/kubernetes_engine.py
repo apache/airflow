@@ -326,7 +326,7 @@ class GKEAsyncHook(GoogleBaseAsyncHook):
         operation_name: str,
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> Operation:
-        """Fetche an operation from Google Cloud.
+        """Fetch an operation from Google Cloud.
 
         :param operation_name: Name of operation to fetch.
         :param project_id: Google Cloud project ID.
