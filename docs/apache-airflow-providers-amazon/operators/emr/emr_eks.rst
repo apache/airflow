@@ -92,6 +92,11 @@ can store them in a connection or provide them in the DAG. Your AWS region shoul
 in the ``aws_default`` connection as ``{"region_name": "us-east-1"}`` or a custom connection name
 that gets passed to the operator with the ``aws_conn_id`` parameter. The operator returns the Job ID of the job run.
 
+``EmrContainerOperator`` can be run in deferrable mode by passing ``deferrable=True`` as a parameter.
+Using ``deferrable`` mode will release worker slots and leads to efficient utilization of
+resources within Airflow cluster.However this mode will need the Airflow triggerer to be
+available in your deployment.
+
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_eks.py
     :language: python
     :dedent: 4
