@@ -152,6 +152,22 @@ class XComArg(ResolveMixin, DependencyMixin):
         for operator, _ in self.iter_references():
             operator.set_downstream(task_or_task_list, edge_modifier)
 
+    def as_setup(self):
+        for operator, _ in self.iter_references():
+            operator.is_setup = True
+        return self
+
+    def as_teardown(self, setups=NOTSET, *, on_failure_fail_dagrun=False):
+        for operator, _ in self.iter_references():
+            operator.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
+            operator.on_failure_fail_dagrun = on_failure_fail_dagrun
+            operator.is_teardown = True
+            if setups is not NOTSET:
+                setups = [setups] if isinstance(setups, DependencyMixin) else setups
+                for s in setups:
+                    s >> operator
+        return self
+
     def _serialize(self) -> dict[str, Any]:
         """Called by DAG serialization.
 
@@ -346,20 +362,6 @@ class PlainXComArg(XComArg):
                 TaskMap.map_index < 0,
             )
         return query.scalar()
-
-    def as_setup(self):
-        self.operator.is_setup = True
-        return self
-
-    def as_teardown(self, setups=NOTSET, *, on_failure_fail_dagrun=False):
-        self.operator.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
-        self.operator.on_failure_fail_dagrun = on_failure_fail_dagrun
-        self.operator.is_teardown = True
-        if setups is not NOTSET:
-            setups = [setups] if isinstance(setups, DependencyMixin) else setups
-            for s in setups:
-                s >> self.operator
-        return self
 
     @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:

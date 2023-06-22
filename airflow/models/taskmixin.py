@@ -24,6 +24,7 @@ import pendulum
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from logging import Logger
@@ -67,6 +68,14 @@ class DependencyMixin:
         self, other: DependencyMixin | Sequence[DependencyMixin], edge_modifier: EdgeModifier | None = None
     ):
         """Set a task or a task list to be directly downstream from the current task."""
+        raise NotImplementedError()
+
+    def as_setup(self):
+        """Mark a task as setup task."""
+        raise NotImplementedError()
+
+    def as_teardown(self, setups=NOTSET, *, on_failure_fail_dagrun=False):
+        """Mark a task as teardown and set its setups as direct relatives."""
         raise NotImplementedError()
 
     def update_relative(
