@@ -34,6 +34,7 @@ from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -345,6 +346,20 @@ class PlainXComArg(XComArg):
                 TaskMap.map_index < 0,
             )
         return query.scalar()
+
+    def as_setup(self):
+        self.operator.is_setup = True
+        return self
+
+    def as_teardown(self, setups=NOTSET, *, on_failure_fail_dagrun=False):
+        self.operator.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
+        self.operator.on_failure_fail_dagrun = on_failure_fail_dagrun
+        self.operator.is_teardown = True
+        if setups is not NOTSET:
+            setups = [setups] if isinstance(setups, DependencyMixin) else setups
+            for s in setups:
+                s >> self.operator
+        return self
 
     @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
