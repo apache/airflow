@@ -24,6 +24,12 @@
 Changelog
 ---------
 
+5.0.0
+.....
+
+.. note::
+  Deprecate non-official elasticsearch libraries. Only the official elasticsearch library was used
+
 4.5.1
 .....
 
