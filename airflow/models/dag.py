@@ -882,6 +882,13 @@ class DAG(LoggingMixin):
             end = cast(CronDataIntervalTimetable, self.timetable)._get_next(start)
         elif issubclass(timetable_type, DeltaDataIntervalTimetable):
             end = cast(DeltaDataIntervalTimetable, self.timetable)._get_next(start)
+        elif isinstance(self.timetable, Timetable):
+            dagrun_info = self.timetable.next_dagrun_info(
+                last_automated_data_interval=None,
+                restriction=TimeRestriction(start, self.end_date, self.catchup),
+            )
+            if dagrun_info:
+                return dagrun_info.data_interval
         else:
             raise ValueError(f"Not a valid timetable: {self.timetable!r}")
         return DataInterval(start, end)
