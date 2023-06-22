@@ -67,6 +67,7 @@ const MarkRunAs = ({ runId, state, ...otherProps }: Props) => {
         aria-label={markLabel}
         disabled={!canEdit || isMarkFailedLoading || isMarkSuccessLoading}
         {...otherProps}
+        mt={2}
       >
         <Flex>
           Mark state as...

@@ -24,6 +24,7 @@ description: |
 
 suspended: false
 versions:
+  - 4.0.0
   - 3.2.1
   - 3.2.0
   - 3.1.0
@@ -41,14 +42,11 @@ versions:
 
 dependencies:
   - apache-airflow>=2.4.0
-  - snakebite-py3
   - hdfs[avro,dataframe,kerberos]>=2.0.4
 
 integrations:
   - integration-name: Hadoop Distributed File System (HDFS)
     external-doc-url: https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html
-    how-to-guide:
-      - /docs/apache-airflow-providers-apache-hdfs/operators/hdfs.rst
     logo: /integration-logos/apache/hadoop.png
     tags: [apache]
   - integration-name: WebHDFS
@@ -59,22 +57,11 @@ integrations:
     tags: [apache]
 
 sensors:
-  - integration-name: Hadoop Distributed File System (HDFS)
-    python-modules:
-      - airflow.providers.apache.hdfs.sensors.hdfs
   - integration-name: WebHDFS
     python-modules:
       - airflow.providers.apache.hdfs.sensors.web_hdfs
 
 hooks:
-  - integration-name: Hadoop Distributed File System (HDFS)
-    python-modules:
-      - airflow.providers.apache.hdfs.hooks.hdfs
   - integration-name: WebHDFS
     python-modules:
       - airflow.providers.apache.hdfs.hooks.webhdfs
-
-
-connection-types:
-  - hook-class-name: airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook
-    connection-type: hdfs

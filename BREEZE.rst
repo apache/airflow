@@ -220,7 +220,7 @@ them, you may end up with some unused image data.
 
 To clean up the Docker environment:
 
-1. Stop Breeze with ``breeze stop``. (If Breeze is already running)
+1. Stop Breeze with ``breeze down``. (If Breeze is already running)
 
 2. Run the ``breeze cleanup`` command.
 
@@ -434,7 +434,16 @@ For example, this following command:
 
 will run mypy check for currently staged files inside ``airflow/`` excluding providers.
 
-You can also pass specific pre-commit flags, such as ``--all-files``:
+Selecting files to run static checks on
+........................................
+
+Pre-commits run by default on staged changes that you have locally changed. It will run it on all the
+files you run ``git add`` on and it will ignore any changes that you have modified but not staged.
+If you want to run it on all your modified files you should add them with ``git add`` command.
+
+With ``--all-files`` you can run static checks on all files in the repository. This is useful when you
+want to be sure they will not fail in CI, or when you just rebased your changes and want to
+re-run latest pre-commits on your changes, but it can take a long time (few minutes) to wait for the result.
 
 .. code-block:: bash
 
@@ -442,15 +451,32 @@ You can also pass specific pre-commit flags, such as ``--all-files``:
 
 The above will run mypy check for all files.
 
-There is a convenience ``--last-commit`` flag that you can use to run static check on last commit only:
+You can limit that by selecting specific files you want to run static checks on. You can do that by
+specifying (can be multiple times) ``--file`` flag.
+
+.. code-block:: bash
+
+     breeze static-checks -t mypy-core --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
+
+The above will run mypy check for those to files (note: autocomplete should work for the file selection).
+
+However, often you do not remember files you modified and you want to run checks for files that belong
+to specific commits you already have in your branch. You can use ``breeze static check`` to run the checks
+only on changed files you have already committed to your branch - either for specific commit, for last
+commit, for all changes in your branch since you branched off from main or for specific range
+of commits you choose.
 
 .. code-block:: bash
 
      breeze static-checks -t mypy-core --last-commit
 
-The above will run mypy check for all files in the last commit.
+The above will run mypy check for all files in the last commit in your branch.
 
-There is another convenience ``--commit-ref`` flag that you can use to run static check on specific commit:
+.. code-block:: bash
+
+     breeze static-checks -t mypy-core --only-my-changes
+
+The above will run mypy check for all commits in your branch which were added since you branched off from main.
 
 .. code-block:: bash
 
@@ -459,12 +485,13 @@ There is another convenience ``--commit-ref`` flag that you can use to run stati
 The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
 Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)
 
-If you ever need to get a list of the files that will be checked (for troubleshooting) use these commands:
-
 .. code-block:: bash
 
-     breeze static-checks -t identity --verbose # currently staged files
-     breeze static-checks -t identity --verbose --from-ref $(git merge-base main HEAD) --to-ref HEAD #  branch updates
+     breeze static-checks -t identity --verbose --from-ref HEAD^^^^ --to-ref HEAD
+
+The above will run the check for the last 4 commits in your branch. You can use any ``commit-ish`` references
+in ``--from-ref`` and ``--to-ref`` flags.
+
 
 Those are all available flags of ``static-checks`` command:
 
@@ -478,7 +505,7 @@ Those are all available flags of ``static-checks`` command:
 
     When you run static checks, some of the artifacts (mypy_cache) is stored in docker-compose volume
     so that it can speed up static checks execution significantly. However, sometimes, the cache might
-    get broken, in which case you should run ``breeze stop`` to clean up the cache.
+    get broken, in which case you should run ``breeze down`` to clean up the cache.
 
 
 .. note::
@@ -663,14 +690,14 @@ You can always stop it via:
 
 .. code-block:: bash
 
-   breeze stop
+   breeze down
 
-Those are all available flags of ``stop`` command:
+Those are all available flags of ``down`` command:
 
-.. image:: ./images/breeze/output_stop.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_stop.svg
+.. image:: ./images/breeze/output_down.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_down.svg
   :width: 100%
-  :alt: Breeze stop
+  :alt: Breeze down
 
 Troubleshooting
 ===============
@@ -679,7 +706,7 @@ If you are having problems with the Breeze environment, try the steps below. Aft
 can check whether your problem is fixed.
 
 1. If you are on macOS, check if you have enough disk space for Docker (Breeze will warn you if not).
-2. Stop Breeze with ``breeze stop``.
+2. Stop Breeze with ``breeze down``.
 3. Delete the ``.build`` directory and run ``breeze ci-image build``.
 4. Clean up Docker images via ``breeze cleanup`` command.
 5. Restart your Docker Engine and try again.
@@ -1898,16 +1925,16 @@ Database volumes in Breeze
 --------------------------
 
 Breeze keeps data for all it's integration in named docker volumes. Each backend and integration
-keeps data in their own volume. Those volumes are persisted until ``breeze stop`` command.
+keeps data in their own volume. Those volumes are persisted until ``breeze down`` command.
 You can also preserve the volumes by adding flag ``--preserve-volumes`` when you run the command.
 Then, next time when you start Breeze, it will have the data pre-populated.
 
-Those are all available flags of ``stop`` command:
+Those are all available flags of ``down`` command:
 
-.. image:: ./images/breeze/output-stop.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output-stop.svg
+.. image:: ./images/breeze/output-down.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output-down.svg
   :width: 100%
-  :alt: Breeze stop
+  :alt: Breeze down
 
 
 Additional tools
@@ -1955,7 +1982,7 @@ Finally you can specify ``--integration all-testable`` to start all testable int
 ``--integration all`` to enable all integrations.
 
 Once integration is started, it will continue to run until the environment is stopped with
-``breeze stop`` command. or restarted via ``breeze restart`` command
+``breeze down`` command.
 
 Note that running integrations uses significant resources - CPU and memory.
 

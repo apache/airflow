@@ -31,11 +31,6 @@ This is where *Deferrable Operators* come in. A deferrable operator is one that 
 
 Using deferrable operators as a DAG author is almost transparent; writing them, however, takes a bit more work.
 
-.. note::
-
-    Deferrable Operators & Triggers rely on more recent ``asyncio`` features, and as a result only work
-    on Python 3.7 or higher.
-
 
 Using Deferrable Operators
 --------------------------

@@ -43,7 +43,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Session, declared_attr, joinedload, relationship, synonym
+from sqlalchemy.orm import Query, Session, declared_attr, joinedload, relationship, synonym
 from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
@@ -77,7 +77,7 @@ if TYPE_CHECKING:
 
 
 class TISchedulingDecision(NamedTuple):
-    """Type of return for DagRun.task_instance_scheduling_decisions"""
+    """Type of return for DagRun.task_instance_scheduling_decisions."""
 
     tis: list[TI]
     schedulable_tis: list[TI]
@@ -97,9 +97,10 @@ def _creator_note(val):
 
 
 class DagRun(Base, LoggingMixin):
-    """
-    DagRun describes an instance of a Dag. It can be created
-    by the scheduler (for regular runs) or by an external trigger
+    """Invocation instance of a DAG.
+
+    A DAG run can be created by the scheduler (i.e. scheduled runs), or by an
+    external trigger (i.e. manual runs).
     """
 
     __tablename__ = "dag_run"
@@ -265,7 +266,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION) -> None:
         """
-        Reloads the current dagrun from the database
+        Reloads the current dagrun from the database.
 
         :param session: database session
         """
@@ -300,7 +301,7 @@ class DagRun(Base, LoggingMixin):
         state: DagRunState,
         session: Session,
         max_number: int | None = None,
-    ) -> list[DagRun]:
+    ) -> Query:
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
 
@@ -436,7 +437,7 @@ class DagRun(Base, LoggingMixin):
 
     @staticmethod
     def generate_run_id(run_type: DagRunType, execution_date: datetime) -> str:
-        """Generate Run ID based on Run Type and Execution Date"""
+        """Generate Run ID based on Run Type and Execution Date."""
         # _Ensure_ run_type is a DagRunType, not just a string from user code
         return DagRunType(run_type).generate_run_id(execution_date)
 
@@ -446,7 +447,7 @@ class DagRun(Base, LoggingMixin):
         state: Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
     ) -> list[TI]:
-        """Returns the task instances for this dag run"""
+        """Returns the task instances for this dag run."""
         tis = (
             session.query(TI)
             .options(joinedload(TI.dag_run))
@@ -483,7 +484,7 @@ class DagRun(Base, LoggingMixin):
         map_index: int = -1,
     ) -> TI | None:
         """
-        Returns the task instance specified by task_id for this dag run
+        Returns the task instance specified by task_id for this dag run.
 
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
@@ -509,7 +510,7 @@ class DagRun(Base, LoggingMixin):
     def get_previous_dagrun(
         self, state: DagRunState | None = None, session: Session = NEW_SESSION
     ) -> DagRun | None:
-        """The previous DagRun, if there is one"""
+        """The previous DagRun, if there is one."""
         filters = [
             DagRun.dag_id == self.dag_id,
             DagRun.execution_date < self.execution_date,
@@ -520,7 +521,7 @@ class DagRun(Base, LoggingMixin):
 
     @provide_session
     def get_previous_scheduled_dagrun(self, session: Session = NEW_SESSION) -> DagRun | None:
-        """The previous, SCHEDULED DagRun, if there is one"""
+        """The previous, SCHEDULED DagRun, if there is one."""
         return (
             session.query(DagRun)
             .filter(
@@ -603,7 +604,7 @@ class DagRun(Base, LoggingMixin):
             teardown_task_ids = [t.task_id for t in dag.teardowns]
             upstream_of_teardowns = [t.task_id for t in dag.tasks_upstream_of_teardowns]
             teardown_tis = [ti for ti in tis if ti.task_id in teardown_task_ids]
-            on_failure_fail_tis = [ti for ti in teardown_tis if getattr(ti.task, "_on_failure_fail_dagrun")]
+            on_failure_fail_tis = [ti for ti in teardown_tis if getattr(ti.task, "on_failure_fail_dagrun")]
             tis_upstream_of_teardowns = [ti for ti in tis if ti.task_id in upstream_of_teardowns]
             leaf_tis = list(set(leaf_tis) - set(teardown_tis))
             leaf_tis.extend(on_failure_fail_tis)
@@ -1120,7 +1121,7 @@ class DagRun(Base, LoggingMixin):
         session: Session,
     ) -> CreatedTasks:
         """
-        Create missing tasks -- and expand any MappedOperator that _only_ have literals as input
+        Create missing tasks -- and expand any MappedOperator that _only_ have literals as input.
 
         :param tasks: Tasks to create jobs for in the DAG run
         :param task_creator: Function to create task instances
@@ -1231,7 +1232,7 @@ class DagRun(Base, LoggingMixin):
     @staticmethod
     def get_run(session: Session, dag_id: str, execution_date: datetime) -> DagRun | None:
         """
-        Get a single DAG Run
+        Get a single DAG Run.
 
         :meta private:
         :param session: Sqlalchemy ORM Session
@@ -1262,7 +1263,7 @@ class DagRun(Base, LoggingMixin):
     @classmethod
     @provide_session
     def get_latest_runs(cls, session: Session = NEW_SESSION) -> list[DagRun]:
-        """Returns the latest DagRun for each DAG"""
+        """Returns the latest DagRun for each DAG."""
         subquery = (
             session.query(cls.dag_id, func.max(cls.execution_date).label("execution_date"))
             .group_by(cls.dag_id)

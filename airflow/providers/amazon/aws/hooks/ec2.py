@@ -166,6 +166,11 @@ class EC2Hook(AwsBaseHook):
         """
         return [instance["InstanceId"] for instance in self.get_instances(filters=filters)]
 
+    async def get_instance_state_async(self, instance_id: str) -> str:
+        async with self.async_conn as client:
+            response = await client.describe_instances(InstanceIds=[instance_id])
+            return response["Reservations"][0]["Instances"][0]["State"]["Name"]
+
     def get_instance_state(self, instance_id: str) -> str:
         """
         Get EC2 instance state by id and return it.

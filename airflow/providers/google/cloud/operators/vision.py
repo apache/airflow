@@ -24,14 +24,14 @@ from typing import TYPE_CHECKING, Any, Sequence, Tuple
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
-from google.cloud.vision_v1.types import (
+from google.cloud.vision_v1 import (
     AnnotateImageRequest,
-    FieldMask,
     Image,
     Product,
     ProductSet,
     ReferenceImage,
 )
+from google.protobuf.field_mask_pb2 import FieldMask  # type: ignore
 
 from airflow.providers.google.cloud.hooks.vision import CloudVisionHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -278,7 +278,7 @@ class CloudVisionUpdateProductSetOperator(GoogleCloudBaseOperator):
         location: str | None = None,
         product_set_id: str | None = None,
         project_id: str | None = None,
-        update_mask: dict | FieldMask = None,
+        update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -303,6 +303,9 @@ class CloudVisionUpdateProductSetOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+
+        if isinstance(self.product_set, dict):
+            self.product_set = ProductSet(self.product_set)
         return hook.update_product_set(
             location=self.location,
             product_set_id=self.product_set_id,
@@ -650,7 +653,7 @@ class CloudVisionUpdateProductOperator(GoogleCloudBaseOperator):
         location: str | None = None,
         product_id: str | None = None,
         project_id: str | None = None,
-        update_mask: dict | FieldMask = None,
+        update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -675,12 +678,13 @@ class CloudVisionUpdateProductOperator(GoogleCloudBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+
         return hook.update_product(
             product=self.product,
             location=self.location,
             product_id=self.product_id,
             project_id=self.project_id,
-            update_mask=self.update_mask,
+            update_mask=self.update_mask,  # type: ignore
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
@@ -923,6 +927,9 @@ class CloudVisionCreateReferenceImageOperator(GoogleCloudBaseOperator):
                 gcp_conn_id=self.gcp_conn_id,
                 impersonation_chain=self.impersonation_chain,
             )
+
+            if isinstance(self.reference_image, dict):
+                self.reference_image = ReferenceImage(self.reference_image)
             return hook.create_reference_image(
                 location=self.location,
                 product_id=self.product_id,

@@ -151,7 +151,7 @@ def retag_constraints(release_candidate, version):
             dry_run_override=DRY_RUN,
             check=True,
         )
-    if confirm_action("Push latest constraints tag to GitHub?"):
+    if confirm_action(f"Push contraints-{version} tag to GitHub?"):
         run_command(
             ["git", "push", "origin", "tag", f"constraints-{version}"], dry_run_override=DRY_RUN, check=True
         )
@@ -263,6 +263,10 @@ def airflow_release(release_candidate, previous_release):
 
     # Commit the release to svn
     commit_release(version, release_candidate, svn_release_version_dir)
+
+    confirm_action(
+        "Verify that the artifacts appear in https://dist.apache.org/repos/dist/release/airflow/", abort=True
+    )
 
     # Remove old release
     if os.path.exists(svn_release_version_dir):

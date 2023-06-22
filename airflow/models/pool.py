@@ -32,7 +32,7 @@ from airflow.utils.state import State
 
 
 class PoolStats(TypedDict):
-    """Dictionary containing Pool Stats"""
+    """Dictionary containing Pool Stats."""
 
     total: int
     running: int
@@ -149,7 +149,7 @@ class Pool(Base):
         session: Session = NEW_SESSION,
     ) -> dict[str, PoolStats]:
         """
-        Get Pool stats (Number of Running, Queued, Open & Total tasks)
+        Get Pool stats (Number of Running, Queued, Open & Total tasks).
 
         If ``lock_rows`` is True, and the database engine in use supports the ``NOWAIT`` syntax, then a
         non-blocking lock will be attempted -- if the lock is not available then SQLAlchemy will throw an
@@ -203,7 +203,7 @@ class Pool(Base):
 
     def to_json(self) -> dict[str, Any]:
         """
-        Get the Pool in a json structure
+        Get the Pool in a json structure.
 
         :return: the pool object in json format
         """

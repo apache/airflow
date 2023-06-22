@@ -56,7 +56,7 @@ def _draw_task(
     parent_graph: graphviz.Digraph,
     states_by_task_id: dict[Any, Any] | None,
 ) -> None:
-    """Draw a single task on the given parent_graph"""
+    """Draw a single task on the given parent_graph."""
     if states_by_task_id:
         state = states_by_task_id.get(task.task_id, State.NONE)
         color = State.color_fg(state)
@@ -80,7 +80,7 @@ def _draw_task(
 def _draw_task_group(
     task_group: TaskGroup, parent_graph: graphviz.Digraph, states_by_task_id: dict[str, str] | None
 ) -> None:
-    """Draw the given task_group and its children on the given parent_graph"""
+    """Draw the given task_group and its children on the given parent_graph."""
     # Draw joins
     if task_group.upstream_group_ids or task_group.upstream_task_ids:
         parent_graph.node(

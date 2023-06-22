@@ -63,9 +63,7 @@ collect_ignore = [
 
 @pytest.fixture()
 def reset_environment():
-    """
-    Resets env variables.
-    """
+    """Resets env variables."""
     init_env = os.environ.copy()
     yield
     changed_env = os.environ
@@ -78,10 +76,7 @@ def reset_environment():
 
 @pytest.fixture()
 def secret_key() -> str:
-    """
-    Return secret key configured.
-    :return:
-    """
+    """Return secret key configured."""
     from airflow.configuration import conf
 
     the_key = conf.get("webserver", "SECRET_KEY")
@@ -100,9 +95,7 @@ def url_safe_serializer(secret_key) -> URLSafeSerializer:
 
 @pytest.fixture()
 def reset_db():
-    """
-    Resets Airflow db.
-    """
+    """Resets Airflow db."""
 
     from airflow.utils import db
 
@@ -115,9 +108,7 @@ ALLOWED_TRACE_SQL_COLUMNS = ["num", "time", "trace", "sql", "parameters", "count
 
 @pytest.fixture(autouse=True)
 def trace_sql(request):
-    """
-    Displays queries from the tests to console.
-    """
+    """Displays queries from the tests to console."""
     trace_sql_option = request.config.getoption("trace_sql")
     if not trace_sql_option:
         yield
@@ -157,9 +148,7 @@ def trace_sql(request):
 
 
 def pytest_addoption(parser):
-    """
-    Add options parser for custom plugins
-    """
+    """Add options parser for custom plugins."""
     group = parser.getgroup("airflow")
     group.addoption(
         "--with-db-init",
@@ -233,10 +222,7 @@ def initial_db_init():
 
 @pytest.fixture(autouse=True, scope="session")
 def initialize_airflow_tests(request):
-    """
-    Helper that setups Airflow testing environment.
-    """
-
+    """Helper that setups Airflow testing environment."""
     print(" AIRFLOW ".center(60, "="))
 
     # Setup test environment for breeze
@@ -294,7 +280,7 @@ def pytest_configure(config):
 
 
 def pytest_unconfigure(config):
-    os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"]
+    del os.environ["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"]
 
 
 def skip_if_not_marked_with_integration(selected_integrations, item):
@@ -423,21 +409,24 @@ def pytest_runtest_setup(item):
 
 @pytest.fixture
 def frozen_sleep(monkeypatch):
-    """
-    Use time-machine to "stub" sleep, so that it takes no time, but that
-    ``datetime.now()`` appears to move forwards
+    """Use time-machine to "stub" sleep.
 
-    If your module under test does ``import time`` and then ``time.sleep``::
+    This means the ``sleep()`` takes no time, but ``datetime.now()`` appears to move forwards.
+
+    If your module under test does ``import time`` and then ``time.sleep``:
+
+    .. code-block:: python
 
         def test_something(frozen_sleep):
             my_mod.fn_under_test()
 
-
     If your module under test does ``from time import sleep`` then you will
-    have to mock that sleep function directly::
+    have to mock that sleep function directly:
+
+    .. code-block:: python
 
         def test_something(frozen_sleep, monkeypatch):
-            monkeypatch.setattr('my_mod.sleep', frozen_sleep)
+            monkeypatch.setattr("my_mod.sleep", frozen_sleep)
             my_mod.fn_under_test()
     """
     traveller = None
@@ -469,8 +458,7 @@ def app():
 
 @pytest.fixture
 def dag_maker(request):
-    """
-    The dag_maker helps us to create DAG, DagModel, and SerializedDAG automatically.
+    """Fixture to help create DAG, DagModel, and SerializedDAG automatically.
 
     You have to use the dag_maker as a context manager and it takes
     the same argument as DAG::
@@ -492,10 +480,11 @@ def dag_maker(request):
 
     The dag_maker.create_dagrun takes the same arguments as dag.create_dagrun
 
-    If you want to operate on serialized DAGs, then either pass ``serialized=True` to the ``dag_maker()``
-    call, or you can mark your test/class/file with ``@pytest.mark.need_serialized_dag(True)``. In both of
-    these cases the ``dag`` returned by the context manager will be a lazily-evaluated proxy object to the
-    SerializedDAG.
+    If you want to operate on serialized DAGs, then either pass
+    ``serialized=True`` to the ``dag_maker()`` call, or you can mark your
+    test/class/file with ``@pytest.mark.need_serialized_dag(True)``. In both of
+    these cases the ``dag`` returned by the context manager will be a
+    lazily-evaluated proxy object to the SerializedDAG.
     """
     import lazy_object_proxy
 
@@ -703,8 +692,8 @@ def dag_maker(request):
 
 @pytest.fixture
 def create_dummy_dag(dag_maker):
-    """
-    This fixture creates a `DAG` with a single `EmptyOperator` task.
+    """Create a `DAG` with a single `EmptyOperator` task.
+
     DagRun and DagModel is also created.
 
     Apart from the already existing arguments, any other argument in kwargs
@@ -760,8 +749,7 @@ def create_dummy_dag(dag_maker):
 
 @pytest.fixture
 def create_task_instance(dag_maker, create_dummy_dag):
-    """
-    Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc)
+    """Create a TaskInstance, and associated DB rows (DagRun, DagModel, etc).
 
     Uses ``create_dummy_dag`` to create the dag structure.
     """

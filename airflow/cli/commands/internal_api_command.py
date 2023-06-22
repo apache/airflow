@@ -201,7 +201,7 @@ def internal_api(args):
 
 
 def create_app(config=None, testing=False):
-    """Create a new instance of Airflow Internal API app"""
+    """Create a new instance of Airflow Internal API app."""
     flask_app = Flask(__name__)
 
     flask_app.config["APP_NAME"] = "Airflow Internal API"
@@ -255,7 +255,7 @@ def create_app(config=None, testing=False):
 
 
 def cached_app(config=None, testing=False):
-    """Return cached instance of Airflow Internal API app"""
+    """Return cached instance of Airflow Internal API app."""
     global app
     if not app:
         app = create_app(config=config, testing=testing)

@@ -21,6 +21,8 @@ import json
 from typing import TYPE_CHECKING, Any, Iterable, Sequence, cast
 
 from bson import json_util
+from pymongo.command_cursor import CommandCursor
+from pymongo.cursor import Cursor
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -96,7 +98,7 @@ class MongoToS3Operator(BaseOperator):
 
         # Grab collection and execute query according to whether or not it is a pipeline
         if self.is_pipeline:
-            results = MongoHook(self.mongo_conn_id).aggregate(
+            results: CommandCursor[Any] | Cursor = MongoHook(self.mongo_conn_id).aggregate(
                 mongo_collection=self.mongo_collection,
                 aggregate_query=cast(list, self.mongo_query),
                 mongo_db=self.mongo_db,
@@ -109,6 +111,7 @@ class MongoToS3Operator(BaseOperator):
                 query=cast(dict, self.mongo_query),
                 projection=self.mongo_projection,
                 mongo_db=self.mongo_db,
+                find_one=False,
             )
 
         # Performs transform then stringifies the docs results into json format

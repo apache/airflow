@@ -204,7 +204,7 @@ class Connection(Base, LoggingMixin):
                 self.extra = json.dumps(query)
 
     def get_uri(self) -> str:
-        """Return connection in URI format"""
+        """Return connection in URI format."""
         if self.conn_type and "_" in self.conn_type:
             self.log.warning(
                 "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
@@ -313,7 +313,7 @@ class Connection(Base, LoggingMixin):
         return synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra))
 
     def rotate_fernet_key(self):
-        """Encrypts data with a new key. See: :ref:`security/fernet`"""
+        """Encrypts data with a new key. See: :ref:`security/fernet`."""
         fernet = get_fernet()
         if self._password and self.is_encrypted:
             self._password = fernet.rotate(self._password.encode("utf-8")).decode()
@@ -321,7 +321,7 @@ class Connection(Base, LoggingMixin):
             self._extra = fernet.rotate(self._extra.encode("utf-8")).decode()
 
     def get_hook(self, *, hook_params=None):
-        """Return hook based on conn_type"""
+        """Return hook based on conn_type."""
         from airflow.providers_manager import ProvidersManager
 
         hook = ProvidersManager().hooks.get(self.conn_type, None)

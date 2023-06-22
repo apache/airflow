@@ -36,6 +36,7 @@ from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
@@ -364,10 +365,10 @@ class ExternalTaskSensor(BaseSensorOperator):
                 .scalar()
             ) / len(self.external_task_ids)
         elif self.external_task_group_id:
-            external_task_group_task_ids = self.get_external_task_group_task_ids(session)
+            external_task_group_task_ids = self.get_external_task_group_task_ids(session, dttm_filter)
             count = (
                 self._count_query(TI, session, states, dttm_filter)
-                .filter(TI.task_id.in_(external_task_group_task_ids))
+                .filter(tuple_in_condition((TI.task_id, TI.map_index), external_task_group_task_ids))
                 .scalar()
             ) / len(external_task_group_task_ids)
         else:
@@ -382,16 +383,22 @@ class ExternalTaskSensor(BaseSensorOperator):
         )
         return query
 
-    def get_external_task_group_task_ids(self, session):
+    def get_external_task_group_task_ids(self, session, dttm_filter):
         refreshed_dag_info = DagBag(read_dags_from_db=True).get_dag(self.external_dag_id, session)
         task_group = refreshed_dag_info.task_group_dict.get(self.external_task_group_id)
 
         if task_group:
-            return [task.task_id for task in task_group]
+            group_tasks = session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.external_dag_id,
+                TaskInstance.task_id.in_(task.task_id for task in task_group),
+                TaskInstance.execution_date.in_(dttm_filter),
+            )
+
+            return [(t.task_id, t.map_index) for t in group_tasks]
 
         # returning default task_id as group_id itself, this will avoid any failure in case of
         # 'check_existence=False' and will fail on timeout
-        return [self.external_task_group_id]
+        return [(self.external_task_group_id, -1)]
 
     def _handle_execution_date_fn(self, context) -> Any:
         """

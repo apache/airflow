@@ -332,7 +332,7 @@ class MockJobRunner(BaseJobRunner):
     job_type = "MockJob"
 
     def __init__(self, job: Job | JobPydantic, func=None):
-        super().__init__()
+        super().__init__(job)
         self.job = job
         self.job.job_type = self.job_type
         self.func = func

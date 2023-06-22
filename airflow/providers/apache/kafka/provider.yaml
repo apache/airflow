@@ -23,6 +23,7 @@ suspended: false
 description: |
   `Apache Kafka  <https://kafka.apache.org/>`__
 versions:
+  - 1.1.0
   - 1.0.0
 
 dependencies:

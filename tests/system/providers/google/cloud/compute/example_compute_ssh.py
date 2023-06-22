@@ -43,7 +43,7 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 DAG_ID = "cloud_compute_ssh"
 LOCATION = "europe-west1-b"
 REGION = "europe-west1"
-GCE_INSTANCE_NAME = "instance-1"
+GCE_INSTANCE_NAME = "instance-ssh-test"
 SHORT_MACHINE_TYPE_NAME = "n1-standard-1"
 GCE_INSTANCE_BODY = {
     "name": GCE_INSTANCE_NAME,
@@ -85,19 +85,36 @@ with models.DAG(
     )
     # [END howto_operator_gce_insert]
 
-    # [START howto_execute_command_on_remote]
-    metadata_without_iap_tunnel = SSHOperator(
-        task_id="metadata_without_iap_tunnel",
+    # [START howto_execute_command_on_remote_1]
+    metadata_without_iap_tunnel1 = SSHOperator(
+        task_id="metadata_without_iap_tunnel1",
+        ssh_hook=ComputeEngineSSHHook(
+            user="username",
+            instance_name=GCE_INSTANCE_NAME,
+            zone=LOCATION,
+            project_id=PROJECT_ID,
+            use_oslogin=False,
+            use_iap_tunnel=False,
+            cmd_timeout=100,
+        ),
+        command="echo metadata_without_iap_tunnel1",
+    )
+    # [END howto_execute_command_on_remote_1]
+
+    # [START howto_execute_command_on_remote_2]
+    metadata_without_iap_tunnel2 = SSHOperator(
+        task_id="metadata_without_iap_tunnel2",
         ssh_hook=ComputeEngineSSHHook(
             user="username",
             instance_name=GCE_INSTANCE_NAME,
             zone=LOCATION,
             use_oslogin=False,
             use_iap_tunnel=False,
+            cmd_timeout=100,
         ),
-        command="echo metadata_without_iap_tunnel",
+        command="echo metadata_without_iap_tunnel2",
     )
-    # [END howto_execute_command_on_remote]
+    # [END howto_execute_command_on_remote_2]
 
     # [START howto_operator_gce_delete_no_project_id]
     gce_instance_delete = ComputeEngineDeleteInstanceOperator(
@@ -110,7 +127,8 @@ with models.DAG(
 
     chain(
         gce_instance_insert,
-        metadata_without_iap_tunnel,
+        metadata_without_iap_tunnel1,
+        metadata_without_iap_tunnel2,
         gce_instance_delete,
     )
 

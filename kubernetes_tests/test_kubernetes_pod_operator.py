@@ -896,8 +896,6 @@ class TestKubernetesPodOperatorSystem:
         # todo: This isn't really a system test
         await_xcom_sidecar_container_start_mock.return_value = None
         hook_mock.return_value.is_in_cluster = False
-        hook_mock.return_value.get_xcom_sidecar_container_image.return_value = None
-        hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
         hook_mock.return_value.get_connection.return_value = Connection(conn_id="kubernetes_default")
         extract_xcom_mock.return_value = "{}"
         path = sys.path[0] + "/tests/kubernetes/pod.yaml"

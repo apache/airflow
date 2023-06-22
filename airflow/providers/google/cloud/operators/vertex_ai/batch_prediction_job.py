@@ -139,6 +139,14 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
     :param sync: Whether to execute this method synchronously. If False, this method will be executed in
         concurrent Future and any downstream object will be immediately returned and synced when the
         Future has completed.
+    :param create_request_timeout: Optional. The timeout for the create request in seconds.
+    :param batch_size: Optional. The number of the records (e.g. instances)
+        of the operation given in each batch
+        to a machine replica. Machine type, and size of a single record should be considered
+        when setting this parameter, higher value speeds up the batch operation's execution,
+        but too high value will result in a whole batch not fitting in a machine's memory,
+        and the whole operation will fail.
+        The default value is same as in the aiplatform's BatchPredictionJob.
     :param retry: Designation of what errors, if any, should be retried.
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
@@ -181,6 +189,8 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         labels: dict[str, str] | None = None,
         encryption_spec_key_name: str | None = None,
         sync: bool = True,
+        create_request_timeout: float | None = None,
+        batch_size: int | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -208,6 +218,8 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
         self.labels = labels
         self.encryption_spec_key_name = encryption_spec_key_name
         self.sync = sync
+        self.create_request_timeout = create_request_timeout
+        self.batch_size = batch_size
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.hook: BatchPredictionJobHook | None = None
@@ -241,6 +253,8 @@ class CreateBatchPredictionJobOperator(GoogleCloudBaseOperator):
             labels=self.labels,
             encryption_spec_key_name=self.encryption_spec_key_name,
             sync=self.sync,
+            create_request_timeout=self.create_request_timeout,
+            batch_size=self.batch_size,
         )
 
         batch_prediction_job = result.to_dict()

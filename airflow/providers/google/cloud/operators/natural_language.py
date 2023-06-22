@@ -22,8 +22,7 @@ from typing import TYPE_CHECKING, Sequence, Tuple
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
-from google.cloud.language_v1 import enums
-from google.cloud.language_v1.types import Document
+from google.cloud.language_v1.types import Document, EncodingType
 from google.protobuf.json_format import MessageToDict
 
 from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook
@@ -76,7 +75,7 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(GoogleCloudBaseOperator):
         self,
         *,
         document: dict | Document,
-        encoding_type: enums.EncodingType | None = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -105,7 +104,7 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(GoogleCloudBaseOperator):
         )
         self.log.info("Finished analyzing entities")
 
-        return MessageToDict(response)
+        return MessageToDict(response._pb)
 
 
 class CloudNaturalLanguageAnalyzeEntitySentimentOperator(GoogleCloudBaseOperator):
@@ -149,7 +148,7 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(GoogleCloudBaseOperator
         self,
         *,
         document: dict | Document,
-        encoding_type: enums.EncodingType | None = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -182,7 +181,7 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(GoogleCloudBaseOperator
         )
         self.log.info("Finished entity sentiment analyze")
 
-        return MessageToDict(response)
+        return MessageToDict(response._pb)
 
 
 class CloudNaturalLanguageAnalyzeSentimentOperator(GoogleCloudBaseOperator):
@@ -225,7 +224,7 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(GoogleCloudBaseOperator):
         self,
         *,
         document: dict | Document,
-        encoding_type: enums.EncodingType | None = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -254,7 +253,7 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(GoogleCloudBaseOperator):
         )
         self.log.info("Finished sentiment analyze")
 
-        return MessageToDict(response)
+        return MessageToDict(response._pb)
 
 
 class CloudNaturalLanguageClassifyTextOperator(GoogleCloudBaseOperator):
@@ -322,4 +321,4 @@ class CloudNaturalLanguageClassifyTextOperator(GoogleCloudBaseOperator):
         )
         self.log.info("Finished text classify")
 
-        return MessageToDict(response)
+        return MessageToDict(response._pb)

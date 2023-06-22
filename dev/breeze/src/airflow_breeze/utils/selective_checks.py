@@ -31,6 +31,7 @@ from airflow_breeze.utils.path_utils import (
     SYSTEM_TESTS_PROVIDERS_ROOT,
     TESTS_PROVIDERS_ROOT,
 )
+from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -42,10 +43,15 @@ from functools import lru_cache
 from re import match
 from typing import Any, Dict, List, TypeVar
 
-from typing_extensions import Literal
+if sys.version_info >= (3, 9):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
 
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
     CURRENT_MSSQL_VERSIONS,
     CURRENT_MYSQL_VERSIONS,
@@ -58,6 +64,8 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     HELM_VERSION,
     KIND_VERSION,
+    RUNS_ON_PUBLIC_RUNNER,
+    RUNS_ON_SELF_HOSTED_RUNNER,
     GithubEvents,
     SelectiveUnitTestTypes,
     all_helm_test_packages,
@@ -67,6 +75,7 @@ from airflow_breeze.utils.console import get_console
 
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
+USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 
 
 class FileGroupForCi(Enum):
@@ -136,6 +145,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
+            r"^\.github/SECURITY\.rst$",
             r"^airflow/.*\.py$",
             r"^chart",
             r"^providers",
@@ -228,23 +238,11 @@ def find_provider_affected(changed_file: str, include_docs: bool) -> str | None:
     return "Providers"
 
 
-def add_dependent_providers(
-    providers: set[str], provider_to_check: str, dependencies: dict[str, dict[str, list[str]]]
-):
-    for provider, provider_info in dependencies.items():
-        # Providers that use this provider
-        if provider_to_check in provider_info["cross-providers-deps"]:
-            providers.add(provider)
-        # and providers we use directly
-        for dep_name in dependencies[provider_to_check]["cross-providers-deps"]:
-            providers.add(dep_name)
-
-
 def find_all_providers_affected(
     changed_files: tuple[str, ...], include_docs: bool, fail_if_suspended_providers_affected: bool
 ) -> list[str] | Literal["ALL_PROVIDERS"] | None:
     all_providers: set[str] = set()
-    dependencies = json.loads((AIRFLOW_SOURCES_ROOT / "generated" / "provider_dependencies.json").read_text())
+
     all_providers_affected = False
     suspended_providers: set[str] = set()
     for changed_file in changed_files:
@@ -252,7 +250,7 @@ def find_all_providers_affected(
         if provider == "Providers":
             all_providers_affected = True
         elif provider is not None:
-            if provider not in dependencies:
+            if provider not in DEPENDENCIES:
                 suspended_providers.add(provider)
             else:
                 all_providers.add(provider)
@@ -288,7 +286,9 @@ def find_all_providers_affected(
     if len(all_providers) == 0:
         return None
     for provider in list(all_providers):
-        add_dependent_providers(all_providers, provider, dependencies)
+        all_providers.update(
+            get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
+        )
     return sorted(all_providers)
 
 
@@ -303,6 +303,8 @@ class SelectiveChecks:
         commit_ref: str | None = None,
         pr_labels: tuple[str, ...] = (),
         github_event: GithubEvents = GithubEvents.PULL_REQUEST,
+        github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY,
+        github_actor: str = "",
     ):
         self._files = files
         self._default_branch = default_branch
@@ -310,6 +312,8 @@ class SelectiveChecks:
         self._commit_ref = commit_ref
         self._pr_labels = pr_labels
         self._github_event = github_event
+        self._github_repository = github_repository
+        self._github_actor = github_actor
 
     def __important_attributes(self) -> tuple[Any, ...]:
         return tuple(getattr(self, f) for f in self.__HASHABLE_FIELDS)
@@ -626,7 +630,7 @@ class SelectiveChecks:
     @staticmethod
     def _extract_long_provider_tests(current_test_types: set[str]):
         """
-        In case there are Provider tests in the list of test to run (either in the form of
+        In case there are Provider tests in the list of test to run - either in the form of
         Providers or Providers[...] we subtract them from the test type,
         and add them to the list of tests to run individually.
 
@@ -773,3 +777,12 @@ class SelectiveChecks:
         if affected_providers == "ALL_PROVIDERS":
             return _ALL_PROVIDERS_LIST
         return " ".join(sorted(affected_providers))
+
+    @cached_property
+    def runs_on(self) -> str:
+        if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
+            if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
+                return RUNS_ON_SELF_HOSTED_RUNNER
+            if self._github_actor in COMMITTERS and USE_PUBLIC_RUNNERS_LABEL not in self._pr_labels:
+                return RUNS_ON_SELF_HOSTED_RUNNER
+        return RUNS_ON_PUBLIC_RUNNER

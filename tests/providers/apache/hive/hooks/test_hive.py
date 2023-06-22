@@ -17,13 +17,22 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
+from airflow import PY311
+
+if PY311:
+    pytest.skip(
+        "The tests are skipped because Apache Hive provider is not supported on Python 3.11",
+        allow_module_level=True,
+    )
+
 import datetime
 import itertools
 from collections import OrderedDict, namedtuple
 from unittest import mock
 
 import pandas as pd
-import pytest
 from hmsclient import HMSClient
 
 from airflow.exceptions import AirflowException

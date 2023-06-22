@@ -188,7 +188,7 @@ class TestPythonVirtualenvDecorator:
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["f"]
-        assert setup_task._is_setup
+        assert setup_task.is_setup
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     def test_marking_virtualenv_python_task_as_teardown(self, dag_maker):
@@ -202,7 +202,7 @@ class TestPythonVirtualenvDecorator:
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
-        assert teardown_task._is_teardown
+        assert teardown_task.is_teardown
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
     @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
@@ -219,6 +219,6 @@ class TestPythonVirtualenvDecorator:
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
-        assert teardown_task._is_teardown
-        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
+        assert teardown_task.is_teardown
+        assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

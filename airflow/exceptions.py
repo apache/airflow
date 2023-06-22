@@ -208,7 +208,7 @@ class DagFileExists(AirflowBadRequest):
 
 
 class DagInvalidTriggerRule(AirflowException):
-    """Raise when a dag has 'fail_stop' enabled yet has a non-default trigger rule"""
+    """Raise when a dag has 'fail_stop' enabled yet has a non-default trigger rule."""
 
     @classmethod
     def check(cls, dag: DAG | None, trigger_rule: str):

@@ -40,6 +40,7 @@ from urllib3.response import HTTPResponse
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.kubernetes.pod_generator import PodDefaults
+from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
 
@@ -70,6 +71,30 @@ class PodPhase:
     SUCCEEDED = "Succeeded"
 
     terminal_states = {FAILED, SUCCEEDED}
+
+
+class PodOperatorHookProtocol(Protocol):
+    """
+    Protocol to define methods relied upon by KubernetesPodOperator
+
+    Subclasses of KubernetesPodOperator, such as GKEStartPodOperator, may use
+    hooks that don't extend KubernetesHook.  We use this protocol to document the
+    methods used by KPO and ensure that these methods exist on such other hooks.
+    """
+
+    @property
+    def core_v1_client(self) -> client.CoreV1Api:
+        """Get authenticated CoreV1Api object."""
+
+    @property
+    def is_in_cluster(self) -> bool:
+        """Expose whether the hook is configured with ``load_incluster_config`` or not"""
+
+    def get_pod(self, name: str, namespace: str) -> V1Pod:
+        """Read pod object from kubernetes API."""
+
+    def get_namespace(self) -> str | None:
+        """Returns the namespace that defined in the connection"""
 
 
 def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus | None:

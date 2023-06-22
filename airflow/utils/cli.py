@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Utilities module for cli"""
+"""Utilities module for cli."""
 from __future__ import annotations
 
 import functools
@@ -85,7 +85,7 @@ def action_cli(func=None, check_db=True):
         def wrapper(*args, **kwargs):
             """
             An wrapper for cli functions. It assumes to have Namespace instance
-            at 1st positional argument
+            at 1st positional argument.
 
             :param args: Positional argument. It assumes to have Namespace instance
                 at 1st positional argument
@@ -181,7 +181,7 @@ def process_subdir(subdir: str | None):
 
 
 def get_dag_by_file_location(dag_id: str):
-    """Returns DAG of a given dag_id by looking up file location"""
+    """Returns DAG of a given dag_id by looking up file location."""
     from airflow.models import DagBag, DagModel
 
     # Benefit is that logging from other dags in dagbag will not appear
@@ -217,7 +217,7 @@ def _search_for_dag_file(val: str | None) -> str | None:
 
 def get_dag(subdir: str | None, dag_id: str) -> DAG:
     """
-    Returns DAG of a given dag_id
+    Returns DAG of a given dag_id.
 
     First it we'll try to use the given subdir.  If that doesn't work, we'll try to
     find the correct path (assuming it's a file) and failing that, use the configured
@@ -239,7 +239,7 @@ def get_dag(subdir: str | None, dag_id: str) -> DAG:
 
 
 def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
-    """Returns DAG(s) matching a given regex or dag_id"""
+    """Returns DAG(s) matching a given regex or dag_id."""
     from airflow.models import DagBag
 
     if not use_regex:
@@ -256,7 +256,7 @@ def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
 
 @provide_session
 def get_dag_by_pickle(pickle_id: int, session: Session = NEW_SESSION) -> DAG:
-    """Fetch DAG from the database using pickling"""
+    """Fetch DAG from the database using pickling."""
     from airflow.models import DagPickle
 
     dag_pickle = session.query(DagPickle).filter(DagPickle.id == pickle_id).first()
@@ -267,7 +267,7 @@ def get_dag_by_pickle(pickle_id: int, session: Session = NEW_SESSION) -> DAG:
 
 
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
-    """Creates logging paths"""
+    """Creates logging paths."""
     if not stderr:
         stderr = os.path.join(settings.AIRFLOW_HOME, f"airflow-{process}.err")
     if not stdout:
@@ -284,7 +284,7 @@ def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
 
 
 def setup_logging(filename):
-    """Creates log file handler for daemon process"""
+    """Creates log file handler for daemon process."""
     root = logging.getLogger()
     handler = NonCachingFileHandler(filename)
     formatter = logging.Formatter(settings.SIMPLE_LOG_FORMAT)
@@ -297,7 +297,8 @@ def setup_logging(filename):
 
 def sigint_handler(sig, frame):
     """
-    Returns without error on SIGINT or SIGTERM signals in interactive command mode
+    Returns without error on SIGINT or SIGTERM signals in interactive command mode.
+
     e.g. CTRL+C or kill <PID>
     """
     sys.exit(0)
@@ -305,8 +306,9 @@ def sigint_handler(sig, frame):
 
 def sigquit_handler(sig, frame):
     """
-    Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT
-    e.g. kill -s QUIT <PID> or CTRL+\
+    Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT.
+
+    e.g. kill -s QUIT <PID> or CTRL+
     """
     print(f"Dumping stack traces for all threads in PID {os.getpid()}")
     id_to_name = {th.ident: th.name for th in threading.enumerate()}
@@ -329,7 +331,7 @@ class ColorMode:
 
 
 def should_use_colors(args) -> bool:
-    """Processes arguments and decides whether to enable color in output"""
+    """Processes arguments and decides whether to enable color in output."""
     if args.color == ColorMode.ON:
         return True
     if args.color == ColorMode.OFF:

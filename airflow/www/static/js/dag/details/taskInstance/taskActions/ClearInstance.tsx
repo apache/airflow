@@ -68,7 +68,7 @@ const ClearInstance = ({
   const [upstream, setUpstream] = useState(false);
   const onToggleUpstream = () => setUpstream(!upstream);
 
-  const [downstream, setDownstream] = useState(false);
+  const [downstream, setDownstream] = useState(true);
   const onToggleDownstream = () => setDownstream(!downstream);
 
   const [recursive, setRecursive] = useState(true);
@@ -106,11 +106,11 @@ const ClearInstance = ({
 
   const resetModal = () => {
     onClose();
-    setDownstream(false);
+    setDownstream(true);
     setUpstream(false);
     setPast(false);
     setFuture(false);
-    setRecursive(false);
+    setRecursive(true);
     setFailed(false);
   };
 
@@ -135,7 +135,6 @@ const ClearInstance = ({
       <Button
         title={clearLabel}
         aria-label={clearLabel}
-        ml={2}
         isDisabled={!canEdit}
         colorScheme="blue"
         onClick={onOpen}

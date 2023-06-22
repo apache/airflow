@@ -130,10 +130,13 @@ class Job(Base, LoggingMixin):
         :param grace_multiplier: multiplier of heartrate to require heart beat
             within
         """
+        if self.job_type == "SchedulerJob":
+            health_check_threshold: int = conf.getint("scheduler", "scheduler_health_check_threshold")
+        else:
+            health_check_threshold: int = self.heartrate * grace_multiplier
         return (
             self.state == State.RUNNING
-            and (timezone.utcnow() - self.latest_heartbeat).total_seconds()
-            < self.heartrate * grace_multiplier
+            and (timezone.utcnow() - self.latest_heartbeat).total_seconds() < health_check_threshold
         )
 
     @provide_session
@@ -266,8 +269,10 @@ def run_job(
     job: Job | JobPydantic, execute_callable: Callable[[], int | None], session: Session = NEW_SESSION
 ) -> int | None:
     """
-    Runs the job. The Job is always an ORM object and setting the state is happening within the
-    same DB session and the session is kept open throughout the whole execution
+    Runs the job.
+
+    The Job is always an ORM object and setting the state is happening within the
+    same DB session and the session is kept open throughout the whole execution.
 
     :meta private:
 

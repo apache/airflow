@@ -55,7 +55,7 @@ def _ensure_tasks(nodes: Iterable[DAGNode]) -> Sequence[Operator]:
 
 
 class SkipMixin(LoggingMixin):
-    """A Mixin to skip Tasks Instances"""
+    """A Mixin to skip Tasks Instances."""
 
     def _set_state_to_skipped(
         self,

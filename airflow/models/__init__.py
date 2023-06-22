@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Airflow models"""
+"""Airflow models."""
 from __future__ import annotations
 
 # Do not add new models to this -- this is for compat only

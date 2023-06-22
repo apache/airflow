@@ -562,6 +562,20 @@ class TestPostConnection(TestConnectionEndpoint):
             "type": EXCEPTIONS_LINK_MAP[400],
         }
 
+    def test_post_should_respond_400_for_invalid_conn_id(self):
+        payload = {"connection_id": "****", "conn_type": "test_type"}
+        response = self.client.post(
+            "/api/v1/connections", json=payload, environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 400
+        assert response.json == {
+            "detail": "The key '****' has to be made of "
+            "alphanumeric characters, dashes, dots and underscores exclusively",
+            "status": 400,
+            "title": "Bad Request",
+            "type": EXCEPTIONS_LINK_MAP[400],
+        }
+
     def test_post_should_respond_409_already_exist(self):
         payload = {"connection_id": "test-connection-id", "conn_type": "test_type"}
         response = self.client.post(

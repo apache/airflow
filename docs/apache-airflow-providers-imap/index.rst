@@ -52,7 +52,7 @@ Package apache-airflow-providers-imap
 `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 
-Release: 3.1.1
+Release: 3.2.1
 
 Provider package
 ----------------
@@ -66,5 +66,16 @@ Installation
 You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-imap``
+
+Requirements
+------------
+
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.4.0``
+==================  ==================
 
 .. include:: ../../airflow/providers/imap/CHANGELOG.rst

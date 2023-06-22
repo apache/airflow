@@ -61,6 +61,9 @@ TEST_BUILD_INSTANCE = dict(
             "volumes": [],
             "status": 0,
             "script": "",
+            "allow_failure": False,
+            "exit_code": 0,
+            "allow_exit_codes": [],
         }
     ],
     name="",

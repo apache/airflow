@@ -35,7 +35,7 @@ class TestSetupTearDownTask:
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["mytask"]
-        assert setup_task._is_setup
+        assert setup_task.is_setup
 
     def test_marking_functions_as_teardown_task(self, dag_maker):
         @teardown
@@ -47,7 +47,7 @@ class TestSetupTearDownTask:
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["mytask"]
-        assert teardown_task._is_teardown
+        assert teardown_task.is_teardown
 
     def test_marking_decorated_functions_as_setup_task(self, dag_maker):
         @setup
@@ -60,7 +60,7 @@ class TestSetupTearDownTask:
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["mytask"]
-        assert setup_task._is_setup
+        assert setup_task.is_setup
 
     def test_marking_operator_as_setup_task(self, dag_maker):
         with dag_maker() as dag:
@@ -68,7 +68,7 @@ class TestSetupTearDownTask:
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["mytask"]
-        assert setup_task._is_setup
+        assert setup_task.is_setup
 
     def test_marking_decorated_functions_as_teardown_task(self, dag_maker):
         @teardown
@@ -81,7 +81,7 @@ class TestSetupTearDownTask:
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["mytask"]
-        assert teardown_task._is_teardown
+        assert teardown_task.is_teardown
 
     def test_marking_operator_as_teardown_task(self, dag_maker):
         with dag_maker() as dag:
@@ -89,7 +89,7 @@ class TestSetupTearDownTask:
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["mytask"]
-        assert teardown_task._is_teardown
+        assert teardown_task.is_teardown
 
     def test_setup_taskgroup_decorator(self, dag_maker):
         with dag_maker():
@@ -138,8 +138,8 @@ class TestSetupTearDownTask:
         with dag_maker() as dag:
             mytask()
         teardown_task = dag.task_group.children["mytask"]
-        assert teardown_task._is_teardown
-        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
+        assert teardown_task.is_teardown
+        assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
         assert len(dag.task_group.children) == 1
 
     @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
@@ -152,8 +152,8 @@ class TestSetupTearDownTask:
             )
 
         teardown_task = dag.task_group.children["mytask"]
-        assert teardown_task._is_teardown
-        assert teardown_task._on_failure_fail_dagrun is on_failure_fail_dagrun
+        assert teardown_task.is_teardown
+        assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
         assert len(dag.task_group.children) == 1
 
     def test_setup_task_can_be_overriden(self, dag_maker):
@@ -165,7 +165,7 @@ class TestSetupTearDownTask:
             mytask.override(task_id="mytask2")()
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["mytask2"]
-        assert setup_task._is_setup
+        assert setup_task.is_setup
 
     def test_setup_teardown_mixed_up_in_a_dag(self, dag_maker):
         @setup
@@ -202,14 +202,14 @@ class TestSetupTearDownTask:
 
         assert len(dag.task_group.children) == 6
         assert [x for x in dag.tasks if not x.downstream_list]  # no deps have been set
-        assert dag.task_group.children["setuptask"]._is_setup
-        assert dag.task_group.children["teardowntask"]._is_teardown
-        assert dag.task_group.children["setuptask2"]._is_setup
-        assert dag.task_group.children["teardowntask2"]._is_teardown
-        assert dag.task_group.children["mytask"]._is_setup is False
-        assert dag.task_group.children["mytask"]._is_teardown is False
-        assert dag.task_group.children["mytask2"]._is_setup is False
-        assert dag.task_group.children["mytask2"]._is_teardown is False
+        assert dag.task_group.children["setuptask"].is_setup
+        assert dag.task_group.children["teardowntask"].is_teardown
+        assert dag.task_group.children["setuptask2"].is_setup
+        assert dag.task_group.children["teardowntask2"].is_teardown
+        assert dag.task_group.children["mytask"].is_setup is False
+        assert dag.task_group.children["mytask"].is_teardown is False
+        assert dag.task_group.children["mytask2"].is_setup is False
+        assert dag.task_group.children["mytask2"].is_teardown is False
 
     def test_setup_teardown_as_context_manager_normal_tasks_rel_set_downstream(self, dag_maker):
         """

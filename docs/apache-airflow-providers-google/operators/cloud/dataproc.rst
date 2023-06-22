@@ -104,7 +104,7 @@ For more information on updateMask and other parameters take a look at `Dataproc
 
 An example of a new cluster config and the updateMask:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_update.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_update.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_updatemask_cluster_operator]
@@ -113,7 +113,7 @@ An example of a new cluster config and the updateMask:
 To update a cluster you can use:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocUpdateClusterOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_update.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_update.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_update_cluster_operator]

@@ -1,5 +1,5 @@
 # Core
-/airflow/executors/ @kaxil @XD-DENG @ashb @o-nikolas
+/airflow/executors/ @kaxil @XD-DENG @ashb @o-nikolas @pierrejeambrun
 /airflow/jobs/ @kaxil @ashb @XD-DENG
 /airflow/models/ @kaxil @XD-DENG @ashb
 
@@ -25,11 +25,11 @@
 /docs/*.py @kaxil @potiuk
 
 # API
-/airflow/api/ @ephraimbuddy
-/airflow/api_connexion/ @ephraimbuddy
+/airflow/api/ @ephraimbuddy @pierrejeambrun
+/airflow/api_connexion/ @ephraimbuddy @pierrejeambrun
 
 # WWW
-/airflow/www/ @ryanahamilton @ashb @bbovenzi
+/airflow/www/ @ryanahamilton @ashb @bbovenzi @pierrejeambrun
 
 # Security/Permissions
 /airflow/security/permissions.py @jhtimmins
@@ -85,7 +85,7 @@ Dockerfile.ci @potiuk @ashb
 
 # Releasing Guides & Project Guidelines
 /dev/README_RELEASE_PROVIDER_PACKAGES.md  @eladkal
-/dev/README_RELEASE_*.md  @kaxil
+/dev/README_RELEASE_*.md  @kaxil @pierrejeambrun
 /dev/README.md  @kaxil
 /dev/PROJECT_GUIDELINES.md  @kaxil
 /dev/PROVIDER_PACKAGE_DETAILS.md  @kaxil

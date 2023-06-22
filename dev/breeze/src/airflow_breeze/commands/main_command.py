@@ -61,8 +61,12 @@ def print_deprecated(deprecated_command: str, command_to_use: str):
 
 class MainGroupWithAliases(BreezeGroup):
     def get_command(self, ctx: Context, cmd_name: str):
-        # Aliases for important commands moved to sub-commands
+        # Aliases for important commands moved to sub-commands or deprecated commands
         from airflow_breeze.commands.setup_commands import setup
+
+        if cmd_name == "stop":
+            print_deprecated("stop", "down")
+            cmd_name = "down"
 
         rv = click.Group.get_command(self, ctx, cmd_name)
         if rv is not None:

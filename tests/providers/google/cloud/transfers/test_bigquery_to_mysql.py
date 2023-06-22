@@ -28,18 +28,17 @@ TEST_DAG_ID = "test-bigquery-operators"
 
 
 class TestBigQueryToMySqlOperator:
-    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_mysql.BigQueryHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.bigquery_to_sql.BigQueryHook")
     def test_execute_good_request_to_bq(self, mock_hook):
         destination_table = "table"
         operator = BigQueryToMySqlOperator(
             task_id=TASK_ID,
             dataset_table=f"{TEST_DATASET}.{TEST_TABLE_ID}",
-            mysql_table=destination_table,
+            target_table_name=destination_table,
             replace=False,
         )
 
         operator.execute(None)
-        # fmt: off
         mock_hook.return_value.list_rows.assert_called_once_with(
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
@@ -47,4 +46,3 @@ class TestBigQueryToMySqlOperator:
             selected_fields=None,
             start_index=0,
         )
-        # fmt: on

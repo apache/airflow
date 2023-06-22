@@ -165,6 +165,9 @@ TEST_OUTPUT_CONFIG = {
     "export_format_id": "tf-saved-model",
 }
 
+TEST_CREATE_REQUEST_TIMEOUT = 100.5
+TEST_BATCH_SIZE = 4000
+
 
 class TestVertexAICreateCustomContainerTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("custom_job.CustomJobHook"))
@@ -989,6 +992,8 @@ class TestVertexAICreateBatchPredictionJobOperator:
             model_name=TEST_MODEL_NAME,
             instances_format="jsonl",
             predictions_format="jsonl",
+            create_request_timeout=TEST_CREATE_REQUEST_TIMEOUT,
+            batch_size=TEST_BATCH_SIZE,
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
@@ -1015,6 +1020,8 @@ class TestVertexAICreateBatchPredictionJobOperator:
             labels=None,
             encryption_spec_key_name=None,
             sync=True,
+            create_request_timeout=TEST_CREATE_REQUEST_TIMEOUT,
+            batch_size=TEST_BATCH_SIZE,
         )
 
 

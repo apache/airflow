@@ -32,7 +32,7 @@ from airflow.utils.state import State
 
 
 class TaskLogReader:
-    """Task log reader"""
+    """Task log reader."""
 
     STREAM_LOOP_SLEEP_SECONDS = 0.5
     """Time to sleep between loops while waiting for more logs"""
@@ -65,7 +65,7 @@ class TaskLogReader:
 
     def read_log_stream(self, ti: TaskInstance, try_number: int | None, metadata: dict) -> Iterator[str]:
         """
-        Used to continuously read log to the end
+        Used to continuously read log to the end.
 
         :param ti: The Task Instance
         :param try_number: the task try number
@@ -133,7 +133,7 @@ class TaskLogReader:
         session: Session = NEW_SESSION,
     ) -> str:
         """
-        Renders the log attachment filename
+        Renders the log attachment filename.
 
         :param ti: The task instance
         :param try_number: The task try number

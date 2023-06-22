@@ -48,6 +48,7 @@ from google.cloud.automl_v1beta1.services.auto_ml.pagers import (
 )
 from google.protobuf.field_mask_pb2 import FieldMask
 
+from airflow import AirflowException
 from airflow.compat.functools import cached_property
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
@@ -92,6 +93,14 @@ class CloudAutoMLHook(GoogleBaseHook):
         if self._client is None:
             self._client = AutoMlClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
+
+    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
+        """Waits for long-lasting operation to complete."""
+        try:
+            return operation.result(timeout=timeout)
+        except Exception:
+            error = operation.exception(timeout=timeout)
+            raise AirflowException(error)
 
     @cached_property
     def prediction_client(self) -> PredictionServiceClient:

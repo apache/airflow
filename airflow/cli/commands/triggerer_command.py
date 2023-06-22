@@ -37,7 +37,7 @@ from airflow.utils.serve_logs import serve_logs
 
 @contextmanager
 def _serve_logs(skip_serve_logs: bool = False) -> Generator[None, None, None]:
-    """Starts serve_logs sub-process"""
+    """Starts serve_logs sub-process."""
     sub_proc = None
     if skip_serve_logs is False:
         port = conf.getint("logging", "trigger_log_server_port", fallback=8794)

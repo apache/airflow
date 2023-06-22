@@ -389,10 +389,7 @@ class LocalExecutor(BaseExecutor):
         self.impl.sync()
 
     def end(self) -> None:
-        """
-        Ends the executor.
-        :return:
-        """
+        """Ends the executor."""
         if TYPE_CHECKING:
             assert self.impl
             assert self.manager

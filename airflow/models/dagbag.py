@@ -61,7 +61,7 @@ if TYPE_CHECKING:
 
 
 class FileLoadStat(NamedTuple):
-    """Information about single file"""
+    """Information about single file."""
 
     file: str
     duration: timedelta
@@ -154,7 +154,7 @@ class DagBag(LoggingMixin):
 
     @property
     def store_serialized_dags(self) -> bool:
-        """Whether to read dags from DB"""
+        """Whether to read dags from DB."""
         warnings.warn(
             "The store_serialized_dags property has been deprecated. Use read_dags_from_db instead.",
             RemovedInAirflow3Warning,
@@ -174,7 +174,7 @@ class DagBag(LoggingMixin):
     @provide_session
     def get_dag(self, dag_id, session: Session = None):
         """
-        Gets the DAG out of the dictionary, and refreshes it if expired
+        Gets the DAG out of the dictionary, and refreshes it if expired.
 
         :param dag_id: DAG ID
         """
@@ -261,7 +261,7 @@ class DagBag(LoggingMixin):
         return self.dags.get(dag_id)
 
     def _add_dag_from_db(self, dag_id: str, session: Session):
-        """Add DAG to DagBag from DB"""
+        """Add DAG to DagBag from DB."""
         from airflow.models.serialized_dag import SerializedDagModel
 
         row = SerializedDagModel.get(dag_id, session)
@@ -590,7 +590,7 @@ class DagBag(LoggingMixin):
             self.dags.update(subdags)
 
     def dagbag_report(self):
-        """Prints a report around DagBag loading stats"""
+        """Prints a report around DagBag loading stats."""
         stats = self.dagbag_stats
         dag_folder = self.dag_folder
         duration = sum((o.duration for o in stats), timedelta()).total_seconds()
@@ -688,7 +688,7 @@ class DagBag(LoggingMixin):
     @classmethod
     @provide_session
     def _sync_perm_for_dag(cls, dag: DAG, session: Session = NEW_SESSION):
-        """Sync DAG specific permissions"""
+        """Sync DAG specific permissions."""
         root_dag_id = dag.parent_dag.dag_id if dag.parent_dag else dag.dag_id
 
         cls.logger().debug("Syncing DAG permissions: %s to the DB", root_dag_id)

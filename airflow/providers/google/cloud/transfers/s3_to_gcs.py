@@ -45,6 +45,15 @@ class S3ToGCSOperator(S3ListOperator):
     :param bucket: The S3 bucket where to find the objects. (templated)
     :param prefix: Prefix string which filters objects whose name begin with
         such prefix. (templated)
+    :param apply_gcs_prefix: (Optional) Whether to replace source objects' path by given GCS destination path.
+        If apply_gcs_prefix is False (default), then objects from S3 will be copied to GCS bucket into a given
+        GSC path and the source path will be place inside. For example,
+        <s3_bucket><s3_prefix><content> => <gcs_prefix><s3_prefix><content>
+
+        If apply_gcs_prefix is True, then objects from S3 will be copied to GCS bucket into a given
+        GCS path and the source path will be omitted. For example:
+        <s3_bucket><s3_prefix><content> => <gcs_prefix><content>
+
     :param delimiter: the delimiter marks key hierarchy. (templated)
     :param aws_conn_id: The source S3 connection
     :param verify: Whether or not to verify SSL certificates for S3 connection.
@@ -106,6 +115,7 @@ class S3ToGCSOperator(S3ListOperator):
         *,
         bucket,
         prefix="",
+        apply_gcs_prefix=False,
         delimiter="",
         aws_conn_id="aws_default",
         verify=None,
@@ -118,6 +128,7 @@ class S3ToGCSOperator(S3ListOperator):
     ):
 
         super().__init__(bucket=bucket, prefix=prefix, delimiter=delimiter, aws_conn_id=aws_conn_id, **kwargs)
+        self.apply_gcs_prefix = apply_gcs_prefix
         self.gcp_conn_id = gcp_conn_id
         self.dest_gcs = dest_gcs
         self.replace = replace
@@ -139,68 +150,74 @@ class S3ToGCSOperator(S3ListOperator):
     def execute(self, context: Context):
         self._check_inputs()
         # use the super method to list all the files in an S3 bucket/key
-        files = super().execute(context)
+        s3_objects = super().execute(context)
 
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
         )
-
         if not self.replace:
-            # if we are not replacing -> list all files in the GCS bucket
-            # and only keep those files which are present in
-            # S3 and not in Google Cloud Storage
-            bucket_name, object_prefix = _parse_gcs_url(self.dest_gcs)
-            existing_files_prefixed = gcs_hook.list(bucket_name, prefix=object_prefix)
+            s3_objects = self.exclude_existing_objects(s3_objects=s3_objects, gcs_hook=gcs_hook)
 
-            existing_files = []
-
-            if existing_files_prefixed:
-                # Remove the object prefix itself, an empty directory was found
-                if object_prefix in existing_files_prefixed:
-                    existing_files_prefixed.remove(object_prefix)
-
-                # Remove the object prefix from all object string paths
-                for f in existing_files_prefixed:
-                    if f.startswith(object_prefix):
-                        existing_files.append(f[len(object_prefix) :])
-                    else:
-                        existing_files.append(f)
-
-            files = list(set(files) - set(existing_files))
-            if len(files) > 0:
-                self.log.info("%s files are going to be synced: %s.", len(files), files)
-            else:
-                self.log.info("There are no new files to sync. Have a nice day!")
-
-        if files:
+        if s3_objects:
             hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
-            for file in files:
-                # GCS hook builds its own in-memory file so we have to create
+            dest_gcs_bucket, dest_gcs_object_prefix = _parse_gcs_url(self.dest_gcs)
+            for obj in s3_objects:
+                # GCS hook builds its own in-memory file, so we have to create
                 # and pass the path
-                file_object = hook.get_key(file, self.bucket)
-                with NamedTemporaryFile(mode="wb", delete=True) as f:
-                    file_object.download_fileobj(f)
-                    f.flush()
+                file_object = hook.get_key(obj, self.bucket)
+                with NamedTemporaryFile(mode="wb", delete=True) as file:
+                    file_object.download_fileobj(file)
+                    file.flush()
+                    gcs_file = self.s3_to_gcs_object(s3_object=obj)
+                    gcs_hook.upload(dest_gcs_bucket, gcs_file, file.name, gzip=self.gzip)
 
-                    dest_gcs_bucket, dest_gcs_object_prefix = _parse_gcs_url(self.dest_gcs)
-                    # There will always be a '/' before file because it is
-                    # enforced at instantiation time
-                    dest_gcs_object = dest_gcs_object_prefix + file
-
-                    # Sync is sequential and the hook already logs too much
-                    # so skip this for now
-                    # self.log.info(
-                    #     'Saving file {0} from S3 bucket {1} in GCS bucket {2}'
-                    #     ' as object {3}'.format(file, self.bucket,
-                    #                             dest_gcs_bucket,
-                    #                             dest_gcs_object))
-
-                    gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, f.name, gzip=self.gzip)
-
-            self.log.info("All done, uploaded %d files to Google Cloud Storage", len(files))
+            self.log.info("All done, uploaded %d files to Google Cloud Storage", len(s3_objects))
         else:
             self.log.info("In sync, no files needed to be uploaded to Google Cloud Storage")
 
-        return files
+        return s3_objects
+
+    def exclude_existing_objects(self, s3_objects: list[str], gcs_hook: GCSHook) -> list[str]:
+        """Excludes from the list objects that already exist in GCS bucket."""
+        bucket_name, object_prefix = _parse_gcs_url(self.dest_gcs)
+
+        existing_gcs_objects = set(gcs_hook.list(bucket_name, prefix=object_prefix))
+
+        s3_paths = set(self.gcs_to_s3_object(gcs_object=gcs_object) for gcs_object in existing_gcs_objects)
+        s3_objects_reduced = list(set(s3_objects) - s3_paths)
+
+        if s3_objects_reduced:
+            self.log.info("%s files are going to be synced: %s.", len(s3_objects_reduced), s3_objects_reduced)
+        else:
+            self.log.info("There are no new files to sync. Have a nice day!")
+        return s3_objects_reduced
+
+    def s3_to_gcs_object(self, s3_object: str) -> str:
+        """
+        Transforms S3 path to GCS path according to the operator's logic.
+
+        If apply_gcs_prefix == True then <s3_prefix><content> => <gcs_prefix><content>
+        If apply_gcs_prefix == False then <s3_prefix><content> => <gcs_prefix><s3_prefix><content>
+
+        """
+        gcs_bucket, gcs_prefix = _parse_gcs_url(self.dest_gcs)
+        if self.apply_gcs_prefix:
+            gcs_object = s3_object.replace(self.prefix, gcs_prefix, 1)
+            return gcs_object
+        return gcs_prefix + s3_object
+
+    def gcs_to_s3_object(self, gcs_object: str) -> str:
+        """
+        Transforms GCS path to S3 path according to the operator's logic.
+
+        If apply_gcs_prefix == True then <gcs_prefix><content> => <s3_prefix><content>
+        If apply_gcs_prefix == False then <gcs_prefix><s3_prefix><content> => <s3_prefix><content>
+
+        """
+        gcs_bucket, gcs_prefix = _parse_gcs_url(self.dest_gcs)
+        s3_object = gcs_object.replace(gcs_prefix, "", 1)
+        if self.apply_gcs_prefix:
+            return self.prefix + s3_object
+        return s3_object

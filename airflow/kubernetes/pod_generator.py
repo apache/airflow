@@ -449,7 +449,7 @@ class PodGenerator:
         airflow_worker=None,
     ):
         """
-        Generate selector for kubernetes executor pod
+        Generate selector for kubernetes executor pod.
 
         :meta private:
         """
@@ -481,7 +481,7 @@ class PodGenerator:
         run_id=None,
     ):
         """
-        Generate labels for kubernetes executor pod
+        Generate labels for kubernetes executor pod.
 
         :meta private:
         """

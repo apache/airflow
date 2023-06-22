@@ -45,7 +45,6 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from urllib.parse import urlsplit
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -59,15 +58,18 @@ from airflow.providers.google.firebase.operators.firestore import CloudFirestore
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_google_firestore"
+DAG_ID = "example_gcp_firestore"
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-gcp-project")
 FIRESTORE_PROJECT_ID = os.environ.get("G_FIRESTORE_PROJECT_ID", "example-firebase-project")
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
-EXPORT_DESTINATION_URL = os.environ.get("GCP_FIRESTORE_ARCHIVE_URL", "gs://INVALID BUCKET NAME/namespace/")
-EXPORT_PREFIX = urlsplit(EXPORT_DESTINATION_URL).path
+EXPORT_DESTINATION_URL = os.environ.get("GCP_FIRESTORE_ARCHIVE_URL", f"gs://{BUCKET_NAME}/namespace/")
 EXPORT_COLLECTION_ID = os.environ.get("GCP_FIRESTORE_COLLECTION_ID", "firestore_collection_id")
+EXTERNAL_TABLE_SOURCE_URI = (
+    f"{EXPORT_DESTINATION_URL}/all_namespaces/kind_{EXPORT_COLLECTION_ID}"
+    f"/all_namespaces_kind_{EXPORT_COLLECTION_ID}.export_metadata"
+)
 DATASET_LOCATION = os.environ.get("GCP_FIRESTORE_DATASET_LOCATION", "EU")
 
 if BUCKET_NAME is None:
@@ -80,7 +82,9 @@ with models.DAG(
     catchup=False,
     tags=["example", "firestore"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME, location=DATASET_LOCATION
+    )
 
     create_dataset = BigQueryCreateEmptyDatasetOperator(
         task_id="create_dataset",
@@ -107,16 +111,10 @@ with models.DAG(
                 "datasetId": DATASET_NAME,
                 "tableId": "firestore_data",
             },
-            "schema": {
-                "fields": [
-                    {"name": "name", "type": "STRING"},
-                    {"name": "post_abbr", "type": "STRING"},
-                ]
-            },
             "externalDataConfiguration": {
                 "sourceFormat": "DATASTORE_BACKUP",
                 "compression": "NONE",
-                "csvOptions": {"skipLeadingRows": 1},
+                "sourceUris": [EXTERNAL_TABLE_SOURCE_URI],
             },
         },
     )
@@ -146,15 +144,13 @@ with models.DAG(
 
     (
         # TEST SETUP
-        create_bucket
-        >> create_dataset
+        [create_bucket, create_dataset]
         # TEST BODY
         >> export_database_to_gcs
         >> create_external_table_multiple_types
         >> read_data_from_gcs_multiple_types
         # TEST TEARDOWN
-        >> delete_dataset
-        >> delete_bucket
+        >> [delete_dataset, delete_bucket]
     )
 
     from tests.system.utils.watcher import watcher

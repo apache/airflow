@@ -467,6 +467,7 @@ def task_failed_deps(args) -> None:
 def task_state(args) -> None:
     """
     Returns the state of a TaskInstance at the command line.
+
     >>> airflow tasks state tutorial sleep 2015-01-01
     success
     """

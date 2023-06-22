@@ -173,6 +173,14 @@ def get_dagbag_import_timeout(dag_file_path: str):
     return POLICY_PLUGIN_MANAGER.hook.get_dagbag_import_timeout(dag_file_path=dag_file_path)
 
 
+def configure_policy_plugin_manager():
+    global POLICY_PLUGIN_MANAGER
+
+    POLICY_PLUGIN_MANAGER = pluggy.PluginManager(policies.local_settings_hookspec.project_name)
+    POLICY_PLUGIN_MANAGER.add_hookspecs(policies)
+    POLICY_PLUGIN_MANAGER.register(policies.DefaultPolicy)
+
+
 def load_policy_plugins(pm: pluggy.PluginManager):
     # We can't log duration etc  here, as logging hasn't yet been configured!
     pm.load_setuptools_entrypoints("airflow.policy")
@@ -184,7 +192,6 @@ def configure_vars():
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
-    global POLICY_PLUGIN_MANAGER
     SQL_ALCHEMY_CONN = conf.get("database", "SQL_ALCHEMY_CONN")
     DAGS_FOLDER = os.path.expanduser(conf.get("core", "DAGS_FOLDER"))
 
@@ -196,10 +203,6 @@ def configure_vars():
     # to get all the logs from the print & log statements in the DAG files before a task is run
     # The handlers are restored after the task completes execution.
     DONOT_MODIFY_HANDLERS = conf.getboolean("logging", "donot_modify_handlers", fallback=False)
-
-    POLICY_PLUGIN_MANAGER = pluggy.PluginManager(policies.local_settings_hookspec.project_name)
-    POLICY_PLUGIN_MANAGER.add_hookspecs(policies)
-    POLICY_PLUGIN_MANAGER.register(policies.DefaultPolicy)
 
 
 def configure_orm(disable_connection_pool=False, pool_class=None):
@@ -512,6 +515,7 @@ def initialize():
     """Initialize Airflow with all the settings from this file."""
     configure_vars()
     prepare_syspath()
+    configure_policy_plugin_manager()
     # Load policy plugins _before_ importing airflow_local_settings, as Pluggy uses LIFO and we want anything
     # in airflow_local_settings to take precendec
     load_policy_plugins(POLICY_PLUGIN_MANAGER)

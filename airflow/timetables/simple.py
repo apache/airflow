@@ -110,7 +110,7 @@ class OnceTimetable(_TrivialTimetable):
 
 
 class ContinuousTimetable(_TrivialTimetable):
-    """Timetable that schedules continually, while still respecting start_date and end_date
+    """Timetable that schedules continually, while still respecting start_date and end_date.
 
     This corresponds to ``schedule="@continuous"``.
     """

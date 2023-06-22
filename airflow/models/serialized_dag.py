@@ -211,7 +211,7 @@ class SerializedDagModel(Base):
 
     @property
     def dag(self) -> SerializedDAG:
-        """The DAG deserialized from the ``data`` column"""
+        """The DAG deserialized from the ``data`` column."""
         SerializedDAG._load_operator_extra_links = self.load_op_links
         if isinstance(self.data, dict):
             data = self.data
@@ -226,7 +226,7 @@ class SerializedDagModel(Base):
     def remove_dag(cls, dag_id: str, session: Session = NEW_SESSION) -> None:
         """Deletes a DAG with given dag_id.
         :param dag_id: dag_id to be deleted
-        :param session: ORM Session
+        :param session: ORM Session.
         """
         session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
 
@@ -330,7 +330,7 @@ class SerializedDagModel(Base):
     def get_last_updated_datetime(cls, dag_id: str, session: Session = NEW_SESSION) -> datetime | None:
         """
         Get the date when the Serialized DAG associated to DAG was last updated
-        in serialized_dag table
+        in serialized_dag table.
 
         :param dag_id: DAG ID
         :param session: ORM Session
@@ -341,7 +341,7 @@ class SerializedDagModel(Base):
     @provide_session
     def get_max_last_updated_datetime(cls, session: Session = NEW_SESSION) -> datetime | None:
         """
-        Get the maximum date when any DAG was last updated in serialized_dag table
+        Get the maximum date when any DAG was last updated in serialized_dag table.
 
         :param session: ORM Session
         """
@@ -381,7 +381,7 @@ class SerializedDagModel(Base):
     @provide_session
     def get_dag_dependencies(cls, session: Session = NEW_SESSION) -> dict[str, list[DagDependency]]:
         """
-        Get the dependencies between DAGs
+        Get the dependencies between DAGs.
 
         :param session: ORM Session
         """

@@ -78,7 +78,7 @@ class RunningRetryAttemptType:
 
     @property
     def elapsed(self):
-        """Seconds since first attempt"""
+        """Seconds since first attempt."""
         return (pendulum.now("UTC") - self.first_attempt_time).total_seconds()
 
     def can_try_again(self):

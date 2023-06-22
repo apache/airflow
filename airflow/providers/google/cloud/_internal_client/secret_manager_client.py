@@ -71,7 +71,7 @@ class _SecretManagerClient(LoggingMixin):
         """
         name = self.client.secret_version_path(project_id, secret_id, secret_version)
         try:
-            response = self.client.access_secret_version(name)
+            response = self.client.access_secret_version(request={"name": name})
             value = response.payload.data.decode("UTF-8")
             return value
         except NotFound:

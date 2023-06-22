@@ -889,7 +889,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
-    def execute(self, context: Context):
+    def execute(self, context: Context) -> str | None:
         response = self.hook.conn.create_application(
             clientToken=self.client_request_token,
             releaseLabel=self.release_label,
@@ -994,6 +994,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.name = name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
         self.waiter_countdown = waiter_countdown
         self.waiter_check_interval_seconds = waiter_check_interval_seconds
+        self.job_id: str | None = None
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -1003,7 +1004,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
-    def execute(self, context: Context) -> dict:
+    def execute(self, context: Context) -> str | None:
         self.log.info("Starting job on Application: %s", self.application_id)
 
         app_state = self.hook.conn.get_application(applicationId=self.application_id)["application"]["state"]
@@ -1035,14 +1036,15 @@ class EmrServerlessStartJobOperator(BaseOperator):
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"EMR serverless job failed to start: {response}")
 
-        self.log.info("EMR serverless job started: %s", response["jobRunId"])
+        self.job_id = response["jobRunId"]
+        self.log.info("EMR serverless job started: %s", self.job_id)
         if self.wait_for_completion:
             # This should be replaced with a boto waiter when available.
             waiter(
                 get_state_callable=self.hook.conn.get_job_run,
                 get_state_args={
                     "applicationId": self.application_id,
-                    "jobRunId": response["jobRunId"],
+                    "jobRunId": self.job_id,
                 },
                 parse_response=["jobRun", "state"],
                 desired_state=EmrServerlessHook.JOB_SUCCESS_STATES,
@@ -1052,7 +1054,38 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 countdown=self.waiter_countdown,
                 check_interval_seconds=self.waiter_check_interval_seconds,
             )
-        return response["jobRunId"]
+        return self.job_id
+
+    def on_kill(self) -> None:
+        """Cancel the submitted job run"""
+        if self.job_id:
+            self.log.info("Stopping job run with jobId - %s", self.job_id)
+            response = self.hook.conn.cancel_job_run(applicationId=self.application_id, jobRunId=self.job_id)
+            http_status_code = (
+                response.get("ResponseMetadata", {}).get("HTTPStatusCode") if response else None
+            )
+            if http_status_code is None or http_status_code != 200:
+                self.log.error("Unable to request query cancel on EMR Serverless. Exiting")
+                return
+            self.log.info(
+                "Polling EMR Serverless for query with id %s to reach final state",
+                self.job_id,
+            )
+            # This should be replaced with a boto waiter when available.
+            waiter(
+                get_state_callable=self.hook.conn.get_job_run,
+                get_state_args={
+                    "applicationId": self.application_id,
+                    "jobRunId": self.job_id,
+                },
+                parse_response=["jobRun", "state"],
+                desired_state=EmrServerlessHook.JOB_TERMINAL_STATES,
+                failure_states=set(),
+                object_type="job",
+                action="cancelled",
+                countdown=self.waiter_countdown,
+                check_interval_seconds=self.waiter_check_interval_seconds,
+            )
 
 
 class EmrServerlessStopApplicationOperator(BaseOperator):

@@ -48,15 +48,15 @@ PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 
 DAG_ID = "async_example_gcp_mlengine"
-PREDICT_FILE_NAME = "predict.json"
-MODEL_NAME = f"example_mlengine_model_{ENV_ID}"
-BUCKET_NAME = f"example_mlengine_bucket_{ENV_ID}"
+PREDICT_FILE_NAME = "async_predict.json"
+MODEL_NAME = f"example_async_ml_model_{ENV_ID}"
+BUCKET_NAME = f"example_async_ml_bucket_{ENV_ID}"
 BUCKET_PATH = f"gs://{BUCKET_NAME}"
 JOB_DIR = f"{BUCKET_PATH}/job-dir"
 SAVED_MODEL_PATH = f"{JOB_DIR}/"
 PREDICTION_INPUT = f"{BUCKET_PATH}/{PREDICT_FILE_NAME}"
 PREDICTION_OUTPUT = f"{BUCKET_PATH}/prediction_output/"
-TRAINER_URI = "gs://system-tests-resources/example_gcp_mlengine/trainer-0.1.tar.gz"
+TRAINER_URI = "gs://system-tests-resources/example_gcp_mlengine/async-trainer-0.2.tar.gz"
 TRAINER_PY_MODULE = "trainer.task"
 SUMMARY_TMP = f"{BUCKET_PATH}/tmp/"
 SUMMARY_STAGING = f"{BUCKET_PATH}/staging/"
@@ -66,7 +66,7 @@ PATH_TO_PREDICT_FILE = BASE_DIR / PREDICT_FILE_NAME
 
 
 def generate_model_predict_input_data() -> list[int]:
-    return [i for i in range(0, 201, 10)]
+    return [1, 4, 9, 16, 25, 36]
 
 
 with models.DAG(
@@ -104,7 +104,7 @@ with models.DAG(
         project_id=PROJECT_ID,
         region="us-central1",
         job_id="async_training-job-{{ ts_nodash }}-{{ params.model_name }}",
-        runtime_version="1.15",
+        runtime_version="2.1",
         python_version="3.7",
         job_dir=JOB_DIR,
         package_uris=[TRAINER_URI],
@@ -149,7 +149,7 @@ with models.DAG(
             "name": "v1",
             "description": "First-version",
             "deployment_uri": JOB_DIR,
-            "runtime_version": "1.15",
+            "runtime_version": "2.1",
             "machineType": "mls1-c1-m2",
             "framework": "TENSORFLOW",
             "pythonVersion": "3.7",
@@ -166,7 +166,7 @@ with models.DAG(
             "name": "v2",
             "description": "Second version",
             "deployment_uri": JOB_DIR,
-            "runtime_version": "1.15",
+            "runtime_version": "2.1",
             "machineType": "mls1-c1-m2",
             "framework": "TENSORFLOW",
             "pythonVersion": "3.7",
@@ -202,7 +202,7 @@ with models.DAG(
     prediction = MLEngineStartBatchPredictionJobOperator(
         task_id="prediction",
         project_id=PROJECT_ID,
-        job_id="prediction-{{ ts_nodash }}-{{ params.model_name }}",
+        job_id="async-prediction-{{ ts_nodash }}-{{ params.model_name }}",
         region="us-central1",
         model_name=MODEL_NAME,
         data_format="TEXT",
@@ -253,7 +253,7 @@ with models.DAG(
         """
 
         def normalize_value(inst: dict):
-            val = float(inst["output_layer"][0])
+            val = int(inst["output_layer"][0])
             return tuple([val])  # returns a tuple.
 
         return normalize_value, ["val"]  # key order must match.
@@ -284,7 +284,7 @@ with models.DAG(
         prediction_path=PREDICTION_OUTPUT,
         metric_fn_and_keys=get_metric_fn_and_keys(),
         validate_fn=validate_err_and_count,
-        batch_prediction_job_id="evaluate-ops-{{ ts_nodash }}-{{ params.model_name }}",
+        batch_prediction_job_id="async-evaluate-ops-{{ ts_nodash }}-{{ params.model_name }}",
         project_id=PROJECT_ID,
         region="us-central1",
         dataflow_options={

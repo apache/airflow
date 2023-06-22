@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Save Rendered Template Fields"""
+"""Save Rendered Template Fields."""
 from __future__ import annotations
 
 import os
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 
 class RenderedTaskInstanceFields(Base):
-    """Save Rendered Template Fields"""
+    """Save Rendered Template Fields."""
 
     __tablename__ = "rendered_task_instance_fields"
 
@@ -176,7 +176,7 @@ class RenderedTaskInstanceFields(Base):
 
     @provide_session
     def write(self, session: Session = None):
-        """Write instance to database
+        """Write instance to database.
 
         :param session: SqlAlchemy Session
         """

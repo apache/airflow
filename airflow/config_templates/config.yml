@@ -452,6 +452,14 @@ core:
 database:
   description: ~
   options:
+    alembic_ini_file_path:
+      description: |
+        Path to the ``alembic.ini`` file. You can either provide the file path relative
+        to the Airflow home directory or the absolute path if it is located elsewhere.
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "alembic.ini"
     sql_alchemy_conn:
       description: |
         The SqlAlchemy connection string to the metadata database.
@@ -556,7 +564,7 @@ database:
         See https://docs.sqlalchemy.org/en/14/core/engines.html#sqlalchemy.create_engine.params.connect_args
       version_added: 2.3.0
       type: string
-      example: ~
+      example: '{"timeout": 30}'
       default: ~
     load_default_connections:
       description: |
@@ -1221,7 +1229,14 @@ openlineage:
       example: '{"type": "http", "url": "http://localhost:5000"}'
       default: ''
       version_added: ~
-
+    disable_source_code:
+      description: |
+        If disabled, OpenLineage events do not contain source code of particular
+        operators, like PythonOperator.
+      default: ~
+      example: ~
+      type: boolean
+      version_added: ~
 atlas:
   description: ~
   options:
@@ -1327,6 +1342,13 @@ hive:
 webserver:
   description: ~
   options:
+    config_file:
+      description: |
+        Path of webserver config file used for configuring the webserver parameters
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "{AIRFLOW_HOME}/webserver_config.py"
     base_url:
       description: |
         The base url of your website as airflow cannot guess what domain or
@@ -2287,7 +2309,8 @@ scheduler:
       description: |
         If the last scheduler heartbeat happened more than scheduler_health_check_threshold
         ago (in seconds), scheduler is considered unhealthy.
-        This is used by the health check in the "/health" endpoint
+        This is used by the health check in the "/health" endpoint and in `airflow jobs check` CLI
+        for SchedulerJob.
       version_added: 1.10.2
       type: string
       example: ~
@@ -2663,6 +2686,13 @@ kubernetes_executor:
       type: string
       example: '{ "total": 3, "backoff_factor": 0.5 }'
       default: ""
+    logs_task_metadata:
+      description: |
+        Flag to control the information added to kubernetes executor logs for better traceability
+      version_added: 2.7.0
+      type: boolean
+      example: ~
+      default: "False"
     pod_template_file:
       description: |
         Path to the YAML pod file that forms the basis for KubernetesExecutor workers.
