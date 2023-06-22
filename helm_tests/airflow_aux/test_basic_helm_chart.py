@@ -412,7 +412,6 @@ class TestBaseChartTest:
             if k8s_object_name == f"{release_name}-scheduler":
                 expected_labels["executor"] = "CeleryExecutor"
             actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))
-            print(actual_labels)
             assert actual_labels == expected_labels
 
         if kind_k8s_obj_labels_tuples:
