@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import pendulum
 import pluggy
 import sqlalchemy
-from sqlalchemy import create_engine, exc
+from sqlalchemy import create_engine, exc, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session as SASession, scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
@@ -219,7 +219,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     else:
         connect_args = {}
 
-    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args)
+    engine = create_engine(SQL_ALCHEMY_CONN, connect_args=connect_args, **engine_args, future=True)
 
     mask_secret(engine.url.password)
 
@@ -403,7 +403,7 @@ def validate_session():
         check_session = sessionmaker(bind=engine)
         session = check_session()
         try:
-            session.execute("select 1")
+            session.execute(text("select 1"))
             conn_status = True
         except exc.DBAPIError as err:
             log.error(err)

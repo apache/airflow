@@ -254,7 +254,7 @@ class TestSnowflakeSqlApiHook:
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_private_key")
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params")
-    @mock.patch("airflow.providers.snowflake.hooks.sql_api_generate_jwt.JWTGenerator.get_token")
+    @mock.patch("airflow.providers.snowflake.utils.sql_api_generate_jwt.JWTGenerator.get_token")
     def test_get_headers(self, mock_get_token, mock_conn_param, mock_private_key):
         """Test get_headers method by mocking get_private_key and _get_conn_params method"""
         mock_get_token.return_value = "newT0k3n"

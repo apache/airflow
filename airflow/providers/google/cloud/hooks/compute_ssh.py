@@ -18,13 +18,13 @@ from __future__ import annotations
 
 import shlex
 import time
+from functools import cached_property
 from io import StringIO
 from typing import Any
 
 from google.api_core.retry import exponential_sleep_generator
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.os_login import OSLoginHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
@@ -39,7 +39,7 @@ CMD_TIMEOUT = 10
 
 
 class _GCloudAuthorizedSSHClient(paramiko.SSHClient):
-    """SSH Client that maintains the context for gcloud authorization during the connection"""
+    """SSH Client that maintains the context for gcloud authorization during the connection."""
 
     def __init__(self, google_hook, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -67,7 +67,7 @@ class _GCloudAuthorizedSSHClient(paramiko.SSHClient):
 
 class ComputeEngineSSHHook(SSHHook):
     """
-    Hook to connect to a remote instance in compute engine
+    Hook to connect to a remote instance in compute engine.
 
     :param instance_name: The name of the Compute Engine instance
     :param zone: The zone of the Compute Engine instance

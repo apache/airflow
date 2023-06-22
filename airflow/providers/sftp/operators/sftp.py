@@ -30,7 +30,7 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
 class SFTPOperation:
-    """Operation that can be used with SFTP"""
+    """Operation that can be used with SFTP."""
 
     PUT = "put"
     GET = "get"

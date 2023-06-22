@@ -63,7 +63,7 @@ class DatadogHook(BaseHook, LoggingMixin):
         initialize(api_key=self.api_key, app_key=self.app_key, api_host=self.api_host)
 
     def validate_response(self, response: dict[str, Any]) -> None:
-        """Validate Datadog response"""
+        """Validate Datadog response."""
         if response["status"] != "ok":
             self.log.error("Datadog returned: %s", response)
             raise AirflowException("Error status received from Datadog")
@@ -77,7 +77,7 @@ class DatadogHook(BaseHook, LoggingMixin):
         interval: int | None = None,
     ) -> dict[str, Any]:
         """
-        Sends a single datapoint metric to Datadog
+        Sends a single datapoint metric to Datadog.
 
         :param metric_name: The name of the metric
         :param datapoint: A single integer or float related to the metric
@@ -160,7 +160,7 @@ class DatadogHook(BaseHook, LoggingMixin):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -174,7 +174,7 @@ class DatadogHook(BaseHook, LoggingMixin):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "login", "password", "port", "extra"],
             "relabeling": {"host": "Events host name"},

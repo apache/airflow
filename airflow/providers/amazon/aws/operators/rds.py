@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 
 class RdsBaseOperator(BaseOperator):
-    """Base operator that implements common functions for all operators"""
+    """Base operator that implements common functions for all operators."""
 
     ui_color = "#eeaa88"
     ui_fgcolor = "#ffffff"
@@ -45,11 +45,11 @@ class RdsBaseOperator(BaseOperator):
         self._await_interval = 60  # seconds
 
     def execute(self, context: Context) -> str:
-        """Different implementations for snapshots, tasks and events"""
+        """Different implementations for snapshots, tasks and events."""
         raise NotImplementedError
 
     def on_kill(self) -> None:
-        """Different implementations for snapshots, tasks and events"""
+        """Different implementations for snapshots, tasks and events."""
         raise NotImplementedError
 
 
@@ -124,7 +124,7 @@ class RdsCreateDbSnapshotOperator(RdsBaseOperator):
 
 class RdsCopyDbSnapshotOperator(RdsBaseOperator):
     """
-    Copies the specified DB instance or DB cluster snapshot
+    Copies the specified DB instance or DB cluster snapshot.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -230,7 +230,7 @@ class RdsCopyDbSnapshotOperator(RdsBaseOperator):
 
 class RdsDeleteDbSnapshotOperator(RdsBaseOperator):
     """
-    Deletes a DB instance or cluster snapshot or terminating the copy operation
+    Deletes a DB instance or cluster snapshot or terminating the copy operation.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -353,7 +353,7 @@ class RdsStartExportTaskOperator(RdsBaseOperator):
 
 class RdsCancelExportTaskOperator(RdsBaseOperator):
     """
-    Cancels an export task in progress that is exporting a snapshot to Amazon S3
+    Cancels an export task in progress that is exporting a snapshot to Amazon S3.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -396,7 +396,7 @@ class RdsCancelExportTaskOperator(RdsBaseOperator):
 
 class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
     """
-    Creates an RDS event notification subscription
+    Creates an RDS event notification subscription.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -470,7 +470,7 @@ class RdsCreateEventSubscriptionOperator(RdsBaseOperator):
 
 class RdsDeleteEventSubscriptionOperator(RdsBaseOperator):
     """
-    Deletes an RDS event notification subscription
+    Deletes an RDS event notification subscription.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -507,7 +507,7 @@ class RdsDeleteEventSubscriptionOperator(RdsBaseOperator):
 
 class RdsCreateDbInstanceOperator(RdsBaseOperator):
     """
-    Creates an RDS DB instance
+    Creates an RDS DB instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -561,7 +561,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
 
 class RdsDeleteDbInstanceOperator(RdsBaseOperator):
     """
-    Deletes an RDS DB Instance
+    Deletes an RDS DB Instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -605,7 +605,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
 
 class RdsStartDbOperator(RdsBaseOperator):
     """
-    Starts an RDS DB instance / cluster
+    Starts an RDS DB instance / cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -658,7 +658,7 @@ class RdsStartDbOperator(RdsBaseOperator):
 
 class RdsStopDbOperator(RdsBaseOperator):
     """
-    Stops an RDS DB instance / cluster
+    Stops an RDS DB instance / cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

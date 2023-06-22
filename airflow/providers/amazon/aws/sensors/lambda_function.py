@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
@@ -25,7 +26,6 @@ from airflow.providers.amazon.aws.utils import trim_none_values
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.sensors.base import BaseSensorOperator
 

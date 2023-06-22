@@ -67,13 +67,17 @@ CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 # corresponding provider.yaml file.
 #
 def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
+    # in case we are loading setup from pre-commits, we want to skip the check for python version
+    # because if someone uses a version of Python where providers are excluded, the setup will fail
+    # to see the extras for those providers
+    skip_python_version_check = os.environ.get("_SKIP_PYTHON_VERSION_CHECK")
     try:
         with AIRFLOW_SOURCES_ROOT.joinpath("generated", "provider_dependencies.json").open() as f:
             dependencies = json.load(f)
         return {
             key: value
             for key, value in dependencies.items()
-            if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"]
+            if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"] or skip_python_version_check
         }
     except Exception as e:
         print(f"Exception while loading provider dependencies {e}")
@@ -268,9 +272,6 @@ doc = [
     # <section> tags for sections
     "docutils<0.17.0",
     "eralchemy2",
-    # Without this, Sphinx goes in to a _very_ large backtrack on Python 3.7,
-    # even though Sphinx 4.4.0 has this but with python_version<3.10.
-    'importlib-metadata>=4.4; python_version < "3.8"',
     "sphinx-airflow-theme",
     "sphinx-argparse>=0.1.13",
     "sphinx-autoapi>=2.0.0",
@@ -312,7 +313,7 @@ ldap = [
     "python-ldap",
 ]
 leveldb = ["plyvel"]
-otel = ["opentelemetry-api==1.15.0", "opentelemetry-exporter-otlp", "opentelemetry-exporter-prometheus"]
+otel = ["opentelemetry-exporter-prometheus"]
 pandas = ["pandas>=0.17.1", "pyarrow>=9.0.0"]
 password = [
     "bcrypt>=2.0.0",
@@ -368,7 +369,6 @@ mypy_dependencies = [
 
 # Dependencies needed for development only
 devel_only = [
-    "asynctest~=0.13",
     "aws_xray_sdk",
     "beautifulsoup4>=4.7.1",
     "black",

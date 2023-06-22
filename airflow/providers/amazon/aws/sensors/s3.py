@@ -20,17 +20,18 @@ from __future__ import annotations
 import fnmatch
 import os
 import re
-from datetime import datetime
-from typing import TYPE_CHECKING, Callable, Sequence
+from datetime import datetime, timedelta
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
 
 from deprecated import deprecated
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.triggers.s3 import S3KeyTrigger
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 
@@ -48,7 +49,7 @@ class S3KeySensor(BaseSensorOperator):
         or relative path from root level. When it's specified as a full s3://
         url, please leave bucket_name as `None`
     :param bucket_name: Name of the S3 bucket. Only needed when ``bucket_key``
-        is not provided as a full s3:// url. When specified, all the keys passed to ``bucket_key``
+        is not provided as a full ``s3://`` url. When specified, all the keys passed to ``bucket_key``
         refers to this bucket
     :param wildcard_match: whether the bucket_key should be interpreted as a
         Unix wildcard pattern
@@ -61,8 +62,9 @@ class S3KeySensor(BaseSensorOperator):
             def check_fn(files: List) -> bool:
                 return any(f.get('Size', 0) > 1048576 for f in files)
     :param aws_conn_id: a reference to the s3 connection
-    :param verify: Whether or not to verify SSL certificates for S3 connection.
-        By default SSL certificates are verified.
+    :param deferrable: Run operator in the deferrable mode
+    :param verify: Whether to verify SSL certificates for S3 connection.
+        By default, SSL certificates are verified.
         You can provide the following values:
 
         - ``False``: do not validate SSL certificates. SSL will still be used
@@ -84,6 +86,7 @@ class S3KeySensor(BaseSensorOperator):
         check_fn: Callable[..., bool] | None = None,
         aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -93,6 +96,7 @@ class S3KeySensor(BaseSensorOperator):
         self.check_fn = check_fn
         self.aws_conn_id = aws_conn_id
         self.verify = verify
+        self.deferrable = deferrable
 
     def _check_key(self, key):
         bucket_name, key = S3Hook.get_s3_bucket_key(self.bucket_name, key, "bucket_name", "bucket_key")
@@ -131,9 +135,50 @@ class S3KeySensor(BaseSensorOperator):
         else:
             return all(self._check_key(key) for key in self.bucket_key)
 
+    def execute(self, context: Context) -> None:
+        """Airflow runs this method on the worker and defers using the trigger."""
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            if not self.poke(context=context):
+                self._defer()
+
+    def _defer(self) -> None:
+        """Check for a keys in s3 and defers using the triggerer."""
+        self.defer(
+            timeout=timedelta(seconds=self.timeout),
+            trigger=S3KeyTrigger(
+                bucket_name=cast(str, self.bucket_name),
+                bucket_key=self.bucket_key,
+                wildcard_match=self.wildcard_match,
+                aws_conn_id=self.aws_conn_id,
+                verify=self.verify,
+                poke_interval=self.poke_interval,
+                should_check_fn=True if self.check_fn else False,
+            ),
+            method_name="execute_complete",
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> bool | None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "running":
+            found_keys = self.check_fn(event["files"])  # type: ignore[misc]
+            if found_keys:
+                return None
+            else:
+                self._defer()
+
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        return None
+
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> S3Hook:
-        """Create and return an S3Hook"""
+        """Create and return an S3Hook."""
         return self.hook
 
     @cached_property

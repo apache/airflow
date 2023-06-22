@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains AWS SES Hook"""
+"""This module contains AWS SES Hook."""
 from __future__ import annotations
 
 from typing import Any, Iterable
@@ -55,7 +55,7 @@ class SesHook(AwsBaseHook):
         custom_headers: dict[str, Any] | None = None,
     ) -> dict:
         """
-        Send email using Amazon Simple Email Service
+        Send email using Amazon Simple Email Service.
 
         .. seealso::
             - :external+boto3:py:meth:`SES.Client.send_raw_email`

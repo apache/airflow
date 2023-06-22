@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import ast
 import re
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
@@ -112,7 +112,7 @@ _MIN_SUPPORTED_PROVIDERS_VERSION = {
 
 class BaseSQLOperator(BaseOperator):
     """
-    This is a base class for generic SQL Operator to get a DB Hook
+    This is a base class for generic SQL Operator to get a DB Hook.
 
     The provided method is .get_db_hook(). The default behavior will try to
     retrieve the DB hook based on connection type.
@@ -138,7 +138,7 @@ class BaseSQLOperator(BaseOperator):
 
     @cached_property
     def _hook(self):
-        """Get DB Hook based on connection type"""
+        """Get DB Hook based on connection type."""
         self.log.debug("Get connection for %s", self.conn_id)
         conn = BaseHook.get_connection(self.conn_id)
         hook = conn.get_hook(hook_params=self.hook_params)
@@ -188,7 +188,7 @@ class BaseSQLOperator(BaseOperator):
 
 class SQLExecuteQueryOperator(BaseSQLOperator):
     """
-    Executes SQL code in a specific database
+    Executes SQL code in a specific database.
 
     When implementing a specific Operator, you can also implement `_process_output` method in the
     hook to perform additional processing of values returned by the DB Hook of yours. For example, you

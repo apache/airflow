@@ -451,6 +451,7 @@ execution of the script below. You will use link to that issue in the next step.
 set as your environment variable.
 
 You can also pass the token as `--github-token` option in the script.
+You can also pass list of PR to be excluded from the issue with `--excluded-pr-list`.
 
 ```shell script
 breeze release-management generate-issue-content-providers --only-available-in-dist
@@ -721,7 +722,7 @@ pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ### Installing with Breeze
 
 ```shell
-breeze start-airflow --use-airflow-version 2.2.4 --python 3.7 --backend postgres \
+breeze start-airflow --use-airflow-version 2.2.4 --python 3.8 --backend postgres \
     --load-example-dags --load-default-connections
 ```
 
@@ -852,7 +853,7 @@ do
  svn mv "${file}" "${base_file//rc[0-9]/}"
 done
 
-# Check which old packages will be removed (you need Python 3.7+ and dev/requirements.txt installed)
+# Check which old packages will be removed (you need Python 3.8+ and dev/requirements.txt installed)
 python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py --directory .
 
 # Remove those packages

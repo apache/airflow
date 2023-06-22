@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import datetime
 import inspect
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
-from airflow.compat.functools import cache, cached_property
+from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.expandinput import NotFullyPopulated
@@ -154,37 +155,68 @@ class AbstractOperator(Templater, DAGNode):
             return self.upstream_task_ids
         return self.downstream_task_ids
 
-    def get_flat_relative_ids(
-        self,
-        upstream: bool = False,
-        found_descendants: set[str] | None = None,
-    ) -> set[str]:
-        """Get a flat set of relative IDs, upstream or downstream."""
+    def get_flat_relative_ids(self, *, upstream: bool = False) -> set[str]:
+        """
+        Get a flat set of relative IDs, upstream or downstream.
+
+        Will recurse each relative found in the direction specified.
+
+        :param upstream: Whether to look for upstream or downstream relatives.
+        """
         dag = self.get_dag()
         if not dag:
             return set()
 
-        if found_descendants is None:
-            found_descendants = set()
+        relatives: set[str] = set()
 
         task_ids_to_trace = self.get_direct_relative_ids(upstream)
         while task_ids_to_trace:
             task_ids_to_trace_next: set[str] = set()
             for task_id in task_ids_to_trace:
-                if task_id in found_descendants:
+                if task_id in relatives:
                     continue
                 task_ids_to_trace_next.update(dag.task_dict[task_id].get_direct_relative_ids(upstream))
-                found_descendants.add(task_id)
+                relatives.add(task_id)
             task_ids_to_trace = task_ids_to_trace_next
 
-        return found_descendants
+        return relatives
 
     def get_flat_relatives(self, upstream: bool = False) -> Collection[Operator]:
         """Get a flat list of relatives, either upstream or downstream."""
         dag = self.get_dag()
         if not dag:
             return set()
-        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream)]
+        return [dag.task_dict[task_id] for task_id in self.get_flat_relative_ids(upstream=upstream)]
+
+    def get_upstreams_follow_setups(self) -> Iterable[Operator]:
+        """All upstreams and, for each upstream setup, its respective teardowns."""
+        for task in self.get_flat_relatives(upstream=True):
+            yield task
+            if task.is_setup:
+                for t in task.downstream_list:
+                    if t.is_teardown and not t == self:
+                        yield t
+
+    def get_upstreams_only_setups_and_teardowns(self) -> Iterable[Operator]:
+        """
+        Only *relevant* upstream setups and their teardowns.
+
+        This method is meant to be used when we are clearing the task (non-upstream) and we need
+        to add in the *relevant* setups and their teardowns.
+
+        Relevant in this case means, the setup has a teardown that is downstream of ``self``.
+        """
+        downstream_teardown_ids = {
+            x.task_id for x in self.get_flat_relatives(upstream=False) if x.is_teardown
+        }
+        for task in self.get_flat_relatives(upstream=True):
+            if not task.is_setup:
+                continue
+            if not task.downstream_task_ids.isdisjoint(downstream_teardown_ids):
+                yield task
+                for t in task.downstream_list:
+                    if t.is_teardown and not t == self:
+                        yield t
 
     def _iter_all_mapped_downstreams(self) -> Iterator[MappedOperator | MappedTaskGroup]:
         """Return mapped nodes that are direct dependencies of the current task.

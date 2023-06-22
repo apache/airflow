@@ -27,10 +27,10 @@ from airflow.providers.http.hooks.http import HttpHook
 
 
 class DingdingHook(HttpHook):
-    """
-    This hook allows you send Dingding message using Dingding custom bot.
-    Get Dingding token from conn_id.password. And prefer set domain to
-    conn_id.host, if not will use default ``https://oapi.dingtalk.com``.
+    """Send message using a custom Dingding bot.
+
+    Get Dingding token from the connection's ``password``. If ``host`` is not
+    set in the connection, the default ``https://oapi.dingtalk.com`` is used.
 
     For more detail message in
     `Dingding custom bot <https://open-doc.dingtalk.com/microapp/serverapi2/qf2nxq>`_
@@ -75,11 +75,7 @@ class DingdingHook(HttpHook):
         return f"robot/send?access_token={token}"
 
     def _build_message(self) -> str:
-        """
-        Build different type of Dingding message
-        As most commonly used type, text message just need post message content
-        rather than a dict like ``{'content': 'message'}``
-        """
+        """Build different type of Dingding messages."""
         if self.message_type in ["text", "markdown"]:
             data = {
                 "msgtype": self.message_type,
@@ -91,9 +87,9 @@ class DingdingHook(HttpHook):
         return json.dumps(data)
 
     def get_conn(self, headers: dict | None = None) -> Session:
-        """
-        Overwrite HttpHook get_conn because just need base_url and headers and
-        not don't need generic params
+        """Overwrite HttpHook get_conn.
+
+        We just need base_url and headers, and not don't need generic params.
 
         :param headers: additional headers to be passed through as a dictionary
         """
@@ -105,7 +101,7 @@ class DingdingHook(HttpHook):
         return session
 
     def send(self) -> None:
-        """Send Dingding message"""
+        """Send Dingding message."""
         support_type = ["text", "link", "markdown", "actionCard", "feedCard"]
         if self.message_type not in support_type:
             raise ValueError(

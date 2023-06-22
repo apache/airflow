@@ -39,7 +39,6 @@ from typing import (
     Any,
     Callable,
     Collection,
-    Deque,
     Iterable,
     Iterator,
     List,
@@ -64,7 +63,6 @@ from sqlalchemy.sql import expression
 import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowDagInconsistent,
@@ -688,6 +686,20 @@ class DAG(LoggingMixin):
         self.params.validate()
         self.timetable.validate()
 
+    def validate_setup_teardown(self):
+        """
+        Validate that setup and teardown tasks are configured properly.
+
+        :meta private:
+        """
+        for task in self.tasks:
+            if not task.is_setup:
+                continue
+            if not any(x.is_teardown for x in task.downstream_list):
+                raise AirflowDagInconsistent(
+                    "Dag has setup without teardown: dag='%s', task='%s'", self.dag_id, task.task_id
+                )
+
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
 
@@ -877,7 +889,7 @@ class DAG(LoggingMixin):
         DO NOT use this method is there is a known data interval.
         """
         timetable_type = type(self.timetable)
-        if issubclass(timetable_type, (NullTimetable, OnceTimetable)):
+        if issubclass(timetable_type, (NullTimetable, OnceTimetable, DatasetTriggeredTimetable)):
             return DataInterval.exact(timezone.coerce_datetime(logical_date))
         start = timezone.coerce_datetime(logical_date)
         if issubclass(timetable_type, CronDataIntervalTimetable):
@@ -961,7 +973,7 @@ class DAG(LoggingMixin):
             return None
         return info.run_after
 
-    @cached_property
+    @functools.cached_property
     def _time_restriction(self) -> TimeRestriction:
         start_dates = [t.start_date for t in self.tasks if t.start_date]
         if self.start_date is not None:
@@ -1272,7 +1284,7 @@ class DAG(LoggingMixin):
 
     @property
     def allow_future_exec_dates(self) -> bool:
-        return settings.ALLOW_FUTURE_EXEC_DATES and not self.timetable.can_run
+        return settings.ALLOW_FUTURE_EXEC_DATES and not self.timetable.can_be_scheduled
 
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
@@ -1705,7 +1717,6 @@ class DAG(LoggingMixin):
 
         # Next, get any of them from our parent DAG (if there is one)
         if include_parentdag and self.parent_dag is not None:
-
             if visited_external_tis is None:
                 visited_external_tis = set()
 
@@ -2334,7 +2345,9 @@ class DAG(LoggingMixin):
             if include_downstream:
                 also_include.extend(t.get_flat_relatives(upstream=False))
             if include_upstream:
-                also_include.extend(t.get_flat_relatives(upstream=True))
+                also_include.extend(t.get_upstreams_follow_setups())
+            else:
+                also_include.extend(t.get_upstreams_only_setups_and_teardowns())
 
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
@@ -2417,7 +2430,7 @@ class DAG(LoggingMixin):
     def has_task_group(self, task_group_id: str) -> bool:
         return task_group_id in self.task_group_dict
 
-    @cached_property
+    @functools.cached_property
     def task_group_dict(self):
         return {k: v for k, v in self._task_group.get_task_group_dict().items() if k is not None}
 
@@ -2698,10 +2711,16 @@ class DAG(LoggingMixin):
         # than creating a BackfillJob and allows us to surface logs to the user
         while dr.state == State.RUNNING:
             schedulable_tis, _ = dr.update_state(session=session)
-            for ti in schedulable_tis:
-                add_logger_if_needed(ti)
-                ti.task = tasks[ti.task_id]
-                _run_task(ti, session=session)
+            try:
+                for ti in schedulable_tis:
+                    add_logger_if_needed(ti)
+                    ti.task = tasks[ti.task_id]
+                    _run_task(ti, session=session)
+            except Exception:
+                self.log.info(
+                    "Task failed. DAG will continue to run until finished and be marked as failed.",
+                    exc_info=True,
+                )
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
             secrets_backend_list.pop(0)
@@ -3217,7 +3236,7 @@ class DAG(LoggingMixin):
         Validates & raise exception if there are any Params in the DAG which neither have a default value nor
         have the null in schema['type'] list, but the DAG have a schedule_interval which is not None.
         """
-        if not self.timetable.can_run:
+        if not self.timetable.can_be_scheduled:
             return
 
         for k, v in self.params.items():
@@ -3751,7 +3770,6 @@ def dag(
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-
     from airflow.models.serialized_dag import SerializedDagModel
 
     DagModel.serialized_dag = relationship(SerializedDagModel)
@@ -3779,7 +3797,7 @@ class DagContext:
 
     """
 
-    _context_managed_dags: Deque[DAG] = deque()
+    _context_managed_dags: collections.deque[DAG] = deque()
     autoregistered_dags: set[tuple[DAG, ModuleType]] = set()
     current_autoregister_module_name: str | None = None
 

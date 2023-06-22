@@ -151,18 +151,30 @@ class LivyOperator(BaseOperator):
             context["ti"].xcom_push(key="app_id", value=self.get_hook().get_batch(self._batch_id)["appId"])
             return self._batch_id
 
-        self.defer(
-            timeout=self.execution_timeout,
-            trigger=LivyTrigger(
-                batch_id=self._batch_id,
-                spark_params=self.spark_params,
-                livy_conn_id=self._livy_conn_id,
-                polling_interval=self._polling_interval,
-                extra_options=self._extra_options,
-                extra_headers=self._extra_headers,
-            ),
-            method_name="execute_complete",
-        )
+        hook = self.get_hook()
+        state = hook.get_batch_state(self._batch_id, retry_args=self.retry_args)
+        self.log.debug("Batch with id %s is in state: %s", self._batch_id, state.value)
+        if state not in hook.TERMINAL_STATES:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=LivyTrigger(
+                    batch_id=self._batch_id,
+                    spark_params=self.spark_params,
+                    livy_conn_id=self._livy_conn_id,
+                    polling_interval=self._polling_interval,
+                    extra_options=self._extra_options,
+                    extra_headers=self._extra_headers,
+                ),
+                method_name="execute_complete",
+            )
+        else:
+            self.log.info("Batch with id %s terminated with state: %s", self._batch_id, state.value)
+            hook.dump_batch_logs(self._batch_id)
+            if state != BatchState.SUCCESS:
+                raise AirflowException(f"Batch {self._batch_id} did not succeed")
+
+            context["ti"].xcom_push(key="app_id", value=self.get_hook().get_batch(self._batch_id)["appId"])
+            return self._batch_id
 
     def poll_for_termination(self, batch_id: int | str) -> None:
         """
@@ -207,4 +219,5 @@ class LivyOperator(BaseOperator):
             self.task_id,
             event["response"],
         )
+        context["ti"].xcom_push(key="app_id", value=self.get_hook().get_batch(event["batch_id"])["appId"])
         return event["batch_id"]

@@ -111,7 +111,7 @@ Run a Pod on a GKE cluster
 
 There are two operators available in order to run a pod on a GKE cluster:
 
-* :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
+* :class:`~airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
 * :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`
 
 ``GKEStartPodOperator`` extends ``KubernetesPodOperator`` to provide authorization using Google Cloud credentials.

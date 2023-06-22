@@ -30,7 +30,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 class DruidHook(BaseHook):
     """
-    Connection to Druid overlord for ingestion
+    Connection to Druid overlord for ingestion.
 
     To connect to a Druid cluster that is secured with the druid-basic-security
     extension, add the username and password to the druid ingestion connection.
@@ -60,7 +60,7 @@ class DruidHook(BaseHook):
             raise ValueError("Druid timeout should be equal or greater than 1")
 
     def get_conn_url(self) -> str:
-        """Get Druid connection url"""
+        """Get Druid connection url."""
         conn = self.get_connection(self.druid_ingest_conn_id)
         host = conn.host
         port = conn.port
@@ -83,7 +83,7 @@ class DruidHook(BaseHook):
             return None
 
     def submit_indexing_job(self, json_index_spec: dict[str, Any] | str) -> None:
-        """Submit Druid ingestion job"""
+        """Submit Druid ingestion job."""
         url = self.get_conn_url()
 
         self.log.info("Druid ingestion spec: %s", json_index_spec)
@@ -131,7 +131,7 @@ class DruidHook(BaseHook):
 
 class DruidDbApiHook(DbApiHook):
     """
-    Interact with Druid broker
+    Interact with Druid broker.
 
     This hook is purely for users to query druid broker.
     For ingestion, please use druidHook.

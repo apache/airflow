@@ -26,7 +26,7 @@ import json
 import logging
 import pickle
 import warnings
-from functools import wraps
+from functools import cached_property, wraps
 from typing import TYPE_CHECKING, Any, Generator, Iterable, cast, overload
 
 import attr
@@ -39,6 +39,7 @@ from sqlalchemy import (
     LargeBinary,
     PrimaryKeyConstraint,
     String,
+    delete,
     text,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
@@ -47,7 +48,6 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
@@ -250,13 +250,15 @@ class BaseXCom(Base, LoggingMixin):
         )
 
         # Remove duplicate XComs and insert a new one.
-        session.query(cls).filter(
-            cls.key == key,
-            cls.run_id == run_id,
-            cls.task_id == task_id,
-            cls.dag_id == dag_id,
-            cls.map_index == map_index,
-        ).delete()
+        session.execute(
+            delete(cls).where(
+                cls.key == key,
+                cls.run_id == run_id,
+                cls.task_id == task_id,
+                cls.dag_id == dag_id,
+                cls.map_index == map_index,
+            )
+        )
         new = cast(Any, cls)(  # Work around Mypy complaining model not defining '__init__'.
             dag_run_id=dag_run_id,
             key=key,

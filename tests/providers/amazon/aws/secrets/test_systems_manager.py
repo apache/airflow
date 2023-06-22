@@ -173,7 +173,7 @@ class TestSsmSecrets:
 
         systems_manager.client
         assert mock_session_factory.call_count == 1
-        mock_session_factory_call_kwargs = mock_session_factory.call_args[1]
+        mock_session_factory_call_kwargs = mock_session_factory.call_args.kwargs
         assert "conn" in mock_session_factory_call_kwargs
         conn_wrapper = mock_session_factory_call_kwargs["conn"]
 

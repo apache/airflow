@@ -21,10 +21,10 @@ import contextlib
 import os
 import pathlib
 import shutil
+from functools import cached_property
 
 from packaging.version import Version
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -32,7 +32,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def get_default_delete_local_copy():
-    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
+
     TODO: delete this function when min airflow version >= 2.6
     """
     from airflow.version import version
@@ -77,7 +78,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
             )
 
     def set_context(self, ti):
-        """This function is used to set the context of the handler"""
+        """This function is used to set the context of the handler."""
         super().set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to OSS remote storage.
@@ -143,7 +144,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
 
     def oss_log_exists(self, remote_log_location):
         """
-        Check if remote_log_location exists in remote storage
+        Check if remote_log_location exists in remote storage.
 
         :param remote_log_location: log's location in remote storage
         :return: True if location exists else False

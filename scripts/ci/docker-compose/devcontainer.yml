@@ -20,7 +20,7 @@ services:
   airflow:
     stdin_open: true  # docker run -i
     tty: true  # docker run -t
-    image: ghcr.io/apache/airflow/main/ci/python3.7
+    image: ghcr.io/apache/airflow/main/ci/python3.8
     env_file: devcontainer.env
     ports:
       - "22:22"

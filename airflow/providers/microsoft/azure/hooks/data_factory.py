@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-.. spelling::
+"""Spelling exceptions.
 
+.. spelling:word-list::
     CreateRunResponse
     DatasetResource
     LinkedServiceResource
@@ -157,7 +157,7 @@ class AzureDataFactoryHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -173,7 +173,7 @@ class AzureDataFactoryHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -1088,7 +1088,7 @@ def provide_targeted_factory_async(func: T) -> T:
 
 class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
     """
-    An Async Hook that connects to Azure DataFactory to perform pipeline operations
+    An Async Hook that connects to Azure DataFactory to perform pipeline operations.
 
     :param azure_data_factory_conn_id: The :ref:`Azure Data Factory connection id<howto/connection:adf>`.
     """
@@ -1101,7 +1101,7 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         super().__init__(azure_data_factory_conn_id=azure_data_factory_conn_id)
 
     async def get_async_conn(self) -> AsyncDataFactoryManagementClient:
-        """Get async connection and connect to azure data factory"""
+        """Get async connection and connect to azure data factory."""
         if self._async_conn is not None:
             return self._async_conn
 
@@ -1141,7 +1141,7 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         **config: Any,
     ) -> PipelineRun:
         """
-        Connect to Azure Data Factory asynchronously to get the pipeline run details by run id
+        Connect to Azure Data Factory asynchronously to get the pipeline run details by run id.
 
         :param run_id: The pipeline run identifier.
         :param resource_group_name: The resource group name.
@@ -1159,7 +1159,7 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         self, run_id: str, resource_group_name: str | None = None, factory_name: str | None = None
     ) -> str:
         """
-        Connect to Azure Data Factory asynchronously and get the pipeline status by run_id
+        Connect to Azure Data Factory asynchronously and get the pipeline status by run_id.
 
         :param run_id: The pipeline run identifier.
         :param resource_group_name: The resource group name.

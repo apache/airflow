@@ -55,7 +55,7 @@ class FTPHook(BaseHook):
             self.close_conn()
 
     def get_conn(self) -> ftplib.FTP:
-        """Returns a FTP connection object"""
+        """Returns a FTP connection object."""
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
@@ -244,7 +244,7 @@ class FTPHook(BaseHook):
 
     def get_mod_time(self, path: str) -> datetime.datetime:
         """
-        Returns a datetime object representing the last time the file was modified
+        Returns a datetime object representing the last time the file was modified.
 
         :param path: remote file path
         """
@@ -259,7 +259,7 @@ class FTPHook(BaseHook):
 
     def get_size(self, path: str) -> int | None:
         """
-        Returns the size of a file (in bytes)
+        Returns the size of a file (in bytes).
 
         :param path: remote file path
         """
@@ -268,7 +268,7 @@ class FTPHook(BaseHook):
         return int(size) if size else None
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test the FTP connection by calling path with directory"""
+        """Test the FTP connection by calling path with directory."""
         try:
             conn = self.get_conn()
             conn.pwd

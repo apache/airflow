@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import warnings
 from ast import literal_eval
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, List, Sequence, cast
 
 from botocore.exceptions import ClientError, WaiterError
@@ -26,6 +27,10 @@ from botocore.exceptions import ClientError, WaiterError
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import EksHook
+from airflow.providers.amazon.aws.triggers.eks import (
+    EksCreateFargateProfileTrigger,
+    EksDeleteFargateProfileTrigger,
+)
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -353,6 +358,11 @@ class EksCreateFargateProfileOperator(BaseOperator):
          maintained on each worker node).
     :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
+    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check profile status
+    :param waiter_max_attempts: The maximum number of attempts to check the status of the profile.
+    :param deferrable: If True, the operator will wait asynchronously for the profile to be created.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     template_fields: Sequence[str] = (
@@ -371,11 +381,14 @@ class EksCreateFargateProfileOperator(BaseOperator):
         cluster_name: str,
         pod_execution_role_arn: str,
         selectors: list,
-        fargate_profile_name: str | None = DEFAULT_FARGATE_PROFILE_NAME,
+        fargate_profile_name: str = DEFAULT_FARGATE_PROFILE_NAME,
         create_fargate_profile_kwargs: dict | None = None,
         wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
+        waiter_delay: int = 10,
+        waiter_max_attempts: int = 60,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
@@ -386,6 +399,9 @@ class EksCreateFargateProfileOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
@@ -401,12 +417,34 @@ class EksCreateFargateProfileOperator(BaseOperator):
             selectors=self.selectors,
             **self.create_fargate_profile_kwargs,
         )
-
-        if self.wait_for_completion:
+        if self.deferrable:
+            self.defer(
+                trigger=EksCreateFargateProfileTrigger(
+                    cluster_name=self.cluster_name,
+                    fargate_profile_name=self.fargate_profile_name,
+                    aws_conn_id=self.aws_conn_id,
+                    poll_interval=self.waiter_delay,
+                    max_attempts=self.waiter_max_attempts,
+                ),
+                method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=(self.waiter_max_attempts * self.waiter_delay + 60)),
+            )
+        elif self.wait_for_completion:
             self.log.info("Waiting for Fargate profile to provision.  This will take some time.")
             eks_hook.conn.get_waiter("fargate_profile_active").wait(
-                clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
+                clusterName=self.cluster_name,
+                fargateProfileName=self.fargate_profile_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error creating Fargate profile: {event}")
+        else:
+            self.log.info("Fargate profile created successfully")
+        return
 
 
 class EksDeleteClusterOperator(BaseOperator):
@@ -587,6 +625,11 @@ class EksDeleteFargateProfileOperator(BaseOperator):
          maintained on each worker node).
     :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
+    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check profile status
+    :param waiter_max_attempts: The maximum number of attempts to check the status of the profile.
+    :param deferrable: If True, the operator will wait asynchronously for the profile to be deleted.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     template_fields: Sequence[str] = (
@@ -604,6 +647,9 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -612,6 +658,9 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
 
     def execute(self, context: Context):
         eks_hook = EksHook(
@@ -622,11 +671,34 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         eks_hook.delete_fargate_profile(
             clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
         )
-        if self.wait_for_completion:
+        if self.deferrable:
+            self.defer(
+                trigger=EksDeleteFargateProfileTrigger(
+                    cluster_name=self.cluster_name,
+                    fargate_profile_name=self.fargate_profile_name,
+                    aws_conn_id=self.aws_conn_id,
+                    poll_interval=self.waiter_delay,
+                    max_attempts=self.waiter_max_attempts,
+                ),
+                method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=(self.waiter_max_attempts * self.waiter_delay + 60)),
+            )
+        elif self.wait_for_completion:
             self.log.info("Waiting for Fargate profile to delete.  This will take some time.")
             eks_hook.conn.get_waiter("fargate_profile_deleted").wait(
-                clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
+                clusterName=self.cluster_name,
+                fargateProfileName=self.fargate_profile_name,
+                WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error deleting Fargate profile: {event}")
+        else:
+            self.log.info("Fargate profile deleted successfully")
+        return
 
 
 class EksPodOperator(KubernetesPodOperator):

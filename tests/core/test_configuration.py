@@ -36,6 +36,7 @@ from airflow.configuration import (
     AirflowConfigException,
     AirflowConfigParser,
     conf,
+    default_config_yaml,
     expand_env_var,
     get_airflow_config,
     get_airflow_home,
@@ -225,6 +226,24 @@ key6 = value6
         cfg_dict = test_conf.as_dict(include_cmds=False, display_sensitive=True)
         assert "key4" not in cfg_dict["test"]
         assert "printf key4_result" == cfg_dict["test"]["key4_cmd"]
+
+    def test_can_read_dot_section(self):
+        test_config = """[test.abc]
+key1 = true
+"""
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(test_config)
+        section = "test.abc"
+        key = "key1"
+        assert test_conf.getboolean(section, key) is True
+
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "AIRFLOW__TEST_ABC__KEY1": "false",  # note that the '.' is converted to '_'
+            },
+        ):
+            assert test_conf.getboolean(section, key) is False
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     @conf_vars(
@@ -596,7 +615,6 @@ notacommand = OK
 
     @pytest.mark.parametrize("display_sensitive, result", [(True, "OK"), (False, "< hidden >")])
     def test_as_dict_display_sensitivewith_command_from_env(self, display_sensitive, result):
-
         test_cmdenv_conf = AirflowConfigParser()
         test_cmdenv_conf.sensitive_config_values.add(("testcmdenv", "itsacommand"))
         with mock.patch.dict("os.environ"):
@@ -1430,3 +1448,35 @@ sql_alchemy_conn=sqlite://test
             w = captured.pop()
             assert "your `conf.get*` call to use the new name" in str(w.message)
             assert w.category == FutureWarning
+
+
+def test_sensitive_values():
+    from airflow.settings import conf
+
+    # this list was hardcoded prior to 2.6.2
+    # included here to avoid regression in refactor
+    # inclusion of keys ending in "password" or "kwargs" is automated from 2.6.2
+    # items not matching this pattern must be added here manually
+    sensitive_values = {
+        ("database", "sql_alchemy_conn"),
+        ("core", "fernet_key"),
+        ("celery", "broker_url"),
+        ("celery", "flower_basic_auth"),
+        ("celery", "result_backend"),
+        ("atlas", "password"),
+        ("smtp", "smtp_password"),
+        ("webserver", "secret_key"),
+        ("secrets", "backend_kwargs"),
+        ("sentry", "sentry_dsn"),
+        ("database", "sql_alchemy_engine_args"),
+        ("core", "sql_alchemy_conn"),
+    }
+    default_config = default_config_yaml()
+    all_keys = {(s, k) for s, v in default_config.items() for k in v.get("options")}
+    suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
+    exclude_list = {
+        ("kubernetes_executor", "delete_option_kwargs"),
+    }
+    suspected_sensitive -= exclude_list
+    sensitive_values.update(suspected_sensitive)
+    assert sensitive_values == conf.sensitive_config_values

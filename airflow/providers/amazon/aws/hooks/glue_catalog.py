@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains AWS Glue Catalog Hook"""
+"""This module contains AWS Glue Catalog Hook."""
 from __future__ import annotations
 
 from botocore.exceptions import ClientError
@@ -85,7 +85,7 @@ class GlueCatalogHook(AwsBaseHook):
 
     def check_for_partition(self, database_name: str, table_name: str, expression: str) -> bool:
         """
-        Checks whether a partition exists
+        Checks whether a partition exists.
 
         .. code-block:: python
 
@@ -103,7 +103,7 @@ class GlueCatalogHook(AwsBaseHook):
 
     def get_table(self, database_name: str, table_name: str) -> dict:
         """
-        Get the information of the table
+        Get the information of the table.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.get_table`
@@ -137,7 +137,7 @@ class GlueCatalogHook(AwsBaseHook):
 
     def get_partition(self, database_name: str, table_name: str, partition_values: list[str]) -> dict:
         """
-        Gets a Partition
+        Gets a Partition.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.get_partition`

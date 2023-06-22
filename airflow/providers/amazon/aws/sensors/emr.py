@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from deprecated import deprecated
@@ -24,12 +26,11 @@ from deprecated import deprecated
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
+from airflow.providers.amazon.aws.triggers.emr import EmrContainerSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-from airflow.compat.functools import cached_property
 
 
 class EmrBaseSensor(BaseSensorOperator):
@@ -157,7 +158,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> EmrServerlessHook:
-        """Create and return an EmrServerlessHook"""
+        """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     @staticmethod
@@ -213,7 +214,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> EmrServerlessHook:
-        """Create and return an EmrServerlessHook"""
+        """Create and return an EmrServerlessHook."""
         return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
     @staticmethod
@@ -242,6 +243,7 @@ class EmrContainerSensor(BaseSensorOperator):
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     :param poll_interval: Time in seconds to wait between two consecutive call to
         check query status on athena, defaults to 10
+    :param deferrable: Run sensor in the deferrable mode.
     """
 
     INTERMEDIATE_STATES = (
@@ -268,6 +270,7 @@ class EmrContainerSensor(BaseSensorOperator):
         max_retries: int | None = None,
         aws_conn_id: str = "aws_default",
         poll_interval: int = 10,
+        deferrable: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -276,6 +279,11 @@ class EmrContainerSensor(BaseSensorOperator):
         self.job_id = job_id
         self.poll_interval = poll_interval
         self.max_retries = max_retries
+        self.deferrable = deferrable
+
+    @cached_property
+    def hook(self) -> EmrContainerHook:
+        return EmrContainerHook(self.aws_conn_id, virtual_cluster_id=self.virtual_cluster_id)
 
     def poke(self, context: Context) -> bool:
         state = self.hook.poll_query_status(
@@ -291,10 +299,31 @@ class EmrContainerSensor(BaseSensorOperator):
             return False
         return True
 
-    @cached_property
-    def hook(self) -> EmrContainerHook:
-        """Create and return an EmrContainerHook"""
-        return EmrContainerHook(self.aws_conn_id, virtual_cluster_id=self.virtual_cluster_id)
+    def execute(self, context: Context):
+        if not self.deferrable:
+            super().execute(context=context)
+        else:
+            timeout = (
+                timedelta(seconds=self.max_retries * self.poll_interval + 60)
+                if self.max_retries
+                else self.execution_timeout
+            )
+            self.defer(
+                timeout=timeout,
+                trigger=EmrContainerSensorTrigger(
+                    virtual_cluster_id=self.virtual_cluster_id,
+                    job_id=self.job_id,
+                    aws_conn_id=self.aws_conn_id,
+                    poll_interval=self.poll_interval,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+        else:
+            self.log.info(event["message"])
 
 
 class EmrNotebookExecutionSensor(EmrBaseSensor):

@@ -20,6 +20,7 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+from functools import cached_property
 from pathlib import Path
 from typing import Collection
 
@@ -27,7 +28,6 @@ from typing import Collection
 from google.cloud import storage  # type: ignore[attr-defined]
 from packaging.version import Version
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
@@ -46,8 +46,9 @@ logger = logging.getLogger(__name__)
 
 
 def get_default_delete_local_copy():
-    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not
-    TODO: delete this function when min airflow version >= 2.6
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
+
+    TODO: delete this function when min airflow version >= 2.6.
     """
     from airflow.version import version
 

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains the Amazon DynamoDB Hook"""
+"""This module contains the Amazon DynamoDB Hook."""
 from __future__ import annotations
 
 from typing import Iterable

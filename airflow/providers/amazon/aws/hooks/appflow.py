@@ -16,9 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING
 
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 if TYPE_CHECKING:
@@ -45,7 +45,7 @@ class AppflowHook(AwsBaseHook):
 
     @cached_property
     def conn(self) -> AppflowClient:
-        """Get the underlying boto3 Appflow client (cached)"""
+        """Get the underlying boto3 Appflow client (cached)."""
         return super().conn
 
     def run_flow(self, flow_name: str, poll_interval: int = 20, wait_for_completion: bool = True) -> str:

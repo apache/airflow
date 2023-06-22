@@ -27,6 +27,7 @@ Content
     :caption: References
 
     Connection types <connections/smtp>
+    SMTP Notifications <notifications/smtp_notifier_howto_guide>
     Python API <_api/airflow/providers/smtp/index>
 
 .. toctree::
@@ -52,7 +53,7 @@ Package apache-airflow-providers-smtp
 `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
 
-Release: 1.1.0
+Release: 1.2.0
 
 Provider package
 ----------------

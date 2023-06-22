@@ -500,6 +500,18 @@ ARG_DB_DROP_ARCHIVES = Arg(
     help="Drop the archive tables after exporting. Use with caution.",
     action="store_true",
 )
+ARG_DB_RETRY = Arg(
+    ("--retry",),
+    default=0,
+    type=positive_int(allow_zero=True),
+    help="Retry database check upon failure",
+)
+ARG_DB_RETRY_DELAY = Arg(
+    ("--retry-delay",),
+    default=1,
+    type=positive_int(allow_zero=False),
+    help="Wait time between retries in seconds",
+)
 
 # pool
 ARG_POOL_NAME = Arg(("pool",), metavar="NAME", help="Pool name")
@@ -1620,7 +1632,7 @@ DB_COMMANDS = (
         name="check",
         help="Check if the database can be reached",
         func=lazy_load_command("airflow.cli.commands.db_command.check"),
-        args=(ARG_VERBOSE,),
+        args=(ARG_VERBOSE, ARG_DB_RETRY, ARG_DB_RETRY_DELAY),
     ),
     ActionCommand(
         name="clean",

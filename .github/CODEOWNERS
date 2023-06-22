@@ -71,6 +71,7 @@
 /docs/apache-airflow-providers-slack/ @eladkal
 /docs/apache-airflow-providers-cncf-kubernetes @jedcunningham
 /tests/providers/amazon/ @eladkal @o-nikolas
+/tests/system/providers/amazon/ @eladkal @o-nikolas
 /tests/providers/common/sql/ @eladkal
 /tests/providers/slack/ @eladkal
 

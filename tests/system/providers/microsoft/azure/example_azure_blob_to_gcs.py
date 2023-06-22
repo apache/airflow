@@ -45,7 +45,12 @@ with DAG(
     DAG_ID,
     schedule=None,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
-    default_args={"container_name": AZURE_CONTAINER_NAME, "blob_name": BLOB_NAME, "prefix": PREFIX_NAME},
+    default_args={
+        # azure args
+        "container_name": AZURE_CONTAINER_NAME,
+        "blob_name": BLOB_NAME,
+        "prefix": PREFIX_NAME,
+    },
 ) as dag:
     wait_for_blob = WasbBlobSensor(task_id="wait_for_blob")
 
@@ -60,8 +65,6 @@ with DAG(
 
     transfer_files_to_gcs = AzureBlobStorageToGCSOperator(
         task_id="transfer_files_to_gcs",
-        # AZURE arg
-        file_path=GCP_OBJECT_NAME,
         # GCP args
         bucket_name=GCP_BUCKET_NAME,
         object_name=GCP_OBJECT_NAME,

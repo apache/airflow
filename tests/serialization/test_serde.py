@@ -24,6 +24,7 @@ from typing import ClassVar
 
 import attr
 import pytest
+from pydantic import BaseModel
 
 from airflow.datasets import Dataset
 from airflow.serialization.serde import (
@@ -90,6 +91,18 @@ class V:
     s: list
     t: tuple
     c: int
+
+
+class U(BaseModel):
+    __version__: ClassVar[int] = 1
+    x: int
+    v: V
+    u: tuple
+
+
+class C:
+    def __call__(self):
+        return None
 
 
 @pytest.mark.usefixtures("recalculate_patterns")
@@ -317,3 +330,16 @@ class TestSerDe:
         i = Z(10)
         e = deserialize(i)
         assert i == e
+
+    def test_pydantic(self):
+        i = U(x=10, v=V(W(10), ["l1", "l2"], (1, 2), 10), u=(1, 2))
+        e = serialize(i)
+        s = deserialize(e)
+        assert i == s
+
+    def test_error_when_serializing_callable_without_name(self):
+        i = C()
+        with pytest.raises(
+            TypeError, match="cannot serialize object of type <class 'tests.serialization.test_serde.C'>"
+        ):
+            serialize(i)

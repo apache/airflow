@@ -27,6 +27,7 @@ from __future__ import annotations
 import copy
 import platform
 import time
+from functools import cached_property
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -45,7 +46,6 @@ from tenacity import (
 )
 
 from airflow import __version__
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
@@ -197,6 +197,7 @@ class BaseDatabricksHook(BaseHook):
     def _get_retry_object(self) -> Retrying:
         """
         Instantiate a retry object.
+
         :return: instance of Retrying class
         """
         return Retrying(**self.retry_args)
@@ -204,6 +205,7 @@ class BaseDatabricksHook(BaseHook):
     def _a_get_retry_object(self) -> AsyncRetrying:
         """
         Instantiate an async retry object.
+
         :return: instance of AsyncRetrying class
         """
         return AsyncRetrying(**self.retry_args)
@@ -278,6 +280,7 @@ class BaseDatabricksHook(BaseHook):
     async def _a_get_aad_token(self, resource: str) -> str:
         """
         Async version of `_get_aad_token()`.
+
         :param resource: resource to issue token to
         :return: AAD token, or raise an exception
         """
@@ -344,6 +347,7 @@ class BaseDatabricksHook(BaseHook):
     def _get_aad_headers(self) -> dict:
         """
         Fill AAD headers if necessary (SPN is outside of the workspace).
+
         :return: dictionary with filled AAD headers
         """
         headers = {}
@@ -358,6 +362,7 @@ class BaseDatabricksHook(BaseHook):
     async def _a_get_aad_headers(self) -> dict:
         """
         Async version of `_get_aad_headers()`.
+
         :return: dictionary with filled AAD headers
         """
         headers = {}
@@ -386,6 +391,7 @@ class BaseDatabricksHook(BaseHook):
     def _check_azure_metadata_service() -> None:
         """
         Check for Azure Metadata Service.
+
         https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service
         """
         try:

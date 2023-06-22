@@ -18,9 +18,9 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import (
     ClusterStates,

@@ -18,13 +18,12 @@
 """Connect to Asana."""
 from __future__ import annotations
 
-from functools import wraps
+from functools import cached_property, wraps
 from typing import Any
 
 from asana import Client  # type: ignore[attr-defined]
 from asana.error import NotFoundError  # type: ignore[attr-defined]
 
-from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 
 
@@ -89,7 +88,7 @@ class AsanaHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -102,7 +101,7 @@ class AsanaHook(BaseHook):
     @staticmethod
     @_ensure_prefixes(conn_type="asana")
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["port", "host", "login", "schema"],
             "relabeling": {},
@@ -115,7 +114,7 @@ class AsanaHook(BaseHook):
 
     @cached_property
     def client(self) -> Client:
-        """Instantiates python-asana Client"""
+        """Instantiates python-asana Client."""
         if not self.connection.password:
             raise ValueError(
                 "Asana connection password must contain a personal access token: "
@@ -262,7 +261,7 @@ class AsanaHook(BaseHook):
     @staticmethod
     def _validate_create_project_parameters(params: dict) -> None:
         """
-        Check that user provided the minimum required parameters for project creation
+        Check that user provided the minimum required parameters for project creation.
 
         :param params: Attributes that the new project should have
         :return: None; raises a ValueError if `params` does not contain the minimum required attributes.

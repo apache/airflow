@@ -20,7 +20,7 @@ import datetime
 from traceback import format_exception
 from typing import Any, Iterable
 
-from sqlalchemy import Column, Integer, String, func, or_
+from sqlalchemy import Column, Integer, String, delete, func, or_
 from sqlalchemy.orm import Session, joinedload, relationship
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -135,7 +135,9 @@ class Trigger(Base):
             )
         ]
         # ...and delete them (we can't do this in one query due to MySQL)
-        session.query(Trigger).filter(Trigger.id.in_(ids)).delete(synchronize_session=False)
+        session.execute(
+            delete(Trigger).where(Trigger.id.in_(ids)).execution_options(synchronize_session=False)
+        )
 
     @classmethod
     @internal_api_call

@@ -25,6 +25,7 @@ permissions:
   # all other permissions are set to none
   contents: read
   pull-requests: read
+  packages: read
 env:
   ANSWER: "yes"
   DB_RESET: "true"
@@ -70,6 +71,7 @@ jobs:
           github.event.pull_request.head.sha ||
           github.sha
         }}"
+    if: github.repository == 'apache/airflow'
     steps:
       - name: Discover PR merge commit
         id: discover-pr-merge-commit
@@ -157,6 +159,7 @@ jobs:
 
   build-ci-images:
     permissions:
+      contents: read
       packages: write
     timeout-minutes: 80
     name: >
@@ -165,7 +168,8 @@ jobs:
     needs: [build-info]
     if: |
       needs.build-info.outputs.image-build == 'true' &&
-      github.event.pull_request.head.repo.full_name != 'apache/airflow'
+      github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
+      github.repository == 'apache/airflow'
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -192,6 +196,7 @@ jobs:
 
   build-prod-images:
     permissions:
+      contents: read
       packages: write
     timeout-minutes: 80
     name: >
@@ -201,7 +206,8 @@ jobs:
     needs: [build-info, build-ci-images]
     if: |
       needs.build-info.outputs.image-build == 'true' &&
-      github.event.pull_request.head.repo.full_name != 'apache/airflow'
+      github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
+      github.repository == 'apache/airflow'
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
@@ -238,7 +244,8 @@ jobs:
       needs.build-info.outputs.image-build == 'true' &&
       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
-      needs.build-info.outputs.runs-on == 'self-hosted'
+      needs.build-info.outputs.runs-on == 'self-hosted' &&
+      github.repository == 'apache/airflow'
     env:
       DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}

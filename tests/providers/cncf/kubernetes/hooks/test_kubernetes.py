@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import json
 import os
-import sys
 import tempfile
 from asyncio import Future
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import kubernetes
@@ -38,11 +38,6 @@ from airflow.utils import db
 from airflow.utils.db import merge_conn
 from tests.test_utils.db import clear_db_connections
 from tests.test_utils.providers import get_provider_min_airflow_version
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-else:
-    from unittest import mock
 
 KUBE_CONFIG_PATH = os.getenv("KUBECONFIG", "~/.kube/config")
 HOOK_MODULE = "airflow.providers.cncf.kubernetes.hooks.kubernetes"

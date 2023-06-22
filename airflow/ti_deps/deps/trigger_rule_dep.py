@@ -130,7 +130,7 @@ class TriggerRuleDep(BaseTIDep):
         upstream_tasks = {t.task_id: t for t in task.upstream_list}
         trigger_rule = task.trigger_rule
 
-        @functools.lru_cache()
+        @functools.lru_cache
         def _get_expanded_ti_count() -> int:
             """Get how many tis the current task is supposed to be expanded into.
 
@@ -139,7 +139,7 @@ class TriggerRuleDep(BaseTIDep):
             """
             return task.get_mapped_ti_count(ti.run_id, session=session)
 
-        @functools.lru_cache()
+        @functools.lru_cache
         def _get_relevant_upstream_map_indexes(upstream_id: str) -> int | range | None:
             """Get the given task's map indexes relevant to the current ti.
 

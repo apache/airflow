@@ -106,7 +106,7 @@ NEGATIVE_STATUSES = {GcpTransferOperationStatus.FAILED, GcpTransferOperationStat
 def gen_job_name(job_name: str) -> str:
     """
     Adds unique suffix to job name. If suffix already exists, updates it.
-    Suffix — current timestamp
+    Suffix — current timestamp.
 
     :param job_name:
     :return: job_name with suffix

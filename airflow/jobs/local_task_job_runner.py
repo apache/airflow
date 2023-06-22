@@ -299,3 +299,13 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
             "local_task_job.task_exit."
             f"{self.job.id}.{self.task_instance.dag_id}.{self.task_instance.task_id}.{return_code}"
         )
+        # Same metric with tagging
+        Stats.incr(
+            "local_task_job.task_exit",
+            tags={
+                "job_id": self.job.id,
+                "dag_id": self.task_instance.dag_id,
+                "task_id": self.task_instance.task_id,
+                "return_code": return_code,
+            },
+        )
