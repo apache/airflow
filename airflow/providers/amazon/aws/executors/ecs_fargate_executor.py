@@ -61,12 +61,12 @@ class EcsFargateTask:
     def get_task_state(self) -> str:
         """
         This is the primary logic that handles state in an ECS/Fargate Task.
-        It will determine if a status is
-        QUEUED - Task is being provisioned
-        RUNNING - is launched on ECS/Fargate
-        REMOVED - task provisioning has failed for some reason. See `stopped_reason`.
-        FAILED - task is completed & one container has failed
-        SUCCESS - task is completed & all containers have succeeded.
+        It will determine if a status is:
+            QUEUED - Task is being provisioned.
+            RUNNING - Task is launched on ECS/Fargate.
+            REMOVED - Task provisioning has failed for some reason. See `stopped_reason`.
+            FAILED - Task is completed and at least one container has failed.
+            SUCCESS - Task is completed and all containers have succeeded.
         """
         if self.last_status == "RUNNING":
             return State.RUNNING
