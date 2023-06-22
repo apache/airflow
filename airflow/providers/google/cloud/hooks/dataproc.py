@@ -894,7 +894,7 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         client = self.get_batch_client(region)
-        name = f"projects/{project_id}/regions/{region}/batches/{batch_id}"
+        name = f"projects/{project_id}/locations/{region}/batches/{batch_id}"
 
         client.delete_batch(
             request={
@@ -928,7 +928,7 @@ class DataprocHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         client = self.get_batch_client(region)
-        name = f"projects/{project_id}/regions/{region}/batches/{batch_id}"
+        name = f"projects/{project_id}/locations/{region}/batches/{batch_id}"
 
         result = client.get_batch(
             request={
@@ -1712,7 +1712,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         client = self.get_batch_client(region)
-        name = f"projects/{project_id}/regions/{region}/batches/{batch_id}"
+        name = f"projects/{project_id}/locations/{region}/batches/{batch_id}"
 
         await client.delete_batch(
             request={
@@ -1746,7 +1746,7 @@ class DataprocAsyncHook(GoogleBaseHook):
         :param metadata: Additional metadata that is provided to the method.
         """
         client = self.get_batch_client(region)
-        name = f"projects/{project_id}/regions/{region}/batches/{batch_id}"
+        name = f"projects/{project_id}/locations/{region}/batches/{batch_id}"
 
         result = await client.get_batch(
             request={
