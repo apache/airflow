@@ -49,6 +49,8 @@ def should_retry_start_spark_job(exception: BaseException) -> bool:
 
 
 class SparkJobSpec:
+    """Spark job spec"""
+
     def __init__(self, **entries):
         self.__dict__.update(entries)
         self.validate()
@@ -76,6 +78,8 @@ class SparkJobSpec:
 
 
 class KubernetesSpec:
+    """Spark kubernetes spec"""
+
     def __init__(self, **entries):
         self.__dict__.update(entries)
         self.set_attribute()
@@ -181,7 +185,7 @@ class SparkResources:
             self.executor["cpu"]["limit"] = str(self.executor["cpu"]["limit"])
 
         if self.driver["gpu"].get("quantity"):
-            self.driver["gpu"]["quantity"] = int(float(driver["gpu"]["quantity"]))
+            self.driver["gpu"]["quantity"] = int(float(self.driver["gpu"]["quantity"]))
         if self.executor["gpu"].get("quantity"):
             self.executor["gpu"]["quantity"] = int(float(self.executor["gpu"]["quantity"]))
 
@@ -325,7 +329,7 @@ class CustomObjectLauncher(LoggingMixin):
                 self.pod_manager.fetch_container_logs(
                     pod=self.pod_spec, container_name="spark-kubernetes-driver"
                 )
-            except:
+            except Exception:
                 pass
             raise AirflowException(f"Spark Job Failed.\nSparkJob Error stack:\n{err}")
         return driver_state == CustomObjectStatus.SUBMITTED
