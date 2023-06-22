@@ -234,11 +234,20 @@ class TestSecurityContext:
                 "spec.template.spec.containers[0].securityContext", docs[index]
             )
             assert ctx_value_pod == jmespath.search("spec.template.spec.securityContext", docs[index])
+        # Global security context is not propagated to redis and statsd, so we test default value
+        default_ctx_value_container = {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}}
+        default_ctx_value_pod_statsd = {"runAsUser": 65534}
+        default_ctx_value_pod_redis = {"runAsUser": 0}
         for index in range(len(docs) - 2, len(docs)):
-            assert ctx_value_container != jmespath.search(
+            assert default_ctx_value_container == jmespath.search(
                 "spec.template.spec.containers[0].securityContext", docs[index]
             )
-            assert ctx_value_pod != jmespath.search("spec.template.spec.securityContext", docs[index])
+        assert default_ctx_value_pod_statsd == jmespath.search(
+            "spec.template.spec.securityContext", docs[len(docs) - 2]
+        )
+        assert default_ctx_value_pod_redis == jmespath.search(
+            "spec.template.spec.securityContext", docs[len(docs) - 1]
+        )
 
     # Test securityContexts for main containers
     def test_main_container_setting(self):
