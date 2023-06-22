@@ -54,14 +54,14 @@ Configuring the Connection
 --------------------------
 
 Login (optional)
-    Specify the login used for azure blob storage. Strictly needed for Active Directory (token) authentication as Service principle credential. Optional for rest if host (account url) is specified.
+    Specify the login used for Azure Blob Storage. Strictly needed for Active Directory (token) authentication as Service principle credential. Optional for the rest if host (account url) is specified.
 
 Password (optional)
-    Specify the password used for azure blob storage. For use with
+    Specify the password used for Azure Blob Storage. For use with
     Active Directory (token credential) and shared key authentication.
 
 Host (optional)
-    Specify the account url for azure blob storage. Strictly needed for Active Directory (token) authentication as Service principle credential. Optional for the rest if login (account name) is specified.
+    Specify the account url for Azure Blob Storage. Strictly needed for Active Directory (token) authentication as Service principle credential. Optional for the rest if login (account name) is specified.
 
 Blob Storage Connection String (optional)
     Connection string for use with connection string authentication.
