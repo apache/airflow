@@ -70,11 +70,12 @@ def wait(
         except WaiterError as error:
             if "terminal failure" in str(error):
                 raise AirflowException(f"{failure_message}: {error}")
-            log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, error.last_response))
-            time.sleep(waiter_delay)
 
+            log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, error.last_response))
             if attempt >= max_attempts:
                 raise AirflowException("Waiter error: max attempts reached")
+
+            time.sleep(waiter_delay)
 
 
 async def async_wait(
@@ -118,11 +119,12 @@ async def async_wait(
         except WaiterError as error:
             if "terminal failure" in str(error):
                 raise AirflowException(f"{failure_message}: {error}")
-            log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, error.last_response))
-            await asyncio.sleep(waiter_delay)
 
+            log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, error.last_response))
             if attempt >= max_attempts:
                 raise AirflowException("Waiter error: max attempts reached")
+
+            await asyncio.sleep(waiter_delay)
 
 
 class _LazyStatusFormatter:
