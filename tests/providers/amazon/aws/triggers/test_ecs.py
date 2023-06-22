@@ -75,7 +75,7 @@ class TestClusterWaiterTrigger:
 
         trigger = ClusterWaiterTrigger("my_waiter", "cluster_arn", 0, 5, None, None)
 
-        with pytest.raises(WaiterError):
+        with pytest.raises(AirflowException):
             generator = trigger.run()
             await generator.asend(None)
 
