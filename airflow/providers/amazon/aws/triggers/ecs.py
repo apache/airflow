@@ -22,10 +22,10 @@ from typing import Any, AsyncIterator
 
 from botocore.exceptions import ClientError, WaiterError
 
-from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
+from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -74,27 +74,16 @@ class ClusterWaiterTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         async with EcsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).async_conn as client:
             waiter = client.get_waiter(self.waiter_name)
-            while self.attempts >= 1:
-                self.attempts = self.attempts - 1
-                try:
-                    await waiter.wait(
-                        clusters=[self.cluster_arn],
-                        WaiterConfig={
-                            "MaxAttempts": 1,
-                        },
-                    )
-                    # we reach this point only if the waiter met a success criteria
-                    yield TriggerEvent({"status": "success", "arn": self.cluster_arn})
-                    return
-                except WaiterError as error:
-                    if "terminal failure" in str(error):
-                        raise
-                    self.log.info("Status of cluster is %s", error.last_response["clusters"][0]["status"])
-                    await asyncio.sleep(int(self.waiter_delay))
-
-        raise AirflowException(
-            "Cluster still not in expected status after the max number of tries has been reached"
-        )
+            await async_wait(
+                waiter,
+                self.waiter_delay,
+                self.attempts,
+                {"clusters": [self.cluster_arn]},
+                "error when checking cluster status",
+                "Status of cluster",
+                ["clusters[].status"],
+            )
+            yield TriggerEvent({"status": "success", "arn": self.cluster_arn})
 
 
 class TaskDoneTrigger(BaseTrigger):
