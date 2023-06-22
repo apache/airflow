@@ -152,22 +152,6 @@ class XComArg(ResolveMixin, DependencyMixin):
         for operator, _ in self.iter_references():
             operator.set_downstream(task_or_task_list, edge_modifier)
 
-    def as_setup(self):
-        for operator, _ in self.iter_references():
-            operator.is_setup = True
-        return self
-
-    def as_teardown(self, setups=NOTSET, *, on_failure_fail_dagrun=False):
-        for operator, _ in self.iter_references():
-            operator.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
-            operator.on_failure_fail_dagrun = on_failure_fail_dagrun
-            operator.is_teardown = True
-            if setups is not NOTSET:
-                setups = [setups] if isinstance(setups, DependencyMixin) else setups
-                for s in setups:
-                    s >> operator
-        return self
-
     def _serialize(self) -> dict[str, Any]:
         """Called by DAG serialization.
 
@@ -312,6 +296,31 @@ class PlainXComArg(XComArg):
     @classmethod
     def _deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
         return cls(dag.get_task(data["task_id"]), data["key"])
+
+    @property
+    def is_setup(self):
+        return self.operator.is_setup
+
+    @is_setup.setter
+    def is_setup(self, val: bool):
+        self.operator.is_setup = val
+
+    def as_setup(self):
+        for operator, _ in self.iter_references():
+            operator.is_setup = True
+        return self
+
+    def as_teardown(self, setups=NOTSET, *, on_failure_fail_dagrun=False):
+        for operator, _ in self.iter_references():
+            operator.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
+            operator.on_failure_fail_dagrun = on_failure_fail_dagrun
+            operator.is_teardown = True
+            if setups is not NOTSET:
+                setups = [setups] if isinstance(setups, DependencyMixin) else setups
+                for s in setups:
+                    s.is_setup = True
+                    s >> operator
+        return self
 
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         yield self.operator, self.key
