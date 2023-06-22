@@ -24,12 +24,22 @@
 Changelog
 ---------
 
-5.0.0
+4.5.1
 .....
 
 .. note::
-  This release of provider removes the elasticsearch-dbapi and elasticsearch-dsl package.
-  Only the official elasticsearch package will be used for the provider.
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 4.5.0
 .....

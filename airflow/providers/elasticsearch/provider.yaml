@@ -23,7 +23,7 @@ description: |
 
 suspended: false
 versions:
-  - 5.0.0
+  - 4.5.1
   - 4.5.0
   - 4.4.0
   - 4.3.3
@@ -58,6 +58,8 @@ dependencies:
   # likely requires getting rid of elasticsearch-dsl or waiting until there is a compatible version
   # We can also try to replace the <7.15.0 with <8.0.0 but we need to solve the test failures first
   - elasticsearch>7,<7.15.0
+  - elasticsearch-dbapi
+  - elasticsearch-dsl>=5.0.0
 
 integrations:
   - integration-name: Elasticsearch

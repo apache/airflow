@@ -352,11 +352,16 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+        credentials, _ = self.hook.get_credentials_and_project_id()
         model, training_id = self.hook.create_auto_ml_tabular_training_job(
             project_id=self.project_id,
             region=self.region,
             display_name=self.display_name,
-            dataset=datasets.TabularDataset(dataset_name=self.dataset_id),
+            dataset=datasets.TabularDataset(
+                dataset_name=self.dataset_id,
+                project=self.project_id,
+                credentials=credentials,
+            ),
             target_column=self.target_column,
             optimization_prediction_type=self.optimization_prediction_type,
             optimization_objective=self.optimization_objective,
