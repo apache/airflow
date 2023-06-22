@@ -875,8 +875,6 @@ capabilities:
 
     The template can be called like so:
       include "externalContainerSecurityContext" .Values.statsd
-
-     Where `.` is the global variables scope and `.Values.webserver` the local variables scope for the webserver template.
     */}}
 {{- define "externalContainerSecurityContext" -}}
   {{- if .securityContexts.container -}}
