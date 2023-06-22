@@ -149,7 +149,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         Generate labels for the pod to track the pod in case of Operator crash
         :param include_try_number: add try number to labels
         :param context: task context provided by airflow DAG
-        :return: dict
+        :return: dict.
         """
         if not context:
             return {}
@@ -221,7 +221,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return driver_pod
 
     def extract_xcom(self, pod):
-        """Retrieves xcom value and kills xcom sidecar container"""
+        """Retrieves xcom value and kills xcom sidecar container."""
         result = self.pod_manager.extract_xcom(pod)
         self.log.info("xcom result: \n%s", result)
         return json.loads(result)
@@ -275,7 +275,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             self.launcher.delete_spark_job()
 
     def patch_already_checked(self, pod: k8s.V1Pod, *, reraise=True):
-        """Add an "already checked" annotation to ensure we don't reattach on retries"""
+        """Add an "already checked" annotation to ensure we don't reattach on retries."""
         pod.metadata.labels["already_checked"] = "True"
         body = PodGenerator.serialize_pod(pod)
         self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)

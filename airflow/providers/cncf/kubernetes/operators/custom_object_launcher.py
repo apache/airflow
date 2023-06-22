@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Launches Custom object"""
+"""Launches Custom object."""
 from __future__ import annotations
 
 import time
@@ -42,14 +42,14 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def should_retry_start_spark_job(exception: BaseException) -> bool:
-    """Check if an Exception indicates a transient error and warrants retrying"""
+    """Check if an Exception indicates a transient error and warrants retrying."""
     if isinstance(exception, ApiException):
         return exception.status == 409
     return False
 
 
 class SparkJobSpec:
-    """Spark job spec"""
+    """Spark job spec."""
 
     def __init__(self, **entries):
         self.__dict__.update(entries)
@@ -78,7 +78,7 @@ class SparkJobSpec:
 
 
 class KubernetesSpec:
-    """Spark kubernetes spec"""
+    """Spark kubernetes spec."""
 
     def __init__(self, **entries):
         self.__dict__.update(entries)
@@ -100,7 +100,7 @@ class KubernetesSpec:
 
 
 class SparkResources:
-    """spark resources"""
+    """spark resources."""
 
     def __init__(
         self,
@@ -122,12 +122,12 @@ class SparkResources:
 
     @property
     def resources(self):
-        """Return job resources"""
+        """Return job resources."""
         return {"driver": self.driver_resources, "executor": self.executor_resources}
 
     @property
     def driver_resources(self):
-        """Return resources to use"""
+        """Return resources to use."""
         driver = {}
         if self.driver["cpu"].get("request"):
             driver["cores"] = self.driver["cpu"]["request"]
@@ -141,7 +141,7 @@ class SparkResources:
 
     @property
     def executor_resources(self):
-        """Return resources to use"""
+        """Return resources to use."""
         executor = {}
         if self.executor["cpu"].get("request"):
             executor["cores"] = self.executor["cpu"]["request"]
@@ -191,7 +191,7 @@ class SparkResources:
 
 
 class CustomObjectStatus:
-    """Status of the PODs"""
+    """Status of the PODs."""
 
     SUBMITTED = "SUBMITTED"
     RUNNING = "RUNNING"
@@ -200,7 +200,7 @@ class CustomObjectStatus:
 
 
 class CustomObjectLauncher(LoggingMixin):
-    """Launches PODS"""
+    """Launches PODS."""
 
     def __init__(
         self,
@@ -212,7 +212,7 @@ class CustomObjectLauncher(LoggingMixin):
     ):
         """
         Creates custom object launcher(sparkapplications crd).
-        :param kube_client: kubernetes client
+        :param kube_client: kubernetes client.
         """
         super().__init__()
         self.name = name
@@ -314,7 +314,7 @@ class CustomObjectLauncher(LoggingMixin):
         return self.pod_spec, self.spark_obj_spec
 
     def spark_job_not_running(self, spark_obj_spec):
-        """Tests if spark_obj_spec has not started"""
+        """Tests if spark_obj_spec has not started."""
         spark_job_info = self.custom_obj_api.get_namespaced_custom_object_status(
             group=self.api_group,
             version=self.api_version,
@@ -347,7 +347,7 @@ class CustomObjectLauncher(LoggingMixin):
             raise AirflowException(f"Spark Job Failed.\nStatus: {waiting_reason}\nError: {waiting_message}")
 
     def delete_spark_job(self, spark_job_name=None):
-        """Deletes spark job"""
+        """Deletes spark job."""
         spark_job_name = spark_job_name or self.spark_obj_spec.get("metadata", {}).get("name")
         if not spark_job_name:
             self.log.warning("Spark job not found: %s", spark_job_name)
