@@ -15,10 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Launches Custom object"""
+from __future__ import annotations
+
 import time
 from copy import deepcopy
 from datetime import datetime as dt
-from typing import Optional
 
 import tenacity
 from kubernetes import client
@@ -203,7 +204,7 @@ class CustomObjectLauncher(LoggingMixin):
         namespace: str,
         kube_client: client.CoreV1Api,
         custom_obj_api: client.CustomObjectsApi,
-        template_body: Optional[str] = None,
+        template_body: str | None = None,
     ):
         """
         Creates custom object launcher(sparkapplications crd).
@@ -224,7 +225,7 @@ class CustomObjectLauncher(LoggingMixin):
         self._client = kube_client
         self.custom_obj_api = custom_obj_api
         self.spark_obj_spec: dict = {}
-        self.pod_spec: Optional[k8s.V1Pod] = None
+        self.pod_spec: k8s.V1Pod | None = None
 
     @cached_property
     def pod_manager(self) -> PodManager:
