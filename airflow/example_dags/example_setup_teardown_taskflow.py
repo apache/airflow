@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.decorators import setup, task, task_group, teardown
+from airflow.decorators import task, task_group
 from airflow.models.dag import DAG
 
 with DAG(
@@ -30,12 +30,10 @@ with DAG(
     tags=["example"],
 ) as dag:
     # You can use the setup and teardown decorators to add setup and teardown tasks at the DAG level
-    @setup
     @task
     def root_setup():
         print("Hello from root_setup")
 
-    @teardown
     @task
     def root_teardown():
         print("Goodbye from root_teardown")
@@ -47,12 +45,10 @@ with DAG(
     @task_group
     def section_1():
         # You can also have setup and teardown tasks at the task group level
-        @setup
         @task
         def my_setup():
             print("I set up")
 
-        @teardown
         @task
         def my_teardown():
             print("I tear down")
@@ -61,13 +57,8 @@ with DAG(
         def hello():
             print("I say hello")
 
-        s = my_setup()
-        w = hello()
-        t = my_teardown()
-        s >> w >> t
-        s >> t
+        (s := my_setup()) >> hello() >> my_teardown().as_teardown(s)
 
-    rs = root_setup()
-    normal() >> section_1()
-    rt = root_teardown()
-    rs >> rt
+    s = root_setup()
+    t = root_teardown().as_teardown(s)
+    s >> [normal(), section_1()] >> t
