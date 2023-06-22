@@ -74,6 +74,7 @@ class SageMakerTrigger(BaseTrigger):
             "training": "TrainingJobComplete",
             "transform": "TransformJobComplete",
             "processing": "ProcessingJobComplete",
+            "tuning": "TuningJobComplete",
         }[job_type.lower()]
 
     @staticmethod
@@ -82,6 +83,7 @@ class SageMakerTrigger(BaseTrigger):
             "training": "TrainingJobName",
             "transform": "TransformJobName",
             "processing": "ProcessingJobName",
+            "tuning": "HyperParameterTuningJobName",
         }[job_type.lower()]
 
     async def run(self):

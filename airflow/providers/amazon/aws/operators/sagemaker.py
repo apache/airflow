@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import json
 import time
 import warnings
@@ -652,6 +653,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
     :param max_ingestion_time: If wait is set to True, the operation fails
         if the tuning job doesn't finish within max_ingestion_time seconds. If you
         set this parameter to None, the operation does not timeout.
+    :param deferrable: Will wait asynchronously for completion.
     :return Dict: Returns The ARN of the tuning job created in Amazon SageMaker.
     """
 
@@ -663,12 +665,14 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         wait_for_completion: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
         max_ingestion_time: int | None = None,
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
+        self.deferrable = deferrable
 
     def expand_role(self) -> None:
         """Expands an IAM role name into an ARN."""
@@ -702,6 +706,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker Tuning Job creation failed: {response}")
 
+        description = {}
         if self.wait_for_completion:
             description = self.hook.check_status(
                 self.config["HyperParameterTuningJobName"],
@@ -710,10 +715,30 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                 self.check_interval,
                 self.max_ingestion_time,
             )
+        elif self.deferrable:
+            self.defer(
+                trigger=SageMakerTrigger(
+                    job_name=self.config["HyperParameterTuningJobName"],
+                    job_type="tuning",
+                    poke_interval=self.check_interval,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+                timeout=datetime.timedelta(seconds=self.max_ingestion_time)
+                if self.max_ingestion_time is not None
+                else None,
+            )
         else:
             description = self.hook.describe_tuning_job(self.config["HyperParameterTuningJobName"])
 
         return {"Tuning": serialize(description)}
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+        return {
+            "Tuning": serialize(self.hook.describe_tuning_job(self.config["HyperParameterTuningJobName"]))
+        }
 
 
 class SageMakerModelOperator(SageMakerBaseOperator):
