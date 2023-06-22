@@ -22,7 +22,7 @@
 Microsoft Azure Functions
 =========================
 
-The Azure Functions connection type enables the Azure Functions Integrations from Airflow.
+The Azure Functions connection type enables integrating with Azure Functions from Airflow.
 
 Authenticating to Azure Functions
 ---------------------------------

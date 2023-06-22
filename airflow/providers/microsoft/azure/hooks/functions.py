@@ -28,7 +28,7 @@ from airflow.providers.microsoft.azure.utils import get_field
 
 class AzureFunctionsHook(HttpHook):
     """
-    Invokes an Azure functions. You can invoke a function in azure by making http request.
+    Invokes an Azure function by making an http request.
 
     :param azure_functions_conn_id: The azure function connection ID to use
     """

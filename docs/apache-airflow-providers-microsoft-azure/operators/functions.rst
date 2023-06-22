@@ -27,10 +27,10 @@ Operators
 
 .. _howto/operator:AzureFunctionsInvokeOperator:
 
-Invoke an Azure functions
--------------------------
-Use the :class:`~airflow.providers.microsoft.azure.operators.azure_functions.AzureFunctionsInvokeOperator` to invoke the
-functions in azure. Below is an example of using this operator.
+Invoke an Azure Function
+------------------------
+Use the :class:`~airflow.providers.microsoft.azure.operators.azure_functions.AzureFunctionsInvokeOperator` to invoke a
+function in Azure. Below is an example of using this operator.
 
   .. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_functions.py
       :language: python

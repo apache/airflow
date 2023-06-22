@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 class AzureFunctionsInvokeOperator(BaseOperator):
     """
-    Invokes an Azure function. You can invoke a function in azure by making http request.
+    Invokes an Azure function by making an http request.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
