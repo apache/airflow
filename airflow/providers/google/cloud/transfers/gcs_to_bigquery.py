@@ -148,10 +148,11 @@ class GCSToBigQueryOperator(BaseOperator):
         If autodetect is None and no schema is provided (neither via schema_fields
         nor a schema_object), assume the table already exists.
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-        **Example**: ::
+
+        .. code-block:: python
 
             encryption_configuration = {
-                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
             }
     :param location: [Optional] The geographic location of the job. Required except for US and EU.
         See details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location
