@@ -157,7 +157,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.workers.extraVolumeMounts }}
-              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
@@ -172,7 +172,7 @@ spec:
             {{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
-          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.workers.extraInitContainers }}
           {{- toYaml .Values.workers.extraInitContainers | nindent 8 }}
@@ -213,7 +213,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.workers.extraVolumeMounts }}
-              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -278,7 +278,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.workers.extraVolumeMounts }}
-              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
@@ -310,7 +310,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.workers.extraVolumeMounts }}
-              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
@@ -332,7 +332,7 @@ spec:
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.workers.extraVolumes }}
-          {{- toYaml .Values.workers.extraVolumes | nindent 8 }}
+          {{- tpl (toYaml .Values.workers.extraVolumes) . | nindent 8 }}
         {{- end }}
         - name: config
           configMap:

@@ -21,7 +21,7 @@ import json
 from unittest import mock
 
 import pytest
-from azure.identity import DefaultAzureCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 
 from airflow.exceptions import AirflowException
@@ -51,8 +51,14 @@ class TestWasbHook:
         self.extra__wasb__http_sas_conn_id = "extra__http_sas_token_id"
         self.public_read_conn_id = "pub_read_id"
         self.managed_identity_conn_id = "managed_identity"
+        self.authority = "https://test_authority.com"
 
         self.proxies = {"http": "http_proxy_uri", "https": "https_proxy_uri"}
+        self.client_secret_auth_config = {
+            "proxies": self.proxies,
+            "connection_verify": False,
+            "authority": self.authority,
+        }
 
         db.merge_conn(
             Connection(
@@ -85,7 +91,13 @@ class TestWasbHook:
                 host="conn_host",
                 login="appID",
                 password="appsecret",
-                extra=json.dumps({"tenant_id": "token", "proxies": self.proxies}),
+                extra=json.dumps(
+                    {
+                        "tenant_id": "token",
+                        "proxies": self.proxies,
+                        "client_secret_auth_config": self.client_secret_auth_config,
+                    }
+                ),
             )
         )
         db.merge_conn(
@@ -154,6 +166,11 @@ class TestWasbHook:
         assert isinstance(hook.get_conn(), BlobServiceClient)
         assert isinstance(hook.get_conn().credential, DefaultAzureCredential)
 
+    def test_azure_directory_connection(self):
+        hook = WasbHook(wasb_conn_id=self.ad_conn_id)
+        assert isinstance(hook.get_conn(), BlobServiceClient)
+        assert isinstance(hook.get_conn().credential, ClientSecretCredential)
+
     @pytest.mark.parametrize(
         argnames="conn_id_str, extra_key",
         argvalues=[
@@ -196,6 +213,12 @@ class TestWasbHook:
         hook = WasbHook(wasb_conn_id=conn_id, public_read=True)
         conn = hook.get_conn()
         assert conn._config.proxy_policy.proxies == self.proxies
+
+    def test_extra_client_secret_auth_config_ad_connection(self):
+        conn_id = self.ad_conn_id
+        hook = WasbHook(wasb_conn_id=conn_id)
+        conn = hook.get_conn()
+        assert conn.credential._authority == self.authority
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
     def test_check_for_blob(self, mock_service):
