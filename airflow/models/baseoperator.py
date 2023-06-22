@@ -85,6 +85,7 @@ from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.decorators import fixup_decorator_warning_stack
+from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -1836,6 +1837,37 @@ def cross_downstream(
     """
     for task in from_tasks:
         task.set_downstream(to_tasks)
+
+
+def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
+    """
+    Helper to simplify task dependency definition.
+
+    E.g.: suppose you want precedence like so::
+
+            ╭─op2─╮ ╭─op4─╮
+        op1─┤     ├─├─op5─┤─op7
+            ╰-op3─╯ ╰-op6─╯
+
+    Then you can accomplish like so::
+
+        chain_linear(
+            op1,
+            [op2, op3],
+            [op4, op5, op6],
+            op7
+        )
+
+    :param elements: a list of operators / lists of operators
+    """
+    prev_elem = None
+    for curr_elem in elements:
+        if isinstance(curr_elem, EdgeModifier):
+            raise ValueError("Labels are not supported by chain_linear")
+        if prev_elem is not None:
+            for task in prev_elem:
+                task >> curr_elem
+        prev_elem = [curr_elem] if isinstance(curr_elem, DependencyMixin) else curr_elem
 
 
 # pyupgrade assumes all type annotations can be lazily evaluated, but this is

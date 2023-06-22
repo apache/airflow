@@ -686,6 +686,20 @@ class DAG(LoggingMixin):
         self.params.validate()
         self.timetable.validate()
 
+    def validate_setup_teardown(self):
+        """
+        Validate that setup and teardown tasks are configured properly.
+
+        :meta private:
+        """
+        for task in self.tasks:
+            if not task.is_setup:
+                continue
+            if not any(x.is_teardown for x in task.downstream_list):
+                raise AirflowDagInconsistent(
+                    "Dag has setup without teardown: dag='%s', task='%s'", self.dag_id, task.task_id
+                )
+
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
 
@@ -1703,7 +1717,6 @@ class DAG(LoggingMixin):
 
         # Next, get any of them from our parent DAG (if there is one)
         if include_parentdag and self.parent_dag is not None:
-
             if visited_external_tis is None:
                 visited_external_tis = set()
 
@@ -2332,7 +2345,9 @@ class DAG(LoggingMixin):
             if include_downstream:
                 also_include.extend(t.get_flat_relatives(upstream=False))
             if include_upstream:
-                also_include.extend(t.get_flat_relatives(upstream=True))
+                also_include.extend(t.get_upstreams_follow_setups())
+            else:
+                also_include.extend(t.get_upstreams_only_setups_and_teardowns())
 
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
@@ -3755,7 +3770,6 @@ def dag(
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-
     from airflow.models.serialized_dag import SerializedDagModel
 
     DagModel.serialized_dag = relationship(SerializedDagModel)
