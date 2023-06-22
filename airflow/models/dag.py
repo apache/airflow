@@ -685,6 +685,7 @@ class DAG(LoggingMixin):
             )
         self.params.validate()
         self.timetable.validate()
+        self.validate_setup_teardown()
 
     def validate_setup_teardown(self):
         """
