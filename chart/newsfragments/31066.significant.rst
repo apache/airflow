@@ -1,0 +1,8 @@
+Support naming customization on helm chart resources, some resources may be renamed during upgrade
+
+This is a new opt-in switch ``useStandardNaming`` for backwards compatibility to leverage the standard naming convention and being able to use fully fullnameOverride and nameOverride in all resources.
+
+Only the following resources will be renamed using defaults ``useStandardNaming=false``:
+- ConfigMap {release}-airflow-config to {release}-config
+- Secret {release}-airflow-metadata to {release}-metadata
+- Secret {release}-airflow-result-backend to {release}-result-backend

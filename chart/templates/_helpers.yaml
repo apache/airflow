@@ -37,24 +37,6 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
-{{/*
-Create a default fully qualified app name for objects that already contained airflow in the name
-We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
-If release name contains chart name it will be used as a full name.
-*/}}
-{{- define "airflow.name" -}}
-  {{ if .Values.fullnameOverride }}
-    {{- printf "%s" .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
-  {{- else }}
-    {{- $name := default .Chart.Name .Values.nameOverride }}
-    {{- if contains $name .Release.Name }}
-      {{- .Release.Name | trunc 63 | trimSuffix "-" }}
-    {{- else }}
-      {{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" }}
-    {{- end }}
-  {{- end }}
-{{- end }}
-
 {{- define "airflow.serviceAccountName" -}}
   {{ if .Values.fullnameOverride }}
     {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
@@ -129,7 +111,7 @@ If release name contains chart name it will be used as a full name.
   - name: AIRFLOW__CELERY__BROKER_URL
     valueFrom:
       secretKeyRef:
-        name: {{ default (printf "%s-broker-url" (include "airflow.fullname" .)) .Values.data.brokerUrlSecretName }}
+        name: {{ default (printf "%s-broker-url" .Release.Name) .Values.data.brokerUrlSecretName }}
         key: connection
     {{- end }}
   {{- end }}
@@ -342,7 +324,7 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "fernet_key_secret" -}}
-  {{- default (printf "%s-fernet-key" (include "airflow.fullname" .)) .Values.fernetKeySecretName }}
+  {{- default (printf "%s-fernet-key" .Release.Name) .Values.fernetKeySecretName }}
 {{- end }}
 
 {{- define "webserver_secret_key_secret" -}}
@@ -350,15 +332,15 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "redis_password_secret" -}}
-  {{- default (printf "%s-redis-password" (include "airflow.fullname" .)) .Values.redis.passwordSecretName }}
+  {{- default (printf "%s-redis-password" .Release.Name) .Values.redis.passwordSecretName }}
 {{- end }}
 
 {{- define "airflow_metadata_secret" -}}
-  {{- default (printf "%s-metadata" (include "airflow.name" .)) .Values.data.metadataSecretName }}
+  {{- default (printf "%s-metadata" (include "airflow.fullname" .)) .Values.data.metadataSecretName }}
 {{- end }}
 
 {{- define "airflow_result_backend_secret" -}}
-  {{- default (printf "%s-result-backend" (include "airflow.name" .)) .Values.data.resultBackendSecretName }}
+  {{- default (printf "%s-result-backend" (include "airflow.fullname" .)) .Values.data.resultBackendSecretName }}
 {{- end }}
 
 {{- define "airflow_pod_template_file" -}}
@@ -507,7 +489,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
 {{- end }}
 
 {{- define "airflow_config" -}}
-  {{- printf "%s-config" (include "airflow.name" .) }}
+  {{- printf "%s-config" (include "airflow.fullname" .) }}
 {{- end }}
 
 {{- define "airflow_config_mount" -}}

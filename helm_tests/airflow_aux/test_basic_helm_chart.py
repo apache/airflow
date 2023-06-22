@@ -136,10 +136,10 @@ class TestBaseChartTest:
             ("ServiceAccount", "test-basic-airflow-webserver"),
             ("ServiceAccount", "test-basic-airflow-worker"),
             ("Secret", "test-basic-airflow-metadata"),
-            ("Secret", "test-basic-airflow-broker-url"),
-            ("Secret", "test-basic-airflow-fernet-key"),
+            ("Secret", "test-basic-broker-url"),
+            ("Secret", "test-basic-fernet-key"),
             ("Secret", "test-basic-airflow-webserver-secret-key"),
-            ("Secret", "test-basic-airflow-redis-password"),
+            ("Secret", "test-basic-redis-password"),
             ('Secret', 'test-basic-postgresql'),
             ("ConfigMap", "test-basic-airflow-config"),
             ("ConfigMap", "test-basic-airflow-statsd"),
@@ -342,13 +342,13 @@ class TestBaseChartTest:
 
         kind_names_tuples = [
             (f"{release_name}-airflow-cleanup", "ServiceAccount", None),
-            (f"{release_name}-airflow-config", "ConfigMap", "config"),
+            (f"{release_name}-config", "ConfigMap", "config"),
             (f"{release_name}-airflow-create-user-job", "ServiceAccount", "create-user-job"),
             (f"{release_name}-airflow-flower", "ServiceAccount", "flower"),
-            (f"{release_name}-airflow-metadata", "Secret", None),
+            (f"{release_name}-metadata", "Secret", None),
             (f"{release_name}-airflow-migrate-database-job", "ServiceAccount", "run-airflow-migrations"),
             (f"{release_name}-airflow-pgbouncer", "ServiceAccount", "pgbouncer"),
-            (f"{release_name}-airflow-result-backend", "Secret", None),
+            (f"{release_name}-result-backend", "Secret", None),
             (f"{release_name}-airflow-redis", "ServiceAccount", "redis"),
             (f"{release_name}-airflow-scheduler", "ServiceAccount", "scheduler"),
             (f"{release_name}-airflow-statsd", "ServiceAccount", "statsd"),
@@ -412,6 +412,7 @@ class TestBaseChartTest:
             if k8s_object_name == f"{release_name}-scheduler":
                 expected_labels["executor"] = "CeleryExecutor"
             actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))
+            print(actual_labels)
             assert actual_labels == expected_labels
 
         if kind_k8s_obj_labels_tuples:
