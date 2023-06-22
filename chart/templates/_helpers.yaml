@@ -864,6 +864,29 @@ capabilities:
   {{- end -}}
 {{- end -}}
 
+  {{/*
+     Set the default value for external container securityContext(redis and statsd).
+     If no value is passed for <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
+
+     +-----------------------------------+      +-----------------------------------------------------------+
+     | <node>.securityContexts.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
+     +-----------------------------------+      +-----------------------------------------------------------+
+
+
+    The template can be called like so:
+      include "externalContainerSecurityContext" .Values.statsd
+    */}}
+{{- define "externalContainerSecurityContext" -}}
+  {{- if .securityContexts.container -}}
+    {{ toYaml .securityContexts.container | print }}
+  {{- else -}}
+allowPrivilegeEscalation: false
+capabilities:
+  drop:
+    - ALL
+  {{- end -}}
+{{- end -}}
+
 {{- define "container_extra_envs" -}}
   {{- $ := index . 0 -}}
   {{- $env := index . 1 -}}

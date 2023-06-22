@@ -3805,3 +3805,29 @@ class TestTaskClearingSetupTeardownBehavior:
             "g2.w1",
             "g2.w2",
         }
+
+    def test_clear_upstream_not_your_setup(self):
+        """
+        When you have a work task that comes after a setup, then if you clear upstream
+        the setup (and its teardown) will be cleared even though strictly speaking you don't
+        "require" it since, depending on speed of execution, it might be torn down by t1
+        before / while w2 runs.  It just gets cleared by virtue of it being upstream, and
+        that's what you requested.  And it's teardown gets cleared too.  But w1 doesn't.
+        """
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
+            s1 >> w1 >> t1
+            s1 >> w2
+            self.cleared_upstream(w2) == {s1, w2, t1}
+
+    def clearing_teardown_no_clear_setup(self):
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, w1, t1 = self.make_tasks(dag, "s1, w1, t1")
+            s1 >> t1
+            # clearing t1 does not clear s1
+            self.cleared_downstream(t1) == {t1}
+            s1 >> w1 >> t1
+            # that isn't changed with the introduction of w1
+            self.cleared_downstream(t1) == {t1}
+            # though, of course, clearing w1 clears them all
+            self.cleared_downstream(w1) == {s1, w1, t1}
