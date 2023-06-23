@@ -808,6 +808,26 @@ exit 0
         ):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    def test_external_task_group_when_there_is_no_TIs(self):
+        """Test that the sensor does not fail when there are no TIs to check."""
+        self.add_time_sensor()
+        self.add_dummy_task_group_with_dynamic_tasks(State.FAILED)
+        op = ExternalTaskSensor(
+            task_id="test_external_task_sensor_check",
+            external_dag_id=TEST_DAG_ID,
+            external_task_group_id=TEST_TASK_GROUP_ID,
+            failed_states=[State.FAILED],
+            dag=self.dag,
+            poke_interval=1,
+            timeout=3,
+        )
+        with pytest.raises(AirflowSensorTimeout):
+            op.run(
+                start_date=DEFAULT_DATE + timedelta(hours=1),
+                end_date=DEFAULT_DATE + timedelta(hours=1),
+                ignore_ti_state=True,
+            )
+
 
 def test_external_task_sensor_check_zipped_dag_existence(dag_zip_maker):
     with dag_zip_maker("test_external_task_sensor_check_existense.py") as dagbag:
