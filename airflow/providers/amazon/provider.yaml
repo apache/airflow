@@ -507,7 +507,7 @@ hooks:
       - airflow.providers.amazon.aws.hooks.appflow
 
 triggers:
-  - integration-name: AWS Athena
+  - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.triggers.athena
   - integration-name: AWS Batch
