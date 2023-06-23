@@ -22,6 +22,7 @@ from typing import Any
 
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.helpers import prune_dict
 
 
 class SageMakerTrigger(BaseTrigger):
@@ -94,10 +95,12 @@ class SageMakerTrigger(BaseTrigger):
             )
             waiter_args = {
                 self._get_job_type_waiter_job_name_arg(self.job_type): self.job_name,
-                "WaiterConfig": {
-                    "Delay": self.poke_interval,
-                    "MaxAttempts": self.max_attempts,
-                },
+                "WaiterConfig": prune_dict(
+                    {
+                        "Delay": self.poke_interval,
+                        "MaxAttempts": self.max_attempts,
+                    }
+                ),
             }
             await waiter.wait(**waiter_args)
         yield TriggerEvent({"status": "success", "message": "Job completed."})

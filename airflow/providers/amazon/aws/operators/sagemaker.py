@@ -706,16 +706,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Sagemaker Tuning Job creation failed: {response}")
 
-        description = {}
-        if self.wait_for_completion:
-            description = self.hook.check_status(
-                self.config["HyperParameterTuningJobName"],
-                "HyperParameterTuningJobStatus",
-                self.hook.describe_tuning_job,
-                self.check_interval,
-                self.max_ingestion_time,
-            )
-        elif self.deferrable:
+        if self.deferrable:
             self.defer(
                 trigger=SageMakerTrigger(
                     job_name=self.config["HyperParameterTuningJobName"],
@@ -727,6 +718,15 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                 timeout=datetime.timedelta(seconds=self.max_ingestion_time)
                 if self.max_ingestion_time is not None
                 else None,
+            )
+            description = {}  # never executed but makes static checkers happy
+        elif self.wait_for_completion:
+            description = self.hook.check_status(
+                self.config["HyperParameterTuningJobName"],
+                "HyperParameterTuningJobStatus",
+                self.hook.describe_tuning_job,
+                self.check_interval,
+                self.max_ingestion_time,
             )
         else:
             description = self.hook.describe_tuning_job(self.config["HyperParameterTuningJobName"])
