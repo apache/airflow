@@ -562,7 +562,7 @@ class EmrContainerOperator(BaseOperator):
         )
         if self.deferrable:
             timeout = (
-                timedelta(seconds=self.max_polling_attempts * self.poll_interval + 60)
+                timedelta(seconds=self.max_polling_attempts * self.poll_interval)
                 if self.max_polling_attempts
                 else self.execution_timeout
             )

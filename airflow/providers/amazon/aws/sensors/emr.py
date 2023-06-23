@@ -503,9 +503,8 @@ class EmrJobFlowSensor(EmrBaseSensor):
         if not self.deferrable:
             super().execute(context=context)
         else:
-            timeout = self.poke_interval * self.max_attempts + 60
             self.defer(
-                timeout=timedelta(seconds=timeout),
+                timeout=timedelta(seconds=self.poke_interval * self.max_attempts),
                 trigger=EmrTerminateJobFlowTrigger(
                     job_flow_id=self.job_flow_id,
                     max_attempts=self.max_attempts,
@@ -632,9 +631,8 @@ class EmrStepSensor(EmrBaseSensor):
         if not self.deferrable:
             super().execute(context=context)
         else:
-            timeout = self.max_attempts * self.poke_interval + 60
             self.defer(
-                timeout=timedelta(seconds=timeout),
+                timeout=timedelta(seconds=self.max_attempts * self.poke_interval),
                 trigger=EmrStepSensorTrigger(
                     job_flow_id=self.job_flow_id,
                     step_id=self.step_id,
