@@ -61,10 +61,13 @@ with DAG(
         def hello():
             print("I say hello")
 
-        my_setup()
-        hello()
-        my_teardown()
+        s = my_setup()
+        w = hello()
+        t = my_teardown()
+        s >> w >> t
+        s >> t
 
-    root_setup()
+    rs = root_setup()
     normal() >> section_1()
-    root_teardown()
+    rt = root_teardown()
+    rs >> rt
