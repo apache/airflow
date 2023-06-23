@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-22T22:07:55Z
+# This constraints file was automatically generated on 2023-06-23T11:07:08Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -234,6 +234,7 @@ google-cloud-videointelligence==2.11.2
 google-cloud-vision==3.4.3
 google-cloud-workflows==1.10.1
 google-crc32c==1.5.0
+google-re2==1.0
 google-resumable-media==2.5.0
 googleapis-common-protos==1.59.1
 graphql-core==3.2.3
@@ -283,9 +284,9 @@ jsonpointer==2.4
 jsonschema-spec==0.1.6
 jsonschema==4.17.3
 junit-xml==1.9
-jupyter_client==8.2.0
+jupyter_client==8.3.0
 jupyter_core==5.3.1
-keyring==24.0.1
+keyring==24.1.0
 kombu==5.3.1
 krb5==0.5.0
 kubernetes-asyncio==24.2.3
@@ -375,7 +376,7 @@ pipdeptree==2.9.3
 pipx==1.2.0
 pkginfo==1.9.6
 pkgutil_resolve_name==1.3.10
-platformdirs==3.7.0
+platformdirs==3.8.0
 pluggy==1.2.0
 ply==3.11
 plyvel==1.5.0
@@ -417,7 +418,7 @@ pyodbc==4.0.39
 pyparsing==3.1.0
 pypsrp==0.8.1
 pyrsistent==0.19.3
-pyspark==3.4.0
+pyspark==3.4.1
 pyspnego==0.9.1
 pytest-asyncio==0.21.0
 pytest-capture-warnings==0.0.4
@@ -576,6 +577,6 @@ zeep==4.2.1
 zenpy==2.0.25
 zict==3.0.0
 zipp==3.15.0
-zope.event==4.6
+zope.event==5.0
 zope.interface==6.0
 zstandard==0.21.0

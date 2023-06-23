@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-22T22:11:44Z
+# This constraints file was automatically generated on 2023-06-23T11:11:05Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -87,6 +87,7 @@ frozenlist==1.3.3
 fsspec==2023.6.0
 gevent==22.10.2
 google-auth==2.20.0
+google-re2==1.0
 googleapis-common-protos==1.59.1
 graphviz==0.20.1
 greenlet==2.0.2
@@ -139,7 +140,7 @@ pandas==2.0.2
 partd==1.4.0
 pathspec==0.9.0
 pendulum==2.1.2
-platformdirs==3.7.0
+platformdirs==3.8.0
 pluggy==1.2.0
 plyvel==1.5.0
 prison==0.2.1
@@ -198,5 +199,5 @@ wrapt==1.15.0
 yarl==1.9.2
 zict==3.0.0
 zipp==3.15.0
-zope.event==4.6
+zope.event==5.0
 zope.interface==6.0
