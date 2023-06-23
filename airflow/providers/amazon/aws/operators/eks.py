@@ -17,6 +17,7 @@
 """This module contains Amazon EKS operators."""
 from __future__ import annotations
 
+import logging
 import warnings
 from ast import literal_eval
 from datetime import timedelta
@@ -31,6 +32,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksCreateFargateProfileTrigger,
     EksDeleteFargateProfileTrigger,
 )
+from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -59,80 +61,76 @@ NODEGROUP_FULL_NAME = "Amazon EKS managed node groups"
 FARGATE_FULL_NAME = "AWS Fargate profiles"
 
 
-class _BaseEksCreateOperator(BaseOperator):
-    """Base class for EKS Operators that create cluster resources."""
+def _create_compute(
+    compute: str | None,
+    cluster_name: str,
+    aws_conn_id: str,
+    region: str | None,
+    waiter_delay: int,
+    waiter_max_attempts: int,
+    wait_for_completion: bool = False,
+    nodegroup_name: str | None = None,
+    nodegroup_role_arn: str | None = None,
+    create_nodegroup_kwargs: dict | None = None,
+    fargate_profile_name: str | None = None,
+    fargate_pod_execution_role_arn: str | None = None,
+    fargate_selectors: list | None = None,
+    create_fargate_profile_kwargs: dict | None = None,
+    subnets: list[str] | None = None,
+):
+    log = logging.getLogger(__name__)
+    eks_hook = EksHook(aws_conn_id=aws_conn_id, region_name=region)
+    if compute == "nodegroup" and nodegroup_name:
 
-    def __init__(
-        self,
-        cluster_name,
-        nodegroup_name: str = DEFAULT_NODEGROUP_NAME,
-        compute: str | None = DEFAULT_COMPUTE_TYPE,
-        nodegroup_role_arn: str | None = None,
-        create_nodegroup_kwargs: dict | None = None,
-        fargate_profile_name: str = DEFAULT_FARGATE_PROFILE_NAME,
-        fargate_pod_execution_role_arn: str | None = None,
-        fargate_selectors: list | None = None,
-        create_fargate_profile_kwargs: dict | None = None,
-        wait_for_completion: bool = False,
-        aws_conn_id: str = DEFAULT_CONN_ID,
-        region: str | None = None,
-        waiter_delay: int = 30,
-        waiter_max_attempts: int = 40,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        self.compute = compute
-        self.cluster_name = cluster_name
-        self.nodegroup_name = nodegroup_name
-        self.nodegroup_role_arn = nodegroup_role_arn
-        self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
-        self.fargate_profile_name = fargate_profile_name
-        self.fargate_pod_execution_role_arn = fargate_pod_execution_role_arn
-        self.fargate_selectors = fargate_selectors or []
-        self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
-        self.wait_for_completion = wait_for_completion
-        self.waiter_delay = waiter_delay
-        self.waiter_max_attempts = waiter_max_attempts
-        self.aws_conn_id = aws_conn_id
-        self.region = region
+        # this is to satisfy mypy
+        subnets = subnets or []
+        create_nodegroup_kwargs = create_nodegroup_kwargs or {}
 
-        self.eks_hook = EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
-
-    def create_compute(self, subnets: list[str] | None = None) -> None:
-        if self.compute == "nodegroup":
-            subnets = subnets or []  # this is to satisfy mypy that subnets is not None
-            self.eks_hook.create_nodegroup(
-                clusterName=self.cluster_name,
-                nodegroupName=self.nodegroup_name,
-                subnets=subnets,
-                nodeRole=self.nodegroup_role_arn,
-                **self.create_nodegroup_kwargs,
+        eks_hook.create_nodegroup(
+            clusterName=cluster_name,
+            nodegroupName=nodegroup_name,
+            subnets=subnets,
+            nodeRole=nodegroup_role_arn,
+            **create_nodegroup_kwargs,
+        )
+        if wait_for_completion:
+            log.info("Waiting for nodegroup to provision.  This will take some time.")
+            wait(
+                waiter=eks_hook.conn.get_waiter("nodegroup_active"),
+                waiter_delay=waiter_delay,
+                max_attempts=waiter_max_attempts,
+                args={"clusterName": cluster_name, "nodegroupName": nodegroup_name},
+                failure_message="Nodegroup creation failed",
+                status_message="Nodegroup status is",
+                status_args=["nodegroup.status"],
             )
-            if self.wait_for_completion:
-                self.log.info("Waiting for nodegroup to provision.  This will take some time.")
-                self.eks_hook.conn.get_waiter("nodegroup_active").wait(
-                    clusterName=self.cluster_name,
-                    nodegroupName=self.nodegroup_name,
-                    WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
-                )
-        elif self.compute == "fargate":
-            self.eks_hook.create_fargate_profile(
-                clusterName=self.cluster_name,
-                fargateProfileName=self.fargate_profile_name,
-                podExecutionRoleArn=self.fargate_pod_execution_role_arn,
-                selectors=self.fargate_selectors,
-                **self.create_fargate_profile_kwargs,
+    elif compute == "fargate" and fargate_profile_name:
+
+        # this is to satisfy mypy
+        create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
+        fargate_selectors = fargate_selectors or []
+
+        eks_hook.create_fargate_profile(
+            clusterName=cluster_name,
+            fargateProfileName=fargate_profile_name,
+            podExecutionRoleArn=fargate_pod_execution_role_arn,
+            selectors=fargate_selectors,
+            **create_fargate_profile_kwargs,
+        )
+        if wait_for_completion:
+            log.info("Waiting for Fargate profile to provision.  This will take some time.")
+            wait(
+                waiter=eks_hook.conn.get_waiter("fargate_profile_active"),
+                waiter_delay=waiter_delay,
+                max_attempts=waiter_max_attempts,
+                args={"clusterName": cluster_name, "fargateProfileName": fargate_profile_name},
+                failure_message="Fargate profile creation failed",
+                status_message="Fargate profile status is",
+                status_args=["fargateProfile.status"],
             )
-            if self.wait_for_completion:
-                self.log.info("Waiting for Fargate profile to provision.  This will take some time.")
-                self.eks_hook.conn.get_waiter("fargate_profile_active").wait(
-                    clusterName=self.cluster_name,
-                    fargateProfileName=self.fargate_profile_name,
-                    WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
-                )
 
 
-class EksCreateClusterOperator(_BaseEksCreateOperator):
+class EksCreateClusterOperator(BaseOperator):
     """
     Creates an Amazon EKS Cluster control plane.
 
@@ -240,21 +238,13 @@ class EksCreateClusterOperator(_BaseEksCreateOperator):
         self.wait_for_completion = wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
+        self.aws_conn_id = aws_conn_id
+        self.region = region
+        self.nodegroup_name = nodegroup_name
+        self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
+        self.fargate_selectors = fargate_selectors or [{"namespace": DEFAULT_NAMESPACE_NAME}]
+        self.fargate_profile_name = fargate_profile_name
         super().__init__(
-            compute=self.compute,
-            cluster_name=self.cluster_name,
-            nodegroup_name=nodegroup_name,
-            nodegroup_role_arn=self.nodegroup_role_arn,
-            create_nodegroup_kwargs=create_nodegroup_kwargs or {},
-            fargate_profile_name=fargate_profile_name,
-            fargate_pod_execution_role_arn=self.fargate_pod_execution_role_arn,
-            fargate_selectors=fargate_selectors or [{"namespace": DEFAULT_NAMESPACE_NAME}],
-            create_fargate_profile_kwargs=create_fargate_profile_kwargs or {},
-            wait_for_completion=self.wait_for_completion,
-            waiter_delay=self.waiter_delay,
-            waiter_max_attempts=self.waiter_max_attempts,
-            aws_conn_id=aws_conn_id,
-            region=region,
             **kwargs,
         )
 
@@ -272,6 +262,7 @@ class EksCreateClusterOperator(_BaseEksCreateOperator):
                         compute=FARGATE_FULL_NAME, requirement="fargate_pod_execution_role_arn"
                     )
                 )
+        self.eks_hook = EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
         self.eks_hook.create_cluster(
             name=self.cluster_name,
             roleArn=self.cluster_role_arn,
@@ -300,10 +291,26 @@ class EksCreateClusterOperator(_BaseEksCreateOperator):
                 WaiterConfig={"Delay": self.waiter_delay, "MaxAttempts": self.waiter_max_attempts},
             )
             raise
-        self.create_compute(subnets=cast(List[str], self.resources_vpc_config.get("subnetIds")))
+        _create_compute(
+            compute=self.compute,
+            cluster_name=self.cluster_name,
+            aws_conn_id=self.aws_conn_id,
+            region=self.region,
+            wait_for_completion=self.wait_for_completion,
+            waiter_delay=self.waiter_delay,
+            waiter_max_attempts=self.waiter_max_attempts,
+            nodegroup_name=self.nodegroup_name,
+            nodegroup_role_arn=self.nodegroup_role_arn,
+            create_nodegroup_kwargs=self.create_nodegroup_kwargs,
+            fargate_profile_name=self.fargate_profile_name,
+            fargate_pod_execution_role_arn=self.fargate_pod_execution_role_arn,
+            fargate_selectors=self.fargate_selectors,
+            create_fargate_profile_kwargs=self.create_fargate_profile_kwargs,
+            subnets=cast(List[str], self.resources_vpc_config.get("subnetIds")),
+        )
 
 
-class EksCreateNodegroupOperator(_BaseEksCreateOperator):
+class EksCreateNodegroupOperator(BaseOperator):
     """
     Creates an Amazon EKS managed node group for an existing Amazon EKS Cluster.
 
@@ -358,18 +365,17 @@ class EksCreateNodegroupOperator(_BaseEksCreateOperator):
     ) -> None:
         self.nodegroup_subnets = nodegroup_subnets
         self.compute = "nodegroup"
+        self.cluster_name = cluster_name
+        self.nodegroup_role_arn = nodegroup_role_arn
+        self.nodegroup_name = nodegroup_name
+        self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
+        self.wait_for_completion = wait_for_completion
+        self.aws_conn_id = aws_conn_id
+        self.region = region
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
 
         super().__init__(
-            cluster_name=cluster_name,
-            nodegroup_role_arn=nodegroup_role_arn,
-            nodegroup_name=nodegroup_name,
-            compute=self.compute,
-            create_nodegroup_kwargs=create_nodegroup_kwargs or {},
-            wait_for_completion=wait_for_completion,
-            aws_conn_id=aws_conn_id,
-            region=region,
-            waiter_delay=waiter_delay,
-            waiter_max_attempts=waiter_max_attempts,
             **kwargs,
         )
 
@@ -387,10 +393,22 @@ class EksCreateNodegroupOperator(_BaseEksCreateOperator):
                         self.nodegroup_subnets,
                     )
             self.nodegroup_subnets = nodegroup_subnets_list
-        self.create_compute(subnets=self.nodegroup_subnets)
+        _create_compute(
+            compute=self.compute,
+            cluster_name=self.cluster_name,
+            aws_conn_id=self.aws_conn_id,
+            region=self.region,
+            wait_for_completion=self.wait_for_completion,
+            waiter_delay=self.waiter_delay,
+            waiter_max_attempts=self.waiter_max_attempts,
+            nodegroup_name=self.nodegroup_name,
+            nodegroup_role_arn=self.nodegroup_role_arn,
+            create_nodegroup_kwargs=self.create_nodegroup_kwargs,
+            subnets=self.nodegroup_subnets,
+        )
 
 
-class EksCreateFargateProfileOperator(_BaseEksCreateOperator):
+class EksCreateFargateProfileOperator(BaseOperator):
     """
     Creates an AWS Fargate profile for an Amazon EKS cluster.
 
@@ -448,7 +466,10 @@ class EksCreateFargateProfileOperator(_BaseEksCreateOperator):
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
+        self.selectors = selectors
+        self.pod_execution_role_arn = pod_execution_role_arn
         self.fargate_profile_name = fargate_profile_name
+        self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
         self.wait_for_completion = False if deferrable else wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
@@ -457,22 +478,23 @@ class EksCreateFargateProfileOperator(_BaseEksCreateOperator):
         self.deferrable = deferrable
         self.compute = "fargate"
         super().__init__(
-            cluster_name=self.cluster_name,
-            fargate_pod_execution_role_arn=pod_execution_role_arn,
-            fargate_selectors=selectors,
-            fargate_profile_name=self.fargate_profile_name,
-            compute=self.compute,
-            create_fargate_profile_kwargs=create_fargate_profile_kwargs or {},
-            wait_for_completion=self.wait_for_completion,
-            aws_conn_id=self.aws_conn_id,
-            region=self.region,
-            waiter_delay=self.waiter_delay,
-            waiter_max_attempts=self.waiter_max_attempts,
             **kwargs,
         )
 
     def execute(self, context: Context):
-        self.create_compute()
+        _create_compute(
+            compute=self.compute,
+            cluster_name=self.cluster_name,
+            aws_conn_id=self.aws_conn_id,
+            region=self.region,
+            wait_for_completion=self.wait_for_completion,
+            waiter_delay=self.waiter_delay,
+            waiter_max_attempts=self.waiter_max_attempts,
+            fargate_profile_name=self.fargate_profile_name,
+            fargate_pod_execution_role_arn=self.pod_execution_role_arn,
+            fargate_selectors=self.selectors,
+            create_fargate_profile_kwargs=self.create_fargate_profile_kwargs,
+        )
         if self.deferrable:
             self.defer(
                 trigger=EksCreateFargateProfileTrigger(
