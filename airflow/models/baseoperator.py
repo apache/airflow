@@ -966,6 +966,14 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def __exit__(self, exc_type, exc_val, exc_tb):
         SetupTeardownContext.set_work_task_roots_and_leaves()
 
+    @staticmethod
+    def add_ctx_task(task):
+        from airflow.models.xcom_arg import PlainXComArg
+
+        if isinstance(task, PlainXComArg):
+            task = task.operator
+        SetupTeardownContext.update_context_map(task)
+
     def __eq__(self, other):
         if type(self) is type(other):
             # Use getattr() instead of __dict__ as __dict__ doesn't return

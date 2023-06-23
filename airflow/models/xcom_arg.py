@@ -216,6 +216,12 @@ class XComArg(ResolveMixin, DependencyMixin):
     def __exit__(self, exc_type, exc_val, exc_tb):
         SetupTeardownContext.set_work_task_roots_and_leaves()
 
+    @staticmethod
+    def add_ctx_task(ctx_task: Operator | PlainXComArg):
+        if isinstance(ctx_task, PlainXComArg):
+            ctx_task = ctx_task.operator
+        SetupTeardownContext.update_context_map(ctx_task)
+
 
 class PlainXComArg(XComArg):
     """Reference to one single XCom without any additional semantics.
