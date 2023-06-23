@@ -54,10 +54,11 @@ class BigQueryToBigQueryOperator(BaseOperator):
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-        **Example**: ::
+
+        .. code-block:: python
 
             encryption_configuration = {
-                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
             }
     :param location: The geographic location of the job. You must specify the location to run the job if
         the location to run a job is not in the US or the EU multi-regional location or

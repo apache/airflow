@@ -28,6 +28,7 @@ from __future__ import annotations
 
 from random import uniform
 from time import sleep
+from typing import Callable
 
 import botocore.client
 import botocore.exceptions
@@ -35,6 +36,7 @@ import botocore.waiter
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.typing_compat import Protocol, runtime_checkable
 
 
@@ -253,7 +255,12 @@ class BatchClientHook(AwsBaseHook):
 
         raise AirflowException(f"AWS Batch job ({job_id}) has unknown status: {job}")
 
-    def wait_for_job(self, job_id: str, delay: int | float | None = None) -> None:
+    def wait_for_job(
+        self,
+        job_id: str,
+        delay: int | float | None = None,
+        get_batch_log_fetcher: Callable[[str], AwsTaskLogFetcher | None] | None = None,
+    ) -> None:
         """
         Wait for Batch job to complete.
 
@@ -261,11 +268,23 @@ class BatchClientHook(AwsBaseHook):
 
         :param delay: a delay before polling for job status
 
+        :param get_batch_log_fetcher : a method that returns batch_log_fetcher
+
         :raises: AirflowException
         """
         self.delay(delay)
         self.poll_for_job_running(job_id, delay)
-        self.poll_for_job_complete(job_id, delay)
+        batch_log_fetcher = None
+        try:
+            if get_batch_log_fetcher:
+                batch_log_fetcher = get_batch_log_fetcher(job_id)
+                if batch_log_fetcher:
+                    batch_log_fetcher.start()
+            self.poll_for_job_complete(job_id, delay)
+        finally:
+            if batch_log_fetcher:
+                batch_log_fetcher.stop()
+                batch_log_fetcher.join()
         self.log.info("AWS Batch job (%s) has completed", job_id)
 
     def poll_for_job_running(self, job_id: str, delay: int | float | None = None) -> None:

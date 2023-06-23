@@ -151,8 +151,8 @@ export function taskNoInstanceTooltip(taskId, task) {
   if (taskId) {
     tt += `Task_id: ${escapeHtml(taskId)}<br>`;
   }
-  if (task.task_type !== undefined) {
-    tt += `Operator: ${escapeHtml(task.task_type)}<br>`;
+  if (task.operator_name !== undefined) {
+    tt += `Operator: ${escapeHtml(task.operator_name)}<br>`;
   }
   tt += "<br><em>DAG has yet to run.</em>";
   return tt;
