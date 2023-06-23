@@ -90,18 +90,18 @@ class BaseNotifier(Templater):
         # 2. callback(dag, task_list, blocking_task_list, slas, blocking_tis) - for sla_miss_callback
         # we have to distinguish between the two calls so that we can prepare the correct context,
         if len(args) == 1:
-            _context = args[0]
+            context = args[0]
         else:
-            _context = {
+            context = {
                 "dag": args[0],
                 "task_list": args[1],
                 "blocking_task_list": args[2],
                 "slas": args[3],
                 "blocking_tis": args[4],
             }
-        self._update_context(_context)
-        self.render_template_fields(_context)
+        self._update_context(context)
+        self.render_template_fields(context)
         try:
-            self.notify(_context)
+            self.notify(context)
         except Exception as e:
             self.log.exception("Failed to send notification: %s", e)
