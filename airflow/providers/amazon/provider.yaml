@@ -87,8 +87,7 @@ integrations:
     tags: [aws]
   - integration-name: Amazon Chime
     external-doc-url: https://aws.amazon.com/chime/
-    how-to-guide:
-      - /docs/apache-airflow-providers-amazon/connections/chime.rst
+    logo: /integration-logos/aws/Amazon-Chime-light-bg.png
     tags: [aws]
   - integration-name: Amazon CloudFormation
     external-doc-url: https://aws.amazon.com/cloudformation/
