@@ -112,7 +112,7 @@ class TestAwsTaskLogFetcher:
             {"timestamp": 1617400367456, "message": "Second"},
             {"timestamp": 1617400467789, "message": "Third"},
         ]
-        assert [self.log_fetcher._event_to_str(event) for event in events] == (
+        assert [self.log_fetcher.event_to_str(event) for event in events] == (
             [
                 "[2021-04-02 21:51:07,123] First",
                 "[2021-04-02 21:52:47,456] Second",

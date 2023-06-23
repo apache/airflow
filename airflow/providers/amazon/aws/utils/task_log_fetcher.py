@@ -62,7 +62,7 @@ class AwsTaskLogFetcher(Thread):
             time.sleep(self.fetch_interval.total_seconds())
             log_events = self._get_log_events(continuation_token)
             for log_event in log_events:
-                self.logger.info(self._event_to_str(log_event))
+                self.logger.info(self.event_to_str(log_event))
 
     def _get_log_events(self, skip_token: AwsLogsHook.ContinuationToken | None = None) -> Generator:
         if skip_token is None:
@@ -87,7 +87,8 @@ class AwsTaskLogFetcher(Thread):
             self.logger.warning("ConnectionClosedError on retrieving Cloudwatch log events", error)
             yield from ()
 
-    def _event_to_str(self, event: dict) -> str:
+    @staticmethod
+    def event_to_str(event: dict) -> str:
         event_dt = datetime.utcfromtimestamp(event["timestamp"] / 1000.0)
         formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
         message = event["message"]
