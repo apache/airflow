@@ -630,12 +630,13 @@ extra-links:
 connection-types:
   - hook-class-name: airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook
     connection-type: aws
+  - hook-class-name: airflow.providers.amazon.aws.hooks.chime.ChimeWebhookHook
+    connection-type: chime
   - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
     connection-type: emr
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
-  - hook-class-name: airflow.providers.amazon.aws.hooks.chime.ChimeWebhookHook
-    connection-type: chime
+
 
 secrets-backends:
   - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend

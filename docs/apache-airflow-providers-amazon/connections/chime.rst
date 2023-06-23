@@ -56,4 +56,5 @@ Examples
 .. code-block:: text
 
     abceasd-3423-a1237-ffff-000cccccccc?token=somechimetoken
+
 * **Schema**: https
