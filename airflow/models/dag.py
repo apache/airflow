@@ -26,7 +26,6 @@ import logging
 import os
 import pathlib
 import pickle
-import re
 import sys
 import traceback
 import warnings
@@ -42,6 +41,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Pattern,
     Sequence,
     Union,
     cast,
@@ -51,6 +51,7 @@ from urllib.parse import urlsplit
 
 import jinja2
 import pendulum
+import re2 as re
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, case, func, not_, or_
@@ -2309,7 +2310,7 @@ class DAG(LoggingMixin):
 
     def partial_subset(
         self,
-        task_ids_or_regex: str | re.Pattern | Iterable[str],
+        task_ids_or_regex: str | Pattern | Iterable[str],
         include_downstream=False,
         include_upstream=True,
         include_direct_upstream=False,
@@ -2336,7 +2337,7 @@ class DAG(LoggingMixin):
         memo = {id(self.task_dict): None, id(self._task_group): None}
         dag = copy.deepcopy(self, memo)  # type: ignore
 
-        if isinstance(task_ids_or_regex, (str, re.Pattern)):
+        if isinstance(task_ids_or_regex, (str, Pattern)):
             matched_tasks = [t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
