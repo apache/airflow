@@ -414,8 +414,8 @@ class EmrJobFlowSensor(EmrBaseSensor):
         run until reach the terminal state.
     :param failed_states: the failure states, sensor fails when
         job flow reaches any of these states
-    :param deferrable: Run sensor in the deferrable mode.
     :param max_attempts: Maximum number of tries before failing
+    :param deferrable: Run sensor in the deferrable mode.
     """
 
     template_fields: Sequence[str] = ("job_flow_id", "target_states", "failed_states")
@@ -431,16 +431,16 @@ class EmrJobFlowSensor(EmrBaseSensor):
         job_flow_id: str,
         target_states: Iterable[str] | None = None,
         failed_states: Iterable[str] | None = None,
-        deferrable: bool = False,
         max_attempts: int = 60,
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.job_flow_id = job_flow_id
         self.target_states = target_states or ["TERMINATED"]
         self.failed_states = failed_states or ["TERMINATED_WITH_ERRORS"]
-        self.deferrable = deferrable
         self.max_attempts = max_attempts
+        self.deferrable = deferrable
 
     def get_emr_response(self, context: Context) -> dict[str, Any]:
         """
@@ -517,8 +517,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
     def execute_complete(self, context, event=None):
         if event["status"] != "success":
             raise AirflowException(f"Error while running job: {event}")
-        else:
-            self.log.info("Job completed.")
+        self.log.info("Job completed.")
 
 
 class EmrStepSensor(EmrBaseSensor):
@@ -539,8 +538,8 @@ class EmrStepSensor(EmrBaseSensor):
         for reach to terminal state
     :param failed_states: the failure states, sensor fails when
         step reaches any of these states
-    :param deferrable: Run sensor in the deferrable mode.
     :param max_attempts: Maximum number of tries before failing
+    :param deferrable: Run sensor in the deferrable mode.
     """
 
     template_fields: Sequence[str] = ("job_flow_id", "step_id", "target_states", "failed_states")
@@ -557,8 +556,8 @@ class EmrStepSensor(EmrBaseSensor):
         step_id: str,
         target_states: Iterable[str] | None = None,
         failed_states: Iterable[str] | None = None,
-        deferrable: bool = False,
         max_attempts: int = 60,
+        deferrable: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -566,8 +565,8 @@ class EmrStepSensor(EmrBaseSensor):
         self.step_id = step_id
         self.target_states = target_states or ["COMPLETED"]
         self.failed_states = failed_states or ["CANCELLED", "FAILED", "INTERRUPTED"]
-        self.deferrable = deferrable
         self.max_attempts = max_attempts
+        self.deferrable = deferrable
 
     def get_emr_response(self, context: Context) -> dict[str, Any]:
         """
