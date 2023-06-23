@@ -247,7 +247,7 @@ class TestEksCreateClusterOperator:
             mock.ANY,
             clusterName=CLUSTER_NAME,
             nodegroupName=NODEGROUP_NAME,
-            WaiterConfig={"Delay": mock.ANY, "MaxAttempts": mock.ANY},
+            WaiterConfig={"MaxAttempts": mock.ANY},
         )
         assert_expected_waiter_type(mock_waiter, "NodegroupActive")
 
@@ -295,7 +295,7 @@ class TestEksCreateClusterOperator:
             mock.ANY,
             clusterName=CLUSTER_NAME,
             fargateProfileName=FARGATE_PROFILE_NAME,
-            WaiterConfig={"Delay": mock.ANY, "MaxAttempts": mock.ANY},
+            WaiterConfig={"MaxAttempts": mock.ANY},
         )
         assert_expected_waiter_type(mock_waiter, "FargateProfileActive")
 
@@ -397,7 +397,7 @@ class TestEksCreateFargateProfileOperator:
             mock.ANY,
             clusterName=CLUSTER_NAME,
             fargateProfileName=FARGATE_PROFILE_NAME,
-            WaiterConfig={"Delay": mock.ANY, "MaxAttempts": mock.ANY},
+            WaiterConfig={"MaxAttempts": mock.ANY},
         )
         assert_expected_waiter_type(mock_waiter, "FargateProfileActive")
 
