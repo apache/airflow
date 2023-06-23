@@ -85,6 +85,9 @@ spec:
   {{- if .Values.workers.priorityClassName }}
   priorityClassName: {{ .Values.workers.priorityClassName }}
   {{- end }}
+  {{- if .Values.workers.runtimeClassName }}
+  priorityClassName: {{ .Values.workers.runtimeClassName }}
+  {{- end }}
   {{- if or .Values.registry.secretName .Values.registry.connection }}
   imagePullSecrets:
     - name: {{ template "registry_secret" . }}
