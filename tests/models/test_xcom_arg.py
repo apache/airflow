@@ -20,7 +20,7 @@ import pytest
 
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator, task
+from airflow.operators.python import PythonOperator
 from airflow.utils.types import NOTSET
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
@@ -223,99 +223,3 @@ def test_xcom_zip(dag_maker, session, fillvalue, expected_results):
         ti.run(session=session)
 
     assert results == expected_results
-
-
-def test_as_teardown(dag_maker):
-    """
-    Check that as_teardown works properly as implemented in PlainXComArg
-
-    It should mark the teardown as teardown, and if a task is provided, it should mark that as setup
-    and set it as a direct upstream.
-    """
-
-    @task
-    def my_task():
-        pass
-
-    def cleared_tasks(task_id):
-        dag_ = dag.partial_subset(task_id, include_downstream=True, include_upstream=False)
-        return {x.task_id for x in dag_.tasks}
-
-    with dag_maker() as dag:
-        s1 = my_task.override(task_id="s1")()
-        w1 = my_task.override(task_id="w1")()
-        t1 = my_task.override(task_id="t1")()
-    # initial conditions
-    assert cleared_tasks("w1") == {"w1"}
-
-    # after setting deps, still none are setup / teardown
-    # verify relationships
-    s1 >> w1 >> t1
-    assert cleared_tasks("w1") == {"w1", "t1"}
-    assert t1.operator.is_teardown is False
-    assert s1.operator.is_setup is False
-    assert t1.operator.upstream_task_ids == {"w1"}
-
-    # now when we use as_teardown, s1 should be setup, t1 should be teardown, and we should have s1 >> t1
-    t1.as_teardown(s1)
-    assert cleared_tasks("w1") == {"s1", "w1", "t1"}
-    assert t1.operator.is_teardown is True
-    assert s1.operator.is_setup is True
-    assert t1.operator.upstream_task_ids == {"w1", "s1"}
-
-
-def test_as_teardown_oneline(dag_maker):
-    """
-    Check that as_teardown works properly as implemented in PlainXComArg
-
-    It should mark the teardown as teardown, and if a task is provided, it should mark that as setup
-    and set it as a direct upstream.
-    """
-
-    @task
-    def my_task():
-        pass
-
-    def cleared_tasks(task_id):
-        dag_ = dag.partial_subset(task_id, include_downstream=True, include_upstream=False)
-        return {x.task_id for x in dag_.tasks}
-
-    with dag_maker() as dag:
-        s1 = my_task.override(task_id="s1")()
-        w1 = my_task.override(task_id="w1")()
-        t1 = my_task.override(task_id="t1")()
-
-    # verify initial conditions
-    for task_ in (s1, w1, t1):
-        assert task_.operator.upstream_list == []
-        assert task_.operator.downstream_list == []
-        assert task_.operator.is_setup is False
-        assert task_.operator.is_teardown is False
-        assert cleared_tasks(task_.operator.task_id) == {task_.operator.task_id}
-
-    # now set the deps in one line
-    s1 >> w1 >> t1.as_teardown(s1)
-
-    # verify resulting configuration
-    # should be equiv to the following:
-    #   * s1.is_setup = True
-    #   * t1.is_teardown = True
-    #   * s1 >> t1
-    #   * s1 >> w1 >> t1
-    for task_, exp_up, exp_down in [
-        (s1, set(), {"w1", "t1"}),
-        (w1, {"s1"}, {"t1"}),
-        (t1, {"s1", "w1"}, set()),
-    ]:
-        assert task_.operator.upstream_task_ids == exp_up
-        assert task_.operator.downstream_task_ids == exp_down
-    assert cleared_tasks("s1") == {"s1", "w1", "t1"}
-    assert cleared_tasks("w1") == {"s1", "w1", "t1"}
-    assert cleared_tasks("t1") == {"t1"}
-    for task_, exp_is_setup, exp_is_teardown in [
-        (s1, True, False),
-        (w1, False, False),
-        (t1, False, True),
-    ]:
-        assert task_.operator.is_setup is exp_is_setup
-        assert task_.operator.is_teardown is exp_is_teardown

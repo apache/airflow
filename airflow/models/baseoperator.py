@@ -987,6 +987,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if setups is not NOTSET:
             setups = [setups] if isinstance(setups, DependencyMixin) else setups
             for s in setups:
+                s.is_setup = True
                 s >> self
         return self
 
