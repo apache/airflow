@@ -128,3 +128,121 @@ def test_as_teardown_oneline(dag_maker, setup_type, work_type, teardown_type):
     ]:
         assert get_task_attr(task_, "is_setup") is exp_is_setup
         assert get_task_attr(task_, "is_teardown") is exp_is_teardown
+
+
+@pytest.mark.parametrize("type_", ["classic", "taskflow"])
+def test_cannot_be_both_setup_and_teardown(dag_maker, type_):
+    # can't change a setup task to a teardown task or vice versa
+    for first, second in [("setup", "teardown"), ("teardown", "setup")]:
+        with dag_maker():
+            s1 = make_task(name="s1", type_=type_)
+            getattr(s1, f"as_{first}")()
+            with pytest.raises(
+                ValueError, match=f"Cannot mark task 's1' as {second}; task is already a {first}."
+            ):
+                getattr(s1, f"as_{second}")()
+                s1.as_teardown()
+
+
+def test_cannot_set_on_failure_fail_dagrun_unless_teardown_classic(dag_maker):
+    with dag_maker():
+        t = make_task(name="t", type_="classic")
+        assert t.is_teardown is False
+        with pytest.raises(
+            ValueError,
+            match="Cannot set task on_failure_fail_dagrun for 't' because it is not a teardown task",
+        ):
+            t.on_failure_fail_dagrun = True
+
+
+def test_cannot_set_on_failure_fail_dagrun_unless_teardown_taskflow(dag_maker):
+    @task(on_failure_fail_dagrun=True)
+    def my_bad_task():
+        pass
+
+    @task
+    def my_ok_task():
+        pass
+
+    with dag_maker():
+        with pytest.raises(
+            ValueError,
+            match="Cannot set task on_failure_fail_dagrun for "
+            "'my_bad_task' because it is not a teardown task",
+        ):
+            my_bad_task()
+        # no issue
+        m = my_ok_task()
+        assert m.operator.is_teardown is False
+        # also fine
+        m = my_ok_task().as_teardown()
+        assert m.operator.is_teardown is True
+        assert m.operator.on_failure_fail_dagrun is False
+        # and also fine
+        m = my_ok_task().as_teardown(on_failure_fail_dagrun=True)
+        assert m.operator.is_teardown is True
+        assert m.operator.on_failure_fail_dagrun is True
+        # but we can't unset
+        with pytest.raises(
+            ValueError, match="Cannot mark task 'my_ok_task__2' as setup; task is already a teardown."
+        ):
+            m.as_setup()
+        with pytest.raises(
+            ValueError, match="Cannot mark task 'my_ok_task__2' as setup; task is already a teardown."
+        ):
+            m.operator.is_setup = True
+
+
+def test_no_setup_or_teardown_for_mapped_operator(dag_maker):
+    @task
+    def add_one(x):
+        return x + 1
+
+    @task
+    def print_task(values):
+        print(sum(values))
+
+    # vanilla mapped task
+    with dag_maker():
+        added_vals = add_one.expand(x=[1, 2, 3])
+        print_task(added_vals)
+
+    # combining setup and teardown with vanilla mapped task is fine
+    with dag_maker():
+        s1 = BaseOperator(task_id="s1").as_setup()
+        t1 = BaseOperator(task_id="t1").as_teardown(s1)
+        added_vals = add_one.expand(x=[1, 2, 3])
+        print_task_task = print_task(added_vals)
+        s1 >> added_vals
+        print_task_task >> t1
+    # confirm structure
+    assert s1.downstream_task_ids == {"add_one", "t1"}
+    assert t1.upstream_task_ids == {"print_task", "s1"}
+    assert added_vals.operator.upstream_task_ids == {"s1"}
+    assert added_vals.operator.downstream_task_ids == {"print_task"}
+    assert print_task_task.operator.upstream_task_ids == {"add_one"}
+    assert print_task_task.operator.downstream_task_ids == {"t1"}
+
+    # but you can't use a mapped task as setup or teardown
+    with dag_maker():
+        added_vals = add_one.expand(x=[1, 2, 3])
+        with pytest.raises(ValueError, match="Cannot set is_teardown for mapped operator"):
+            added_vals.as_teardown()
+
+    # ... no matter how hard you try
+    with dag_maker():
+        added_vals = add_one.expand(x=[1, 2, 3])
+        with pytest.raises(ValueError, match="Cannot set is_teardown for mapped operator"):
+            added_vals.is_teardown = True
+
+    # same with setup
+    with dag_maker():
+        added_vals = add_one.expand(x=[1, 2, 3])
+        with pytest.raises(ValueError, match="Cannot set is_setup for mapped operator"):
+            added_vals.as_setup()
+
+    # and again, trying harder...
+    with dag_maker():
+        added_vals = add_one.expand(x=[1, 2, 3])
+        with pytest.raises(ValueError, match="Cannot set is_setup for mapped operator"):
+            added_vals.is_setup = True

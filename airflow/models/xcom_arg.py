@@ -19,13 +19,14 @@ from __future__ import annotations
 
 import contextlib
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping, Sequence, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Mapping, Sequence, Union, overload
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.utils.context import Context
@@ -298,24 +299,48 @@ class PlainXComArg(XComArg):
         return cls(dag.get_task(data["task_id"]), data["key"])
 
     @property
-    def is_setup(self):
+    def is_setup(self) -> bool:
         return self.operator.is_setup
 
     @is_setup.setter
     def is_setup(self, val: bool):
         self.operator.is_setup = val
 
-    def as_setup(self):
+    @property
+    def is_teardown(self) -> bool:
+        return self.operator.is_teardown
+
+    @is_teardown.setter
+    def is_teardown(self, val: bool):
+        self.operator.is_teardown = val
+
+    @property
+    def on_failure_fail_dagrun(self) -> bool:
+        return self.operator.on_failure_fail_dagrun
+
+    @on_failure_fail_dagrun.setter
+    def on_failure_fail_dagrun(self, val: bool):
+        self.operator.on_failure_fail_dagrun = val
+
+    def as_setup(self) -> DependencyMixin:
         for operator, _ in self.iter_references():
             operator.is_setup = True
         return self
 
-    def as_teardown(self, setups=NOTSET, *, on_failure_fail_dagrun=False):
+    def as_teardown(
+        self,
+        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
+        *,
+        on_failure_fail_dagrun=NOTSET,
+    ):
         for operator, _ in self.iter_references():
-            operator.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
-            operator.on_failure_fail_dagrun = on_failure_fail_dagrun
             operator.is_teardown = True
-            if setups is not NOTSET:
+            if TYPE_CHECKING:
+                assert isinstance(operator, BaseOperator)  # Can't set MappedOperator as teardown
+            operator.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
+            if on_failure_fail_dagrun is not NOTSET:
+                operator.on_failure_fail_dagrun = on_failure_fail_dagrun
+            if not isinstance(setups, ArgNotSet):
                 setups = [setups] if isinstance(setups, DependencyMixin) else setups
                 for s in setups:
                     s.is_setup = True
