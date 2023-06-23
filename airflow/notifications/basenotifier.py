@@ -79,7 +79,7 @@ class BaseNotifier(Templater):
         """
         ...
 
-    def __call__(self, *args, **kwargs) -> None:
+    def __call__(self, *args) -> None:
         """
         Send a notification.
 
