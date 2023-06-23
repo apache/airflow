@@ -48,7 +48,7 @@ class TestChimeWebhookHook:
                 conn_type="chime",
                 host="hooks.chime.aws/incomingwebhooks/",
                 password="abcd-1134-ZeDA?token=somechimetoken111",
-                schema="https"
+                schema="https",
             )
         )
         db.merge_conn(
@@ -57,13 +57,12 @@ class TestChimeWebhookHook:
                 conn_type="chime",
                 host="https://hooks.chime.aws/",
                 password="somebadurl",
-                schema="https"
+                schema="https",
             )
         )
 
     def test_get_webhook_endpoint_invalid_url(self):
         # Given
-        provided_endpoint = "https://hooks.chime.aws/some-invalid-webhook-url"
 
         # When/Then
         expected_message = r"Expected Chime webhook token in the form"
@@ -95,7 +94,7 @@ class TestChimeWebhookHook:
 
     def test_build_chime_payload_message_length(self):
         # Given
-        config = self._config.copy()
+        self._config.copy()
         # create message over the character limit
         message = "c" * 4097
         hook = ChimeWebhookHook(self._config["chime_conn_id"])

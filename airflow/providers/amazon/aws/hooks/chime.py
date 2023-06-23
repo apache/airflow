@@ -53,7 +53,7 @@ class ChimeWebhookHook(HttpHook):
 
     def _get_webhook_endpoint(self, conn_id: str) -> str:
         """
-        Given a Chime conn_id return the default webhook endpoint
+        Given a Chime conn_id return the default webhook endpoint.
 
         :param conn_id: The provided connection ID.
         :return: Endpoint(str) for chime webhook.
