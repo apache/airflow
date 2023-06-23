@@ -1086,7 +1086,7 @@ ARG DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_APT_COMMAND=""
 ARG ADDITIONAL_DEV_ENV_VARS=""
 ARG ADDITIONAL_DEV_APT_DEPS="bash-completion dumb-init git graphviz gosu krb5-user \
-less libenchant-2-2 libgcc-10-dev libgeos-dev libpq-dev net-tools netcat \
+less libenchant-2-2 libgcc-11-dev libgeos-dev libpq-dev net-tools netcat-openbsd \
 openssh-server postgresql-client software-properties-common rsync tmux unzip vim xxd"
 
 ARG ADDITIONAL_DEV_APT_ENV=""
