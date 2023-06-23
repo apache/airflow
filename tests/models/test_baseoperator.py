@@ -37,6 +37,7 @@ from airflow.models.baseoperator import (
     BaseOperator,
     BaseOperatorMeta,
     chain,
+    chain_linear,
     cross_downstream,
 )
 from airflow.utils.context import Context
