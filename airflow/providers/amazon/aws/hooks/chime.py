@@ -53,8 +53,7 @@ class ChimeWebhookHook(HttpHook):
 
     def _get_webhook_endpoint(self, conn_id: str) -> str:
         """
-        Given a Chime http_conn_id return the default webhook endpoint or override if
-        webhook_endpoint is manually provided.
+        Given a Chime conn_id return the default webhook endpoint
 
         :param conn_id: The provided connection ID.
         :return: Endpoint(str) for chime webhook.
@@ -66,7 +65,7 @@ class ChimeWebhookHook(HttpHook):
         url = conn.schema + "://" + conn.host
         endpoint = url + token
         # Check to make sure the endpoint matches what Chime expects
-        if not re.match("^incomingwebhooks/[a-zA-Z0-9_-]+\?token=[a-zA-Z0-9_-]+$", token):
+        if not re.match(r"^[a-zA-Z0-9_-]+\?token=[a-zA-Z0-9_-]+$", token):
             raise AirflowException(
                 "Expected Chime webhook token in the form of '{webhook.id}?token={webhook.token}'."
             )

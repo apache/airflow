@@ -31,7 +31,7 @@ class TestChimeWebhookHook:
 
     _config = {
         "chime_conn_id": "default-chime-webhook",
-        "webhook_endpoint": "incomingwebhooks/abcd-1134?token=somechimetoken_111",
+        "webhook_endpoint": "incomingwebhooks/abcd-1134-ZeDA?token=somechimetoken-111",
         "message": "your message here",
     }
 
@@ -46,8 +46,18 @@ class TestChimeWebhookHook:
             Connection(
                 conn_id="default-chime-webhook",
                 conn_type="chime",
-                host="https://hooks.chime.aws/incomingwebhooks/",
-                password="incomingwebhooks/abcd-1134?token=somechimetoken_111",
+                host="hooks.chime.aws/incomingwebhooks/",
+                password="abcd-1134-ZeDA?token=somechimetoken111",
+                schema="https"
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id="chime-bad-url",
+                conn_type="chime",
+                host="https://hooks.chime.aws/",
+                password="somebadurl",
+                schema="https"
             )
         )
 
@@ -56,16 +66,16 @@ class TestChimeWebhookHook:
         provided_endpoint = "https://hooks.chime.aws/some-invalid-webhook-url"
 
         # When/Then
-        expected_message = "Expected Chime webhook endpoint in the form of"
+        expected_message = r"Expected Chime webhook token in the form"
         with pytest.raises(AirflowException, match=expected_message):
-            ChimeWebhookHook(webhook_endpoint=provided_endpoint)
+            ChimeWebhookHook(chime_conn_id="chime-bad-url")
 
     def test_get_webhook_endpoint_conn_id(self):
         # Given
         conn_id = "default-chime-webhook"
         hook = ChimeWebhookHook(chime_conn_id=conn_id)
         expected_webhook_endpoint = (
-            "https://hooks.chime.aws/incomingwebhooks/abcd-1134?token=somechimetoken_111"
+            "https://hooks.chime.aws/incomingwebhooks/abcd-1134-ZeDA?token=somechimetoken111"
         )
 
         # When
@@ -76,11 +86,10 @@ class TestChimeWebhookHook:
 
     def test_build_chime_payload(self):
         # Given
-        hook = ChimeWebhookHook(**self._config)
-
+        hook = ChimeWebhookHook(self._config["chime_conn_id"])
+        message = self._config["message"]
         # When
-        payload = hook._build_chime_payload()
-
+        payload = hook._build_chime_payload(message)
         # Then
         assert self.expected_payload == payload
 
@@ -88,10 +97,10 @@ class TestChimeWebhookHook:
         # Given
         config = self._config.copy()
         # create message over the character limit
-        config["message"] = "c" * 4097
-        hook = ChimeWebhookHook(**config)
+        message = "c" * 4097
+        hook = ChimeWebhookHook(self._config["chime_conn_id"])
 
         # When/Then
         expected_message = "Chime message must be 4096 characters or less."
         with pytest.raises(AirflowException, match=expected_message):
-            hook._build_chime_payload()
+            hook._build_chime_payload(message)
