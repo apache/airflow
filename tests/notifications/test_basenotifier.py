@@ -84,13 +84,13 @@ class TestBaseNotifier:
         notifier.notify = MagicMock()
         notifier(None, ["some_task"], None, None, None)
         notifier.notify.assert_called_once_with(
-            Context(
-                dag=None,
-                task_list=["some_task"],
-                blocking_task_list=None,
-                slas=None,
-                blocking_tis=None,
-                message="task: {{ task_list[0] }}",
-            )
+            {
+                "dag": None,
+                "task_list": ["some_task"],
+                "blocking_task_list": None,
+                "slas": None,
+                "blocking_tis": None,
+                "message": "task: {{ task_list[0] }}",
+            }
         )
         assert notifier.message == "task: some_task"

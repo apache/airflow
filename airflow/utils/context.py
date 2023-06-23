@@ -88,10 +88,6 @@ KNOWN_CONTEXT_KEYS = {
     "var",
     "yesterday_ds",
     "yesterday_ds_nodash",
-    "task_list",
-    "blocking_task_list",
-    "slas",
-    "blocking_tis",
 }
 
 

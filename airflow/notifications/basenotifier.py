@@ -98,13 +98,13 @@ class BaseNotifier(Templater):
         if self.is_called_from_on_callback(*args, **kwargs):
             _context = kwargs.get("context") or args[0]
         else:
-            _context = Context(
-                dag=args[0],
-                task_list=args[1],
-                blocking_task_list=args[2],
-                slas=args[3],
-                blocking_tis=args[4],
-            )
+            _context = {
+                "dag": args[0],
+                "task_list": args[1],
+                "blocking_task_list": args[2],
+                "slas": args[3],
+                "blocking_tis": args[4],
+            }
         self._update_context(_context)
         self.render_template_fields(_context)
         try:
