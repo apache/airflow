@@ -230,7 +230,9 @@ class S3Hook(AwsBaseHook):
                 bucket_name = temp_split[0]
                 key = "/".join(format[1].split("/")[1:])
             else:
-                raise S3HookUriParseFailure(f'Please provide a bucket name using a valid format: "{s3url}"')
+                raise S3HookUriParseFailure(
+                    f'Please provide a bucket name using a valid virtually hosted format which should be of the form: https://<bucket-name>.s3.<region-code>.amazonaws.com/<key-name> but provided: "{s3url}"'
+                )
         else:
             raise S3HookUriParseFailure(f'Please provide a bucket name using a valid format: "{s3url}"')
         return bucket_name, key
