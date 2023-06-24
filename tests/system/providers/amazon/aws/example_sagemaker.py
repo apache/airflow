@@ -159,12 +159,11 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
         docker_build_and_push_commands = f"""
             cp /root/.aws/credentials /tmp/credentials &&
             # login to public ecr repo containing amazonlinux image
-            docker login --username {creds.username} --password {creds.password} public.ecr.aws
+            docker login --username {creds.username} --password {creds.password} public.ecr.aws &&
             docker build --platform=linux/amd64 -f {dockerfile.name} -t {repository_uri} /tmp &&
             rm /tmp/credentials &&
 
             # login again, this time to the private repo we created to hold that specific image
-            aws ecr get-login-password --region {ecr_region} |
             docker login --username {creds.username} --password {creds.password} {repository_uri} &&
             docker push {repository_uri}
             """
@@ -178,7 +177,8 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
         if docker_build.returncode != 0:
             raise RuntimeError(
                 "Failed to prepare docker image for the preprocessing job.\n"
-                f"The following error happened while executing the sequence of bash commands:\n{stderr}"
+                "The following error happened while executing the sequence of bash commands:\n"
+                f"{stderr.decode()}"
             )
 
 
