@@ -45,28 +45,25 @@ class VerticaHook(DbApiHook):
             conn_config["port"] = 5433
         else:
             conn_config["port"] = int(conn.port)
-            
-        conn_extra = conn.extra_dejson        
-        if "connection_load_balance" in conn_extra:
-            conn_config["connection_load_balance"] = bool(conn_extra["connection_load_balance"])
-            
-        conn_config["session_label"] = conn_extra.get("session_label")
-        conn_config["backup_server_node"] = conn_extra.get("backup_server_node")
 
-        if "binary_transfer" in conn_extra:
-            conn_config["binary_transfer"] = bool(conn_extra["binary_transfer"])
+        boolOptions = ["connection_load_balance", "binary_transfer", "disable_copy_local", "request_complex_types", "use_prepared_statements"]
+        stdOptions = ["session_label", "backup_server_node", "kerberos_host_name", "kerberos_service_name", "log_path", "unicode_error", "workload", "ssl"]
+        conn_extra = conn.extra_dejson
+
+        for bo in boolOptions:
+            if bo in conn_extra:
+                conn_config[bo] = bool(conn_extra[bo])
+
+        for so in stdOptions:
+            if so in conn_extra:
+                conn_config[so] = conn_extra[so]
 
         if "connection_timeout" in conn_extra:
             conn_config["connection_timeout"] = int(conn_extra["connection_timeout"])
 
-        if "disable_copy_local" in conn_extra:
-            conn_config["disable_copy_local"] = bool(conn_extra["disable_copy_local"])
-
-        conn_config["kerberos_host_name"] = conn_extra.get("kerberos_host_name")
-        conn_config["kerberos_service_name"] = conn_extra.get("kerberos_service_name")
-
         if "log_level" in conn_extra:
             import logging
+
             log_lvl = conn_extra["log_level"]
             if isinstance(log_lvl, str):
                 log_lvl = log_lvl.lower()
@@ -84,19 +81,6 @@ class VerticaHook(DbApiHook):
                     conn_config["log_level"] = logging.NOTSET
             else:
                 conn_config["log_level"] = int(conn_extra["log_level"])
-            
-        if "log_path" in conn_extra:
-            conn_config["log_path"] = conn_extra["log_path"]
 
-        if "request_complex_types" in conn_extra:
-            conn_config["request_complex_types"] = bool(conn_extra["request_complex_types"])
-
-        if "use_prepared_statements" in conn_extra:
-            conn_config["use_prepared_statements"] = bool(conn_extra["use_prepared_statements"])
-
-        conn_config["unicode_error"] = conn_extra.get("unicode_error")
-        conn_config["workload"] = conn_extra.get("workload")
-        conn_config["ssl"] = conn_extra.get("ssl")
-        
         conn = connect(**conn_config)
         return conn
