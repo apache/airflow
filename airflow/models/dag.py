@@ -26,7 +26,6 @@ import logging
 import os
 import pathlib
 import pickle
-import re
 import sys
 import traceback
 import warnings
@@ -42,6 +41,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    Pattern,
     Sequence,
     Union,
     cast,
@@ -51,6 +51,7 @@ from urllib.parse import urlsplit
 
 import jinja2
 import pendulum
+import re2 as re
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, case, func, not_, or_
@@ -685,6 +686,21 @@ class DAG(LoggingMixin):
             )
         self.params.validate()
         self.timetable.validate()
+        self.validate_setup_teardown()
+
+    def validate_setup_teardown(self):
+        """
+        Validate that setup and teardown tasks are configured properly.
+
+        :meta private:
+        """
+        for task in self.tasks:
+            if not task.is_setup:
+                continue
+            if not any(x.is_teardown for x in task.downstream_list):
+                raise AirflowDagInconsistent(
+                    "Dag has setup without teardown: dag='%s', task='%s'", self.dag_id, task.task_id
+                )
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -1703,7 +1719,6 @@ class DAG(LoggingMixin):
 
         # Next, get any of them from our parent DAG (if there is one)
         if include_parentdag and self.parent_dag is not None:
-
             if visited_external_tis is None:
                 visited_external_tis = set()
 
@@ -2295,7 +2310,7 @@ class DAG(LoggingMixin):
 
     def partial_subset(
         self,
-        task_ids_or_regex: str | re.Pattern | Iterable[str],
+        task_ids_or_regex: str | Pattern | Iterable[str],
         include_downstream=False,
         include_upstream=True,
         include_direct_upstream=False,
@@ -2322,7 +2337,7 @@ class DAG(LoggingMixin):
         memo = {id(self.task_dict): None, id(self._task_group): None}
         dag = copy.deepcopy(self, memo)  # type: ignore
 
-        if isinstance(task_ids_or_regex, (str, re.Pattern)):
+        if isinstance(task_ids_or_regex, (str, Pattern)):
             matched_tasks = [t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
@@ -2332,7 +2347,9 @@ class DAG(LoggingMixin):
             if include_downstream:
                 also_include.extend(t.get_flat_relatives(upstream=False))
             if include_upstream:
-                also_include.extend(t.get_flat_relatives(upstream=True))
+                also_include.extend(t.get_upstreams_follow_setups())
+            else:
+                also_include.extend(t.get_upstreams_only_setups_and_teardowns())
 
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
@@ -3758,7 +3775,6 @@ def dag(
 STATICA_HACK = True
 globals()["kcah_acitats"[::-1].upper()] = False
 if STATICA_HACK:  # pragma: no cover
-
     from airflow.models.serialized_dag import SerializedDagModel
 
     DagModel.serialized_dag = relationship(SerializedDagModel)
