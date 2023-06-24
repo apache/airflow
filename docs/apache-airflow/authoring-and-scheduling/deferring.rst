@@ -171,7 +171,7 @@ Note that every extra ``triggerer`` you run will result in an extra persistent c
 Difference between Mode='reschedule' and Deferrable=True in Sensors
 -------------------------------------------------------------------
 
-In Airflow, Sensors wait for specific conditions to be met before proceeding with downstream tasks. Sensors have two options for managing idle periods: mode='reschedule' and deferrable=True.
+In Airflow, Sensors wait for specific conditions to be met before proceeding with downstream tasks. Sensors have two options for managing idle periods: mode='reschedule' and deferrable=True. Mode='reschedule' is a parameter specific to the BaseSensorOperator in Airflow, which allows the sensor to reschedule itself if the condition is not met, whereas, 'deferrable=True' is a convention used by some operators to indicate that the task can be retried (or deferred) later, but it is not a built-in parameter or mode in the Airflow. The actual behavior of retrying the task may vary depending on the specific operator implementation.
 
 +--------------------------------------------------------+--------------------------------------------------------+
 |           Mode='reschedule'                            |          Deferrable=True                               |
