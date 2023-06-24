@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any, Mapping, MutableMapping, Optional, Tuple
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
-from celery.backends.database import DatabaseBackend, Task as TaskDb, session_cleanup,retry
+from celery.backends.database import DatabaseBackend, Task as TaskDb, retry, session_cleanup
 from celery.result import AsyncResult
 from celery.signals import import_modules as celery_import_modules
 from setproctitle import setproctitle
@@ -249,9 +249,9 @@ class BulkStateFetcher(LoggingMixin):
         task_results_by_task_id = {task_result["task_id"]: task_result for task_result in task_results}
 
         return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
-    
+
     @retry
-    def _query_task_cls_from_db_backend(self,task_ids,**kwargs):
+    def _query_task_cls_from_db_backend(self, task_ids, **kwargs):
         session = app.backend.ResultSession()
         task_cls = getattr(app.backend, "task_cls", TaskDb)
         with session_cleanup(session):
@@ -262,7 +262,7 @@ class BulkStateFetcher(LoggingMixin):
         tasks = self._query_task_cls_from_db_backend(task_ids)
         task_results = [app.backend.meta_from_decoded(task.to_dict()) for task in tasks]
         task_results_by_task_id = {task_result["task_id"]: task_result for task_result in task_results}
-        
+
         return self._prepare_state_and_info_by_task_dict(task_ids, task_results_by_task_id)
 
     @staticmethod
