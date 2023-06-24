@@ -454,9 +454,9 @@ core:
       description: |
         The ability to allow testing connections across Airflow UI, API and CLI.
         Supported options: Disabled, Enabled, Hidden. Default: Disabled
-          Disabled - Disables the test connection functionality and disables the Test Connection button in UI.
-          Enabled - Enables the test connection functionality and shows the Test Connection button in UI.
-          Hidden - Disables the test connection functionality and hides the Test Connection button in UI.
+        Disabled - Disables the test connection functionality and disables the Test Connection button in UI.
+        Enabled - Enables the test connection functionality and shows the Test Connection button in UI.
+        Hidden - Disables the test connection functionality and hides the Test Connection button in UI.
         Before setting this to Enabled, make sure that you review the users who are able to add/edit
         connections and ensure they are trusted. Connection testing can be done maliciously leading to
         undesired and insecure outcomes.
