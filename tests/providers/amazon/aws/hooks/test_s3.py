@@ -96,9 +96,12 @@ class TestAwsS3Hook:
         assert parsed == ("DOC-EXAMPLE-BUCKET1", "test.png"), "Incorrect parsing of the s3 url"
 
     def test_parse_invalid_s3_url_virtual_hosted_style(self):
-        with pytest.raises(S3HookUriParseFailure, match='Please provide a bucket name using a valid format: "https://DOC-EXAMPLE-BUCKET1.us-west-2.amazonaws.com/test.png"'):
+        with pytest.raises(
+            S3HookUriParseFailure,
+            match='Please provide a bucket name using a valid format: "https://DOC-EXAMPLE-BUCKET1.us-west-2.amazonaws.com/test.png"',
+        ):
             S3Hook.parse_s3_url("https://DOC-EXAMPLE-BUCKET1.us-west-2.amazonaws.com/test.png")
-        
+
     def test_parse_s3_object_directory(self):
         parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-s3-directory/")
         assert parsed == ("test", "this/is/not/a-real-s3-directory/"), "Incorrect parsing of the s3 url"
