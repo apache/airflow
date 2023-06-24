@@ -23,8 +23,9 @@
 /* global document, DOMParser, $, CodeMirror */
 import { getMetaValue } from "./utils";
 
-const configTestConnectionEnabled =
-  getMetaValue("config_test_connection_enabled") === "True";
+const configTestConnection = getMetaValue("config_test_connection")
+  .toLowerCase()
+  .trim();
 const restApiEnabled = getMetaValue("rest_api_enabled") === "True";
 const connectionTestUrl = getMetaValue("test_url");
 
@@ -126,12 +127,20 @@ function applyFieldBehaviours(connection) {
 function handleTestConnection(connectionType, testableConnections) {
   const testButton = document.getElementById("test-connection");
 
-  if (!configTestConnectionEnabled) {
+  if (configTestConnection === "hidden") {
+    // If test connection is hidden in config, hide button and return.
+    $(testButton).hide();
+    return;
+  }
+  if (configTestConnection === "disabled") {
     // If test connection is not enabled in config, disable button and display toolip
     // alerting the user.
     $(testButton)
       .prop("disabled", true)
-      .attr("title", "Test connection is not enabled in config.");
+      .attr(
+        "title",
+        "Testing connections is disabled in Airflow configuration. Contact your deployment admin to enable it."
+      );
     return;
   }
 

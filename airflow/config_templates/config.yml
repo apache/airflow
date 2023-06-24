@@ -450,6 +450,21 @@ core:
       type: string
       default: ~
       example: 'http://localhost:8080'
+    test_connection:
+      description: |
+        The ability to allow testing connections across Airflow UI, API and CLI.
+        Supported options: Disabled, Enabled, Hidden. Default: Disabled
+          Disabled - Disables the test connection functionality and disables the Test Connection button in UI.
+          Enabled - Enables the test connection functionality and shows the Test Connection button in UI.
+          Hidden - Disables the test connection functionality and hides the Test Connection button in UI.
+        Before setting this to Enabled, make sure that you review the users who are able to add/edit
+        connections and ensure they are trusted. Connection testing can be done maliciously leading to
+        undesired and insecure outcomes.
+      version_added: 2.6.3
+      type: string
+      example: ~
+      default: "Disabled"
+
 database:
   description: ~
   options:
@@ -594,6 +609,7 @@ database:
       type: string
       example: ~
       default: "True"
+
 logging:
   description: ~
   options:
@@ -892,7 +908,6 @@ logging:
       example: ~
       default: "False"
 
-
 metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
@@ -1036,6 +1051,7 @@ metrics:
       type: string
       example: ~
       default: "False"
+
 secrets:
   description: ~
   options:
@@ -1057,6 +1073,7 @@ secrets:
       sensitive: true
       example: ~
       default: ""
+
 cli:
   description: ~
   options:
@@ -1078,6 +1095,7 @@ cli:
       type: string
       example: ~
       default: "http://localhost:8080"
+
 debug:
   description: ~
   options:
@@ -1089,6 +1107,7 @@ debug:
       type: string
       example: ~
       default: "False"
+
 api:
   description: ~
   options:
@@ -1178,6 +1197,7 @@ api:
       version_added: 2.2.0
       example: ~
       default: ""
+
 lineage:
   description: ~
   options:
@@ -1188,6 +1208,7 @@ lineage:
       type: string
       example: ~
       default: ""
+
 openlineage:
   description: |
     This section applies settings for OpenLineage integration.
@@ -1247,6 +1268,7 @@ openlineage:
       example: ~
       type: boolean
       version_added: ~
+
 atlas:
   description: ~
   options:
@@ -1281,6 +1303,7 @@ atlas:
       sensitive: true
       example: ~
       default: ""
+
 operators:
   description: ~
   options:
@@ -1331,6 +1354,7 @@ operators:
       type: string
       example: ~
       default: "False"
+
 hive:
   description: ~
   options:
@@ -1349,6 +1373,7 @@ hive:
       type: string
       example: ~
       default: ~
+
 webserver:
   description: ~
   options:
@@ -1794,15 +1819,6 @@ webserver:
       type: string
       example: "sha256"
       default: "md5"
-    enable_test_connection:
-      description: |
-        The ability to allow testing connections from UI. By default, it is disabled.
-        If you're enabling it by setting it to True, make sure that you trust your users
-        who can add or edit connections in the UI and that they do not use it maliciously.
-      version_added: 2.6.3
-      type: boolean
-      example: ~
-      default: "False"
 
 email:
   description: |
@@ -1923,6 +1939,7 @@ smtp:
       type: integer
       example: ~
       default: "5"
+
 sentry:
   description: |
     Sentry (https://docs.sentry.io) integration. Here you can supply
@@ -1950,6 +1967,7 @@ sentry:
       type: string
       example: ~
       default: ~
+
 local_kubernetes_executor:
   description: |
     This section only applies if you are using the ``LocalKubernetesExecutor`` in
@@ -1965,6 +1983,7 @@ local_kubernetes_executor:
       type: string
       example: ~
       default: "kubernetes"
+
 celery_kubernetes_executor:
   description: |
     This section only applies if you are using the ``CeleryKubernetesExecutor`` in
@@ -1980,6 +1999,7 @@ celery_kubernetes_executor:
       type: string
       example: ~
       default: "kubernetes"
+
 celery:
   description: |
     This section only applies if you are using the CeleryExecutor in
@@ -2184,6 +2204,7 @@ celery:
       type: string
       example: ~
       default: "False"
+
 celery_broker_transport_options:
   description: |
     This section is for specifying options which can be passed to the
@@ -2216,6 +2237,7 @@ celery_broker_transport_options:
       sensitive: true
       example: '{"password": "password_for_redis_server"}'
       default: ~
+
 dask:
   description: |
     This section only applies if you are using the DaskExecutor in
@@ -2249,6 +2271,7 @@ dask:
       type: string
       example: ~
       default: ""
+
 scheduler:
   description: ~
   options:
@@ -2557,6 +2580,7 @@ scheduler:
       type: float
       example: ~
       default: "120.0"
+
 triggerer:
   description: ~
   options:
@@ -2567,6 +2591,7 @@ triggerer:
       type: string
       example: ~
       default: "1000"
+
 kerberos:
   description: ~
   options:
@@ -2615,6 +2640,7 @@ kerberos:
       type: boolean
       example: ~
       default: "True"
+
 elasticsearch:
   description: ~
   options:
@@ -2691,6 +2717,7 @@ elasticsearch:
       type: string
       example: something-*
       default: "_all"
+
 elasticsearch_configs:
   description: ~
   options:
@@ -2706,6 +2733,7 @@ elasticsearch_configs:
       type: string
       example: ~
       default: "True"
+
 kubernetes_executor:
   description: ~
   renamed:
@@ -2901,6 +2929,7 @@ kubernetes_executor:
       type: string
       example: ~
       default: ""
+
 sensors:
   description: ~
   options:
