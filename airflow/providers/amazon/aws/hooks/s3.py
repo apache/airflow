@@ -229,6 +229,8 @@ class S3Hook(AwsBaseHook):
             elif temp_split[1] == "s3":
                 bucket_name = temp_split[0]
                 key = "/".join(format[1].split("/")[1:])
+            else:
+                raise S3HookUriParseFailure(f'Please provide a bucket name using a valid format: "{s3url}"')
         else:
             raise S3HookUriParseFailure(f'Please provide a bucket name using a valid format: "{s3url}"')
         return bucket_name, key
