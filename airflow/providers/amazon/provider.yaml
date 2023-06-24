@@ -532,6 +532,9 @@ triggers:
   - integration-name: Amazon Elastic Kubernetes Service (EKS)
     python-modules:
       - airflow.providers.amazon.aws.triggers.eks
+  - integration-name: Amazon ECS
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.ecs
 
 transfers:
   - source-integration-name: Amazon DynamoDB

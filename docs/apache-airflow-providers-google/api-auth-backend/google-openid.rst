@@ -60,7 +60,7 @@ look like the following.
       ENDPOINT_URL="http://localhost:8080/"
 
       AUDIENCE="project-id-random-value.apps.googleusercontent.com"
-      ID_TOKEN="$(gcloud auth print-identity-token "--audience=${AUDIENCE}")"
+      ID_TOKEN="$(gcloud auth print-identity-token "--audiences=${AUDIENCE}")"
 
       curl -X GET  \
           "${ENDPOINT_URL}/api/experimental/pools" \

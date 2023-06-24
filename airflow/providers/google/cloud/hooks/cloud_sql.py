@@ -840,12 +840,13 @@ class CloudSQLDatabaseHook(BaseHook):
 
     @staticmethod
     def _generate_unique_path() -> str:
-        """
-        We are not using mkdtemp here as the path generated with mkdtemp
-        can be close to 60 characters and there is a limitation in
-        length of socket path to around 100 characters in total.
-        We append project/location/instance to it later and postgres
-        appends its own prefix, so we chose a shorter "${tempdir()}[8 random characters]".
+        """Generate a unique path.
+
+        We don't using mkdtemp here since it can generate paths close to 60
+        characters. We append project/location/instance to the path, Postgres
+        will then appends its own prefix, making the resulting path exceed the
+        100 character length limitation of a socket path. This generates a
+        shorter path ``${tempdir()}[8 random characters]``.
         """
         random.seed()
         while True:
@@ -926,9 +927,10 @@ class CloudSQLDatabaseHook(BaseHook):
         return instance_specification
 
     def create_connection(self) -> Connection:
-        """
-        Create Connection object, according to whether it uses proxy, TCP, UNIX sockets, SSL.
-        Connection ID will be randomly generated.
+        """Create a connection.
+
+        Connection ID will be randomly generated according to whether it uses
+        proxy, TCP, UNIX sockets, SSL.
         """
         uri = self._generate_connection_uri()
         connection = Connection(conn_id=self.db_conn_id, uri=uri)
@@ -936,9 +938,9 @@ class CloudSQLDatabaseHook(BaseHook):
         return connection
 
     def get_sqlproxy_runner(self) -> CloudSqlProxyRunner:
-        """
-        Retrieve Cloud SQL Proxy runner. It is used to manage the proxy
-        lifecycle per task.
+        """Retrieve Cloud SQL Proxy runner.
+
+        It is used to manage the proxy lifecycle per task.
 
         :return: The Cloud SQL Proxy runner.
         """
@@ -956,9 +958,10 @@ class CloudSQLDatabaseHook(BaseHook):
         )
 
     def get_database_hook(self, connection: Connection) -> PostgresHook | MySqlHook:
-        """
-        Retrieve database hook. This is the actual Postgres or MySQL database hook
-        that uses proxy or connects directly to the Google Cloud SQL database.
+        """Retrieve database hook.
+
+        This is the actual Postgres or MySQL database hook that uses proxy or
+        connects directly to the Google Cloud SQL database.
         """
         if self.database_type == "postgres":
             db_hook: PostgresHook | MySqlHook = PostgresHook(connection=connection, schema=self.database)
@@ -986,7 +989,10 @@ class CloudSQLDatabaseHook(BaseHook):
         self.sql_proxy_tcp_port = self.reserved_tcp_socket.getsockname()[1]
 
     def free_reserved_port(self) -> None:
-        """Free TCP port. Makes it immediately ready to be used by Cloud SQL Proxy."""
+        """Free TCP port.
+
+        Makes it immediately ready to be used by Cloud SQL Proxy.
+        """
         if self.reserved_tcp_socket:
             self.reserved_tcp_socket.close()
             self.reserved_tcp_socket = None

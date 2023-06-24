@@ -200,7 +200,11 @@ class TestEksCreateClusterOperator:
         operator.execute({})
         mock_create_cluster.assert_called_with(**convert_keys(parameters))
         mock_create_nodegroup.assert_not_called()
-        mock_waiter.assert_called_once_with(mock.ANY, name=CLUSTER_NAME)
+        mock_waiter.assert_called_once_with(
+            mock.ANY,
+            name=CLUSTER_NAME,
+            WaiterConfig={"Delay": mock.ANY, "MaxAttempts": mock.ANY},
+        )
         assert_expected_waiter_type(mock_waiter, "ClusterActive")
 
     @mock.patch.object(Waiter, "wait")
@@ -216,7 +220,11 @@ class TestEksCreateClusterOperator:
 
         mock_create_cluster.assert_called_once_with(**convert_keys(self.create_cluster_params))
         mock_create_nodegroup.assert_called_once_with(**convert_keys(self.create_nodegroup_params))
-        mock_waiter.assert_called_once_with(mock.ANY, name=CLUSTER_NAME)
+        mock_waiter.assert_called_once_with(
+            mock.ANY,
+            name=CLUSTER_NAME,
+            WaiterConfig={"Delay": mock.ANY, "MaxAttempts": mock.ANY},
+        )
         assert_expected_waiter_type(mock_waiter, "ClusterActive")
 
     @mock.patch.object(Waiter, "wait")
@@ -235,7 +243,12 @@ class TestEksCreateClusterOperator:
         mock_create_nodegroup.assert_called_once_with(**convert_keys(self.create_nodegroup_params))
         # Calls waiter once for the cluster and once for the nodegroup.
         assert mock_waiter.call_count == 2
-        mock_waiter.assert_called_with(mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME)
+        mock_waiter.assert_called_with(
+            mock.ANY,
+            clusterName=CLUSTER_NAME,
+            nodegroupName=NODEGROUP_NAME,
+            WaiterConfig={"MaxAttempts": mock.ANY},
+        )
         assert_expected_waiter_type(mock_waiter, "NodegroupActive")
 
     @mock.patch.object(Waiter, "wait")
@@ -253,7 +266,11 @@ class TestEksCreateClusterOperator:
         mock_create_fargate_profile.assert_called_once_with(
             **convert_keys(self.create_fargate_profile_params)
         )
-        mock_waiter.assert_called_once_with(mock.ANY, name=CLUSTER_NAME)
+        mock_waiter.assert_called_once_with(
+            mock.ANY,
+            name=CLUSTER_NAME,
+            WaiterConfig={"Delay": mock.ANY, "MaxAttempts": mock.ANY},
+        )
         assert_expected_waiter_type(mock_waiter, "ClusterActive")
 
     @mock.patch.object(Waiter, "wait")
@@ -275,7 +292,10 @@ class TestEksCreateClusterOperator:
         # Calls waiter once for the cluster and once for the nodegroup.
         assert mock_waiter.call_count == 2
         mock_waiter.assert_called_with(
-            mock.ANY, clusterName=CLUSTER_NAME, fargateProfileName=FARGATE_PROFILE_NAME
+            mock.ANY,
+            clusterName=CLUSTER_NAME,
+            fargateProfileName=FARGATE_PROFILE_NAME,
+            WaiterConfig={"MaxAttempts": mock.ANY},
         )
         assert_expected_waiter_type(mock_waiter, "FargateProfileActive")
 
@@ -377,7 +397,7 @@ class TestEksCreateFargateProfileOperator:
             mock.ANY,
             clusterName=CLUSTER_NAME,
             fargateProfileName=FARGATE_PROFILE_NAME,
-            WaiterConfig={"Delay": 10, "MaxAttempts": 60},
+            WaiterConfig={"MaxAttempts": mock.ANY},
         )
         assert_expected_waiter_type(mock_waiter, "FargateProfileActive")
 
