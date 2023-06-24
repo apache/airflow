@@ -219,7 +219,8 @@ class S3Hook(AwsBaseHook):
             parsed_url = urlsplit(s3url)
             if not parsed_url.netloc:
                 raise S3HookUriParseFailure(
-                    f'Please provide a bucket name using a valid format of the form: {valid_s3_format} or {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
+                    "Please provide a bucket name using a valid format of the form: "
+                    + f'{valid_s3_format} or {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
                 )
 
             bucket_name = parsed_url.netloc
@@ -235,11 +236,13 @@ class S3Hook(AwsBaseHook):
                 key = "/".join(format[1].split("/")[1:])
             else:
                 raise S3HookUriParseFailure(
-                    f'Please provide a bucket name using a valid virtually hosted format which should be of the form: {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
+                    "Please provide a bucket name using a valid virtually hosted format which should"
+                    + f' be of the form: {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
                 )
         else:
             raise S3HookUriParseFailure(
-                f'Please provide a bucket name using a valid format of the form: {valid_s3_format} or {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
+                "Please provide a bucket name using a valid format of the form: "
+                + f'{valid_s3_format} or {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
             )
         return bucket_name, key
 
