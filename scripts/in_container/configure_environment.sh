@@ -23,10 +23,12 @@ readonly TMUX_CONF_FILE=".tmux.conf"
 
 if [[ -d "${FILES_DIR}" ]]; then
     export AIRFLOW__CORE__DAGS_FOLDER="/files/dags"
+    export AIRFLOW__CORE__PLUGINS_FOLDER='/files/plugins'
     mkdir -pv "${AIRFLOW__CORE__DAGS_FOLDER}"
     sudo chown "${HOST_USER_ID}":"${HOST_GROUP_ID}" "${AIRFLOW__CORE__DAGS_FOLDER}"
 else
     export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_HOME}/dags"
+    export AIRFLOW__CORE__PLUGINS_FOLDER="${AIRFLOW_HOME}/plugins"
 fi
 
 
