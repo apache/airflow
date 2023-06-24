@@ -53,7 +53,6 @@ from airflow_breeze.utils.docker_command_utils import (
     fix_ownership_using_docker,
     perform_environment_checks,
 )
-from airflow_breeze.utils.github_actions import get_ga_output
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, MSSQL_TMP_DIR_NAME
 from airflow_breeze.utils.run_utils import run_command
 
@@ -283,6 +282,8 @@ class WorkflowInfo(NamedTuple):
     pr_number: int | None
 
     def get_all_ga_outputs(self) -> Iterable[str]:
+        from airflow_breeze.utils.github import get_ga_output
+
         yield get_ga_output(name="pr_labels", value=str(self.pull_request_labels))
         yield get_ga_output(name="target_repo", value=self.target_repo)
         yield get_ga_output(name="head_repo", value=self.head_repo)

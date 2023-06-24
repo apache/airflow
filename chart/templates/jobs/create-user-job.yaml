@@ -109,7 +109,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.createUserJob.extraVolumeMounts }}
-              {{- toYaml .Values.createUserJob.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.createUserJob.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
         {{- if .Values.createUserJob.extraContainers }}
           {{- toYaml .Values.createUserJob.extraContainers | nindent 8 }}
@@ -122,6 +122,6 @@ spec:
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.createUserJob.extraVolumes }}
-          {{- toYaml .Values.createUserJob.extraVolumes | nindent 8 }}
+          {{- tpl (toYaml .Values.createUserJob.extraVolumes) . | nindent 8 }}
         {{- end }}
 {{- end }}

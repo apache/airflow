@@ -65,7 +65,7 @@ Package apache-airflow-providers-neo4j
 `Neo4j <https://neo4j.com/>`__
 
 
-Release: 3.3.0
+Release: 3.3.1
 
 Provider package
 ----------------

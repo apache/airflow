@@ -140,6 +140,9 @@ class TimerThread(threading.Thread):
 @option_dry_run
 @option_github_repository
 @option_answer
+@option_executor
+@option_celery_broker
+@option_celery_flower
 @click.argument("extra-args", nargs=-1, type=click.UNPROCESSED)
 def shell(
     python: str,
@@ -163,6 +166,9 @@ def shell(
     image_tag: str | None,
     platform: str | None,
     github_repository: str,
+    executor: str,
+    celery_broker: str,
+    celery_flower: bool,
     extra_args: tuple,
 ):
     """Enter breeze environment. this is the default command use when no other is selected."""
@@ -180,7 +186,7 @@ def shell(
         postgres_version=postgres_version,
         mysql_version=mysql_version,
         mssql_version=mssql_version,
-        forward_credentials=str(forward_credentials),
+        forward_credentials=forward_credentials,
         mount_sources=mount_sources,
         use_airflow_version=use_airflow_version,
         airflow_extras=airflow_extras,
@@ -194,6 +200,9 @@ def shell(
         extra_args=extra_args if not max_time else ["exit"],
         image_tag=image_tag,
         platform=platform,
+        executor=executor,
+        celery_broker=celery_broker,
+        celery_flower=celery_flower,
     )
     sys.exit(result.returncode)
 
@@ -287,7 +296,7 @@ def start_airflow(
         load_example_dags=load_example_dags,
         mysql_version=mysql_version,
         mssql_version=mssql_version,
-        forward_credentials=str(forward_credentials),
+        forward_credentials=forward_credentials,
         mount_sources=mount_sources,
         use_airflow_version=use_airflow_version,
         airflow_extras=airflow_extras,

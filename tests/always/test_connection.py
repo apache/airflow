@@ -484,6 +484,50 @@ class TestConnection:
                     schema="",
                 ),
             ),
+            (
+                "spark://k8s%3a%2F%2F100.68.0.1:443?deploy-mode=cluster",
+                ConnectionParts(
+                    conn_type="spark",
+                    login=None,
+                    password=None,
+                    host="k8s://100.68.0.1",
+                    port=443,
+                    schema="",
+                ),
+            ),
+            (
+                "spark://user:password@k8s%3a%2F%2F100.68.0.1:443?deploy-mode=cluster",
+                ConnectionParts(
+                    conn_type="spark",
+                    login="user",
+                    password="password",
+                    host="k8s://100.68.0.1",
+                    port=443,
+                    schema="",
+                ),
+            ),
+            (
+                "spark://user@k8s%3a%2F%2F100.68.0.1:443?deploy-mode=cluster",
+                ConnectionParts(
+                    conn_type="spark",
+                    login="user",
+                    password=None,
+                    host="k8s://100.68.0.1",
+                    port=443,
+                    schema="",
+                ),
+            ),
+            (
+                "spark://k8s%3a%2F%2Fno.port.com?deploy-mode=cluster",
+                ConnectionParts(
+                    conn_type="spark",
+                    login=None,
+                    password=None,
+                    host="k8s://no.port.com",
+                    port=None,
+                    schema="",
+                ),
+            ),
         ],
     )
     def test_connection_from_with_auth_info(self, uri, uri_parts):
