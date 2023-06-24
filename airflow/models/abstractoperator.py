@@ -171,7 +171,7 @@ class AbstractOperator(Templater, DAGNode):
 
         :meta private:
         """
-        if self.is_teardown is True:
+        if self.is_teardown is True and value is True:
             raise ValueError(f"Cannot mark task '{self.task_id}' as setup; task is already a teardown.")
         self._is_setup = value
 
