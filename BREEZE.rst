@@ -84,8 +84,14 @@ Here is an example configuration with more than 200GB disk space for Docker:
 - ``newgrp docker``
 - 4. Check if docker can be run without root
 - ``docker run hello-world``
-|
-|
+- 5. Make sure that "Allow the default Docker socket to be used" in "Advanced" tab of "Docker Desktop" settings is checked
+
+.. raw:: html
+
+   <div align="center">
+        <img src="images/docker_socket.png" width="640"
+             alt="Docker socket used">
+    </div>
 
 Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
 /CONTRIBUTORS_QUICK_START.rst>`__
