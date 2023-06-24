@@ -72,7 +72,13 @@ def _run_dag_backfill(dags: list[DAG], args) -> None:
 
         if args.dry_run:
             print(f"Dry run of DAG {dag.dag_id} on {args.start_date}")
-            dr = DagRun(dag.dag_id, execution_date=args.start_date)
+            dr = DagRun(
+                dag.dag_id,
+                execution_date=args.start_date,
+                data_interval=dag.timetable.infer_manual_data_interval(
+                    run_after=timezone.coerce_datetime(args.start_date)
+                ),
+            )
             for task in dag.tasks:
                 print(f"Task {task.task_id} located in DAG {dag.dag_id}")
                 ti = TaskInstance(task, run_id=None)
