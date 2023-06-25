@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
+from airflow.utils.task_group import MappedTaskGroup
 
 
 class TaskConcurrencyDep(BaseTIDep):
@@ -30,16 +31,23 @@ class TaskConcurrencyDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
-        if ti.task.max_active_tis_per_dag is None and ti.task.max_active_tis_per_dagrun is None:
+        if (
+            ti.task.max_active_tis_per_dag is None
+            and ti.task.max_active_tis_per_dagrun is None
+            and ti.task.task_group is not MappedTaskGroup
+        ):
             yield self._passing_status(reason="Task concurrency is not set.")
             return
 
+        # active task limit per dag
         if (
             ti.task.max_active_tis_per_dag is not None
             and ti.get_num_running_task_instances(session) >= ti.task.max_active_tis_per_dag
         ):
             yield self._failing_status(reason="The max task concurrency has been reached.")
             return
+
+        # active task limit per dag run
         if (
             ti.task.max_active_tis_per_dagrun is not None
             and ti.get_num_running_task_instances(session, same_dagrun=True)
@@ -47,5 +55,19 @@ class TaskConcurrencyDep(BaseTIDep):
         ):
             yield self._failing_status(reason="The max task concurrency per run has been reached.")
             return
+
+        # active task group limit per dag run
+        if (
+            ti.task.task_group is MappedTaskGroup
+            and ti.task.task_group.concurrency_limit is not None
+        ):
+            limit = ti.task.task_group.concurrency_limit
+            valid_idx = ti.get_valid_map_index(session, limit)
+            accept = (ti.map_index in valid_idx) or (len(valid_idx) < limit)
+
+            if not accept:
+                yield self._failing_status(reason="The max task group concurrency has been reached.")
+                return
+
         yield self._passing_status(reason="The max task concurrency has not been reached.")
         return

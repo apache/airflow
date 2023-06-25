@@ -528,9 +528,10 @@ class MappedTaskGroup(TaskGroup):
     a ``@task_group`` function instead.
     """
 
-    def __init__(self, *, expand_input: ExpandInput, **kwargs: Any) -> None:
+    def __init__(self, *, expand_input: ExpandInput, concurrency_limit: int , **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._expand_input = expand_input
+        self.concurrency_limit = concurrency_limit
         for op, _ in expand_input.iter_references():
             self.set_upstream(op)
 
