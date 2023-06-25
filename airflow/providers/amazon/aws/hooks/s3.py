@@ -212,11 +212,16 @@ class S3Hook(AwsBaseHook):
         :param s3url: The S3 Url to parse.
         :return: the parsed bucket name and key
         """
+        valid_s3_format = "S3://bucket-name/key-name"
+        valid_s3_virtual_hosted_format = "https://bucket-name.s3.region-code.amazonaws.com/key-name"
         format = s3url.split("//")
         if re.match(r"s3[na]?:", format[0], re.IGNORECASE):
             parsed_url = urlsplit(s3url)
             if not parsed_url.netloc:
-                raise S3HookUriParseFailure(f'Please provide a bucket name using a valid format: "{s3url}"')
+                raise S3HookUriParseFailure(
+                    "Please provide a bucket name using a valid format of the form: "
+                    + f'{valid_s3_format} or {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
+                )
 
             bucket_name = parsed_url.netloc
             key = parsed_url.path.lstrip("/")
@@ -229,8 +234,16 @@ class S3Hook(AwsBaseHook):
             elif temp_split[1] == "s3":
                 bucket_name = temp_split[0]
                 key = "/".join(format[1].split("/")[1:])
+            else:
+                raise S3HookUriParseFailure(
+                    "Please provide a bucket name using a valid virtually hosted format which should"
+                    + f' be of the form: {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
+                )
         else:
-            raise S3HookUriParseFailure(f'Please provide a bucket name using a valid format: "{s3url}"')
+            raise S3HookUriParseFailure(
+                "Please provide a bucket name using a valid format of the form: "
+                + f'{valid_s3_format} or {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
+            )
         return bucket_name, key
 
     @staticmethod
