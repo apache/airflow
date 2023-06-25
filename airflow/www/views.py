@@ -1340,6 +1340,9 @@ class Airflow(AirflowBaseView):
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
         raw_task = dag.get_task(task_id).prepare_for_execution()
 
+        title = "Rendered Template"
+        html_dict = {}
+
         ti: TaskInstance
         if dag_run is None:
             # No DAG run matching given logical date. This usually means this
@@ -1351,7 +1354,21 @@ class Airflow(AirflowBaseView):
             ti.dag_run = DagRun(dag_id=dag_id, execution_date=dttm)
         else:
             ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index, session=session)
-            ti.refresh_from_task(raw_task)
+            if ti:
+                ti.refresh_from_task(raw_task)
+            else:
+                flash(f"there is no task instance with the provided map_index {map_index}", "error")
+                return self.render_template(
+                    "airflow/ti_code.html",
+                    html_dict=html_dict,
+                    dag=dag,
+                    task_id=task_id,
+                    execution_date=execution_date,
+                    map_index=map_index,
+                    form=form,
+                    root=root,
+                    title=title,
+                )
 
         try:
             ti.get_rendered_template_fields(session=session)
@@ -1370,8 +1387,6 @@ class Airflow(AirflowBaseView):
         # but we'll display some quasi-meaingful field names.
         task = ti.task.unmap(None)
 
-        title = "Rendered Template"
-        html_dict = {}
         renderers = wwwutils.get_attr_renderer()
 
         for template_field in task.template_fields:
