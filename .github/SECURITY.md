@@ -30,7 +30,7 @@ in other products/circumstances. This is the reason why some potential security 
 apply to Airflow, or have different severity than generic scoring systems (for example `CVSS`)
 calculation suggests.
 
-The [ASF Security team's page](https://www.apache.org/security/>) describes
+The [ASF Security team's page](https://www.apache.org/security/) describes
 how vulnerability reports are handled in general by all ASF projects, and includes PGP keys if
 you wish to use them when you report the issues.
 
