@@ -19,16 +19,25 @@
 ``apache-airflow-providers-pagerduty``
 ======================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/pagerduty/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -36,6 +45,7 @@ Content
     Installing from sources <installing-providers-from-sources>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -45,6 +55,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -83,5 +94,3 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.4.0``
 ``pdpyras``         ``>=4.1.2``
 ==================  ==================
-
-.. include:: ../../airflow/providers/pagerduty/CHANGELOG.rst
