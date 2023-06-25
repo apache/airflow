@@ -89,7 +89,13 @@ class TriggerDagRunOperator(BaseOperator):
         default is ``False``.
     """
 
-    template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
+    template_fields: Sequence[str] = (
+        "trigger_dag_id",
+        "trigger_run_id",
+        "execution_date",
+        "conf",
+        "wait_for_completion",
+    )
     template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
     operator_extra_links = [TriggerDagRunLink()]
