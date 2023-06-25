@@ -47,6 +47,55 @@ class TestVerticaHookConn:
             host="host", port=5433, database="vertica", user="login", password="password"
         )
 
+    @patch("airflow.providers.vertica.hooks.vertica.connect")
+    def test_get_conn_extra_parameters_no_cast(self, mock_connect):
+        extra_dict = self.connection.extra_dejson
+        bool_options = ["connection_load_balance", "binary_transfer", "disable_copy_local", "use_prepared_statements"]
+        for bo in bool_options:
+            extra_dict.update({ bo: True})
+        extra_dict.update({ "request_complex_types": False})
+
+        std_options = ["session_label", "kerberos_host_name", "kerberos_service_name", "log_path", "unicode_error", "workload", "ssl"]
+        for so in std_options:
+            extra_dict.update({ so: so})
+        bck_server_node = ["1.2.3.4", "4.3.2.1"]
+        conn_timeout = 30
+        log_lvl = 40
+        extra_dict.update({"backup_server_node":bck_server_node})
+        extra_dict.update({"connection_timeout":conn_timeout})
+        extra_dict.update({"log_level":log_lvl})
+
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert args == ()
+        for bo in bool_options:
+            assert kwargs[bo] == True
+        assert kwargs["request_complex_types"] == False
+        for so in std_options:
+            assert kwargs[so] == so
+        assert bck_server_node[0] in kwargs["backup_server_node"]
+        assert bck_server_node[1] in kwargs["backup_server_node"]
+        assert kwargs["connection_timeout"] == conn_timeout
+        assert kwargs["log_level"] == log_lvl
+
+    @patch("airflow.providers.vertica.hooks.vertica.connect")
+    def test_get_conn_extra_parameters_cast(self, mock_connect):
+        import logging
+        extra_dict = self.connection.extra_dejson
+        bool_options = ["connection_load_balance", "binary_transfer", "disable_copy_local", "use_prepared_statements"]
+        for bo in bool_options:
+            extra_dict.update({ bo: "True"})
+        extra_dict.update({ "request_complex_types": "False"})
+        extra_dict.update({"log_level":"Error"})
+        self.db_hook.get_conn()
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert args == ()
+        for bo in bool_options:
+            assert kwargs[bo] == True
+        assert kwargs["request_complex_types"] == False
+        assert kwargs["log_level"] == logging.ERROR
 
 class TestVerticaHook:
     def setup_method(self):

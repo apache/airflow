@@ -59,7 +59,7 @@ class VerticaHook(DbApiHook):
                 conn_config[so] = conn_extra[so]
 
         if "connection_timeout" in conn_extra:
-            conn_config["connection_timeout"] = int(conn_extra["connection_timeout"])
+            conn_config["connection_timeout"] = float(conn_extra["connection_timeout"])
 
         if "log_level" in conn_extra:
             import logging
