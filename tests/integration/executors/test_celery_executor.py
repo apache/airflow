@@ -314,6 +314,7 @@ class TestBulkStateFetcher:
     def test_should_retry_db_backend(self, mock_session, caplog):
         caplog.set_level(logging.DEBUG, logger=self.bulk_state_fetcher_logger)
         from sqlalchemy.exc import DatabaseError
+
         with _prepare_app():
             mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
             with mock.patch("airflow.executors.celery_executor_utils.Celery.backend", mock_backend):
@@ -324,8 +325,8 @@ class TestBulkStateFetcher:
                     mock.MagicMock(**{"to_dict.return_value": {"status": "SUCCESS", "task_id": "123"}})
                 ]
                 mock_retry_db_result.side_effect = [
-                    DatabaseError('DatabaseError', 'DatabaseError', 'DatabaseError'),
-                    mock_retry_db_result.return_value
+                    DatabaseError("DatabaseError", "DatabaseError", "DatabaseError"),
+                    mock_retry_db_result.return_value,
                 ]
 
                 fetcher = celery_executor_utils.BulkStateFetcher()
@@ -339,7 +340,7 @@ class TestBulkStateFetcher:
         assert result == {"123": ("SUCCESS", None), "456": ("PENDING", None)}
         assert caplog.messages == [
             "Failed operation _query_task_cls_from_db_backend.  Retrying 2 more times.",
-            "Fetched 2 state(s) for 2 task(s)"
+            "Fetched 2 state(s) for 2 task(s)",
         ]
 
     def test_should_support_base_backend(self, caplog):
