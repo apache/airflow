@@ -26,7 +26,6 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
-from airflow.models.basedeferrableoperator import BaseDeferrableOperator
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
@@ -67,7 +66,7 @@ class TriggerDagRunLink(BaseOperatorLink):
         return build_airflow_url_with_query(query)
 
 
-class TriggerDagRunOperator(BaseDeferrableOperator):
+class TriggerDagRunOperator(BaseOperator):
     """
     Triggers a DAG run for a specified ``dag_id``.
 
@@ -87,6 +86,8 @@ class TriggerDagRunOperator(BaseDeferrableOperator):
         (default: 60)
     :param allowed_states: List of allowed states, default is ``['success']``.
     :param failed_states: List of failed or dis-allowed states, default is ``None``.
+    :param deferrable: If waiting for completion, whether or not to defer the task until done,
+        default is ``False``.
     """
 
     template_fields: Sequence[str] = (
@@ -112,6 +113,7 @@ class TriggerDagRunOperator(BaseDeferrableOperator):
         poke_interval: int = 60,
         allowed_states: list | None = None,
         failed_states: list | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -123,6 +125,7 @@ class TriggerDagRunOperator(BaseDeferrableOperator):
         self.poke_interval = poke_interval
         self.allowed_states = allowed_states or [State.SUCCESS]
         self.failed_states = failed_states or [State.FAILED]
+        self._defer = deferrable
 
         if execution_date is not None and not isinstance(execution_date, (str, datetime.datetime)):
             raise TypeError(
@@ -186,7 +189,7 @@ class TriggerDagRunOperator(BaseDeferrableOperator):
         if self.wait_for_completion:
 
             # Kick off the deferral process
-            if self.deferrable:
+            if self._defer:
                 self.defer(
                     trigger=DagStateTrigger(
                         dag_id=self.trigger_dag_id,
