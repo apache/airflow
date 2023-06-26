@@ -640,6 +640,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         that is visible in Task Instance details View in the Webserver
     :param doc_yaml: Add documentation (in YAML format) or notes to your Task objects
         that is visible in Task Instance details View in the Webserver
+    :param tooltip: The tooltip of the BaseOperator when displayed in the UI
     """
 
     # Implementing Operator.
@@ -789,6 +790,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         doc_json: str | None = None,
         doc_yaml: str | None = None,
         doc_rst: str | None = None,
+        tooltip: str = "",
         **kwargs,
     ):
         from airflow.models.dag import DagContext
@@ -940,6 +942,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             self.dag = dag
 
         self._log = logging.getLogger("airflow.task.operators")
+
+        # setting tooltip
+        self.tooltip = tooltip
 
         # Lineage
         self.inlets: list = []

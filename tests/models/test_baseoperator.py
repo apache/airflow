@@ -780,6 +780,11 @@ class TestBaseOperator:
         # leaking a lot of state)
         assert caplog.messages == ["test"]
 
+    def test_tooltip_text(self):
+        txt = "dummy tooltip text"
+        op = BaseOperator(tooltip=txt)
+        assert op.tooltip == txt
+
 
 def test_init_subclass_args():
     class InitSubclassOp(BaseOperator):
