@@ -38,6 +38,7 @@ TASK_ID = "test-gcs-to-bq-operator"
 TEST_EXPLICIT_DEST = "test-project.dataset.table"
 TEST_BUCKET = "test-bucket"
 PROJECT_ID = "test-project"
+OTHER_PROJECT_ID = "other-test-project"
 DATASET = "dataset"
 TABLE = "table"
 WRITE_DISPOSITION = "WRITE_TRUNCATE"
@@ -85,6 +86,7 @@ class TestGCSToBigQueryOperator:
             schema_fields=SCHEMA_FIELDS,
             max_id_key=MAX_ID_KEY,
             external_table=True,
+            project_id=OTHER_PROJECT_ID
         )
 
         result = operator.execute(context=MagicMock())
@@ -93,7 +95,7 @@ class TestGCSToBigQueryOperator:
         hook.return_value.create_empty_table.assert_called_once_with(
             exists_ok=True,
             location=None,
-            project_id=PROJECT_ID,
+            project_id=OTHER_PROJECT_ID,
             table_resource={
                 "tableReference": {"projectId": PROJECT_ID, "datasetId": DATASET, "tableId": TABLE},
                 "labels": {},
@@ -172,7 +174,7 @@ class TestGCSToBigQueryOperator:
                 job_id=pytest.real_job_id,
                 location=None,
                 nowait=True,
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=PROJECT_ID,
                 retry=DEFAULT_RETRY,
                 timeout=None,
             ),
@@ -233,7 +235,7 @@ class TestGCSToBigQueryOperator:
                 job_id=pytest.real_job_id,
                 location=None,
                 nowait=True,
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=PROJECT_ID
                 retry=DEFAULT_RETRY,
                 timeout=None,
             ),
@@ -316,6 +318,7 @@ class TestGCSToBigQueryOperator:
             schema_fields=SCHEMA_FIELDS,
             external_table=False,
             labels=LABELS,
+            project_id=PROJECT_ID
         )
 
         operator.execute(context=MagicMock())
@@ -342,7 +345,7 @@ class TestGCSToBigQueryOperator:
                 job_id=pytest.real_job_id,
                 location=None,
                 nowait=True,
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=PROJECT_ID
                 retry=DEFAULT_RETRY,
                 timeout=None,
             )
@@ -441,7 +444,7 @@ class TestGCSToBigQueryOperator:
                         fieldDelimiter=",",
                     ),
                 },
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=PROJECT_ID
                 location=None,
                 job_id=pytest.real_job_id,
                 timeout=None,
@@ -545,7 +548,7 @@ class TestGCSToBigQueryOperator:
                 job_id=pytest.real_job_id,
                 location=None,
                 nowait=True,
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=PROJECT_ID
                 retry=DEFAULT_RETRY,
                 timeout=None,
             )
@@ -645,7 +648,7 @@ class TestGCSToBigQueryOperator:
                 job_id=pytest.real_job_id,
                 location=None,
                 nowait=True,
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=PROJECT_ID
                 retry=DEFAULT_RETRY,
                 timeout=None,
             )
@@ -842,7 +845,7 @@ class TestGCSToBigQueryOperator:
                         "encoding": "UTF-8",
                     }
                 },
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=PROJECT_ID
                 location=None,
                 job_id=pytest.real_job_id,
                 timeout=None,
@@ -1129,7 +1132,7 @@ class TestGCSToBigQueryOperator:
                 job_id=pytest.real_job_id,
                 location=None,
                 nowait=True,
-                project_id=hook.return_value.split_tablename.return_value[0],
+                project_id=PROJECT_ID
                 retry=DEFAULT_RETRY,
                 timeout=None,
             )

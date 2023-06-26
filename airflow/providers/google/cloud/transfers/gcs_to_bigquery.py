@@ -248,7 +248,7 @@ class GCSToBigQueryOperator(BaseOperator):
 
         # BQ config
         self.destination_project_dataset_table = destination_project_dataset_table
-        self.project_id = project_id
+        self.project_id = project_id if project_id is not None else self.hook.project_id
         self.schema_fields = schema_fields
         if source_format.upper() not in ALLOWED_FORMATS:
             raise ValueError(
@@ -575,7 +575,7 @@ class GCSToBigQueryOperator(BaseOperator):
         return table_obj_api_repr
 
     def _use_existing_table(self):
-        self.project_id, destination_dataset, destination_table = self.hook.split_tablename(
+        destination_project, destination_dataset, destination_table = self.hook.split_tablename(
             table_input=self.destination_project_dataset_table,
             default_project_id=self.project_id or self.hook.project_id,
             var_name="destination_project_dataset_table",
@@ -597,7 +597,7 @@ class GCSToBigQueryOperator(BaseOperator):
                 "autodetect": self.autodetect,
                 "createDisposition": self.create_disposition,
                 "destinationTable": {
-                    "projectId": self.project_id,
+                    "projectId": destination_project,
                     "datasetId": destination_dataset,
                     "tableId": destination_table,
                 },
