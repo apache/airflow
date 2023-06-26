@@ -39,6 +39,14 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
+# TODO: once we update the minimum Airflow version to 2.7.0
+# remove this try-exception block and
+# inherit BaseDeferrableOperator for operator with deferrable attribute
+try:
+    from airflow.models.baseoperator import DEFAULT_DEFERRABLE
+except ImportError:
+    DEFAULT_DEFERRABLE = False
+
 
 class BatchWaitersHook(BatchClientHook):
     """
@@ -145,7 +153,7 @@ class BatchWaitersHook(BatchClientHook):
         self,
         waiter_name: str,
         _: dict[str, str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = DEFAULT_DEFERRABLE,
         client=None,
     ) -> botocore.waiter.Waiter:
         """
