@@ -512,8 +512,6 @@ class AzureDataLakeStorageV2Hook(BaseHook):
 
     def test_connection(self):
         """Test ADLS Gen2 Storage connection."""
-        success = (True, "Successfully connected to ADLS Gen2 Storage.")
-
         try:
             # Attempts to list file systems in ADLS Gen2 Storage and retrieves the first
             # file_system from the returned iterator. The Azure DataLake Storage allows creation
@@ -521,6 +519,6 @@ class AzureDataLakeStorageV2Hook(BaseHook):
             # if we try to fetch the file_system. We need to _actually_ try to retrieve a
             # file_system to properly test the connection
             next(self.get_conn().list_file_systems(), None)
-            return success
+            return True, "Successfully connected to ADLS Gen2 Storage."
         except Exception as e:
             return False, str(e)
