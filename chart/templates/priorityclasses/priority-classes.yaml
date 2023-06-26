@@ -17,14 +17,18 @@
  under the License.
 */}}
 
-{{- if .Values.workers.priorityClassName -}}
+#################################################
+## Priority classes provisioned via the chart values
+#################################################
+{{- range $e := .Values.priorityClasses }}
 apiVersion: scheduling.k8s.io/v1
-description: Used for airflow worker pods
 kind: PriorityClass
 metadata:
-  # to keep the name unique per release
-  name: {{ .Release.Name }}-{{ .Values.workers.priorityClassName }}
+  name: {{ .Release.Name }}-{{ $e.name }}
+{{- if $e.preemptionPolicy }}
+preemptionPolicy: {{ $e.preemptionPolicy }}
+{{ else }}
 preemptionPolicy: PreemptLowerPriority
-# lower priority than service pods to avoid preempting the service pods
-value: 1000
+{{- end }}
+value: {{ $e.value }}
 {{- end }}
