@@ -1212,8 +1212,8 @@ class TestSetupTearDownTask:
     def test_classic_tasks_called_outside_context_manager_can_link_up(self, dag_maker):
 
         with dag_maker() as dag:
-            setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
-            teardowntask = BashOperator.as_teardown(task_id="teardowntask", bash_command="echo 1")
+            setuptask = BashOperator(task_id="setuptask", bash_command="echo 1").as_setup()
+            teardowntask = BashOperator(task_id="teardowntask", bash_command="echo 1").as_teardown()
             mytask = BashOperator(task_id="mytask", bash_command="echo 1")
             mytask2 = BashOperator(task_id="mytask2", bash_command="echo 1")
             with setuptask >> teardowntask:
@@ -1257,8 +1257,8 @@ class TestSetupTearDownTask:
 
     def test_classic_tasks_called_outside_context_manager_can_link_up_with_scope(self, dag_maker):
         with dag_maker() as dag:
-            setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
-            teardowntask = BashOperator.as_teardown(task_id="teardowntask", bash_command="echo 1")
+            setuptask = BashOperator(task_id="setuptask", bash_command="echo 1").as_setup()
+            teardowntask = BashOperator(task_id="teardowntask", bash_command="echo 1").as_teardown()
             mytask = BashOperator(task_id="mytask", bash_command="echo 1")
             with setuptask >> teardowntask as scope:
                 scope.add_task(mytask)
@@ -1303,8 +1303,8 @@ class TestSetupTearDownTask:
             return 1
 
         with dag_maker() as dag:
-            setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
-            teardowntask = BashOperator.as_teardown(task_id="teardowntask", bash_command="echo 1")
+            setuptask = BashOperator(task_id="setuptask", bash_command="echo 1").as_setup()
+            teardowntask = BashOperator(task_id="teardowntask", bash_command="echo 1").as_teardown()
             with setuptask >> teardowntask as scope:
                 scope.add_task(mytask())
 
@@ -1331,8 +1331,8 @@ class TestSetupTearDownTask:
 
         with dag_maker() as dag:
             task1 = mytask()
-            setuptask2 = BashOperator.as_setup(task_id="setuptask2", bash_command="echo 1")
-            teardowntask2 = BashOperator.as_teardown(task_id="teardowntask2", bash_command="echo 1")
+            setuptask2 = BashOperator(task_id="setuptask2", bash_command="echo 1").as_setup()
+            teardowntask2 = BashOperator(task_id="teardowntask2", bash_command="echo 1").as_teardown()
             task2 = BashOperator(task_id="mytask2", bash_command="echo 1")
 
             with setuptask() >> teardowntask() as scope:
