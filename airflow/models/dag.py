@@ -26,7 +26,6 @@ import logging
 import os
 import pathlib
 import pickle
-import re
 import sys
 import traceback
 import warnings
@@ -39,9 +38,11 @@ from typing import (
     Any,
     Callable,
     Collection,
+    Container,
     Iterable,
     Iterator,
     List,
+    Pattern,
     Sequence,
     Union,
     cast,
@@ -51,6 +52,7 @@ from urllib.parse import urlsplit
 
 import jinja2
 import pendulum
+import re2 as re
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, case, func, not_, or_
@@ -685,6 +687,7 @@ class DAG(LoggingMixin):
             )
         self.params.validate()
         self.timetable.validate()
+        self.validate_setup_teardown()
 
     def validate_setup_teardown(self):
         """
@@ -2308,7 +2311,7 @@ class DAG(LoggingMixin):
 
     def partial_subset(
         self,
-        task_ids_or_regex: str | re.Pattern | Iterable[str],
+        task_ids_or_regex: str | Pattern | Iterable[str],
         include_downstream=False,
         include_upstream=True,
         include_direct_upstream=False,
@@ -2335,7 +2338,7 @@ class DAG(LoggingMixin):
         memo = {id(self.task_dict): None, id(self._task_group): None}
         dag = copy.deepcopy(self, memo)  # type: ignore
 
-        if isinstance(task_ids_or_regex, (str, re.Pattern)):
+        if isinstance(task_ids_or_regex, (str, Pattern)):
             matched_tasks = [t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
@@ -3523,7 +3526,11 @@ class DagModel(Base):
     @classmethod
     @internal_api_call
     @provide_session
-    def deactivate_deleted_dags(cls, alive_dag_filelocs: list[str], session=NEW_SESSION):
+    def deactivate_deleted_dags(
+        cls,
+        alive_dag_filelocs: Container[str],
+        session: Session = NEW_SESSION,
+    ) -> None:
         """
         Set ``is_active=False`` on the DAGs for which the DAG files have been removed.
 
@@ -3531,13 +3538,9 @@ class DagModel(Base):
         :param session: ORM Session
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
-
-        dag_models = session.query(cls).all()
-        for dag_model in dag_models:
-            if dag_model.fileloc is not None and dag_model.fileloc not in alive_dag_filelocs:
+        for dag_model in session.query(cls).filter(cls.fileloc.is_not(None)):
+            if dag_model.fileloc not in alive_dag_filelocs:
                 dag_model.is_active = False
-            else:
-                continue
 
     @classmethod
     def dags_needing_dagruns(cls, session: Session) -> tuple[Query, dict[str, tuple[datetime, datetime]]]:

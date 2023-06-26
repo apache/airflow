@@ -33,8 +33,8 @@ class EksCreateFargateProfileTrigger(BaseTrigger):
 
     :param cluster_name: The name of the EKS cluster
     :param fargate_profile_name: The name of the fargate profile
-    :param poll_interval: The amount of time in seconds to wait between attempts.
-    :param max_attempts: The maximum number of attempts to be made.
+    :param waiter_delay: The amount of time in seconds to wait between attempts.
+    :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
@@ -42,15 +42,17 @@ class EksCreateFargateProfileTrigger(BaseTrigger):
         self,
         cluster_name: str,
         fargate_profile_name: str,
-        poll_interval: int,
-        max_attempts: int,
+        waiter_delay: int,
+        waiter_max_attempts: int,
         aws_conn_id: str,
+        region: str | None = None,
     ):
         self.cluster_name = cluster_name
         self.fargate_profile_name = fargate_profile_name
-        self.poll_interval = poll_interval
-        self.max_attempts = max_attempts
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
+        self.region = region
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -58,24 +60,25 @@ class EksCreateFargateProfileTrigger(BaseTrigger):
             {
                 "cluster_name": self.cluster_name,
                 "fargate_profile_name": self.fargate_profile_name,
-                "poll_interval": str(self.poll_interval),
-                "max_attempts": str(self.max_attempts),
+                "waiter_delay": str(self.waiter_delay),
+                "waiter_max_attempts": str(self.waiter_max_attempts),
                 "aws_conn_id": self.aws_conn_id,
+                "region": self.region,
             },
         )
 
     async def run(self):
-        self.hook = EksHook(aws_conn_id=self.aws_conn_id)
+        self.hook = EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
         async with self.hook.async_conn as client:
             attempt = 0
             waiter = client.get_waiter("fargate_profile_active")
-            while attempt < int(self.max_attempts):
+            while attempt < int(self.waiter_max_attempts):
                 attempt += 1
                 try:
                     await waiter.wait(
                         clusterName=self.cluster_name,
                         fargateProfileName=self.fargate_profile_name,
-                        WaiterConfig={"Delay": int(self.poll_interval), "MaxAttempts": 1},
+                        WaiterConfig={"Delay": int(self.waiter_delay), "MaxAttempts": 1},
                     )
                     break
                 except WaiterError as error:
@@ -84,10 +87,10 @@ class EksCreateFargateProfileTrigger(BaseTrigger):
                     self.log.info(
                         "Status of fargate profile is %s", error.last_response["fargateProfile"]["status"]
                     )
-                    await asyncio.sleep(int(self.poll_interval))
-        if attempt >= int(self.max_attempts):
+                    await asyncio.sleep(int(self.waiter_delay))
+        if attempt >= int(self.waiter_max_attempts):
             raise AirflowException(
-                f"Create Fargate Profile failed - max attempts reached: {self.max_attempts}"
+                f"Create Fargate Profile failed - max attempts reached: {self.waiter_max_attempts}"
             )
         else:
             yield TriggerEvent({"status": "success", "message": "Fargate Profile Created"})
@@ -100,8 +103,8 @@ class EksDeleteFargateProfileTrigger(BaseTrigger):
 
     :param cluster_name: The name of the EKS cluster
     :param fargate_profile_name: The name of the fargate profile
-    :param poll_interval: The amount of time in seconds to wait between attempts.
-    :param max_attempts: The maximum number of attempts to be made.
+    :param waiter_delay: The amount of time in seconds to wait between attempts.
+    :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
@@ -109,15 +112,17 @@ class EksDeleteFargateProfileTrigger(BaseTrigger):
         self,
         cluster_name: str,
         fargate_profile_name: str,
-        poll_interval: int,
-        max_attempts: int,
+        waiter_delay: int,
+        waiter_max_attempts: int,
         aws_conn_id: str,
+        region: str | None = None,
     ):
         self.cluster_name = cluster_name
         self.fargate_profile_name = fargate_profile_name
-        self.poll_interval = poll_interval
-        self.max_attempts = max_attempts
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
+        self.region = region
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
@@ -125,24 +130,25 @@ class EksDeleteFargateProfileTrigger(BaseTrigger):
             {
                 "cluster_name": self.cluster_name,
                 "fargate_profile_name": self.fargate_profile_name,
-                "poll_interval": str(self.poll_interval),
-                "max_attempts": str(self.max_attempts),
+                "waiter_delay": str(self.waiter_delay),
+                "waiter_max_attempts": str(self.waiter_max_attempts),
                 "aws_conn_id": self.aws_conn_id,
+                "region": self.region,
             },
         )
 
     async def run(self):
-        self.hook = EksHook(aws_conn_id=self.aws_conn_id)
+        self.hook = EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
         async with self.hook.async_conn as client:
             attempt = 0
             waiter = client.get_waiter("fargate_profile_deleted")
-            while attempt < int(self.max_attempts):
+            while attempt < int(self.waiter_max_attempts):
                 attempt += 1
                 try:
                     await waiter.wait(
                         clusterName=self.cluster_name,
                         fargateProfileName=self.fargate_profile_name,
-                        WaiterConfig={"Delay": int(self.poll_interval), "MaxAttempts": 1},
+                        WaiterConfig={"Delay": int(self.waiter_delay), "MaxAttempts": 1},
                     )
                     break
                 except WaiterError as error:
@@ -151,10 +157,10 @@ class EksDeleteFargateProfileTrigger(BaseTrigger):
                     self.log.info(
                         "Status of fargate profile is %s", error.last_response["fargateProfile"]["status"]
                     )
-                    await asyncio.sleep(int(self.poll_interval))
-        if attempt >= int(self.max_attempts):
+                    await asyncio.sleep(int(self.waiter_delay))
+        if attempt >= int(self.waiter_max_attempts):
             raise AirflowException(
-                f"Delete Fargate Profile failed - max attempts reached: {self.max_attempts}"
+                f"Delete Fargate Profile failed - max attempts reached: {self.waiter_max_attempts}"
             )
         else:
             yield TriggerEvent({"status": "success", "message": "Fargate Profile Deleted"})
