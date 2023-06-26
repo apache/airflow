@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, List, Sequence, cast
 
 from botocore.exceptions import ClientError, WaiterError
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import EksHook
@@ -83,7 +84,6 @@ def _create_compute(
     log = logging.getLogger(__name__)
     eks_hook = EksHook(aws_conn_id=aws_conn_id, region_name=region)
     if compute == "nodegroup" and nodegroup_name:
-
         # this is to satisfy mypy
         subnets = subnets or []
         create_nodegroup_kwargs = create_nodegroup_kwargs or {}
@@ -107,7 +107,6 @@ def _create_compute(
                 status_args=["nodegroup.status"],
             )
     elif compute == "fargate" and fargate_profile_name:
-
         # this is to satisfy mypy
         create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
         fargate_selectors = fargate_selectors or []
@@ -366,7 +365,7 @@ class EksCreateNodegroupOperator(BaseOperator):
         region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 80,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         self.nodegroup_subnets = nodegroup_subnets
@@ -489,7 +488,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
         region: str | None = None,
         waiter_delay: int = 10,
         waiter_max_attempts: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
@@ -690,7 +689,7 @@ class EksDeleteNodegroupOperator(BaseOperator):
         region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
@@ -780,7 +779,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
         region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
