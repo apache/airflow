@@ -88,8 +88,10 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         return pipeline_run_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED
 
     def execute(self, context: Context) -> None:
-        """Defers trigger class to poll for state of the job run until
-        it reaches a failure state or success state.
+        """Poll for state of the job run.
+
+        In deferrable mode, the polling is deferred to the triggerer. Otherwise
+        the sensor waits synchronously.
         """
         if not self.deferrable:
             super().execute(context=context)

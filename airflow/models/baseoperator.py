@@ -85,6 +85,7 @@ from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.decorators import fixup_decorator_warning_stack
+from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -720,25 +721,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
-    is_setup = False
-    """
-    Whether the operator is a setup task
-
-    :meta private:
-    """
-    is_teardown = False
-    """
-    Whether the operator is a teardown task
-
-    :meta private:
-    """
-    on_failure_fail_dagrun = False
-    """
-    Whether the operator should fail the dagrun on failure
-
-    :meta private:
-    """
-
     def __init__(
         self,
         task_id: str,
@@ -974,22 +956,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         if SetupTeardownContext.active:
             SetupTeardownContext.update_context_map(self)
-
-    @classmethod
-    def as_setup(cls, *args, **kwargs):
-        op = cls(*args, **kwargs)
-        op.is_setup = True
-        return op
-
-    @classmethod
-    def as_teardown(cls, *args, **kwargs):
-        on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
-        if "trigger_rule" in kwargs:
-            raise ValueError("Cannot set trigger rule for teardown tasks.")
-        op = cls(*args, **kwargs, trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
-        op.is_teardown = True
-        op.on_failure_fail_dagrun = on_failure_fail_dagrun
-        return op
 
     def __enter__(self):
         if not self.is_setup and not self.is_teardown:
@@ -1836,6 +1802,37 @@ def cross_downstream(
     """
     for task in from_tasks:
         task.set_downstream(to_tasks)
+
+
+def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
+    """
+    Helper to simplify task dependency definition.
+
+    E.g.: suppose you want precedence like so::
+
+            ╭─op2─╮ ╭─op4─╮
+        op1─┤     ├─├─op5─┤─op7
+            ╰-op3─╯ ╰-op6─╯
+
+    Then you can accomplish like so::
+
+        chain_linear(
+            op1,
+            [op2, op3],
+            [op4, op5, op6],
+            op7
+        )
+
+    :param elements: a list of operators / lists of operators
+    """
+    prev_elem = None
+    for curr_elem in elements:
+        if isinstance(curr_elem, EdgeModifier):
+            raise ValueError("Labels are not supported by chain_linear")
+        if prev_elem is not None:
+            for task in prev_elem:
+                task >> curr_elem
+        prev_elem = [curr_elem] if isinstance(curr_elem, DependencyMixin) else curr_elem
 
 
 # pyupgrade assumes all type annotations can be lazily evaluated, but this is

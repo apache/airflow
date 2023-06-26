@@ -32,8 +32,8 @@ from airflow.triggers.base import TriggerEvent
 
 TEST_CLUSTER_IDENTIFIER = "test-cluster"
 TEST_FARGATE_PROFILE_NAME = "test-fargate-profile"
-TEST_POLL_INTERVAL = 10
-TEST_MAX_ATTEMPTS = 10
+TEST_WAITER_DELAY = 10
+TEST_WAITER_MAX_ATTEMPTS = 10
 TEST_AWS_CONN_ID = "test-aws-id"
 
 
@@ -43,8 +43,8 @@ class TestEksCreateFargateProfileTrigger:
             cluster_name=TEST_CLUSTER_IDENTIFIER,
             fargate_profile_name=TEST_FARGATE_PROFILE_NAME,
             aws_conn_id=TEST_AWS_CONN_ID,
-            poll_interval=TEST_POLL_INTERVAL,
-            max_attempts=TEST_MAX_ATTEMPTS,
+            waiter_delay=TEST_WAITER_DELAY,
+            waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
         )
 
         class_path, args = eks_create_fargate_profile_trigger.serialize()
@@ -52,8 +52,8 @@ class TestEksCreateFargateProfileTrigger:
         assert args["cluster_name"] == TEST_CLUSTER_IDENTIFIER
         assert args["fargate_profile_name"] == TEST_FARGATE_PROFILE_NAME
         assert args["aws_conn_id"] == TEST_AWS_CONN_ID
-        assert args["poll_interval"] == str(TEST_POLL_INTERVAL)
-        assert args["max_attempts"] == str(TEST_MAX_ATTEMPTS)
+        assert args["waiter_delay"] == str(TEST_WAITER_DELAY)
+        assert args["waiter_max_attempts"] == str(TEST_WAITER_MAX_ATTEMPTS)
 
     @pytest.mark.asyncio
     @mock.patch.object(EksHook, "async_conn")
@@ -67,8 +67,8 @@ class TestEksCreateFargateProfileTrigger:
             cluster_name=TEST_CLUSTER_IDENTIFIER,
             fargate_profile_name=TEST_FARGATE_PROFILE_NAME,
             aws_conn_id=TEST_AWS_CONN_ID,
-            poll_interval=TEST_POLL_INTERVAL,
-            max_attempts=TEST_MAX_ATTEMPTS,
+            waiter_delay=TEST_WAITER_DELAY,
+            waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
         )
 
         generator = eks_create_fargate_profile_trigger.run()
@@ -96,8 +96,8 @@ class TestEksCreateFargateProfileTrigger:
             cluster_name=TEST_CLUSTER_IDENTIFIER,
             fargate_profile_name=TEST_FARGATE_PROFILE_NAME,
             aws_conn_id=TEST_AWS_CONN_ID,
-            poll_interval=TEST_POLL_INTERVAL,
-            max_attempts=TEST_MAX_ATTEMPTS,
+            waiter_delay=TEST_WAITER_DELAY,
+            waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
         )
 
         generator = eks_create_fargate_profile_trigger.run()
@@ -126,8 +126,8 @@ class TestEksCreateFargateProfileTrigger:
             cluster_name=TEST_CLUSTER_IDENTIFIER,
             fargate_profile_name=TEST_FARGATE_PROFILE_NAME,
             aws_conn_id=TEST_AWS_CONN_ID,
-            poll_interval=TEST_POLL_INTERVAL,
-            max_attempts=2,
+            waiter_delay=TEST_WAITER_DELAY,
+            waiter_max_attempts=2,
         )
         with pytest.raises(AirflowException) as exc:
             generator = eks_create_fargate_profile_trigger.run()
@@ -158,8 +158,8 @@ class TestEksCreateFargateProfileTrigger:
             cluster_name=TEST_CLUSTER_IDENTIFIER,
             fargate_profile_name=TEST_FARGATE_PROFILE_NAME,
             aws_conn_id=TEST_AWS_CONN_ID,
-            poll_interval=TEST_POLL_INTERVAL,
-            max_attempts=TEST_MAX_ATTEMPTS,
+            waiter_delay=TEST_WAITER_DELAY,
+            waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
         )
 
         with pytest.raises(AirflowException) as exc:
@@ -175,8 +175,8 @@ class TestEksDeleteFargateProfileTrigger:
             cluster_name=TEST_CLUSTER_IDENTIFIER,
             fargate_profile_name=TEST_FARGATE_PROFILE_NAME,
             aws_conn_id=TEST_AWS_CONN_ID,
-            poll_interval=TEST_POLL_INTERVAL,
-            max_attempts=TEST_MAX_ATTEMPTS,
+            waiter_delay=TEST_WAITER_DELAY,
+            waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
         )
 
         class_path, args = eks_delete_fargate_profile_trigger.serialize()
@@ -184,8 +184,8 @@ class TestEksDeleteFargateProfileTrigger:
         assert args["cluster_name"] == TEST_CLUSTER_IDENTIFIER
         assert args["fargate_profile_name"] == TEST_FARGATE_PROFILE_NAME
         assert args["aws_conn_id"] == TEST_AWS_CONN_ID
-        assert args["poll_interval"] == str(TEST_POLL_INTERVAL)
-        assert args["max_attempts"] == str(TEST_MAX_ATTEMPTS)
+        assert args["waiter_delay"] == str(TEST_WAITER_DELAY)
+        assert args["waiter_max_attempts"] == str(TEST_WAITER_MAX_ATTEMPTS)
 
     @pytest.mark.asyncio
     @mock.patch.object(EksHook, "async_conn")
@@ -199,8 +199,8 @@ class TestEksDeleteFargateProfileTrigger:
             cluster_name=TEST_CLUSTER_IDENTIFIER,
             fargate_profile_name=TEST_FARGATE_PROFILE_NAME,
             aws_conn_id=TEST_AWS_CONN_ID,
-            poll_interval=TEST_POLL_INTERVAL,
-            max_attempts=TEST_MAX_ATTEMPTS,
+            waiter_delay=TEST_WAITER_DELAY,
+            waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
         )
 
         generator = eks_delete_fargate_profile_trigger.run()
@@ -228,8 +228,8 @@ class TestEksDeleteFargateProfileTrigger:
             cluster_name=TEST_CLUSTER_IDENTIFIER,
             fargate_profile_name=TEST_FARGATE_PROFILE_NAME,
             aws_conn_id=TEST_AWS_CONN_ID,
-            poll_interval=TEST_POLL_INTERVAL,
-            max_attempts=TEST_MAX_ATTEMPTS,
+            waiter_delay=TEST_WAITER_DELAY,
+            waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
         )
 
         generator = eks_delete_fargate_profile_trigger.run()
@@ -257,8 +257,8 @@ class TestEksDeleteFargateProfileTrigger:
             cluster_name=TEST_CLUSTER_IDENTIFIER,
             fargate_profile_name=TEST_FARGATE_PROFILE_NAME,
             aws_conn_id=TEST_AWS_CONN_ID,
-            poll_interval=TEST_POLL_INTERVAL,
-            max_attempts=2,
+            waiter_delay=TEST_WAITER_DELAY,
+            waiter_max_attempts=2,
         )
         with pytest.raises(AirflowException) as exc:
             generator = eks_delete_fargate_profile_trigger.run()
@@ -289,8 +289,8 @@ class TestEksDeleteFargateProfileTrigger:
             cluster_name=TEST_CLUSTER_IDENTIFIER,
             fargate_profile_name=TEST_FARGATE_PROFILE_NAME,
             aws_conn_id=TEST_AWS_CONN_ID,
-            poll_interval=TEST_POLL_INTERVAL,
-            max_attempts=TEST_MAX_ATTEMPTS,
+            waiter_delay=TEST_WAITER_DELAY,
+            waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
         )
         with pytest.raises(AirflowException) as exc:
             generator = eks_delete_fargate_profile_trigger.run()

@@ -1015,6 +1015,22 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
             id="Airbyte provider docs changed",
         ),
         pytest.param(
+            ("docs/apache-airflow-providers-airbyte/docs.rst", "docs/apache-airflow/docs.rst"),
+            {
+                "docs-filter-list-as-string": "--package-filter apache-airflow "
+                "--package-filter apache-airflow-providers-airbyte "
+                "--package-filter apache-airflow-providers-http",
+            },
+            id="Airbyte provider and airflow core docs changed",
+        ),
+        pytest.param(
+            ("docs/apache-airflow/docs.rst",),
+            {
+                "docs-filter-list-as-string": "--package-filter apache-airflow",
+            },
+            id="Only Airflow docs changed",
+        ),
+        pytest.param(
             ("airflow/providers/celery/file.py",),
             {
                 "docs-filter-list-as-string": "--package-filter apache-airflow "
