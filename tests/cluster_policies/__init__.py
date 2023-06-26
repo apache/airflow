@@ -22,7 +22,7 @@ from datetime import timedelta
 from typing import Callable
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowClusterPolicyViolation
+from airflow.exceptions import AirflowClusterPolicyViolation, AirflowClusterPolicySkipDag
 from airflow.models import DAG, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 
@@ -78,6 +78,9 @@ def dag_policy(dag: DAG):
         raise AirflowClusterPolicyViolation(
             f"DAG {dag.dag_id} has no tags. At least one tag required. File path: {dag.fileloc}"
         )
+    
+    if "only_for_beta" in dag.tags:
+        raise AirflowClusterPolicySkipDag(f"DAG {dag.dag_id} is not loaded on `prod.` Airflow cluster, due to `only_for_beta` tag")
 
 
 # [END example_dag_cluster_policy]
