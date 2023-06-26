@@ -49,6 +49,7 @@ class TestVerticaHookConn:
 
     @patch("airflow.providers.vertica.hooks.vertica.connect")
     def test_get_conn_extra_parameters_no_cast(self, mock_connect):
+        """Test if parameters are correctly passed to connection"""
         extra_dict = self.connection.extra_dejson
         bool_options = ["connection_load_balance", "binary_transfer", "disable_copy_local", "use_prepared_statements"]
         for bo in bool_options:
