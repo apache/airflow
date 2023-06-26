@@ -200,7 +200,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
-                    "run-amazon-tests": "false",
+                    "run-amazon-tests": "true",
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
