@@ -367,7 +367,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "parallel-test-types-list-as-string": "Providers[amazon] Always "
-                "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp, http"
+                "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,http,"
                 "imap,mongo,mysql,postgres,salesforce,ssh] Providers[google]",
             },
             id="Providers tests run including amazon tests if amazon provider files changed",
