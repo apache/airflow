@@ -211,7 +211,7 @@ class AbstractOperator(Templater, DAGNode):
 
         :meta private:
         """
-        if value is True and self.is_teardown is not True:
+        if not self.is_teardown:
             raise ValueError(
                 f"Cannot set task on_failure_fail_dagrun for "
                 f"'{self.task_id}' because it is not a teardown task."
