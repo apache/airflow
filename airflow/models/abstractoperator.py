@@ -171,7 +171,7 @@ class AbstractOperator(Templater, DAGNode):
 
         :meta private:
         """
-        if self.is_teardown is True:
+        if self.is_teardown is True and value is True:
             raise ValueError(f"Cannot mark task '{self.task_id}' as setup; task is already a teardown.")
         self._is_setup = value
 
@@ -191,7 +191,7 @@ class AbstractOperator(Templater, DAGNode):
 
         :meta private:
         """
-        if self.is_setup is True:
+        if self.is_setup is True and value is True:
             raise ValueError(f"Cannot mark task '{self.task_id}' as teardown; task is already a setup.")
         self._is_teardown = value
 
@@ -211,7 +211,7 @@ class AbstractOperator(Templater, DAGNode):
 
         :meta private:
         """
-        if not self.is_teardown:
+        if value is True and self.is_teardown is not True:
             raise ValueError(
                 f"Cannot set task on_failure_fail_dagrun for "
                 f"'{self.task_id}' because it is not a teardown task."
