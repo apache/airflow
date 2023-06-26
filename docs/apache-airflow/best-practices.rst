@@ -416,7 +416,9 @@ you can also raise :class:`~airflow.exceptions.AirflowClusterPolicySkipDag` exce
       """Skipping the DAG with `only_for_beta` tag."""
 
       if "only_for_beta" in dag.tags:
-          raise AirflowClusterPolicySkipDag(f"DAG {dag.dag_id} is not loaded on `prod.` Airflow cluster, due to `only_for_beta` tag")
+          raise AirflowClusterPolicySkipDag(
+              f"DAG {dag.dag_id} is not loaded on the production cluster, due to `only_for_beta` tag."
+          )
 
 The example above, shows the ``dag_policy`` code snippet to skip the DAG depending on the tags it has.
 
