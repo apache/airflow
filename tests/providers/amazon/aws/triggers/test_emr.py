@@ -467,6 +467,7 @@ class TestEmrContainerTrigger:
 
 class TestEmrStepSensorTrigger:
     def test_emr_step_trigger_serialize(self):
+        """Test trigger serialize object and path as expected"""
         emr_trigger = EmrStepSensorTrigger(
             job_flow_id=TEST_JOB_FLOW_ID,
             step_id=STEP_ID,
@@ -484,6 +485,7 @@ class TestEmrStepSensorTrigger:
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.get_waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.async_conn")
     async def test_emr_step_trigger_run(self, mock_async_conn, mock_get_waiter):
+        """Test trigger emit success if condition met"""
         a_mock = mock.MagicMock()
         mock_async_conn.__aenter__.return_value = a_mock
 
@@ -506,6 +508,7 @@ class TestEmrStepSensorTrigger:
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.get_waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.async_conn")
     async def test_emr_trigger_run_multiple_attempts(self, mock_async_conn, mock_get_waiter, mock_sleep):
+        """Test trigger try max attempt if attempt not exceeded and job still running"""
         a_mock = mock.MagicMock()
         mock_async_conn.__aenter__.return_value = a_mock
 
@@ -535,6 +538,7 @@ class TestEmrStepSensorTrigger:
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.get_waiter")
     @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.async_conn")
     async def test_emr_trigger_run_attempts_failed(self, mock_async_conn, mock_get_waiter, mock_sleep):
+        """Test trigger does fail if max attempt exceeded and job still not succeeded"""
         a_mock = mock.MagicMock()
         mock_async_conn.__aenter__.return_value = a_mock
 

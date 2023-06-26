@@ -280,6 +280,7 @@ class TestEmrJobFlowSensor:
 
     @mock.patch("airflow.providers.amazon.aws.sensors.emr.EmrJobFlowSensor.poke")
     def test_sensor_defer(self, mock_poke):
+        """Test the execute method raise TaskDeferred if running sensor in deferrable mode"""
         sensor = EmrJobFlowSensor(
             task_id="test_task",
             poke_interval=0,

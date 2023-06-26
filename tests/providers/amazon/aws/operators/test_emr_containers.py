@@ -150,6 +150,7 @@ class TestEmrContainerOperator:
         EmrContainerHook, "check_query_status", return_value=EmrContainerHook.INTERMEDIATE_STATES[0]
     )
     def test_operator_defer(self, mock_submit_job, mock_check_query_status):
+        """Test the execute method raise TaskDeferred if running operator in deferrable mode"""
         self.emr_container.deferrable = True
         self.emr_container.wait_for_completion = False
         with pytest.raises(TaskDeferred) as exc:
