@@ -37,14 +37,6 @@ from airflow.providers.google.cloud.triggers.gcs import (
 )
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
-# TODO: once we update the minimum Airflow version to 2.7.0
-# remove this try-exception block and
-# inherit BaseDeferrableOperator for operator with deferrable attribute
-try:
-    from airflow.models.basedeferrableoperator import DEFAULT_DEFERRABLE
-except ImportError:
-    DEFAULT_DEFERRABLE = False
-
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -84,7 +76,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         google_cloud_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         retry: Retry = DEFAULT_RETRY,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
 
@@ -216,7 +208,7 @@ class GCSObjectUpdateSensor(BaseSensorOperator):
         ts_func: Callable = ts_function,
         google_cloud_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
 
@@ -306,7 +298,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
         prefix: str,
         google_cloud_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -420,7 +412,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
         allow_delete: bool = True,
         google_cloud_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
 

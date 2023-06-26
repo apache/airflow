@@ -25,14 +25,6 @@ from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
 from airflow.providers.amazon.aws.triggers.ec2 import EC2StateSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
 
-# TODO: once we update the minimum Airflow version to 2.7.0
-# remove this try-exception block and
-# inherit BaseDeferrableOperator for operator with deferrable attribute
-try:
-    from airflow.models.basedeferrableoperator import DEFAULT_DEFERRABLE
-except ImportError:
-    DEFAULT_DEFERRABLE = False
-
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -63,7 +55,7 @@ class EC2InstanceStateSensor(BaseSensorOperator):
         instance_id: str,
         aws_conn_id: str = "aws_default",
         region_name: str | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         **kwargs,
     ):
         if target_state not in self.valid_states:

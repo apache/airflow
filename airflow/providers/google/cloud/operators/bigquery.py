@@ -53,14 +53,6 @@ from airflow.providers.google.cloud.triggers.bigquery import (
 )
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
 
-# TODO: once we update the minimum Airflow version to 2.7.0
-# remove this try-exception block and
-# inherit BaseDeferrableOperator for operator with deferrable attribute
-try:
-    from airflow.models.basedeferrableoperator import DEFAULT_DEFERRABLE
-except ImportError:
-    DEFAULT_DEFERRABLE = False
-
 if TYPE_CHECKING:
     from google.cloud.bigquery import UnknownJob
 
@@ -208,7 +200,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
@@ -328,7 +320,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
@@ -468,7 +460,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
@@ -862,7 +854,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         poll_interval: float = 4.0,
         as_dict: bool = False,
         use_legacy_sql: bool = True,
@@ -2631,7 +2623,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
         cancel_on_kill: bool = True,
         result_retry: Retry = DEFAULT_RETRY,
         result_timeout: float | None = None,
-        deferrable: bool = DEFAULT_DEFERRABLE,
+        deferrable: bool = False,
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
