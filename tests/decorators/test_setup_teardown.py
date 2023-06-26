@@ -1245,7 +1245,7 @@ class TestSetupTearDownTask:
         with dag_maker() as dag:
             task1 = mytask()
             with setuptask() >> teardowntask() as scope:
-                scope.add_ctx_task(task1)
+                scope.add_task_to_context(task1)
 
         assert len(dag.task_group.children) == 3
         assert not dag.task_group.children["setuptask"].upstream_task_ids
@@ -1261,7 +1261,7 @@ class TestSetupTearDownTask:
             teardowntask = BashOperator.as_teardown(task_id="teardowntask", bash_command="echo 1")
             mytask = BashOperator(task_id="mytask", bash_command="echo 1")
             with setuptask >> teardowntask as scope:
-                scope.add_ctx_task(mytask)
+                scope.add_task_to_context(mytask)
 
         assert len(dag.task_group.children) == 3
         assert not dag.task_group.children["setuptask"].upstream_task_ids
@@ -1285,7 +1285,7 @@ class TestSetupTearDownTask:
         with dag_maker() as dag:
             task1 = BashOperator(task_id="mytask", bash_command="echo 1")
             with setuptask() >> teardowntask() as scope:
-                scope.add_ctx_task(task1)
+                scope.add_task_to_context(task1)
 
         assert len(dag.task_group.children) == 3
         assert not dag.task_group.children["setuptask"].upstream_task_ids
@@ -1306,7 +1306,7 @@ class TestSetupTearDownTask:
             setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
             teardowntask = BashOperator.as_teardown(task_id="teardowntask", bash_command="echo 1")
             with setuptask >> teardowntask as scope:
-                scope.add_ctx_task(mytask())
+                scope.add_task_to_context(mytask())
 
         assert len(dag.task_group.children) == 3
         assert not dag.task_group.children["setuptask"].upstream_task_ids
@@ -1315,3 +1315,68 @@ class TestSetupTearDownTask:
         assert dag.task_group.children["mytask"].downstream_task_ids == {"teardowntask"}
         assert dag.task_group.children["teardowntask"].upstream_task_ids == {"mytask", "setuptask"}
         assert not dag.task_group.children["teardowntask"].downstream_task_ids
+
+    def test_cannot_add_task_to_context_outside_the_context_manager(self, dag_maker):
+        task1 = BashOperator(task_id="mytask", bash_command="echo 1")
+
+        @task
+        def mytask2():
+            return 1
+
+        task2 = mytask2()
+
+        with dag_maker():
+            with pytest.raises(
+                AirflowException, match="Cannot add task to context outside the context manager."
+            ):
+                task1.add_task_to_context(task2)
+
+        with dag_maker():
+            with pytest.raises(
+                AirflowException, match="Cannot add task to context outside the context manager."
+            ):
+                task2.add_task_to_context(task1)
+
+    def test_add_tasks_to_context_for_different_context_level(self, dag_maker):
+        @setup
+        def setuptask():
+            print("setup")
+
+        @teardown
+        def teardowntask():
+            print("teardown")
+
+        @task
+        def mytask():
+            return 1
+
+        with dag_maker() as dag:
+            task1 = mytask()
+            setuptask2 = BashOperator.as_setup(task_id="setuptask2", bash_command="echo 1")
+            teardowntask2 = BashOperator.as_teardown(task_id="teardowntask2", bash_command="echo 1")
+            task2 = BashOperator(task_id="mytask2", bash_command="echo 1")
+
+            with setuptask() >> teardowntask() as scope:
+                scope.add_task_to_context(task1)
+                with setuptask2 >> teardowntask2 as scope2:
+                    scope2.add_task_to_context(task2)
+
+        assert len(dag.task_group.children) == 6
+        assert not dag.task_group.children["setuptask"].upstream_task_ids
+        assert dag.task_group.children["setuptask"].downstream_task_ids == {
+            "setuptask2",
+            "mytask",
+            "teardowntask",
+        }
+        assert dag.task_group.children["mytask"].upstream_task_ids == {"setuptask"}
+        assert dag.task_group.children["mytask"].downstream_task_ids == {"teardowntask"}
+        assert dag.task_group.children["teardowntask"].upstream_task_ids == {
+            "mytask",
+            "setuptask",
+            "teardowntask2",
+        }
+        assert dag.task_group.children["setuptask2"].upstream_task_ids == {"setuptask"}
+        assert dag.task_group.children["setuptask2"].downstream_task_ids == {"mytask2", "teardowntask2"}
+        assert dag.task_group.children["mytask2"].upstream_task_ids == {"setuptask2"}
+        assert dag.task_group.children["mytask2"].downstream_task_ids == {"teardowntask2"}
+        assert dag.task_group.children["teardowntask2"].upstream_task_ids == {"mytask2", "setuptask2"}

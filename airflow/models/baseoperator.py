@@ -967,7 +967,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         SetupTeardownContext.set_work_task_roots_and_leaves()
 
     @staticmethod
-    def add_ctx_task(task):
+    def add_task_to_context(task):
+        """Add tasks to context manager."""
+        if not SetupTeardownContext.active:
+            raise AirflowException("Cannot add task to context outside the context manager.")
         from airflow.models.xcom_arg import PlainXComArg
 
         if isinstance(task, PlainXComArg):

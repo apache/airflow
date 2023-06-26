@@ -217,7 +217,10 @@ class XComArg(ResolveMixin, DependencyMixin):
         SetupTeardownContext.set_work_task_roots_and_leaves()
 
     @staticmethod
-    def add_ctx_task(ctx_task: Operator | PlainXComArg):
+    def add_task_to_context(ctx_task: Operator | PlainXComArg):
+        """Add task to context manager."""
+        if not SetupTeardownContext.active:
+            raise AirflowException("Cannot add task to context outside the context manager.")
         if isinstance(ctx_task, PlainXComArg):
             ctx_task = ctx_task.operator
         SetupTeardownContext.update_context_map(ctx_task)
