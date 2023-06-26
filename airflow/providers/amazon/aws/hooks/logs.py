@@ -79,7 +79,7 @@ class AwsLogsHook(AwsBaseHook):
         :param start_time: The time stamp value to start reading the logs from (default: 0).
         :param skip: The number of log entries to skip at the start (default: 0).
             This is for when there are multiple entries at the same timestamp.
-        :param start_from_head: Do not use with False, logs would be retrieved out of order.
+        :param start_from_head: Deprecated. Do not use with False, logs would be retrieved out of order.
             If possible, retrieve logs in one query, or implement pagination yourself.
         :param continuation_token: a token indicating where to read logs from.
             Will be updated as this method reads new logs, to be reused in subsequent calls.
