@@ -82,6 +82,9 @@ class TestVerticaHookConn:
 
     @patch("airflow.providers.vertica.hooks.vertica.connect")
     def test_get_conn_extra_parameters_cast(self, mock_connect):
+        """Test if parameters that can be passed either as string or int/bool
+           like log_level are correctly converted when passed as string 
+           (while test_get_conn_extra_parameters_no_cast tests them passed as int/bool)"""
         import logging
         extra_dict = self.connection.extra_dejson
         bool_options = ["connection_load_balance", "binary_transfer", "disable_copy_local", "use_prepared_statements"]
