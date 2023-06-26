@@ -38,6 +38,7 @@ TASK_ID = "test-gcs-to-bq-operator"
 TEST_EXPLICIT_DEST = "test-project.dataset.table"
 TEST_BUCKET = "test-bucket"
 PROJECT_ID = "test-project"
+OTHER_PROJECT_ID = "other-test-project-id"
 DATASET = "dataset"
 TABLE = "table"
 WRITE_DISPOSITION = "WRITE_TRUNCATE"
@@ -85,6 +86,7 @@ class TestGCSToBigQueryOperator:
             schema_fields=SCHEMA_FIELDS,
             max_id_key=MAX_ID_KEY,
             external_table=True,
+            project_id=OTHER_PROJECT_ID
         )
 
         result = operator.execute(context=MagicMock())
@@ -123,7 +125,7 @@ class TestGCSToBigQueryOperator:
                     "schemaUpdateOptions": [],
                 }
             },
-            project_id=hook.return_value.project_id,
+            project_id=OTHER_PROJECT_ID,
         )
 
     @mock.patch(GCS_TO_BQ_PATH.format("BigQueryHook"))
