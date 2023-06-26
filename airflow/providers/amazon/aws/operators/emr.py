@@ -561,6 +561,10 @@ class EmrContainerOperator(BaseOperator):
             self.tags,
         )
         if self.deferrable:
+            query_status = self.hook.check_query_status(job_id=self.job_id)
+            self.check_failure(query_status)
+            if query_status in EmrContainerHook.SUCCESS_STATES:
+                return self.job_id
             timeout = (
                 timedelta(seconds=self.max_polling_attempts * self.poll_interval)
                 if self.max_polling_attempts
@@ -583,19 +587,22 @@ class EmrContainerOperator(BaseOperator):
                 poll_interval=self.poll_interval,
             )
 
-            if query_status in EmrContainerHook.FAILURE_STATES:
-                error_message = self.hook.get_job_failure_reason(self.job_id)
-                raise AirflowException(
-                    f"EMR Containers job failed. Final state is {query_status}. "
-                    f"query_execution_id is {self.job_id}. Error: {error_message}"
-                )
-            elif not query_status or query_status in EmrContainerHook.INTERMEDIATE_STATES:
+            self.check_failure(query_status)
+            if not query_status or query_status in EmrContainerHook.INTERMEDIATE_STATES:
                 raise AirflowException(
                     f"Final state of EMR Containers job is {query_status}. "
                     f"Max tries of poll status exceeded, query_execution_id is {self.job_id}."
                 )
 
         return self.job_id
+
+    def check_failure(self, query_status):
+        if query_status in EmrContainerHook.FAILURE_STATES:
+            error_message = self.hook.get_job_failure_reason(self.job_id)
+            raise AirflowException(
+                f"EMR Containers job failed. Final state is {query_status}. "
+                f"query_execution_id is {self.job_id}. Error: {error_message}"
+            )
 
     def execute_complete(self, context, event=None):
         if event["status"] != "success":

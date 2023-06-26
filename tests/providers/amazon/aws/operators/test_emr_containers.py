@@ -146,7 +146,10 @@ class TestEmrContainerOperator:
             assert "Max tries of poll status exceeded" in str(ctx.value)
 
     @mock.patch.object(EmrContainerHook, "submit_job")
-    def test_operator_defer(self, mock_submit_job):
+    @mock.patch.object(
+        EmrContainerHook, "check_query_status", return_value=EmrContainerHook.INTERMEDIATE_STATES[0]
+    )
+    def test_operator_defer(self, mock_submit_job, mock_check_query_status):
         self.emr_container.deferrable = True
         self.emr_container.wait_for_completion = False
         with pytest.raises(TaskDeferred) as exc:

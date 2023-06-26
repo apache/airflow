@@ -188,6 +188,7 @@ Wait on an Amazon EMR job flow state
 
 To monitor the state of an EMR job flow you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrJobFlowSensor`.
+
 This sensor can be run in deferrable mode by passing ``deferrable=True`` as a parameter.
 Using ``deferrable`` mode will release worker slots and leads to efficient utilization of
 resources within Airflow cluster.However this mode will need the Airflow triggerer to be
@@ -206,6 +207,7 @@ Wait on an Amazon EMR step state
 
 To monitor the state of an EMR job step you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrStepSensor`.
+
 This sensor can be run in deferrable mode by passing ``deferrable=True`` as a parameter.
 Using ``deferrable`` mode will release worker slots and leads to efficient utilization of
 resources within Airflow cluster.However this mode will need the Airflow triggerer to be

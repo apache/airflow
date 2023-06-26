@@ -502,7 +502,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
     def execute(self, context: Context) -> None:
         if not self.deferrable:
             super().execute(context=context)
-        else:
+        elif not self.poke(context):
             self.defer(
                 timeout=timedelta(seconds=self.poke_interval * self.max_attempts),
                 trigger=EmrTerminateJobFlowTrigger(
@@ -629,7 +629,7 @@ class EmrStepSensor(EmrBaseSensor):
     def execute(self, context: Context) -> None:
         if not self.deferrable:
             super().execute(context=context)
-        else:
+        elif not self.poke(context):
             self.defer(
                 timeout=timedelta(seconds=self.max_attempts * self.poke_interval),
                 trigger=EmrStepSensorTrigger(
