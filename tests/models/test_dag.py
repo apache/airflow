@@ -3541,16 +3541,16 @@ class TestTaskClearingSetupTeardownBehavior:
         """
 
         def teardown_task(task_id):
-            return BaseOperator.as_teardown(task_id=task_id)
+            return BaseOperator(task_id=task_id).as_teardown()
 
         def teardown_task_f(task_id):
-            return BaseOperator.as_teardown(task_id=task_id, on_failure_fail_dagrun=True)
+            return BaseOperator(task_id=task_id).as_teardown(on_failure_fail_dagrun=True)
 
         def work_task(task_id):
             return BaseOperator(task_id=task_id)
 
         def setup_task(task_id):
-            return BaseOperator.as_setup(task_id=task_id)
+            return BaseOperator(task_id=task_id).as_setup()
 
         def make_task(task_id):
             """
@@ -3642,7 +3642,7 @@ class TestTaskClearingSetupTeardownBehavior:
                 with s2 >> t2:
                     BaseOperator(task_id="w2")
                     BaseOperator(task_id="w3")
-        # todo: implement tests
+        # to_do: implement tests
 
     def test_get_flat_relative_ids_with_setup_nested_no_ctx_mgr(self):
         """Let's test some gnarlier cases here"""
@@ -3709,7 +3709,7 @@ class TestTaskClearingSetupTeardownBehavior:
         assert self.cleared_downstream(w1) == {s1, w1, w2, t1}
         assert self.cleared_downstream(w2) == {w2}
         # and if there's a downstream setup, it will be included as well
-        s2 = BaseOperator.as_setup(task_id="s2", dag=dag)
+        s2 = BaseOperator(task_id="s2", dag=dag).as_setup()
         t1 >> s2
         assert w1.get_flat_relative_ids(upstream=False) == {"t1", "w2", "s2"}
         assert self.cleared_downstream(w1) == {s1, w1, w2, t1, s2}
@@ -3755,16 +3755,16 @@ class TestTaskClearingSetupTeardownBehavior:
         """
         dag = DAG(dag_id="test_dag", start_date=pendulum.now())
         with dag:
-            dag_setup = BaseOperator.as_setup(task_id="dag_setup")
-            dag_teardown = BaseOperator.as_teardown(task_id="dag_teardown")
+            dag_setup = BaseOperator(task_id="dag_setup").as_setup()
+            dag_teardown = BaseOperator(task_id="dag_teardown").as_teardown()
             dag_setup >> dag_teardown
             for group_name in ("g1", "g2"):
                 with TaskGroup(group_name) as tg:
-                    group_setup = BaseOperator.as_setup(task_id="group_setup")
+                    group_setup = BaseOperator(task_id="group_setup").as_setup()
                     w1 = BaseOperator(task_id="w1")
                     w2 = BaseOperator(task_id="w2")
                     w3 = BaseOperator(task_id="w3")
-                    group_teardown = BaseOperator.as_teardown(task_id="group_teardown")
+                    group_teardown = BaseOperator(task_id="group_teardown").as_teardown()
                     group_setup >> w1 >> w2 >> w3 >> group_teardown
                     group_setup >> group_teardown
                 dag_setup >> tg >> dag_teardown
@@ -3773,7 +3773,7 @@ class TestTaskClearingSetupTeardownBehavior:
         g2_group_teardown = dag.task_dict["g2.group_teardown"]
 
         with pytest.raises(Exception):
-            # fixme
+            # fix_me
             #   the line `dag_setup >> tg >> dag_teardown` should be equivalent to
             #   dag_setup >> group_setup; w3 >> dag_teardown
             #   i.e. not group_teardown >> dag_teardown

@@ -721,25 +721,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
-    is_setup = False
-    """
-    Whether the operator is a setup task
-
-    :meta private:
-    """
-    is_teardown = False
-    """
-    Whether the operator is a teardown task
-
-    :meta private:
-    """
-    on_failure_fail_dagrun = False
-    """
-    Whether the operator should fail the dagrun on failure
-
-    :meta private:
-    """
-
     def __init__(
         self,
         task_id: str,
@@ -975,22 +956,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         if SetupTeardownContext.active:
             SetupTeardownContext.update_context_map(self)
-
-    @classmethod
-    def as_setup(cls, *args, **kwargs):
-        op = cls(*args, **kwargs)
-        op.is_setup = True
-        return op
-
-    @classmethod
-    def as_teardown(cls, *args, **kwargs):
-        on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
-        if "trigger_rule" in kwargs:
-            raise ValueError("Cannot set trigger rule for teardown tasks.")
-        op = cls(*args, **kwargs, trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
-        op.is_teardown = True
-        op.on_failure_fail_dagrun = on_failure_fail_dagrun
-        return op
 
     def __enter__(self):
         if not self.is_setup and not self.is_teardown:
