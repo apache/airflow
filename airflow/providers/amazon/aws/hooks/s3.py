@@ -83,9 +83,9 @@ def provide_bucket_name(func: T) -> T:
                 bound_args.arguments["bucket_name"] = self.service_config["bucket_name"]
             elif self.conn_config and self.conn_config.schema:
                 warnings.warn(
-                    "s3 conn_type, and the associated schema field, is deprecated."
-                    " Please use aws conn_type instead, and specify `bucket_name`"
-                    " in `service_config.s3` within `extras`.",
+                    "s3 conn_type, and the associated schema field, is deprecated. "
+                    "Please use aws conn_type instead, and specify `bucket_name` "
+                    "in `service_config.s3` within `extras`.",
                     AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
@@ -220,7 +220,7 @@ class S3Hook(AwsBaseHook):
             if not parsed_url.netloc:
                 raise S3HookUriParseFailure(
                     "Please provide a bucket name using a valid format of the form: "
-                    + f'{valid_s3_format} or {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
+                    f'{valid_s3_format} or {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
                 )
 
             bucket_name = parsed_url.netloc
@@ -236,13 +236,13 @@ class S3Hook(AwsBaseHook):
                 key = "/".join(format[1].split("/")[1:])
             else:
                 raise S3HookUriParseFailure(
-                    "Please provide a bucket name using a valid virtually hosted format which should"
-                    + f' be of the form: {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
+                    "Please provide a bucket name using a valid virtually hosted format which should "
+                    f'be of the form: {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
                 )
         else:
             raise S3HookUriParseFailure(
                 "Please provide a bucket name using a valid format of the form: "
-                + f'{valid_s3_format} or {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
+                f'{valid_s3_format} or {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
             )
         return bucket_name, key
 
