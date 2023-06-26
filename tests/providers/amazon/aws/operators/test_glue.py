@@ -207,3 +207,46 @@ class TestGlueJobOperator:
             assert job_run_id == JOB_RUN_ID
 
         mock_log_info.assert_any_call("You can monitor this Glue Job run at: %s", glue_job_run_url)
+
+    @mock.patch.object(GlueJobHook, "conn")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_killed_without_stop_job_run_on_kill(
+        self,
+        _,
+        mock_glue_hook,
+    ):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            aws_conn_id="aws_default",
+            region_name="us-west-2",
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+        )
+        glue.on_kill()
+        mock_glue_hook.batch_stop_job_run.assert_not_called()
+
+    @mock.patch.object(GlueJobHook, "conn")
+    @mock.patch.object(GlueJobHook, "get_conn")
+    def test_killed_with_stop_job_run_on_kill(
+        self,
+        _,
+        mock_glue_hook,
+    ):
+        glue = GlueJobOperator(
+            task_id=TASK_ID,
+            job_name=JOB_NAME,
+            script_location="s3://folder/file",
+            aws_conn_id="aws_default",
+            region_name="us-west-2",
+            s3_bucket="some_bucket",
+            iam_role_name="my_test_role",
+            stop_job_run_on_kill=True,
+        )
+        glue._job_run_id = JOB_RUN_ID
+        glue.on_kill()
+        mock_glue_hook.batch_stop_job_run.assert_called_once_with(
+            JobName=JOB_NAME,
+            JobRunIds=[JOB_RUN_ID],
+        )
