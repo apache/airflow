@@ -98,9 +98,11 @@ class TestAwsS3Hook:
     def test_parse_invalid_s3_url_virtual_hosted_style(self):
         with pytest.raises(
             S3HookUriParseFailure,
-            match="Please provide a bucket name using a valid virtually hosted format which should"
-            + " be of the form: https://bucket-name.s3.region-code.amazonaws.com/key-name but "
-            + 'provided: "https://DOC-EXAMPLE-BUCKET1.us-west-2.amazonaws.com/test.png"',
+            match=(
+                "Please provide a bucket name using a valid virtually hosted format which should "
+                "be of the form: https://bucket-name.s3.region-code.amazonaws.com/key-name but "
+                'provided: "https://DOC-EXAMPLE-BUCKET1.us-west-2.amazonaws.com/test.png"'
+            ),
         ):
             S3Hook.parse_s3_url("https://DOC-EXAMPLE-BUCKET1.us-west-2.amazonaws.com/test.png")
 
