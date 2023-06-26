@@ -432,7 +432,7 @@ class PodManager(LoggingMixin):
                 time.sleep(1)
 
     def fetch_requested_container_logs(
-        self, pod: V1Pod, container_logs: list[str] | str | Literal[True], follow_logs=False
+        self, pod: V1Pod, container_logs: Iterable[str] | str | Literal[True], follow_logs=False
     ) -> list[PodLoggingStatus]:
         """
         Follow the logs of containers in the pod specified by input parameter and publish
