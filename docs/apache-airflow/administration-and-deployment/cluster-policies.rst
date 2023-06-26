@@ -45,7 +45,7 @@ exception to indicate that the dag/task they were passed is not compliant and sh
 
 They can also raise the :class:`~airflow.exceptions.AirflowClusterPolicySkipDag` exception
 when skipping that DAG is needed intentionally. Unlike :class:`~airflow.exceptions.AirflowClusterPolicyViolation`,
-this exception is not displayed on the Airflow web UI (Internally, it's not recorded on ``import_error`` table on metadb.)
+this exception is not displayed on the Airflow web UI (Internally, it's not recorded on ``import_error`` table on meta database.)
 
 Any extra attributes set by a cluster policy take priority over those defined in your DAG file; for example,
 if you set an ``sla`` on your Task in the DAG file, and then your cluster policy also sets an ``sla``, the
