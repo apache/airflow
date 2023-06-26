@@ -723,7 +723,9 @@ class SelectiveChecks:
         ):
             return _ALL_DOCS_LIST
         packages = []
-        if any([file.startswith("airflow/") for file in self._files]):
+        if any(
+            [file.startswith("airflow/") or file.startswith("docs/apache-airflow/") for file in self._files]
+        ):
             packages.append("apache-airflow")
         if any([file.startswith("chart/") or file.startswith("docs/helm-chart") for file in self._files]):
             packages.append("helm-chart")
