@@ -20,7 +20,7 @@ import datetime as dt
 import os
 from unittest import mock
 
-from airflow.providers.amazon.aws.executors.ecs_fargate_executor import (
+from airflow.providers.amazon.aws.executors.ecs import (
     AwsEcsFargateExecutor,
     BotoTaskSchema,
     EcsFargateTask,

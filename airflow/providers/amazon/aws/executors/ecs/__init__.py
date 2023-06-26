@@ -310,7 +310,7 @@ class AwsEcsFargateExecutor(BaseExecutor):
                 "ecs_fargate",
                 "run_task_kwargs",
                 fallback=(
-                    "airflow.providers.amazon.aws.executors.ecs_fargate_conf.ECS_FARGATE_RUN_TASK_KWARGS"
+                    "airflow.providers.amazon.aws.executors.ecs.ecs_fargate_conf.ECS_FARGATE_RUN_TASK_KWARGS"
                 ),
             )
         )
