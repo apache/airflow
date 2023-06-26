@@ -29,7 +29,8 @@ from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
 class TestAthenaTrigger:
     @pytest.mark.asyncio
     @mock.patch.object(AthenaHook, "get_waiter")
-    async def test_run_with_error(self, waiter_mock):
+    @mock.patch.object(AthenaHook, "async_conn")  # LatestBoto step of CI fails without this
+    async def test_run_with_error(self, conn_mock, waiter_mock):
         waiter_mock.side_effect = WaiterError("name", "reason", {})
 
         trigger = AthenaTrigger("query_id", 0, 5, None)
@@ -40,7 +41,8 @@ class TestAthenaTrigger:
 
     @pytest.mark.asyncio
     @mock.patch.object(AthenaHook, "get_waiter")
-    async def test_run_success(self, waiter_mock):
+    @mock.patch.object(AthenaHook, "async_conn")  # LatestBoto step of CI fails without this
+    async def test_run_success(self, conn_mock, waiter_mock):
         waiter_mock().wait = AsyncMock()
         trigger = AthenaTrigger("my_query_id", 0, 5, None)
 
