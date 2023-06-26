@@ -3642,7 +3642,7 @@ class TestTaskClearingSetupTeardownBehavior:
                 with s2 >> t2:
                     BaseOperator(task_id="w2")
                     BaseOperator(task_id="w3")
-        # todo: implement tests
+        # to_do: implement tests
 
     def test_get_flat_relative_ids_with_setup_nested_no_ctx_mgr(self):
         """Let's test some gnarlier cases here"""
@@ -3773,7 +3773,7 @@ class TestTaskClearingSetupTeardownBehavior:
         g2_group_teardown = dag.task_dict["g2.group_teardown"]
 
         with pytest.raises(Exception):
-            # fixme
+            # fix_me
             #   the line `dag_setup >> tg >> dag_teardown` should be equivalent to
             #   dag_setup >> group_setup; w3 >> dag_teardown
             #   i.e. not group_teardown >> dag_teardown

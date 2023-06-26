@@ -127,7 +127,7 @@ class TestPythonPackages:
         "cncf.kubernetes": ["kubernetes", "cryptography"],
         "dask": ["cloudpickle", "distributed"],
         "docker": ["docker"],
-        "elasticsearch": ["elasticsearch", "es.elastic", "elasticsearch_dsl"],
+        "elasticsearch": ["elasticsearch"],
         "google": [
             "OpenSSL",
             # "google.ads", Remove google ads as it is vendored in google provider now
