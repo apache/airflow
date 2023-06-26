@@ -24,7 +24,8 @@ import pytest
 
 from airflow.decorators import dag, task_group as task_group_decorator
 from airflow.exceptions import TaskAlreadyInTaskGroup
-from airflow.models.baseoperator import DAG, BaseOperator
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
