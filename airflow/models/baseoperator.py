@@ -1882,7 +1882,7 @@ class BaseOperatorLink(metaclass=ABCMeta):
 
 
 class BaseDeferrableOperator(BaseOperator):
-    """Base class for deferrable operators.
+    """Abstract base class for deferrable operators.
 
     It comes with a "deferrable" attribute, which should
     be used in the execute method to decide whether to
