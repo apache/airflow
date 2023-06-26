@@ -71,14 +71,12 @@ with DAG(
 
     # by using the decorators, dag_setup and dag_teardown are already marked as setup / teardown
     # now we just need to make sure they are linked directly
-
-    # now we can use context manager to wire these up properly
+    # what we need to do is this::
+    #     s >> t
+    #     s >> dag_normal_task() >> t
+    # but we can use a context manager to make it cleaner
     with s >> t:
         dag_normal_task()
-
-    # the context manager is equivalent to this:
-    # s >> t
-    # s >> dag_normal_task() >> t
 
     @task_group
     def section_1():
