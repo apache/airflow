@@ -76,6 +76,7 @@ class SageMakerTrigger(BaseTrigger):
             "transform": "TransformJobComplete",
             "processing": "ProcessingJobComplete",
             "tuning": "TuningJobComplete",
+            "endpoint": "endpoint_in_service",  # this one is provided by boto
         }[job_type.lower()]
 
     @staticmethod
@@ -85,6 +86,7 @@ class SageMakerTrigger(BaseTrigger):
             "transform": "TransformJobName",
             "processing": "ProcessingJobName",
             "tuning": "HyperParameterTuningJobName",
+            "endpoint": "EndpointName",
         }[job_type.lower()]
 
     @staticmethod
@@ -94,6 +96,7 @@ class SageMakerTrigger(BaseTrigger):
             "transform": "TransformJobStatus",
             "processing": "ProcessingJobStatus",
             "tuning": "HyperParameterTuningJobStatus",
+            "endpoint": "EndpointStatus",
         }[job_type.lower()]
 
     async def run(self):

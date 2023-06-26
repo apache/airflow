@@ -56,6 +56,7 @@ class TestSagemakerTrigger:
             "transform",
             "processing",
             "tuning",
+            "endpoint",
         ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_waiter")
