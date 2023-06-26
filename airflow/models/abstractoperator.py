@@ -224,8 +224,8 @@ class AbstractOperator(Templater, DAGNode):
 
     def as_teardown(
         self,
-        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
         *,
+        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
         on_failure_fail_dagrun=NOTSET,
     ):
         self.is_teardown = True

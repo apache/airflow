@@ -46,7 +46,7 @@ with DAG(
     t1 = task_1()
     t2 = task_2()
     t3 = task_3()
-    t1 >> t2 >> t3.as_teardown(t1)
+    t1 >> t2 >> t3.as_teardown(setups=t1)
 
     # the method `as_teadrown` will mark t3 as teardown, t1 as setup, and arrow t1 >> t3
     # now if you clear t2 (downstream), then t1 will be cleared in addition to t3
@@ -92,7 +92,7 @@ with DAG(
         def hello():
             print("I say hello")
 
-        (s := my_setup()) >> hello() >> my_teardown().as_teardown(s)
+        (s := my_setup()) >> hello() >> my_teardown().as_teardown(setups=s)
 
     # and let's put section 1 inside the "dag setup" and "dag teardown"
     s >> section_1() >> t

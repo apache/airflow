@@ -34,7 +34,7 @@ with DAG(
     root_normal = BashOperator(task_id="normal", bash_command="echo 'I am just a normal task'")
     root_teardown = BashOperator(
         task_id="root_teardown", bash_command="echo 'Goodbye from root_teardown'"
-    ).as_teardown(root_setup)
+    ).as_teardown(setups=root_setup)
     root_setup >> root_normal >> root_teardown
     with TaskGroup("section_1") as section_1:
         inner_setup = BashOperator(
@@ -43,6 +43,6 @@ with DAG(
         inner_normal = BashOperator(task_id="normal", bash_command="echo 'I am just a normal task'")
         inner_teardown = BashOperator(
             task_id="taskgroup_teardown", bash_command="echo 'Hello from taskgroup_teardown'"
-        ).as_teardown(inner_setup)
+        ).as_teardown(setups=inner_setup)
         inner_setup >> inner_normal >> inner_teardown
     root_normal >> section_1

@@ -73,7 +73,7 @@ def test_as_teardown(dag_maker, setup_type, work_type, teardown_type):
     assert get_task_attr(t1, "upstream_task_ids") == {"w1"}
 
     # now when we use as_teardown, s1 should be setup, t1 should be teardown, and we should have s1 >> t1
-    t1.as_teardown(s1)
+    t1.as_teardown(setups=s1)
     assert cleared_tasks(dag, "w1") == {"s1", "w1", "t1"}
     assert get_task_attr(t1, "is_teardown") is True
     assert get_task_attr(s1, "is_setup") is True
@@ -103,7 +103,7 @@ def test_as_teardown_oneline(dag_maker, setup_type, work_type, teardown_type):
         assert cleared_tasks(dag, get_task_attr(task_, "task_id")) == {get_task_attr(task_, "task_id")}
 
     # now set the deps in one line
-    s1 >> w1 >> t1.as_teardown(s1)
+    s1 >> w1 >> t1.as_teardown(setups=s1)
 
     # verify resulting configuration
     # should be equiv to the following:
@@ -210,7 +210,7 @@ def test_no_setup_or_teardown_for_mapped_operator(dag_maker):
     # combining setup and teardown with vanilla mapped task is fine
     with dag_maker():
         s1 = BaseOperator(task_id="s1").as_setup()
-        t1 = BaseOperator(task_id="t1").as_teardown(s1)
+        t1 = BaseOperator(task_id="t1").as_teardown(setups=s1)
         added_vals = add_one.expand(x=[1, 2, 3])
         print_task_task = print_task(added_vals)
         s1 >> added_vals

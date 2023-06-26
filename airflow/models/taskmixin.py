@@ -77,8 +77,8 @@ class DependencyMixin:
 
     def as_teardown(
         self,
-        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
         *,
+        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
         on_failure_fail_dagrun=NOTSET,
     ) -> DependencyMixin:
         """Mark a task as teardown and set its setups as direct relatives."""

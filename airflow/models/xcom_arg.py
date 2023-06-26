@@ -329,8 +329,8 @@ class PlainXComArg(XComArg):
 
     def as_teardown(
         self,
-        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
         *,
+        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
         on_failure_fail_dagrun=NOTSET,
     ):
         for operator, _ in self.iter_references():
