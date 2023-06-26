@@ -48,9 +48,11 @@ with DAG(
     t3 = task_3()
     t1 >> t2 >> t3.as_teardown(t1)
 
+    # the method `as_teadrown` will mark t3 as teardown, t1 as setup, and arrow t1 >> t3
     # now if you clear t2 (downstream), then t1 will be cleared in addition to t3
 
-    # it's also possible to mark a task as setup or teardown when you define it
+    # it's also possible to use a decorator to mark a task as setup or
+    # teardown when you define it. see below.
 
     @setup
     def dag_setup():
@@ -64,14 +66,19 @@ with DAG(
     def dag_normal_task():
         print("I am just a normal task")
 
-    # since we already marked these as setup / teardown, we just need to make sure they are linked
-    # here we make sure setup and teardown are connected.
-    # if not using `as_teardown` we must arrow them explicitly
     s = dag_setup()
     t = dag_teardown()
-    s >> t
-    # and here we add our "work" task a.k.a. normal task.
-    s >> dag_normal_task() >> t
+
+    # by using the decorators, dag_setup and dag_teardown are already marked as setup / teardown
+    # now we just need to make sure they are linked directly
+
+    # now we can use context manager to wire these up properly
+    with s >> t:
+        dag_normal_task()
+
+    # the context manager is equivalent to this:
+    # s >> t
+    # s >> dag_normal_task() >> t
 
     @task_group
     def section_1():
