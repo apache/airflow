@@ -396,7 +396,7 @@ On the other hand, without the ``teardown`` task, the ``watcher`` task will not 
 
 
 Using AirflowClusterPolicySkipDag exception in cluster policies to skip specific DAGs
-----------------------------
+-------------------------------------------------------------------------------------
 
 .. versionadded:: 2.7
 
