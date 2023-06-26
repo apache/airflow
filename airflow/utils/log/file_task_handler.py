@@ -199,7 +199,7 @@ class FileTaskHandler(logging.Handler):
         return "identifier" in inspect.signature(self.set_context).parameters
 
     def _ship_message(self, *, ti: TaskInstanceKey | TaskInstance, identifier: str, message: str, level: int):
-        """For sending exception messages to task logs visible in UI"""
+        """For sending exception messages to task logs visible in UI."""
         if not self._supports_arbitrary_ship:
             return
         h = copy(self)
@@ -244,6 +244,8 @@ class FileTaskHandler(logging.Handler):
 
     def _render_filename(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
         """Returns the worker log filename."""
+        from airflow.models.taskinstance import TaskInstance
+
         with create_session() as session:
             ti = TaskInstance.from_ti(ti, session=session)
             dag_run = ti.get_dagrun(session=session)
