@@ -211,19 +211,10 @@ class XComArg(ResolveMixin, DependencyMixin):
         if not self.operator.is_setup and not self.operator.is_teardown:
             raise AirflowException("Only setup/teardown tasks can be used as context managers.")
         SetupTeardownContext.push_setup_teardown_task(self.operator)
-        return self
+        return SetupTeardownContext
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         SetupTeardownContext.set_work_task_roots_and_leaves()
-
-    @staticmethod
-    def add_task_to_context(ctx_task: Operator | PlainXComArg):
-        """Add task to context manager."""
-        if not SetupTeardownContext.active:
-            raise AirflowException("Cannot add task to context outside the context manager.")
-        if isinstance(ctx_task, PlainXComArg):
-            ctx_task = ctx_task.operator
-        SetupTeardownContext.update_context_map(ctx_task)
 
 
 class PlainXComArg(XComArg):

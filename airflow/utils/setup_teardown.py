@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow import AirflowException
+
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
 
@@ -32,6 +34,17 @@ class SetupTeardownContext:
     _previous_context_managed_teardown_task: list[Operator | list[Operator]] = []
     active: bool = False
     context_map: dict[Operator | tuple[Operator], list[Operator]] = {}
+
+    @staticmethod
+    def add_task(task):
+        """Add task to context manager."""
+        from airflow.models.xcom_arg import PlainXComArg
+
+        if not SetupTeardownContext.active:
+            raise AirflowException("Cannot add task to context outside the context manager.")
+        if isinstance(task, PlainXComArg):
+            task = task.operator
+        SetupTeardownContext.update_context_map(task)
 
     @classmethod
     def push_context_managed_setup_task(cls, task: Operator | list[Operator]):
