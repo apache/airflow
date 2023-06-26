@@ -73,7 +73,7 @@ def example_task_policy(task: BaseOperator):
 
 # [START example_dag_cluster_policy]
 def dag_policy(dag: DAG):
-    """Ensure that DAG has at least one tag"""
+    """Ensure that DAG has at least one tag and skip the DAG with `only_for_beta` tag."""
     if not dag.tags:
         raise AirflowClusterPolicyViolation(
             f"DAG {dag.dag_id} has no tags. At least one tag required. File path: {dag.fileloc}"
