@@ -108,7 +108,7 @@ class SageMakerTrigger(BaseTrigger):
             await async_wait(
                 waiter=waiter,
                 waiter_delay=self.poke_interval,
-                max_attempts=self.max_attempts,
+                waiter_max_attempts=self.max_attempts,
                 args={self._get_waiter_arg_name(self.job_type): self.job_name},
                 failure_message=f"Error while waiting for {self.job_type} job",
                 status_message=f"{self.job_type} job not done yet",
