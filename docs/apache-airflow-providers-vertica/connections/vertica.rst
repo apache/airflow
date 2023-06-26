@@ -68,7 +68,6 @@ Extra (optional)
 
          {
             "connection_load_balance": True,
-            "log_path": "/tmp/vertica.log",
             "log_level": "error",
             "ssl": True
          }
