@@ -47,7 +47,7 @@ class VerticaHook(DbApiHook):
             conn_config["port"] = int(conn.port)
 
         bool_options = ["connection_load_balance", "binary_transfer", "disable_copy_local", "request_complex_types", "use_prepared_statements"]
-        std_options = ["session_label", "backup_server_node", "kerberos_host_name", "kerberos_service_name", "log_path", "unicode_error", "workload", "ssl"]
+        std_options = ["session_label", "backup_server_node", "kerberos_host_name", "kerberos_service_name", "unicode_error", "workload", "ssl"]
         conn_extra = conn.extra_dejson
 
         for bo in bool_options:
@@ -65,6 +65,7 @@ class VerticaHook(DbApiHook):
             import logging
 
             log_lvl = conn_extra["log_level"]
+            conn_config["log_path"] = None
             if isinstance(log_lvl, str):
                 log_lvl = log_lvl.lower()
                 if log_lvl == "critical":

@@ -51,8 +51,7 @@ Extra (optional)
       * ``disable_copy_local``: See `COPY FROM LOCAL <https://github.com/vertica/vertica-python#method-2-copy-from-local-sql-with-cursorexecute>`_.
       * ``kerberos_host_name``: See `Kerberos Authentication <https://github.com/vertica/vertica-python#kerberos-authentication>`_.
       * ``kerberos_service_name``: See `Kerberos Authentication <https://github.com/vertica/vertica-python#kerberos-authentication>`_.
-      * ``log_level``: See `Logging <https://github.com/vertica/vertica-python#logging>`_.
-      * ``log_path``: See `Logging <https://github.com/vertica/vertica-python#logging>`_.
+      * ``log_level``: Enable vertica client logging. Traces will be visible in tasks log. See `Logging <https://github.com/vertica/vertica-python#logging>`_.
       * ``request_complex_types:``: See `SQL Data conversion to Python objects <https://github.com/vertica/vertica-python#sql-data-conversion-to-python-objects>`_.
       * ``session_label``: Sets a label for the connection on the server.
       * ``ssl``: Support only True or False. See `TLS/SSL <https://github.com/vertica/vertica-python#tlsssl>`_.

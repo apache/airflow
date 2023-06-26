@@ -55,7 +55,7 @@ class TestVerticaHookConn:
             extra_dict.update({ bo: True})
         extra_dict.update({ "request_complex_types": False})
 
-        std_options = ["session_label", "kerberos_host_name", "kerberos_service_name", "log_path", "unicode_error", "workload", "ssl"]
+        std_options = ["session_label", "kerberos_host_name", "kerberos_service_name", "unicode_error", "workload", "ssl"]
         for so in std_options:
             extra_dict.update({ so: so})
         bck_server_node = ["1.2.3.4", "4.3.2.1"]
@@ -78,6 +78,7 @@ class TestVerticaHookConn:
         assert bck_server_node[1] in kwargs["backup_server_node"]
         assert kwargs["connection_timeout"] == conn_timeout
         assert kwargs["log_level"] == log_lvl
+        assert kwargs["log_path"] is None
 
     @patch("airflow.providers.vertica.hooks.vertica.connect")
     def test_get_conn_extra_parameters_cast(self, mock_connect):
@@ -96,6 +97,7 @@ class TestVerticaHookConn:
             assert kwargs[bo] == True
         assert kwargs["request_complex_types"] == False
         assert kwargs["log_level"] == logging.ERROR
+        assert kwargs["log_path"] is None
 
 class TestVerticaHook:
     def setup_method(self):
