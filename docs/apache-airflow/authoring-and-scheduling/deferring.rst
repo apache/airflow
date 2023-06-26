@@ -55,6 +55,7 @@ Writing a deferrable operator takes a bit more work. There are some main points 
 * Your Operator will be stopped and removed from its worker while deferred, and no state will persist automatically. You can persist state by asking Airflow to resume you at a certain method or pass certain kwargs, but that's it.
 * You can defer multiple times, and you can defer before/after your Operator does significant work, or only defer if certain conditions are met (e.g. a system does not have an immediate answer). Deferral is entirely under your control.
 * Any Operator can defer; no special marking on its class is needed, and it's not limited to Sensors.
+* In order for any changes to a Trigger to be reflected, the *triggerer* needs to be restarted whenever the Trigger is modified.
 
 
 Triggering Deferral
