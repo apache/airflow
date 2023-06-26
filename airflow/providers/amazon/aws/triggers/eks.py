@@ -222,7 +222,7 @@ class EksNodegroupTrigger(BaseTrigger):
             waiter = client.get_waiter(self.waiter_name)
             await async_wait(
                 waiter=waiter,
-                max_attempts=int(self.waiter_max_attempts),
+                waiter_max_attempts=int(self.waiter_max_attempts),
                 waiter_delay=int(self.waiter_delay),
                 args={"clusterName": self.cluster_name, "nodegroupName": self.nodegroup_name},
                 failure_message="Error checking nodegroup",
