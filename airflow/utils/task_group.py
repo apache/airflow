@@ -365,9 +365,22 @@ class TaskGroup(DAGNode):
         Returns a generator of tasks that are leaf tasks, i.e. those with no downstream
         dependencies within the TaskGroup.
         """
+
+        def recurse_for_first_non_setup_teardown(group, task):
+            for upstream_task in task.upstream_list:
+                if not group.has_task(upstream_task):
+                    continue
+                if upstream_task.is_setup or upstream_task.is_teardown:
+                    yield from recurse_for_first_non_setup_teardown(group, upstream_task)
+                else:
+                    yield upstream_task
+
         for task in self:
-            if not any(self.has_task(child) for child in task.get_direct_relatives(upstream=False)):
-                yield task
+            if not any(self.has_task(x) for x in task.get_direct_relatives(upstream=False)):
+                if not (task.is_teardown or task.is_setup):
+                    yield task
+                else:
+                    yield from recurse_for_first_non_setup_teardown(self, task)
 
     def child_id(self, label):
         """
