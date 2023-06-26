@@ -480,7 +480,7 @@ class DagBag(LoggingMixin):
 
             for task in dag.tasks:
                 settings.task_policy(task)
-        except AirflowClusterPolicyViolation:
+        except (AirflowClusterPolicyViolation, AirflowClusterPolicySkipDag):
             raise
         except Exception as e:
             self.log.exception(e)
