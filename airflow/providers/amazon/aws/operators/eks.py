@@ -98,7 +98,7 @@ def _create_compute(
             wait(
                 waiter=eks_hook.conn.get_waiter("nodegroup_active"),
                 waiter_delay=waiter_delay,
-                max_attempts=waiter_max_attempts,
+                waiter_max_attempts=waiter_max_attempts,
                 args={"clusterName": cluster_name, "nodegroupName": nodegroup_name},
                 failure_message="Nodegroup creation failed",
                 status_message="Nodegroup status is",
@@ -122,7 +122,7 @@ def _create_compute(
             wait(
                 waiter=eks_hook.conn.get_waiter("fargate_profile_active"),
                 waiter_delay=waiter_delay,
-                max_attempts=waiter_max_attempts,
+                waiter_max_attempts=waiter_max_attempts,
                 args={"clusterName": cluster_name, "fargateProfileName": fargate_profile_name},
                 failure_message="Fargate profile creation failed",
                 status_message="Fargate profile status is",
