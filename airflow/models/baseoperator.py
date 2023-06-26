@@ -114,9 +114,6 @@ T = TypeVar("T", bound=FunctionType)
 logger = logging.getLogger("airflow.models.baseoperator.BaseOperator")
 
 
-DEFAULT_DEFERRABLE: bool = conf.getboolean("operators", "default_deferrable")
-
-
 def parse_retries(retries: Any) -> int | None:
     if retries is None or isinstance(retries, int):
         return retries
@@ -1879,21 +1876,3 @@ class BaseOperatorLink(metaclass=ABCMeta):
         :param ti_key: TaskInstance ID to return link for.
         :return: link to external system
         """
-
-
-class BaseDeferrableOperator(BaseOperator):
-    """Abstract base class for deferrable operators.
-
-    It comes with a "deferrable" attribute, which should
-    be used in the execute method to decide whether to
-    run this task in deferrable mode.
-
-    One can configure all tasks to inherit this BaseDeferrableOperator
-    through DEFAULT_DEFERRABLE, which can be configured through airflow.cfg.
-
-    :param deferrable: Run operator in the deferrable mode
-    """
-
-    def __init__(self, *, deferrable: bool = DEFAULT_DEFERRABLE, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.deferrable = deferrable

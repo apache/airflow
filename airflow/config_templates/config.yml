@@ -1307,7 +1307,7 @@ operators:
       default: "airflow"
     default_deferrable:
       description: |
-        The default value of attribute "deferrable" in BaseDeferrableOperator.
+        The default value of attribute "deferrable" in DeferrableMixin.
       version_added: ~
       type: boolean
       example: ~
