@@ -564,7 +564,10 @@ class TestBaseOperator:
         with pytest.raises(ValueError, match="Labels are not supported"):
             chain_linear(t1, Label("hi"), t2)
 
-        with pytest.raises(ValueError, match="length 1"):
+        with pytest.raises(ValueError, match="nothing to do"):
+            chain_linear()
+
+        with pytest.raises(ValueError, match="Did you forget to expand"):
             chain_linear(t1)
 
     def test_chain_not_support_type(self):
@@ -916,6 +919,7 @@ def test_render_template_fields_logging(
     caplog, monkeypatch, task, context, expected_exception, expected_rendering, expected_log, not_expected_log
 ):
     """Verify if operator attributes are correctly templated."""
+
     # Trigger templating and verify results
     def _do_render():
         task.render_template_fields(context=context)
