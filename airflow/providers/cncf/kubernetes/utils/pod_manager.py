@@ -77,7 +77,7 @@ class PodPhase:
 
 
 class ContainerNames:
-    """Possible container names for airflow"""
+    """Possible container names for airflow."""
 
     XCOM_CONTAINER = "airflow-xcom-sidecar"
 
@@ -599,7 +599,7 @@ class PodManager(LoggingMixin):
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def get_container_names(self, pod: V1Pod) -> list[str]:
-        """Return container names from the POD except for the airflow-xcom-sidecar container"""
+        """Return container names from the POD except for the airflow-xcom-sidecar container."""
         containers = []
         pod_info = self.read_pod(pod)
         for container_spec in pod_info.spec.containers:
