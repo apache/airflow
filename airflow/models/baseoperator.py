@@ -37,6 +37,7 @@ from typing import (
     Callable,
     ClassVar,
     Collection,
+    Generator,
     Iterable,
     List,
     Sequence,
@@ -1860,8 +1861,11 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     :param elements: a list of operators / lists of operators
     """
-    if len(elements) == 1:
-        raise ValueError("elements has length 1; did you forget to expand your list with `*`?")
+    if isinstance(elements, Generator) or len(elements) == 1:
+        raise ValueError(
+            "Either only one task or one collection of tasks was passed; "
+            "did you forget to expand it with `*`?"
+        )
     prev_elem = None
     for curr_elem in elements:
         if isinstance(curr_elem, EdgeModifier):
