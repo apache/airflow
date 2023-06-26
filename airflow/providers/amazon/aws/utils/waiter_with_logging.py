@@ -32,7 +32,7 @@ from airflow.exceptions import AirflowException
 def wait(
     waiter: Waiter,
     waiter_delay: int,
-    max_attempts: int,
+    waiter_max_attempts: int,
     args: dict[str, Any],
     failure_message: str,
     status_message: str,
@@ -45,7 +45,7 @@ def wait(
 
     :param waiter: The boto waiter to use.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
-    :param max_attempts: The maximum number of attempts to be made.
+    :param waiter_max_attempts: The maximum number of attempts to be made.
     :param args: The arguments to pass to the waiter.
     :param failure_message: The message to log if a failure state is reached.
     :param status_message: The message logged when printing the status of the service.
@@ -72,7 +72,7 @@ def wait(
                 raise AirflowException(f"{failure_message}: {error}")
 
             log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, error.last_response))
-            if attempt >= max_attempts:
+            if attempt >= waiter_max_attempts:
                 raise AirflowException("Waiter error: max attempts reached")
 
             time.sleep(waiter_delay)
@@ -81,7 +81,7 @@ def wait(
 async def async_wait(
     waiter: Waiter,
     waiter_delay: int,
-    max_attempts: int,
+    waiter_max_attempts: int,
     args: dict[str, Any],
     failure_message: str,
     status_message: str,
@@ -94,7 +94,7 @@ async def async_wait(
 
     :param waiter: The boto waiter to use.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
-    :param max_attempts: The maximum number of attempts to be made.
+    :param waiter_max_attempts: The maximum number of attempts to be made.
     :param args: The arguments to pass to the waiter.
     :param failure_message: The message to log if a failure state is reached.
     :param status_message: The message logged when printing the status of the service.
@@ -121,7 +121,7 @@ async def async_wait(
                 raise AirflowException(f"{failure_message}: {error}")
 
             log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, error.last_response))
-            if attempt >= max_attempts:
+            if attempt >= waiter_max_attempts:
                 raise AirflowException("Waiter error: max attempts reached")
 
             await asyncio.sleep(waiter_delay)
