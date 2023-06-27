@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
