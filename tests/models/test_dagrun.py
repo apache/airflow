@@ -984,7 +984,7 @@ def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type,
     assert len(tis) == expected_tis
 
     Stats_incr.assert_any_call(
-        "task_instance_created-EmptyOperator", expected_tis, tags={"dag_id": "test", "run_type": run_type}
+        "task_instance_created_EmptyOperator", expected_tis, tags={"dag_id": "test", "run_type": run_type}
     )
     Stats_incr.assert_any_call(
         "task_instance_created",

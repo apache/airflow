@@ -960,7 +960,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls.deserialize(v)
             elif k in ("outlets", "inlets"):
                 v = cls.deserialize(v)
-
+            elif k == "on_failure_fail_dagrun":
+                k = "_on_failure_fail_dagrun"
             # else use v as it is
 
             setattr(op, k, v)

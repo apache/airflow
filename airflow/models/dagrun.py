@@ -1187,7 +1187,7 @@ class DagRun(Base, LoggingMixin):
                 session.bulk_save_objects(tasks)
 
             for task_type, count in created_counts.items():
-                Stats.incr(f"task_instance_created-{task_type}", count, tags=self.stats_tags)
+                Stats.incr(f"task_instance_created_{task_type}", count, tags=self.stats_tags)
                 # Same metric with tagging
                 Stats.incr("task_instance_created", count, tags={**self.stats_tags, "task_type": task_type})
             session.flush()

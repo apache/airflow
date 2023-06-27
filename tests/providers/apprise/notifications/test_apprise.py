@@ -34,7 +34,7 @@ class TestAppriseNotifier:
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
         notifier = send_apprise_notification(body="DISK at 99%", notify_type=NotifyType.FAILURE)
-        notifier(context={"dag": dag})
+        notifier({"dag": dag})
         mock_apprise_hook.return_value.notify.assert_called_once_with(
             body="DISK at 99%",
             notify_type=NotifyType.FAILURE,
@@ -51,7 +51,7 @@ class TestAppriseNotifier:
         with dag_maker("test_notifier") as dag:
             EmptyOperator(task_id="task1")
         notifier = AppriseNotifier(body="DISK at 99%", notify_type=NotifyType.FAILURE)
-        notifier(context={"dag": dag})
+        notifier({"dag": dag})
         mock_apprise_hook.return_value.notify.assert_called_once_with(
             body="DISK at 99%",
             notify_type=NotifyType.FAILURE,
