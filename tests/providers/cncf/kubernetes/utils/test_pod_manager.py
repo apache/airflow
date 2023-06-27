@@ -359,9 +359,9 @@ class TestPodManager:
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_completed")
     def test_await_container_completion(self, container_completed):
         mock_pod = MagicMock()
-        container_completed.return_value = True
+        container_completed.return_value = None
         status_completed = self.pod_manager.await_container_completion(pod=mock_pod, container_name="base")
-        assert status_completed is True
+        assert status_completed is None
 
     @mock.patch("pendulum.now")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
