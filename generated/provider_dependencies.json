@@ -301,6 +301,7 @@
       "aiohttp>=3.6.3, <4",
       "apache-airflow-providers-common-sql>=1.5.0",
       "apache-airflow>=2.5.0",
+      "databricks-sdk>=0.1.11, <1.0.0",
       "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
       "requests>=2.27,<3"
     ],
