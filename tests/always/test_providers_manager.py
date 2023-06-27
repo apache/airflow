@@ -36,6 +36,11 @@ class TestProviderManager:
     def inject_fixtures(self, caplog):
         self._caplog = caplog
 
+    @pytest.fixture(autouse=True, scope="function")
+    def clean(self):
+        """The tests depend on a clean state of a ProvidersManager."""
+        ProvidersManager().__init__()
+
     def test_providers_are_loaded(self):
         with self._caplog.at_level(logging.WARNING):
             provider_manager = ProvidersManager()
