@@ -276,6 +276,42 @@ class TestCliTasks:
             external_executor_id=None,
         )
 
+    @pytest.mark.parametrize(
+        "from_db",
+        [True, False],
+    )
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJobRunner")
+    def test_run_with_read_from_db(self, mock_local_job_runner, caplog, from_db):
+        """
+        Test that we can run with read from db
+        """
+        task0_id = self.dag.task_ids[0]
+        args0 = [
+            "tasks",
+            "run",
+            "--ignore-all-dependencies",
+            "--local",
+            self.dag_id,
+            task0_id,
+            self.run_id,
+        ] + (["--read-from-db"] if from_db else [])
+        mock_local_job_runner.return_value.job_type = "LocalTaskJob"
+        task_command.task_run(self.parser.parse_args(args0))
+        mock_local_job_runner.assert_called_once_with(
+            job=mock.ANY,
+            task_instance=mock.ANY,
+            mark_success=False,
+            ignore_all_deps=True,
+            ignore_depends_on_past=False,
+            wait_for_past_depends_before_skipping=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
+            pickle_id=None,
+            pool=None,
+            external_executor_id=None,
+        )
+        assert ("Filling up the DagBag from" in caplog.text) != from_db
+
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJobRunner")
     def test_run_raises_when_theres_no_dagrun(self, mock_local_job):
         """

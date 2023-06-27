@@ -32,7 +32,13 @@ class TestEmrHook:
     def test_service_waiters(self):
         hook = EmrHook(aws_conn_id=None)
         official_waiters = hook.conn.waiter_names
-        custom_waiters = ["job_flow_waiting", "job_flow_terminated", "notebook_running", "notebook_stopped"]
+        custom_waiters = [
+            "job_flow_waiting",
+            "job_flow_terminated",
+            "notebook_running",
+            "notebook_stopped",
+            "step_wait_for_terminal",
+        ]
 
         assert sorted(hook.list_waiters()) == sorted([*official_waiters, *custom_waiters])
 

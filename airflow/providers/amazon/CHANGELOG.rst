@@ -17,12 +17,12 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog
----------
+Changelog for ``apache-airflow-providers-amazon``
+-------------------------------------------------
 
 8.2.0
 .....
@@ -40,7 +40,6 @@ Features
 * ``Add deferrable mode for S3KeySensor (#31018)``
 * ``Add Deferrable mode to Emr Add Steps operator (#30928)``
 * ``Add deferrable mode in Redshift delete cluster (#30244)``
-* ``Add discoverability for triggers in provider.yaml (#31576)``
 * ``Add deferrable mode to AWS glue operators (Job & Crawl) (#30948)``
 * ``Add deferrable param in BatchOperator (#30865)``
 * ``Add Deferrable Mode to RedshiftCreateClusterSnapshotOperator (#30856)``
@@ -83,7 +82,7 @@ Misc
    * ``Replace spelling directive with spelling:word-list (#31752)``
    * ``Remove aws unused code (#31610)``
    * ``Add note about dropping Python 3.7 for providers (#32015)``
-
+   * ``Add discoverability for triggers in provider.yaml (#31576)``
 
 8.1.0
 .....

@@ -26,7 +26,7 @@
 {{- $tolerations := or .Values.redis.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.redis.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "localPodSecurityContext" .Values.redis }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.redis) }}
+{{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.redis }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:

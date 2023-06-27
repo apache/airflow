@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import time
-from collections import deque
 from datetime import datetime, timedelta
 from logging import Logger
 from threading import Event, Thread
@@ -62,7 +61,7 @@ class AwsTaskLogFetcher(Thread):
             time.sleep(self.fetch_interval.total_seconds())
             log_events = self._get_log_events(continuation_token)
             for log_event in log_events:
-                self.logger.info(self._event_to_str(log_event))
+                self.logger.info(self.event_to_str(log_event))
 
     def _get_log_events(self, skip_token: AwsLogsHook.ContinuationToken | None = None) -> Generator:
         if skip_token is None:
@@ -87,14 +86,26 @@ class AwsTaskLogFetcher(Thread):
             self.logger.warning("ConnectionClosedError on retrieving Cloudwatch log events", error)
             yield from ()
 
-    def _event_to_str(self, event: dict) -> str:
+    @staticmethod
+    def event_to_str(event: dict) -> str:
         event_dt = datetime.utcfromtimestamp(event["timestamp"] / 1000.0)
         formatted_event_dt = event_dt.strftime("%Y-%m-%d %H:%M:%S,%f")[:-3]
         message = event["message"]
         return f"[{formatted_event_dt}] {message}"
 
     def get_last_log_messages(self, number_messages) -> list:
-        return [log["message"] for log in deque(self._get_log_events(), maxlen=number_messages)]
+        """
+        Gets the last logs messages in one single request, so restrictions apply:
+         - if logs are too old, the response will be empty
+         - the max number of messages we can retrieve is constrained by cloudwatch limits (10,000).
+        """
+        response = self.hook.conn.get_log_events(
+            logGroupName=self.log_group,
+            logStreamName=self.log_stream_name,
+            startFromHead=False,
+            limit=number_messages,
+        )
+        return [log["message"] for log in response["events"]]
 
     def get_last_log_message(self) -> str | None:
         try:

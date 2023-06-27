@@ -18,14 +18,14 @@
 import sys
 from collections import namedtuple
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, Dict, Tuple
+from typing import TYPE_CHECKING, Dict, Tuple, Union
 
 import pytest
 
 from airflow import PY38, PY311
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import DictOfListsExpandInput
@@ -802,6 +802,49 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
     assert len(decision.schedulable_tis) == 1  # "down"
     decision.schedulable_tis[0].run(session=session)
     assert result == "'example' None"
+
+
+@pytest.mark.parametrize("multiple_outputs", [True, False])
+def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, session, multiple_outputs):
+    from airflow.exceptions import AirflowSkipException
+    from airflow.utils.trigger_rule import TriggerRule
+
+    result = None
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task()
+        def up1() -> str:
+            return "example"
+
+        @dag.task(multiple_outputs=multiple_outputs)
+        def up2(x) -> Union[dict, None]:
+            if x == 2:
+                return {"x": "example"}
+            raise AirflowSkipException()
+
+        @dag.task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+        def down(a, b):
+            nonlocal result
+            result = f"{a!r} {b!r}"
+
+        down(up1(), up2(1)["x"])
+
+    dr = dag_maker.create_dagrun()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 2  # "up1" and "up2"
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "down"
+    if multiple_outputs:
+        decision.schedulable_tis[0].run(session=session)
+        assert result == "'example' None"
+    else:
+        with pytest.raises(XComNotFound):
+            decision.schedulable_tis[0].run(session=session)
 
 
 @pytest.mark.filterwarnings("error")

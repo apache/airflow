@@ -26,7 +26,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from airflow_breeze.utils.host_info_utils import Architecture
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DEPENDENCIES_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, PROVIDER_DEPENDENCIES_JSON_FILE_PATH
 
 RUNS_ON_PUBLIC_RUNNER = "ubuntu-22.04"
 RUNS_ON_SELF_HOSTED_RUNNER = "self-hosted"
@@ -146,7 +146,7 @@ ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
 
 
 def get_available_documentation_packages(short_version=False) -> list[str]:
-    provider_names: list[str] = list(json.loads(DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
+    provider_names: list[str] = list(json.loads(PROVIDER_DEPENDENCIES_JSON_FILE_PATH.read_text()).keys())
     doc_provider_names = [provider_name.replace(".", "-") for provider_name in provider_names]
     available_packages = [f"apache-airflow-providers-{doc_provider}" for doc_provider in doc_provider_names]
     available_packages.extend(["apache-airflow", "docker-stack", "helm-chart"])

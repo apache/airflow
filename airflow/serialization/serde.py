@@ -179,8 +179,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
 def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     """
-    Deserializes an object of primitive type T into an object. Uses an allow
-    list to determine if a class can be loaded.
+    Deserialize an object of primitive type and uses an allow list to determine if a class can be loaded.
 
     :param o: primitive to deserialize into an arbitrary object.
     :param full: if False it will return a stringified representation
