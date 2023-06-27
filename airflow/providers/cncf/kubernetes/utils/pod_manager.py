@@ -490,13 +490,12 @@ class PodManager(LoggingMixin):
 
         return pod_logging_statuses
 
-    def await_container_completion(self, pod: V1Pod, container_name: str) -> bool:
+    def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
         """
         Waits for the given container in the given pod to be completed.
 
         :param pod: pod spec that will be monitored
         :param container_name: name of the container within the pod to monitor
-        :return: if container has completed
         """
         while True:
             remote_pod = self.read_pod(pod)
@@ -505,7 +504,6 @@ class PodManager(LoggingMixin):
                 break
             self.log.info("Waiting for container '%s' state to be completed", container_name)
             time.sleep(1)
-        return terminated
 
     def await_pod_completion(self, pod: V1Pod) -> V1Pod:
         """
