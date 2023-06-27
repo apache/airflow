@@ -598,13 +598,12 @@ class PodManager(LoggingMixin):
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def get_container_names(self, pod: V1Pod) -> list[str]:
         """Return container names from the POD except for the airflow-xcom-sidecar container."""
-        containers = []
         pod_info = self.read_pod(pod)
-        for container_spec in pod_info.spec.containers:
-            if container_spec.name != ContainerNames.XCOM_CONTAINER:
-                containers.append(container_spec.name)
-
-        return containers
+        return [
+            container_spec.name
+            for container_spec in pod_info.spec.containers
+            if container_spec.name != ContainerNames.XCOM_CONTAINER
+        ]
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
     def read_pod_events(self, pod: V1Pod) -> CoreV1EventList:
