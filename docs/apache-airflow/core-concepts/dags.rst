@@ -498,13 +498,16 @@ Features of setup and teardown tasks:
   * A teardown task will run if it's setup was successful, even if its work tasks failed.
   * Teardown tasks are ignored when setting dependencies against task groups.
 
-Suppose you have a dag that creates a cluster, runs a query, and deletes the cluster:
+Basic usage
+-----------
+
+Suppose you have a dag that creates a cluster, runs a query, and deletes the cluster. Without using setup and teardown tasks you might set these relationships:
 
 .. code-block:: python
 
   create_cluster >> run_query >> delete_cluster
 
-We can mark ``create_cluster`` as a setup task and ``delete_cluster`` as its teardown with the ``as_teardown`` method:
+We can use the ``as_teardown`` let airflow know that ``create_cluster`` is a setup task and ``delete_cluster`` is its teardown:
 
 .. code-block:: python
 
@@ -516,11 +519,21 @@ Observations:
   * If ``run_query`` fails, then ``delete_cluster`` will still run.
   * The success of the dag run will depend on the success of ``run_query``.
 
-Suppose that you want the dag run's success to depend on ``delete_cluster``.  Then set property ``on_failure_fail_dagrun=True`` when setting ``delete_cluster`` as teardown:
+Controlling dag run state
+-------------------------
+
+Another feature of setup / teardown tasks is you can choose whether or not the teardown task should have an impact on dag run state.  Perhaps you don't care if the "cleanup" work performed by your teardown task fails, and you only consider the dag run a failure if the "work" tasks fail.  By default, teardown tasks are not considered for dag run state.
+
+Continuing with the example above, if you want the run's success to depend on ``delete_cluster``.  Then set property ``on_failure_fail_dagrun=True`` when setting ``delete_cluster`` as teardown:
 
 .. code-block:: python
 
   create_cluster >> run_query >> delete_cluster.as_teardown(setups=create_cluster, on_failure_fail_dagrun=True)
+
+Authoring with task groups
+--------------------------
+
+TODO!!!
 
 
 Dynamic DAGs
