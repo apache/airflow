@@ -370,7 +370,7 @@ class EmrStepSensorTrigger(BaseTrigger):
             await async_wait(
                 waiter=waiter,
                 waiter_delay=self.poke_interval,
-                max_attempts=self.max_attempts,
+                waiter_max_attempts=self.max_attempts,
                 args={"ClusterId": self.job_flow_id, "StepId": self.step_id},
                 failure_message=f"Error while waiting for step {self.step_id} to complete",
                 status_message=f"Step id: {self.step_id}, Step is still in non-terminal state",
