@@ -141,6 +141,7 @@ class KubernetesPodTrigger(BaseTrigger):
                             "message": "All containers inside pod have started successfully.",
                         }
                     )
+                    return
                 elif self.should_wait(pod_phase=pod_status, container_state=container_state):
                     self.log.info("Container is not completed and still working.")
 
@@ -159,6 +160,7 @@ class KubernetesPodTrigger(BaseTrigger):
                                     "message": message,
                                 }
                             )
+                            return
 
                     self.log.info("Sleeping for %s seconds.", self.poll_interval)
                     await asyncio.sleep(self.poll_interval)
@@ -171,6 +173,7 @@ class KubernetesPodTrigger(BaseTrigger):
                             "message": pod.status.message,
                         }
                     )
+                    return
             except CancelledError:
                 # That means that task was marked as failed
                 if self.get_logs:
@@ -193,6 +196,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         "message": "Pod execution was cancelled",
                     }
                 )
+                return
             except Exception as e:
                 self.log.exception("Exception occurred while checking pod phase:")
                 yield TriggerEvent(
@@ -203,6 +207,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         "message": str(e),
                     }
                 )
+                return
 
     def _get_async_hook(self) -> AsyncKubernetesHook:
         if self._hook is None:

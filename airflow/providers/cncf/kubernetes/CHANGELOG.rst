@@ -24,7 +24,37 @@
 Changelog
 ---------
 
+7.1.0
+.....
 
+.. note::
+  This release dropped support for Python 3.7
+
+
+Features
+~~~~~~~~
+* ``KubernetesResourceOperator - KubernetesDeleteResourceOperator & KubernetesCreateResourceOperator (#29930)``
+* ``add a return when the event is yielded in a loop to stop the execution (#31985)``
+* ``Add possibility to disable logging the pod template in a case when task fails (#31595)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove return statement after yield from triggers class (#31703)``
+* ``Fix Fargate logging for AWS system tests (#31622)``
+
+Misc
+~~~~
+
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check (#31742)``
+   * ``Add discoverability for triggers in provider.yaml (#31576)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 7.0.0
 .....

@@ -37,7 +37,7 @@ class GCSToSFTPOperator(BaseOperator):
     """
     Transfer files from a Google Cloud Storage bucket to SFTP server.
 
-    **Example**: ::
+    .. code-block:: python
 
         with models.DAG(
             "example_gcs_to_sftp",

@@ -172,7 +172,9 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
     This class is deprecated.
     Please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
 
-    **Example**: ::
+    Example usage:
+
+    .. code-block:: python
 
         default_args = {
             "owner": "airflow",

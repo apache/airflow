@@ -72,7 +72,7 @@
     {% elif "enum" in form_details.schema and form_details.schema.enum %}
       <select class="my_select2 form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" data-placeholder="Select Value"
         onchange="updateJSONconf();"
-        {%- if "integer" in form_details.schema.type %} valuetype="number" {% elif "number" in form_details.schema.type %} valuetype="decimal" {%- endif %}
+        {%- if "integer" in form_details.schema.type or "number" in form_details.schema.type %} valuetype="number"{% endif %}
         {%- if not "null" in form_details.schema.type %} required=""{% endif %}>
         {% for option in form_details.schema.enum -%}
           <option value="{{ option }}"
@@ -117,7 +117,7 @@
       </textarea>
     {% elif form_details.schema and ("integer" in form_details.schema.type or "number" in form_details.schema.type) %}
       <input class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}"
-             {% if "integer" in form_details.schema.type %} valuetype="number" type="number" {%else%} valuetype="decimal" type="decimal" {% endif %}
+             valuetype="number" {% if "integer" in form_details.schema.type %} type="number" {% else %} type="decimal" {% endif %}
         value="{% if form_details.value %}{{ form_details.value }}{% endif %}"
         {%- if form_details.schema.minimum %} min="{{ form_details.schema.minimum }}"{% endif %}
         {%- if form_details.schema.maximum %} max="{{ form_details.schema.maximum }}"{% endif %}

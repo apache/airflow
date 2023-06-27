@@ -145,8 +145,7 @@ class DataprocMetastoreDetailedLink(BaseOperatorLink):
 
 
 class DataprocMetastoreCreateBackupOperator(GoogleCloudBaseOperator):
-    """
-    Creates a new backup in a given project and location.
+    """Create a new backup in a given project and location.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -260,8 +259,7 @@ class DataprocMetastoreCreateBackupOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreCreateMetadataImportOperator(GoogleCloudBaseOperator):
-    """
-    Creates a new MetadataImport in a given project and location.
+    """Create a new MetadataImport in a given project and location.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -361,8 +359,7 @@ class DataprocMetastoreCreateMetadataImportOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreCreateServiceOperator(GoogleCloudBaseOperator):
-    """
-    Creates a metastore service in a project and location.
+    """Create a metastore service in a project and location.
 
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
@@ -463,8 +460,7 @@ class DataprocMetastoreCreateServiceOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreDeleteBackupOperator(GoogleCloudBaseOperator):
-    """
-    Deletes a single backup.
+    """Delete a single backup.
 
     :param project_id: Required. The ID of the Google Cloud project that the backup belongs to.
     :param region: Required. The ID of the Google Cloud region that the backup belongs to.
@@ -548,8 +544,7 @@ class DataprocMetastoreDeleteBackupOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreDeleteServiceOperator(GoogleCloudBaseOperator):
-    """
-    Deletes a single service.
+    """Delete a single service.
 
     :param request:  The request object. Request message for
         [DataprocMetastore.DeleteService][google.cloud.metastore.v1.DataprocMetastore.DeleteService].
@@ -606,8 +601,7 @@ class DataprocMetastoreDeleteServiceOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreExportMetadataOperator(GoogleCloudBaseOperator):
-    """
-    Exports metadata from a service.
+    """Export metadata from a service.
 
     :param destination_gcs_folder: A Cloud Storage URI of a folder, in the format
         ``gs://<bucket_name>/<path_inside_bucket>``. A sub-folder
@@ -699,9 +693,10 @@ class DataprocMetastoreExportMetadataOperator(GoogleCloudBaseOperator):
         return destination_uri[5:] if destination_uri.startswith("gs://") else destination_uri
 
     def _wait_for_export_metadata(self, hook: DataprocMetastoreHook):
-        """
-        Workaround to check that export was created successfully.
-        We discovered a issue to parse result to MetadataExport inside the SDK.
+        """Check that export was created successfully.
+
+        This is a workaround to an issue parsing result to MetadataExport inside
+        the SDK.
         """
         for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
             sleep(time_to_wait)
@@ -724,8 +719,7 @@ class DataprocMetastoreExportMetadataOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreGetServiceOperator(GoogleCloudBaseOperator):
-    """
-    Gets the details of a single service.
+    """Get the details of a single service.
 
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
@@ -797,8 +791,7 @@ class DataprocMetastoreGetServiceOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreListBackupsOperator(GoogleCloudBaseOperator):
-    """
-    Lists backups in a service.
+    """List backups in a service.
 
     :param project_id: Required. The ID of the Google Cloud project that the backup belongs to.
     :param region: Required. The ID of the Google Cloud region that the backup belongs to.
@@ -882,8 +875,7 @@ class DataprocMetastoreListBackupsOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreRestoreServiceOperator(GoogleCloudBaseOperator):
-    """
-    Restores a service from a backup.
+    """Restore a service from a backup.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -987,9 +979,10 @@ class DataprocMetastoreRestoreServiceOperator(GoogleCloudBaseOperator):
         DataprocMetastoreLink.persist(context=context, task_instance=self, url=METASTORE_SERVICE_LINK)
 
     def _wait_for_restore_service(self, hook: DataprocMetastoreHook):
-        """
-        Workaround to check that restore service was finished successfully.
-        We discovered an issue to parse result to Restore inside the SDK.
+        """Check that export was created successfully.
+
+        This is a workaround to an issue parsing result to MetadataExport inside
+        the SDK.
         """
         for time_to_wait in exponential_sleep_generator(initial=10, maximum=120):
             sleep(time_to_wait)
@@ -1010,8 +1003,7 @@ class DataprocMetastoreRestoreServiceOperator(GoogleCloudBaseOperator):
 
 
 class DataprocMetastoreUpdateServiceOperator(GoogleCloudBaseOperator):
-    """
-    Updates the parameters of a single service.
+    """Update the parameters of a single service.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
