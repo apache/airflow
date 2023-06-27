@@ -22,7 +22,7 @@ import time
 import warnings
 from functools import cached_property
 from logging import Logger
-from typing import TYPE_CHECKING, Any, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from databricks.sdk.service import jobs as j
 
@@ -43,15 +43,6 @@ DEFER_METHOD_NAME = "execute_complete"
 XCOM_RUN_ID_KEY = "run_id"
 XCOM_JOB_ID_KEY = "job_id"
 XCOM_RUN_PAGE_URL_KEY = "run_page_url"
-DatabricksTaskType = Union[
-    j.DbtTask,
-    j.NotebookTask,
-    j.PipelineTask,
-    j.PythonWheelTask,
-    j.SparkPythonTask,
-    j.SparkJarTask,
-    j.SparkSubmitTask,
-]
 
 
 def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
@@ -238,7 +229,7 @@ class DatabricksJobsCreateOperator(BaseOperator):
         json: Any | None = None,
         name: str | None = None,
         tags: dict[str, str] | None = None,
-        tasks: list[DatabricksTaskType] | None = None,
+        tasks: list[j.JobTaskSettings] | None = None,
         job_clusters: list[j.JobCluster] | None = None,
         email_notifications: j.JobEmailNotifications | None = None,
         webhook_notifications: j.JobWebhookNotifications | None = None,
@@ -246,7 +237,7 @@ class DatabricksJobsCreateOperator(BaseOperator):
         schedule: j.CronSchedule | None = None,
         max_concurrent_runs: int | None = None,
         git_source: j.GitSource | None = None,
-        access_control_list: j.AccessControlRequest | None = None,
+        access_control_list: list[j.AccessControlRequest] | None = None,
         databricks_conn_id: str = "databricks_default",
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
@@ -283,7 +274,7 @@ class DatabricksJobsCreateOperator(BaseOperator):
         if git_source is not None:
             self.json["git_source"] = git_source
         if access_control_list is not None:
-            self.json["access_control_list"] = access_control_list
+            self.json["access_control_list"] = [acl.as_dict() for acl in access_control_list]
 
         self.json = normalise_json_content(self.json)
 

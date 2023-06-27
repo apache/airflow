@@ -22,6 +22,7 @@ from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from databricks.sdk.service import jobs as j
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
@@ -251,15 +252,15 @@ class TestDatabricksJobsCreateOperator:
             task_id=TASK_ID,
             name=JOB_NAME,
             tags=TAGS,
-            tasks=TASKS,
-            job_clusters=JOB_CLUSTERS,
-            email_notifications=EMAIL_NOTIFICATIONS,
-            webhook_notifications=WEBHOOK_NOTIFICATIONS,
+            tasks=[j.JobTaskSettings.from_dict(task) for task in TASKS],
+            job_clusters=[j.JobCluster.from_dict(cluster) for cluster in JOB_CLUSTERS],
+            email_notifications=j.JobEmailNotifications.from_dict(EMAIL_NOTIFICATIONS),
+            webhook_notifications=j.JobWebhookNotifications.from_dict(WEBHOOK_NOTIFICATIONS),
             timeout_seconds=TIMEOUT_SECONDS,
-            schedule=SCHEDULE,
+            schedule=j.CronSchedule.from_dict(SCHEDULE),
             max_concurrent_runs=MAX_CONCURRENT_RUNS,
-            git_source=GIT_SOURCE,
-            access_control_list=ACCESS_CONTROL_LIST,
+            git_source=j.GitSource.from_dict(GIT_SOURCE),
+            access_control_list=[j.AccessControlRequest.from_dict(acl) for acl in ACCESS_CONTROL_LIST],
         )
         expected = utils.normalise_json_content(
             {
@@ -354,12 +355,12 @@ class TestDatabricksJobsCreateOperator:
             tags=override_tags,
             tasks=override_tasks,
             job_clusters=override_job_clusters,
-            email_notifications=override_email_notifications,
-            webhook_notifications=override_webhook_notifications,
+            email_notifications=j.JobEmailNotifications.from_dict(override_email_notifications),
+            webhook_notifications=j.JobWebhookNotifications.from_dict(override_webhook_notifications),
             timeout_seconds=override_timeout_seconds,
-            schedule=override_schedule,
+            schedule=j.CronSchedule.from_dict(override_schedule),
             max_concurrent_runs=override_max_concurrent_runs,
-            git_source=override_git_source,
+            git_source=j.GitSource.from_dict(override_git_source),
             access_control_list=override_access_control_list,
         )
 
