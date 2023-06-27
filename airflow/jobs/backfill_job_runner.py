@@ -819,8 +819,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> None:
         """
-        Go through the dag_runs and update the state based on the task_instance state.
-        Then set DAG runs that are not finished to failed.
+        Update the state of each dagrun based on the task_instance state and set unfinished runs to failed.
 
         :param dag_runs: DAG runs
         :param session: session

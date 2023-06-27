@@ -36,6 +36,7 @@ log = logging.getLogger(__name__)
 class MetricNameLengthExemptionWarning(Warning):
     """
     A Warning class to be used for the metric name length exemption notice.
+
     Using a custom Warning class allows us to easily test that it is used.
     """
 
@@ -83,10 +84,7 @@ OTEL_NAME_MAX_LENGTH = 63
 
 
 def validate_stat(fn: Callable) -> Callable:
-    """
-    Check if stat name contains invalid characters.
-    Log and not emit stats if name is invalid.
-    """
+    """Check if stat name contains invalid characters; logs and does not emit stats if name is invalid."""
 
     @wraps(fn)
     def wrapper(self, stat: str | None = None, *args, **kwargs) -> Callable | None:
@@ -200,8 +198,9 @@ def get_current_handler_stat_name_func() -> Callable[[str], str]:
 
 class ListValidator(metaclass=abc.ABCMeta):
     """
-    ListValidator metaclass that can be implemented as a AllowListValidator
-    or BlockListValidator. The test method must be overridden by its subclass.
+    ListValidator metaclass that can be implemented as a AllowListValidator or BlockListValidator.
+
+    The test method must be overridden by its subclass.
     """
 
     def __init__(self, validate_list: str | None = None) -> None:

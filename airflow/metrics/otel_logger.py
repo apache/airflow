@@ -110,11 +110,10 @@ def _type_as_str(obj: Instrument) -> str:
 
 def _get_otel_safe_name(name: str) -> str:
     """
-    OpenTelemetry has a maximum length for metric names.  This method returns the
-    name, truncated if it is too long, and logs a warning so the user will know.
+    Verifies that the provided name does not exceed OpenTelemetry's maximum length for metric names.
 
     :param name: The original metric name
-    :returns: The name, truncated to an OTel-acceptable length if required
+    :returns: The name, truncated to an OTel-acceptable length if required.
     """
     otel_safe_name = name[:OTEL_NAME_MAX_LENGTH]
     if name != otel_safe_name:
@@ -134,6 +133,7 @@ def _skip_due_to_rate(rate: float) -> bool:
 class _OtelTimer(Timer):
     """
     An implementation of Stats.Timer() which records the result in the OTel Metrics Map.
+
     OpenTelemetry does not have a native timer, we will store the values as a Gauge.
 
     :param name: The name of the timer.
@@ -262,10 +262,7 @@ class SafeOtelLogger:
         *,
         tags: Attributes = None,
     ) -> None:
-        """
-        OpenTelemetry does not have a native timer, they are stored
-        as a Gauge whose value represents the seconds elapsed.
-        """
+        """OTel does not have a native timer, stored as a Gauge whose value is number of seconds elapsed."""
         if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
             if isinstance(dt, datetime.timedelta):
                 dt = dt.total_seconds()

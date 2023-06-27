@@ -755,6 +755,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
 def get_current_context() -> Context:
     """
     Retrieve the execution context dictionary without altering user method's signature.
+
     This is the simplest method of retrieving the execution context dictionary.
 
     **Old style:**

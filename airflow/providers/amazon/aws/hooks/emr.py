@@ -185,7 +185,6 @@ class EmrHook(AwsBaseHook):
         """
         Return failed state for test Amazon Elastic MapReduce Connection (untestable).
 
-
         We need to overwrite this method because this hook is based on
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`,
         otherwise it will try to test connection to AWS STS by using the default boto3 credential strategy.
