@@ -61,6 +61,7 @@ versions:
 dependencies:
   - apache-airflow>=2.4.0
   - apache-airflow-providers-common-sql>=1.3.1
+  - apache-airflow-providers-http
   - boto3>=1.24.0
   - asgiref
   # watchtower 3 has been released end Jan and introduced breaking change across the board that might
@@ -83,6 +84,10 @@ integrations:
     logo: /integration-logos/aws/Amazon-Athena_light-bg@4x.png
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/athena.rst
+    tags: [aws]
+  - integration-name: Amazon Chime
+    external-doc-url: https://aws.amazon.com/chime/
+    logo: /integration-logos/aws/Amazon-Chime-light-bg.png
     tags: [aws]
   - integration-name: Amazon CloudFormation
     external-doc-url: https://aws.amazon.com/cloudformation/
@@ -407,6 +412,9 @@ hooks:
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.hooks.athena
+  - integration-name: Amazon Chime
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.chime
   - integration-name: Amazon DynamoDB
     python-modules:
       - airflow.providers.amazon.aws.hooks.dynamodb
@@ -624,10 +632,13 @@ extra-links:
 connection-types:
   - hook-class-name: airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook
     connection-type: aws
+  - hook-class-name: airflow.providers.amazon.aws.hooks.chime.ChimeWebhookHook
+    connection-type: chime
   - hook-class-name: airflow.providers.amazon.aws.hooks.emr.EmrHook
     connection-type: emr
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
+
 
 secrets-backends:
   - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
