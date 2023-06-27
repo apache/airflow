@@ -156,6 +156,7 @@ class KubernetesPodOperator(BaseOperator):
         suffix if random_name_suffix is True) to generate a pod id (DNS-1123 subdomain,
         containing only [a-z0-9.-]).
     :param random_name_suffix: if True, will generate a random suffix.
+    :param job_id_as_suffix: if True, will add ti.job_id to the pod name.
     :param cmds: entrypoint of the container. (templated)
         The docker images's entrypoint is used if this is not provided.
     :param arguments: arguments of the entrypoint. (templated)
@@ -257,6 +258,7 @@ class KubernetesPodOperator(BaseOperator):
         image: str | None = None,
         name: str | None = None,
         random_name_suffix: bool = True,
+        job_id_as_suffix: bool = False,
         cmds: list[str] | None = None,
         arguments: list[str] | None = None,
         ports: list[k8s.V1ContainerPort] | None = None,
@@ -369,6 +371,7 @@ class KubernetesPodOperator(BaseOperator):
         self.pod_template_file = pod_template_file
         self.name = self._set_name(name)
         self.random_name_suffix = random_name_suffix
+        self.job_id_as_suffix = job_id_as_suffix
         self.termination_grace_period = termination_grace_period
         self.pod_request_obj: k8s.V1Pod | None = None
         self.pod: k8s.V1Pod | None = None
@@ -832,6 +835,8 @@ class KubernetesPodOperator(BaseOperator):
             pod.metadata.name = _create_pod_id(
                 task_id=self.task_id, unique=self.random_name_suffix, max_length=80
             )
+        elif self.job_id_as_suffix:
+            pod.metadata.name = pod.metadata.name + "-{{ ti.job.id }}"
         elif self.random_name_suffix:
             # user has supplied pod name, we're just adding suffix
             pod.metadata.name = _add_pod_suffix(pod_name=pod.metadata.name)
