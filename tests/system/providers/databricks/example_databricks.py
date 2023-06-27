@@ -74,7 +74,7 @@ with DAG(
                     "num_workers": 2,
                 },
             },
-        ]
+        ],
     }
 
     jobs_create_json = DatabricksJobsCreateOperator(task_id="jobs_create_json", json=job)
@@ -102,12 +102,16 @@ with DAG(
         },
     ]
 
-    jobs_create_named = DatabricksJobsCreateOperator(task_id="jobs_create_named", tasks=tasks, job_clusters=job_clusters)
+    jobs_create_named = DatabricksJobsCreateOperator(
+        task_id="jobs_create_named", tasks=tasks, job_clusters=job_clusters
+    )
     # [END howto_operator_databricks_jobs_create_named]
 
     # [START howto_operator_databricks_run_now]
     # Example of using the DatabricksRunNowOperator after creating a job with DatabricksJobsCreateOperator.
-    run_now = DatabricksRunNowOperator(task_id="run_now", job_id="{{ ti.xcom_pull(task_ids='jobs_create_named') }}")
+    run_now = DatabricksRunNowOperator(
+        task_id="run_now", job_id="{{ ti.xcom_pull(task_ids='jobs_create_named') }}"
+    )
 
     jobs_create_named >> run_now
     # [END howto_operator_databricks_run_now]
