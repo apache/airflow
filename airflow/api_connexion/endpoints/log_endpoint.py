@@ -88,7 +88,7 @@ def get_log(
         .join(TaskInstance.dag_run)
         .options(joinedload(TaskInstance.trigger).joinedload(Trigger.triggerer_job))
     )
-    ti = session.scalars(query).one_or_none()
+    ti = session.scalar(query)
     if ti is None:
         metadata["end_of_log"] = True
         raise NotFound(title="TaskInstance not found")

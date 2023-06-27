@@ -58,7 +58,7 @@ RESOURCE_EVENT_PREFIX = "connection"
 )
 def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Delete a connection entry."""
-    connection = session.scalars(select(Connection).filter_by(conn_id=connection_id)).one_or_none()
+    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
     if connection is None:
         raise NotFound(
             "Connection not found",
@@ -72,7 +72,7 @@ def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> 
 @provide_session
 def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a connection entry."""
-    connection = session.scalars(select(Connection).where(Connection.conn_id == connection_id)).one_or_none()
+    connection = session.scalar(select(Connection).where(Connection.conn_id == connection_id))
     if connection is None:
         raise NotFound(
             "Connection not found",

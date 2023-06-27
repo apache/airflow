@@ -58,13 +58,13 @@ def get_extra_links(
     except TaskNotFound:
         raise NotFound("Task not found", detail=f'Task with ID = "{task_id}" not found')
 
-    ti = session.scalars(
+    ti = session.scalar(
         select(TaskInstance).where(
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id == dag_run_id,
             TaskInstance.task_id == task_id,
         )
-    ).one_or_none()
+    )
 
     if not ti:
         raise NotFound("DAG Run not found", detail=f'DAG Run with ID = "{dag_run_id}" not found')

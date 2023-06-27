@@ -52,7 +52,7 @@ def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIRespons
 @provide_session
 def get_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a pool."""
-    obj = session.scalars(select(Pool).where(Pool.pool == pool_name)).one_or_none()
+    obj = session.scalar(select(Pool).where(Pool.pool == pool_name))
     if obj is None:
         raise NotFound(detail=f"Pool with name:'{pool_name}' not found")
     return pool_schema.dump(obj)

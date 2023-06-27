@@ -39,14 +39,10 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @provide_session
 def get_dataset(uri: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a Dataset."""
-    dataset = (
-        session.scalars(
-            select(DatasetModel)
-            .where(DatasetModel.uri == uri)
-            .options(joinedload(DatasetModel.consuming_dags), joinedload(DatasetModel.producing_tasks))
-        )
-        .unique()
-        .one_or_none()
+    dataset = session.scalar(
+        select(DatasetModel)
+        .where(DatasetModel.uri == uri)
+        .options(joinedload(DatasetModel.consuming_dags), joinedload(DatasetModel.producing_tasks))
     )
     if not dataset:
         raise NotFound(

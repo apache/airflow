@@ -469,9 +469,7 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
     downstream = data.pop("include_downstream", False)
     upstream = data.pop("include_upstream", False)
     if dag_run_id is not None:
-        dag_run: DR | None = session.scalars(
-            select(DR).where(DR.dag_id == dag_id, DR.run_id == dag_run_id)
-        ).one_or_none()
+        dag_run: DR | None = session.scalar(select(DR).where(DR.dag_id == dag_id, DR.run_id == dag_run_id))
         if dag_run is None:
             error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
             raise NotFound(error_message)

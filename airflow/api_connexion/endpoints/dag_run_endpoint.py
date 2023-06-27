@@ -92,9 +92,7 @@ def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSI
 @provide_session
 def get_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a DAG Run."""
-    dag_run = session.scalars(
-        select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
-    ).one_or_none()
+    dag_run = session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id))
     if dag_run is None:
         raise NotFound(
             "DAGRun not found",
@@ -115,12 +113,12 @@ def get_upstream_dataset_events(
     *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
 ) -> APIResponse:
     """If dag run is dataset-triggered, return the dataset events that triggered it."""
-    dag_run: DagRun | None = session.scalars(
+    dag_run: DagRun | None = session.scalar(
         select(DagRun).where(
             DagRun.dag_id == dag_id,
             DagRun.run_id == dag_run_id,
         )
-    ).one_or_none()
+    )
     if dag_run is None:
         raise NotFound(
             "DAGRun not found",
@@ -379,9 +377,9 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
 @provide_session
 def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set a state of a dag run."""
-    dag_run: DagRun | None = session.scalars(
+    dag_run: DagRun | None = session.scalar(
         select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
-    ).one_or_none()
+    )
     if dag_run is None:
         error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
         raise NotFound(error_message)
@@ -411,9 +409,9 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
 @provide_session
 def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Clear a dag run."""
-    dag_run: DagRun | None = session.scalars(
+    dag_run: DagRun | None = session.scalar(
         select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
-    ).one_or_none()
+    )
     if dag_run is None:
         error_message = f"Dag Run id {dag_run_id} not found in dag   {dag_id}"
         raise NotFound(error_message)
@@ -462,9 +460,9 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
 @provide_session
 def set_dag_run_note(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set the note for a dag run."""
-    dag_run: DagRun | None = session.scalars(
+    dag_run: DagRun | None = session.scalar(
         select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id)
-    ).one_or_none()
+    )
     if dag_run is None:
         error_message = f"Dag Run id {dag_run_id} not found in dag {dag_id}"
         raise NotFound(error_message)

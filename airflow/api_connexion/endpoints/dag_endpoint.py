@@ -48,7 +48,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @provide_session
 def get_dag(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get basic information about a DAG."""
-    dag = session.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one_or_none()
+    dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
 
     if dag is None:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
@@ -120,7 +120,7 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
             raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
         patch_body_[update_mask[0]] = patch_body[update_mask[0]]
         patch_body = patch_body_
-    dag = session.scalars(select(DagModel).where(DagModel.dag_id == dag_id)).one_or_none()
+    dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
     if not dag:
         raise NotFound(f"Dag with id: '{dag_id}' not found")
     dag.is_paused = patch_body["is_paused"]
