@@ -412,6 +412,49 @@ def test_trigger_from_expired_triggerer(session):
     assert [x for x, y in job_runner.trigger_runner.to_create] == [1]
 
 
+def test_trigger_runner_exception_stops_triggerer(session):
+    """
+    Checks that if an exception occurs when creating triggers, that the triggerer
+    process stops
+    """
+
+    class MockTriggerException(Exception):
+        pass
+
+    class TriggerRunner_(TriggerRunner):
+        async def create_triggers(self):
+            raise MockTriggerException("Trigger creation failed")
+
+    # Use a trigger that will immediately succeed
+    trigger = SuccessTrigger()
+    create_trigger_in_db(session, trigger)
+
+    # Make a TriggererJobRunner and have it retrieve DB tasks
+    job = Job()
+    job_runner = TriggererJobRunner(job)
+    job_runner.trigger_runner = TriggerRunner_()
+    thread = Thread(target=job_runner._execute)
+    thread.start()
+
+    # Wait 4 seconds for the triggerer to stop
+    try:
+        for _ in range(40):
+            time.sleep(0.1)
+            if not thread.is_alive():
+                break
+        else:
+            pytest.fail("TriggererJobRunner did not stop after exception in TriggerRunner")
+
+        if not job_runner.trigger_runner.stop:
+            pytest.fail("TriggerRunner not marked as stopped after exception in TriggerRunner")
+
+    finally:
+        job_runner.trigger_runner.stop = True
+        # with suppress(MockTriggerException):
+        job_runner.trigger_runner.join()
+        thread.join()
+
+
 def test_trigger_firing(session):
     """
     Checks that when a trigger fires, it correctly makes it into the
