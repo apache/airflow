@@ -30,6 +30,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.eks import (
+    EksClusterTrigger,
     EksCreateFargateProfileTrigger,
     EksCreateNodegroupTrigger,
     EksDeleteFargateProfileTrigger,
@@ -225,6 +226,7 @@ class EksCreateClusterOperator(BaseOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
+        deferrable: bool = False,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
         **kwargs,
@@ -237,7 +239,7 @@ class EksCreateClusterOperator(BaseOperator):
         self.nodegroup_role_arn = nodegroup_role_arn
         self.fargate_pod_execution_role_arn = fargate_pod_execution_role_arn
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
-        self.wait_for_completion = wait_for_completion
+        self.wait_for_completion = False if deferrable else wait_for_completion
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
@@ -246,6 +248,7 @@ class EksCreateClusterOperator(BaseOperator):
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
         self.fargate_selectors = fargate_selectors or [{"namespace": DEFAULT_NAMESPACE_NAME}]
         self.fargate_profile_name = fargate_profile_name
+        self.deferrable = deferrable;
         super().__init__(
             **kwargs,
         )
@@ -274,11 +277,25 @@ class EksCreateClusterOperator(BaseOperator):
 
         # Short circuit early if we don't need to wait to attach compute
         # and the caller hasn't requested to wait for the cluster either.
-        if not self.compute and not self.wait_for_completion:
+        if not self.compute and not self.wait_for_completion and not self.deferrable:
             return None
 
         self.log.info("Waiting for EKS Cluster to provision.  This will take some time.")
         client = self.eks_hook.conn
+        
+        if self.deferrable:
+            self.defer(
+                trigger=EksClusterTrigger(
+                    waiter_name="cluster_active",
+                    cluster_name=self.cluster_name,
+                    aws_conn_id=self.aws_conn_id,
+                    region=self.region,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                method_name="deferrable_create_cluster_next",
+                timeout=timedelta(seconds=self.waiter_max_attempts  * self.waiter_delay),
+            )
 
         try:
             client.get_waiter("cluster_active").wait(
@@ -310,7 +327,73 @@ class EksCreateClusterOperator(BaseOperator):
             create_fargate_profile_kwargs=self.create_fargate_profile_kwargs,
             subnets=cast(List[str], self.resources_vpc_config.get("subnetIds")),
         )
-
+    def deferrable_create_cluster_next(self, context, event=None):
+        if event["status"] == "failed":
+            self.log.error("Cluster failed to start and will be torn down.")
+            self.eks_hook.delete_cluster(name=self.cluster_name)
+            self.defer(
+                trigger=EksClusterTrigger(
+                    cluster_name=self.cluster_name,
+                    aws_conn_id=self.aws_conn_id,
+                    region=self.region,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                method_name="execute_complete",
+                timeout=timedelta(seconds=self.waiter_max_attempts  * self.waiter_delay),
+            )
+        elif event["status"] == "success":
+            self.log.info("Cluster is ready to provision compute.")
+            _create_compute(
+                compute=self.compute,
+                cluster_name=self.cluster_name,
+                aws_conn_id=self.aws_conn_id,
+                region=self.region,
+                wait_for_completion=self.wait_for_completion,
+                waiter_delay=self.waiter_delay,
+                waiter_max_attempts=self.waiter_max_attempts,
+                nodegroup_name=self.nodegroup_name,
+                nodegroup_role_arn=self.nodegroup_role_arn,
+                create_nodegroup_kwargs=self.create_nodegroup_kwargs,
+                fargate_profile_name=self.fargate_profile_name,
+                fargate_pod_execution_role_arn=self.fargate_pod_execution_role_arn,
+                fargate_selectors=self.fargate_selectors,
+                create_fargate_profile_kwargs=self.create_fargate_profile_kwargs,
+                subnets=cast(List[str], self.resources_vpc_config.get("subnetIds")),
+            )
+            if self.compute == "fargate":
+                self.defer(
+                    trigger=EksCreateFargateProfileTrigger(
+                        cluster_name=self.cluster_name,
+                        fargate_profile_name=self.fargate_profile_name,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                        region=self.region,
+                    ),
+                    method_name="execute_complete",
+                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                )
+            else:
+                self.defer(
+                    trigger=EksNodegroupTrigger(
+                        waiter_name="nodegroup_active",
+                        cluster_name=self.cluster_name,
+                        aws_conn_id=self.aws_conn_id,
+                        region=self.region,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                    ),
+                    method_name="execute_complete",
+                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                )
+    def execute_complete(self, context, event=None):
+        resource = "fargate profile" if self.compute == "fargate" else self.compute
+        if event["status"] != "success":
+            raise AirflowException(f"Error creating {resource}: {event}")
+        else:
+            self.log.info(f"{resource} created successfully")
+        return
 
 class EksCreateNodegroupOperator(BaseOperator):
     """
@@ -564,6 +647,11 @@ class EksDeleteClusterOperator(BaseOperator):
          maintained on each worker node).
     :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
+    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check cluster state
+    :param waiter_max_attempts: The maximum number of attempts to check cluster state
+    :param deferrable: If True, the operator will wait asynchronously for the cluster to be deleted.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
 
     """
 
@@ -582,13 +670,19 @@ class EksDeleteClusterOperator(BaseOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
+        deferrable: bool = False,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 40,
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
         self.force_delete_compute = force_delete_compute
-        self.wait_for_completion = wait_for_completion
+        self.wait_for_completion = False if deferrable else wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
+        self.deferrable = deferrable
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
