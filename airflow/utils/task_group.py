@@ -26,6 +26,7 @@ import functools
 import operator
 import re
 import weakref
+from functools import cmp_to_key
 from typing import TYPE_CHECKING, Any, Generator, Iterator, Sequence
 
 from airflow.compat.functools import cache
@@ -437,6 +438,29 @@ class TaskGroup(DAGNode):
         from airflow.serialization.serialized_objects import TaskGroupSerialization
 
         return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
+
+    def hierarchical_alphabetical_sort(self):
+        """
+        Sorts children in hierarchical alphabetical order:
+        - groups in alphabetical order first
+        - tasks in alphabetical order after them.
+
+        :return: list of tasks in hierarchical alphabetical order
+        """
+
+        def compare_str(a: str, b: str) -> int:
+            return (a > b) - (a < b)
+
+        def compare(a: DAGNode, b: DAGNode) -> int:
+            is_a_group = isinstance(a, TaskGroup)
+            is_b_group = isinstance(b, TaskGroup)
+            if is_a_group == is_b_group:
+                return compare_str(a.node_id, b.node_id)
+            if is_a_group:
+                return -1
+            return 1
+
+        return sorted(self.children.values(), key=cmp_to_key(compare))
 
     def topological_sort(self, _include_subdag_tasks: bool = False):
         """
