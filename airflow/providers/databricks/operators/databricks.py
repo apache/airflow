@@ -272,7 +272,7 @@ class DatabricksJobsCreateOperator(BaseOperator):
         if max_concurrent_runs is not None:
             self.json["max_concurrent_runs"] = max_concurrent_runs
         if git_source is not None:
-            self.json["git_source"] = git_source
+            self.json["git_source"] = git_source.as_dict()
         if access_control_list is not None:
             self.json["access_control_list"] = [acl.as_dict() for acl in access_control_list]
 
