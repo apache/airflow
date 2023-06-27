@@ -1310,7 +1310,7 @@ class DAG(LoggingMixin):
         total_tasks = session.scalar(
             select(func.count(TI.task_id)).where(
                 TI.dag_id == self.dag_id,
-                TI.state == State.RUNNING,
+                TI.state == TaskInstanceState.RUNNING,
             )
         )
         return total_tasks >= self.max_active_tasks
@@ -1417,9 +1417,9 @@ class DAG(LoggingMixin):
         """
         query = select(func.count()).where(DagRun.dag_id == self.dag_id)
         if only_running:
-            query = query.where(DagRun.state == State.RUNNING)
+            query = query.where(DagRun.state == DagRunState.RUNNING)
         else:
-            query = query.where(DagRun.state.in_({State.RUNNING, State.QUEUED}))
+            query = query.where(DagRun.state.in_({DagRunState.RUNNING, DagRunState.QUEUED}))
 
         if external_trigger is not None:
             query = query.where(
