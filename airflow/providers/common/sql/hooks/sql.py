@@ -519,8 +519,8 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_openlineage_database_info(self, connection):
         """
-        Should return database specific information needed
-        to generate and parse lineage metadata.
+        Returns database specific information needed to generate and parse lineage metadata.
+
         This includes information helpful for constructing information schema query
         and creating correct namespace.
 
@@ -529,7 +529,8 @@ class DbApiHook(BaseForDbApiHook):
         """
 
     def get_openlineage_database_dialect(self, connection) -> str:
-        """Method used for SQL parsing.
+        """
+        Returns database dialect used for SQL parsing.
 
         For a list of supported dialects check: https://openlineage.io/docs/development/sql#sql-dialects
         """
@@ -546,8 +547,8 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_openlineage_database_specific_lineage(self, task_instance):
         """
-        Returns additional database specific lineage, e.g.
-        query execution information.
+        Returns additional database specific lineage, e.g. query execution information.
+
         This method is called only on completion of the task.
 
         :param task_instance: this may be used to retrieve additional information

@@ -293,21 +293,17 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
     def get_openlineage_facets_on_start(self):
         try:
-            from airflow.providers.openlineage.extractors import OperatorLineage
             from airflow.providers.openlineage.sqlparser import SQLParser
         except ImportError:
             return None
 
-        hook: DbApiHook = self.get_db_hook()
+        hook = self.get_db_hook()
 
         connection = hook.get_connection(getattr(hook, cast(str, hook.conn_name_attr)))
         try:
             database_info = hook.get_openlineage_database_info(connection)
         except AttributeError:
             self.log.debug("%s has no database info provided", hook)
-            database_info = None
-
-        if database_info is None:
             return None
 
         try:
@@ -319,7 +315,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             self.log.debug("%s failed to get database dialect", hook)
             return None
 
-        operator_lineage: OperatorLineage = sql_parser.generate_openlineage_metadata_from_sql(
+        operator_lineage = sql_parser.generate_openlineage_metadata_from_sql(
             sql=self.sql, hook=hook, database_info=database_info, database=self.database
         )
 
@@ -332,15 +328,10 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         except ImportError:
             return operator_lineage
 
-        hook: DbApiHook = self.get_db_hook()
+        hook = self.get_db_hook()
         try:
-            database_specific_lineage: OperatorLineage | None = (
-                hook.get_openlineage_database_specific_lineage(task_instance)
-            )
+            database_specific_lineage = hook.get_openlineage_database_specific_lineage(task_instance)
         except AttributeError:
-            database_specific_lineage = None
-
-        if not database_specific_lineage:
             return operator_lineage
 
         return OperatorLineage(

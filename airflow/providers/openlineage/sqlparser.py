@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable
 
+import sqlparse
 from attrs import define
 
 from airflow.providers.openlineage.extractors.base import OperatorLineage
@@ -57,16 +58,13 @@ class GetTableSchemasParams(TypedDict):
     information_schema_columns: list[str]
     information_schema_table: str
     is_uppercase_names: bool
-    allow_trailing_semicolon: bool
-    column_quote_style: str
     database: str | None
 
 
 @define
 class DatabaseInfo:
     """
-    Contains database specific information needed to process
-    SQL statement parse result.
+    Contains database specific information needed to process SQL statement parse result.
 
     :param scheme: Scheme part of URI in OpenLineage namespace.
     :param authority: Authority part of URI in OpenLineage namespace.
@@ -78,9 +76,6 @@ class DatabaseInfo:
     :param is_information_schema_cross_db: Specifies if information schema contains
         cross-database data.
     :param is_uppercase_names: Specifies if database accepts only uppercase names (e.g. Snowflake).
-    :param allow_trailing_semicolon: For some databases such as Trino,
-        trailing semicolon can cause a syntax error. If True it adds semicolon at the end of query.
-    :param column_quote_style: Specifies how to quote column names.
     :param normalize_name_method: Method to normalize database, schema and table names.
         Defaults to `name.lower()`.
     """
@@ -92,8 +87,6 @@ class DatabaseInfo:
     information_schema_table_name: str = DEFAULT_INFORMATION_SCHEMA_TABLE_NAME
     is_information_schema_cross_db: bool = False
     is_uppercase_names: bool = False
-    allow_trailing_semicolon: bool = True
-    column_quote_style: str = '"'
     normalize_name_method: Callable[[str], str] = default_normalize_name_method
 
 
@@ -126,16 +119,14 @@ class SQLParser:
         database: str | None = None,
     ) -> tuple[list[Dataset], ...]:
         """Parse schemas for input and output tables."""
-        database_kwargs: GetTableSchemasParams = dict(
-            normalize_name=database_info.normalize_name_method,
-            is_cross_db=database_info.is_information_schema_cross_db,
-            information_schema_columns=database_info.information_schema_columns,
-            information_schema_table=database_info.information_schema_table_name,
-            is_uppercase_names=database_info.is_uppercase_names,
-            allow_trailing_semicolon=database_info.allow_trailing_semicolon,
-            column_quote_style=database_info.column_quote_style,
-            database=database or database_info.database,
-        )
+        database_kwargs: GetTableSchemasParams = {
+            "normalize_name": database_info.normalize_name_method,
+            "is_cross_db": database_info.is_information_schema_cross_db,
+            "information_schema_columns": database_info.information_schema_columns,
+            "information_schema_table": database_info.information_schema_table_name,
+            "is_uppercase_names": database_info.is_uppercase_names,
+            "database": database or database_info.database,
+        }
         return get_table_schemas(
             hook,
             namespace,
@@ -152,7 +143,9 @@ class SQLParser:
         database: str | None = None,
     ) -> OperatorLineage:
         """
-        Parses SQL statement(s) and generate OpenLineage metadata:
+        Parses SQL statement(s) and generates OpenLineage metadata.
+
+        Generated OpenLineage metadata contains:
             * input tables with schemas parsed
             * output tables with schemas parsed
             * run facets
@@ -231,7 +224,6 @@ class SQLParser:
         except (ImportError, AttributeError):
             # no common.sql Airflow provider available
             def split_statement(sql: str) -> list[str]:
-                import sqlparse
 
                 splits = sqlparse.split(sqlparse.format(sql, strip_comments=True))
                 statements: list[str] = list(filter(None, splits))
@@ -251,8 +243,6 @@ class SQLParser:
         information_schema_columns,
         information_schema_table,
         is_uppercase_names,
-        allow_trailing_semicolon,
-        column_quote_style,
         database: str | None = None,
     ) -> str:
         """Creates SELECT statement to query information schema table."""
@@ -267,8 +257,6 @@ class SQLParser:
             information_schema_table_name=information_schema_table,
             tables_hierarchy=tables_hierarchy,
             uppercase_names=is_uppercase_names,
-            allow_trailing_semicolon=allow_trailing_semicolon,
-            column_quote_style=column_quote_style,
         )
 
     @staticmethod
@@ -280,11 +268,12 @@ class SQLParser:
     ) -> TablesHierarchy:
         """
         Creates a hierarchy of database -> schema -> table name.
-        This helps to create simpler information schema query.
 
+        This helps to create simpler information schema query grouped by
+        database and schema.
         :param tables: List of tables.
         :param normalize_name: A method to normalize all names.
-        :param is_cross_db: If false, skips top (database) level
+        :param is_cross_db: If false, set top (database) level to None
             when creating hierarchy.
         """
         hierarchy: TablesHierarchy = {}
@@ -293,7 +282,7 @@ class SQLParser:
                 db = table.database or database
             else:
                 db = None
-            hierarchy.setdefault(normalize_name(db) if db else db, {}).setdefault(  # type: ignore
-                normalize_name(table.schema) if table.schema else db, []  # type: ignore
+            hierarchy.setdefault(normalize_name(db) if db else db, {}).setdefault(
+                normalize_name(table.schema) if table.schema else db, []
             ).append(table.name)
         return hierarchy

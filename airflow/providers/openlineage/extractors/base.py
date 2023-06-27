@@ -100,13 +100,7 @@ class DefaultExtractor(BaseExtractor):
 
     def _get_openlineage_facets(self, get_facets_method, *args) -> OperatorLineage | None:
         try:
-            facets: OperatorLineage = get_facets_method(*args)
-            return OperatorLineage(
-                inputs=facets.inputs,
-                outputs=facets.outputs,
-                run_facets=facets.run_facets,
-                job_facets=facets.job_facets,
-            )
+            facets = get_facets_method(*args)
         except ImportError:
             self.log.exception(
                 "OpenLineage provider method failed to import OpenLineage integration. "
@@ -114,4 +108,11 @@ class DefaultExtractor(BaseExtractor):
             )
         except Exception:
             self.log.exception("OpenLineage provider method failed to extract data from provider. ")
+        else:
+            return OperatorLineage(
+                inputs=facets.inputs,
+                outputs=facets.outputs,
+                run_facets=facets.run_facets,
+                job_facets=facets.job_facets,
+            )
         return None

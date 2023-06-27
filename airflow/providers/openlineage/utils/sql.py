@@ -20,14 +20,18 @@ import logging
 from collections import defaultdict
 from contextlib import closing
 from enum import IntEnum
-from typing import TYPE_CHECKING, Dict, Iterator, List
+from typing import TYPE_CHECKING, Dict, List, Optional
 
-from attrs import define, field
+from attrs import define
+from sqlalchemy import Column, MetaData, Table, and_, union_all
 
 from openlineage.client.facet import SchemaDatasetFacet, SchemaField
 from openlineage.client.run import Dataset
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
+    from sqlalchemy.sql import ClauseElement
+
     from airflow.hooks.base import BaseHook
 
 
@@ -47,38 +51,34 @@ class ColumnIndex(IntEnum):
     DATABASE = 5
 
 
-TablesHierarchy = Dict[str, Dict[str, List[str]]]
+TablesHierarchy = Dict[Optional[str], Dict[Optional[str], List[str]]]
 
 
 @define
 class TableSchema:
     """Temporary object used to construct OpenLineage Dataset."""
 
-    table: str = field()
-    schema: str | None = field()
-    database: str | None = field()
-    fields: list[SchemaField] = field()
+    table: str
+    schema: str | None
+    database: str | None
+    fields: list[SchemaField]
 
     def to_dataset(self, namespace: str, database: str | None = None) -> Dataset:
         # Prefix the table name with database and schema name using
         # the format: {database_name}.{table_schema}.{table_name}.
         name = ".".join(
-            filter(
-                lambda x: x is not None,  # type: ignore
-                [self.database if self.database else database, self.schema, self.table],
-            )
+            [
+                x
+                for x in [self.database if self.database else database, self.schema, self.table]
+                if x is not None
+            ]
         )
+
         return Dataset(
             namespace=namespace,
             name=name,
             facets={"schema": SchemaDatasetFacet(fields=self.fields)} if len(self.fields) is not None else {},
         )
-
-
-def execute_query_on_hook(hook: BaseHook, query: str) -> Iterator[tuple]:
-    with closing(hook.get_conn()) as conn:
-        with closing(conn.cursor()) as cursor:
-            return cursor.execute(query).fetchall()
 
 
 def get_table_schemas(
@@ -89,8 +89,9 @@ def get_table_schemas(
     out_query: str | None,
 ) -> tuple[list[Dataset], ...]:
     """
-    This function queries database for table schemas using provided hook.
-    Responsibility to provide queries for this function is on particular extractors.
+    Queries database for table schemas.
+
+    Uses provided hook. Responsibility to provide queries for this function is on particular extractors.
     If query for input or output table isn't provided, the query is skipped.
     """
     in_datasets: list[Dataset] = []
@@ -112,9 +113,9 @@ def get_table_schemas(
 
 def parse_query_result(cursor) -> list[TableSchema]:
     """
-    This function fetches results from DB-API 2.0 cursor
+    Fetches results from DB-API 2.0 cursor and creates list of table schemas.
+
     For each row it creates :class:`TableSchema`.
-    Returns list of table schemas.
     """
     schemas: dict = {}
     columns: dict = defaultdict(list)
@@ -152,48 +153,43 @@ def create_information_schema_query(
     information_schema_table_name: str,
     tables_hierarchy: TablesHierarchy,
     uppercase_names: bool = False,
-    allow_trailing_semicolon: bool = True,
-    column_quote_style: str = '"',
+    sqlalchemy_engine: Engine | None = None,
 ) -> str:
-    """This function creates query for getting table schemas from information schema."""
-    sqls = []
+    """Creates query for getting table schemas from information schema."""
+    metadata = MetaData(sqlalchemy_engine)
+    select_statements = []
     for db, schema_mapping in tables_hierarchy.items():
-        filter_clauses = create_filter_clauses(schema_mapping, uppercase_names)
-        source = information_schema_table_name
+        schema, table_name = information_schema_table_name.split(".")
         if db:
-            source = f"{db.upper() if uppercase_names else db}.{source}"
-        table_columns = [f"{column_quote_style}{column}{column_quote_style}" for column in columns]
-        sqls.append(f"SELECT {', '.join(table_columns)} FROM {source} WHERE {' OR '.join(filter_clauses)}")
-    sql = " UNION ALL ".join(sqls)
+            schema = f"{db}.{schema}"
+        information_schema_table = Table(
+            table_name, metadata, *[Column(column) for column in columns], schema=schema
+        )
+        filter_clauses = create_filter_clauses(schema_mapping, information_schema_table, uppercase_names)
+        select_statements.append(information_schema_table.select().filter(*filter_clauses))
+    return str(
+        union_all(*select_statements).compile(sqlalchemy_engine, compile_kwargs={"literal_binds": True})
+    )
 
-    # For some databases such as Trino, trailing semicolon can cause a syntax error.
-    if allow_trailing_semicolon:
-        sql += ";"
 
-    return sql
-
-
-def create_filter_clauses(schema_mapping: dict, uppercase_names: bool = False) -> list[str]:
+def create_filter_clauses(
+    schema_mapping: dict, information_schema_table: Table, uppercase_names: bool = False
+) -> ClauseElement:
     """
-    Creates comprehensive filter clauses for all tables in one database (assuming hierarchy
-    of database -> schema -> table).
+    Creates comprehensive filter clauses for all tables in one database.
 
     :param schema_mapping: a dictionary of schema names and list of tables in each
+    :param information_schema_table: `sqlalchemy.Table` instance used to construct clauses
+        For most SQL dbs it contains `table_name` and `table_schema` columns,
+        therefore it is expected the table has them defined.
     :param uppercase_names: if True use schema and table names uppercase
     """
     filter_clauses = []
     for schema, tables in schema_mapping.items():
-        table_names = ",".join(
-            map(
-                lambda name: f"'{name.upper() if uppercase_names else name}'",
-                tables,
-            )
+        filter_clause = information_schema_table.c.table_name.in_(
+            name.upper() if uppercase_names else name for name in tables
         )
         if schema:
-            filter_clauses.append(
-                f"( table_schema = '{schema.upper() if uppercase_names else schema}' "
-                f"AND table_name IN ({table_names}) )"
-            )
-        else:
-            filter_clauses.append(f"( table_name IN ({table_names}) )")
+            filter_clause = and_(information_schema_table.c.table_schema == schema, filter_clause)
+        filter_clauses.append(filter_clause)
     return filter_clauses
