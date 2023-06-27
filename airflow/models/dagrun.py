@@ -1342,7 +1342,7 @@ class DagRun(Base, LoggingMixin):
                         TI.run_id == self.run_id,
                         tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids_chunk),
                     )
-                    .values(state=State.SCHEDULED)
+                    .values(state=TaskInstanceState.SCHEDULED)
                     .execution_options(synchronize_session=False)
                 ).rowcount
 
@@ -1358,7 +1358,7 @@ class DagRun(Base, LoggingMixin):
                         TI.task_id.in_(dummy_ti_ids_chunk),
                     )
                     .values(
-                        state=State.SUCCESS,
+                        state=TaskInstanceState.SUCCESS,
                         start_date=timezone.utcnow(),
                         end_date=timezone.utcnow(),
                         duration=0,

@@ -114,7 +114,7 @@ class Pool(Base):
         if not name:
             raise ValueError("Pool name must not be empty")
 
-        pool = session.scalars(select(Pool).filter_by(pool=name)).one_or_none()
+        pool = session.scalar(select(Pool).filter_by(pool=name))
         if pool is None:
             pool = Pool(pool=name, slots=slots, description=description)
             session.add(pool)
