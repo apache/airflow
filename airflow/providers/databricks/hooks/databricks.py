@@ -212,7 +212,7 @@ class DatabricksHook(BaseDatabricksHook):
 
         :param json: The data used in the new_settings of the request to the ``reset`` endpoint.
         """
-        self._do_api_call(RESET_ENDPOINT, {"job_id": job_id,  "new_settings": json})
+        self._do_api_call(RESET_ENDPOINT, {"job_id": job_id, "new_settings": json})
 
     def run_now(self, json: dict) -> int:
         """

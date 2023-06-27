@@ -86,12 +86,10 @@ TASKS = [
             "parameters": [
                 "--data",
                 "dbfs:/path/to/data.json",
-            ]
+            ],
         },
         "libraries": [
-            {
-                "jar": "dbfs:/mnt/databricks/Sessionize.jar"
-            },
+            {"jar": "dbfs:/mnt/databricks/Sessionize.jar"},
         ],
         "timeout_seconds": 86400,
         "max_retries": 3,
@@ -104,15 +102,10 @@ TASKS = [
         "job_cluster_key": "auto_scaling_cluster",
         "spark_jar_task": {
             "main_class_name": "com.databricks.OrdersIngest",
-            "parameters": [
-                "--data",
-                "dbfs:/path/to/order-data.json"
-            ],
+            "parameters": ["--data", "dbfs:/path/to/order-data.json"],
         },
         "libraries": [
-            {
-                "jar": "dbfs:/mnt/databricks/OrderIngest.jar"
-            },
+            {"jar": "dbfs:/mnt/databricks/OrderIngest.jar"},
         ],
         "timeout_seconds": 86400,
         "max_retries": 3,
@@ -123,12 +116,8 @@ TASKS = [
         "task_key": "Match",
         "description": "Matches orders with user sessions",
         "depends_on": [
-            {
-                "task_key": "Orders_Ingest"
-            },
-            {
-                "task_key": "Sessionize"
-            },
+            {"task_key": "Orders_Ingest"},
+            {"task_key": "Sessionize"},
         ],
         "new_cluster": {
             "spark_version": "7.3.x-scala2.12",
@@ -143,7 +132,7 @@ TASKS = [
             "autoscale": {
                 "min_workers": 2,
                 "max_workers": 16,
-            }
+            },
         },
         "notebook_task": {
             "notebook_path": "/Users/user.name@databricks.com/Match",
@@ -151,7 +140,7 @@ TASKS = [
             "base_parameters": {
                 "name": "John Doe",
                 "age": "35",
-            }
+            },
         },
         "timeout_seconds": 86400,
         "max_retries": 3,
@@ -175,19 +164,19 @@ JOB_CLUSTERS = [
             "autoscale": {
                 "min_workers": 2,
                 "max_workers": 16,
-            }
-        }
+            },
+        },
     },
 ]
 EMAIL_NOTIFICATIONS = {
     "on_start": [
-      "user.name@databricks.com",
+        "user.name@databricks.com",
     ],
     "on_success": [
-      "user.name@databricks.com",
+        "user.name@databricks.com",
     ],
     "on_failure": [
-      "user.name@databricks.com",
+        "user.name@databricks.com",
     ],
     "no_alert_for_skipped_runs": False,
 }
@@ -215,13 +204,13 @@ TIMEOUT_SECONDS = 86400
 SCHEDULE = {
     "quartz_cron_expression": "20 30 * * * ?",
     "timezone_id": "Europe/London",
-    "pause_status": "PAUSED"
+    "pause_status": "PAUSED",
 }
 MAX_CONCURRENT_RUNS = 10
 GIT_SOURCE = {
     "git_url": "https://github.com/databricks/databricks-cli",
     "git_branch": "main",
-    "git_provider": "gitHub"
+    "git_provider": "gitHub",
 }
 ACCESS_CONTROL_LIST = [
     {
@@ -251,6 +240,7 @@ def make_run_with_state_mock(
             },
         }
     )
+
 
 class TestDatabricksJobsCreateOperator:
     def test_init_with_named_parameters(self):
@@ -397,11 +387,7 @@ class TestDatabricksJobsCreateOperator:
         dag = DAG("test", start_date=datetime.now())
         op = DatabricksJobsCreateOperator(dag=dag, task_id=TASK_ID, json=json)
         op.render_template_fields(context={"ds": DATE})
-        expected = utils.normalise_json_content(
-            {
-                "name": f"test-{DATE}"
-            }
-        )
+        expected = utils.normalise_json_content({"name": f"test-{DATE}"})
         assert expected == op.json
 
     def test_init_with_bad_type(self):
