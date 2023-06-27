@@ -1025,7 +1025,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         wait(
             waiter=waiter,
             waiter_delay=self.waiter_delay,
-            max_attempts=self.waiter_max_attempts,
+            waiter_max_attempts=self.waiter_max_attempts,
             args={"applicationId": application_id},
             failure_message="Serverless Application creation failed",
             status_message="Serverless Application status is",
@@ -1038,7 +1038,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             waiter = self.hook.get_waiter("serverless_app_started")
             wait(
                 waiter=waiter,
-                max_attempts=self.waiter_max_attempts,
+                waiter_max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
                 args={"applicationId": application_id},
                 failure_message="Serverless Application failed to start",
@@ -1158,7 +1158,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
             wait(
                 waiter=waiter,
-                max_attempts=self.waiter_max_attempts,
+                waiter_max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
                 args={"applicationId": self.application_id},
                 failure_message="Serverless Application failed to start",
@@ -1185,7 +1185,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
             waiter = self.hook.get_waiter("serverless_job_completed")
             wait(
                 waiter=waiter,
-                max_attempts=self.waiter_max_attempts,
+                waiter_max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
                 args={"applicationId": self.application_id, "jobRunId": self.job_id},
                 failure_message="Serverless Job failed",
@@ -1314,7 +1314,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             waiter = self.hook.get_waiter("serverless_app_stopped")
             wait(
                 waiter=waiter,
-                max_attempts=self.waiter_max_attempts,
+                waiter_max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
                 args={"applicationId": self.application_id},
                 failure_message="Error stopping application",
@@ -1409,7 +1409,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
 
             wait(
                 waiter=waiter,
-                max_attempts=self.waiter_max_attempts,
+                waiter_max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
                 args={"applicationId": self.application_id},
                 failure_message="Error terminating application",
