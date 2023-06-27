@@ -1823,14 +1823,21 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     :param elements: a list of operators / lists of operators
     """
+    if not elements:
+        raise ValueError("No tasks provided; nothing to do.")
     prev_elem = None
+    deps_set = False
     for curr_elem in elements:
         if isinstance(curr_elem, EdgeModifier):
             raise ValueError("Labels are not supported by chain_linear")
         if prev_elem is not None:
             for task in prev_elem:
                 task >> curr_elem
+                if not deps_set:
+                    deps_set = True
         prev_elem = [curr_elem] if isinstance(curr_elem, DependencyMixin) else curr_elem
+    if not deps_set:
+        raise ValueError("No dependencies were set. Did you forget to expand with `*`?")
 
 
 # pyupgrade assumes all type annotations can be lazily evaluated, but this is
