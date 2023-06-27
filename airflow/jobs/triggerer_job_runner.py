@@ -402,7 +402,9 @@ class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
 
     def emit_metrics(self):
         Stats.gauge(f"triggers.running.{self.job.hostname}", len(self.trigger_runner.triggers))
-        Stats.gauge(f"triggers.running", len(self.trigger_runner.triggers), tags={"hostname":self.job.hostname})
+        Stats.gauge(
+            "triggers.running", len(self.trigger_runner.triggers), tags={"hostname": self.job.hostname}
+        )
 
 
 class TriggerDetails(TypedDict):
