@@ -15,7 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""AWS ECS Executor. Each Airflow task gets delegated out to an AWS ECS or Fargate Task."""
+"""
+AWS ECS Executor.
+
+Each Airflow task gets delegated out to an Amazon ECS Task.
+"""
 from __future__ import annotations
 
 import time
@@ -34,12 +38,12 @@ from airflow.utils.state import State
 
 CommandType = List[str]
 ExecutorConfigFunctionType = Callable[[CommandType], dict]
-EcsFargateQueuedTask = namedtuple("EcsFargateQueuedTask", ("key", "command", "queue", "executor_config"))
+EcsQueuedTask = namedtuple("EcsQueuedTask", ("key", "command", "queue", "executor_config"))
 ExecutorConfigType = Dict[str, Any]
-EcsFargateTaskInfo = namedtuple("EcsFargateTaskInfo", ("cmd", "queue", "config"))
+EcsTaskInfo = namedtuple("EcsTaskInfo", ("cmd", "queue", "config"))
 
 
-class EcsFargateTask:
+class EcsExecutorTask:
     """Data Transfer Object for an ECS Fargate Task."""
 
     def __init__(
@@ -60,10 +64,11 @@ class EcsFargateTask:
 
     def get_task_state(self) -> str:
         """
-        This is the primary logic that handles state in an ECS/Fargate Task.
+        This is the primary logic that handles state in an ECS task.
+
         It will determine if a status is:
             QUEUED - Task is being provisioned.
-            RUNNING - Task is launched on ECS/Fargate.
+            RUNNING - Task is launched on ECS.
             REMOVED - Task provisioning has failed for some reason. See `stopped_reason`.
             FAILED - Task is completed and at least one container has failed.
             SUCCESS - Task is completed and all containers have succeeded.
@@ -74,7 +79,7 @@ class EcsFargateTask:
             return State.QUEUED
         is_finished = self.desired_status == "STOPPED"
         has_exit_codes = all(["exit_code" in x for x in self.containers])
-        # sometimes fargate tasks may time out. Whoops.
+        # Sometimes ECS tasks may time out.
         if not self.started_at and is_finished:
             return State.REMOVED
         if not is_finished or not has_exit_codes:
@@ -86,27 +91,31 @@ class EcsFargateTask:
         return f"({self.task_arn}, {self.last_status}->{self.desired_status}, {self.get_task_state()})"
 
 
-class AwsEcsFargateExecutor(BaseExecutor):
+class AwsEcsExecutor(BaseExecutor):
     """
-    The Airflow Scheduler creates a shell command, and passes it to the executor. This ECS Executor simply
-    runs said airflow command on a remote AWS Fargate or AWS ECS Cluster with an task-definition configured
-    with the same containers as the Scheduler. It then periodically checks in with the launched tasks
-    (via task-arns) to determine the status.
+    Executes the provided Airflow command on an ECS instance.
+
+    The Airflow Scheduler creates a shell command, and passes it to the executor. This ECS Executor
+    runs said Airflow command on a remote Amazon ECS Cluster with a task-definition configured to
+    launch the same containers as the Scheduler. It then periodically checks in with the launched
+    tasks (via task-arns) to determine the status.
+
     This allows individual tasks to specify CPU, memory, GPU, env variables, etc. When initializing a task,
     there's an option for "executor config" which should be a dictionary with keys that match the
-    "ContainerOverride" definition per AWS' documentation (see link below).
+    "ContainerOverride" definition per AWS documentation (see link below).
+
     Prerequisite: proper configuration of Boto3 library
     .. seealso:: https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html for
     authentication and access-key management. You can store an environmental variable, setup aws config from
     console, or use IAM roles.
+
     .. seealso:: https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_ContainerOverride.html for an
      Airflow TaskInstance's executor_config.
     """
 
-    # Number of retries in the scenario where the API cannot find a task key. We do this because sometimes
-    # AWS misplaces RunTask executions; even if they have a valid ARN.
+    # Number of retries in the scenario where the API cannot find a task key.
     MAX_FAILURE_CHECKS = 3
-    # AWS only allows a maximum number of ARNs in the describe_tasks function
+    # AWS limits the maximum number of ARNs in the describe_tasks function.
     DESCRIBE_TASKS_BATCH_SIZE = 99
 
     def __init__(self, *args, **kwargs):
@@ -116,19 +125,19 @@ class AwsEcsFargateExecutor(BaseExecutor):
         # TODO::  In the inherited code, these next two defaulted to None and were set in start()
         #         below but mypy didn't like that. The provided tests still pass with this change,
         #         but it is possible it might have some unanticipated consequences.
-        self.active_workers: EcsFargateTaskCollection = EcsFargateTaskCollection()
+        self.active_workers: EcsTaskCollection = EcsTaskCollection()
         self.pending_tasks: deque = deque()
         self.ecs = None
         self.run_task_kwargs = None
 
     def start(self):
         """Initialize Boto3 ECS Client, and other internal variables."""
-        region = conf.get("ecs_fargate", "region")
-        self.cluster = conf.get("ecs_fargate", "cluster")
-        self.container_name = conf.get("ecs_fargate", "container_name")
+        region = conf.get("ecs_executor", "region")
+        self.cluster = conf.get("ecs_executor", "cluster")
+        self.container_name = conf.get("ecs_executor", "container_name")
         # TODO:: Confirm that defaulting in the init is functionally identical then remove these
         #        next two commented lines.
-        # self.active_workers = EcsFargateTaskCollection()
+        # self.active_workers = EcsTaskCollection()
         # self.pending_tasks = deque()
         self.ecs = boto3.client("ecs", region_name=region)
         self.run_task_kwargs = self._load_run_kwargs()
@@ -157,10 +166,10 @@ class AwsEcsFargateExecutor(BaseExecutor):
 
     def __update_running_task(self, task):
         self.active_workers.update_task(task)
-        # get state of current task
+        # Get state of current task.
         task_state = task.get_task_state()
         task_key = self.active_workers.arn_to_key[task.task_arn]
-        # mark finished tasks as either a success/failure
+        # Mark finished tasks as either a success/failure.
         if task_state == State.FAILED:
             self.fail(task_key)
         elif task_state == State.SUCCESS:
@@ -182,7 +191,7 @@ class AwsEcsFargateExecutor(BaseExecutor):
                 describe_tasks_response = BotoDescribeTasksSchema().load(boto_describe_tasks)
             except ValidationError as err:
                 self.log.error("ECS DescribeTask Response: %s", boto_describe_tasks)
-                raise EcsFargateError(
+                raise EcsExecutorError(
                     f"DescribeTasks API call does not match expected JSON shape. "
                     f"Are you sure that the correct version of Boto3 is installed? {err}"
                 )
@@ -191,10 +200,7 @@ class AwsEcsFargateExecutor(BaseExecutor):
         return all_task_descriptions
 
     def __handle_failed_task(self, task_arn: str, reason: str):
-        """
-        AWS' APIs aren't perfect. For example, sometimes task-arns get dropped and never make it to the
-        ECS/Fargate Cloud. If an API failure occurs the task is simply rescheduled.
-        """
+        """If an API failure occurs, the task is rescheduled."""
         task_key = self.active_workers.arn_to_key[task_arn]
         task_cmd, queue, exec_info = self.active_workers.info_by_key(task_key)
         failure_count = self.active_workers.failure_count_by_key(task_key)
@@ -208,7 +214,7 @@ class AwsEcsFargateExecutor(BaseExecutor):
                 task_arn,
             )
             self.active_workers.increment_failure_count(task_key)
-            self.pending_tasks.appendleft(EcsFargateQueuedTask(task_key, task_cmd, queue, exec_info))
+            self.pending_tasks.appendleft(EcsQueuedTask(task_key, task_cmd, queue, exec_info))
         else:
             self.log.error(
                 "Task %s has failed a maximum of %s times. Marking as failed", task_key, failure_count
@@ -218,11 +224,13 @@ class AwsEcsFargateExecutor(BaseExecutor):
 
     def attempt_task_runs(self):
         """
-        Takes tasks from the pending_tasks queue, and attempts to find an instance to run it on. If the
-        launch type is ECS, then this will attempt to place tasks on empty EC2 instances. If there are no EC2
-        instances available, no task is placed and this function will be called again in the next heart-beat.
-        If the launch type is FARGATE, then this will attempt to place tasks on an AWS Fargate/Fargate-spot
-        instance (based off of your task definition).
+        Takes tasks from the pending_tasks queue, and attempts to find an instance to run it on.
+
+        If the launch type is EC2, this will attempt to place tasks on empty EC2 instances.  If
+            there are no EC2 instances available, no task is placed and this function will be
+            called again in the next heart-beat.
+
+        If the launch type is FARGATE, this will run the tasks on new AWS Fargate instances.
         """
         queue_len = len(self.pending_tasks)
         failure_reasons = defaultdict(int)
@@ -236,7 +244,7 @@ class AwsEcsFargateExecutor(BaseExecutor):
                 self.pending_tasks.append(ecs_task)
             elif not run_task_response["tasks"]:
                 self.log.error("ECS RunTask Response: %s", run_task_response)
-                raise EcsFargateError(
+                raise EcsExecutorError(
                     "No failures and no tasks provided in response. This should never happen."
                 )
             else:
@@ -252,10 +260,11 @@ class AwsEcsFargateExecutor(BaseExecutor):
         self, task_id: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
     ):
         """
-        This function is the actual attempt to run a queued-up airflow task. Not to
-        be confused with execute_async() which inserts tasks into the queue. The
-        command and executor config will be placed in the container-override section
-        of the JSON request, before calling Boto3's "run_task" function.
+        Run a queued-up Airflow task.
+
+        Not to be confused with execute_async() which inserts tasks into the queue.
+        The command and executor config will be placed in the container-override
+        section of the JSON request before calling Boto3's "run_task" function.
         """
         run_task_api = self._run_task_kwargs(task_id, cmd, queue, exec_config)
         boto_run_task = self.ecs.run_task(**run_task_api)
@@ -263,7 +272,7 @@ class AwsEcsFargateExecutor(BaseExecutor):
             run_task_response = BotoRunTaskSchema().load(boto_run_task)
         except ValidationError as err:
             self.log.error("ECS RunTask Response: %s", err)
-            raise EcsFargateError(
+            raise EcsExecutorError(
                 f"RunTask API call does not match expected JSON shape. "
                 f"Are you sure that the correct version of Boto3 is installed? {err}"
             )
@@ -273,8 +282,7 @@ class AwsEcsFargateExecutor(BaseExecutor):
         self, task_id: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
     ) -> dict:
         """
-        This modifies the standard kwargs to be specific to this task by
-        overriding the airflow command and updating the container overrides.
+        Overrides the Airflow command to update the container overrides so kwargs are specific to this task.
 
         One last chance to modify Boto3's "run_task" kwarg params before it gets passed into the Boto3 client.
         """
@@ -288,7 +296,7 @@ class AwsEcsFargateExecutor(BaseExecutor):
         """Save the task to be executed in the next sync by inserting the commands into a queue."""
         if executor_config and ("name" in executor_config or "command" in executor_config):
             raise ValueError('Executor Config should never override "name" or "command"')
-        self.pending_tasks.append(EcsFargateQueuedTask(key, command, queue, executor_config or {}))
+        self.pending_tasks.append(EcsQueuedTask(key, command, queue, executor_config or {}))
 
     def end(self, heartbeat_interval=10):
         """Waits for all currently running tasks to end, and doesn't launch any tasks."""
@@ -305,25 +313,26 @@ class AwsEcsFargateExecutor(BaseExecutor):
         self.end()
 
     def _load_run_kwargs(self) -> dict:
+        fallback = (
+            "airflow.providers.amazon.aws.executors.ecs.ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS"
+        )
         run_kwargs = import_string(
             conf.get(
-                "ecs_fargate",
+                "ecs_executor",
                 "run_task_kwargs",
-                fallback=(
-                    "airflow.providers.amazon.aws.executors.ecs.ecs_fargate_conf.ECS_FARGATE_RUN_TASK_KWARGS"
-                ),
+                fallback=fallback,
             )
         )
         if not isinstance(run_kwargs, dict):
-            raise ValueError(f"AWS ECS config value must be a dictionary. Got {type(run_kwargs)}")
+            raise ValueError(f"AWS ECS Executor config value must be a dictionary. Got {type(run_kwargs)}")
 
         print(
             "NANI",
             run_kwargs,
             conf.get(
-                "ecs_fargate",
+                "ecs_executor",
                 "run_task_kwargs",
-                fallback="airflow.providers.amazon.aws.executors.executor_conf.ECS_FARGATE_RUN_TASK_KWARGS",
+                fallback=fallback,
             ),
         )
 
@@ -347,19 +356,19 @@ class AwsEcsFargateExecutor(BaseExecutor):
         raise KeyError(f"No such container found by container name: {self.container_name}")
 
 
-class EcsFargateTaskCollection:
+class EcsTaskCollection:
     """A five-way dictionary between Airflow task ids, Airflow cmds, ECS ARNs, and ECS task objects."""
 
     def __init__(self):
         self.key_to_arn: dict[TaskInstanceKey, str] = {}
         self.arn_to_key: dict[str, TaskInstanceKey] = {}
-        self.tasks: dict[str, EcsFargateTask] = {}
+        self.tasks: dict[str, EcsExecutorTask] = {}
         self.key_to_failure_counts: dict[TaskInstanceKey, int] = defaultdict(int)
-        self.key_to_task_info: dict[TaskInstanceKey, EcsFargateTaskInfo] = {}
+        self.key_to_task_info: dict[TaskInstanceKey, EcsTaskInfo] = {}
 
     def add_task(
         self,
-        task: EcsFargateTask,
+        task: EcsExecutorTask,
         airflow_task_key: TaskInstanceKey,
         queue: str,
         airflow_cmd: CommandType,
@@ -370,22 +379,22 @@ class EcsFargateTaskCollection:
         self.tasks[arn] = task
         self.key_to_arn[airflow_task_key] = arn
         self.arn_to_key[arn] = airflow_task_key
-        self.key_to_task_info[airflow_task_key] = EcsFargateTaskInfo(airflow_cmd, queue, exec_config)
+        self.key_to_task_info[airflow_task_key] = EcsTaskInfo(airflow_cmd, queue, exec_config)
 
-    def update_task(self, task: EcsFargateTask):
+    def update_task(self, task: EcsExecutorTask):
         """Updates the state of the given task based on task ARN."""
         self.tasks[task.task_arn] = task
 
-    def task_by_key(self, task_key: TaskInstanceKey) -> EcsFargateTask:
+    def task_by_key(self, task_key: TaskInstanceKey) -> EcsExecutorTask:
         """Get a task by Airflow Instance Key."""
         arn = self.key_to_arn[task_key]
         return self.task_by_arn(arn)
 
-    def task_by_arn(self, arn) -> EcsFargateTask:
+    def task_by_arn(self, arn) -> EcsExecutorTask:
         """Get a task by AWS ARN."""
         return self.tasks[arn]
 
-    def pop_by_key(self, task_key: TaskInstanceKey) -> EcsFargateTask:
+    def pop_by_key(self, task_key: TaskInstanceKey) -> EcsExecutorTask:
         """Deletes task from collection based off of Airflow Task Instance Key."""
         arn = self.key_to_arn[task_key]
         task = self.tasks[arn]
@@ -413,8 +422,8 @@ class EcsFargateTaskCollection:
         """Increment the failure counter given an Airflow Task Key."""
         self.key_to_failure_counts[task_key] += 1
 
-    def info_by_key(self, task_key: TaskInstanceKey) -> EcsFargateTaskInfo:
-        """Get the Airflow Command given an airflow task key."""
+    def info_by_key(self, task_key: TaskInstanceKey) -> EcsTaskInfo:
+        """Get the Airflow Command given an Airflow task key."""
         return self.key_to_task_info[task_key]
 
     def __getitem__(self, value):
@@ -429,6 +438,7 @@ class EcsFargateTaskCollection:
 class BotoContainerSchema(Schema):
     """
     Botocore Serialization Object for ECS 'Container' shape.
+
     Note that there are many more parameters, but the executor only needs the members listed below.
     """
 
@@ -445,6 +455,7 @@ class BotoContainerSchema(Schema):
 class BotoTaskSchema(Schema):
     """
     Botocore Serialization Object for ECS 'Task' shape.
+
     Note that there are many more parameters, but the executor only needs the members listed below.
     """
 
@@ -457,8 +468,8 @@ class BotoTaskSchema(Schema):
 
     @post_load
     def make_task(self, data, **kwargs):
-        """Overwrites marshmallow load() to return an instance of EcsFargateTask instead of a dictionary."""
-        return EcsFargateTask(**data)
+        """Overwrites marshmallow load() to return an instance of EcsExecutorTask instead of a dictionary."""
+        return EcsExecutorTask(**data)
 
     class Meta:
         """Options object for a Schema. See Schema.Meta for more details and valid values."""
@@ -502,5 +513,5 @@ class BotoDescribeTasksSchema(Schema):
         unknown = EXCLUDE
 
 
-class EcsFargateError(Exception):
-    """Thrown when something unexpected has occurred within the AWS ECS/Fargate ecosystem."""
+class EcsExecutorError(Exception):
+    """Thrown when something unexpected has occurred within the ECS ecosystem."""

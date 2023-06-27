@@ -21,10 +21,10 @@ import os
 from unittest import mock
 
 from airflow.providers.amazon.aws.executors.ecs import (
-    AwsEcsFargateExecutor,
+    AwsEcsExecutor,
     BotoTaskSchema,
-    EcsFargateTask,
-    EcsFargateTaskCollection,
+    EcsExecutorTask,
+    EcsTaskCollection,
 )
 from airflow.utils.state import State
 
@@ -32,34 +32,34 @@ from .botocore_helper import assert_botocore_call, get_botocore_model
 
 
 def set_conf():
-    os.environ["AIRFLOW__ECS_FARGATE__REGION"] = "us-west-1"
-    os.environ["AIRFLOW__ECS_FARGATE__CLUSTER"] = "some-cluster"
-    os.environ["AIRFLOW__ECS_FARGATE__CONTAINER_NAME"] = "some-container-name"
-    os.environ["AIRFLOW__ECS_FARGATE__TASK_DEFINITION"] = "some-task-def"
-    os.environ["AIRFLOW__ECS_FARGATE__LAUNCH_TYPE"] = "FARGATE"
-    os.environ["AIRFLOW__ECS_FARGATE__PLATFORM_VERSION"] = "LATEST"
-    os.environ["AIRFLOW__ECS_FARGATE__ASSIGN_PUBLIC_IP"] = "DISABLED"
-    os.environ["AIRFLOW__ECS_FARGATE__SECURITY_GROUPS"] = "sg1,sg2"
-    os.environ["AIRFLOW__ECS_FARGATE__SUBNETS"] = "sub1,sub2"
+    os.environ["AIRFLOW__ECS_EXECUTOR__REGION"] = "us-west-1"
+    os.environ["AIRFLOW__ECS_EXECUTOR__CLUSTER"] = "some-cluster"
+    os.environ["AIRFLOW__ECS_EXECUTOR__CONTAINER_NAME"] = "some-container-name"
+    os.environ["AIRFLOW__ECS_EXECUTOR__TASK_DEFINITION"] = "some-task-def"
+    os.environ["AIRFLOW__ECS_EXECUTOR__LAUNCH_TYPE"] = "FARGATE"
+    os.environ["AIRFLOW__ECS_EXECUTOR__PLATFORM_VERSION"] = "LATEST"
+    os.environ["AIRFLOW__ECS_EXECUTOR__ASSIGN_PUBLIC_IP"] = "DISABLED"
+    os.environ["AIRFLOW__ECS_EXECUTOR__SECURITY_GROUPS"] = "sg1,sg2"
+    os.environ["AIRFLOW__ECS_EXECUTOR__SUBNETS"] = "sub1,sub2"
 
 
 def unset_conf():
     for env in os.environ:
-        if env.startswith("AIRFLOW__ECS_FARGATE__"):
+        if env.startswith("AIRFLOW__ECS_EXECUTOR__"):
             os.environ.pop(env)
 
 
 class TestEcsTaskCollection:
-    """Tests EcsTaskCollection Class"""
+    """Tests EcsTaskCollection Class."""
 
     def setup_method(self):
         """
         Create an ECS Task Collection and add 2 Airflow tasks. Populates self.collection,
         self.first/second_task, self.first/second_airflow_key, and self.first/second_airflow_cmd.
         """
-        self.collection = EcsFargateTaskCollection()
+        self.collection = EcsTaskCollection()
         # Add first task
-        self.first_task = mock.Mock(spec=EcsFargateTask)
+        self.first_task = mock.Mock(spec=EcsExecutorTask)
         self.first_task.task_arn = "001"
         self.first_airflow_key = mock.Mock(spec=tuple)
         self.first_airflow_cmd = mock.Mock(spec=list)
@@ -73,7 +73,7 @@ class TestEcsTaskCollection:
             self.first_airflow_exec_config,
         )
         # Add second task
-        self.second_task = mock.Mock(spec=EcsFargateTask)
+        self.second_task = mock.Mock(spec=EcsExecutorTask)
         self.second_task.task_arn = "002"
         self.second_airflow_key = mock.Mock(spec=tuple)
         self.second_airflow_cmd = mock.Mock(spec=list)
@@ -88,7 +88,7 @@ class TestEcsTaskCollection:
         )
 
     def test_get_and_add(self):
-        """Test add_task, task_by_arn, cmd_by_key"""
+        """Test add_task, task_by_arn, cmd_by_key."""
         assert len(self.collection) == 2
 
         # Check basic get for first task
@@ -123,7 +123,7 @@ class TestEcsTaskCollection:
         """Test update_task"""
         # update arn with new task object
         assert self.collection["001"] == self.first_task
-        updated_task = mock.Mock(spec=EcsFargateTask)
+        updated_task = mock.Mock(spec=EcsExecutorTask)
         updated_task.task_arn = "001"
         self.collection.update_task(updated_task)
         assert self.collection["001"] == updated_task
@@ -137,17 +137,17 @@ class TestEcsTaskCollection:
         assert 0 == self.collection.failure_count_by_key(self.second_airflow_key)
 
 
-class TestEcsFargateTask:
-    """Tests the EcsFargateTask DTO"""
+class TestEcsExecutorTask:
+    """Tests the EcsExecutorTask DTO."""
 
     def test_queued_tasks(self):
         """Tasks that are pending launch identified as 'queued'"""
         queued_tasks = [
-            EcsFargateTask(
+            EcsExecutorTask(
                 task_arn="AAA", last_status="PROVISIONING", desired_status="RUNNING", containers=[{}]
             ),
-            EcsFargateTask(task_arn="BBB", last_status="PENDING", desired_status="RUNNING", containers=[{}]),
-            EcsFargateTask(
+            EcsExecutorTask(task_arn="BBB", last_status="PENDING", desired_status="RUNNING", containers=[{}]),
+            EcsExecutorTask(
                 task_arn="CCC", last_status="ACTIVATING", desired_status="RUNNING", containers=[{}]
             ),
         ]
@@ -156,7 +156,7 @@ class TestEcsFargateTask:
 
     def test_running_tasks(self):
         """Tasks that have been launched are identified as 'running'"""
-        running_task = EcsFargateTask(
+        running_task = EcsExecutorTask(
             task_arn="AAA", last_status="RUNNING", desired_status="RUNNING", containers=[{}]
         )
         assert State.RUNNING == running_task.get_task_state()
@@ -164,18 +164,20 @@ class TestEcsFargateTask:
     def test_removed_tasks(self):
         """Tasks that failed to launch are identified as 'removed'"""
         deprovisioning_tasks = [
-            EcsFargateTask(
+            EcsExecutorTask(
                 task_arn="DDD", last_status="DEACTIVATING", desired_status="STOPPED", containers=[{}]
             ),
-            EcsFargateTask(task_arn="EEE", last_status="STOPPING", desired_status="STOPPED", containers=[{}]),
-            EcsFargateTask(
+            EcsExecutorTask(
+                task_arn="EEE", last_status="STOPPING", desired_status="STOPPED", containers=[{}]
+            ),
+            EcsExecutorTask(
                 task_arn="FFF", last_status="DEPROVISIONING", desired_status="STOPPED", containers=[{}]
             ),
         ]
         for task in deprovisioning_tasks:
             assert State.REMOVED == task.get_task_state()
 
-        removed_task = EcsFargateTask(
+        removed_task = EcsExecutorTask(
             task_arn="DEAD",
             last_status="STOPPED",
             desired_status="STOPPED",
@@ -190,7 +192,7 @@ class TestEcsFargateTask:
         error_container = {"exit_code": 100, "last_status": "STOPPED"}
 
         for status in ("DEACTIVATING", "STOPPING", "DEPROVISIONING", "STOPPED"):
-            success_task = EcsFargateTask(
+            success_task = EcsExecutorTask(
                 task_arn="GOOD",
                 last_status=status,
                 desired_status="STOPPED",
@@ -201,7 +203,7 @@ class TestEcsFargateTask:
             assert State.SUCCESS == success_task.get_task_state()
 
         for status in ("DEACTIVATING", "STOPPING", "DEPROVISIONING", "STOPPED"):
-            failed_task = EcsFargateTask(
+            failed_task = EcsExecutorTask(
                 task_arn="FAIL",
                 last_status=status,
                 desired_status="STOPPED",
@@ -212,8 +214,8 @@ class TestEcsFargateTask:
             assert State.FAILED == failed_task.get_task_state()
 
 
-class TestAwsEcsFargateExecutor:
-    """Tests the AWS ECS Executor itself"""
+class TestAwsEcsExecutor:
+    """Tests the AWS ECS Executor."""
 
     def setup_method(self) -> None:
         """Creates Botocore Loader (used for asserting botocore calls) and a mocked ecs client"""
@@ -257,7 +259,7 @@ class TestAwsEcsFargateExecutor:
         assert "001" in self.executor.active_workers.task_by_key(airflow_key).task_arn
 
     def test_failed_execute_api(self):
-        """Test what happens when FARGATE refuses to execute a task"""
+        """Test what happens when ECS refuses to execute a task."""
         self.executor.ecs.run_task.return_value = {
             "tasks": [],
             "failures": [
@@ -279,9 +281,9 @@ class TestAwsEcsFargateExecutor:
     @mock.patch("airflow.executors.base_executor.BaseExecutor.success")
     def test_sync(self, success_mock, fail_mock):
         """Test synch from end-to-end"""
-        after_fargate_json = self.__mock_sync()
-        loaded_fargate_json = BotoTaskSchema().load(after_fargate_json)
-        assert State.SUCCESS == loaded_fargate_json.get_task_state()
+        response_json = self.__mock_sync()
+        formatted_response_json = BotoTaskSchema().load(response_json)
+        assert State.SUCCESS == formatted_response_json.get_task_state()
 
         self.executor.sync_running_tasks()
 
@@ -299,11 +301,11 @@ class TestAwsEcsFargateExecutor:
     @mock.patch("airflow.executors.base_executor.BaseExecutor.success")
     def test_failed_sync(self, success_mock, fail_mock):
         """Test success and failure states"""
-        after_fargate_json = self.__mock_sync()
+        response_json = self.__mock_sync()
 
         # set container's exit code to failure
-        after_fargate_json["containers"][0]["exitCode"] = 100
-        assert State.FAILED == BotoTaskSchema().load(after_fargate_json).get_task_state()
+        response_json["containers"][0]["exitCode"] = 100
+        assert State.FAILED == BotoTaskSchema().load(response_json).get_task_state()
         self.executor.sync()
 
         # ensure that run_task is called correctly as defined by Botocore docs
@@ -329,7 +331,7 @@ class TestAwsEcsFargateExecutor:
         }
 
         # Call Sync 3 times with failures
-        for check_count in range(AwsEcsFargateExecutor.MAX_FAILURE_CHECKS):
+        for check_count in range(AwsEcsExecutor.MAX_FAILURE_CHECKS):
             self.executor.sync_running_tasks()
             # ensure that run_task is called correctly as defined by Botocore docs
             assert self.executor.ecs.describe_tasks.call_count == check_count + 1
@@ -349,10 +351,10 @@ class TestAwsEcsFargateExecutor:
         success_mock.asswer_not_called()
 
     def test_terminate(self):
-        """Test that executor can shut everything down; forcing all tasks to unnaturally exit"""
-        after_fargate_task = self.__mock_sync()
-        after_fargate_task["containers"][0]["exitCode"] = 100
-        assert State.FAILED == BotoTaskSchema().load(after_fargate_task).get_task_state()
+        """Test that executor can shut everything down; forcing all tasks to unnaturally exit."""
+        response_task = self.__mock_sync()
+        response_task["containers"][0]["exitCode"] = 100
+        assert State.FAILED == BotoTaskSchema().load(response_task).get_task_state()
 
         self.executor.terminate()
 
@@ -363,26 +365,26 @@ class TestAwsEcsFargateExecutor:
         assert_botocore_call(self.ecs_model, method_name, args, kwargs)
 
     def test_end(self):
-        """Test that executor can end successfully; awaiting for all tasks to naturally exit"""
+        """Test that executor can end successfully; waiting for all tasks to naturally exit."""
         sync_call_count = 0
         sync_func = self.executor.sync
 
         def sync_mock():
-            """Mock won't work here, because we actually want to call the 'sync' func"""
+            """Mock won't work here, because we actually want to call the 'sync' func."""
             nonlocal sync_call_count
             sync_func()
             sync_call_count += 1
 
         self.executor.sync = sync_mock
-        after_fargate_task = self.__mock_sync()
-        after_fargate_task["containers"][0]["exitCode"] = 100
+        response_task = self.__mock_sync()
+        response_task["containers"][0]["exitCode"] = 100
         self.executor.end(heartbeat_interval=0)
 
         self.executor.sync = sync_func
 
     def __set_mocked_executor(self):
-        """Mock ECS such that there's nothing wrong with anything"""
-        executor = AwsEcsFargateExecutor()
+        """Mock ECS such that there's nothing wrong with anything."""
+        executor = AwsEcsExecutor()
         executor.start()
 
         # replace boto3 ecs client with mock
@@ -394,28 +396,27 @@ class TestAwsEcsFargateExecutor:
         self.executor = executor
 
     def __mock_sync(self):
-        """Mock ECS such that there's nothing wrong with anything"""
+        """Mock ECS such that there's nothing wrong with anything."""
 
-        # create running fargate instance
-        before_fargate_task = mock.Mock(spec=EcsFargateTask)
-        before_fargate_task.task_arn = "ABC"
-        before_fargate_task.api_failure_count = 0
-        before_fargate_task.get_task_state.return_value = State.RUNNING
+        initial_task = mock.Mock(spec=EcsExecutorTask)
+        initial_task.task_arn = "ABC"
+        initial_task.api_failure_count = 0
+        initial_task.get_task_state.return_value = State.RUNNING
 
         airflow_cmd = mock.Mock(spec=list)
         airflow_key = mock.Mock(spec=tuple)
         airflow_queue = mock.Mock(spec=str)
         airflow_exec_conf = mock.Mock(spec=dict)
         self.executor.active_workers.add_task(
-            before_fargate_task, airflow_key, airflow_queue, airflow_cmd, airflow_exec_conf
+            initial_task, airflow_key, airflow_queue, airflow_cmd, airflow_exec_conf
         )
 
-        after_task_json = {
+        response_task_json = {
             "taskArn": "ABC",
             "desiredStatus": "STOPPED",
             "lastStatus": "STOPPED",
             "startedAt": dt.datetime.now(),
             "containers": [{"name": "some-ecs-container", "lastStatus": "STOPPED", "exitCode": 0}],
         }
-        self.executor.ecs.describe_tasks.return_value = {"tasks": [after_task_json], "failures": []}
-        return after_task_json
+        self.executor.ecs.describe_tasks.return_value = {"tasks": [response_task_json], "failures": []}
+        return response_task_json
