@@ -23,6 +23,7 @@ from typing import Any
 from botocore.exceptions import WaiterError
 
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -188,3 +189,59 @@ class BatchSensorTrigger(BaseTrigger):
                     "message": f"Job {self.job_id} Succeeded",
                 }
             )
+
+
+class BatchCreateComputeEnvironmentTrigger(BaseTrigger):
+    """
+    Trigger for BatchCreateComputeEnvironmentOperator.
+    The trigger will asynchronously poll the boto3 API and wait for the compute environment to be ready.
+
+    :param job_id:  A unique identifier for the cluster.
+    :param max_retries: The maximum number of attempts to be made.
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param region_name: region name to use in AWS Hook
+    :param poll_interval: The amount of time in seconds to wait between attempts.
+    """
+
+    def __init__(
+        self,
+        compute_env_arn: str | None = None,
+        poll_interval: int = 30,
+        max_retries: int = 10,
+        aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
+    ):
+        super().__init__()
+        self.compute_env_arn = compute_env_arn
+        self.max_retries = max_retries
+        self.aws_conn_id = aws_conn_id
+        self.region_name = region_name
+        self.poll_interval = poll_interval
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serializes BatchOperatorTrigger arguments and classpath."""
+        return (
+            self.__class__.__module__ + "." + self.__class__.__qualname__,
+            {
+                "compute_env_arn": self.compute_env_arn,
+                "max_retries": self.max_retries,
+                "aws_conn_id": self.aws_conn_id,
+                "region_name": self.region_name,
+                "poll_interval": self.poll_interval,
+            },
+        )
+
+    async def run(self):
+        hook = BatchClientHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+        async with hook.async_conn as client:
+            waiter = hook.get_waiter("compute_env_ready", deferrable=True, client=client)
+            await async_wait(
+                waiter=waiter,
+                waiter_delay=self.poll_interval,
+                waiter_max_attempts=self.max_retries,
+                args={"computeEnvironments": [self.compute_env_arn]},
+                failure_message="Failure while creating Compute Environment",
+                status_message="Compute Environment not ready yet",
+                status_args=["computeEnvironments[].status", "computeEnvironments[].statusReason"],
+            )
+            yield TriggerEvent({"status": "success", "value": self.compute_env_arn})
