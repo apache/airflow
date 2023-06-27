@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import pytest
 
-from airflow import AirflowException
 from airflow.decorators import setup, task, task_group, teardown
 from airflow.decorators.setup_teardown import context_wrapper
+from airflow.exceptions import AirflowException
 from airflow.operators.bash import BashOperator
 
 
