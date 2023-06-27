@@ -509,3 +509,16 @@ class AzureDataLakeStorageV2Hook(BaseHook):
         """
         directory_client = self.get_directory_client(file_system_name, directory_name)
         directory_client.delete_directory()
+
+    def test_connection(self):
+        """Test ADLS Gen2 Storage connection."""
+        try:
+            # Attempts to list file systems in ADLS Gen2 Storage and retrieves the first
+            # file_system from the returned iterator. The Azure DataLake Storage allows creation
+            # of DataLakeServiceClient even if the credentials are incorrect but will fail properly
+            # if we try to fetch the file_system. We need to _actually_ try to retrieve a
+            # file_system to properly test the connection
+            next(self.get_conn().list_file_systems(), None)
+            return True, "Successfully connected to ADLS Gen2 Storage."
+        except Exception as e:
+            return False, str(e)

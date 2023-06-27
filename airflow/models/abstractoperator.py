@@ -26,7 +26,7 @@ from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models.expandinput import NotFullyPopulated
-from airflow.models.taskmixin import DAGNode
+from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.template.templater import Templater
 from airflow.utils.context import Context
 from airflow.utils.log.secrets_masker import redact
@@ -35,6 +35,7 @@ from airflow.utils.sqlalchemy import skip_locked, with_row_locks
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.weight_rule import WeightRule
 
 TaskStateChangeCallback = Callable[[Context], None]
@@ -102,6 +103,11 @@ class AbstractOperator(Templater, DAGNode):
 
     outlets: list
     inlets: list
+    trigger_rule: TriggerRule
+
+    _is_setup = False
+    _is_teardown = False
+    _on_failure_fail_dagrun = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = frozenset(
         (
@@ -148,6 +154,92 @@ class AbstractOperator(Templater, DAGNode):
     @property
     def node_id(self) -> str:
         return self.task_id
+
+    @property
+    def is_setup(self):
+        """
+        Whether the operator is a setup task.
+
+        :meta private:
+        """
+        return self._is_setup
+
+    @is_setup.setter
+    def is_setup(self, value):
+        """
+        Setter for is_setup property.
+
+        :meta private:
+        """
+        if self.is_teardown is True and value is True:
+            raise ValueError(f"Cannot mark task '{self.task_id}' as setup; task is already a teardown.")
+        self._is_setup = value
+
+    @property
+    def is_teardown(self):
+        """
+        Whether the operator is a teardown task.
+
+        :meta private:
+        """
+        return self._is_teardown
+
+    @is_teardown.setter
+    def is_teardown(self, value):
+        """
+        Setter for is_teardown property.
+
+        :meta private:
+        """
+        if self.is_setup is True and value is True:
+            raise ValueError(f"Cannot mark task '{self.task_id}' as teardown; task is already a setup.")
+        self._is_teardown = value
+
+    @property
+    def on_failure_fail_dagrun(self):
+        """
+        Whether the operator should fail the dagrun on failure.
+
+        :meta private:
+        """
+        return self._on_failure_fail_dagrun
+
+    @on_failure_fail_dagrun.setter
+    def on_failure_fail_dagrun(self, value):
+        """
+        Setter for on_failure_fail_dagrun property.
+
+        :meta private:
+        """
+        if value is True and self.is_teardown is not True:
+            raise ValueError(
+                f"Cannot set task on_failure_fail_dagrun for "
+                f"'{self.task_id}' because it is not a teardown task."
+            )
+        self._on_failure_fail_dagrun = value
+
+    def as_setup(self):
+        self.is_setup = True
+        return self
+
+    def as_teardown(
+        self,
+        *,
+        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
+        on_failure_fail_dagrun=NOTSET,
+    ):
+        self.is_teardown = True
+        if TYPE_CHECKING:
+            assert isinstance(self, BaseOperator)  # is_teardown not supported for MappedOperator
+        self.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
+        if on_failure_fail_dagrun is not NOTSET:
+            self.on_failure_fail_dagrun = on_failure_fail_dagrun
+        if not isinstance(setups, ArgNotSet):
+            setups = [setups] if isinstance(setups, DependencyMixin) else setups
+            for s in setups:
+                s.is_setup = True
+                s >> self
+        return self
 
     def get_direct_relative_ids(self, upstream: bool = False) -> set[str]:
         """Get direct relative IDs to the current task, upstream or downstream."""
