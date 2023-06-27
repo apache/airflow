@@ -2211,6 +2211,8 @@ dags:
     # - name: ""
     #   value: ""
 
+    command: ["/git-sync"]
+
     resources: {}
     #  limits:
     #   cpu: 100m
