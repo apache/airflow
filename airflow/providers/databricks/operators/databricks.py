@@ -21,7 +21,10 @@ from __future__ import annotations
 import time
 import warnings
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from logging import Logger
+from typing import TYPE_CHECKING, Any, Sequence, Union
+
+from databricks.sdk.service import jobs as j
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -40,6 +43,15 @@ DEFER_METHOD_NAME = "execute_complete"
 XCOM_RUN_ID_KEY = "run_id"
 XCOM_JOB_ID_KEY = "job_id"
 XCOM_RUN_PAGE_URL_KEY = "run_page_url"
+DatabricksTaskType = Union[
+    j.DbtTask,
+    j.NotebookTask,
+    j.PipelineTask,
+    j.PythonWheelTask,
+    j.SparkPythonTask,
+    j.SparkJarTask,
+    j.SparkSubmitTask,
+]
 
 
 def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
@@ -226,15 +238,15 @@ class DatabricksJobsCreateOperator(BaseOperator):
         json: Any | None = None,
         name: str | None = None,
         tags: dict[str, str] | None = None,
-        tasks: list[object] | None = None,
-        job_clusters: list[object] | None = None,
-        email_notifications: object | None = None,
-        webhook_notifications: object | None = None,
+        tasks: list[DatabricksTaskType] | None = None,
+        job_clusters: list[j.JobCluster] | None = None,
+        email_notifications: j.JobEmailNotifications | None = None,
+        webhook_notifications: j.JobWebhookNotifications | None = None,
         timeout_seconds: int | None = None,
-        schedule: dict[str, str] | None = None,
+        schedule: j.CronSchedule | None = None,
         max_concurrent_runs: int | None = None,
-        git_source: dict[str, str] | None = None,
-        access_control_list: list[dict[str, str]] | None = None,
+        git_source: j.GitSource | None = None,
+        access_control_list: j.AccessControlRequest | None = None,
         databricks_conn_id: str = "databricks_default",
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
@@ -255,17 +267,17 @@ class DatabricksJobsCreateOperator(BaseOperator):
         if tags is not None:
             self.json["tags"] = tags
         if tasks is not None:
-            self.json["tasks"] = tasks
+            self.json["tasks"] = [task.as_dict() for task in tasks]
         if job_clusters is not None:
-            self.json["job_clusters"] = job_clusters
+            self.json["job_clusters"] = [job_cluster.as_dict() for job_cluster in job_clusters]
         if email_notifications is not None:
-            self.json["email_notifications"] = email_notifications
+            self.json["email_notifications"] = email_notifications.as_dict()
         if webhook_notifications is not None:
-            self.json["webhook_notifications"] = webhook_notifications
+            self.json["webhook_notifications"] = webhook_notifications.as_dict()
         if timeout_seconds is not None:
             self.json["timeout_seconds"] = timeout_seconds
         if schedule is not None:
-            self.json["schedule"] = schedule
+            self.json["schedule"] = schedule.as_dict()
         if max_concurrent_runs is not None:
             self.json["max_concurrent_runs"] = max_concurrent_runs
         if git_source is not None:
@@ -289,16 +301,13 @@ class DatabricksJobsCreateOperator(BaseOperator):
         )
 
     def execute(self, context: Context) -> int:
-        self.job_id = self.xcom_pull(
-            context,
-            task_ids=self.task_id,
-            include_prior_dates=True,
-        )
-        if self.job_id:
-            self._hook.reset(self.job_id, self.json)
-        else:
-            self.job_id = self._hook.create(self.json)
-        return self.job_id
+        if "name" not in self.json:
+            raise AirflowException("Missing required parameter: name")
+        job_id = self._hook.find_job_id_by_name(self.json["name"])
+        if job_id is None:
+            return self._hook.create(self.json)
+        self._hook.reset(job_id, self.json)
+        return job_id
 
 
 class DatabricksSubmitRunOperator(BaseOperator):
