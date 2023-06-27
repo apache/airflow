@@ -533,8 +533,23 @@ Continuing with the example above, if you want the run's success to depend on ``
 Authoring with task groups
 --------------------------
 
-TODO!!!
+When arrowing from task group to task group, or from task group to task, we ignore teardowns.  This allows teardowns to run in parallel, and allows dag execution to proceed even if teardown tasks fail.
 
+Consider this example:
+
+.. code-block:: python
+
+    with TaskGroup("my_group") as tg:
+        s1 = my_setup()
+        w1 = my_work()
+        t1 = my_teardown()
+        s1 >> w1 >> t1.as_teardown(setups=s1)
+    w2 = other_work()
+    dag_s1 = dag_setup1()
+    dag_t1 = dag_teardown1()
+    dag_s1 >> [tg, w2] >> dag_t1.as_teardown(dag_s1)
+
+In this example s1 is downstream of dag_s1, so it must wait for dag_s1 to complete successfully.  But t1 and dag_t1 can run concurrently, because t1 is ignored in the expression ``tg >> dag_t1``.
 
 Dynamic DAGs
 ------------
