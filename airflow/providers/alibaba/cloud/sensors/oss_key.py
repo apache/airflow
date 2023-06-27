@@ -31,9 +31,9 @@ if TYPE_CHECKING:
 
 class OSSKeySensor(BaseSensorOperator):
     """
-    Waits for a key (a file-like instance on OSS) to be present in a OSS bucket.
-    OSS being a key/value it does not support folders. The path is just a key
-    a resource.
+    Waits for a key (a file-like instance on OSS) to be present in an OSS bucket.
+
+    OSS being a key/value, it does not support folders. The path is just a key resource.
 
     :param bucket_key: The key being waited on. Supports full oss:// style url
         or relative path from root level. When it's specified as a full oss://
