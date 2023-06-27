@@ -33,7 +33,7 @@ class AthenaOperator(BaseOperator):
     """
     An operator that submits a presto query to athena.
 
-    Note: if the task is killed while it runs, it'll cancel the athena query that was launched,
+    .. note:: if the task is killed while it runs, it'll cancel the athena query that was launched,
         EXCEPT if running in deferrable mode.
 
     .. seealso::
