@@ -51,7 +51,7 @@ class TestWaiter:
         wait(
             waiter=mock_waiter,
             waiter_delay=123,
-            max_attempts=456,
+            waiter_max_attempts=456,
             args={"test_arg": "test_value"},
             failure_message="test failure message",
             status_message="test status message",
@@ -92,7 +92,7 @@ class TestWaiter:
         await async_wait(
             waiter=mock_waiter,
             waiter_delay=0,
-            max_attempts=456,
+            waiter_max_attempts=456,
             args={"test_arg": "test_value"},
             failure_message="test failure message",
             status_message="test status message",
@@ -122,7 +122,7 @@ class TestWaiter:
             wait(
                 waiter=mock_waiter,
                 waiter_delay=123,
-                max_attempts=2,
+                waiter_max_attempts=2,
                 args={"test_arg": "test_value"},
                 failure_message="test failure message",
                 status_message="test status message",
@@ -169,7 +169,7 @@ class TestWaiter:
             wait(
                 waiter=mock_waiter,
                 waiter_delay=123,
-                max_attempts=10,
+                waiter_max_attempts=10,
                 args={"test_arg": "test_value"},
                 failure_message="test failure message",
                 status_message="test status message",
@@ -217,7 +217,7 @@ class TestWaiter:
         wait(
             waiter=mock_waiter,
             waiter_delay=123,
-            max_attempts=456,
+            waiter_max_attempts=456,
             args={"test_arg": "test_value"},
             failure_message="test failure message",
             status_message="test status message",
@@ -266,7 +266,7 @@ class TestWaiter:
         wait(
             waiter=mock_waiter,
             waiter_delay=123,
-            max_attempts=456,
+            waiter_max_attempts=456,
             args={"test_arg": "test_value"},
             failure_message="test failure message",
             status_message="test status message",
@@ -314,7 +314,7 @@ class TestWaiter:
         wait(
             waiter=mock_waiter,
             waiter_delay=123,
-            max_attempts=456,
+            waiter_max_attempts=456,
             args={"test_arg": "test_value"},
             failure_message="test failure message",
             status_message="test status message",
@@ -348,7 +348,7 @@ class TestWaiter:
             wait(
                 waiter=mock_waiter,
                 waiter_delay=0,
-                max_attempts=456,
+                waiter_max_attempts=456,
                 args={"test_arg": "test_value"},
                 failure_message="test failure message",
                 status_message="test status message",
