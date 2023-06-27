@@ -636,6 +636,7 @@ class EmrStepSensor(EmrBaseSensor):
                     job_flow_id=self.job_flow_id,
                     step_id=self.step_id,
                     aws_conn_id=self.aws_conn_id,
+                    max_attempts=self.max_attempts,
                     poke_interval=int(self.poke_interval),
                 ),
                 method_name="execute_complete",

@@ -35,9 +35,9 @@ class TestEmrHook:
         custom_waiters = [
             "job_flow_waiting",
             "job_flow_terminated",
-            "job_step_wait_for_terminal",
             "notebook_running",
             "notebook_stopped",
+            "step_wait_for_terminal",
         ]
 
         assert sorted(hook.list_waiters()) == sorted([*official_waiters, *custom_waiters])

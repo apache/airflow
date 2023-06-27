@@ -479,17 +479,17 @@ class TestEmrStepSensorTrigger:
         assert args["job_flow_id"] == TEST_JOB_FLOW_ID
         assert args["step_id"] == STEP_ID
         assert args["aws_conn_id"] == AWS_CONN_ID
+        assert args["max_attempts"] == 60
         assert args["poke_interval"] == POLL_INTERVAL
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.get_waiter")
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.async_conn")
-    async def test_emr_step_trigger_run(self, mock_async_conn, mock_get_waiter):
+    @mock.patch.object(EmrHook, "async_conn")
+    async def test_emr_step_trigger_run(self, mock_async_conn):
         """Test trigger emit success if condition met"""
         a_mock = mock.MagicMock()
         mock_async_conn.__aenter__.return_value = a_mock
 
-        mock_get_waiter().wait = AsyncMock()
+        a_mock.get_waiter().wait = AsyncMock()
 
         emr_trigger = EmrStepSensorTrigger(
             job_flow_id=TEST_JOB_FLOW_ID,
@@ -505,10 +505,10 @@ class TestEmrStepSensorTrigger:
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep")
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.get_waiter")
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.async_conn")
-    async def test_emr_trigger_run_multiple_attempts(self, mock_async_conn, mock_get_waiter, mock_sleep):
+    @mock.patch.object(EmrHook, "async_conn")
+    async def test_emr_trigger_run_multiple_attempts(self, mock_async_conn, mock_sleep):
         """Test trigger try max attempt if attempt not exceeded and job still running"""
+        mock_sleep.return_value = True
         a_mock = mock.MagicMock()
         mock_async_conn.__aenter__.return_value = a_mock
 
@@ -517,8 +517,7 @@ class TestEmrStepSensorTrigger:
             reason="test_reason",
             last_response={"Step": {"Status": {"State": "RUNNING"}}},
         )
-        mock_get_waiter().wait.side_effect = AsyncMock(side_effect=[error, error, True])
-        mock_sleep.return_value = True
+        a_mock.get_waiter().wait = AsyncMock(side_effect=[error, error, error, True])
 
         emr_trigger = EmrStepSensorTrigger(
             job_flow_id=TEST_JOB_FLOW_ID,
@@ -530,31 +529,30 @@ class TestEmrStepSensorTrigger:
         generator = emr_trigger.run()
         response = await generator.asend(None)
 
-        assert mock_get_waiter().wait.call_count == 3
+        assert a_mock.get_waiter().wait.call_count == 4
         assert response == TriggerEvent({"status": "success"})
 
     @pytest.mark.asyncio
     @mock.patch("asyncio.sleep")
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.get_waiter")
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrHook.async_conn")
-    async def test_emr_trigger_run_attempts_failed(self, mock_async_conn, mock_get_waiter, mock_sleep):
+    @mock.patch.object(EmrHook, "async_conn")
+    async def test_emr_trigger_run_attempts_failed(self, mock_async_conn, mock_sleep):
         """Test trigger does fail if max attempt exceeded and job still not succeeded"""
+        mock_sleep.return_value = True
         a_mock = mock.MagicMock()
         mock_async_conn.__aenter__.return_value = a_mock
 
-        error_available = WaiterError(
+        error_running = WaiterError(
             name="test_name",
-            reason="Max attempts exceeded",
-            last_response={"Step": {"Status": {"State": "CANCELLED"}}},
+            reason="test reason",
+            last_response={"Step": {"Status": {"State": "RUNNING"}}},
         )
         error_failed = WaiterError(
             name="test_name",
             reason="Waiter encountered a terminal failure state",
             last_response={"Step": {"Status": {"State": "CANCELLED"}}},
         )
-        mock_get_waiter().wait.side_effect = AsyncMock(
-            side_effect=[error_available, error_available, error_failed]
-        )
+
+        a_mock.get_waiter().wait = AsyncMock(side_effect=[error_running, error_failed])
         mock_sleep.return_value = True
 
         emr_trigger = EmrStepSensorTrigger(
@@ -564,8 +562,9 @@ class TestEmrStepSensorTrigger:
             poll_interval=POLL_INTERVAL,
         )
 
-        generator = emr_trigger.run()
-        response = await generator.asend(None)
+        with pytest.raises(AirflowException) as exc:
+            generator = emr_trigger.run()
+            await generator.asend(None)
 
-        assert mock_get_waiter().wait.call_count == 3
-        assert response == TriggerEvent({"status": "failure", "message": f"Job Failed: {error_failed}"})
+        assert a_mock.get_waiter().wait.call_count == 2
+        assert "Error while waiting for step s-1234 to complete" in str(exc.value)

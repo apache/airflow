@@ -24,6 +24,7 @@ from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook
+from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.helpers import prune_dict
 
@@ -326,6 +327,7 @@ class EmrStepSensorTrigger(BaseTrigger):
     :param job_flow_id: job_flow_id which contains the step check the state of
     :param step_id:  step to check the state of
     :param aws_conn_id: Reference to AWS connection id
+    :param max_attempts: The maximum number of attempts to be made
     :param poke_interval: polling period in seconds to check for the status
     """
 
@@ -334,12 +336,14 @@ class EmrStepSensorTrigger(BaseTrigger):
         job_flow_id: str,
         step_id: str,
         aws_conn_id: str = "aws_default",
+        max_attempts: int = 60,
         poke_interval: int = 30,
         **kwargs: Any,
     ):
         self.job_flow_id = job_flow_id
         self.step_id = step_id
         self.aws_conn_id = aws_conn_id
+        self.max_attempts = max_attempts
         self.poke_interval = poke_interval
         super().__init__(**kwargs)
 
@@ -354,35 +358,23 @@ class EmrStepSensorTrigger(BaseTrigger):
                 "job_flow_id": self.job_flow_id,
                 "step_id": self.step_id,
                 "aws_conn_id": self.aws_conn_id,
+                "max_attempts": self.max_attempts,
                 "poke_interval": self.poke_interval,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
+
         async with self.hook.async_conn as client:
-            waiter = self.hook.get_waiter("job_step_wait_for_terminal", deferrable=True, client=client)
-            attempt = 0
-            while True:
-                attempt = attempt + 1
-                try:
-                    await waiter.wait(
-                        ClusterId=self.job_flow_id,
-                        StepId=self.step_id,
-                        WaiterConfig={
-                            "Delay": self.poke_interval,
-                            "MaxAttempts": 1,
-                        },
-                    )
-                    break
-                except WaiterError as error:
-                    if "terminal failure" in str(error):
-                        yield TriggerEvent({"status": "failure", "message": f"Job Failed: {error}"})
-                        break
-                    self.log.info(
-                        "Job status is %s. Retrying attempt %s",
-                        error.last_response["Step"]["Status"]["State"],
-                        attempt,
-                    )
-                    await asyncio.sleep(int(self.poke_interval))
+            waiter = client.get_waiter("step_wait_for_terminal", deferrable=True, client=client)
+            await async_wait(
+                waiter=waiter,
+                waiter_delay=self.poke_interval,
+                max_attempts=self.max_attempts,
+                args={"ClusterId": self.job_flow_id, "StepId": self.step_id},
+                failure_message=f"Error while waiting for step {self.step_id} to complete",
+                status_message=f"Step id: {self.step_id}, Step is still in non-terminal state",
+                status_args=["Step.Status.State"],
+            )
 
         yield TriggerEvent({"status": "success"})

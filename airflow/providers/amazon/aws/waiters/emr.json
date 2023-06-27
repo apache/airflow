@@ -95,7 +95,7 @@
                 }
             ]
         },
-        "job_step_wait_for_terminal": {
+        "step_wait_for_terminal": {
             "operation": "DescribeStep",
             "delay": 30,
             "maxAttempts": 60,
