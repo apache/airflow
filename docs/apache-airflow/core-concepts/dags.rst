@@ -299,11 +299,11 @@ Control Flow
 
 By default, a DAG will only run a Task when all the Tasks it depends on are successful. There are several ways of modifying this, however:
 
-* :ref:`concepts:branching`, where you can select which Task to move onto based on a condition
-* :ref:`concepts:latest-only`, a special form of branching that only runs on DAGs running against the present
-* :ref:`concepts:depends-on-past`, where tasks can depend on themselves *from a previous run*
-* :ref:`concepts:trigger-rules`, which let you set the conditions under which a DAG will run a task.
-
+* :ref:`concepts:branching` - select which Task to move onto based on a condition
+* :ref:`concepts:trigger-rules` - set the conditions under which a DAG will run a task.
+* :ref:`concepts:setup-and-teardown` - define setup and teardown relationships
+* :ref:`concepts:latest-only` - a special form of branching that only runs on DAGs running against the present
+* :ref:`concepts:depends-on-past` - tasks can depend on themselves *from a previous run*
 
 .. _concepts:branching:
 
@@ -482,6 +482,45 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
     By setting ``trigger_rule`` to ``none_failed_min_one_success`` in the ``join`` task, we can instead get the intended behaviour:
 
     .. image:: /img/branch_with_trigger.png
+
+
+.. _concepts:setup-and-teardown:
+
+Setup and Teardown
+~~~~~~~~~~~~~~~~~~
+
+In data workflows it's common to create resources (such as a compute resource), use it to do some work, and then tear it down. Airflow provides the concept of setup and teardown tasks to support this need.
+
+Features of setup and teardown tasks:
+
+  * If you clear a task, its setups and teardowns will be cleared.
+  * By default, teardown tasks are ignored for the purpose of evaluating dag run state.
+  * A teardown task will run if it's setup was successful, even if its work tasks failed.
+  * Teardown tasks are ignore when setting dependencies against task groups.
+
+Suppose you have a dag that creates a cluster, runs a query, and deletes the cluster:
+
+.. code-block:: python
+
+  create_cluster >> run_query >> delete_cluster
+
+We can mark ``create_cluster`` as a setup task and ``delete_cluster`` as its teardown with the ``as_teardown`` method:
+
+.. code-block:: python
+
+  create_cluster >> run_query >> delete_cluster.as_teardown(setups=create_cluster)
+
+Observations:
+
+  * If you clear ``run_query`` to run it again, then both ``create_cluster`` and ``delete_cluster`` will be cleared.
+  * If ``run_query`` fails, then ``delete_cluster`` will still run.
+  * The success of the dag run will depend on the success of ``run_query``.
+
+Suppose that you want the dag run's success to depend on ``delete_cluster``.  Then set property ``on_failure_fail_dagrun=True`` when setting ``delete_cluster`` as teardown:
+
+.. code-block:: python
+
+  create_cluster >> run_query >> delete_cluster.as_teardown(setups=create_cluster, on_failure_fail_dagrun=True)
 
 
 Dynamic DAGs
