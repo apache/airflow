@@ -140,7 +140,7 @@ class TestBaseChartTest:
             ("Secret", "test-basic-fernet-key"),
             ("Secret", "test-basic-airflow-webserver-secret-key"),
             ("Secret", "test-basic-redis-password"),
-            ('Secret', 'test-basic-postgresql'),
+            ("Secret", "test-basic-postgresql"),
             ("ConfigMap", "test-basic-airflow-config"),
             ("ConfigMap", "test-basic-airflow-statsd"),
             ("Role", "test-basic-airflow-pod-launcher-role"),
