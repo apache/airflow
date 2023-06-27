@@ -71,6 +71,7 @@ class TestGitSyncSchedulerTest:
                         "repo": "https://github.com/apache/airflow.git",
                         "branch": "test-branch",
                         "sshKeySecret": None,
+                        "command": ["/git-sync"],
                         "credentialsSecret": None,
                         "knownHosts": None,
                     },
