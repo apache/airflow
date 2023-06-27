@@ -177,7 +177,7 @@ class Pool(Base):
             select(TaskInstance.pool, TaskInstance.state, func.sum(TaskInstance.pool_slots))
             .filter(TaskInstance.state.in_(list(EXECUTION_STATES)))
             .group_by(TaskInstance.pool, TaskInstance.state)
-        ).all()
+        )
 
         # calculate queued and running metrics
         for (pool_name, state, count) in state_count_by_pool:
