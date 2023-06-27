@@ -130,7 +130,7 @@ class GlueJobOperator(BaseOperator):
         self._job_run_id: str | None = None
 
     @cached_property
-    def glue_job(self) -> GlueJobHook:
+    def glue_job_hook(self) -> GlueJobHook:
         if self.script_location is None:
             s3_script_location = None
         elif not self.script_location.startswith(self.s3_protocol):
@@ -168,19 +168,19 @@ class GlueJobOperator(BaseOperator):
             self.job_name,
             self.wait_for_completion,
         )
-        glue_job_run = self.glue_job.initialize_job(self.script_args, self.run_job_kwargs)
+        glue_job_run = self.glue_job_hook.initialize_job(self.script_args, self.run_job_kwargs)
         self._job_run_id = glue_job_run["JobRunId"]
         glue_job_run_url = GlueJobRunDetailsLink.format_str.format(
-            aws_domain=GlueJobRunDetailsLink.get_aws_domain(self.glue_job.conn_partition),
-            region_name=self.glue_job.conn_region_name,
+            aws_domain=GlueJobRunDetailsLink.get_aws_domain(self.glue_job_hook.conn_partition),
+            region_name=self.glue_job_hook.conn_region_name,
             job_name=urllib.parse.quote(self.job_name, safe=""),
             job_run_id=self._job_run_id,
         )
         GlueJobRunDetailsLink.persist(
             context=context,
             operator=self,
-            region_name=self.glue_job.conn_region_name,
-            aws_partition=self.glue_job.conn_partition,
+            region_name=self.glue_job_hook.conn_region_name,
+            aws_partition=self.glue_job_hook.conn_partition,
             job_name=urllib.parse.quote(self.job_name, safe=""),
             job_run_id=self._job_run_id,
         )
@@ -198,7 +198,7 @@ class GlueJobOperator(BaseOperator):
                 method_name="execute_complete",
             )
         elif self.wait_for_completion:
-            glue_job_run = self.glue_job.job_completion(self.job_name, self._job_run_id, self.verbose)
+            glue_job_run = self.glue_job_hook.job_completion(self.job_name, self._job_run_id, self.verbose)
             self.log.info(
                 "AWS Glue Job: %s status: %s. Run Id: %s",
                 self.job_name,
@@ -218,7 +218,7 @@ class GlueJobOperator(BaseOperator):
         """Cancel the running AWS Glue Job."""
         if self.stop_job_run_on_kill:
             self.log.info("Stopping AWS Glue Job: %s. Run Id: %s", self.job_name, self._job_run_id)
-            response = self.glue_job.conn.batch_stop_job_run(
+            response = self.glue_job_hook.conn.batch_stop_job_run(
                 JobName=self.job_name,
                 JobRunIds=[self._job_run_id],
             )
