@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.eks import (
     EksCreateFargateProfileTrigger,
     EksDeleteFargateProfileTrigger,
+    EksNodegroupTrigger,
 )
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
@@ -183,8 +184,8 @@ class EksCreateClusterOperator(BaseOperator):
     :param fargate_selectors: The selectors to match for pods to use this AWS Fargate profile. (templated)
     :param create_fargate_profile_kwargs: Optional parameters to pass to the CreateFargateProfile API
          (templated)
-    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check cluster status
-    :param waiter_max_attempts: The maximum number of attempts to check the status of the cluster.
+    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check cluster state
+    :param waiter_max_attempts: The maximum number of attempts to check cluster state
 
     """
 
@@ -333,8 +334,11 @@ class EksCreateNodegroupOperator(BaseOperator):
          maintained on each worker node).
     :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
-    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check nodegroup status
-    :param waiter_max_attempts: The maximum number of attempts to check the status of the nodegroup.
+    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check nodegroup state
+    :param waiter_max_attempts: The maximum number of attempts to check nodegroup state
+    :param deferrable: If True, the operator will wait asynchronously for the nodegroup to be created.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
 
     """
 
@@ -361,6 +365,7 @@ class EksCreateNodegroupOperator(BaseOperator):
         region: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 80,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         self.nodegroup_subnets = nodegroup_subnets
@@ -369,15 +374,13 @@ class EksCreateNodegroupOperator(BaseOperator):
         self.nodegroup_role_arn = nodegroup_role_arn
         self.nodegroup_name = nodegroup_name
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
-        self.wait_for_completion = wait_for_completion
+        self.wait_for_completion = False if deferrable else wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
-
-        super().__init__(
-            **kwargs,
-        )
+        self.deferrable = deferrable
+        super().__init__(**kwargs)
 
     def execute(self, context: Context):
         self.log.info(self.task_id)
@@ -393,6 +396,7 @@ class EksCreateNodegroupOperator(BaseOperator):
                         self.nodegroup_subnets,
                     )
             self.nodegroup_subnets = nodegroup_subnets_list
+
         _create_compute(
             compute=self.compute,
             cluster_name=self.cluster_name,
@@ -406,6 +410,28 @@ class EksCreateNodegroupOperator(BaseOperator):
             create_nodegroup_kwargs=self.create_nodegroup_kwargs,
             subnets=self.nodegroup_subnets,
         )
+
+        if self.deferrable:
+            self.defer(
+                trigger=EksNodegroupTrigger(
+                    waiter_name="nodegroup_active",
+                    cluster_name=self.cluster_name,
+                    nodegroup_name=self.nodegroup_name,
+                    aws_conn_id=self.aws_conn_id,
+                    region=self.region,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+            )
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error creating nodegroup: {event}")
+        return
 
 
 class EksCreateFargateProfileOperator(BaseOperator):
@@ -638,6 +664,11 @@ class EksDeleteNodegroupOperator(BaseOperator):
          maintained on each worker node).
     :param region: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
+    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check nodegroup state
+    :param waiter_max_attempts: The maximum number of attempts to check nodegroup state
+    :param deferrable: If True, the operator will wait asynchronously for the nodegroup to be deleted.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
 
     """
 
@@ -656,6 +687,9 @@ class EksDeleteNodegroupOperator(BaseOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 40,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         self.cluster_name = cluster_name
@@ -663,6 +697,9 @@ class EksDeleteNodegroupOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.region = region
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.deferrable = deferrable
         super().__init__(**kwargs)
 
     def execute(self, context: Context):
@@ -672,11 +709,32 @@ class EksDeleteNodegroupOperator(BaseOperator):
         )
 
         eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
-        if self.wait_for_completion:
+        if self.deferrable:
+            self.defer(
+                trigger=EksNodegroupTrigger(
+                    waiter_name="nodegroup_deleted",
+                    cluster_name=self.cluster_name,
+                    nodegroup_name=self.nodegroup_name,
+                    aws_conn_id=self.aws_conn_id,
+                    region=self.region,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+            )
+        elif self.wait_for_completion:
             self.log.info("Waiting for nodegroup to delete.  This will take some time.")
             eks_hook.conn.get_waiter("nodegroup_deleted").wait(
                 clusterName=self.cluster_name, nodegroupName=self.nodegroup_name
             )
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error deleting nodegroup: {event}")
+        return
 
 
 class EksDeleteFargateProfileOperator(BaseOperator):
