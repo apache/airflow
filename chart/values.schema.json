@@ -6272,6 +6272,11 @@
                             ],
                             "default": null
                         },
+                         "command": {
+                            "description": "Git sync container command.",
+                            "type": "array",
+                            "default": null
+                        },
                         "knownHosts": {
                             "description": "When using a ssh private key, the contents of your `known_hosts` file.",
                             "type": [
