@@ -73,7 +73,7 @@ def clear_db():
     yield
 
 
-def create_context(task, persist_to_db=False, map_index=None):
+def create_context(task, persist_to_db=False, map_index=None, job_id=None):
     if task.has_dag():
         dag = task.dag
     else:
@@ -88,6 +88,8 @@ def create_context(task, persist_to_db=False, map_index=None):
     task_instance.dag_run = dag_run
     if map_index is not None:
         task_instance.map_index = map_index
+    if job_id is not None:
+        task_instance.job_id = job_id
     if persist_to_db:
         with create_session() as session:
             session.add(DagModel(dag_id=dag.dag_id))
@@ -656,7 +658,7 @@ class TestKubernetesPodOperator:
         name_base = "test"
         k = KubernetesPodOperator(
             name=name_base,
-            random_name_suffix=randomize,
+            name_suffix="random" if randomize else None,
             task_id="task",
         )
         context = create_context(k)
@@ -667,6 +669,30 @@ class TestKubernetesPodOperator:
             assert pod.metadata.name != name_base
         else:
             assert pod.metadata.name == name_base
+
+    @pytest.mark.parametrize(
+        "job_id_as_suffix,expected_pod_name,add_hostname, expected_hostname",
+        [
+            (False, "test-pod", True, "test-pod"),
+            (True, "test-pod-1234", True, "test-pod-1234"),
+            (False, "test-pod", False, None),
+            (True, "test-pod-1234", False, None),
+        ]
+    )
+    def test_pod_name_with_job_id(self, job_id_as_suffix, expected_pod_name, add_hostname, expected_hostname):
+        name_base = "test-pod"
+        job_id = "1234"
+        k = KubernetesPodOperator(
+            name=name_base,
+            task_id="task",
+            name_suffix="job_id" if job_id_as_suffix else None,
+            add_suffix_to_hostname=add_hostname,
+            hostname=name_base if add_hostname else None
+        )
+        context = create_context(k, job_id=job_id)
+        pod = k.build_pod_request_obj(context)
+        assert pod.metadata.name == expected_pod_name
+        assert pod.spec.hostname == expected_hostname
 
     @pytest.fixture
     def pod_spec(self):
@@ -689,7 +715,7 @@ class TestKubernetesPodOperator:
 
         k = KubernetesPodOperator(
             task_id="task",
-            random_name_suffix=randomize_name,
+            name_suffix="random" if randomize_name else None,
             full_pod_spec=pod_spec,
         )
         context = create_context(k)
@@ -723,7 +749,7 @@ class TestKubernetesPodOperator:
         name_base = "world"
         k = KubernetesPodOperator(
             task_id="task",
-            random_name_suffix=randomize_name,
+            name_suffix="random" if randomize_name else None,
             full_pod_spec=pod_spec,
             name=name_base,
             image=image,
@@ -800,7 +826,7 @@ class TestKubernetesPodOperator:
     def test_pod_template_file(self, randomize_name, pod_template_file):
         k = KubernetesPodOperator(
             task_id="task",
-            random_name_suffix=randomize_name,
+            name_suffix="random" if randomize_name else None,
             pod_template_file=pod_template_file,
         )
         pod = k.build_pod_request_obj(create_context(k))
@@ -866,7 +892,7 @@ class TestKubernetesPodOperator:
             task_id="task",
             pod_template_file=pod_template_file,
             name=name_base,
-            random_name_suffix=randomize_name,
+            name_suffix="random" if randomize_name else None,
             image=image,
             labels={"hello": "world"},
         )
@@ -1139,7 +1165,7 @@ class TestKubernetesPodOperator:
     def test_task_id_as_name(self):
         k = KubernetesPodOperator(
             task_id=".hi.-_09HI",
-            random_name_suffix=False,
+            name_suffix=None,
         )
         pod = k.build_pod_request_obj({})
         assert pod.metadata.name == "hi-09hi"
@@ -1147,7 +1173,7 @@ class TestKubernetesPodOperator:
     def test_task_id_as_name_with_suffix(self):
         k = KubernetesPodOperator(
             task_id=".hi.-_09HI",
-            random_name_suffix=True,
+            name_suffix="random",
         )
         pod = k.build_pod_request_obj({})
         expected = "hi-09hi"
@@ -1157,7 +1183,7 @@ class TestKubernetesPodOperator:
     def test_task_id_as_name_with_suffix_very_long(self):
         k = KubernetesPodOperator(
             task_id="a" * 250,
-            random_name_suffix=True,
+            name_suffix="random",
         )
         pod = k.build_pod_request_obj({})
         assert (

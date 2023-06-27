@@ -97,36 +97,42 @@ def _add_pod_suffix(*, pod_name, rand_len=8, max_len=253):
     return pod_name[: max_len - len(suffix)].strip("-.") + suffix
 
 
+def _add_pod_job_id_suffix(*, pod_name, job_id, max_len=253):
+    """Add given job_id as suffix to the pod name while staying under max len.
+    :meta private:
+    """
+    suffix = "-" + job_id
+    return pod_name[: max_len - len(suffix)].strip("-.") + suffix
+
+
 def _create_pod_id(
-    dag_id: str | None = None,
-    task_id: str | None = None,
-    *,
+    name: str | None,
+    task_id: str,
+    job_id: str | None = None,
     max_length: int = 80,
     unique: bool = True,
 ) -> str:
     """
-    Generates unique pod ID given a dag_id and / or task_id.
+    Generates pod/hostname ID given a dag_id and / or task_id, optionally making pod name
+    unique either via random suffix or given job_id
 
     TODO: when min airflow version >= 2.5, delete this function and import from kubernetes_helper_functions.
 
-    :param dag_id: DAG ID
+    :param name: Optional base name for the pod
     :param task_id: Task ID
+    :param job_id: Optional job_id that will be used to make pod name unique
     :param max_length: max number of characters
     :param unique: whether a random string suffix should be added
-    :return: A valid identifier for a kubernetes pod name
+    :return: A valid identifier for a kubernetes pod name/hostname
     """
-    if not (dag_id or task_id):
-        raise ValueError("Must supply either dag_id or task_id.")
-    name = ""
-    if dag_id:
-        name += dag_id
-    if task_id:
-        if name:
-            name += "-"
-        name += task_id
+    if name is None and task_id is None:
+        raise ValueError("Must supply either name or task_id.")
+    name = name or task_id
     base_name = slugify(name, lowercase=True)[:max_length].strip(".-")
     if unique:
         return _add_pod_suffix(pod_name=base_name, max_len=max_length)
+    elif job_id is not None:
+        return _add_pod_job_id_suffix(pod_name=base_name, job_id=job_id, max_len=max_length)
     else:
         return base_name
 
@@ -158,6 +164,12 @@ class KubernetesPodOperator(BaseOperator):
         suffix if random_name_suffix is True) to generate a pod id (DNS-1123 subdomain,
         containing only [a-z0-9.-]).
     :param random_name_suffix: if True, will generate a random suffix.
+           Deprecated - use name_suffix="random" instead
+    :param name_suffix: Set the pod name suffix logic.
+           random (default) - add random hash separated with `-`
+           job_id - add task_instance.job_id separated with `-`
+           None - don't add any suffix
+    :param add_suffix_to_hostname: apply name_suffix logic to pod hostname, too.
     :param cmds: entrypoint of the container. (templated)
         The docker images's entrypoint is used if this is not provided.
     :param arguments: arguments of the entrypoint. (templated)
@@ -262,7 +274,9 @@ class KubernetesPodOperator(BaseOperator):
         namespace: str | None = None,
         image: str | None = None,
         name: str | None = None,
-        random_name_suffix: bool = True,
+        name_suffix: str | None = "random",
+        add_suffix_to_hostname: bool = False,
+        random_name_suffix: bool = False,
         cmds: list[str] | None = None,
         arguments: list[str] | None = None,
         ports: list[k8s.V1ContainerPort] | None = None,
@@ -374,7 +388,20 @@ class KubernetesPodOperator(BaseOperator):
         self.priority_class_name = priority_class_name
         self.pod_template_file = pod_template_file
         self.name = self._set_name(name)
-        self.random_name_suffix = random_name_suffix
+        if name_suffix and name_suffix not in ["random", "job_id"]:
+            warnings.warn(
+                f"Unknown name suffix: {name_suffix}, defaulting to `random`",
+                stacklevel=2,
+            )
+            name_suffix = "random"
+        self.name_suffix = name_suffix
+        if random_name_suffix is True:
+            warnings.warn(
+                "`random_name_suffix` parameter is deprecated, please use `name_suffix='random'`",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        self.add_suffix_to_hostname = add_suffix_to_hostname
         self.termination_grace_period = termination_grace_period
         self.pod_request_obj: k8s.V1Pod | None = None
         self.pod: k8s.V1Pod | None = None
@@ -853,13 +880,22 @@ class KubernetesPodOperator(BaseOperator):
 
         pod = PodGenerator.reconcile_pods(pod_template, pod)
 
-        if not pod.metadata.name:
-            pod.metadata.name = _create_pod_id(
-                task_id=self.task_id, unique=self.random_name_suffix, max_length=80
+        pod.metadata.name = _create_pod_id(
+            pod.metadata.name,
+            task_id=self.task_id,
+            job_id=context['ti'].job_id if self.name_suffix == "job_id" else None,
+            max_length=80,
+            unique=self.name_suffix == "random"
+        )
+
+        if self.add_suffix_to_hostname and pod.spec.hostname is not None:
+            pod.spec.hostname = _create_pod_id(
+                pod.spec.hostname,
+                task_id=self.task_id,
+                job_id=context['ti'].job_id if self.name_suffix == "job_id" else None,
+                max_length=80,
+                unique=self.name_suffix == "random"
             )
-        elif self.random_name_suffix:
-            # user has supplied pod name, we're just adding suffix
-            pod.metadata.name = _add_pod_suffix(pod_name=pod.metadata.name)
 
         if not pod.metadata.namespace:
             hook_namespace = self.hook.get_namespace()
