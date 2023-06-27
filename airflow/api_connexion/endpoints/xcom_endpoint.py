@@ -23,12 +23,13 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import check_limit, format_parameters
 from airflow.api_connexion.schemas.xcom_schema import XComCollection, xcom_collection_schema, xcom_schema
 from airflow.api_connexion.types import APIResponse
 from airflow.models import DagRun as DR, XCom
 from airflow.security import permissions
+from airflow.settings import conf
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -93,6 +94,8 @@ def get_xcom_entry(
 ) -> APIResponse:
     """Get an XCom entry."""
     if deserialize:
+        if not conf.getboolean("api", "enable_xcom_deserialize_support", fallback=False):
+            raise BadRequest(detail="XCom deserialization is disabled in configuration.")
         query = select(XCom, XCom.value)
     else:
         query = select(XCom)
