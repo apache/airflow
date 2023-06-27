@@ -20,10 +20,8 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
-from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -71,7 +69,6 @@ class AthenaOperator(BaseOperator):
         sleep_time: int = 30,
         max_polling_attempts: int | None = None,
         log_query: bool = True,
-        deferrable: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -84,10 +81,9 @@ class AthenaOperator(BaseOperator):
         self.query_execution_context = query_execution_context or {}
         self.result_configuration = result_configuration or {}
         self.sleep_time = sleep_time
-        self.max_polling_attempts = max_polling_attempts or 999999
+        self.max_polling_attempts = max_polling_attempts
         self.query_execution_id: str | None = None
         self.log_query: bool = log_query
-        self.deferrable = deferrable
 
     @cached_property
     def hook(self) -> AthenaHook:
@@ -105,15 +101,6 @@ class AthenaOperator(BaseOperator):
             self.client_request_token,
             self.workgroup,
         )
-
-        if self.deferrable:
-            self.defer(
-                trigger=AthenaTrigger(
-                    self.query_execution_id, self.sleep_time, self.max_polling_attempts, self.aws_conn_id
-                ),
-                method_name="execute_complete",
-            )
-        # implicit else:
         query_status = self.hook.poll_query_status(
             self.query_execution_id,
             max_polling_attempts=self.max_polling_attempts,
@@ -133,11 +120,6 @@ class AthenaOperator(BaseOperator):
             )
 
         return self.query_execution_id
-
-    def execute_complete(self, context, event=None):
-        if event["status"] != "success":
-            raise AirflowException(f"Error while waiting for operation on cluster to complete: {event}")
-        return event["value"]
 
     def on_kill(self) -> None:
         """Cancel the submitted athena query."""
