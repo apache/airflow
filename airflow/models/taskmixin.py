@@ -115,21 +115,30 @@ class DependencyMixin:
         self.__rshift__(other)
         return self
 
-    def set_setup_teardown_ctx_dependencies(self, other):
+    def set_setup_teardown_ctx_dependencies(self, other: DependencyMixin | Sequence[DependencyMixin]):
         if not SetupTeardownContext.active:
             return
         from airflow.models.xcom_arg import PlainXComArg
 
         op1 = self
-        op2 = other
         if isinstance(self, PlainXComArg):
             op1 = self.operator
-        if isinstance(other, PlainXComArg):
-            op2 = other.operator
-        if op1.is_setup or op1.is_teardown or op2.is_setup or op2.is_teardown:
+        if getattr(op1, "is_setup") or getattr(op1, "is_teardown"):
             return
         SetupTeardownContext.update_context_map(op1)
-        SetupTeardownContext.update_context_map(op2)
+        if isinstance(other, Sequence):
+            for op in other:
+                if isinstance(op, PlainXComArg):
+                    op = op.operator
+                if getattr(op, "is_setup") or getattr(op, "is_teardown"):
+                    continue
+                SetupTeardownContext.update_context_map(op)
+            return
+        if isinstance(other, PlainXComArg):
+            other = other.operator
+        if getattr(other, "is_setup") or getattr(other, "is_teardown"):
+            return
+        SetupTeardownContext.update_context_map(other)
 
 
 class TaskMixin(DependencyMixin):
