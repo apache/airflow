@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
+from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
@@ -218,6 +219,6 @@ class TestBatchCreateComputeEnvironmentTrigger:
         )
         trigger = BatchCreateComputeEnvironmentTrigger("my_arn", poll_interval=0, max_retries=3)
 
-        with pytest.raises(WaiterError):
+        with pytest.raises(AirflowException):
             generator = trigger.run()
             await generator.asend(None)

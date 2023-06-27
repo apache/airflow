@@ -22,8 +22,8 @@ from typing import Any
 
 from botocore.exceptions import WaiterError
 
-from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -235,33 +235,13 @@ class BatchCreateComputeEnvironmentTrigger(BaseTrigger):
         hook = BatchClientHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         async with hook.async_conn as client:
             waiter = hook.get_waiter("compute_env_ready", deferrable=True, client=client)
-            attempt = 0
-            while attempt < self.max_retries:
-                attempt = attempt + 1
-                try:
-                    await waiter.wait(
-                        computeEnvironments=[self.compute_env_arn],
-                        WaiterConfig={
-                            "Delay": self.poll_interval,
-                            "MaxAttempts": 1,
-                        },
-                    )
-                    break
-                except WaiterError as error:
-                    if "terminal failure" in str(error):
-                        raise
-                    self.log.info(
-                        "Compute Environment status is %s. Retrying attempt %s/%s",
-                        error.last_response["computeEnvironments"][0]["status"],
-                        attempt,
-                        self.max_retries,
-                    )
-                    await asyncio.sleep(int(self.poll_interval))
-
-        if attempt >= self.max_retries:
-            raise AirflowException(
-                f"Compute Environment {self.compute_env_arn} is still not ready "
-                f"after checking its state {self.max_retries} times."
+            await async_wait(
+                waiter=waiter,
+                waiter_delay=self.poll_interval,
+                waiter_max_attempts=self.max_retries,
+                args={"computeEnvironments": [self.compute_env_arn]},
+                failure_message="Failure while creating Compute Environment",
+                status_message="Compute Environment not ready yet",
+                status_args=["computeEnvironments[].status", "computeEnvironments[].statusReason"],
             )
-        else:
             yield TriggerEvent({"status": "success", "value": self.compute_env_arn})
