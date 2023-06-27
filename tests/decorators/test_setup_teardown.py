@@ -65,7 +65,7 @@ class TestSetupTearDownTask:
 
     def test_marking_operator_as_setup_task(self, dag_maker):
         with dag_maker() as dag:
-            BashOperator.as_setup(task_id="mytask", bash_command='echo "I am a setup task"')
+            BashOperator(task_id="mytask", bash_command='echo "I am a setup task"').as_setup()
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["mytask"]
@@ -86,7 +86,7 @@ class TestSetupTearDownTask:
 
     def test_marking_operator_as_teardown_task(self, dag_maker):
         with dag_maker() as dag:
-            BashOperator.as_teardown(task_id="mytask", bash_command='echo "I am a setup task"')
+            BashOperator(task_id="mytask", bash_command='echo "I am a setup task"').as_teardown()
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["mytask"]
@@ -146,11 +146,10 @@ class TestSetupTearDownTask:
     @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
     def test_classic_teardown_task_works_with_on_failure_fail_dagrun(self, on_failure_fail_dagrun, dag_maker):
         with dag_maker() as dag:
-            BashOperator.as_teardown(
+            BashOperator(
                 task_id="mytask",
                 bash_command='echo "I am a teardown task"',
-                on_failure_fail_dagrun=on_failure_fail_dagrun,
-            )
+            ).as_teardown(on_failure_fail_dagrun=on_failure_fail_dagrun)
 
         teardown_task = dag.task_group.children["mytask"]
         assert teardown_task.is_teardown
@@ -605,11 +604,11 @@ class TestSetupTearDownTask:
             print("mytask")
 
         with dag_maker() as dag:
-            setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
-            setuptask2 = BashOperator.as_setup(task_id="setuptask2", bash_command="echo 1")
+            setuptask = BashOperator(task_id="setuptask", bash_command="echo 1").as_setup()
+            setuptask2 = BashOperator(task_id="setuptask2", bash_command="echo 1").as_setup()
 
-            teardowntask = BashOperator.as_teardown(task_id="teardowntask", bash_command="echo 1")
-            teardowntask2 = BashOperator.as_teardown(task_id="teardowntask2", bash_command="echo 1")
+            teardowntask = BashOperator(task_id="teardowntask", bash_command="echo 1").as_teardown()
+            teardowntask2 = BashOperator(task_id="teardowntask2", bash_command="echo 1").as_teardown()
             with setuptask >> teardowntask:
                 with setuptask2 >> teardowntask2:
                     mytask() >> mytask2()
@@ -643,11 +642,11 @@ class TestSetupTearDownTask:
             print("mytask")
 
         with dag_maker() as dag:
-            setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
-            setuptask2 = BashOperator.as_setup(task_id="setuptask2", bash_command="echo 1")
+            setuptask = BashOperator(task_id="setuptask", bash_command="echo 1").as_setup()
+            setuptask2 = BashOperator(task_id="setuptask2", bash_command="echo 1").as_setup()
 
-            teardowntask = BashOperator.as_teardown(task_id="teardowntask", bash_command="echo 1")
-            teardowntask2 = BashOperator.as_teardown(task_id="teardowntask2", bash_command="echo 1")
+            teardowntask = BashOperator(task_id="teardowntask", bash_command="echo 1").as_teardown()
+            teardowntask2 = BashOperator(task_id="teardowntask2", bash_command="echo 1").as_teardown()
             with setuptask >> teardowntask:
                 with setuptask2 >> teardowntask2:
                     mytask() << mytask2()
@@ -676,7 +675,7 @@ class TestSetupTearDownTask:
             print("mytask")
 
         with dag_maker() as dag:
-            setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
+            setuptask = BashOperator(task_id="setuptask", bash_command="echo 1").as_setup()
             with setuptask:
                 mytask() >> mytask2()
 
@@ -698,7 +697,7 @@ class TestSetupTearDownTask:
             print("mytask")
 
         with dag_maker("foo") as dag:
-            teardowntask = BashOperator.as_teardown(task_id="teardowntask", bash_command="echo 1")
+            teardowntask = BashOperator(task_id="teardowntask", bash_command="echo 1").as_teardown()
             with teardowntask:
                 mytask() >> mytask2()
 
@@ -720,10 +719,10 @@ class TestSetupTearDownTask:
             print("mytask")
 
         with dag_maker() as dag:
-            setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
-            setuptask2 = BashOperator.as_setup(task_id="setuptask2", bash_command="echo 1")
+            setuptask = BashOperator(task_id="setuptask", bash_command="echo 1").as_setup()
+            setuptask2 = BashOperator(task_id="setuptask2", bash_command="echo 1").as_setup()
 
-            teardowntask = BashOperator.as_teardown(task_id="teardowntask", bash_command="echo 1")
+            teardowntask = BashOperator(task_id="teardowntask", bash_command="echo 1").as_teardown()
             with setuptask >> teardowntask:
                 with setuptask2:
                     mytask() << mytask2()
@@ -758,8 +757,8 @@ class TestSetupTearDownTask:
             print("mytask")
 
         with dag_maker() as dag:
-            setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
-            setuptask2 = BashOperator.as_setup(task_id="setuptask2", bash_command="echo 1")
+            setuptask = BashOperator(task_id="setuptask", bash_command="echo 1").as_setup()
+            setuptask2 = BashOperator(task_id="setuptask2", bash_command="echo 1").as_setup()
             with setuptask:
                 t1 = mytask()
                 t2 = mytask2()
@@ -801,8 +800,8 @@ class TestSetupTearDownTask:
             print("mytask")
 
         with dag_maker() as dag:
-            setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
-            setuptask2 = BashOperator.as_setup(task_id="setuptask2", bash_command="echo 1")
+            setuptask = BashOperator(task_id="setuptask", bash_command="echo 1").as_setup()
+            setuptask2 = BashOperator(task_id="setuptask2", bash_command="echo 1").as_setup()
             with setuptask:
                 t1 = mytask()
                 t2 = mytask2()
@@ -841,11 +840,11 @@ class TestSetupTearDownTask:
             print("mytask")
 
         with dag_maker() as dag:
-            setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
-            setuptask2 = BashOperator.as_setup(task_id="setuptask2", bash_command="echo 1")
+            setuptask = BashOperator(task_id="setuptask", bash_command="echo 1").as_setup()
+            setuptask2 = BashOperator(task_id="setuptask2", bash_command="echo 1").as_setup()
 
-            teardowntask = BashOperator.as_teardown(task_id="teardowntask", bash_command="echo 1")
-            teardowntask2 = BashOperator.as_teardown(task_id="teardowntask2", bash_command="echo 1")
+            teardowntask = BashOperator(task_id="teardowntask", bash_command="echo 1").as_teardown()
+            teardowntask2 = BashOperator(task_id="teardowntask2", bash_command="echo 1").as_teardown()
             with setuptask >> teardowntask:
                 with setuptask2 >> teardowntask2:
                     mytask()
@@ -1047,9 +1046,9 @@ class TestSetupTearDownTask:
             print("mytask")
 
         with dag_maker() as dag:
-            teardowntask = BashOperator.as_teardown(task_id="teardowntask", bash_command="echo 1")
-            teardowntask2 = BashOperator.as_teardown(task_id="teardowntask2", bash_command="echo 1")
-            setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
+            teardowntask = BashOperator(task_id="teardowntask", bash_command="echo 1").as_teardown()
+            teardowntask2 = BashOperator(task_id="teardowntask2", bash_command="echo 1").as_teardown()
+            setuptask = BashOperator(task_id="setuptask", bash_command="echo 1").as_setup()
             with [teardowntask, teardowntask2] << setuptask:
                 mytask()
 
@@ -1077,9 +1076,9 @@ class TestSetupTearDownTask:
             print("mytask")
 
         with dag_maker() as dag:
-            teardowntask = BashOperator.as_teardown(task_id="teardowntask", bash_command="echo 1")
-            teardowntask2 = BashOperator.as_teardown(task_id="teardowntask2", bash_command="echo 1")
-            setuptask = BashOperator.as_setup(task_id="setuptask", bash_command="echo 1")
+            teardowntask = BashOperator(task_id="teardowntask", bash_command="echo 1").as_teardown()
+            teardowntask2 = BashOperator(task_id="teardowntask2", bash_command="echo 1").as_teardown()
+            setuptask = BashOperator(task_id="setuptask", bash_command="echo 1").as_setup()
             with setuptask >> context_wrapper([teardowntask, teardowntask2]):
                 mytask()
 

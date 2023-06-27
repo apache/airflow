@@ -164,7 +164,7 @@ Name                                                                   Descripti
 ``task_removed_from_dag.<dag_id>``                                     Number of tasks removed for a given dag (i.e. task no longer exists in DAG)
 ``task_restored_to_dag.<dag_id>``                                      Number of tasks restored for a given dag (i.e. task instance which was
                                                                        previously in REMOVED state in the DB is added to DAG file)
-``task_instance_created-<operator_name>``                              Number of tasks instances created for a given Operator
+``task_instance_created_<operator_name>``                              Number of tasks instances created for a given Operator
 ``triggers.blocked_main_thread``                                       Number of triggers that blocked the main thread (likely due to not being
                                                                        fully asynchronous)
 ``triggers.failed``                                                    Number of triggers that errored before they could fire an event

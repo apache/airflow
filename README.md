@@ -307,18 +307,11 @@ They are based on the official release schedule of Python and Kubernetes, nicely
    means that we will drop support in main right after 27.06.2023, and the first MAJOR or MINOR version of
    Airflow released after will not have it.
 
-2. The "oldest" supported version of Python/Kubernetes is the default one until we decide to switch to
-   later version. "Default" is only meaningful in terms of "smoke tests" in CI PRs, which are run using this
-   default version and the default reference image available. Currently `apache/airflow:latest`
-   and `apache/airflow:2.6.2` images are Python 3.8 images. This means that default reference image will
-   become the default at the time when we start preparing for dropping 3.8 support which is few months
-   before the end of life for Python 3.8.
-
-3. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
+2. We support a new version of Python/Kubernetes in main after they are officially released, as soon as we
    make them work in our CI pipeline (which might not be immediate due to dependencies catching up with
    new versions of Python mostly) we release new images/support in Airflow based on the working CI setup.
 
-4. This policy is best-effort which means there may be situations where we might terminate support earlier
+3. This policy is best-effort which means there may be situations where we might terminate support earlier
    if circumstances require it.
 
 ## Base OS support for reference Airflow images

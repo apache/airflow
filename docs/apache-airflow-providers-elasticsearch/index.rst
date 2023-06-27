@@ -92,8 +92,6 @@ PIP package                              Version required
 ``apache-airflow``                       ``>=2.4.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``elasticsearch``                        ``>7,<7.15.0``
-``elasticsearch-dbapi``
-``elasticsearch-dsl``                    ``>=5.0.0``
 =======================================  ==================
 
 Cross provider package dependencies

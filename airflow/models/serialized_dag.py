@@ -21,6 +21,7 @@ from __future__ import annotations
 import logging
 import zlib
 from datetime import datetime, timedelta
+from typing import Collection
 
 import sqlalchemy_jsonfield
 from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_, or_
@@ -234,7 +235,7 @@ class SerializedDagModel(Base):
     @provide_session
     def remove_deleted_dags(
         cls,
-        alive_dag_filelocs: list[str],
+        alive_dag_filelocs: Collection[str],
         processor_subdir: str | None = None,
         session: Session = NEW_SESSION,
     ) -> None:

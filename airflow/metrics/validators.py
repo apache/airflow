@@ -63,7 +63,7 @@ BACK_COMPAT_METRIC_NAME_PATTERNS: set[str] = {
     r"^ti.finish.(?P<dag_id>.*)\.(?P<task_id>.*)\.(?P<state>.*)$",
     r"^task_removed_from_dag\.(?P<dag_id>.*)$",
     r"^task_restored_to_dag\.(?P<dag_id>.*)$",
-    r"^task_instance_created-(?P<operator_name>.*)$",
+    r"^task_instance_created_(?P<operator_name>.*)$",
     r"^dag_processing\.last_run\.seconds_ago\.(?P<dag_file>.*)$",
     r"^pool\.open_slots\.(?P<pool_name>.*)$",
     r"^pool\.queued_slots\.(?P<pool_name>.*)$",

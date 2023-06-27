@@ -88,7 +88,7 @@ class AthenaOperator(BaseOperator):
     @cached_property
     def hook(self) -> AthenaHook:
         """Create and return an AthenaHook."""
-        return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time, log_query=self.log_query)
+        return AthenaHook(self.aws_conn_id, log_query=self.log_query)
 
     def execute(self, context: Context) -> str | None:
         """Run Presto Query on Athena."""
@@ -104,6 +104,7 @@ class AthenaOperator(BaseOperator):
         query_status = self.hook.poll_query_status(
             self.query_execution_id,
             max_polling_attempts=self.max_polling_attempts,
+            sleep_time=self.sleep_time,
         )
 
         if query_status in AthenaHook.FAILURE_STATES:
@@ -139,4 +140,4 @@ class AthenaOperator(BaseOperator):
                     self.log.info(
                         "Polling Athena for query with id %s to reach final state", self.query_execution_id
                     )
-                    self.hook.poll_query_status(self.query_execution_id)
+                    self.hook.poll_query_status(self.query_execution_id, sleep_time=self.sleep_time)

@@ -178,6 +178,7 @@ class GCSToBigQueryOperator(BaseOperator):
         "schema_object_bucket",
         "destination_project_dataset_table",
         "impersonation_chain",
+        "src_fmt_configs",
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#f0eee4"
