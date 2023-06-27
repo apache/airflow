@@ -22,6 +22,8 @@ import inspect
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, Collection, Iterable, Iterator, Sequence
 
+from sqlalchemy import select
+
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -549,17 +551,15 @@ class AbstractOperator(Templater, DAGNode):
             total_length = None
 
         state: TaskInstanceState | None = None
-        unmapped_ti: TaskInstance | None = (
-            session.query(TaskInstance)
-            .filter(
+        unmapped_ti: TaskInstance | None = session.scalars(
+            select(TaskInstance).where(
                 TaskInstance.dag_id == self.dag_id,
                 TaskInstance.task_id == self.task_id,
                 TaskInstance.run_id == run_id,
                 TaskInstance.map_index == -1,
                 or_(TaskInstance.state.in_(State.unfinished), TaskInstance.state.is_(None)),
             )
-            .one_or_none()
-        )
+        ).one_or_none()
 
         all_expanded_tis: list[TaskInstance] = []
 
@@ -582,14 +582,14 @@ class AbstractOperator(Templater, DAGNode):
                 unmapped_ti.state = TaskInstanceState.SKIPPED
             else:
                 zero_index_ti_exists = (
-                    session.query(TaskInstance)
-                    .filter(
-                        TaskInstance.dag_id == self.dag_id,
-                        TaskInstance.task_id == self.task_id,
-                        TaskInstance.run_id == run_id,
-                        TaskInstance.map_index == 0,
+                    session.scalar(
+                        select(func.count(TaskInstance.task_id)).where(
+                            TaskInstance.dag_id == self.dag_id,
+                            TaskInstance.task_id == self.task_id,
+                            TaskInstance.run_id == run_id,
+                            TaskInstance.map_index == 0,
+                        )
                     )
-                    .count()
                     > 0
                 )
                 if not zero_index_ti_exists:
@@ -609,14 +609,12 @@ class AbstractOperator(Templater, DAGNode):
             indexes_to_map: Iterable[int] = ()
         else:
             # Only create "missing" ones.
-            current_max_mapping = (
-                session.query(func.max(TaskInstance.map_index))
-                .filter(
+            current_max_mapping = session.scalar(
+                select(func.max(TaskInstance.map_index)).where(
                     TaskInstance.dag_id == self.dag_id,
                     TaskInstance.task_id == self.task_id,
                     TaskInstance.run_id == run_id,
                 )
-                .scalar()
             )
             indexes_to_map = range(current_max_mapping + 1, total_length)
 
@@ -635,13 +633,14 @@ class AbstractOperator(Templater, DAGNode):
 
         # Any (old) task instances with inapplicable indexes (>= the total
         # number we need) are set to "REMOVED".
-        query = session.query(TaskInstance).filter(
+        query = select(TaskInstance).where(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
             TaskInstance.run_id == run_id,
             TaskInstance.map_index >= total_expanded_ti_count,
         )
-        to_update = with_row_locks(query, of=TaskInstance, session=session, **skip_locked(session=session))
+        query = with_row_locks(query, of=TaskInstance, session=session, **skip_locked(session=session))
+        to_update = session.scalars(query)
         for ti in to_update:
             ti.state = TaskInstanceState.REMOVED
         session.flush()

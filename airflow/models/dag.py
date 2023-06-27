@@ -55,12 +55,27 @@ import pendulum
 import re2 as re
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, case, func, not_, or_
+from sqlalchemy import (
+    Boolean,
+    Column,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    and_,
+    case,
+    func,
+    not_,
+    or_,
+    select,
+    update,
+)
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import backref, joinedload, relationship
 from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
-from sqlalchemy.sql import expression
+from sqlalchemy.sql import Select, expression
 
 import airflow.templates
 from airflow import settings, utils
@@ -202,11 +217,11 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     Overridden DagRuns are ignored.
     """
     DR = DagRun
-    query = session.query(DR).filter(DR.dag_id == dag_id)
+    query = select(DR).where(DR.dag_id == dag_id)
     if not include_externally_triggered:
-        query = query.filter(DR.external_trigger == expression.false())
+        query = query.where(DR.external_trigger == expression.false())
     query = query.order_by(DR.execution_date.desc())
-    return query.first()
+    return session.scalar(query.limit(1))
 
 
 def get_dataset_triggered_next_run_info(
@@ -224,31 +239,27 @@ def get_dataset_triggered_next_run_info(
             "ready": x.ready,
             "total": x.total,
         }
-        for x in session.query(
-            DagScheduleDatasetReference.dag_id,
-            # This is a dirty hack to workaround group by requiring an aggregate, since grouping by dataset
-            # is not what we want to do here...but it works
-            case((func.count() == 1, func.max(DatasetModel.uri)), else_="").label("uri"),
-            func.count().label("total"),
-            func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
-        )
-        .join(
-            DDRQ,
-            and_(
-                DDRQ.dataset_id == DagScheduleDatasetReference.dataset_id,
-                DDRQ.target_dag_id == DagScheduleDatasetReference.dag_id,
-            ),
-            isouter=True,
-        )
-        .join(
-            DatasetModel,
-            DatasetModel.id == DagScheduleDatasetReference.dataset_id,
-        )
-        .group_by(
-            DagScheduleDatasetReference.dag_id,
-        )
-        .filter(DagScheduleDatasetReference.dag_id.in_(dag_ids))
-        .all()
+        for x in session.execute(
+            select(
+                DagScheduleDatasetReference.dag_id,
+                # This is a dirty hack to workaround group by requiring an aggregate,
+                # since grouping by dataset is not what we want to do here...but it works
+                case((func.count() == 1, func.max(DatasetModel.uri)), else_="").label("uri"),
+                func.count().label("total"),
+                func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
+            )
+            .join(
+                DDRQ,
+                and_(
+                    DDRQ.dataset_id == DagScheduleDatasetReference.dataset_id,
+                    DDRQ.target_dag_id == DagScheduleDatasetReference.dag_id,
+                ),
+                isouter=True,
+            )
+            .join(DatasetModel, DatasetModel.id == DagScheduleDatasetReference.dataset_id)
+            .group_by(DagScheduleDatasetReference.dag_id)
+            .where(DagScheduleDatasetReference.dag_id.in_(dag_ids))
+        ).all()
     }
 
 
@@ -1296,11 +1307,13 @@ class DAG(LoggingMixin):
         has been reached.
         """
         TI = TaskInstance
-        qry = session.query(func.count(TI.task_id)).filter(
-            TI.dag_id == self.dag_id,
-            TI.state == State.RUNNING,
+        total_tasks = session.scalar(
+            select(func.count(TI.task_id)).where(
+                TI.dag_id == self.dag_id,
+                TI.state == TaskInstanceState.RUNNING,
+            )
         )
-        return qry.scalar() >= self.max_active_tasks
+        return total_tasks >= self.max_active_tasks
 
     @property
     def concurrency_reached(self):
@@ -1315,12 +1328,12 @@ class DAG(LoggingMixin):
     @provide_session
     def get_is_active(self, session=NEW_SESSION) -> None:
         """Returns a boolean indicating whether this DAG is active."""
-        return session.query(DagModel.is_active).filter(DagModel.dag_id == self.dag_id).scalar()
+        return session.scalar(select(DagModel.is_active).where(DagModel.dag_id == self.dag_id))
 
     @provide_session
     def get_is_paused(self, session=NEW_SESSION) -> None:
         """Returns a boolean indicating whether this DAG is paused."""
-        return session.query(DagModel.is_paused).filter(DagModel.dag_id == self.dag_id).scalar()
+        return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
 
     @property
     def is_paused(self):
@@ -1402,19 +1415,18 @@ class DAG(LoggingMixin):
         :param session:
         :return: number greater than 0 for active dag runs
         """
-        # .count() is inefficient
-        query = session.query(func.count()).filter(DagRun.dag_id == self.dag_id)
+        query = select(func.count()).where(DagRun.dag_id == self.dag_id)
         if only_running:
-            query = query.filter(DagRun.state == State.RUNNING)
+            query = query.where(DagRun.state == DagRunState.RUNNING)
         else:
-            query = query.filter(DagRun.state.in_({State.RUNNING, State.QUEUED}))
+            query = query.where(DagRun.state.in_({DagRunState.RUNNING, DagRunState.QUEUED}))
 
         if external_trigger is not None:
-            query = query.filter(
+            query = query.where(
                 DagRun.external_trigger == (expression.true() if external_trigger else expression.false())
             )
 
-        return query.scalar()
+        return session.scalar(query)
 
     @provide_session
     def get_dagrun(
@@ -1434,12 +1446,12 @@ class DAG(LoggingMixin):
         """
         if not (execution_date or run_id):
             raise TypeError("You must provide either the execution_date or the run_id")
-        query = session.query(DagRun)
+        query = select(DagRun)
         if execution_date:
-            query = query.filter(DagRun.dag_id == self.dag_id, DagRun.execution_date == execution_date)
+            query = query.where(DagRun.dag_id == self.dag_id, DagRun.execution_date == execution_date)
         if run_id:
-            query = query.filter(DagRun.dag_id == self.dag_id, DagRun.run_id == run_id)
-        return query.first()
+            query = query.where(DagRun.dag_id == self.dag_id, DagRun.run_id == run_id)
+        return session.scalar(query)
 
     @provide_session
     def get_dagruns_between(self, start_date, end_date, session=NEW_SESSION):
@@ -1451,22 +1463,20 @@ class DAG(LoggingMixin):
         :param session:
         :return: The list of DagRuns found.
         """
-        dagruns = (
-            session.query(DagRun)
-            .filter(
+        dagruns = session.scalars(
+            select(DagRun).where(
                 DagRun.dag_id == self.dag_id,
                 DagRun.execution_date >= start_date,
                 DagRun.execution_date <= end_date,
             )
-            .all()
-        )
+        ).all()
 
         return dagruns
 
     @provide_session
     def get_latest_execution_date(self, session: Session = NEW_SESSION) -> pendulum.DateTime | None:
         """Returns the latest date for which at least one dag run exists."""
-        return session.query(func.max(DagRun.execution_date)).filter(DagRun.dag_id == self.dag_id).scalar()
+        return session.scalar(select(func.max(DagRun.execution_date)).where(DagRun.dag_id == self.dag_id))
 
     @property
     def latest_execution_date(self):
@@ -1553,16 +1563,15 @@ class DAG(LoggingMixin):
         corresponding to any DagRunType. It can have less if there are
         less than ``num`` scheduled DAG runs before ``base_date``.
         """
-        execution_dates: list[Any] = (
-            session.query(DagRun.execution_date)
-            .filter(
+        execution_dates: list[Any] = session.execute(
+            select(DagRun.execution_date)
+            .where(
                 DagRun.dag_id == self.dag_id,
                 DagRun.execution_date <= base_date,
             )
             .order_by(DagRun.execution_date.desc())
             .limit(num)
-            .all()
-        )
+        ).all()
 
         if len(execution_dates) == 0:
             return self.get_task_instances(start_date=base_date, end_date=base_date, session=session)
@@ -1598,7 +1607,7 @@ class DAG(LoggingMixin):
             exclude_task_ids=(),
             session=session,
         )
-        return cast(Query, query).order_by(DagRun.execution_date).all()
+        return session.scalars(cast(Select, query).order_by(DagRun.execution_date)).all()
 
     @overload
     def _get_task_instances(
@@ -1671,9 +1680,9 @@ class DAG(LoggingMixin):
 
         # Do we want full objects, or just the primary columns?
         if as_pk_tuple:
-            tis = session.query(TI.dag_id, TI.task_id, TI.run_id, TI.map_index)
+            tis = select(TI.dag_id, TI.task_id, TI.run_id, TI.map_index)
         else:
-            tis = session.query(TaskInstance)
+            tis = select(TaskInstance)
         tis = tis.join(TaskInstance.dag_run)
 
         if include_subdags:
@@ -1683,40 +1692,40 @@ class DAG(LoggingMixin):
                 conditions.append(
                     (TaskInstance.dag_id == dag.dag_id) & TaskInstance.task_id.in_(dag.task_ids)
                 )
-            tis = tis.filter(or_(*conditions))
+            tis = tis.where(or_(*conditions))
         elif self.partial:
-            tis = tis.filter(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id.in_(self.task_ids))
+            tis = tis.where(TaskInstance.dag_id == self.dag_id, TaskInstance.task_id.in_(self.task_ids))
         else:
-            tis = tis.filter(TaskInstance.dag_id == self.dag_id)
+            tis = tis.where(TaskInstance.dag_id == self.dag_id)
         if run_id:
-            tis = tis.filter(TaskInstance.run_id == run_id)
+            tis = tis.where(TaskInstance.run_id == run_id)
         if start_date:
-            tis = tis.filter(DagRun.execution_date >= start_date)
+            tis = tis.where(DagRun.execution_date >= start_date)
         if task_ids is not None:
-            tis = tis.filter(TaskInstance.ti_selector_condition(task_ids))
+            tis = tis.where(TaskInstance.ti_selector_condition(task_ids))
 
         # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
         if end_date or not self.allow_future_exec_dates:
             end_date = end_date or timezone.utcnow()
-            tis = tis.filter(DagRun.execution_date <= end_date)
+            tis = tis.where(DagRun.execution_date <= end_date)
 
         if state:
             if isinstance(state, (str, TaskInstanceState)):
-                tis = tis.filter(TaskInstance.state == state)
+                tis = tis.where(TaskInstance.state == state)
             elif len(state) == 1:
-                tis = tis.filter(TaskInstance.state == state[0])
+                tis = tis.where(TaskInstance.state == state[0])
             else:
                 # this is required to deal with NULL values
                 if None in state:
                     if all(x is None for x in state):
-                        tis = tis.filter(TaskInstance.state.is_(None))
+                        tis = tis.where(TaskInstance.state.is_(None))
                     else:
                         not_none_state = [s for s in state if s]
-                        tis = tis.filter(
+                        tis = tis.where(
                             or_(TaskInstance.state.in_(not_none_state), TaskInstance.state.is_(None))
                         )
                 else:
-                    tis = tis.filter(TaskInstance.state.in_(state))
+                    tis = tis.where(TaskInstance.state.in_(state))
 
         # Next, get any of them from our parent DAG (if there is one)
         if include_parentdag and self.parent_dag is not None:
@@ -1754,14 +1763,17 @@ class DAG(LoggingMixin):
 
             query = tis
             if as_pk_tuple:
-                condition = TI.filter_for_tis(TaskInstanceKey(*cols) for cols in tis.all())
+                all_tis = session.execute(query).all()
+                condition = TI.filter_for_tis(TaskInstanceKey(*cols) for cols in all_tis)
                 if condition is not None:
-                    query = session.query(TI).filter(condition)
+                    query = select(TI).where(condition)
 
             if visited_external_tis is None:
                 visited_external_tis = set()
 
-            for ti in query.filter(TI.operator == ExternalTaskMarker.__name__):
+            external_tasks = session.scalars(query.where(TI.operator == ExternalTaskMarker.__name__))
+
+            for ti in external_tasks:
                 ti_key = ti.key.primary
                 if ti_key in visited_external_tis:
                     continue
@@ -1784,10 +1796,10 @@ class DAG(LoggingMixin):
                         f"Attempted to clear too many tasks or there may be a cyclic dependency."
                     )
                 ti.render_templates()
-                external_tis = (
-                    session.query(TI)
+                external_tis = session.scalars(
+                    select(TI)
                     .join(TI.dag_run)
-                    .filter(
+                    .where(
                         TI.dag_id == task.external_dag_id,
                         TI.task_id == task.external_task_id,
                         DagRun.execution_date == pendulum.parse(task.execution_date),
@@ -1830,9 +1842,10 @@ class DAG(LoggingMixin):
         if result or as_pk_tuple:
             # Only execute the `ti` query if we have also collected some other results (i.e. subdags etc.)
             if as_pk_tuple:
-                result.update(TaskInstanceKey(**cols._mapping) for cols in tis.all())
+                tis_query = session.execute(tis).all()
+                result.update(TaskInstanceKey(**cols._mapping) for cols in tis_query)
             else:
-                result.update(ti.key for ti in tis)
+                result.update(ti.key for ti in session.scalars(tis))
 
             if exclude_task_ids is not None:
                 result = {
@@ -1848,13 +1861,13 @@ class DAG(LoggingMixin):
             # We've been asked for objects, lets combine it all back in to a result set
             ti_filters = TI.filter_for_tis(result)
             if ti_filters is not None:
-                tis = session.query(TI).filter(ti_filters)
+                tis = select(TI).where(ti_filters)
         elif exclude_task_ids is None:
             pass  # Disable filter if not set.
         elif isinstance(next(iter(exclude_task_ids), None), str):
-            tis = tis.filter(TI.task_id.notin_(exclude_task_ids))
+            tis = tis.where(TI.task_id.notin_(exclude_task_ids))
         else:
-            tis = tis.filter(not_(tuple_in_condition((TI.task_id, TI.map_index), exclude_task_ids)))
+            tis = tis.where(not_(tuple_in_condition((TI.task_id, TI.map_index), exclude_task_ids)))
 
         return tis
 
@@ -1930,9 +1943,9 @@ class DAG(LoggingMixin):
         )
 
         if execution_date is None:
-            dag_run = (
-                session.query(DagRun).filter(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id).one()
-            )  # Raises an error if not found
+            dag_run = session.scalars(
+                select(DagRun).where(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id)
+            ).one()  # Raises an error if not found
             resolve_execution_date = dag_run.execution_date
         else:
             resolve_execution_date = execution_date
@@ -1993,9 +2006,9 @@ class DAG(LoggingMixin):
         locked_dag_run_ids: list[int] = []
 
         if execution_date is None:
-            dag_run = (
-                session.query(DagRun).filter(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id).one()
-            )  # Raises an error if not found
+            dag_run = session.scalars(
+                select(DagRun).where(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id)
+            ).one()  # Raises an error if not found
             resolve_execution_date = dag_run.execution_date
         else:
             resolve_execution_date = execution_date
@@ -2009,16 +2022,16 @@ class DAG(LoggingMixin):
             raise ValueError("TaskGroup {group_id} could not be found")
         tasks_to_set_state = [task for task in task_group.iter_tasks() if isinstance(task, BaseOperator)]
         task_ids = [task.task_id for task in task_group.iter_tasks()]
-        dag_runs_query = session.query(DagRun.id).filter(DagRun.dag_id == self.dag_id).with_for_update()
+        dag_runs_query = session.query(DagRun.id).where(DagRun.dag_id == self.dag_id).with_for_update()
 
         if start_date is None and end_date is None:
-            dag_runs_query = dag_runs_query.filter(DagRun.execution_date == start_date)
+            dag_runs_query = dag_runs_query.where(DagRun.execution_date == start_date)
         else:
             if start_date is not None:
-                dag_runs_query = dag_runs_query.filter(DagRun.execution_date >= start_date)
+                dag_runs_query = dag_runs_query.where(DagRun.execution_date >= start_date)
 
             if end_date is not None:
-                dag_runs_query = dag_runs_query.filter(DagRun.execution_date <= end_date)
+                dag_runs_query = dag_runs_query.where(DagRun.execution_date <= end_date)
 
         locked_dag_run_ids = dag_runs_query.all()
 
@@ -2105,12 +2118,12 @@ class DAG(LoggingMixin):
             stacklevel=3,
         )
         dag_ids = dag_ids or [self.dag_id]
-        query = session.query(DagRun).filter(DagRun.dag_id.in_(dag_ids))
+        query = update(DagRun).where(DagRun.dag_id.in_(dag_ids))
         if start_date:
-            query = query.filter(DagRun.execution_date >= start_date)
+            query = query.where(DagRun.execution_date >= start_date)
         if end_date:
-            query = query.filter(DagRun.execution_date <= end_date)
-        query.update({DagRun.state: state}, synchronize_session="fetch")
+            query = query.where(DagRun.execution_date <= end_date)
+        session.execute(query.values(state=state).execution_options(synchronize_session="fetch"))
 
     @provide_session
     def clear(
@@ -2196,11 +2209,11 @@ class DAG(LoggingMixin):
         )
 
         if dry_run:
-            return tis
+            return session.scalars(tis).all()
 
-        tis = list(tis)
+        tis = session.scalars(tis).all()
 
-        count = len(tis)
+        count = len(list(tis))
         do_it = True
         if count == 0:
             return 0
@@ -2213,7 +2226,7 @@ class DAG(LoggingMixin):
 
         if do_it:
             clear_task_instances(
-                tis,
+                list(tis),
                 session,
                 dag=self,
                 dag_run_state=dag_run_state,
@@ -2462,10 +2475,10 @@ class DAG(LoggingMixin):
 
     @provide_session
     def pickle(self, session=NEW_SESSION) -> DagPickle:
-        dag = session.query(DagModel).filter(DagModel.dag_id == self.dag_id).first()
+        dag = session.scalar(select(DagModel).where(DagModel.dag_id == self.dag_id).limit(1))
         dp = None
         if dag and dag.pickle_id:
-            dp = session.query(DagPickle).filter(DagPickle.id == dag.pickle_id).first()
+            dp = session.scalar(select(DagPickle).where(DagPickle.id == dag.pickle_id).limit(1))
         if not dp or dp.pickle != self:
             dp = DagPickle(dag=self)
             session.add(dp)
@@ -2881,13 +2894,14 @@ class DAG(LoggingMixin):
 
         dag_ids = set(dag_by_ids.keys())
         query = (
-            session.query(DagModel)
+            select(DagModel)
             .options(joinedload(DagModel.tags, innerjoin=False))
-            .filter(DagModel.dag_id.in_(dag_ids))
+            .where(DagModel.dag_id.in_(dag_ids))
             .options(joinedload(DagModel.schedule_dataset_references))
             .options(joinedload(DagModel.task_outlet_dataset_references))
         )
-        orm_dags: list[DagModel] = with_row_locks(query, of=DagModel, session=session).all()
+        query = with_row_locks(query, of=DagModel, session=session)
+        orm_dags: list[DagModel] = session.scalars(query).unique().all()
         existing_dags = {orm_dag.dag_id: orm_dag for orm_dag in orm_dags}
         missing_dag_ids = dag_ids.difference(existing_dags)
 
@@ -2903,17 +2917,19 @@ class DAG(LoggingMixin):
 
         # Get the latest dag run for each existing dag as a single query (avoid n+1 query)
         most_recent_subq = (
-            session.query(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
-            .filter(
+            select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
+            .where(
                 DagRun.dag_id.in_(existing_dags),
                 or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
             )
             .group_by(DagRun.dag_id)
             .subquery()
         )
-        most_recent_runs_iter = session.query(DagRun).filter(
-            DagRun.dag_id == most_recent_subq.c.dag_id,
-            DagRun.execution_date == most_recent_subq.c.max_execution_date,
+        most_recent_runs_iter = session.scalars(
+            select(DagRun).where(
+                DagRun.dag_id == most_recent_subq.c.dag_id,
+                DagRun.execution_date == most_recent_subq.c.max_execution_date,
+            )
         )
         most_recent_runs = {run.dag_id: run for run in most_recent_runs_iter}
 
@@ -3029,7 +3045,9 @@ class DAG(LoggingMixin):
         # store datasets
         stored_datasets = {}
         for dataset in all_datasets:
-            stored_dataset = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).first()
+            stored_dataset = session.scalar(
+                select(DatasetModel).where(DatasetModel.uri == dataset.uri).limit(1)
+            )
             if stored_dataset:
                 # Some datasets may have been previously unreferenced, and therefore orphaned by the
                 # scheduler. But if we're here, then we have found that dataset again in our DAGs, which
@@ -3114,7 +3132,7 @@ class DAG(LoggingMixin):
         """
         if len(active_dag_ids) == 0:
             return
-        for dag in session.query(DagModel).filter(~DagModel.dag_id.in_(active_dag_ids)).all():
+        for dag in session.scalars(select(DagModel).where(~DagModel.dag_id.in_(active_dag_ids))).all():
             dag.is_active = False
             session.merge(dag)
         session.commit()
@@ -3130,10 +3148,8 @@ class DAG(LoggingMixin):
             time
         :return: None
         """
-        for dag in (
-            session.query(DagModel)
-            .filter(DagModel.last_parsed_time < expiration_date, DagModel.is_active)
-            .all()
+        for dag in session.scalars(
+            select(DagModel).where(DagModel.last_parsed_time < expiration_date, DagModel.is_active)
         ):
             log.info(
                 "Deactivating DAG ID %s since it was last touched by the scheduler at %s",
@@ -3157,30 +3173,30 @@ class DAG(LoggingMixin):
         :param states: A list of states to filter by if supplied
         :return: The number of running tasks
         """
-        qry = session.query(func.count(TaskInstance.task_id)).filter(
+        qry = select(func.count(TaskInstance.task_id)).where(
             TaskInstance.dag_id == dag_id,
         )
         if run_id:
-            qry = qry.filter(
+            qry = qry.where(
                 TaskInstance.run_id == run_id,
             )
         if task_ids:
-            qry = qry.filter(
+            qry = qry.where(
                 TaskInstance.task_id.in_(task_ids),
             )
 
         if states:
             if None in states:
                 if all(x is None for x in states):
-                    qry = qry.filter(TaskInstance.state.is_(None))
+                    qry = qry.where(TaskInstance.state.is_(None))
                 else:
                     not_none_states = [state for state in states if state]
-                    qry = qry.filter(
+                    qry = qry.where(
                         or_(TaskInstance.state.in_(not_none_states), TaskInstance.state.is_(None))
                     )
             else:
-                qry = qry.filter(TaskInstance.state.in_(states))
-        return qry.scalar()
+                qry = qry.where(TaskInstance.state.in_(states))
+        return session.scalar(qry)
 
     @classmethod
     def get_serialized_fields(cls):
@@ -3301,7 +3317,7 @@ class DagOwnerAttributes(Base):
     @classmethod
     def get_all(cls, session) -> dict[str, dict[str, str]]:
         dag_links: dict = collections.defaultdict(dict)
-        for obj in session.query(cls):
+        for obj in session.scalars(select(cls)):
             dag_links[obj.dag_id].update({obj.owner: obj.link})
         return dag_links
 
@@ -3447,7 +3463,7 @@ class DagModel(Base):
     @classmethod
     @provide_session
     def get_current(cls, dag_id, session=NEW_SESSION):
-        return session.query(cls).filter(cls.dag_id == dag_id).first()
+        return session.scalar(select(cls).where(cls.dag_id == dag_id))
 
     @provide_session
     def get_last_dagrun(self, session=NEW_SESSION, include_externally_triggered=False):
@@ -3470,11 +3486,10 @@ class DagModel(Base):
         :param session: ORM Session
         :return: Paused Dag_ids
         """
-        paused_dag_ids = (
-            session.query(DagModel.dag_id)
-            .filter(DagModel.is_paused == expression.true())
-            .filter(DagModel.dag_id.in_(dag_ids))
-            .all()
+        paused_dag_ids = session.execute(
+            select(DagModel.dag_id)
+            .where(DagModel.is_paused == expression.true())
+            .where(DagModel.dag_id.in_(dag_ids))
         )
 
         paused_dag_ids = {paused_dag_id for paused_dag_id, in paused_dag_ids}
@@ -3518,8 +3533,11 @@ class DagModel(Base):
         ]
         if including_subdags:
             filter_query.append(DagModel.root_dag_id == self.dag_id)
-        session.query(DagModel).filter(or_(*filter_query)).update(
-            {DagModel.is_paused: is_paused}, synchronize_session="fetch"
+        session.execute(
+            update(DagModel)
+            .where(or_(*filter_query))
+            .values(is_paused=is_paused)
+            .execution_options(synchronize_session="fetch")
         )
         session.commit()
 
@@ -3538,7 +3556,8 @@ class DagModel(Base):
         :param session: ORM Session
         """
         log.debug("Deactivating DAGs (for which DAG files are deleted) from %s table ", cls.__tablename__)
-        for dag_model in session.query(cls).filter(cls.fileloc.is_not(None)):
+        dag_models = session.scalars(select(cls).where(cls.fileloc.is_not(None)))
+        for dag_model in dag_models:
             if dag_model.fileloc not in alive_dag_filelocs:
                 dag_model.is_active = False
 
@@ -3556,28 +3575,30 @@ class DagModel(Base):
         # these dag ids are triggered by datasets, and they are ready to go.
         dataset_triggered_dag_info = {
             x.dag_id: (x.first_queued_time, x.last_queued_time)
-            for x in session.query(
-                DagScheduleDatasetReference.dag_id,
-                func.max(DDRQ.created_at).label("last_queued_time"),
-                func.min(DDRQ.created_at).label("first_queued_time"),
+            for x in session.execute(
+                select(
+                    DagScheduleDatasetReference.dag_id,
+                    func.max(DDRQ.created_at).label("last_queued_time"),
+                    func.min(DDRQ.created_at).label("first_queued_time"),
+                )
+                .join(DagScheduleDatasetReference.queue_records, isouter=True)
+                .group_by(DagScheduleDatasetReference.dag_id)
+                .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
             )
-            .join(DagScheduleDatasetReference.queue_records, isouter=True)
-            .group_by(DagScheduleDatasetReference.dag_id)
-            .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
-            .all()
         }
         dataset_triggered_dag_ids = set(dataset_triggered_dag_info.keys())
         if dataset_triggered_dag_ids:
             exclusion_list = {
-                x.dag_id
+                x
                 for x in (
-                    session.query(DagModel.dag_id)
-                    .join(DagRun.dag_model)
-                    .filter(DagRun.state.in_((DagRunState.QUEUED, DagRunState.RUNNING)))
-                    .filter(DagModel.dag_id.in_(dataset_triggered_dag_ids))
-                    .group_by(DagModel.dag_id)
-                    .having(func.count() >= func.max(DagModel.max_active_runs))
-                    .all()
+                    session.scalars(
+                        select(DagModel.dag_id)
+                        .join(DagRun.dag_model)
+                        .where(DagRun.state.in_((DagRunState.QUEUED, DagRunState.RUNNING)))
+                        .where(DagModel.dag_id.in_(dataset_triggered_dag_ids))
+                        .group_by(DagModel.dag_id)
+                        .having(func.count() >= func.max(DagModel.max_active_runs))
+                    )
                 )
             }
             if exclusion_list:
@@ -3588,8 +3609,8 @@ class DagModel(Base):
 
         # We limit so that _one_ scheduler doesn't try to do all the creation of dag runs
         query = (
-            session.query(cls)
-            .filter(
+            select(cls)
+            .where(
                 cls.is_paused == expression.false(),
                 cls.is_active == expression.true(),
                 cls.has_import_errors == expression.false(),
@@ -3603,7 +3624,7 @@ class DagModel(Base):
         )
 
         return (
-            with_row_locks(query, of=cls, session=session, **skip_locked(session=session)),
+            session.scalars(with_row_locks(query, of=cls, session=session, **skip_locked(session=session))),
             dataset_triggered_dag_info,
         )
 
@@ -3871,10 +3892,8 @@ def _get_or_create_dagrun(
     :return: The newly created DAG run.
     """
     log.info("dagrun id: %s", dag.dag_id)
-    dr: DagRun = (
-        session.query(DagRun)
-        .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
-        .first()
+    dr: DagRun = session.scalar(
+        select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
     )
     if dr:
         session.delete(dr)
