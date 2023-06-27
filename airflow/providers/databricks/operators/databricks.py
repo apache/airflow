@@ -297,7 +297,7 @@ class DatabricksJobsCreateOperator(BaseOperator):
         job_id = self._hook.find_job_id_by_name(self.json["name"])
         if job_id is None:
             return self._hook.create(self.json)
-        self._hook.reset(job_id, self.json)
+        self._hook.reset(str(job_id), self.json)
         return job_id
 
 

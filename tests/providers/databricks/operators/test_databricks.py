@@ -423,9 +423,9 @@ class TestDatabricksJobsCreateOperator:
         db_mock = db_mock_class.return_value
         db_mock.create.return_value = JOB_ID
 
-        ti = mock.MagicMock()
-        ti.xcom_pull.return_value = None
-        op.execute({"ti": ti})
+        db_mock.find_job_id_by_name.return_value = None
+
+        return_result = op.execute({})
 
         expected = utils.normalise_json_content(
             {
@@ -451,7 +451,7 @@ class TestDatabricksJobsCreateOperator:
         )
 
         db_mock.create.assert_called_once_with(expected)
-        assert JOB_ID == op.job_id
+        assert JOB_ID == return_result
 
     @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
     def test_exec_reset(self, db_mock_class):
@@ -473,10 +473,9 @@ class TestDatabricksJobsCreateOperator:
         }
         op = DatabricksJobsCreateOperator(task_id=TASK_ID, json=json)
         db_mock = db_mock_class.return_value
+        db_mock.find_job_id_by_name.return_value = JOB_ID
 
-        ti = mock.MagicMock()
-        ti.xcom_pull.return_value = JOB_ID
-        op.execute({"ti": ti})
+        return_result = op.execute({})
 
         expected = utils.normalise_json_content(
             {
@@ -502,7 +501,7 @@ class TestDatabricksJobsCreateOperator:
         )
 
         db_mock.reset.assert_called_once_with(JOB_ID, expected)
-        assert JOB_ID == op.job_id
+        assert JOB_ID == return_result
 
 
 class TestDatabricksSubmitRunOperator:
