@@ -61,6 +61,7 @@ class GlueJobOperator(BaseOperator):
         (default: False)
     :param verbose: If True, Glue Job Run logs show in the Airflow Task Logs.  (default: False)
     :param update_config: If True, Operator will update job configuration.  (default: False)
+    :param stop_job_run_on_kill: If True, Operator will stop the job run when task is killed.
     """
 
     template_fields: Sequence[str] = (
