@@ -80,6 +80,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
                     await asyncio.sleep(self.poll_interval)
                 if statement_status["status"] == "error":
                     yield TriggerEvent(statement_status)
+                    return
                 if statement_status["status"] == "success":
                     statement_query_ids.extend(statement_status["statement_handles"])
             yield TriggerEvent(
