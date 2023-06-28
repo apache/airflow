@@ -52,7 +52,7 @@ HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
 
 def get_context_from_env_var() -> dict[Any, Any]:
     """
-    Extract context from env variable, (dag_id, task_id, etc) for use inBashOperator and PythonOperator.
+    Extract context from env variable, (dag_id, task_id, etc) for use in BashOperator and PythonOperator.
 
     :return: The context of interest.
     """
