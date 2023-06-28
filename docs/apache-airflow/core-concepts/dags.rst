@@ -500,7 +500,7 @@ Key features of setup and teardown tasks:
   * A setup task must always have a teardown and vice versa. You may use EmptyOperator as a setup or teardown.
 
 Basic usage
------------
+"""""""""""
 
 Suppose you have a dag that creates a cluster, runs a query, and deletes the cluster. Without using setup and teardown tasks you might set these relationships:
 
@@ -521,7 +521,7 @@ Observations:
   * The success of the dag run will depend on the success of ``run_query``.
 
 Setup "scope"
--------------
+"""""""""""""
 
 We require that a setup always have a teardown in order to have a well-defined scope. If you wish to only add a teardown task or only a setup task, you may use EmptyOperator as your "empty setup" or "empty teardown".
 
@@ -535,7 +535,7 @@ The "scope" of a setup will be determined by where the teardown is.  Tasks betwe
 In the above example, w1 and w2 are "between" s1 and t1 and therefore are assumed to require s1. Thus if w1 or w2 is cleared, so too will be s1 and t1.  But if w3 or w4 is cleared, neither s1 nor t1 will be cleared.
 
 Controlling dag run state
--------------------------
+"""""""""""""""""""""""""
 
 Another feature of setup / teardown tasks is you can choose whether or not the teardown task should have an impact on dag run state.  Perhaps you don't care if the "cleanup" work performed by your teardown task fails, and you only consider the dag run a failure if the "work" tasks fail.  By default, teardown tasks are not considered for dag run state.
 
@@ -546,7 +546,7 @@ Continuing with the example above, if you want the run's success to depend on ``
   create_cluster >> run_query >> delete_cluster.as_teardown(setups=create_cluster, on_failure_fail_dagrun=True)
 
 Authoring with task groups
---------------------------
+""""""""""""""""""""""""""
 
 When arrowing from task group to task group, or from task group to task, we ignore teardowns.  This allows teardowns to run in parallel, and allows dag execution to proceed even if teardown tasks fail.
 
@@ -585,6 +585,23 @@ Now let's consider an example with nesting:
 
 In this example s1 is downstream of dag_s1, so it must wait for dag_s1 to complete successfully.  But t1 and dag_t1 can run concurrently, because t1 is ignored in the expression ``tg >> dag_t1``.  If you clear w1, it will clear dag_s1 and dag_t1, but not anything in the task group.
 
+Setup / teardown context manager
+""""""""""""""""""""""""""""""""
+
+We provide a context manager for convenience.  In the following example, if tasks ``s`` and ``t`` have been marked as setup and teardown tasks, they may be used as context manager that will wrap all tasks defined in the context inside the setup / teardown.  Example:
+
+.. code-block:: python
+
+    with s >> t:
+        a()
+        b() >> c()
+
+This is equivalent to the following:
+
+.. code-block:: python
+
+    s >> a() >> t.as_teardown(setups=s)
+    s >> b() >> c() >> t
 
 Dynamic DAGs
 ------------
