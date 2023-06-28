@@ -18,9 +18,18 @@
 ``apache-airflow-providers-apache-sqoop``
 =========================================
 
-Content
--------
+
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -28,6 +37,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -39,6 +49,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -76,5 +87,3 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.4.0``
 ==================  ==================
-
-.. include:: ../../airflow/providers/apache/sqoop/CHANGELOG.rst

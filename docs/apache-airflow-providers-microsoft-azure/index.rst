@@ -19,10 +19,18 @@
 ``apache-airflow-providers-microsoft-azure``
 ============================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -32,6 +40,7 @@ Content
     Logging for Tasks <logging/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -39,11 +48,13 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/microsoft/azure/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -55,6 +66,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -139,5 +151,3 @@ You can download officially released packages and verify their checksums and sig
 
 * `The apache-airflow-providers-microsoft-azure 6.1.2 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.1.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.1.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-microsoft-azure-6.1.2.tar.gz.sha512>`__)
 * `The apache-airflow-providers-microsoft-azure 6.1.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.1.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.1.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_microsoft_azure-6.1.2-py3-none-any.whl.sha512>`__)
-
-.. include:: ../../airflow/providers/microsoft/azure/CHANGELOG.rst

@@ -101,6 +101,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--base-branch",
                 "--only-min-version-update",
+                "--regenerate-missing-docs",
             ],
         }
     ],
@@ -150,6 +151,9 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--disable-progress",
             ],
         }
+    ],
+    "breeze release-management generate-providers-metadata": [
+        {"name": "Generate providers metadata flags", "options": ["--refresh-constraints", "--python"]}
     ],
     "breeze release-management start-rc-process": [
         {

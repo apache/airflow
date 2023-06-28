@@ -15,14 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a hook (AwsLogsHook) with some very basic
-functionality for interacting with AWS CloudWatch.
-"""
 from __future__ import annotations
 
+import warnings
 from typing import Generator
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 # Guidance received from the AWS team regarding the correct way to check for the end of a stream is that the
@@ -37,6 +35,7 @@ NUM_CONSECUTIVE_EMPTY_RESPONSE_EXIT_THRESHOLD = 3
 class AwsLogsHook(AwsBaseHook):
     """
     Interact with Amazon CloudWatch Logs.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("logs") <CloudWatchLogs.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -62,12 +61,11 @@ class AwsLogsHook(AwsBaseHook):
         log_stream_name: str,
         start_time: int = 0,
         skip: int = 0,
-        start_from_head: bool = True,
+        start_from_head: bool | None = None,
         continuation_token: ContinuationToken | None = None,
     ) -> Generator:
         """
-        A generator for log items in a single stream. This will yield all the
-        items that are available at the current moment.
+        A generator for log items in a single stream; yields all items available at the current moment.
 
         .. seealso::
             - :external+boto3:py:meth:`CloudWatchLogs.Client.get_log_events`
@@ -77,8 +75,8 @@ class AwsLogsHook(AwsBaseHook):
         :param start_time: The time stamp value to start reading the logs from (default: 0).
         :param skip: The number of log entries to skip at the start (default: 0).
             This is for when there are multiple entries at the same timestamp.
-        :param start_from_head: whether to start from the beginning (True) of the log or
-            at the end of the log (False).
+        :param start_from_head: Deprecated. Do not use with False, logs would be retrieved out of order.
+            If possible, retrieve logs in one query, or implement pagination yourself.
         :param continuation_token: a token indicating where to read logs from.
             Will be updated as this method reads new logs, to be reused in subsequent calls.
         :return: | A CloudWatch log event with the following key-value pairs:
@@ -86,6 +84,21 @@ class AwsLogsHook(AwsBaseHook):
                  |   'message' (str): The log event data.
                  |   'ingestionTime' (int): The time in milliseconds the event was ingested.
         """
+        if start_from_head is not None:
+            message = (
+                "start_from_head is deprecated, please remove this parameter."
+                if start_from_head
+                else "Do not use this method with start_from_head=False, logs will be returned out of order. "
+                "If possible, retrieve logs in one query, or implement pagination yourself."
+            )
+            warnings.warn(
+                message,
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            start_from_head = True
+
         if continuation_token is None:
             continuation_token = AwsLogsHook.ContinuationToken()
 

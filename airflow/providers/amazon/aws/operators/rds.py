@@ -56,6 +56,7 @@ class RdsBaseOperator(BaseOperator):
 class RdsCreateDbSnapshotOperator(RdsBaseOperator):
     """
     Creates a snapshot of a DB instance or DB cluster.
+
     The source DB instance or cluster must be in the available or storage-optimization state.
 
     .. seealso::

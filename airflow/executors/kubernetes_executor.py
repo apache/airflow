@@ -432,12 +432,9 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def sync(self) -> None:
         """
-        The sync function checks the status of all currently running kubernetes jobs.
-        If a job is completed, its status is placed in the result queue to
-        be sent back to the scheduler.
+        Checks the status of all currently running kubernetes jobs.
 
-        :return:
-
+        If a job is completed, its status is placed in the result queue to be sent back to the scheduler.
         """
         self.log.debug("Syncing KubernetesExecutor")
         self._health_check_kube_watchers()
@@ -880,6 +877,7 @@ class KubernetesExecutor(BaseExecutor):
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
+
         Tasks can get stuck in queued. If such a task is detected, it will be marked
         as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
         if it doesn't.

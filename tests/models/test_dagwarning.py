@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import MagicMock
 
 from sqlalchemy.exc import OperationalError
@@ -52,18 +53,18 @@ class TestDagWarning:
         assert len(remaining_dag_warnings) == 1
         assert remaining_dag_warnings[0].dag_id == "dag_2"
 
-    def test_retry_purge_inactive_dag_warnings(self):
+    @mock.patch("airflow.models.dagwarning.delete")
+    def test_retry_purge_inactive_dag_warnings(self, delete_mock):
         """
         Test that the purge_inactive_dag_warnings method calls the delete method twice
         if the query throws an operationalError on the first call and works on the second attempt
         """
         self.session_mock = MagicMock()
-        self.delete_mock = MagicMock()
-        self.session_mock.query.return_value.filter.return_value.delete = self.delete_mock
 
-        self.delete_mock.side_effect = [OperationalError(None, None, "database timeout"), None]
+        self.session_mock.execute.side_effect = [OperationalError(None, None, "database timeout"), None]
 
         DagWarning.purge_inactive_dag_warnings(self.session_mock)
 
         # Assert that the delete method was called twice
-        assert self.delete_mock.call_count == 2
+        assert delete_mock.call_count == 2
+        assert self.session_mock.execute.call_count == 2

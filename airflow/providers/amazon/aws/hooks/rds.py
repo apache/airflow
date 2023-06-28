@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 class RdsHook(AwsGenericHook["RDSClient"]):
     """
     Interact with Amazon Relational Database Service (RDS).
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("rds") <RDS.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -69,8 +70,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         self, snapshot_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
-        Polls DB Snapshots until the target state is reached.
-        An error is raised after a max number of attempts.
+        Poll DB Snapshots until target_state is reached; raise AirflowException after max_attempts.
 
         .. seealso::
             - :external+boto3:py:meth:`RDS.Client.describe_db_snapshots`
@@ -118,8 +118,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         self, snapshot_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
-        Polls DB Cluster Snapshots until the target state is reached.
-        An error is raised after a max number of attempts.
+        Poll DB Cluster Snapshots until target_state is reached; raise AirflowException after a max_attempts.
 
         .. seealso::
             - :external+boto3:py:meth:`RDS.Client.describe_db_cluster_snapshots`
@@ -167,8 +166,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         self, export_task_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
-        Polls export tasks until the target state is reached.
-        An error is raised after a max number of attempts.
+        Poll export tasks until target_state is reached; raise AirflowException after max_attempts.
 
         .. seealso::
             - :external+boto3:py:meth:`RDS.Client.describe_export_tasks`
@@ -209,8 +207,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         self, subscription_name: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
-        Polls Even Subscriptions until the target state is reached.
-        An error is raised after a max number of attempts.
+        Poll Event Subscriptions until target_state is reached; raise AirflowException after max_attempts.
 
         .. seealso::
             - :external+boto3:py:meth:`RDS.Client.describe_event_subscriptions`
@@ -251,8 +248,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         self, db_instance_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
-        Polls DB Instances until the target state is reached.
-        An error is raised after a max number of attempts.
+        Poll DB Instances until target_state is reached; raise AirflowException after max_attempts.
 
         .. seealso::
             - :external+boto3:py:meth:`RDS.Client.describe_db_instances`
@@ -300,8 +296,7 @@ class RdsHook(AwsGenericHook["RDSClient"]):
         self, db_cluster_id: str, target_state: str, check_interval: int = 30, max_attempts: int = 40
     ) -> None:
         """
-        Polls DB Clusters until the target state is reached.
-        An error is raised after a max number of attempts.
+        Poll DB Clusters until target_state is reached; raise AirflowException after max_attempts.
 
         .. seealso::
             - :external+boto3:py:meth:`RDS.Client.describe_db_clusters`
