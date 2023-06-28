@@ -31,8 +31,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 class TaskStateTrigger(BaseTrigger):
     """
-    Waits asynchronously for a task in a different DAG to complete for a
-    specific logical date.
+    Waits asynchronously for a task in a different DAG to complete for a specific logical date.
 
     :param dag_id: The dag_id that contains the task you want to wait for
     :param task_id: The task_id that contains the task you want to
@@ -72,10 +71,7 @@ class TaskStateTrigger(BaseTrigger):
         )
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
-        """
-        Checks periodically in the database to see if the task exists, and has
-        hit one of the states yet, or not.
-        """
+        """Checks periodically in the database to see if the task exists and has hit one of the states."""
         while True:
             # mypy confuses typing here
             num_tasks = await self.count_tasks()  # type: ignore[call-arg]
@@ -137,10 +133,7 @@ class DagStateTrigger(BaseTrigger):
         )
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
-        """
-        Checks periodically in the database to see if the dag run exists, and has
-        hit one of the states yet, or not.
-        """
+        """Checks periodically in the database to see if the dag run exists and has hit one of the states."""
         while True:
             # mypy confuses typing here
             num_dags = await self.count_dags()  # type: ignore[call-arg]

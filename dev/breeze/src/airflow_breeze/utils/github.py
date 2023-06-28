@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -67,7 +68,7 @@ def download_file_from_github(tag: str, path: str, output_file: Path) -> bool:
 ACTIVE_TAG_MATCH = re.compile(r"^(\d+)\.\d+\.\d+$")
 
 
-def get_active_airflow_versions() -> list[str]:
+def get_active_airflow_versions(confirm: bool = True) -> list[str]:
     """
     Gets list of active Airflow versions from GitHub.
     :return: list of active Airflow versions
@@ -100,11 +101,56 @@ def get_active_airflow_versions() -> list[str]:
         if match and match.group(1) == "2":
             all_active_tags.append(tag)
     airflow_versions = sorted(all_active_tags, key=lambda x: Version(x))
-    get_console().print(f"All Airflow 2 versions: {all_active_tags}")
-    answer = user_confirm(
-        "Should we continue with those versions?", quit_allowed=False, default_answer=Answer.YES
-    )
-    if answer == Answer.NO:
-        get_console().print("[red]Aborting[/]")
-        sys.exit(1)
+    if confirm:
+        get_console().print(f"All Airflow 2 versions: {all_active_tags}")
+        answer = user_confirm(
+            "Should we continue with those versions?", quit_allowed=False, default_answer=Answer.YES
+        )
+        if answer == Answer.NO:
+            get_console().print("[red]Aborting[/]")
+            sys.exit(1)
     return airflow_versions
+
+
+def download_constraints_file(
+    airflow_version: str, python_version: str, include_provider_dependencies: bool, output_file: Path
+) -> bool:
+    """
+    Downloads constraints file from GitHub repository of Apache Airflow
+
+    :param airflow_version: airflow version
+    :param python_version: python version
+    :param include_provider_dependencies: whether to include provider dependencies
+    :param output_file: the file where to store the constraint file
+    :return: true if the file was successfully downloaded
+    """
+    if include_provider_dependencies:
+        constraints_file_path = f"constraints-{python_version}.txt"
+    else:
+        constraints_file_path = f"constraints-no-providers-{python_version}.txt"
+    constraints_tag = f"constraints-{airflow_version}"
+    return download_file_from_github(
+        tag=constraints_tag,
+        path=constraints_file_path,
+        output_file=output_file,
+    )
+
+
+def get_tag_date(tag: str) -> str | None:
+    """
+    Returns UTC timestamp of the tag in the repo in iso time format 8601
+    :param tag: tag to get date for
+    :return: iso time format 8601 of the tag date
+    """
+    from git import Repo
+
+    repo = Repo(AIRFLOW_SOURCES_ROOT)
+    try:
+        tag_object = repo.tags[tag].object
+    except IndexError:
+        get_console().print(f"[warning]Tag {tag} not found in the repository")
+        return None
+    timestamp: int = (
+        tag_object.committed_date if hasattr(tag_object, "committed_date") else tag_object.tagged_date
+    )
+    return datetime.utcfromtimestamp(timestamp).strftime("%Y-%m-%dT%H:%M:%SZ")

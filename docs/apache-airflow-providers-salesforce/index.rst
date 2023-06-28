@@ -19,10 +19,18 @@
 ``apache-airflow-providers-salesforce``
 =======================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -30,6 +38,7 @@ Content
     Operators <operators/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -37,11 +46,13 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/salesforce/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -53,6 +64,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -65,7 +77,7 @@ Package apache-airflow-providers-salesforce
 `Salesforce <https://www.salesforce.com/>`__
 
 
-Release: 5.4.0
+Release: 5.4.1
 
 Provider package
 ----------------
@@ -92,5 +104,3 @@ PIP package            Version required
 ``simple-salesforce``  ``>=1.0.0``
 ``pandas``             ``>=0.17.1``
 =====================  ==================
-
-.. include:: ../../airflow/providers/salesforce/CHANGELOG.rst

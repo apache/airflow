@@ -22,12 +22,15 @@ from datetime import timedelta
 from unittest import mock
 from unittest.mock import MagicMock, patch
 
+import pytest
 from botocore.waiter import Waiter
 from jinja2 import StrictUndefined
 
+from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
+from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
 from airflow.utils import timezone
 from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
@@ -192,3 +195,28 @@ class TestEmrCreateJobFlowOperator:
             assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
             mock_waiter.assert_called_once_with(mock.ANY, ClusterId=JOB_FLOW_ID, WaiterConfig=mock.ANY)
             assert_expected_waiter_type(mock_waiter, "job_flow_waiting")
+
+    @patch.object(S3Hook, "parse_s3_url", return_value="valid_uri")
+    def test_create_job_flow_deferrable(self, _):
+        """
+        Test to make sure that the operator raises a TaskDeferred exception
+        if run in deferrable mode.
+        """
+        self.emr_client_mock.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
+
+        # Mock out the emr_client creator
+        emr_session_mock = MagicMock()
+        emr_session_mock.client.return_value = self.emr_client_mock
+        boto3_session_mock = MagicMock(return_value=emr_session_mock)
+
+        self.operator.deferrable = True
+        with patch("boto3.session.Session", boto3_session_mock), patch(
+            "airflow.providers.amazon.aws.hooks.base_aws.isinstance"
+        ) as mock_isinstance:
+            mock_isinstance.return_value = True
+            with pytest.raises(TaskDeferred) as exc:
+                self.operator.execute(self.mock_context)
+
+        assert isinstance(
+            exc.value.trigger, EmrCreateJobFlowTrigger
+        ), "Trigger is not a EmrCreateJobFlowTrigger"

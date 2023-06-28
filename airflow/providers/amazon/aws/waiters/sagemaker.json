@@ -78,6 +78,32 @@
                     "state": "failure"
                 }
             ]
+        },
+        "TuningJobComplete": {
+            "delay": 30,
+            "operation": "DescribeHyperParameterTuningJob",
+            "maxAttempts": 60,
+            "description": "Wait until job is COMPLETED",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "HyperParameterTuningJobStatus",
+                    "expected": "Completed",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "HyperParameterTuningJobStatus",
+                    "expected": "Failed",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "HyperParameterTuningJobStatus",
+                    "expected": "Stopped",
+                    "state": "failure"
+                }
+            ]
         }
     }
 }

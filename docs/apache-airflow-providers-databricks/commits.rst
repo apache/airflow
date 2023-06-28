@@ -28,14 +28,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.3.0
+.....
+
+Latest change: 2023-06-20
+
+=================================================================================================  ===========  ===========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
+`69bc90b824 <https://github.com/apache/airflow/commit/69bc90b82403b705b3c30176cc3d64b767f2252e>`_  2023-06-19   ``Fix type annotation (#31888)``
+`66299338eb <https://github.com/apache/airflow/commit/66299338eb24aa71eb2e27ebd8b76079b39fd305>`_  2023-06-18   ``add a return when the event is yielded in a loop to stop the execution (#31985)``
+`7b096483fa <https://github.com/apache/airflow/commit/7b096483fa20df921101a09816a1d2701e9ae1dd>`_  2023-06-14   ``Making Databricks run related multi-query string in one session again (#31898) (#31899)``
+`049c6184b7 <https://github.com/apache/airflow/commit/049c6184b730a7ede41db9406654f054ddc8cc5f>`_  2023-06-08   ``Fix Databricks SQL operator serialization (#31780)``
+`9276310a43 <https://github.com/apache/airflow/commit/9276310a43d17a9e9e38c2cb83686a15656896b2>`_  2023-06-05   ``Improve docstrings in providers (#31681)``
+`86b5ba2802 <https://github.com/apache/airflow/commit/86b5ba28026fc6e8b7d868b83080189df9b09306>`_  2023-06-04   ``Remove return statement after yield from triggers class (#31703)``
+`dc5bf3fd02 <https://github.com/apache/airflow/commit/dc5bf3fd02c589578209cb0dd5b7d005b1516ae9>`_  2023-06-02   ``Add discoverability for triggers in provider.yaml (#31576)``
+`a59076eaee <https://github.com/apache/airflow/commit/a59076eaeed03dd46e749ad58160193b4ef3660c>`_  2023-06-02   ``Add D400 pydocstyle check - Providers (#31427)``
+`9fa75aaf7a <https://github.com/apache/airflow/commit/9fa75aaf7a391ebf0e6b6949445c060f6de2ceb9>`_  2023-05-29   ``Remove Python 3.7 support (#30963)``
+=================================================================================================  ===========  ===========================================================================================
+
 4.2.0
 .....
 
-Latest change: 2023-05-18
+Latest change: 2023-05-19
 
 =================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
+`45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
 `abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
 `f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
 `d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``

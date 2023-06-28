@@ -28,7 +28,6 @@ from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.operators.python import get_current_context
-from airflow.providers.amazon.aws.hooks.ecr import EcrHook
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CreateBucketOperator,
     S3CreateObjectOperator,
@@ -135,10 +134,6 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
       - Has numpy, pandas, requests, and boto3 installed
       - Has our data preprocessing script mounted and set as the entry point
     """
-    ecr_region = repository_uri.split(".")[3]
-    # Fetch ECR Token to be used for docker
-    creds = EcrHook(region_name=ecr_region).get_temporary_credentials()[0]
-
     with NamedTemporaryFile(mode="w+t") as preprocessing_script, NamedTemporaryFile(mode="w+t") as dockerfile:
         preprocessing_script.write(preprocess_script)
         preprocessing_script.flush()
@@ -156,18 +151,21 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
         )
         dockerfile.flush()
 
+        ecr_region = repository_uri.split(".")[3]
         docker_build_and_push_commands = f"""
             cp /root/.aws/credentials /tmp/credentials &&
-            # login to public ecr repo containing amazonlinux image
-            docker login --username {creds.username} --password {creds.password} public.ecr.aws
+            # login to public ecr repo containing amazonlinux image (public login is always on us east 1)
+            aws ecr-public get-login-password --region us-east-1 |
+            docker login --username AWS --password-stdin public.ecr.aws &&
             docker build --platform=linux/amd64 -f {dockerfile.name} -t {repository_uri} /tmp &&
             rm /tmp/credentials &&
 
             # login again, this time to the private repo we created to hold that specific image
             aws ecr get-login-password --region {ecr_region} |
-            docker login --username {creds.username} --password {creds.password} {repository_uri} &&
+            docker login --username AWS --password-stdin {repository_uri} &&
             docker push {repository_uri}
             """
+        logging.info("building and uploading docker image for preprocessing...")
         docker_build = subprocess.Popen(
             docker_build_and_push_commands,
             shell=True,
@@ -178,7 +176,8 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
         if docker_build.returncode != 0:
             raise RuntimeError(
                 "Failed to prepare docker image for the preprocessing job.\n"
-                f"The following error happened while executing the sequence of bash commands:\n{stderr}"
+                "The following error happened while executing the sequence of bash commands:\n"
+                f"{stderr.decode()}"
             )
 
 
