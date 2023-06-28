@@ -388,7 +388,7 @@ class EksCreateNodegroupOperator(BaseOperator):
             nodegroup_subnets_list: list[str] = []
             if self.nodegroup_subnets != "":
                 try:
-                    nodegroup_subnets_list = cast(List, literal_eval(self.nodegroup_subnets))
+                    nodegroup_subnets_list = cast(list, literal_eval(self.nodegroup_subnets))
                 except ValueError:
                     self.log.warning(
                         "The nodegroup_subnets should be List or string representing "
