@@ -38,9 +38,10 @@ class ChimeNotifier(BaseNotifier):
     :param: chime_conn_id: The chime connection to use with Endpoint as "https://hooks.chime.aws" and
                            the webhook token in the form of ```{webhook.id}?token{webhook.token}```
     :param: message: The message to send to the chime room associated with the webhook.
+
     """
 
-    template_fields = "message"
+    template_fields = ("message",)
 
     def __init__(self, *, chime_conn_id: str, message: str = "This is the default chime notifier message"):
         super().__init__()
