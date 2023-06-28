@@ -18,7 +18,7 @@
 
 
 Amazon AWS Notifications
-======================
+========================
 
 
 .. toctree::
