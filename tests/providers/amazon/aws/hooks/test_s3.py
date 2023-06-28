@@ -758,7 +758,7 @@ class TestAwsS3Hook:
             last_activity_time=None,
         )
 
-        assert response == {"message": " test_bucket/test between pokes.", "status": "error"}
+        assert response == {"message": "test_bucket/test between pokes.", "status": "error"}
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")

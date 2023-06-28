@@ -100,10 +100,12 @@ class TestS3KeysUnchangedTrigger:
             "min_objects": 1,
             "inactivity_seconds": 0,
             "previous_objects": set(),
-            "allow_delete": 1,
+            "allow_delete": True,
             "aws_conn_id": "aws_default",
             "last_activity_time": None,
             "hook_params": {},
+            "verify": None,
+            "polling_period_seconds": 0,
         }
 
     @pytest.mark.asyncio
