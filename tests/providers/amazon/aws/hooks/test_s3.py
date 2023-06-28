@@ -697,8 +697,7 @@ class TestAwsS3Hook:
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
     async def test_s3_key_hook_is_keys_unchanged_false_async(self, mock_list_keys, mock_client):
         """
-        Test is_key_unchanged gives False response
-        :return:
+        Test is_key_unchanged gives False response when the key value is unchanged in specified period.
         """
 
         mock_list_keys.return_value = ["test"]
@@ -741,8 +740,7 @@ class TestAwsS3Hook:
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
     async def test_s3_key_hook_is_keys_unchanged_exception_async(self, mock_list_keys, mock_client):
         """
-        Test is_key_unchanged gives AirflowException
-        :return:
+        Test is_key_unchanged gives AirflowException.
         """
         mock_list_keys.return_value = []
 
@@ -767,8 +765,7 @@ class TestAwsS3Hook:
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
     async def test_s3_key_hook_is_keys_unchanged_pending_async(self, mock_list_keys, mock_client):
         """
-        Test is_key_unchanged gives AirflowException
-        :return:
+        Test is_key_unchanged gives AirflowException.
         """
         mock_list_keys.return_value = []
 
@@ -793,8 +790,7 @@ class TestAwsS3Hook:
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook._list_keys_async")
     async def test_s3_key_hook_is_keys_unchanged_inactivity_error_async(self, mock_list_keys, mock_client):
         """
-        Test is_key_unchanged gives AirflowException
-        :return:
+        Test is_key_unchanged gives AirflowException.
         """
         mock_list_keys.return_value = []
 

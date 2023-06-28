@@ -102,7 +102,7 @@ class S3KeyTrigger(BaseTrigger):
 
 class S3KeysUnchangedTrigger(BaseTrigger):
     """
-    S3KeyTrigger is fired as deferred class with params to run the task in trigger worker.
+    S3KeysUnchangedTrigger is fired as deferred class with params to run the task in trigger worker.
 
     :param bucket_name: Name of the S3 bucket. Only needed when ``bucket_key``
         is not provided as a full s3:// url.
@@ -142,7 +142,7 @@ class S3KeysUnchangedTrigger(BaseTrigger):
         self.prefix = prefix
         if inactivity_period < 0:
             raise ValueError("inactivity_period must be non-negative")
-        if previous_objects is None:
+        if not previous_objects:
             previous_objects = set()
         self.inactivity_period = inactivity_period
         self.min_objects = min_objects
@@ -150,7 +150,7 @@ class S3KeysUnchangedTrigger(BaseTrigger):
         self.inactivity_seconds = inactivity_seconds
         self.allow_delete = allow_delete
         self.aws_conn_id = aws_conn_id
-        self.last_activity_time: datetime | None = last_activity_time
+        self.last_activity_time = last_activity_time
         self.verify = verify
         self.polling_period_seconds = 0
         self.hook_params = hook_params
@@ -170,6 +170,8 @@ class S3KeysUnchangedTrigger(BaseTrigger):
                 "aws_conn_id": self.aws_conn_id,
                 "last_activity_time": self.last_activity_time,
                 "hook_params": self.hook_params,
+                "verify": self.verify,
+                "polling_period_seconds": self.polling_period_seconds,
             },
         )
 

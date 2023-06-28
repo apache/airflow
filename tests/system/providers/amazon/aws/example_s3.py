@@ -244,7 +244,7 @@ with DAG(
         task_id="sensor_keys_unchanged",
         bucket_name=bucket_name_2,
         prefix=PREFIX,
-        inactivity_period=10,  # inactivity_period in seconds
+        inactivity_period=10,
     )
     # [END howto_sensor_s3_keys_unchanged]
 

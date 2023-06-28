@@ -80,7 +80,7 @@ class TestS3KeyTrigger:
 class TestS3KeysUnchangedTrigger:
     def test_serialization(self):
         """
-        Asserts that the TaskStateTrigger correctly serializes its arguments
+        Asserts that the S3KeysUnchangedTrigger correctly serializes its arguments
         and classpath.
         """
         trigger = S3KeysUnchangedTrigger(
@@ -109,7 +109,7 @@ class TestS3KeysUnchangedTrigger:
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
     async def test_run_wait(self, mock_client):
-        """Test if the task is run is in trigger successfully."""
+        """Test if the task is run in trigger successfully."""
         mock_client.return_value.check_key.return_value = True
         trigger = S3KeysUnchangedTrigger(bucket_name="test_bucket", prefix="test")
         with mock_client:
@@ -131,7 +131,7 @@ class TestS3KeysUnchangedTrigger:
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.is_keys_unchanged_async")
     async def test_run_success(self, mock_is_keys_unchanged, mock_client):
         """
-        Test if the task is run is in triggerer successfully.
+        Test if the task is run in triggerer successfully.
         """
         mock_is_keys_unchanged.return_value = {"status": "success"}
         trigger = S3KeysUnchangedTrigger(bucket_name="test_bucket", prefix="test")
@@ -143,7 +143,7 @@ class TestS3KeysUnchangedTrigger:
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.is_keys_unchanged_async")
     async def test_run_pending(self, mock_is_keys_unchanged, mock_client):
-        """Test if the task is run is in triggerer successfully."""
+        """Test if the task is run in triggerer successfully."""
         mock_is_keys_unchanged.return_value = {"status": "pending", "last_activity_time": datetime.now()}
         trigger = S3KeysUnchangedTrigger(bucket_name="test_bucket", prefix="test")
         task = asyncio.create_task(trigger.run().__anext__())

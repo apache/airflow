@@ -222,7 +222,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
     :param allow_delete: Should this sensor consider objects being deleted
         between pokes valid behavior. If true a warning message will be logged
         when this happens. If false an error will be raised.
-    :param deferrable: Run operator in the deferrable mode
+    :param deferrable: Run sensor in the deferrable mode
     """
 
     template_fields: Sequence[str] = ("bucket_name", "prefix")
@@ -330,7 +330,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         return self.is_keys_unchanged(set(self.hook.list_keys(self.bucket_name, prefix=self.prefix)))
 
     def execute(self, context: Context) -> None:
-        """Airflow runs this method on the worker and defers using the trigger."""
+        """Airflow runs this method on the worker and defers using the trigger if deferrable is True."""
         if not self.deferrable:
             super().execute(context)
         else:

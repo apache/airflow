@@ -660,13 +660,12 @@ class S3Hook(AwsBaseHook):
             sensor to be considered valid.
         :param previous_objects: the set of object ids found during the last poke.
         :param inactivity_seconds: number of inactive seconds
-        :param last_activity_time: last activity datetime
         :param allow_delete: Should this sensor consider objects being deleted
             between pokes valid behavior. If true a warning message will be logged
             when this happens. If false an error will be raised.
-        :return: dictionary with status and message
+        :param last_activity_time: last activity datetime.
         """
-        if previous_objects is None:
+        if not previous_objects:
             previous_objects = set()
         list_keys = await self._list_keys_async(client=client, bucket_name=bucket_name, prefix=prefix)
         current_objects = set(list_keys)
@@ -709,7 +708,7 @@ class S3Hook(AwsBaseHook):
 
             return {
                 "status": "error",
-                "message": f" {os.path.join(bucket_name, prefix)} between pokes.",
+                "message": f"{os.path.join(bucket_name, prefix)} between pokes.",
             }
 
         if last_activity_time:
@@ -724,13 +723,13 @@ class S3Hook(AwsBaseHook):
 
             if current_num_objects >= min_objects:
                 success_message = (
-                    "SUCCESS: Sensor found %s objects at %s. "
-                    "Waited at least %s seconds, with no new objects uploaded."
+                    f"SUCCESS: Sensor found {current_num_objects} objects at {path}. "
+                    "Waited at least {inactivity_period} seconds, with no new objects uploaded."
                 )
-                self.log.info(success_message, current_num_objects, path, inactivity_period)
+                self.log.info(success_message)
                 return {
                     "status": "success",
-                    "message": success_message % (current_num_objects, path, inactivity_period),
+                    "message": success_message,
                 }
 
             self.log.error("FAILURE: Inactivity Period passed, not enough objects found in %s", path)
