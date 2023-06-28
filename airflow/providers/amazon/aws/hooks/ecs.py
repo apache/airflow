@@ -81,6 +81,7 @@ class EcsTaskStates(_StringCompareEnum):
 class EcsHook(AwsGenericHook):
     """
     Interact with Amazon Elastic Container Service (ECS).
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("ecs") <ECS.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -137,8 +138,9 @@ class EcsHook(AwsGenericHook):
 @runtime_checkable
 class EcsProtocol(Protocol):
     """
-    A structured Protocol for ``boto3.client('ecs')``. This is used for type hints on
-    :py:meth:`.EcsOperator.client`.
+    A structured Protocol for ``boto3.client('ecs')``.
+
+    This is used for type hints on :py:meth:`.EcsOperator.client`.
 
     .. seealso::
 
