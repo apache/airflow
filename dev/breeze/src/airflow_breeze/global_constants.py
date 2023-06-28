@@ -243,6 +243,7 @@ COMMITTERS = [
     "msumit",
     "o-nikolas",
     "pankajastro",
+    "phanikumv",
     "pierrejeambrun",
     "pingzh",
     "potiuk",
