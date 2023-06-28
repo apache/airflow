@@ -317,7 +317,7 @@ class WasbHook(BaseHook):
             if blob.name.endswith(endswith):
                 blob_list.append(blob.name)
         return blob_list
-    
+
     def load_file(
         self,
         file_path: str,

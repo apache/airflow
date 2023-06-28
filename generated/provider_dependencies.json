@@ -41,6 +41,7 @@
       "ftp",
       "google",
       "imap",
+      "microsoft.azure",
       "mongo",
       "salesforce",
       "ssh"

@@ -17,15 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-import os, tempfile
+import os
+import tempfile
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
-from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
 
 class AzureBlobStorageToS3(BaseOperator):
     """
@@ -71,7 +73,7 @@ class AzureBlobStorageToS3(BaseOperator):
         "delimiter",
         "dest_s3_key",
     )
-    
+
     def __init__(
         self,
         *,
@@ -89,7 +91,7 @@ class AzureBlobStorageToS3(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        
+
         self.wasb_conn_id = wasb_conn_id
         self.container_name = container_name
         self.prefix = prefix
@@ -101,19 +103,22 @@ class AzureBlobStorageToS3(BaseOperator):
         self.dest_s3_extra_args = dest_s3_extra_args or {}
         self.replace = replace
         self.s3_acl_policy = s3_acl_policy
-        
+
     def execute(self, context: Context) -> list[str]:
         # list all files in the Azure Blob Storage container
         wasb_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         s3_hook = S3Hook(
             aws_conn_id=self.aws_conn_id, verify=self.dest_verify, extra_args=self.dest_s3_extra_args
         )
-        
+
         self.log.info(
-            f"Getting list of the files in Container: {self.container_name}; Prefix: {self.prefix}; Delimiter: {self.delimiter};"
+            f"Getting list of the files in Container: {self.container_name}; "
+            "Prefix: {self.prefix}; Delimiter: {self.delimiter};"
         )
-        
-        files = wasb_hook.get_blobs_list_recursive(container_name=self.container_name, prefix=self.prefix, endswith=self.delimiter)
+
+        files = wasb_hook.get_blobs_list_recursive(
+            container_name=self.container_name, prefix=self.prefix, endswith=self.delimiter
+        )
 
         if not self.replace:
             # if we are not replacing -> list all files in the S3 bucket
@@ -128,20 +133,20 @@ class AzureBlobStorageToS3(BaseOperator):
             # remove the prefix for the existing files to allow the match
             existing_files = [file.replace(prefix, "", 1) for file in existing_files]
             files = list(set(files) - set(existing_files))
-            
+
         if files:
             for file in files:
                 with tempfile.NamedTemporaryFile() as temp_file:
-                    
+
                     dest_key = os.path.join(self.dest_s3_key, file)
-                    
+
                     self.log.info(f"Downloading data from blob: {file}")
                     wasb_hook.get_file(
                         file_path=temp_file.name,
                         container_name=self.container_name,
                         blob_name=file,
                     )
-                    
+
                     self.log.info(f"Uploading data to s3: {dest_key}")
                     s3_hook.load_file(
                         filename=temp_file.name,
@@ -151,5 +156,6 @@ class AzureBlobStorageToS3(BaseOperator):
                         acl_policy=self.s3_acl_policy,
                     )
             self.log.info(f"All done, uploaded {len(files)} files to S3")
-            
+        else:
+            self.log.info("All files are already in sync!")
         return files
