@@ -321,89 +321,64 @@ class TestGKEPodOperator:
         assert ssl_ca_cert == SSL_CA_CERT
 
     @pytest.mark.parametrize(
-        "compatible_kpo, kwargs, expected_attributes, compatibility_exception",
+        "compatible_kpo, kwargs, expected_attributes",
         [
             (
                 True,
                 {"on_finish_action": "delete_succeeded_pod"},
                 {"on_finish_action": OnFinishAction.DELETE_SUCCEEDED_POD},
-                False,
             ),
             (
                 # test that priority for deprecated param
                 True,
                 {"on_finish_action": "keep_pod", "is_delete_operator_pod": True},
                 {"on_finish_action": OnFinishAction.DELETE_POD, "is_delete_operator_pod": True},
-                False,
             ),
             (
                 # test default
                 True,
                 {},
                 {"on_finish_action": OnFinishAction.KEEP_POD, "is_delete_operator_pod": False},
-                False,
             ),
             (
                 False,
                 {"is_delete_operator_pod": True},
                 {"is_delete_operator_pod": True},
-                False,
             ),
             (
                 False,
                 {"is_delete_operator_pod": False},
                 {"is_delete_operator_pod": False},
-                False,
             ),
             (
                 # test default
                 False,
                 {},
                 {"is_delete_operator_pod": False},
-                False,
-            ),
-            (
-                # test compatibility exception
-                False,
-                {"on_finish_action": "keep_pod"},
-                None,
-                True,
             ),
         ],
     )
     def test_on_finish_action_handler(
-        self, compatible_kpo, kwargs, expected_attributes, compatibility_exception
+        self,
+        compatible_kpo,
+        kwargs,
+        expected_attributes,
     ):
         kpo_init_args_mock = mock.MagicMock(**{"parameters": ["on_finish_action"] if compatible_kpo else []})
 
         with mock.patch("inspect.signature", return_value=kpo_init_args_mock):
-            if compatibility_exception:
-                exception_msg = "on_finish_action is not supported in this version of Kubernetes provider,"
-                " please upgrade to 7.1.0 or higher"
-                with pytest.raises(AirflowException, match=exception_msg):
-                    GKEStartPodOperator(
-                        project_id=TEST_GCP_PROJECT_ID,
-                        location=PROJECT_LOCATION,
-                        cluster_name=CLUSTER_NAME,
-                        task_id=PROJECT_TASK_ID,
-                        name=TASK_NAME,
-                        namespace=NAMESPACE,
-                        image=IMAGE,
-                        **kwargs,
-                    )
-            else:
-                op = GKEStartPodOperator(
-                    project_id=TEST_GCP_PROJECT_ID,
-                    location=PROJECT_LOCATION,
-                    cluster_name=CLUSTER_NAME,
-                    task_id=PROJECT_TASK_ID,
-                    name=TASK_NAME,
-                    namespace=NAMESPACE,
-                    image=IMAGE,
-                    **kwargs,
-                )
-                for expected_attr in expected_attributes:
-                    assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
+            op = GKEStartPodOperator(
+                project_id=TEST_GCP_PROJECT_ID,
+                location=PROJECT_LOCATION,
+                cluster_name=CLUSTER_NAME,
+                task_id=PROJECT_TASK_ID,
+                name=TASK_NAME,
+                namespace=NAMESPACE,
+                image=IMAGE,
+                **kwargs,
+            )
+            for expected_attr in expected_attributes:
+                assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
 
 
 class TestGKEPodOperatorAsync:

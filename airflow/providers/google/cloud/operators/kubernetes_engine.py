@@ -18,7 +18,6 @@
 """This module contains Google Kubernetes Engine operators."""
 from __future__ import annotations
 
-import inspect
 import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
@@ -429,52 +428,28 @@ class GKEStartPodOperator(KubernetesPodOperator):
         is_delete_operator_pod: bool | None = None,
         **kwargs,
     ) -> None:
-        kpo_init_args = inspect.signature(KubernetesPodOperator.__init__).parameters
-
-        if "on_finish_action" not in kpo_init_args:
-            if on_finish_action is not None:
-                raise AirflowException(
-                    "on_finish_action is not supported in this version of Kubernetes provider,"
-                    " please upgrade to 7.1.0 or higher"
-                )
-            if is_delete_operator_pod is None:
-                warnings.warn(
-                    "You have not set parameter `is_delete_operator_pod` in class "
-                    f"{self.__class__.__name__}. Currently the default for this parameter is `False` "
-                    "but in a future release the default will be changed to `True`. "
-                    "To ensure pods are not deleted in the future you will need to set "
-                    "`is_delete_operator_pod=False` explicitly.",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
-                is_delete_operator_pod = False
-            kwargs["is_delete_operator_pod"] = is_delete_operator_pod
+        if is_delete_operator_pod is not None:
+            warnings.warn(
+                "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs["on_finish_action"] = (
+                OnFinishAction.DELETE_POD if is_delete_operator_pod else OnFinishAction.KEEP_POD
+            )
         else:
-            parsed_on_finish_action: OnFinishAction
-            if is_delete_operator_pod is not None:
+            if on_finish_action is not None:
+                kwargs["on_finish_action"] = OnFinishAction(on_finish_action)
+            else:
                 warnings.warn(
-                    "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
+                    f"You have not set parameter `on_finish_action` in class {self.__class__.__name__}. "
+                    "Currently the default for this parameter is `keep_pod` but in a future release"
+                    " the default will be changed to `delete_pod`. To ensure pods are not deleted in"
+                    " the future you will need to set `on_finish_action=keep_pod` explicitly.",
                     AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
-                parsed_on_finish_action = (
-                    OnFinishAction.DELETE_POD if is_delete_operator_pod else OnFinishAction.KEEP_POD
-                )
-            else:
-                if on_finish_action is not None:
-                    parsed_on_finish_action = OnFinishAction(on_finish_action)
-                else:
-                    warnings.warn(
-                        f"You have not set parameter `on_finish_action` in class {self.__class__.__name__}. "
-                        "Currently the default for this parameter is `keep_pod` but in a future release"
-                        " the default will be changed to `delete_pod`. To ensure pods are not deleted in"
-                        " the future you will need to set `on_finish_action=keep_pod` explicitly.",
-                        AirflowProviderDeprecationWarning,
-                        stacklevel=2,
-                    )
-                    parsed_on_finish_action = OnFinishAction.KEEP_POD
-
-            kwargs["on_finish_action"] = parsed_on_finish_action
+                kwargs["on_finish_action"] = OnFinishAction.KEEP_POD
 
         if regional is not None:
             warnings.warn(
