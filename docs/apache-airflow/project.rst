@@ -87,6 +87,7 @@ Committers
 - Tomasz Urbaszek (@turbaszek)
 - Tzu-ping Chung (@uranusjr)
 - Vikram Koka (@vikramkoka)
+- Vincent Beck(@vincbeck)
 - Xiaodong Deng (@XD-DENG)
 - Xinbin Huang (@xinbinhuang)
 
