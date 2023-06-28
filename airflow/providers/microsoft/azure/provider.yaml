@@ -237,6 +237,7 @@ transfers:
     python-module: airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake
   - source-integration-name: Local
     target-integration-name: Microsoft Azure Blob Storage
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/local_to_wasb.rst
     python-module: airflow.providers.microsoft.azure.transfers.local_to_wasb
   - source-integration-name: Microsoft Azure Blob Storage
     target-integration-name: Google Cloud Storage (GCS)
