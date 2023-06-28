@@ -2177,9 +2177,9 @@ After you run Breeze for the first time, you will have empty directory ``files``
 which will be mapped to ``/files`` in your Docker container. You can pass there any files you need to
 configure and run Docker. They will not be removed between Docker runs.
 
-By default ``/files/dags`` and ``/files/plugins`` folder is mounted from your local ``<AIRFLOW_SOURCES>/files/dags``and ``<AIRFLOW_SOURCES>/files/plugins`` respectively. ``/files/dags`` is
-the directory used by the airflow scheduler and webserver to scan dags for. You can use it to test your dags
-from local sources in Airflow. If you wish to add local DAGs that can be run by Breeze. ``/files/plugins`` is used by the airflow plugin manager and the Python modules in the plugins folder get imported, and macros and web views get integrated into Airflow's main collections and become available for use.
+By default ``/files/dags`` and ``/files/plugins`` folder are mounted from your local ``<AIRFLOW_SOURCES>/files/dags``and ``<AIRFLOW_SOURCES>/files/plugins`` respectively. ``/files/dags`` is
+the directory used by the Airflow scheduler and webserver to scan DAGs for. You can use it to test your DAGs
+from local sources in Airflow. ``/files/plugins`` is used by the Airflow plugin manager and the Python modules in the plugins folder get imported, and macros and web views get integrated into Airflow's main collections and become available for use.
 
 The ``/files/airflow-breeze-config`` folder contains configuration files that might be used to
 customize your breeze instance. Those files will be kept across checking out a code from different
