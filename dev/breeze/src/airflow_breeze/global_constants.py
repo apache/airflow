@@ -255,6 +255,7 @@ COMMITTERS = [
     "turbaszek",
     "uranusjr",
     "vikramkoka",
+    "vincbeck",
     "xinbinhuang",
     "yuqian90",
     "zhongjiajie",
