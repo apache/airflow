@@ -67,8 +67,9 @@ class TestChimeNotifier:
             EmptyOperator(task_id="task1")
 
         notifier = send_chime_notification(
-            chime_conn_id="default-chime-webhook", message="test {{ username }}"
+            chime_conn_id="default-chime-webhook", message="Test Chime Message. Dag is {{ dag.dag_id }}."
         )
-        context = {"dag": dag}
-        notifier(context)
-        mock_chime_hook.return_value.call.assert_called_once_with(message="test {{ username }}")
+        notifier({"dag": dag})
+        mock_chime_hook.return_value.call.assert_called_once_with(
+            message="Test Chime Message. Dag is test_chime_notifier."
+        )

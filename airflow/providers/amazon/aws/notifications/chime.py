@@ -40,12 +40,12 @@ class ChimeNotifier(BaseNotifier):
     :param: message: The message to send to the chime room associated with the webhook.
     """
 
+    template_fields = "message"
+
     def __init__(self, *, chime_conn_id: str, message: str = "This is the default chime notifier message"):
         super().__init__()
         self.chime_conn_id = chime_conn_id
         self.message = message
-
-    template_fields = "message"
 
     @cached_property
     def hook(self):
