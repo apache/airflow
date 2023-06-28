@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import copy
 import json
-import unittest
 from os.path import join
 from pathlib import Path
 from unittest import mock
@@ -146,7 +145,7 @@ def create_context(task):
 @patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.cleanup")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
-class TestSparkKubernetesOperator(unittest.TestCase):
+class TestSparkKubernetesOperator:
     def setUp(self):
         db.merge_conn(
             Connection(conn_id="kubernetes_default_kube_config", conn_type="kubernetes", extra=json.dumps({}))
@@ -165,7 +164,6 @@ class TestSparkKubernetesOperator(unittest.TestCase):
         mock_create_job_name.return_value = task_name
         op = SparkKubernetesOperator(
             template_spec=job_spec,
-            dag=self.dag,
             kubernetes_conn_id="kubernetes_default_kube_config",
             task_id=task_name,
         )
@@ -188,7 +186,6 @@ class TestSparkKubernetesOperator(unittest.TestCase):
         mock_create_job_name.return_value = task_name
         op = SparkKubernetesOperator(
             application_file=join(Path(__file__).parent, "spark_application_test.yaml"),
-            dag=self.dag,
             kubernetes_conn_id="kubernetes_default_kube_config",
             task_id=task_name,
         )
@@ -207,7 +204,6 @@ class TestSparkKubernetesOperator(unittest.TestCase):
         mock_create_job_name.return_value = task_name
         op = SparkKubernetesOperator(
             application_file=join(Path(__file__).parent, "spark_application_test.json"),
-            dag=self.dag,
             kubernetes_conn_id="kubernetes_default_kube_config",
             task_id=task_name,
         )
@@ -237,7 +233,6 @@ class TestSparkKubernetesOperator(unittest.TestCase):
         mock_create_job_name.return_value = task_name
         op = SparkKubernetesOperator(
             application_file=join(Path(__file__).parent, "spark_application_template.yaml"),
-            dag=self.dag,
             kubernetes_conn_id="kubernetes_default_kube_config",
             task_id=task_name,
         )

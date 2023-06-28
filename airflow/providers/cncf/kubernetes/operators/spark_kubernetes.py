@@ -19,12 +19,12 @@ from __future__ import annotations
 
 import json
 import re
+from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
 import jinja2
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator

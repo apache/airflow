@@ -20,13 +20,13 @@ from __future__ import annotations
 import time
 from copy import deepcopy
 from datetime import datetime as dt
+from functools import cached_property
 
 import tenacity
 from kubernetes import client
 from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.resource_convert.configmap import (
     convert_configmap,
@@ -222,7 +222,7 @@ class CustomObjectLauncher(LoggingMixin):
         self.kind = self.body["kind"]
         self.plural = f"{self.kind.lower()}s"
         if self.body.get("apiVersion"):
-            self.api_group, self.api_version = self.body.get("apiVersion").split("/")
+            self.api_group, self.api_version = self.body["apiVersion"].split("/")
         else:
             self.api_group = self.body["apiGroup"]
             self.api_version = self.body["version"]
