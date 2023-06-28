@@ -17,7 +17,7 @@
 
 
 
-Azure Transfer Operators
+Amazon Transfer Operators
 =========================
 
 
