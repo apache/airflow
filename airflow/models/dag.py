@@ -869,7 +869,9 @@ class DAG(LoggingMixin):
         this method only considers ``schedule_interval`` values valid prior to
         Airflow 2.2.
 
-        DO NOT use this method is there is a known data interval.
+        DO NOT call this method if there is a known data interval.
+
+        :meta private:
         """
         timetable_type = type(self.timetable)
         if issubclass(timetable_type, (NullTimetable, OnceTimetable, DatasetTriggeredTimetable)):
@@ -879,6 +881,12 @@ class DAG(LoggingMixin):
             end = cast(CronDataIntervalTimetable, self.timetable)._get_next(start)
         elif issubclass(timetable_type, DeltaDataIntervalTimetable):
             end = cast(DeltaDataIntervalTimetable, self.timetable)._get_next(start)
+        # Contributors: When the exception below is raised, you might want to
+        # add an 'elif' block here to handle custom timetables. Stop! The bug
+        # you're looking for is instead at when the DAG run (represented by
+        # logical_date) was created. See GH-31969 for an example:
+        # * Wrong fix: GH-32074 (modifies this function).
+        # * Correct fix: GH-32118 (modifies the DAG run creation code).
         else:
             raise ValueError(f"Not a valid timetable: {self.timetable!r}")
         return DataInterval(start, end)
