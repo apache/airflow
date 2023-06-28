@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-27T11:20:13Z
+# This constraints file was automatically generated on 2023-06-28T06:22:58Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -44,7 +44,7 @@ Sphinx==5.3.0
 WTForms==3.0.1
 Werkzeug==2.2.3
 adal==1.2.7
-aiobotocore==2.5.0
+aiobotocore==2.5.1
 aiofiles==23.1.0
 aiohttp==3.8.4
 aioitertools==0.11.0
@@ -116,9 +116,9 @@ bitarray==2.7.6
 black==23.3.0
 bleach==6.0.0
 blinker==1.6.2
-boto3==1.26.76
+boto3==1.26.161
 boto==2.49.0
-botocore==1.29.76
+botocore==1.29.161
 bowler==0.9.0
 cachelib==0.9.0
 cachetools==5.3.1
@@ -204,7 +204,7 @@ google-cloud-audit-log==0.2.5
 google-cloud-automl==2.11.1
 google-cloud-bigquery-datatransfer==3.11.1
 google-cloud-bigquery-storage==2.20.0
-google-cloud-bigquery==3.11.2
+google-cloud-bigquery==3.11.3
 google-cloud-bigtable==2.19.0
 google-cloud-build==3.16.0
 google-cloud-compute==1.11.0
@@ -255,7 +255,7 @@ hdfs==2.7.0
 httpcore==0.16.3
 httplib2==0.22.0
 httpx==0.23.3
-humanize==4.6.0
+humanize==4.7.0
 hvac==1.1.1
 identify==2.5.24
 idna==3.4
@@ -325,7 +325,7 @@ msrest==0.7.1
 msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
-mypy-boto3-appflow==1.26.157
+mypy-boto3-appflow==1.26.162
 mypy-boto3-rds==1.26.160
 mypy-boto3-redshift-data==1.26.109
 mypy-boto3-s3==1.26.155
@@ -546,7 +546,7 @@ types-pyOpenSSL==23.2.0.1
 types-python-dateutil==2.8.19.13
 types-python-slugify==8.0.0.2
 types-pytz==2023.3.0.0
-types-redis==4.5.5.2
+types-redis==4.6.0.0
 types-requests==2.31.0.1
 types-setuptools==68.0.0.0
 types-tabulate==0.9.0.2
