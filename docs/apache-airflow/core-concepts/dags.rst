@@ -497,6 +497,7 @@ Key features of setup and teardown tasks:
   * By default, teardown tasks are ignored for the purpose of evaluating dag run state.
   * A teardown task will run if it's setup was successful, even if its work tasks failed.
   * Teardown tasks are ignored when setting dependencies against task groups.
+  * A setup task must always have a teardown and vice versa. You may use EmptyOperator as a setup or teardown.
 
 Basic usage
 -----------
@@ -518,6 +519,20 @@ Observations:
   * If you clear ``run_query`` to run it again, then both ``create_cluster`` and ``delete_cluster`` will be cleared.
   * If ``run_query`` fails, then ``delete_cluster`` will still run.
   * The success of the dag run will depend on the success of ``run_query``.
+
+Setup "scope"
+-------------
+
+We require that a setup always have a teardown in order to have a well-defined scope. If you wish to only add a teardown task or only a setup task, you may use EmptyOperator as your "empty setup" or "empty teardown".
+
+The "scope" of a setup will be determined by where the teardown is.  Tasks between a setup and its teardown are in the "scope" of the setup / teardown pair. Example:
+
+.. code-block:: python
+
+    s1 >> w1 >> w2 >> t1.as_teardown(setups=s1) >> w3
+    w2 >> w4
+
+In the above example, w1 and w2 are "between" s1 and t1 and therefore are assumed to require s1. Thus if w1 or w2 is cleared, so too will be s1 and t1.  But if w3 or w4 is cleared, neither s1 nor t1 will be cleared.
 
 Controlling dag run state
 -------------------------
@@ -568,7 +583,7 @@ Now let's consider an example with nesting:
     dag_t1 = dag_teardown1()
     dag_s1 >> [tg, w2] >> dag_t1.as_teardown(dag_s1)
 
-In this example s1 is downstream of dag_s1, so it must wait for dag_s1 to complete successfully.  But t1 and dag_t1 can run concurrently, because t1 is ignored in the expression ``tg >> dag_t1``.
+In this example s1 is downstream of dag_s1, so it must wait for dag_s1 to complete successfully.  But t1 and dag_t1 can run concurrently, because t1 is ignored in the expression ``tg >> dag_t1``.  If you clear w1, it will clear dag_s1 and dag_t1, but not anything in the task group.
 
 
 Dynamic DAGs
