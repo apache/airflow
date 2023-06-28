@@ -20,6 +20,8 @@ import datetime as dt
 import os
 from unittest import mock
 
+import pytest
+
 from airflow.providers.amazon.aws.executors.ecs import (
     AwsEcsExecutor,
     BotoTaskSchema,
@@ -49,92 +51,160 @@ def unset_conf():
             os.environ.pop(env)
 
 
+ARN1 = "arn1"
+ARN2 = "arn2"
+
+
+def mock_task(arn=ARN1):
+    return mock.Mock(spec=EcsExecutorTask, task_arn=arn)
+
+
+# These first two fixtures look unusual.  For tests which do not care if the object
+# returned by the fixture is unique, use it like a normal fixture.  If your test
+# requires a unique value, then call it like a method.
+#
+# See `test_info_by_key` for an example of a test that requires two unique mocked queues.
+
+
+@pytest.fixture(autouse=True)
+def mock_airflow_key():
+    def _key():
+        return mock.Mock(spec=tuple)
+
+    return _key
+
+
+@pytest.fixture(autouse=True)
+def mock_queue():
+    def _queue():
+        return mock.Mock(spec=str)
+
+    return _queue
+
+
+# The following two fixtures look different because no exitsting test
+# cares if they have unique values, so the same value is always used.
+@pytest.fixture(autouse=True)
+def mock_airflow_cmd():
+    return mock.Mock(spec=list)
+
+
+@pytest.fixture(autouse=True)
+def mock_config():
+    return mock.Mock(spec=dict)
+
+
 class TestEcsTaskCollection:
     """Tests EcsTaskCollection Class."""
 
-    def setup_method(self):
-        """
-        Create an ECS Task Collection and add 2 Airflow tasks. Populates self.collection,
-        self.first/second_task, self.first/second_airflow_key, and self.first/second_airflow_cmd.
-        """
+    # You can't use a fixture in setup_method unless you declare setup_method to be a fixture itself.
+    @pytest.fixture(autouse=True)
+    def setup_method(self, mock_airflow_key):
+        # Create a new Collection and verify it is empty.
         self.collection = EcsTaskCollection()
-        # Add first task
-        self.first_task = mock.Mock(spec=EcsExecutorTask)
-        self.first_task.task_arn = "001"
-        self.first_airflow_key = mock.Mock(spec=tuple)
-        self.first_airflow_cmd = mock.Mock(spec=list)
-        self.first_airflow_queue = mock.Mock(spec=str)
-        self.first_airflow_exec_config = mock.Mock(spec=dict)
-        self.collection.add_task(
-            self.first_task,
-            self.first_airflow_key,
-            self.first_airflow_queue,
-            self.first_airflow_cmd,
-            self.first_airflow_exec_config,
-        )
-        # Add second task
-        self.second_task = mock.Mock(spec=EcsExecutorTask)
-        self.second_task.task_arn = "002"
-        self.second_airflow_key = mock.Mock(spec=tuple)
-        self.second_airflow_cmd = mock.Mock(spec=list)
-        self.second_airflow_queue = mock.Mock(spec=str)
-        self.second_airflow_exec_config = mock.Mock(spec=dict)
-        self.collection.add_task(
-            self.second_task,
-            self.second_airflow_key,
-            self.second_airflow_queue,
-            self.second_airflow_cmd,
-            self.second_airflow_exec_config,
-        )
+        assert len(self.collection) == 0
 
-    def test_get_and_add(self):
-        """Test add_task, task_by_arn, cmd_by_key."""
+        # Generate two mock keys and assert they are different.  If the value
+        # of the key does not matter for a test, let it use the auto-fixture.
+        self.key1 = mock_airflow_key()
+        self.key2 = mock_airflow_key()
+        assert self.key1 != self.key2
+
+    def test_add_task(self):
+        # Add a task, verify that the collection has grown and the task arn matches.
+        self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_airflow_cmd, mock_config)
+        assert len(self.collection) == 1
+        assert self.collection.tasks[ARN1].task_arn == ARN1
+
+        # Add a task, verify that the collection has grown and the task arn is not the same as the first.
+        self.collection.add_task(mock_task(ARN2), self.key2, mock_queue, mock_airflow_cmd, mock_config)
         assert len(self.collection) == 2
+        assert self.collection.tasks[ARN2].task_arn == ARN2
+        assert self.collection.tasks[ARN2].task_arn != self.collection.tasks[ARN1].task_arn
 
-        # Check basic get for first task
-        assert self.collection.task_by_arn("001") == self.first_task
-        assert self.collection["001"] == self.first_task
-        assert self.collection.task_by_key(self.first_airflow_key) == self.first_task
-        assert self.collection.info_by_key(self.first_airflow_key).cmd == self.first_airflow_cmd
-        assert self.collection.info_by_key(self.first_airflow_key).queue == self.first_airflow_queue
-        assert self.collection.info_by_key(self.first_airflow_key).config == self.first_airflow_exec_config
+    def test_task_by_key(self):
+        self.collection.add_task(mock_task(), mock_airflow_key, mock_queue, mock_airflow_cmd, mock_config)
 
-        # Check basic get for second task
-        assert self.collection.task_by_arn("002") == self.second_task
-        assert self.collection["002"] == self.second_task
-        assert self.collection.task_by_key(self.second_airflow_key) == self.second_task
-        assert self.collection.info_by_key(self.second_airflow_key).cmd == self.second_airflow_cmd
-        assert self.collection.info_by_key(self.second_airflow_key).queue == self.second_airflow_queue
-        assert self.collection.info_by_key(self.second_airflow_key).config == self.second_airflow_exec_config
+        task = self.collection.task_by_key(mock_airflow_key)
 
-    def test_list(self):
-        """Test get_all_arns() and get_all_task_keys()"""
-        # Check basic list by ARNs & airflow-task-keys
-        assert self.collection.get_all_arns() == ["001", "002"]
-        assert self.collection.get_all_task_keys() == [self.first_airflow_key, self.second_airflow_key]
+        assert task == self.collection.tasks[ARN1]
 
-    def test_pop(self):
-        """Test pop_by_key()"""
-        # pop first task & ensure that it's removed
-        assert self.collection.pop_by_key(self.first_airflow_key) == self.first_task
-        assert "001" not in self.collection.get_all_arns()
+    def test_task_by_arn(self):
+        self.collection.add_task(mock_task(), mock_airflow_key, mock_queue, mock_airflow_cmd, mock_config)
 
-    def test_update(self):
-        """Test update_task"""
-        # update arn with new task object
-        assert self.collection["001"] == self.first_task
-        updated_task = mock.Mock(spec=EcsExecutorTask)
-        updated_task.task_arn = "001"
-        self.collection.update_task(updated_task)
-        assert self.collection["001"] == updated_task
+        task = self.collection.task_by_arn(ARN1)
 
-    def test_failure(self):
-        """Test collection failure increments and counts"""
-        assert 0 == self.collection.failure_count_by_key(self.first_airflow_key)
+        assert task == self.collection.tasks[ARN1]
+
+    def test_info_by_key(self, mock_queue):
+        self.collection.add_task(
+            mock_task(ARN1), self.key1, queue1 := mock_queue(), mock_airflow_cmd, mock_config
+        )
+        self.collection.add_task(
+            mock_task(ARN2), self.key2, queue2 := mock_queue(), mock_airflow_cmd, mock_config
+        )
+        assert queue1 != queue2
+
+        task1_info = self.collection.info_by_key(self.key1)
+        assert task1_info.queue == queue1
+        assert task1_info.cmd == mock_airflow_cmd
+        assert task1_info.config == mock_config
+
+        task2_info = self.collection.info_by_key(self.key2)
+        assert task2_info.queue == queue2
+        assert task2_info.cmd == mock_airflow_cmd
+        assert task2_info.config == mock_config
+
+        assert task1_info != task2_info
+
+    def test_get_all_arns(self):
+        self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_airflow_cmd, mock_config)
+        self.collection.add_task(mock_task(ARN2), self.key2, mock_queue, mock_airflow_cmd, mock_config)
+
+        assert self.collection.get_all_arns() == [ARN1, ARN2]
+
+    def test_get_all_task_keys(self):
+        self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_airflow_cmd, mock_config)
+        self.collection.add_task(mock_task(ARN2), self.key2, mock_queue, mock_airflow_cmd, mock_config)
+
+        assert self.collection.get_all_task_keys() == [self.key1, self.key2]
+
+    def test_pop_by_key(self):
+        self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_airflow_cmd, mock_config)
+        self.collection.add_task(mock_task(ARN2), self.key2, mock_queue, mock_airflow_cmd, mock_config)
+        task1_as_saved = self.collection.tasks[ARN1]
+
+        assert len(self.collection) == 2
+        task1_as_popped = self.collection.pop_by_key(self.key1)
+        assert len(self.collection) == 1
+        # Assert it returns the same task.
+        assert task1_as_popped == task1_as_saved
+        # Assert the popped task is removed.
+        with pytest.raises(KeyError):
+            assert self.collection.task_by_key(self.key1)
+        # Assert the remaining task is task2.
+        assert self.collection.task_by_key(self.key2)
+
+    def test_update_task(self):
+        self.collection.add_task(
+            initial_task := mock_task(), mock_airflow_key, mock_queue, mock_airflow_cmd, mock_config
+        )
+        assert self.collection[ARN1] == initial_task
+        self.collection.update_task(updated_task := mock_task())
+
+        assert self.collection[ARN1] == updated_task
+        assert initial_task != updated_task
+
+    def test_failure_count(self):
+        # Create a new Collection and add a two tasks.
+        self.collection.add_task(mock_task(ARN1), self.key1, mock_queue, mock_airflow_cmd, mock_config)
+        self.collection.add_task(mock_task(ARN2), self.key2, mock_queue, mock_airflow_cmd, mock_config)
+
+        assert self.collection.failure_count_by_key(self.key1) == 0
         for i in range(5):
-            self.collection.increment_failure_count(self.first_airflow_key)
-            assert i + 1 == self.collection.failure_count_by_key(self.first_airflow_key)
-        assert 0 == self.collection.failure_count_by_key(self.second_airflow_key)
+            self.collection.increment_failure_count(self.key1)
+            assert self.collection.failure_count_by_key(self.key1) == i + 1
+        assert self.collection.failure_count_by_key(self.key2) == 0
 
 
 class TestEcsExecutorTask:
