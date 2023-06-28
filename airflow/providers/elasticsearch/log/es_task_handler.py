@@ -82,12 +82,12 @@ class ElasticSearchResponse:
 
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
     """
-    ElasticsearchTaskHandler is a python log handler that
-    reads logs from Elasticsearch. Note that Airflow does not handle the indexing
-    of logs into Elasticsearch. Instead, Airflow flushes logs
-    into local files. Additional software setup is required
-    to index the logs into Elasticsearch, such as using
-    Filebeat and Logstash.
+    ElasticsearchTaskHandler is a python log handler that reads logs from Elasticsearch.
+
+    Note that Airflow does not handle the indexing of logs into Elasticsearch. Instead,
+    Airflow flushes logs into local files. Additional software setup is required to index
+    the logs into Elasticsearch, such as using Filebeat and Logstash.
+
     To efficiently query and sort Elasticsearch results, this handler assumes each
     log message has a field `log_id` consists of ti primary keys:
     `log_id = {dag_id}-{task_id}-{execution_date}-{try_number}`
@@ -95,6 +95,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     which is a unique integer indicates log message's order.
     Timestamps here are unreliable because multiple log messages
     might have the same timestamp.
+
+    :param base_log_folder: base folder to store logs locally
+    :param log_id_template: log id template
+    :param host: Elasticsearch host name
     """
 
     PAGE = 0
@@ -120,11 +124,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         filename_template: str | None = None,
         log_id_template: str | None = None,
     ):
-        """
-        :param base_log_folder: base folder to store logs locally
-        :param log_id_template: log id template
-        :param host: Elasticsearch host name
-        """
         es_kwargs = es_kwargs or {}
         super().__init__(base_log_folder, filename_template)
         self.closed = False
@@ -198,8 +197,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     @staticmethod
     def _clean_date(value: datetime | None) -> str:
         """
-        Clean up a date value so that it is safe to query in elasticsearch
-        by removing reserved characters.
+        Clean up a date value so that it is safe to query in elasticsearch by removing reserved characters.
 
         https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#_reserved_characters
         """
@@ -303,8 +301,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def es_read(self, log_id: str, offset: str, metadata: dict) -> list:
         """
-        Returns the logs matching log_id in Elasticsearch and next offset.
-        Returns '' if no log is found or there was an error.
+        Return the logs matching log_id in Elasticsearch and next offset or ''.
 
         :param log_id: the log_id of the log to read.
         :param offset: the offset start to read log from.

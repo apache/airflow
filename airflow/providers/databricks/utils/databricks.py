@@ -23,11 +23,12 @@ from airflow.providers.databricks.hooks.databricks import RunState
 
 def normalise_json_content(content, json_path: str = "json") -> str | bool | list | dict:
     """
-    Normalize content or all values of content if it is a dict to a string. The
-    function will throw if content contains non-string or non-numeric non-boolean types.
-    The reason why we have this function is because the ``self.json`` field must be a
-    dict with only string values. This is because ``render_template`` will fail
-    for numerical values.
+    Normalize content or all values of content if it is a dict to a string.
+
+    The function will throw if content contains non-string or non-numeric non-boolean
+    types. The reason why we have this function is because the ``self.json`` field
+    must be a dict with only string values. This is because ``render_template`` will
+    fail for numerical values.
 
     The only one exception is when we have boolean values, they can not be converted
     to string type because databricks does not understand 'True' or 'False' values.
@@ -56,8 +57,9 @@ def normalise_json_content(content, json_path: str = "json") -> str | bool | lis
 
 def validate_trigger_event(event: dict):
     """
-    Validates correctness of the event
-    received from :class:`~airflow.providers.databricks.triggers.databricks.DatabricksExecutionTrigger`.
+    Validates correctness of the event received from DatabricksExecutionTrigger.
+
+    See: :class:`~airflow.providers.databricks.triggers.databricks.DatabricksExecutionTrigger`.
     """
     keys_to_check = ["run_id", "run_page_url", "run_state"]
     for key in keys_to_check:
