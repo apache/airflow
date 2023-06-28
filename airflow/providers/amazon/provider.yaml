@@ -642,6 +642,9 @@ connection-types:
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
 
+notifications:
+  - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
+
 
 secrets-backends:
   - airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
