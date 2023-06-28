@@ -21,7 +21,7 @@ import logging
 import warnings
 from ast import literal_eval
 from datetime import timedelta
-from typing import TYPE_CHECKING, Sequence, cast
+from typing import TYPE_CHECKING, List, Sequence, cast
 
 from botocore.exceptions import ClientError, WaiterError
 
@@ -307,7 +307,7 @@ class EksCreateClusterOperator(BaseOperator):
             fargate_pod_execution_role_arn=self.fargate_pod_execution_role_arn,
             fargate_selectors=self.fargate_selectors,
             create_fargate_profile_kwargs=self.create_fargate_profile_kwargs,
-            subnets=cast(list[str], self.resources_vpc_config.get("subnetIds")),
+            subnets=cast(List[str], self.resources_vpc_config.get("subnetIds")),
         )
 
 

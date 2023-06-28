@@ -636,7 +636,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
     """
     Creates an EMR JobFlow, reading the config from the EMR connection.
 
-    A dictionary of JobFlow overrides can be passed that overridethe config from the connection.
+    A dictionary of JobFlow overrides can be passed that override the config from the connection.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
