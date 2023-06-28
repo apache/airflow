@@ -36,6 +36,7 @@ log = logging.getLogger(__name__)
 class MetricNameLengthExemptionWarning(Warning):
     """
     A Warning class to be used for the metric name length exemption notice.
+
     Using a custom Warning class allows us to easily test that it is used.
     """
 
@@ -63,7 +64,7 @@ BACK_COMPAT_METRIC_NAME_PATTERNS: set[str] = {
     r"^ti.finish.(?P<dag_id>.*)\.(?P<task_id>.*)\.(?P<state>.*)$",
     r"^task_removed_from_dag\.(?P<dag_id>.*)$",
     r"^task_restored_to_dag\.(?P<dag_id>.*)$",
-    r"^task_instance_created-(?P<operator_name>.*)$",
+    r"^task_instance_created_(?P<operator_name>.*)$",
     r"^dag_processing\.last_run\.seconds_ago\.(?P<dag_file>.*)$",
     r"^pool\.open_slots\.(?P<pool_name>.*)$",
     r"^pool\.queued_slots\.(?P<pool_name>.*)$",
@@ -83,10 +84,7 @@ OTEL_NAME_MAX_LENGTH = 63
 
 
 def validate_stat(fn: Callable) -> Callable:
-    """
-    Check if stat name contains invalid characters.
-    Log and not emit stats if name is invalid.
-    """
+    """Check if stat name contains invalid characters; logs and does not emit stats if name is invalid."""
 
     @wraps(fn)
     def wrapper(self, stat: str | None = None, *args, **kwargs) -> Callable | None:
@@ -200,8 +198,9 @@ def get_current_handler_stat_name_func() -> Callable[[str], str]:
 
 class ListValidator(metaclass=abc.ABCMeta):
     """
-    ListValidator metaclass that can be implemented as a AllowListValidator
-    or BlockListValidator. The test method must be overridden by its subclass.
+    ListValidator metaclass that can be implemented as a AllowListValidator or BlockListValidator.
+
+    The test method must be overridden by its subclass.
     """
 
     def __init__(self, validate_list: str | None = None) -> None:

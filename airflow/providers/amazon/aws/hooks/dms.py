@@ -35,6 +35,7 @@ class DmsTaskWaiterStatus(str, Enum):
 class DmsHook(AwsBaseHook):
     """
     Interact with AWS Database Migration Service (DMS).
+
     Provide thin wrapper around
     :external+boto3:py:class:`boto3.client("dms") <DatabaseMigrationService.Client>`.
 
@@ -197,8 +198,7 @@ class DmsHook(AwsBaseHook):
 
     def wait_for_task_status(self, replication_task_arn: str, status: DmsTaskWaiterStatus):
         """
-        Waits for replication task to reach status.
-        Supported statuses: deleted, ready, running, stopped.
+        Waits for replication task to reach status; supported statuses: deleted, ready, running, stopped.
 
         :param status: Status to wait for
         :param replication_task_arn: Replication task ARN

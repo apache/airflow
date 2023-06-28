@@ -110,18 +110,20 @@ class TestDagProcessor:
             values={
                 "dagProcessor": {
                     "enabled": True,
-                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
-                    "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumeMounts": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                    ],
                 },
             },
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert "test-volume" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
-        assert "test-volume" == jmespath.search(
+        assert "test-volume-airflow" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
+        assert "test-volume-airflow" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
-        assert "test-volume" == jmespath.search(
+        assert "test-volume-airflow" == jmespath.search(
             "spec.template.spec.initContainers[0].volumeMounts[0].name", docs[0]
         )
 

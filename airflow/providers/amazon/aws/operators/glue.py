@@ -99,6 +99,7 @@ class GlueJobOperator(BaseOperator):
         deferrable: bool = False,
         verbose: bool = False,
         update_config: bool = False,
+        job_poll_interval: int | float = 6,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -121,6 +122,7 @@ class GlueJobOperator(BaseOperator):
         self.verbose = verbose
         self.update_config = update_config
         self.deferrable = deferrable
+        self.job_poll_interval = job_poll_interval
 
     def execute(self, context: Context):
         """Execute AWS Glue Job from Airflow.
@@ -151,6 +153,7 @@ class GlueJobOperator(BaseOperator):
             iam_role_name=self.iam_role_name,
             create_job_kwargs=self.create_job_kwargs,
             update_config=self.update_config,
+            job_poll_interval=self.job_poll_interval,
         )
         self.log.info(
             "Initializing AWS Glue Job: %s. Wait for completion: %s",
@@ -181,6 +184,7 @@ class GlueJobOperator(BaseOperator):
                     run_id=glue_job_run["JobRunId"],
                     verbose=self.verbose,
                     aws_conn_id=self.aws_conn_id,
+                    job_poll_interval=self.job_poll_interval,
                 ),
                 method_name="execute_complete",
             )

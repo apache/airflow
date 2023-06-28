@@ -385,6 +385,7 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json["total_entries"] == 0
+        assert response.json["task_instances"] == []
 
     @provide_session
     def test_mapped_task_instances_with_state(self, one_task_with_mapped_tis, session):
@@ -402,6 +403,7 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json["total_entries"] == 0
+        assert response.json["task_instances"] == []
 
     @provide_session
     def test_mapped_task_instances_with_pool(self, one_task_with_mapped_tis, session):
@@ -420,6 +422,7 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json["total_entries"] == 0
+        assert response.json["task_instances"] == []
 
     @provide_session
     def test_mapped_task_instances_with_queue(self, one_task_with_mapped_tis, session):
@@ -437,6 +440,7 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json["total_entries"] == 0
+        assert response.json["task_instances"] == []
 
     @provide_session
     def test_mapped_task_instances_with_zero_mapped(self, one_task_with_zero_mapped_tis, session):
@@ -446,4 +450,4 @@ class TestGetMappedTaskInstances(TestMappedTaskInstanceEndpoint):
         )
         assert response.status_code == 200
         assert response.json["total_entries"] == 0
-        assert len(response.json["task_instances"]) == 0
+        assert response.json["task_instances"] == []

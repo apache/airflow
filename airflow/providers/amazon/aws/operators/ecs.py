@@ -539,7 +539,44 @@ class EcsRunTaskOperator(EcsBaseOperator):
         if self.reattach:
             self._try_reattach_task(context)
 
-        self._start_wait_task(context)
+        if not self.arn:
+            # start the task except if we reattached to an existing one just before.
+            self._start_task(context)
+
+        if self.deferrable:
+            self.defer(
+                trigger=TaskDoneTrigger(
+                    cluster=self.cluster,
+                    task_arn=self.arn,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                    region=self.region,
+                    log_group=self.awslogs_group,
+                    log_stream=self._get_logs_stream_name(),
+                ),
+                method_name="execute_complete",
+                # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+            )
+            # self.defer raises a special exception, so execution stops here in this case.
+
+        if not self.wait_for_completion:
+            return
+
+        if self._aws_logs_enabled():
+            self.log.info("Starting ECS Task Log Fetcher")
+            self.task_log_fetcher = self._get_task_log_fetcher()
+            self.task_log_fetcher.start()
+
+            try:
+                self._wait_for_task_ended()
+            finally:
+                self.task_log_fetcher.stop()
+            self.task_log_fetcher.join()
+        else:
+            self._wait_for_task_ended()
 
         self._after_execution(session)
 
@@ -576,48 +613,10 @@ class EcsRunTaskOperator(EcsBaseOperator):
             # as we can't reattach it anymore
             self._xcom_del(session, self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id))
 
-    @AwsBaseHook.retry(should_retry_eni)
-    def _start_wait_task(self, context):
-        if not self.arn:
-            self._start_task(context)
-
-        if self.deferrable:
-            self.defer(
-                trigger=TaskDoneTrigger(
-                    cluster=self.cluster,
-                    task_arn=self.arn,
-                    waiter_delay=self.waiter_delay,
-                    waiter_max_attempts=self.waiter_max_attempts,
-                    aws_conn_id=self.aws_conn_id,
-                    region=self.region,
-                    log_group=self.awslogs_group,
-                    log_stream=self._get_logs_stream_name(),
-                ),
-                method_name="execute_complete",
-                # timeout is set to ensure that if a trigger dies, the timeout does not restart
-                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
-            )
-
-        if not self.wait_for_completion:
-            return
-
-        if self._aws_logs_enabled():
-            self.log.info("Starting ECS Task Log Fetcher")
-            self.task_log_fetcher = self._get_task_log_fetcher()
-            self.task_log_fetcher.start()
-
-            try:
-                self._wait_for_task_ended()
-            finally:
-                self.task_log_fetcher.stop()
-            self.task_log_fetcher.join()
-        else:
-            self._wait_for_task_ended()
-
     def _xcom_del(self, session, task_id):
         session.query(XCom).filter(XCom.dag_id == self.dag_id, XCom.task_id == task_id).delete()
 
+    @AwsBaseHook.retry(should_retry_eni)
     def _start_task(self, context):
         run_opts = {
             "cluster": self.cluster,
