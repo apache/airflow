@@ -3916,7 +3916,7 @@ def _run_task(ti: TaskInstance, session) -> TaskInstance:
     try:
         ti._run_raw_task(session=session)
         session.flush()
-        if ti.state == State.DEFERRED:
+        if ti.state == TaskInstanceState.DEFERRED:
             log.info("%s has deferred", ti.task_id)
         else:
             log.info("%s ran successfully!", ti.task_id)
