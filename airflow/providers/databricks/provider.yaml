@@ -67,6 +67,7 @@ integrations:
   - integration-name: Databricks
     external-doc-url: https://databricks.com/
     how-to-guide:
+      - /docs/apache-airflow-providers-databricks/operators/jobs_create.rst
       - /docs/apache-airflow-providers-databricks/operators/submit_run.rst
       - /docs/apache-airflow-providers-databricks/operators/run_now.rst
     logo: /integration-logos/databricks/Databricks.png
