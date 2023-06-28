@@ -547,8 +547,6 @@ class PodManager(LoggingMixin):
         try:
             result = self.extract_xcom_json(pod)
             return result
-        except Exception as ex:
-            raise ex
         finally:
             self.extract_xcom_kill(pod)
 
@@ -577,11 +575,9 @@ class PodManager(LoggingMixin):
                 resp,
                 f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; else echo __airflow_xcom_result_empty__; fi",  # noqa
             )
-            if isinstance(result, str) and result.rstrip() != "__airflow_xcom_result_empty__":
-                try:
-                    json.loads(result)
-                except Exception as ex:
-                    raise ex
+            if result and result.rstrip() != "__airflow_xcom_result_empty__":
+                json.loads(result)
+
         if result is None:
             raise AirflowException(f"Failed to extract xcom from pod: {pod.metadata.name}")
         return result
