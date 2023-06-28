@@ -39,14 +39,14 @@ Password (required)
 
 Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in Vertica
-    connection. 
+    connection.
 
     The following extras are supported:
 
       * ``backup_server_node``: See `Connection Failover <https://github.com/vertica/vertica-python#connection-failover>`.
       * ``binary_transfer``: See `Data Transfer Format <https://github.com/vertica/vertica-python#data-transfer-format>`_.
       * ``connection_load_balance``: See `Connection Load Balancing <https://github.com/vertica/vertica-python#connection-load-balancing>`_.
-      * ``connection_timeout``: The number of seconds (can be a nonnegative floating point number) the client 
+      * ``connection_timeout``: The number of seconds (can be a nonnegative floating point number) the client.
       waits for a socket operation (Establishing a TCP connection or read/write operation).
       * ``disable_copy_local``: See `COPY FROM LOCAL <https://github.com/vertica/vertica-python#method-2-copy-from-local-sql-with-cursorexecute>`_.
       * ``kerberos_host_name``: See `Kerberos Authentication <https://github.com/vertica/vertica-python#kerberos-authentication>`_.
@@ -67,9 +67,9 @@ Extra (optional)
       .. code-block:: json
 
          {
-            "connection_load_balance": True,
+            "connection_load_balance": true,
             "log_level": "error",
-            "ssl": True
+            "ssl": true
          }
 
       or

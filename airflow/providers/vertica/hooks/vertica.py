@@ -46,8 +46,22 @@ class VerticaHook(DbApiHook):
         else:
             conn_config["port"] = int(conn.port)
 
-        bool_options = ["connection_load_balance", "binary_transfer", "disable_copy_local", "request_complex_types", "use_prepared_statements"]
-        std_options = ["session_label", "backup_server_node", "kerberos_host_name", "kerberos_service_name", "unicode_error", "workload", "ssl"]
+        bool_options = [
+            "connection_load_balance",
+            "binary_transfer",
+            "disable_copy_local",
+            "request_complex_types",
+            "use_prepared_statements",
+        ]
+        std_options = [
+            "session_label",
+            "backup_server_node",
+            "kerberos_host_name",
+            "kerberos_service_name",
+            "unicode_error",
+            "workload",
+            "ssl"
+        ]
         conn_extra = conn.extra_dejson
 
         for bo in bool_options:
