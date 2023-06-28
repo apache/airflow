@@ -239,6 +239,7 @@ COMMITTERS = [
     "mik-laj",
     "milton0825",
     "mistercrunch",
+    "mobuchowski",
     "msumit",
     "o-nikolas",
     "pankajastro",
