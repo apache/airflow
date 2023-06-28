@@ -489,9 +489,9 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 Setup and Teardown
 ~~~~~~~~~~~~~~~~~~
 
-In data workflows it's common to create resources (such as a compute resource), use it to do some work, and then tear it down. Airflow provides the concept of setup and teardown tasks to support this need.
+In data workflows it's common to create resources (such as a compute resource), use it to do some work, and then tear it down. Airflow provides setup and teardown tasks to support this need.
 
-Features of setup and teardown tasks:
+Key features of setup and teardown tasks:
 
   * If you clear a task, its setups and teardowns will be cleared.
   * By default, teardown tasks are ignored for the purpose of evaluating dag run state.
@@ -545,11 +545,31 @@ Consider this example:
         t1 = my_teardown()
         s1 >> w1 >> t1.as_teardown(setups=s1)
     w2 = other_work()
+    tg >> w2
+
+If ``t1`` were not a teardown task, then this dag would effectively be ``s1 >> w1 >> t1 >> w2``.  But since we have marked ``t1`` as a teardown, it's ignored in ``tg >> w2``.  So the dag is equivalent to the following:
+
+.. code-block:: python
+
+    s1 >> w1 >> [t1.as_teardown(setups=s1), w2]
+
+Now let's consider an example with nesting:
+
+.. code-block:: python
+
+    with TaskGroup("my_group") as tg:
+        s1 = my_setup()
+        w1 = my_work()
+        t1 = my_teardown()
+        s1 >> w1 >> t1.as_teardown(setups=s1)
+    w2 = other_work()
+    tg >> w2
     dag_s1 = dag_setup1()
     dag_t1 = dag_teardown1()
     dag_s1 >> [tg, w2] >> dag_t1.as_teardown(dag_s1)
 
 In this example s1 is downstream of dag_s1, so it must wait for dag_s1 to complete successfully.  But t1 and dag_t1 can run concurrently, because t1 is ignored in the expression ``tg >> dag_t1``.
+
 
 Dynamic DAGs
 ------------
