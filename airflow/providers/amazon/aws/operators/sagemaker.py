@@ -106,6 +106,7 @@ class SageMakerBaseOperator(BaseOperator):
     def _create_integer_fields(self) -> None:
         """
         Set fields which should be cast to integers.
+
         Child classes should override this method if they need integer fields parsed.
         """
         self.integer_fields = []
@@ -156,10 +157,11 @@ class SageMakerBaseOperator(BaseOperator):
 
 class SageMakerProcessingOperator(SageMakerBaseOperator):
     """
-    Use Amazon SageMaker Processing to analyze data and evaluate machine learning
-    models on Amazon SageMake. With Processing, you can use a simplified, managed
-    experience on SageMaker to run your data processing workloads, such as feature
-    engineering, data validation, model evaluation, and model interpretation.
+    Use Amazon SageMaker Processing to analyze data and evaluate machine learning models on Amazon SageMaker.
+
+    With Processing, you can use a simplified, managed experience on SageMaker
+    to run your data processing workloads, such as feature engineering, data
+    validation, model evaluation, and model interpretation.
 
      .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -288,9 +290,9 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
 
 class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
     """
-    Creates an endpoint configuration that Amazon SageMaker hosting
-    services uses to deploy models. In the configuration, you identify
-    one or more models, created using the CreateModel API, to deploy and
+    Creates an endpoint configuration that Amazon SageMaker hosting services uses to deploy models.
+
+    In the configuration, you identify one or more models, created using the CreateModel API, to deploy and
     the resources that you want Amazon SageMaker to provision.
 
     .. seealso::
@@ -333,10 +335,11 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
 
 class SageMakerEndpointOperator(SageMakerBaseOperator):
     """
-    When you create a serverless endpoint, SageMaker provisions and manages
-    the compute resources for you. Then, you can make inference requests to
-    the endpoint and receive model predictions in response. SageMaker scales
-    the compute resources up and down as needed to handle your request traffic.
+    When you create a serverless endpoint, SageMaker provisions and manages the compute resources for you.
+
+    Then, you can make inference requests to the endpoint and receive model predictions
+    in response. SageMaker scales the compute resources up and down as needed to handle
+    your request traffic.
 
     Requires an Endpoint Config.
 
@@ -492,8 +495,10 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
 
 class SageMakerTransformOperator(SageMakerBaseOperator):
     """
-    Starts a transform job. A transform job uses a trained model to get inferences
-    on a dataset and saves these results to an Amazon S3 location that you specify.
+    Starts a transform job.
+
+    A transform job uses a trained model to get inferences on a dataset
+    and saves these results to an Amazon S3 location that you specify.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -660,11 +665,13 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
 
 class SageMakerTuningOperator(SageMakerBaseOperator):
     """
-    Starts a hyperparameter tuning job. A hyperparameter tuning job finds the
-    best version of a model by running many training jobs on your dataset using
-    the algorithm you choose and values for hyperparameters within ranges that
-    you specify. It then chooses the hyperparameter values that result in a model
-    that performs the best, as measured by an objective metric that you choose.
+    Starts a hyperparameter tuning job.
+
+    A hyperparameter tuning job finds the best version of a model by running
+    many training jobs on your dataset using the algorithm you choose and
+    values for hyperparameters within ranges that you specify. It then chooses
+    the hyperparameter values that result in a model that performs the best,
+    as measured by an objective metric that you choose.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -771,10 +778,12 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
 
 class SageMakerModelOperator(SageMakerBaseOperator):
     """
-    Creates a model in Amazon SageMaker. In the request, you name the model and
-    describe a primary container. For the primary container, you specify the Docker
-    image that contains inference code, artifacts (from prior training), and a custom
-    environment map that the inference code uses when you deploy the model for predictions.
+    Creates a model in Amazon SageMaker.
+
+    In the request, you name the model and describe a primary container. For the
+    primary container, you specify the Docker image that contains inference code,
+    artifacts (from prior training), and a custom environment map that the inference
+    code uses when you deploy the model for predictions.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -808,8 +817,10 @@ class SageMakerModelOperator(SageMakerBaseOperator):
 
 class SageMakerTrainingOperator(SageMakerBaseOperator):
     """
-    Starts a model training job. After training completes, Amazon SageMaker saves
-    the resulting model artifacts to an Amazon S3 location that you specify.
+    Starts a model training job.
+
+    After training completes, Amazon SageMaker saves the resulting
+    model artifacts to an Amazon S3 location that you specify.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1090,8 +1101,9 @@ class SageMakerStopPipelineOperator(SageMakerBaseOperator):
 
 class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
     """
-    Registers an Amazon SageMaker model by creating a model version that specifies the model group to which it
-    belongs. Will create the model group if it does not exist already.
+    Register a SageMaker model by creating a model version that specifies the model group to which it belongs.
+
+    Will create the model group if it does not exist already.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1180,6 +1192,7 @@ class SageMakerRegisterModelVersionOperator(SageMakerBaseOperator):
 class SageMakerAutoMLOperator(SageMakerBaseOperator):
     """
     Creates an auto ML job, learning to predict the given column from the data provided through S3.
+
     The learning output is written to the specified S3 location.
 
     .. seealso::

@@ -133,6 +133,7 @@ class SqlToS3Operator(BaseOperator):
     def _fix_dtypes(df: DataFrame, file_format: FILE_FORMAT) -> None:
         """
         Mutate DataFrame to set dtypes for float columns containing NaN values.
+
         Set dtype of object to str to allow for downstream transformations.
         """
         try:

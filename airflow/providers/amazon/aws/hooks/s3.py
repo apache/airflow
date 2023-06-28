@@ -64,10 +64,7 @@ logger = logging.getLogger(__name__)
 
 
 def provide_bucket_name(func: T) -> T:
-    """
-    Function decorator that provides a bucket name taken from the connection
-    in case no bucket name has been passed to the function.
-    """
+    """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
     if hasattr(func, "_unify_bucket_name_and_key_wrapped"):
         logger.warning("`unify_bucket_name_and_key` should wrap `provide_bucket_name`.")
     function_signature = signature(func)
@@ -97,10 +94,7 @@ def provide_bucket_name(func: T) -> T:
 
 
 def provide_bucket_name_async(func: T) -> T:
-    """
-    Function decorator that provides a bucket name taken from the connection
-    in case no bucket name has been passed to the function.
-    """
+    """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
     function_signature = signature(func)
 
     @wraps(func)
@@ -120,10 +114,7 @@ def provide_bucket_name_async(func: T) -> T:
 
 
 def unify_bucket_name_and_key(func: T) -> T:
-    """
-    Function decorator that unifies bucket name and key taken from the key
-    in case no bucket name and at least a key has been passed to the function.
-    """
+    """Unify bucket name and key in case no bucket name and at least a key has been passed to the function."""
     function_signature = signature(func)
 
     @wraps(func)
@@ -156,6 +147,7 @@ def unify_bucket_name_and_key(func: T) -> T:
 class S3Hook(AwsBaseHook):
     """
     Interact with Amazon Simple Storage Service (S3).
+
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("s3") <S3.Client>`
     and :external+boto3:py:class:`boto3.resource("s3") <S3.ServiceResource>`.
 
@@ -495,8 +487,10 @@ class S3Hook(AwsBaseHook):
         key: str,
     ) -> bool:
         """
-        Function to check if wildcard_match is True get list of files that a key matching a wildcard
-        expression exists in a bucket asynchronously and return the boolean value. If  wildcard_match
+        Get a list of files that a key matching a wildcard expression or get the head object.
+
+        If wildcard_match is True get list of files that a key matching a wildcard
+        expression exists in a bucket asynchronously and return the boolean value. If wildcard_match
         is False get the head object from the bucket and return the boolean value.
 
         :param client: aiobotocore client
@@ -1359,8 +1353,7 @@ class S3Hook(AwsBaseHook):
         bucket_name: str | None = None,
     ) -> None:
         """
-        Overwrites the existing TagSet with provided tags.
-        Must provide a TagSet, a key/value pair, or both.
+        Overwrites the existing TagSet with provided tags; must provide a TagSet, a key/value pair, or both.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Client.put_bucket_tagging`

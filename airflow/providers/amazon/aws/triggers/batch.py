@@ -29,9 +29,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class BatchOperatorTrigger(BaseTrigger):
     """
-    Trigger for BatchOperator.
-    The trigger will asynchronously poll the boto3 API and wait for the
-    Batch job to be in the `SUCCEEDED` state.
+    Asynchronously poll the boto3 API and wait for the Batch job to be in the `SUCCEEDED` state.
 
     :param job_id:  A unique identifier for the cluster.
     :param max_retries: The maximum number of attempts to be made.
@@ -111,6 +109,7 @@ class BatchOperatorTrigger(BaseTrigger):
 class BatchSensorTrigger(BaseTrigger):
     """
     Checks for the status of a submitted job_id to AWS Batch until it reaches a failure or a success state.
+
     BatchSensorTrigger is fired as deferred class with params to poll the job state in Triggerer.
 
     :param job_id: the job ID, to poll for job completion or not
@@ -152,8 +151,7 @@ class BatchSensorTrigger(BaseTrigger):
 
     async def run(self):
         """
-        Make async connection using aiobotocore library to AWS Batch,
-        periodically poll for the Batch job status.
+        Make async connection using aiobotocore library to AWS Batch, periodically poll for the job status.
 
         The status that indicates job completion are: 'SUCCEEDED'|'FAILED'.
         """
@@ -193,8 +191,7 @@ class BatchSensorTrigger(BaseTrigger):
 
 class BatchCreateComputeEnvironmentTrigger(BaseTrigger):
     """
-    Trigger for BatchCreateComputeEnvironmentOperator.
-    The trigger will asynchronously poll the boto3 API and wait for the compute environment to be ready.
+    Asynchronously poll the boto3 API and wait for the compute environment to be ready.
 
     :param job_id:  A unique identifier for the cluster.
     :param max_retries: The maximum number of attempts to be made.

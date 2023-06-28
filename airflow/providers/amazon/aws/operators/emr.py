@@ -635,8 +635,8 @@ class EmrContainerOperator(BaseOperator):
 class EmrCreateJobFlowOperator(BaseOperator):
     """
     Creates an EMR JobFlow, reading the config from the EMR connection.
-    A dictionary of JobFlow overrides can be passed that override
-    the config from the connection.
+
+    A dictionary of JobFlow overrides can be passed that override the config from the connection.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -797,10 +797,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         return event["job_flow_id"]
 
     def on_kill(self) -> None:
-        """
-        Terminate the EMR cluster (job flow). If TerminationProtected=True on the cluster,
-        termination will be unsuccessful.
-        """
+        """Terminate the EMR cluster (job flow) unless TerminationProtected is enabled on the cluster."""
         if self._job_flow_id:
             self.log.info("Terminating job flow %s", self._job_flow_id)
             self._emr_hook.conn.terminate_job_flows(JobFlowIds=[self._job_flow_id])

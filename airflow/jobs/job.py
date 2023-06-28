@@ -104,9 +104,6 @@ class Job(Base, LoggingMixin):
         self.hostname = get_hostname()
         if executor:
             self.executor = executor
-            self.executor_class = executor.__class__.__name__
-        else:
-            self.executor_class = conf.get("core", "EXECUTOR")
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
