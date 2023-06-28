@@ -431,7 +431,7 @@ def with_row_locks(query: Query, session: Session, **kwargs) -> Query:
 
 
 @contextlib.contextmanager
-def lock_rows(query: Query, session: Session) -> Generator[list[Any], None, None]:
+def lock_rows(query: Query, session: Session) -> Generator[None, None, None]:
     """Lock database rows during the context manager block.
 
     This is a convenient method for ``with_row_locks`` when we don't need the
@@ -440,7 +440,7 @@ def lock_rows(query: Query, session: Session) -> Generator[list[Any], None, None
     :meta private:
     """
     locked_rows = with_row_locks(query, session).all()
-    yield locked_rows
+    yield
     del locked_rows
 
 
