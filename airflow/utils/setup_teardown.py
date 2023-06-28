@@ -31,12 +31,12 @@ class BaseSetupTeardownContext:
     :meta private:
     """
 
-    _context_managed_setup_task: Operator | list[Operator] | None = None
-    _previous_context_managed_setup_task: list[Operator | list[Operator]] = []
-    _context_managed_teardown_task: Operator | list[Operator] | None = None
-    _previous_context_managed_teardown_task: list[Operator | list[Operator]] = []
     active: bool = False
-    context_map: dict[Operator | tuple[Operator], list[Operator]] = {}
+    context_map: dict = {}
+    _context_managed_setup_task: Operator | list[Operator] = []
+    _previous_context_managed_setup_task: list[Operator | list[Operator]] = []
+    _context_managed_teardown_task: Operator | list[Operator] = []
+    _previous_context_managed_teardown_task: list[Operator | list[Operator]] = []
 
     @classmethod
     def push_context_managed_setup_task(cls, task: Operator | list[Operator]):
@@ -51,7 +51,7 @@ class BaseSetupTeardownContext:
         cls._context_managed_teardown_task = task
 
     @classmethod
-    def pop_context_managed_setup_task(cls) -> Operator | list[Operator] | None:
+    def pop_context_managed_setup_task(cls) -> Operator | list[Operator]:
         old_setup_task = cls._context_managed_setup_task
         if cls._previous_context_managed_setup_task:
             cls._context_managed_setup_task = cls._previous_context_managed_setup_task.pop()
@@ -63,29 +63,33 @@ class BaseSetupTeardownContext:
                 else:
                     setup_task.set_downstream(old_setup_task)
         else:
-            cls._context_managed_setup_task = None
+            cls._context_managed_setup_task = []
         return old_setup_task
 
     @classmethod
-    def update_context_map(cls, operator):
-        ctx = BaseSetupTeardownContext.context_map
-        if setup_task := BaseSetupTeardownContext.get_context_managed_setup_task():
+    def update_context_map(cls, operator: Operator):
+        ctx = cls.context_map
+        if setup_task := cls.get_context_managed_setup_task():
             if isinstance(setup_task, list):
-                setup_task = tuple(setup_task)
-            if ctx.get(setup_task) is None:
-                ctx[setup_task] = [operator]
+                result = tuple(setup_task)
             else:
-                ctx[setup_task].append(operator)
-        if teardown_task := BaseSetupTeardownContext.get_context_managed_teardown_task():
+                result = setup_task
+            if ctx.get(result) is None:
+                ctx[result] = [operator]
+            else:
+                ctx[result].append(operator)
+        if teardown_task := cls.get_context_managed_teardown_task():
             if isinstance(teardown_task, list):
-                teardown_task = tuple(teardown_task)
-            if ctx.get(teardown_task) is None:
-                ctx[teardown_task] = [operator]
+                result = tuple(teardown_task)
             else:
-                ctx[teardown_task].append(operator)
+                result = teardown_task
+            if ctx.get(result) is None:
+                ctx[result] = [operator]
+            else:
+                ctx[result].append(operator)
 
     @classmethod
-    def pop_context_managed_teardown_task(cls) -> Operator | list[Operator] | None:
+    def pop_context_managed_teardown_task(cls) -> Operator | list[Operator]:
         old_teardown_task = cls._context_managed_teardown_task
         if cls._previous_context_managed_teardown_task:
             cls._context_managed_teardown_task = cls._previous_context_managed_teardown_task.pop()
@@ -97,70 +101,64 @@ class BaseSetupTeardownContext:
                 else:
                     teardown_task.set_upstream(old_teardown_task)
         else:
-            cls._context_managed_teardown_task = None
+            cls._context_managed_teardown_task = []
         return old_teardown_task
 
     @classmethod
-    def get_context_managed_setup_task(cls) -> Operator | list[Operator] | None:
+    def get_context_managed_setup_task(cls) -> Operator | list[Operator]:
         return cls._context_managed_setup_task
 
     @classmethod
-    def get_context_managed_teardown_task(cls) -> Operator | list[Operator] | None:
+    def get_context_managed_teardown_task(cls) -> Operator | list[Operator]:
         return cls._context_managed_teardown_task
 
     @classmethod
     def push_setup_teardown_task(cls, operator: Operator | list[Operator]):
         if isinstance(operator, list):
-            first_task: Operator = operator[0]
-            if first_task.is_teardown:
-                if not all(task.is_teardown == first_task.is_teardown for task in operator):
-                    raise ValueError("All tasks in the list must be either setup or teardown tasks")
-                upstream_tasks = first_task.upstream_list
-                for task in upstream_tasks:
-                    if not task.is_setup and not task.is_teardown:
-                        raise ValueError(
-                            "All upstream tasks in the context manager must be a setup or teardown task"
-                        )
-                BaseSetupTeardownContext.push_context_managed_teardown_task(operator)
-                upstream_setup: list[Operator] = [task for task in upstream_tasks if task.is_setup]
-                if upstream_setup:
-                    BaseSetupTeardownContext.push_context_managed_setup_task(upstream_setup)
-            elif first_task.is_setup:
-                if not all(task.is_setup == first_task.is_setup for task in operator):
-                    raise ValueError("All tasks in the list must be either setup or teardown tasks")
-                for task in first_task.upstream_list:
-                    if not task.is_setup and not task.is_teardown:
-                        raise ValueError(
-                            "All upstream tasks in the context manager must be a setup or teardown task"
-                        )
-                BaseSetupTeardownContext.push_context_managed_setup_task(operator)
-                downstream_teardown: list[Operator] = [
-                    task for task in first_task.downstream_list if task.is_teardown
-                ]
-                if downstream_teardown:
-                    BaseSetupTeardownContext.push_context_managed_teardown_task(downstream_teardown)
+            if operator[0].is_teardown:
+                cls._push_tasks(operator)
+            elif operator[0].is_setup:
+                cls._push_tasks(operator, setup=True)
         elif operator.is_teardown:
-            upstream_tasks = operator.upstream_list
-            for task in upstream_tasks:
-                if not task.is_setup and not task.is_teardown:
-                    raise ValueError(
-                        "All upstream tasks in the context manager must be a setup or teardown task"
-                    )
-            BaseSetupTeardownContext.push_context_managed_teardown_task(operator)
-            upstream_setup = [task for task in upstream_tasks if task.is_setup]
-            if upstream_setup:
-                BaseSetupTeardownContext.push_context_managed_setup_task(upstream_setup)
+            cls._push_tasks(operator)
         elif operator.is_setup:
-            for task in operator.upstream_list:
-                if not task.is_setup and not task.is_teardown:
-                    raise ValueError(
-                        "All upstream tasks in the context manager must be a setup or teardown task"
+            cls._push_tasks(operator, setup=True)
+        cls.active = True
+
+    @classmethod
+    def _push_tasks(cls, operator: Operator | list[Operator], setup: bool = False):
+        if isinstance(operator, list):
+            upstream_tasks = operator[0].upstream_list
+            downstream_list = operator[0].downstream_list
+            if not all(task.is_setup == operator[0].is_setup for task in operator):
+                cls.error("All tasks in the list must be either setup or teardown tasks")
+        else:
+            upstream_tasks = operator.upstream_list
+            downstream_list = operator.downstream_list
+        if setup:
+            if upstream_tasks:
+                cls.error("Setup tasks cannot have upstreams set manually on the context manager")
+            cls.push_context_managed_setup_task(operator)
+            for task in downstream_list:
+                if not task.is_teardown:
+                    cls.error(
+                        "Downstream tasks to a setup task must be a teardown task on the context manager"
                     )
-            BaseSetupTeardownContext.push_context_managed_setup_task(operator)
-            downstream_teardown = [task for task in operator.downstream_list if task.is_teardown]
-            if downstream_teardown:
-                BaseSetupTeardownContext.push_context_managed_teardown_task(downstream_teardown)
-        BaseSetupTeardownContext.active = True
+                if task.downstream_list:
+                    cls.error("Multiple shifts are not allowed in the context manager")
+            if downstream_list:
+                cls.push_context_managed_teardown_task(list(downstream_list))
+        else:
+            for task in upstream_tasks:
+                if not task.is_setup:
+                    cls.error("Upstream tasks to a teardown task must be a setup task on the context manager")
+                if task.upstream_list:
+                    cls.error("Multiple shifts are not allowed in the context manager")
+            if downstream_list:
+                cls.error("Downstream to a teardown task cannot be set manually on the context manager")
+            cls.push_context_managed_teardown_task(operator)
+            if upstream_tasks:
+                cls.push_context_managed_setup_task(list(upstream_tasks))
 
     @classmethod
     def set_work_task_roots_and_leaves(cls):
@@ -190,15 +188,25 @@ class BaseSetupTeardownContext:
                         task << leaves
                 else:
                     teardown_task << leaves
-        setup_task = BaseSetupTeardownContext.pop_context_managed_setup_task()
-        teardown_task = BaseSetupTeardownContext.pop_context_managed_teardown_task()
+        setup_task = cls.pop_context_managed_setup_task()
+        teardown_task = cls.pop_context_managed_teardown_task()
         if isinstance(setup_task, list):
             setup_task = tuple(setup_task)
         if isinstance(teardown_task, list):
             teardown_task = tuple(teardown_task)
-        BaseSetupTeardownContext.active = False
-        BaseSetupTeardownContext.context_map.pop(setup_task, None)
-        BaseSetupTeardownContext.context_map.pop(teardown_task, None)
+        cls.active = False
+        cls.context_map.pop(setup_task, None)
+        cls.context_map.pop(teardown_task, None)
+
+    @classmethod
+    def error(cls, message: str):
+        cls.active = False
+        cls.context_map.clear()
+        cls._context_managed_setup_task = []
+        cls._context_managed_teardown_task = []
+        cls._previous_context_managed_setup_task = []
+        cls._previous_context_managed_teardown_task = []
+        raise ValueError(message)
 
 
 class SetupTeardownContext(BaseSetupTeardownContext):
