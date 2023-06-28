@@ -38,7 +38,8 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
             appbuilder = current_app.appbuilder
 
             dag_id = (
-                request.args.get("dag_id")
+                kwargs.get("dag_id")
+                or request.args.get("dag_id")
                 or request.form.get("dag_id")
                 or (request.is_json and request.json.get("dag_id"))
                 or None

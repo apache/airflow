@@ -588,15 +588,14 @@ Check if sources are the same as in the tag:
 ```bash
 cd X.Y.Zrc1
 tar -xvzf *-source.tar.gz
-pushd apache-airflow-X.Y.Zrc1
+pushd apache-airflow-X.Y.Z
 diff -r airflow "${SOURCE_DIR}"
-popd && rm -rf apache-airflow-X.Y.Zrc1
+popd && rm -rf apache-airflow-X.Y.Z
 ```
 
 The output should only miss some files - but they should not show any differences in the files:
 
 ```
-⌂6.50 [jarek:~/asf-dist/dev/airflow/2.6.2rc2/a] * 1 ‡ diff -r airflow ~/code/airflow/
 Only in /Users/jarek/code/airflow: .DS_Store
 Only in /Users/jarek/code/airflow: .asf.yaml
 Only in /Users/jarek/code/airflow: .bash_aliases
@@ -618,7 +617,6 @@ popd && rm -rf a
 The output should only miss some files - but they should not show any differences in the files:
 
 ```
-⌂6.50 [jarek:~/asf-dist/dev/airflow/2.6.2rc2/a] * 1 ‡ diff -r airflow ~/code/airflow/
 Only in /Users/jarek/code/airflow: .DS_Store
 Only in /Users/jarek/code/airflow: .asf.yaml
 Only in /Users/jarek/code/airflow: .bash_aliases
@@ -631,7 +629,7 @@ Check if sdist are the same as in the tag:
 
 ```bash
 cd X.Y.Zrc1
-tar -xvzf apachae-airflow-X.Y.Z.tar.gz
+tar -xvzf apache-airflow-X.Y.Z.tar.gz
 pushd apache-airflow-X.Y.Z
 diff -r airflow "${SOURCE_DIR}"
 popd && rm -rf apache-airflow-X.Y.Z
@@ -640,7 +638,6 @@ popd && rm -rf apache-airflow-X.Y.Z
 The output should only miss some files - but they should not show any differences in the files:
 
 ```
-⌂6.50 [jarek:~/asf-dist/dev/airflow/2.6.2rc2/a] * 1 ‡ diff -r airflow ~/code/airflow/
 Only in /Users/jarek/code/airflow: .DS_Store
 Only in /Users/jarek/code/airflow: .asf.yaml
 Only in /Users/jarek/code/airflow: .bash_aliases

@@ -24,13 +24,24 @@ from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
-from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger, EmrTerminateJobFlowTrigger
+from airflow.providers.amazon.aws.triggers.emr import (
+    EmrContainerTrigger,
+    EmrCreateJobFlowTrigger,
+    EmrStepSensorTrigger,
+    EmrTerminateJobFlowTrigger,
+)
 from airflow.triggers.base import TriggerEvent
 
 TEST_JOB_FLOW_ID = "test-job-flow-id"
 TEST_POLL_INTERVAL = 10
 TEST_MAX_ATTEMPTS = 10
 TEST_AWS_CONN_ID = "test-aws-id"
+VIRTUAL_CLUSTER_ID = "vzwemreks"
+JOB_ID = "job-1234"
+AWS_CONN_ID = "aws_emr_conn"
+POLL_INTERVAL = 60
+TARGET_STATE = ["TERMINATED"]
+STEP_ID = "s-1234"
 
 
 class TestEmrCreateJobFlowTrigger:
@@ -350,3 +361,210 @@ class TestEmrTerminateJobFlowTrigger:
 
         assert str(exc.value) == f"JobFlow termination failed: {error_failed}"
         assert mock_get_waiter().wait.call_count == 3
+
+
+class TestEmrContainerTrigger:
+    def test_emr_container_trigger_serialize(self):
+        emr_trigger = EmrContainerTrigger(
+            virtual_cluster_id=VIRTUAL_CLUSTER_ID,
+            job_id=JOB_ID,
+            aws_conn_id=AWS_CONN_ID,
+            poll_interval=POLL_INTERVAL,
+        )
+        class_path, args = emr_trigger.serialize()
+        assert class_path == "airflow.providers.amazon.aws.triggers.emr.EmrContainerTrigger"
+        assert args["virtual_cluster_id"] == VIRTUAL_CLUSTER_ID
+        assert args["job_id"] == JOB_ID
+        assert args["aws_conn_id"] == AWS_CONN_ID
+        assert args["poll_interval"] == POLL_INTERVAL
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrContainerHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrContainerHook.async_conn")
+    async def test_emr_container_trigger_run(self, mock_async_conn, mock_get_waiter):
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+
+        mock_get_waiter().wait = AsyncMock()
+
+        emr_trigger = EmrContainerTrigger(
+            virtual_cluster_id=VIRTUAL_CLUSTER_ID,
+            job_id=JOB_ID,
+            aws_conn_id=AWS_CONN_ID,
+            poll_interval=POLL_INTERVAL,
+        )
+
+        generator = emr_trigger.run()
+        response = await generator.asend(None)
+
+        assert response == TriggerEvent({"status": "success", "job_id": JOB_ID})
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrContainerHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrContainerHook.async_conn")
+    async def test_emr_trigger_run_multiple_attempts(self, mock_async_conn, mock_get_waiter, mock_sleep):
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+
+        error = WaiterError(
+            name="test_name",
+            reason="test_reason",
+            last_response={"jobRun": {"state": "RUNNING"}},
+        )
+        mock_get_waiter().wait.side_effect = AsyncMock(side_effect=[error, error, True])
+        mock_sleep.return_value = True
+
+        emr_trigger = EmrContainerTrigger(
+            virtual_cluster_id=VIRTUAL_CLUSTER_ID,
+            job_id=JOB_ID,
+            aws_conn_id=AWS_CONN_ID,
+            poll_interval=POLL_INTERVAL,
+        )
+
+        generator = emr_trigger.run()
+        response = await generator.asend(None)
+
+        assert mock_get_waiter().wait.call_count == 3
+        assert response == TriggerEvent({"status": "success", "job_id": JOB_ID})
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrContainerHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrContainerHook.async_conn")
+    async def test_emr_trigger_run_attempts_failed(self, mock_async_conn, mock_get_waiter, mock_sleep):
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+
+        error_available = WaiterError(
+            name="test_name",
+            reason="Max attempts exceeded",
+            last_response={"jobRun": {"state": "FAILED"}},
+        )
+        error_failed = WaiterError(
+            name="test_name",
+            reason="Waiter encountered a terminal failure state",
+            last_response={"jobRun": {"state": "FAILED"}},
+        )
+        mock_get_waiter().wait.side_effect = AsyncMock(
+            side_effect=[error_available, error_available, error_failed]
+        )
+        mock_sleep.return_value = True
+
+        emr_trigger = EmrContainerTrigger(
+            virtual_cluster_id=VIRTUAL_CLUSTER_ID,
+            job_id=JOB_ID,
+            aws_conn_id=AWS_CONN_ID,
+            poll_interval=POLL_INTERVAL,
+        )
+
+        generator = emr_trigger.run()
+        response = await generator.asend(None)
+
+        assert mock_get_waiter().wait.call_count == 3
+        assert response == TriggerEvent({"status": "failure", "message": f"Job Failed: {error_failed}"})
+
+
+class TestEmrStepSensorTrigger:
+    def test_emr_step_trigger_serialize(self):
+        """Test trigger serialize object and path as expected"""
+        emr_trigger = EmrStepSensorTrigger(
+            job_flow_id=TEST_JOB_FLOW_ID,
+            step_id=STEP_ID,
+            aws_conn_id=AWS_CONN_ID,
+            poke_interval=POLL_INTERVAL,
+        )
+        class_path, args = emr_trigger.serialize()
+        assert class_path == "airflow.providers.amazon.aws.triggers.emr.EmrStepSensorTrigger"
+        assert args["job_flow_id"] == TEST_JOB_FLOW_ID
+        assert args["step_id"] == STEP_ID
+        assert args["aws_conn_id"] == AWS_CONN_ID
+        assert args["max_attempts"] == 60
+        assert args["poke_interval"] == POLL_INTERVAL
+
+    @pytest.mark.asyncio
+    @mock.patch.object(EmrHook, "async_conn")
+    async def test_emr_step_trigger_run(self, mock_async_conn):
+        """Test trigger emit success if condition met"""
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+
+        a_mock.get_waiter().wait = AsyncMock()
+
+        emr_trigger = EmrStepSensorTrigger(
+            job_flow_id=TEST_JOB_FLOW_ID,
+            step_id=STEP_ID,
+            aws_conn_id=AWS_CONN_ID,
+            poll_interval=POLL_INTERVAL,
+        )
+
+        generator = emr_trigger.run()
+        response = await generator.asend(None)
+
+        assert response == TriggerEvent({"status": "success"})
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
+    @mock.patch.object(EmrHook, "async_conn")
+    async def test_emr_trigger_run_multiple_attempts(self, mock_async_conn, mock_sleep):
+        """Test trigger try max attempt if attempt not exceeded and job still running"""
+        mock_sleep.return_value = True
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+
+        error = WaiterError(
+            name="test_name",
+            reason="test_reason",
+            last_response={"Step": {"Status": {"State": "RUNNING"}}},
+        )
+        a_mock.get_waiter().wait = AsyncMock(side_effect=[error, error, error, True])
+
+        emr_trigger = EmrStepSensorTrigger(
+            job_flow_id=TEST_JOB_FLOW_ID,
+            step_id=STEP_ID,
+            aws_conn_id=AWS_CONN_ID,
+            poll_interval=POLL_INTERVAL,
+        )
+
+        generator = emr_trigger.run()
+        response = await generator.asend(None)
+
+        assert a_mock.get_waiter().wait.call_count == 4
+        assert response == TriggerEvent({"status": "success"})
+
+    @pytest.mark.asyncio
+    @mock.patch("asyncio.sleep")
+    @mock.patch.object(EmrHook, "async_conn")
+    async def test_emr_trigger_run_attempts_failed(self, mock_async_conn, mock_sleep):
+        """Test trigger does fail if max attempt exceeded and job still not succeeded"""
+        mock_sleep.return_value = True
+        a_mock = mock.MagicMock()
+        mock_async_conn.__aenter__.return_value = a_mock
+
+        error_running = WaiterError(
+            name="test_name",
+            reason="test reason",
+            last_response={"Step": {"Status": {"State": "RUNNING"}}},
+        )
+        error_failed = WaiterError(
+            name="test_name",
+            reason="Waiter encountered a terminal failure state",
+            last_response={"Step": {"Status": {"State": "CANCELLED"}}},
+        )
+
+        a_mock.get_waiter().wait = AsyncMock(side_effect=[error_running, error_failed])
+        mock_sleep.return_value = True
+
+        emr_trigger = EmrStepSensorTrigger(
+            job_flow_id=TEST_JOB_FLOW_ID,
+            step_id=STEP_ID,
+            aws_conn_id=AWS_CONN_ID,
+            poll_interval=POLL_INTERVAL,
+        )
+
+        with pytest.raises(AirflowException) as exc:
+            generator = emr_trigger.run()
+            await generator.asend(None)
+
+        assert a_mock.get_waiter().wait.call_count == 2
+        assert "Error while waiting for step s-1234 to complete" in str(exc.value)

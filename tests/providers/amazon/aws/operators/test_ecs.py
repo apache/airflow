@@ -20,13 +20,14 @@ from __future__ import annotations
 import sys
 from copy import deepcopy
 from unittest import mock
+from unittest.mock import MagicMock, PropertyMock
 
 import boto3
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
-from airflow.providers.amazon.aws.hooks.ecs import EcsHook
+from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook
 from airflow.providers.amazon.aws.operators.ecs import (
     DEFAULT_CONN_ID,
     EcsBaseOperator,
@@ -35,8 +36,9 @@ from airflow.providers.amazon.aws.operators.ecs import (
     EcsDeregisterTaskDefinitionOperator,
     EcsRegisterTaskDefinitionOperator,
     EcsRunTaskOperator,
-    EcsTaskLogFetcher,
 )
+from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
+from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.utils.types import NOTSET
 
 CLUSTER_NAME = "test_cluster"
@@ -186,6 +188,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             "reattach",
             "number_logs_exception",
             "wait_for_completion",
+            "deferrable",
         )
 
     @pytest.mark.parametrize(
@@ -343,7 +346,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         self.ecs._wait_for_task_ended()
         client_mock.get_waiter.assert_called_once_with("tasks_stopped")
         client_mock.get_waiter.return_value.wait.assert_called_once_with(
-            cluster="c", tasks=["arn"], WaiterConfig={}
+            cluster="c", tasks=["arn"], WaiterConfig={"Delay": 6, "MaxAttempts": 100}
         )
         assert sys.maxsize == client_mock.get_waiter.return_value.config.max_attempts
 
@@ -368,7 +371,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
     @mock.patch.object(EcsBaseOperator, "client")
-    @mock.patch("airflow.providers.amazon.aws.hooks.ecs.EcsTaskLogFetcher")
+    @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
     def test_check_success_tasks_raises_cloudwatch_logs(self, log_fetcher_mock, client_mock):
         self.ecs.arn = "arn"
         self.ecs.task_log_fetcher = log_fetcher_mock
@@ -387,7 +390,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         client_mock.describe_tasks.assert_called_once_with(cluster="c", tasks=["arn"])
 
     @mock.patch.object(EcsBaseOperator, "client")
-    @mock.patch("airflow.providers.amazon.aws.hooks.ecs.EcsTaskLogFetcher")
+    @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
     def test_check_success_tasks_raises_cloudwatch_logs_empty(self, log_fetcher_mock, client_mock):
         self.ecs.arn = "arn"
         self.ecs.task_log_fetcher = log_fetcher_mock
@@ -624,7 +627,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
 
     @mock.patch.object(EcsBaseOperator, "client")
-    @mock.patch("airflow.providers.amazon.aws.hooks.ecs.EcsTaskLogFetcher")
+    @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
     def test_execute_xcom_with_log(self, log_fetcher_mock, client_mock):
         self.ecs.do_xcom_push = True
         self.ecs.task_log_fetcher = log_fetcher_mock
@@ -634,7 +637,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.execute(None) == "Log output"
 
     @mock.patch.object(EcsBaseOperator, "client")
-    @mock.patch("airflow.providers.amazon.aws.hooks.ecs.EcsTaskLogFetcher")
+    @mock.patch("airflow.providers.amazon.aws.utils.task_log_fetcher.AwsTaskLogFetcher")
     def test_execute_xcom_with_no_log(self, log_fetcher_mock, client_mock):
         self.ecs.do_xcom_push = True
         self.ecs.task_log_fetcher = log_fetcher_mock
@@ -649,10 +652,35 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
         assert self.ecs.execute(None) is None
 
     @mock.patch.object(EcsBaseOperator, "client")
-    @mock.patch.object(EcsTaskLogFetcher, "get_last_log_message", return_value="Log output")
+    @mock.patch.object(AwsTaskLogFetcher, "get_last_log_message", return_value="Log output")
     def test_execute_xcom_disabled(self, log_fetcher_mock, client_mock):
         self.ecs.do_xcom_push = False
         assert self.ecs.execute(None) is None
+
+    @mock.patch.object(EcsRunTaskOperator, "client")
+    def test_with_defer(self, client_mock):
+        self.ecs.deferrable = True
+
+        client_mock.run_task.return_value = RESPONSE_WITHOUT_FAILURES
+
+        with pytest.raises(TaskDeferred) as deferred:
+            self.ecs.execute(None)
+
+        assert isinstance(deferred.value.trigger, TaskDoneTrigger)
+        assert deferred.value.trigger.task_arn == f"arn:aws:ecs:us-east-1:012345678910:task/{TASK_ID}"
+
+    @mock.patch.object(EcsRunTaskOperator, "client", new_callable=PropertyMock)
+    @mock.patch.object(EcsRunTaskOperator, "_xcom_del")
+    def test_execute_complete(self, xcom_del_mock: MagicMock, client_mock):
+        event = {"status": "success", "task_arn": "my_arn"}
+        self.ecs.reattach = True
+
+        self.ecs.execute_complete(None, event)
+
+        # task gets described to assert its success
+        client_mock().describe_tasks.assert_called_once_with(cluster="c", tasks=["my_arn"])
+        # if reattach mode, xcom value is deleted on success
+        xcom_del_mock.assert_called_once()
 
 
 class TestEcsCreateClusterOperator(EcsBaseTestCase):
@@ -679,6 +707,26 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
             expected_waiter_config["MaxAttempts"] = waiter_max_attempts
         mocked_waiters.wait.assert_called_once_with(clusters=mock.ANY, WaiterConfig=expected_waiter_config)
         assert result is not None
+
+    @mock.patch.object(EcsCreateClusterOperator, "client")
+    def test_execute_deferrable(self, mock_client: MagicMock):
+        op = EcsCreateClusterOperator(
+            task_id="task",
+            cluster_name=CLUSTER_NAME,
+            deferrable=True,
+            waiter_delay=12,
+            waiter_max_attempts=34,
+        )
+        mock_client.create_cluster.return_value = {
+            "cluster": {"status": EcsClusterStates.PROVISIONING, "clusterArn": "my arn"}
+        }
+
+        with pytest.raises(TaskDeferred) as defer:
+            op.execute(None)
+
+        assert defer.value.trigger.cluster_arn == "my arn"
+        assert defer.value.trigger.waiter_delay == 12
+        assert defer.value.trigger.attempts == 34
 
     def test_execute_immediate_create(self, patch_hook_waiters):
         """Test if cluster created during initial request."""
@@ -724,6 +772,26 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
             expected_waiter_config["MaxAttempts"] = waiter_max_attempts
         mocked_waiters.wait.assert_called_once_with(clusters=mock.ANY, WaiterConfig=expected_waiter_config)
         assert result is not None
+
+    @mock.patch.object(EcsDeleteClusterOperator, "client")
+    def test_execute_deferrable(self, mock_client: MagicMock):
+        op = EcsDeleteClusterOperator(
+            task_id="task",
+            cluster_name=CLUSTER_NAME,
+            deferrable=True,
+            waiter_delay=12,
+            waiter_max_attempts=34,
+        )
+        mock_client.delete_cluster.return_value = {
+            "cluster": {"status": EcsClusterStates.DEPROVISIONING, "clusterArn": "my arn"}
+        }
+
+        with pytest.raises(TaskDeferred) as defer:
+            op.execute(None)
+
+        assert defer.value.trigger.cluster_arn == "my arn"
+        assert defer.value.trigger.waiter_delay == 12
+        assert defer.value.trigger.attempts == 34
 
     def test_execute_immediate_delete(self, patch_hook_waiters):
         """Test if cluster deleted during initial request."""

@@ -256,15 +256,17 @@ class TestFlowerDeployment:
             values={
                 "flower": {
                     "enabled": True,
-                    "extraVolumes": [{"name": "myvolume", "emptyDir": {}}],
-                    "extraVolumeMounts": [{"name": "myvolume", "mountPath": "/opt/test"}],
+                    "extraVolumes": [{"name": "myvolume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumeMounts": [{"name": "myvolume-{{ .Chart.Name }}", "mountPath": "/opt/test"}],
                 },
             },
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
-        assert {"name": "myvolume", "emptyDir": {}} in jmespath.search("spec.template.spec.volumes", docs[0])
-        assert {"name": "myvolume", "mountPath": "/opt/test"} in jmespath.search(
+        assert {"name": "myvolume-airflow", "emptyDir": {}} in jmespath.search(
+            "spec.template.spec.volumes", docs[0]
+        )
+        assert {"name": "myvolume-airflow", "mountPath": "/opt/test"} in jmespath.search(
             "spec.template.spec.containers[0].volumeMounts", docs[0]
         )
 

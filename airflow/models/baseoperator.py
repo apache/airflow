@@ -49,6 +49,7 @@ from typing import (
 import attr
 import pendulum
 from dateutil.relativedelta import relativedelta
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -85,6 +86,7 @@ from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.decorators import fixup_decorator_warning_stack
+from airflow.utils.edgemodifier import EdgeModifier
 from airflow.utils.helpers import validate_key
 from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -720,25 +722,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # Set to True for an operator instantiated by a mapped operator.
     __from_mapped = False
 
-    is_setup = False
-    """
-    Whether the operator is a setup task
-
-    :meta private:
-    """
-    is_teardown = False
-    """
-    Whether the operator is a teardown task
-
-    :meta private:
-    """
-    on_failure_fail_dagrun = False
-    """
-    Whether the operator should fail the dagrun on failure
-
-    :meta private:
-    """
-
     def __init__(
         self,
         task_id: str,
@@ -975,27 +958,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if SetupTeardownContext.active:
             SetupTeardownContext.update_context_map(self)
 
-    @classmethod
-    def as_setup(cls, *args, **kwargs):
-        op = cls(*args, **kwargs)
-        op.is_setup = True
-        return op
-
-    @classmethod
-    def as_teardown(cls, *args, **kwargs):
-        on_failure_fail_dagrun = kwargs.pop("on_failure_fail_dagrun", False)
-        if "trigger_rule" in kwargs:
-            raise ValueError("Cannot set trigger rule for teardown tasks.")
-        op = cls(*args, **kwargs, trigger_rule=TriggerRule.ALL_DONE_SETUP_SUCCESS)
-        op.is_teardown = True
-        op.on_failure_fail_dagrun = on_failure_fail_dagrun
-        return op
-
     def __enter__(self):
         if not self.is_setup and not self.is_teardown:
             raise AirflowException("Only setup/teardown tasks can be used as context managers.")
         SetupTeardownContext.push_setup_teardown_task(self)
-        return self
+        return SetupTeardownContext
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         SetupTeardownContext.set_work_task_roots_and_leaves()
@@ -1290,12 +1257,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         Clears the state of task instances associated with the task, following
         the parameters specified.
         """
-        qry = session.query(TaskInstance).filter(TaskInstance.dag_id == self.dag_id)
+        qry = select(TaskInstance).where(TaskInstance.dag_id == self.dag_id)
 
         if start_date:
-            qry = qry.filter(TaskInstance.execution_date >= start_date)
+            qry = qry.where(TaskInstance.execution_date >= start_date)
         if end_date:
-            qry = qry.filter(TaskInstance.execution_date <= end_date)
+            qry = qry.where(TaskInstance.execution_date <= end_date)
 
         tasks = [self.task_id]
 
@@ -1305,8 +1272,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if downstream:
             tasks += [t.task_id for t in self.get_flat_relatives(upstream=False)]
 
-        qry = qry.filter(TaskInstance.task_id.in_(tasks))
-        results = qry.all()
+        qry = qry.where(TaskInstance.task_id.in_(tasks))
+        results = session.scalars(qry).all()
         count = len(results)
         clear_task_instances(results, session, dag=self.dag)
         session.commit()
@@ -1323,16 +1290,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         from airflow.models import DagRun
 
         end_date = end_date or timezone.utcnow()
-        return (
-            session.query(TaskInstance)
+        return session.scalars(
+            select(TaskInstance)
             .join(TaskInstance.dag_run)
-            .filter(TaskInstance.dag_id == self.dag_id)
-            .filter(TaskInstance.task_id == self.task_id)
-            .filter(DagRun.execution_date >= start_date)
-            .filter(DagRun.execution_date <= end_date)
+            .where(TaskInstance.dag_id == self.dag_id)
+            .where(TaskInstance.task_id == self.task_id)
+            .where(DagRun.execution_date >= start_date)
+            .where(DagRun.execution_date <= end_date)
             .order_by(DagRun.execution_date)
-            .all()
-        )
+        ).all()
 
     @provide_session
     def run(
@@ -1361,14 +1327,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         for info in self.dag.iter_dagrun_infos_between(start_date, end_date, align=False):
             ignore_depends_on_past = info.logical_date == start_date and ignore_first_depends_on_past
             try:
-                dag_run = (
-                    session.query(DagRun)
-                    .filter(
+                dag_run = session.scalars(
+                    select(DagRun).where(
                         DagRun.dag_id == self.dag_id,
                         DagRun.execution_date == info.logical_date,
                     )
-                    .one()
-                )
+                ).one()
                 ti = TaskInstance(self, run_id=dag_run.run_id)
             except NoResultFound:
                 # This is _mostly_ only used in tests
@@ -1836,6 +1800,44 @@ def cross_downstream(
     """
     for task in from_tasks:
         task.set_downstream(to_tasks)
+
+
+def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
+    """
+    Helper to simplify task dependency definition.
+
+    E.g.: suppose you want precedence like so::
+
+            ╭─op2─╮ ╭─op4─╮
+        op1─┤     ├─├─op5─┤─op7
+            ╰-op3─╯ ╰-op6─╯
+
+    Then you can accomplish like so::
+
+        chain_linear(
+            op1,
+            [op2, op3],
+            [op4, op5, op6],
+            op7
+        )
+
+    :param elements: a list of operators / lists of operators
+    """
+    if not elements:
+        raise ValueError("No tasks provided; nothing to do.")
+    prev_elem = None
+    deps_set = False
+    for curr_elem in elements:
+        if isinstance(curr_elem, EdgeModifier):
+            raise ValueError("Labels are not supported by chain_linear")
+        if prev_elem is not None:
+            for task in prev_elem:
+                task >> curr_elem
+                if not deps_set:
+                    deps_set = True
+        prev_elem = [curr_elem] if isinstance(curr_elem, DependencyMixin) else curr_elem
+    if not deps_set:
+        raise ValueError("No dependencies were set. Did you forget to expand with `*`?")
 
 
 # pyupgrade assumes all type annotations can be lazily evaluated, but this is

@@ -30,10 +30,12 @@ from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, Em
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
+    EmrContainerTrigger,
     EmrCreateJobFlowTrigger,
     EmrTerminateJobFlowTrigger,
 )
 from airflow.providers.amazon.aws.utils.waiter import waiter
+from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.utils.helpers import exactly_one, prune_dict
 from airflow.utils.types import NOTSET, ArgNotSet
 
@@ -479,6 +481,7 @@ class EmrContainerOperator(BaseOperator):
         Defaults to None, which will poll until the job is *not* in a pending, submitted, or running state.
     :param tags: The tags assigned to job runs.
         Defaults to None
+    :param deferrable: Run operator in the deferrable mode.
     """
 
     template_fields: Sequence[str] = (
@@ -507,6 +510,7 @@ class EmrContainerOperator(BaseOperator):
         max_tries: int | None = None,
         tags: dict | None = None,
         max_polling_attempts: int | None = None,
+        deferrable: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -523,6 +527,7 @@ class EmrContainerOperator(BaseOperator):
         self.max_polling_attempts = max_polling_attempts
         self.tags = tags
         self.job_id: str | None = None
+        self.deferrable = deferrable
 
         if max_tries:
             warnings.warn(
@@ -555,6 +560,26 @@ class EmrContainerOperator(BaseOperator):
             self.client_request_token,
             self.tags,
         )
+        if self.deferrable:
+            query_status = self.hook.check_query_status(job_id=self.job_id)
+            self.check_failure(query_status)
+            if query_status in EmrContainerHook.SUCCESS_STATES:
+                return self.job_id
+            timeout = (
+                timedelta(seconds=self.max_polling_attempts * self.poll_interval)
+                if self.max_polling_attempts
+                else self.execution_timeout
+            )
+            self.defer(
+                timeout=timeout,
+                trigger=EmrContainerTrigger(
+                    virtual_cluster_id=self.virtual_cluster_id,
+                    job_id=self.job_id,
+                    aws_conn_id=self.aws_conn_id,
+                    poll_interval=self.poll_interval,
+                ),
+                method_name="execute_complete",
+            )
         if self.wait_for_completion:
             query_status = self.hook.poll_query_status(
                 self.job_id,
@@ -562,19 +587,29 @@ class EmrContainerOperator(BaseOperator):
                 poll_interval=self.poll_interval,
             )
 
-            if query_status in EmrContainerHook.FAILURE_STATES:
-                error_message = self.hook.get_job_failure_reason(self.job_id)
-                raise AirflowException(
-                    f"EMR Containers job failed. Final state is {query_status}. "
-                    f"query_execution_id is {self.job_id}. Error: {error_message}"
-                )
-            elif not query_status or query_status in EmrContainerHook.INTERMEDIATE_STATES:
+            self.check_failure(query_status)
+            if not query_status or query_status in EmrContainerHook.INTERMEDIATE_STATES:
                 raise AirflowException(
                     f"Final state of EMR Containers job is {query_status}. "
                     f"Max tries of poll status exceeded, query_execution_id is {self.job_id}."
                 )
 
         return self.job_id
+
+    def check_failure(self, query_status):
+        if query_status in EmrContainerHook.FAILURE_STATES:
+            error_message = self.hook.get_job_failure_reason(self.job_id)
+            raise AirflowException(
+                f"EMR Containers job failed. Final state is {query_status}. "
+                f"query_execution_id is {self.job_id}. Error: {error_message}"
+            )
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+
+        self.log.info("%s", event["message"])
+        return event["job_id"]
 
     def on_kill(self) -> None:
         """Cancel the submitted job run."""
@@ -600,8 +635,8 @@ class EmrContainerOperator(BaseOperator):
 class EmrCreateJobFlowOperator(BaseOperator):
     """
     Creates an EMR JobFlow, reading the config from the EMR connection.
-    A dictionary of JobFlow overrides can be passed that override
-    the config from the connection.
+
+    A dictionary of JobFlow overrides can be passed that override the config from the connection.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -762,10 +797,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         return event["job_flow_id"]
 
     def on_kill(self) -> None:
-        """
-        Terminate the EMR cluster (job flow). If TerminationProtected=True on the cluster,
-        termination will be unsuccessful.
-        """
+        """Terminate the EMR cluster (job flow) unless TerminationProtected is enabled on the cluster."""
         if self._job_flow_id:
             self.log.info("Terminating job flow %s", self._job_flow_id)
             self._emr_hook.conn.terminate_job_flows(JobFlowIds=[self._job_flow_id])
@@ -945,10 +977,13 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
       Its value must be unique for each request.
     :param config: Optional dictionary for arbitrary parameters to the boto API create_application call.
     :param aws_conn_id: AWS connection to use
-    :param waiter_countdown: Total amount of time, in seconds, the operator will wait for
+    :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for
         the application to start. Defaults to 25 minutes.
-    :param waiter_check_interval_seconds: Number of seconds between polling the state of the application.
-        Defaults to 60 seconds.
+    :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state
+        of the application. Defaults to 60 seconds.
+    :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
+        If not set, the waiter will use its default value.
+    :param waiter_delay: Number of seconds between polling the state of the application.
     """
 
     def __init__(
@@ -959,18 +994,41 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         config: dict | None = None,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
-        waiter_countdown: int = 25 * 60,
-        waiter_check_interval_seconds: int = 60,
+        waiter_countdown: int | ArgNotSet = NOTSET,
+        waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
+        waiter_max_attempts: int | ArgNotSet = NOTSET,
+        waiter_delay: int | ArgNotSet = NOTSET,
         **kwargs,
     ):
+        if waiter_check_interval_seconds is NOTSET:
+            waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
+        else:
+            waiter_delay = waiter_check_interval_seconds if waiter_delay is NOTSET else waiter_delay
+            warnings.warn(
+                "The parameter waiter_check_interval_seconds has been deprecated to standardize "
+                "naming conventions.  Please use waiter_delay instead.  In the "
+                "future this will default to None and defer to the waiter's default value."
+            )
+        if waiter_countdown is NOTSET:
+            waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
+        else:
+            if waiter_max_attempts is NOTSET:
+                # ignoring mypy because it doesn't like ArgNotSet as an operand, but neither variables
+                # are of type ArgNotSet at this point.
+                waiter_max_attempts = waiter_countdown // waiter_delay  # type: ignore[operator]
+            warnings.warn(
+                "The parameter waiter_countdown has been deprecated to standardize "
+                "naming conventions.  Please use waiter_max_attempts instead. In the "
+                "future this will default to None and defer to the waiter's default value."
+            )
         self.aws_conn_id = aws_conn_id
         self.release_label = release_label
         self.job_type = job_type
         self.wait_for_completion = wait_for_completion
         self.kwargs = kwargs
         self.config = config or {}
-        self.waiter_countdown = waiter_countdown
-        self.waiter_check_interval_seconds = waiter_check_interval_seconds
+        self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
+        self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -993,37 +1051,31 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             raise AirflowException(f"Application Creation failed: {response}")
 
         self.log.info("EMR serverless application created: %s", application_id)
+        waiter = self.hook.get_waiter("serverless_app_created")
 
-        # This should be replaced with a boto waiter when available.
-        waiter(
-            get_state_callable=self.hook.conn.get_application,
-            get_state_args={"applicationId": application_id},
-            parse_response=["application", "state"],
-            desired_state={"CREATED"},
-            failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
-            object_type="application",
-            action="created",
-            countdown=self.waiter_countdown,
-            check_interval_seconds=self.waiter_check_interval_seconds,
+        wait(
+            waiter=waiter,
+            waiter_delay=self.waiter_delay,
+            waiter_max_attempts=self.waiter_max_attempts,
+            args={"applicationId": application_id},
+            failure_message="Serverless Application creation failed",
+            status_message="Serverless Application status is",
+            status_args=["application.state", "application.stateDetails"],
         )
-
         self.log.info("Starting application %s", application_id)
         self.hook.conn.start_application(applicationId=application_id)
 
         if self.wait_for_completion:
-            # This should be replaced with a boto waiter when available.
-            waiter(
-                get_state_callable=self.hook.conn.get_application,
-                get_state_args={"applicationId": application_id},
-                parse_response=["application", "state"],
-                desired_state={"STARTED"},
-                failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
-                object_type="application",
-                action="started",
-                countdown=self.waiter_countdown,
-                check_interval_seconds=self.waiter_check_interval_seconds,
+            waiter = self.hook.get_waiter("serverless_app_started")
+            wait(
+                waiter=waiter,
+                waiter_max_attempts=self.waiter_max_attempts,
+                waiter_delay=self.waiter_delay,
+                args={"applicationId": application_id},
+                failure_message="Serverless Application failed to start",
+                status_message="Serverless Application status is",
+                status_args=["application.state", "application.stateDetails"],
             )
-
         return application_id
 
 
@@ -1047,10 +1099,13 @@ class EmrServerlessStartJobOperator(BaseOperator):
         when waiting for the application be to in the ``STARTED`` state.
     :param aws_conn_id: AWS connection to use.
     :param name: Name for the EMR Serverless job. If not provided, a default name will be assigned.
-    :param waiter_countdown: Total amount of time, in seconds, the operator will wait for
+    :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for
         the job finish. Defaults to 25 minutes.
-    :param waiter_check_interval_seconds: Number of seconds between polling the state of the job.
+    :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state of the job.
         Defaults to 60 seconds.
+    :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
+        If not set, the waiter will use its default value.
+    :param waiter_delay: Number of seconds between polling the state of the job run.
     """
 
     template_fields: Sequence[str] = (
@@ -1077,10 +1132,33 @@ class EmrServerlessStartJobOperator(BaseOperator):
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         name: str | None = None,
-        waiter_countdown: int = 25 * 60,
-        waiter_check_interval_seconds: int = 60,
+        waiter_countdown: int | ArgNotSet = NOTSET,
+        waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
+        waiter_max_attempts: int | ArgNotSet = NOTSET,
+        waiter_delay: int | ArgNotSet = NOTSET,
         **kwargs,
     ):
+        if waiter_check_interval_seconds is NOTSET:
+            waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
+        else:
+            waiter_delay = waiter_check_interval_seconds if waiter_delay is NOTSET else waiter_delay
+            warnings.warn(
+                "The parameter waiter_check_interval_seconds has been deprecated to standardize "
+                "naming conventions.  Please use waiter_delay instead.  In the "
+                "future this will default to None and defer to the waiter's default value."
+            )
+        if waiter_countdown is NOTSET:
+            waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
+        else:
+            if waiter_max_attempts is NOTSET:
+                # ignoring mypy because it doesn't like ArgNotSet as an operand, but neither variables
+                # are of type ArgNotSet at this point.
+                waiter_max_attempts = waiter_countdown // waiter_delay  # type: ignore[operator]
+            warnings.warn(
+                "The parameter waiter_countdown has been deprecated to standardize "
+                "naming conventions.  Please use waiter_max_attempts instead.  In the "
+                "future this will default to None and defer to the waiter's default value."
+            )
         self.aws_conn_id = aws_conn_id
         self.application_id = application_id
         self.execution_role_arn = execution_role_arn
@@ -1089,8 +1167,8 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         self.config = config or {}
         self.name = name or self.config.pop("name", f"emr_serverless_job_airflow_{uuid4()}")
-        self.waiter_countdown = waiter_countdown
-        self.waiter_check_interval_seconds = waiter_check_interval_seconds
+        self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
+        self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
         self.job_id: str | None = None
         super().__init__(**kwargs)
 
@@ -1107,17 +1185,16 @@ class EmrServerlessStartJobOperator(BaseOperator):
         app_state = self.hook.conn.get_application(applicationId=self.application_id)["application"]["state"]
         if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
             self.hook.conn.start_application(applicationId=self.application_id)
+            waiter = self.hook.get_waiter("serverless_app_started")
 
-            waiter(
-                get_state_callable=self.hook.conn.get_application,
-                get_state_args={"applicationId": self.application_id},
-                parse_response=["application", "state"],
-                desired_state={"STARTED"},
-                failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
-                object_type="application",
-                action="started",
-                countdown=self.waiter_countdown,
-                check_interval_seconds=self.waiter_check_interval_seconds,
+            wait(
+                waiter=waiter,
+                waiter_max_attempts=self.waiter_max_attempts,
+                waiter_delay=self.waiter_delay,
+                args={"applicationId": self.application_id},
+                failure_message="Serverless Application failed to start",
+                status_message="Serverless Application status is",
+                status_args=["application.state", "application.stateDetails"],
             )
 
         response = self.hook.conn.start_job_run(
@@ -1136,21 +1213,17 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.job_id = response["jobRunId"]
         self.log.info("EMR serverless job started: %s", self.job_id)
         if self.wait_for_completion:
-            # This should be replaced with a boto waiter when available.
-            waiter(
-                get_state_callable=self.hook.conn.get_job_run,
-                get_state_args={
-                    "applicationId": self.application_id,
-                    "jobRunId": self.job_id,
-                },
-                parse_response=["jobRun", "state"],
-                desired_state=EmrServerlessHook.JOB_SUCCESS_STATES,
-                failure_states=EmrServerlessHook.JOB_FAILURE_STATES,
-                object_type="job",
-                action="run",
-                countdown=self.waiter_countdown,
-                check_interval_seconds=self.waiter_check_interval_seconds,
+            waiter = self.hook.get_waiter("serverless_job_completed")
+            wait(
+                waiter=waiter,
+                waiter_max_attempts=self.waiter_max_attempts,
+                waiter_delay=self.waiter_delay,
+                args={"applicationId": self.application_id, "jobRunId": self.job_id},
+                failure_message="Serverless Job failed",
+                status_message="Serverless Job status is",
+                status_args=["jobRun.state", "jobRun.stateDetails"],
             )
+
         return self.job_id
 
     def on_kill(self) -> None:
@@ -1180,8 +1253,8 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 failure_states=set(),
                 object_type="job",
                 action="cancelled",
-                countdown=self.waiter_countdown,
-                check_interval_seconds=self.waiter_check_interval_seconds,
+                countdown=self.waiter_delay * self.waiter_max_attempts,
+                check_interval_seconds=self.waiter_delay,
             )
 
 
@@ -1213,16 +1286,39 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         application_id: str,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
-        waiter_countdown: int = 5 * 60,
-        waiter_check_interval_seconds: int = 30,
+        waiter_countdown: int | ArgNotSet = NOTSET,
+        waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
+        waiter_max_attempts: int | ArgNotSet = NOTSET,
+        waiter_delay: int | ArgNotSet = NOTSET,
         force_stop: bool = False,
         **kwargs,
     ):
+        if waiter_check_interval_seconds is NOTSET:
+            waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
+        else:
+            waiter_delay = waiter_check_interval_seconds if waiter_delay is NOTSET else waiter_delay
+            warnings.warn(
+                "The parameter waiter_check_interval_seconds has been deprecated to standardize "
+                "naming conventions.  Please use waiter_delay instead.  In the "
+                "future this will default to None and defer to the waiter's default value."
+            )
+        if waiter_countdown is NOTSET:
+            waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
+        else:
+            if waiter_max_attempts is NOTSET:
+                # ignoring mypy because it doesn't like ArgNotSet as an operand, but neither variables
+                # are of type ArgNotSet at this point.
+                waiter_max_attempts = waiter_countdown // waiter_delay  # type: ignore[operator]
+            warnings.warn(
+                "The parameter waiter_countdown has been deprecated to standardize "
+                "naming conventions.  Please use waiter_max_attempts instead.  In the "
+                "future this will default to None and defer to the waiter's default value."
+            )
         self.aws_conn_id = aws_conn_id
         self.application_id = application_id
         self.wait_for_completion = wait_for_completion
-        self.waiter_countdown = waiter_countdown
-        self.waiter_check_interval_seconds = waiter_check_interval_seconds
+        self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
+        self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
         self.force_stop = force_stop
         super().__init__(**kwargs)
 
@@ -1238,27 +1334,23 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             self.hook.cancel_running_jobs(
                 self.application_id,
                 waiter_config={
-                    "Delay": self.waiter_check_interval_seconds,
-                    "MaxAttempts": self.waiter_countdown / self.waiter_check_interval_seconds,
+                    "Delay": self.waiter_delay,
+                    "MaxAttempts": self.waiter_max_attempts,
                 },
             )
 
         self.hook.conn.stop_application(applicationId=self.application_id)
 
         if self.wait_for_completion:
-            # This should be replaced with a boto waiter when available.
-            waiter(
-                get_state_callable=self.hook.conn.get_application,
-                get_state_args={
-                    "applicationId": self.application_id,
-                },
-                parse_response=["application", "state"],
-                desired_state=EmrServerlessHook.APPLICATION_FAILURE_STATES,
-                failure_states=set(),
-                object_type="application",
-                action="stopped",
-                countdown=self.waiter_countdown,
-                check_interval_seconds=self.waiter_check_interval_seconds,
+            waiter = self.hook.get_waiter("serverless_app_stopped")
+            wait(
+                waiter=waiter,
+                waiter_max_attempts=self.waiter_max_attempts,
+                waiter_delay=self.waiter_delay,
+                args={"applicationId": self.application_id},
+                failure_message="Error stopping application",
+                status_message="Serverless Application status is",
+                status_args=["application.state", "application.stateDetails"],
             )
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)
 
@@ -1292,11 +1384,34 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         application_id: str,
         wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
-        waiter_countdown: int = 25 * 60,
-        waiter_check_interval_seconds: int = 60,
+        waiter_countdown: int | ArgNotSet = NOTSET,
+        waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
+        waiter_max_attempts: int | ArgNotSet = NOTSET,
+        waiter_delay: int | ArgNotSet = NOTSET,
         force_stop: bool = False,
         **kwargs,
     ):
+        if waiter_check_interval_seconds is NOTSET:
+            waiter_delay = 60 if waiter_delay is NOTSET else waiter_delay
+        else:
+            waiter_delay = waiter_check_interval_seconds if waiter_delay is NOTSET else waiter_delay
+            warnings.warn(
+                "The parameter waiter_check_interval_seconds has been deprecated to standardize "
+                "naming conventions.  Please use waiter_delay instead.  In the "
+                "future this will default to None and defer to the waiter's default value."
+            )
+        if waiter_countdown is NOTSET:
+            waiter_max_attempts = 25 if waiter_max_attempts is NOTSET else waiter_max_attempts
+        else:
+            if waiter_max_attempts is NOTSET:
+                # ignoring mypy because it doesn't like ArgNotSet as an operand, but neither variables
+                # are of type ArgNotSet at this point.
+                waiter_max_attempts = waiter_countdown // waiter_delay  # type: ignore[operator]
+            warnings.warn(
+                "The parameter waiter_countdown has been deprecated to standardize "
+                "naming conventions.  Please use waiter_max_attempts instead.  In the "
+                "future this will default to None and defer to the waiter's default value."
+            )
         self.wait_for_delete_completion = wait_for_completion
         # super stops the app
         super().__init__(
@@ -1304,8 +1419,8 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
             # when deleting an app, we always need to wait for it to stop before we can call delete()
             wait_for_completion=True,
             aws_conn_id=aws_conn_id,
-            waiter_countdown=waiter_countdown,
-            waiter_check_interval_seconds=waiter_check_interval_seconds,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
             force_stop=force_stop,
             **kwargs,
         )
@@ -1321,17 +1436,16 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
             raise AirflowException(f"Application deletion failed: {response}")
 
         if self.wait_for_delete_completion:
-            # This should be replaced with a boto waiter when available.
-            waiter(
-                get_state_callable=self.hook.conn.get_application,
-                get_state_args={"applicationId": self.application_id},
-                parse_response=["application", "state"],
-                desired_state={"TERMINATED"},
-                failure_states=EmrServerlessHook.APPLICATION_FAILURE_STATES,
-                object_type="application",
-                action="deleted",
-                countdown=self.waiter_countdown,
-                check_interval_seconds=self.waiter_check_interval_seconds,
+            waiter = self.hook.get_waiter("serverless_app_terminated")
+
+            wait(
+                waiter=waiter,
+                waiter_max_attempts=self.waiter_max_attempts,
+                waiter_delay=self.waiter_delay,
+                args={"applicationId": self.application_id},
+                failure_message="Error terminating application",
+                status_message="Serverless Application status is",
+                status_args=["application.state", "application.stateDetails"],
             )
 
         self.log.info("EMR serverless application deleted")

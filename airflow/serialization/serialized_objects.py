@@ -960,7 +960,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls.deserialize(v)
             elif k in ("outlets", "inlets"):
                 v = cls.deserialize(v)
-
+            elif k == "on_failure_fail_dagrun":
+                k = "_on_failure_fail_dagrun"
             # else use v as it is
 
             setattr(op, k, v)
@@ -1087,6 +1088,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def _deserialize_operator_extra_links(cls, encoded_op_links: list) -> dict[str, BaseOperatorLink]:
         """
         Deserialize Operator Links if the Classes are registered in Airflow Plugins.
+
         Error is raised if the OperatorLink is not found in Plugins too.
 
         :param encoded_op_links: Serialized Operator Link
@@ -1238,7 +1240,7 @@ class SerializedDAG(DAG, BaseSerialization):
                 for dep in SerializedBaseOperator.detect_dependencies(task)
             }
             dag_deps.update(DependencyDetector.detect_dag_dependencies(dag))
-            serialized_dag["dag_dependencies"] = [x.__dict__ for x in dag_deps]
+            serialized_dag["dag_dependencies"] = [x.__dict__ for x in sorted(dag_deps)]
             serialized_dag["_task_group"] = TaskGroupSerialization.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
@@ -1444,9 +1446,11 @@ class TaskGroupSerialization(BaseSerialization):
         return group
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class DagDependency:
-    """Dataclass for representing dependencies between DAGs.
+    """
+    Dataclass for representing dependencies between DAGs.
+
     These are calculated during serialization and attached to serialized DAGs.
     """
 

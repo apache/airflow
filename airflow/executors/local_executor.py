@@ -203,8 +203,8 @@ class QueuedLocalWorker(LocalWorkerBase):
 class LocalExecutor(BaseExecutor):
     """
     LocalExecutor executes tasks locally in parallel.
-    It uses the multiprocessing Python library and queues to parallelize the execution
-    of tasks.
+
+    It uses the multiprocessing Python library and queues to parallelize the execution of tasks.
 
     :param parallelism: how many parallel processes are run in the executor
     """

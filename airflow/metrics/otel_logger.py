@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 import logging
 import random
 import warnings
@@ -36,7 +37,6 @@ from airflow.metrics.validators import (
     OTEL_NAME_MAX_LENGTH,
     AllowListValidator,
     stat_name_otel_handler,
-    validate_stat,
 )
 
 log = logging.getLogger(__name__)
@@ -110,11 +110,10 @@ def _type_as_str(obj: Instrument) -> str:
 
 def _get_otel_safe_name(name: str) -> str:
     """
-    OpenTelemetry has a maximum length for metric names.  This method returns the
-    name, truncated if it is too long, and logs a warning so the user will know.
+    Verifies that the provided name does not exceed OpenTelemetry's maximum length for metric names.
 
     :param name: The original metric name
-    :returns: The name, truncated to an OTel-acceptable length if required
+    :returns: The name, truncated to an OTel-acceptable length if required.
     """
     otel_safe_name = name[:OTEL_NAME_MAX_LENGTH]
     if name != otel_safe_name:
@@ -129,6 +128,30 @@ def _skip_due_to_rate(rate: float) -> bool:
     if rate < 0:
         raise ValueError("rate must be a positive value.")
     return rate < 1 and random.random() > rate
+
+
+class _OtelTimer(Timer):
+    """
+    An implementation of Stats.Timer() which records the result in the OTel Metrics Map.
+
+    OpenTelemetry does not have a native timer, we will store the values as a Gauge.
+
+    :param name: The name of the timer.
+    :param tags: Tags to append to the timer.
+    """
+
+    def __init__(self, otel_logger: SafeOtelLogger, name: str | None, tags: Attributes):
+        super().__init__()
+        self.otel_logger = otel_logger
+        self.name = name
+        self.tags = tags
+
+    def stop(self, send: bool = True) -> None:
+        super().stop(send)
+        if self.name and send:
+            self.otel_logger.metrics_map.set_gauge_value(
+                full_name(prefix=self.otel_logger.prefix, name=self.name), self.duration, False, self.tags
+            )
 
 
 class SafeOtelLogger:
@@ -198,7 +221,6 @@ class SafeOtelLogger:
             counter.add(-count, attributes=tags)
             return counter
 
-    @validate_stat
     def gauge(
         self,
         stat: str,
@@ -233,7 +255,6 @@ class SafeOtelLogger:
         if self.metrics_validator.test(stat):
             self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), value, delta, tags)
 
-    @validate_stat
     def timing(
         self,
         stat: str,
@@ -241,10 +262,12 @@ class SafeOtelLogger:
         *,
         tags: Attributes = None,
     ) -> None:
-        warnings.warn(f"Create timer {stat}: OpenTelemetry Timers are not yet implemented.")
-        return None
+        """OTel does not have a native timer, stored as a Gauge whose value is number of seconds elapsed."""
+        if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
+            if isinstance(dt, datetime.timedelta):
+                dt = dt.total_seconds()
+            self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), float(dt), False, tags)
 
-    @validate_stat
     def timer(
         self,
         stat: str | None = None,
@@ -252,8 +275,8 @@ class SafeOtelLogger:
         tags: Attributes = None,
         **kwargs,
     ) -> TimerProtocol:
-        warnings.warn(f"Create timer {stat}: OpenTelemetry Timers are not yet implemented.")
-        return Timer()
+        """Timer context manager returns the duration and can be cancelled."""
+        return _OtelTimer(self, stat, tags)
 
 
 class MetricsMap:
@@ -304,7 +327,7 @@ class MetricsMap:
         if key in self.map.keys():
             del self.map[key]
 
-    def set_gauge_value(self, name: str, value: float, delta: bool, tags: Attributes):
+    def set_gauge_value(self, name: str, value: float | None, delta: bool, tags: Attributes):
         """
         Overrides the last reading for a Gauge with a new value.
 
@@ -315,7 +338,7 @@ class MetricsMap:
         :returns: None
         """
         key: str = _generate_key_name(name, tags)
-        new_value = value
+        new_value = value or DEFAULT_GAUGE_VALUE
         old_value = self.poke_gauge(name, tags)
         if delta:
             new_value += old_value

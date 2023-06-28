@@ -16,13 +16,26 @@
     under the License.
 
 .. NOTE TO CONTRIBUTORS:
-    Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+    Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
     and you want to add an explanation to the users on how they are supposed to deal with them.
     The changelog is updated and maintained semi-automatically by release manager.
 
 
-Changelog
----------
+Changelog for ``apache-airflow-providers-common-sql``
+-----------------------------------------------------
+
+1.5.2
+.....
+
+Misc
+~~~~
+
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
 
 1.5.1
 .....

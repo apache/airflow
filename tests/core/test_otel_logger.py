@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from unittest import mock
 from unittest.mock import ANY
 
@@ -90,7 +91,7 @@ class TestOtelMetrics:
         self.meter.assert_not_called()
 
     def test_old_name_exception_works(self, caplog):
-        name = "task_instance_created-OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit"
+        name = "task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit"
         assert len(name) > OTEL_NAME_MAX_LENGTH
 
         with pytest.warns(MetricNameLengthExemptionWarning):
@@ -121,6 +122,7 @@ class TestOtelMetrics:
         self.stats.incr(name)
 
         assert self.map[full_name(name)].add.call_count == 2
+        self.meter.get_meter().create_counter.assert_called_once_with(name=full_name(name))
 
     @mock.patch("random.random", side_effect=[0.1, 0.9])
     def test_incr_with_rate_limit_works(self, mock_random, name):
@@ -227,13 +229,81 @@ class TestOtelMetrics:
 
         assert self.map[full_name(name)].value == 1
 
-    @mock.patch("warnings.warn")
-    def test_timer_warns_not_implemented(self, mock_warn):
-        class MessageContaining(str):
-            def __eq__(self, other):
-                return self in other
+    def test_timing_new_metric(self, name):
+        self.stats.timing(name, dt=123)
 
-        with self.stats.timer():
-            mock_warn.assert_called_once_with(
-                MessageContaining("OpenTelemetry Timers are not yet implemented.")
-            )
+        self.meter.get_meter().create_observable_gauge.assert_called_once_with(
+            name=full_name(name), callbacks=ANY
+        )
+
+    def test_timing_new_metric_with_tags(self, name):
+        tags = {"hello": "world"}
+        key = _generate_key_name(full_name(name), tags)
+
+        self.stats.timing(name, dt=1, tags=tags)
+
+        self.meter.get_meter().create_observable_gauge.assert_called_once_with(
+            name=full_name(name), callbacks=ANY
+        )
+        self.map[key].attributes == tags
+
+    def test_timing_existing_metric(self, name):
+        self.stats.timing(name, dt=1)
+        self.stats.timing(name, dt=2)
+
+        self.meter.get_meter().create_observable_gauge.assert_called_once_with(
+            name=full_name(name), callbacks=ANY
+        )
+        assert self.map[full_name(name)].value == 2
+
+    # For the four test_timer_foo tests below:
+    #   time.perf_count() is called once to get the starting timestamp and again
+    #   to get the end timestamp.  timer() should return the difference as a float.
+
+    @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
+    def test_timer_with_name_returns_float_and_stores_value(self, mock_time, name):
+        with self.stats.timer(name) as timer:
+            pass
+
+        assert isinstance(timer.duration, float)
+        assert timer.duration == 3.14
+        assert mock_time.call_count == 2
+        self.meter.get_meter().create_observable_gauge.assert_called_once_with(
+            name=full_name(name), callbacks=ANY
+        )
+
+    @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
+    def test_timer_no_name_returns_float_but_does_not_store_value(self, mock_time, name):
+        with self.stats.timer() as timer:
+            pass
+
+        assert isinstance(timer.duration, float)
+        assert timer.duration == 3.14
+        assert mock_time.call_count == 2
+        self.meter.get_meter().create_observable_gauge.assert_not_called()
+
+    @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
+    def test_timer_start_and_stop_manually_send_false(self, mock_time, name):
+        timer = self.stats.timer(name)
+        timer.start()
+        # Perform some task
+        timer.stop(send=False)
+
+        assert isinstance(timer.duration, float)
+        assert timer.duration == 3.14
+        assert mock_time.call_count == 2
+        self.meter.get_meter().create_observable_gauge.assert_not_called()
+
+    @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
+    def test_timer_start_and_stop_manually_send_true(self, mock_time, name):
+        timer = self.stats.timer(name)
+        timer.start()
+        # Perform some task
+        timer.stop(send=True)
+
+        assert isinstance(timer.duration, float)
+        assert timer.duration == 3.14
+        assert mock_time.call_count == 2
+        self.meter.get_meter().create_observable_gauge.assert_called_once_with(
+            name=full_name(name), callbacks=ANY
+        )

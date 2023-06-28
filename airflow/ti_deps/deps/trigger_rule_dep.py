@@ -84,10 +84,7 @@ class _UpstreamTIStates(NamedTuple):
 
 
 class TriggerRuleDep(BaseTIDep):
-    """
-    Determines if a task's upstream tasks are in a state that allows a given task instance
-    to run.
-    """
+    """Determines if a task's upstream tasks are in a state that allows a given task instance to run."""
 
     NAME = "Trigger Rule"
     IGNORABLE = True
