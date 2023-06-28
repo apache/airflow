@@ -185,3 +185,5 @@ Some airflow specific macros are also defined:
 .. _DAG:  :class:`~airflow.models.dag.DAG`
 
 .. _Task: :class:`~airflow.models.baseoperator.BaseOperator`
+
+.. _Task Instance: :class:`~airflow.models.taskinstance.TaskInstance`
