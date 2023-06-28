@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import itertools
 import json
-import sys
 import time
+from unittest import mock
+from unittest.mock import AsyncMock
 
 import aiohttp
 import pytest
@@ -46,13 +47,6 @@ from airflow.providers.databricks.hooks.databricks_base import (
     BearerAuth,
 )
 from airflow.utils.session import provide_session
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-    from asynctest.mock import CoroutineMock as AsyncMock
-else:
-    from unittest import mock
-    from unittest.mock import AsyncMock
 
 TASK_ID = "databricks-operator"
 DEFAULT_CONN_ID = "databricks_default"

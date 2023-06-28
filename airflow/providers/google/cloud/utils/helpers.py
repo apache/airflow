@@ -19,5 +19,5 @@ from __future__ import annotations
 
 
 def normalize_directory_path(source_object: str | None) -> str | None:
-    """Makes sure dir path ends with a slash"""
+    """Makes sure dir path ends with a slash."""
     return source_object + "/" if source_object and not source_object.endswith("/") else source_object

@@ -94,7 +94,7 @@ class TestSageMakerRegisterModelVersionOperator:
 
         create_group_mock.assert_called_once_with("group-name", "")
         conn_mock().create_model_package.assert_called_once()
-        args_dict = conn_mock().create_model_package.call_args[1]
+        args_dict = conn_mock().create_model_package.call_args.kwargs
         assert args_dict["InferenceSpecification"]["Containers"][0]["Image"] == image
         assert args_dict["InferenceSpecification"]["Containers"][0]["ModelDataUrl"] == model
         assert args_dict["ModelPackageGroupName"] == group
@@ -142,5 +142,5 @@ class TestSageMakerRegisterModelVersionOperator:
         op.execute(None)
 
         conn_mock().create_model_package.assert_called_once()
-        args_dict = conn_mock().create_model_package.call_args[1]
+        args_dict = conn_mock().create_model_package.call_args.kwargs
         assert args_dict["InferenceSpecification"]["SupportedResponseMIMETypes"] == response_type

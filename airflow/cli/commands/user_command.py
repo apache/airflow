@@ -112,6 +112,9 @@ def users_delete(args):
     """Deletes user from DB."""
     user = _find_user(args)
 
+    # Clear the associated user roles first.
+    user.roles.clear()
+
     from airflow.utils.cli_app_builder import get_application_builder
 
     with get_application_builder() as appbuilder:

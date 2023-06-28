@@ -17,12 +17,38 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog
----------
+Changelog for ``apache-airflow-providers-apache-hive``
+------------------------------------------------------
+
+
+6.1.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Sanitize beeline principal parameter (#31983)``
+
+Misc
+~~~~
+
+* ``Replace unicodecsv with standard csv library (#31693)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+   * ``Apache provider docstring improvements (#31730)``
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Apache providers only (#31424)``
+   * ``Add Python 3.11 support (#27264)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 6.1.0
 .....

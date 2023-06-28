@@ -46,7 +46,7 @@ def assert_expected_waiter_type(waiter: mock.MagicMock, expected: str):
     :param waiter: A mocked Boto3 Waiter object.
     :param expected: The expected class name of the Waiter object, for example "ClusterActive".
     """
-    assert expected in str(type(waiter.call_args[0][0]))
+    assert expected in str(type(waiter.call_args.args[0]))
 
 
 class TestWaiter:

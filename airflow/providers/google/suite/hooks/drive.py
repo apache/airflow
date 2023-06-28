@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for Google Drive service"""
+"""Hook for Google Drive service."""
 from __future__ import annotations
 
 from typing import IO, Any, Sequence
@@ -145,7 +145,7 @@ class GoogleDriveHook(GoogleBaseHook):
         self, folder_id: str, file_name: str, drive_id: str | None = None, *, include_trashed: bool = True
     ) -> bool:
         """
-        Checks to see if a file exists within a Google Drive folder
+        Checks to see if a file exists within a Google Drive folder.
 
         :param folder_id: The id of the Google Drive folder in which the file resides
         :param file_name: The name of a file in Google Drive
@@ -162,7 +162,8 @@ class GoogleDriveHook(GoogleBaseHook):
 
     def _get_file_info(self, file_id: str):
         """
-        Returns Google API file_info object containing id, name, parents in the response
+        Returns Google API file_info object containing id, name, parents in the response.
+
         https://developers.google.com/drive/api/v3/reference/files/get
 
         :param file_id: id as string representation of interested file
@@ -182,7 +183,7 @@ class GoogleDriveHook(GoogleBaseHook):
 
     def _resolve_file_path(self, file_id: str) -> str:
         """
-        Returns the full Google Drive path for given file_id
+        Returns the full Google Drive path for given file_id.
 
         :param file_id: The id of a file in Google Drive
         :return: Google Drive full path for a file
@@ -210,7 +211,7 @@ class GoogleDriveHook(GoogleBaseHook):
         self, folder_id: str, file_name: str, drive_id: str | None = None, *, include_trashed: bool = True
     ) -> dict:
         """
-        Returns the file id of a Google Drive file
+        Returns the file id of a Google Drive file.
 
         :param folder_id: The id of the Google Drive folder in which the file resides
         :param file_name: The name of a file in Google Drive

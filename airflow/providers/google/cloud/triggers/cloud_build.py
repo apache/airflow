@@ -27,7 +27,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class CloudBuildCreateBuildTrigger(BaseTrigger):
     """
-    CloudBuildCreateBuildTrigger run on the trigger worker to perform create Build operation
+    CloudBuildCreateBuildTrigger run on the trigger worker to perform create Build operation.
 
     :param id_: The ID of the build.
     :param project_id: Google Cloud Project where the job is running
@@ -76,7 +76,7 @@ class CloudBuildCreateBuildTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current build execution status and yields a TriggerEvent"""
+        """Gets current build execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         while True:
             try:

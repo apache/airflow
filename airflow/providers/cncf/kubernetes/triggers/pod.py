@@ -34,7 +34,8 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class ContainerState(str, Enum):
     """
-    Possible container states
+    Possible container states.
+
     See https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase.
     """
 
@@ -136,7 +137,7 @@ class KubernetesPodTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
-        """Gets current pod status and yields a TriggerEvent"""
+        """Gets current pod status and yields a TriggerEvent."""
         hook = self._get_async_hook()
         self.log.info("Checking pod %r in namespace %r.", self.pod_name, self.pod_namespace)
         while True:

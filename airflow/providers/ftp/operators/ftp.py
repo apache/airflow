@@ -19,16 +19,16 @@
 from __future__ import annotations
 
 import os
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.ftp.hooks.ftp import FTPHook, FTPSHook
 
 
 class FTPOperation:
-    """Operation that can be used with FTP"""
+    """Operation that can be used with FTP."""
 
     PUT = "put"
     GET = "get"
@@ -37,8 +37,8 @@ class FTPOperation:
 class FTPFileTransmitOperator(BaseOperator):
     """
     FTPFileTransmitOperator for transferring files from remote host to local or vice a versa.
-    This operator uses an FTPHook to open ftp transport channel that serve as basis
-    for file transfer.
+
+    This operator uses an FTPHook to open ftp transport channel that serve as basis for file transfer.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -139,8 +139,8 @@ class FTPFileTransmitOperator(BaseOperator):
 class FTPSFileTransmitOperator(FTPFileTransmitOperator):
     """
     FTPSFileTransmitOperator for transferring files from remote host to local or vice a versa.
-    This operator uses an FTPSHook to open ftps transport channel that serve as basis
-    for file transfer.
+
+    This operator uses an FTPSHook to open ftps transport channel that serve as basis for file transfer.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

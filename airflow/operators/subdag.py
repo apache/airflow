@@ -16,7 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module is deprecated. Please use :mod:`airflow.utils.task_group`.
+This module is deprecated, please use :mod:`airflow.utils.task_group`.
+
 The module which provides a way to nest your DAGs and so your levels of complexity.
 """
 from __future__ import annotations
@@ -49,8 +50,7 @@ class SkippedStatePropagationOptions(Enum):
 
 class SubDagOperator(BaseSensorOperator):
     """
-    This class is deprecated.
-    Please use `airflow.utils.task_group.TaskGroup`.
+    This class is deprecated, please use `airflow.utils.task_group.TaskGroup`.
 
     This runs a sub dag. By convention, a sub dag's dag_id
     should be prefixed by its parent and a dot. As in `parent.child`.
@@ -226,6 +226,11 @@ class SubDagOperator(BaseSensorOperator):
         self.log.debug("Downstream task_ids %s", downstream_tasks)
 
         if downstream_tasks:
-            self.skip(context["dag_run"], context["execution_date"], downstream_tasks)
+            self.skip(
+                context["dag_run"],
+                context["execution_date"],
+                downstream_tasks,
+                map_index=context["ti"].map_index,
+            )
 
         self.log.info("Done.")

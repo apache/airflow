@@ -20,8 +20,8 @@
 ################################
 ## Airflow Webserver Service
 #################################
-kind: Service
 apiVersion: v1
+kind: Service
 metadata:
   name: {{ .Release.Name }}-webserver
   labels:

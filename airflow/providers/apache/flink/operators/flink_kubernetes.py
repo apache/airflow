@@ -17,11 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from kubernetes.client import CoreV1Api
 
-from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class FlinkKubernetesOperator(BaseOperator):
     """
-    Creates flinkDeployment object in kubernetes cluster:
+    Creates flinkDeployment object in kubernetes cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

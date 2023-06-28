@@ -28,6 +28,7 @@ import sys
 import warnings
 
 from graphviz.dot import Dot
+from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -507,7 +508,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 @cli_utils.action_cli
 def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
     """Serialize a DAG instance."""
-    session.query(SerializedDagModel).delete(synchronize_session=False)
+    session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
 
     if not args.clear_only:
         dagbag = DagBag(process_subdir(args.subdir))

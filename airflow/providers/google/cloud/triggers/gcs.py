@@ -79,10 +79,10 @@ class GCSBlobTrigger(BaseTrigger):
                 )
                 if res == "success":
                     yield TriggerEvent({"status": "success", "message": res})
+                    return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
-            return
 
     def _get_async_hook(self) -> GCSAsyncHook:
         return GCSAsyncHook(gcp_conn_id=self.google_cloud_conn_id, **self.hook_params)
@@ -148,7 +148,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Loop until the object updated time is greater than target datetime"""
+        """Loop until the object updated time is greater than target datetime."""
         try:
             hook = self._get_async_hook()
             while True:
@@ -160,6 +160,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
                 )
                 if status:
                     yield TriggerEvent(res)
+                    return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
@@ -263,10 +264,10 @@ class GCSPrefixBlobTrigger(GCSBlobTrigger):
                     yield TriggerEvent(
                         {"status": "success", "message": "Successfully completed", "matches": res}
                     )
+                    return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
-            return
 
     async def _list_blobs_with_prefix(self, hook: GCSAsyncHook, bucket_name: str, prefix: str) -> list[str]:
         """
@@ -366,10 +367,10 @@ class GCSUploadSessionTrigger(GCSPrefixBlobTrigger):
                 res = self._is_bucket_updated(set(list_blobs))
                 if res["status"] in ("success", "error"):
                     yield TriggerEvent(res)
+                    return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
-            return
 
     def _get_time(self) -> datetime:
         """

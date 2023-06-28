@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class SimpleHttpOperator(BaseOperator):
     """
-    Calls an endpoint on an HTTP system to execute an action
+    Calls an endpoint on an HTTP system to execute an action.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

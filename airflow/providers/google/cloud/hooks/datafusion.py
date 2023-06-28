@@ -40,7 +40,7 @@ Operation = Dict[str, Any]
 
 
 class PipelineStates:
-    """Data Fusion pipeline states"""
+    """Data Fusion pipeline states."""
 
     PENDING = "PENDING"
     STARTING = "STARTING"
@@ -484,7 +484,7 @@ class DataFusionHook(GoogleBaseHook):
 
 
 class DataFusionAsyncHook(GoogleBaseAsyncHook):
-    """Class to get asynchronous hook for DataFusion"""
+    """Class to get asynchronous hook for DataFusion."""
 
     sync_hook_class = DataFusionHook
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]

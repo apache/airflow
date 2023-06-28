@@ -23,13 +23,13 @@ import os
 import warnings
 from contextlib import suppress
 from enum import Enum
+from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 from urllib.parse import urljoin
 
 import pendulum
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
@@ -522,6 +522,14 @@ class FileTaskHandler(logging.Handler):
             logger.exception("Could not read served logs")
         return messages, logs
 
-    def _read_remote_logs(self, ti, try_number, metadata=None):
-        """Implement in subclasses to read from the remote service."""
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
+        """
+        Implement in subclasses to read from the remote service.
+
+        This method should return two lists, messages and logs.
+
+        * Each element in the messages list should be a single message,
+          such as, "reading from x file".
+        * Each element in the logs list should be the content of one file.
+        """
         raise NotImplementedError

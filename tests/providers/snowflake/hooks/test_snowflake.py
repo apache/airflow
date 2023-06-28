@@ -467,7 +467,7 @@ class TestPytestSnowflakeHook:
         ), mock.patch("airflow.providers.snowflake.hooks.snowflake.create_engine") as mock_create_engine:
             hook = SnowflakeHook(snowflake_conn_id="test_conn")
             conn = hook.get_sqlalchemy_engine()
-            assert "private_key" in mock_create_engine.call_args[1]["connect_args"]
+            assert "private_key" in mock_create_engine.call_args.kwargs["connect_args"]
             assert mock_create_engine.return_value == conn
 
     def test_hook_parameters_should_take_precedence(self):

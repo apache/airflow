@@ -956,7 +956,7 @@ class ProvidersManager(LoggingMixin):
         self.initialize_providers_list()
         for provider_package, provider in self._provider_dict.items():
             for trigger in provider.data.get("triggers", []):
-                for trigger_class_name in trigger.get("class-names"):
+                for trigger_class_name in trigger.get("python-modules"):
                     self._trigger_info_set.add(
                         TriggerInfo(
                             package_name=provider_package,

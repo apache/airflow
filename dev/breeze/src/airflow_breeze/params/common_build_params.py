@@ -54,14 +54,13 @@ class CommonBuildParams:
     github_actions: str = os.environ.get("GITHUB_ACTIONS", "false")
     github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     github_token: str = os.environ.get("GITHUB_TOKEN", "")
-    github_username: str = ""
     image_tag: str | None = None
     install_providers_from_sources: bool = False
     platform: str = DOCKER_DEFAULT_PLATFORM
     prepare_buildx_cache: bool = False
     python_image: str | None = None
     push: bool = False
-    python: str = "3.7"
+    python: str = "3.8"
     tag_as_latest: bool = False
     upgrade_to_newer_dependencies: bool = False
     upgrade_on_failure: bool = False

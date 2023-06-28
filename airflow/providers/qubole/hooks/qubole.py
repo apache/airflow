@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Qubole hook"""
+"""Qubole hook."""
 from __future__ import annotations
 
 import datetime
@@ -72,24 +72,24 @@ POSITIONAL_ARGS = {"hadoopcmd": ["sub_command"], "shellcmd": ["parameters"], "pi
 
 
 def flatten_list(list_of_lists) -> list:
-    """Flatten the list"""
+    """Flatten the list."""
     return [element for array in list_of_lists for element in array]
 
 
 def filter_options(options: list) -> list:
-    """Remove options from the list"""
+    """Remove options from the list."""
     options_to_remove = ["help", "print-logs-live", "print-logs", "pool"]
     return [option for option in options if option not in options_to_remove]
 
 
 def get_options_list(command_class) -> list:
-    """Get options list"""
+    """Get options list."""
     options_list = [option.get_opt_string().strip("--") for option in command_class.optparser.option_list]
     return filter_options(options_list)
 
 
 def build_command_args() -> tuple[dict[str, list], list]:
-    """Build Command argument from command and options"""
+    """Build Command argument from command and options."""
     command_args, hyphen_args = {}, set()
     for cmd in COMMAND_CLASSES:
 
@@ -114,7 +114,7 @@ COMMAND_ARGS, HYPHEN_ARGS = build_command_args()
 
 
 class QuboleHook(BaseHook):
-    """Hook for Qubole communication"""
+    """Hook for Qubole communication."""
 
     conn_name_attr: str = "qubole_conn_id"
     default_conn_name = "qubole_default"
@@ -123,7 +123,7 @@ class QuboleHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["login", "schema", "port", "extra"],
             "relabeling": {
@@ -146,7 +146,7 @@ class QuboleHook(BaseHook):
 
     @staticmethod
     def handle_failure_retry(context) -> None:
-        """Handle retries in case of failures"""
+        """Handle retries in case of failures."""
         ti = context["ti"]
         cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=ti.task_id)
 
@@ -161,7 +161,7 @@ class QuboleHook(BaseHook):
                     cmd.cancel()
 
     def execute(self, context: Context) -> None:
-        """Execute call"""
+        """Execute call."""
         args = self.cls.parse(self.create_cmd_args(context))
         self.cmd = self.cls.create(**args)
         self.task_instance = context["task_instance"]
@@ -193,7 +193,7 @@ class QuboleHook(BaseHook):
 
     def kill(self, ti):
         """
-        Kill (cancel) a Qubole command
+        Kill (cancel) a Qubole command.
 
         :param ti: Task Instance of the dag, used to determine the Quboles command id
         :return: response from Qubole
@@ -219,7 +219,7 @@ class QuboleHook(BaseHook):
         include_headers: bool = False,
     ) -> str:
         """
-        Get results (or just s3 locations) of a command from Qubole and save into a file
+        Get results (or just s3 locations) of a command from Qubole and save into a file.
 
         :param ti: Task Instance of the dag, used to determine the Quboles command id
         :param fp: Optional file pointer, will create one and return if None passed
@@ -250,7 +250,7 @@ class QuboleHook(BaseHook):
 
     def get_log(self, ti) -> None:
         """
-        Get Logs of a command from Qubole
+        Get Logs of a command from Qubole.
 
         :param ti: Task Instance of the dag, used to determine the Quboles command id
         :return: command log as text
@@ -261,7 +261,7 @@ class QuboleHook(BaseHook):
 
     def get_jobs_id(self, ti) -> None:
         """
-        Get jobs associated with a Qubole commands
+        Get jobs associated with a Qubole commands.
 
         :param ti: Task Instance of the dag, used to determine the Quboles command id
         :return: Job information associated with command
@@ -271,7 +271,7 @@ class QuboleHook(BaseHook):
         Command.get_jobs_id(cmd_id)
 
     def create_cmd_args(self, context) -> list[str]:
-        """Creates command arguments"""
+        """Creates command arguments."""
         args = []
         cmd_type = self.kwargs["command_type"]
         inplace_args = None

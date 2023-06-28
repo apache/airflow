@@ -33,7 +33,7 @@ from functools import partial
 from pathlib import PurePath
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Tuple
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 
 import dill
 import jinja2
@@ -51,6 +51,7 @@ from sqlalchemy import (
     String,
     Text,
     and_,
+    delete,
     false,
     func,
     inspect,
@@ -758,26 +759,26 @@ class TaskInstance(Base, LoggingMixin):
         """Log URL for TaskInstance."""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
-        return (
-            f"{base_url}/log"
-            f"?execution_date={iso}"
+        return urljoin(
+            base_url,
+            f"log?execution_date={iso}"
             f"&task_id={self.task_id}"
             f"&dag_id={self.dag_id}"
-            f"&map_index={self.map_index}"
+            f"&map_index={self.map_index}",
         )
 
     @property
     def mark_success_url(self) -> str:
         """URL to mark TI success."""
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
-        return (
-            f"{base_url}/confirm"
-            f"?task_id={self.task_id}"
+        return urljoin(
+            base_url,
+            f"confirm?task_id={self.task_id}"
             f"&dag_id={self.dag_id}"
             f"&dag_run_id={quote(self.run_id)}"
             "&upstream=false"
             "&downstream=false"
-            "&state=success"
+            "&state=success",
         )
 
     @provide_session
@@ -993,7 +994,7 @@ class TaskInstance(Base, LoggingMixin):
         # or the DAG is never scheduled. For legacy reasons, when
         # `catchup=True`, we use `get_previous_scheduled_dagrun` unless
         # `ignore_schedule` is `True`.
-        ignore_schedule = state is not None or not dag.timetable.can_run
+        ignore_schedule = state is not None or not dag.timetable.can_be_scheduled
         if dag.catchup is True and not ignore_schedule:
             last_dagrun = dr.get_previous_scheduled_dagrun(session=session)
         else:
@@ -1467,12 +1468,20 @@ class TaskInstance(Base, LoggingMixin):
             session.commit()
         actual_start_date = timezone.utcnow()
         Stats.incr(f"ti.start.{self.task.dag_id}.{self.task.task_id}", tags=self.stats_tags)
+        # Same metric with tagging
+        Stats.incr("ti.start", tags=self.stats_tags)
         # Initialize final state counters at zero
         for state in State.task_states:
             Stats.incr(
                 f"ti.finish.{self.task.dag_id}.{self.task.task_id}.{state}",
                 count=0,
                 tags=self.stats_tags,
+            )
+            # Same metric with tagging
+            Stats.incr(
+                "ti.finish",
+                count=0,
+                tags={**self.stats_tags, "state": str(state)},
             )
 
         self.task = self.task.prepare_for_execution()
@@ -1544,6 +1553,8 @@ class TaskInstance(Base, LoggingMixin):
             raise
         finally:
             Stats.incr(f"ti.finish.{self.dag_id}.{self.task_id}.{self.state}", tags=self.stats_tags)
+            # Same metric with tagging
+            Stats.incr("ti.finish", tags={**self.stats_tags, "state": str(self.state)})
 
         # Recording SKIPPED or SUCCESS
         self.clear_next_method_args()
@@ -1641,6 +1652,8 @@ class TaskInstance(Base, LoggingMixin):
             self.task.post_execute(context=context, result=result)
 
         Stats.incr(f"operator_successes_{self.task.task_type}", tags=self.stats_tags)
+        # Same metric with tagging
+        Stats.incr("operator_successes", tags={**self.stats_tags, "task_type": self.task.task_type})
         Stats.incr("ti_successes", tags=self.stats_tags)
 
     def _run_finished_callback(
@@ -1910,6 +1923,8 @@ class TaskInstance(Base, LoggingMixin):
         self.set_duration()
 
         Stats.incr(f"operator_failures_{self.operator}", tags=self.stats_tags)
+        # Same metric with tagging
+        Stats.incr("operator_failures", tags={**self.stats_tags, "operator": self.operator})
         Stats.incr("ti_failures", tags=self.stats_tags)
 
         if not test_mode:
@@ -2551,7 +2566,9 @@ class TaskInstance(Base, LoggingMixin):
             TaskInstance.state == State.RUNNING,
         )
         if same_dagrun:
-            num_running_task_instances_query.filter(TaskInstance.run_id == self.run_id)
+            num_running_task_instances_query = num_running_task_instances_query.filter(
+                TaskInstance.run_id == self.run_id
+            )
         return num_running_task_instances_query.scalar()
 
     def init_run_context(self, raw: bool = False) -> None:
@@ -2825,7 +2842,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def clear_db_references(self, session):
         """
-        Clear DB references to XCom, TaskFail and RenderedTaskInstanceFields.
+        Clear db tables that have a reference to this instance.
 
         :param session: ORM Session
 
@@ -2833,14 +2850,16 @@ class TaskInstance(Base, LoggingMixin):
         """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
-        tables = [TaskFail, XCom, RenderedTaskInstanceFields]
+        tables = [TaskFail, TaskInstanceNote, TaskReschedule, XCom, RenderedTaskInstanceFields]
         for table in tables:
-            session.query(table).filter(
-                table.dag_id == self.dag_id,
-                table.task_id == self.task_id,
-                table.run_id == self.run_id,
-                table.map_index == self.map_index,
-            ).delete()
+            session.execute(
+                delete(table).where(
+                    table.dag_id == self.dag_id,
+                    table.task_id == self.task_id,
+                    table.run_id == self.run_id,
+                    table.map_index == self.map_index,
+                )
+            )
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:

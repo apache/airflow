@@ -64,8 +64,7 @@ if TYPE_CHECKING:
 
 
 class ClusterGenerator:
-    """
-    Create a new Dataproc Cluster.
+    """Create a new Dataproc Cluster.
 
     :param cluster_name: The name of the DataProc cluster to create. (templated)
     :param project_id: The ID of the google cloud project in which
@@ -395,17 +394,19 @@ class ClusterGenerator:
 
 
 class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
-    """
-    Create a new cluster on Google Cloud Dataproc. The operator will wait until the
-    creation is successful or an error occurs in the creation process. If the cluster
-    already exists and ``use_if_exists`` is True then the operator will:
+    """Create a new cluster on Google Cloud Dataproc.
 
+    The operator will wait until the creation is successful or an error occurs
+    in the creation process.
+
+    If the cluster already exists and ``use_if_exists`` is True, the operator will:
+
+    If the cluster already exists and ``use_if_exists`` is True then the operator will:
     - if cluster state is ERROR then delete it if specified and raise error
     - if cluster state is CREATING wait for it and then check for ERROR state
     - if cluster state is DELETING wait for it and then create new cluster
 
     Please refer to
-
     https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters
 
     for a detailed explanation on the different parameters. Most of the configuration
@@ -669,20 +670,22 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
 
 
 class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
-    """
-    Scale, up or down, a cluster on Google Cloud Dataproc.
+    """Scale, up or down, a cluster on Google Cloud Dataproc.
+
     The operator will wait until the cluster is re-scaled.
 
-    **Example**: ::
+    Example usage:
+
+    .. code-block:: python
 
         t1 = DataprocClusterScaleOperator(
-                task_id='dataproc_scale',
-                project_id='my-project',
-                cluster_name='cluster-1',
-                num_workers=10,
-                num_preemptible_workers=10,
-                graceful_decommission_timeout='1h',
-                dag=dag)
+            task_id="dataproc_scale",
+            project_id="my-project",
+            cluster_name="cluster-1",
+            num_workers=10,
+            num_preemptible_workers=10,
+            graceful_decommission_timeout="1h",
+        )
 
     .. seealso::
         For more detail on about scaling clusters have a look at the reference:
@@ -805,8 +808,7 @@ class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
 
 
 class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
-    """
-    Deletes a cluster in a project.
+    """Delete a cluster in a project.
 
     :param region: Required. The Cloud Dataproc region in which to handle the request (templated).
     :param cluster_name: Required. The cluster name (templated).
@@ -918,8 +920,7 @@ class DataprocDeleteClusterOperator(GoogleCloudBaseOperator):
 
 
 class DataprocJobBaseOperator(GoogleCloudBaseOperator):
-    """
-    The base class for operators that launch job on DataProc.
+    """Base class for operators that launch job on DataProc.
 
     :param region: The specified region where the dataproc cluster is created.
     :param job_name: The job name used in the DataProc cluster. This name by default
@@ -1009,7 +1010,7 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
         self.polling_interval_seconds = polling_interval_seconds
 
     def create_job_template(self) -> DataProcJobBuilder:
-        """Initialize `self.job_template` with default values"""
+        """Initialize `self.job_template` with default values."""
         if self.project_id is None:
             raise AirflowException(
                 "project id should either be set via project_id "
@@ -1096,9 +1097,9 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
 
 
 class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
-    """
-    Start a Pig query Job on a Cloud DataProc cluster. The parameters of the operation
-    will be passed to the cluster.
+    """Start a Pig query Job on a Cloud DataProc cluster.
+
+    The parameters of the operation will be passed to the cluster.
 
     It's a good practice to define dataproc_* parameters in the default_args of the dag
     like the cluster name and UDFs.
@@ -1117,13 +1118,13 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     variables for the pig script to be resolved on the cluster or use the parameters to
     be resolved in the script as template parameters.
 
-    **Example**: ::
+    .. code-block:: python
 
         t1 = DataProcPigOperator(
-                task_id='dataproc_pig',
-                query='a_pig_script.pig',
-                variables={'out': 'gs://example/output/{{ds}}'},
-                dag=dag)
+            task_id="dataproc_pig",
+            query="a_pig_script.pig",
+            variables={"out": "gs://example/output/{{ds}}"},
+        )
 
     .. seealso::
         For more detail on about job submission have a look at the reference:
@@ -1176,6 +1177,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         job_template = self.create_job_template()
@@ -1203,8 +1205,7 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
 
 
 class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
-    """
-    Start a Hive query Job on a Cloud DataProc cluster.
+    """Start a Hive query Job on a Cloud DataProc cluster.
 
     :param query: The query or reference to the query file (q extension).
     :param query_uri: The HCFS URI of the script that contains the Hive queries.
@@ -1252,6 +1253,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         job_template = self.create_job_template()
@@ -1277,8 +1279,7 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
 
 
 class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
-    """
-    Start a Spark SQL query Job on a Cloud DataProc cluster.
+    """Start a Spark SQL query Job on a Cloud DataProc cluster.
 
     :param query: The query or reference to the query file (q extension). (templated)
     :param query_uri: The HCFS URI of the script that contains the SQL queries.
@@ -1327,6 +1328,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         job_template = self.create_job_template()
@@ -1350,8 +1352,7 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
 
 
 class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
-    """
-    Start a Spark Job on a Cloud DataProc cluster.
+    """Start a Spark Job on a Cloud DataProc cluster.
 
     :param main_jar: The HCFS URI of the jar file that contains the main class
         (use this or the main_class, not both together).
@@ -1404,6 +1405,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
     def generate_job(self):
         """
         Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         job_template = self.create_job_template()
@@ -1423,8 +1425,7 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
 
 
 class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
-    """
-    Start a Hadoop Job on a Cloud DataProc cluster.
+    """Start a Hadoop Job on a Cloud DataProc cluster.
 
     :param main_jar: The HCFS URI of the jar file containing the main class
         (use this or the main_class, not both together).
@@ -1475,8 +1476,8 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
         self.files = files
 
     def generate_job(self):
-        """
-        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        """Helper method for easier migration to `DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         job_template = self.create_job_template()
@@ -1496,8 +1497,7 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
 
 
 class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
-    """
-    Start a PySpark Job on a Cloud DataProc cluster.
+    """Start a PySpark Job on a Cloud DataProc cluster.
 
     :param main: [Required] The Hadoop Compatible Filesystem (HCFS) URI of the main
             Python file to use as the driver. Must be a .py file. (templated)
@@ -1573,8 +1573,8 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
         self.pyfiles = pyfiles
 
     def generate_job(self):
-        """
-        Helper method for easier migration to `DataprocSubmitJobOperator`.
+        """Helper method for easier migration to :class:`DataprocSubmitJobOperator`.
+
         :return: Dict representing Dataproc job
         """
         job_template = self.create_job_template()
@@ -1612,8 +1612,7 @@ class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):
 
 
 class DataprocCreateWorkflowTemplateOperator(GoogleCloudBaseOperator):
-    """
-    Creates new workflow template.
+    """Creates new workflow template.
 
     :param project_id: Optional. The ID of the Google Cloud project the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
@@ -1677,9 +1676,9 @@ class DataprocCreateWorkflowTemplateOperator(GoogleCloudBaseOperator):
 
 
 class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
-    """
-    Instantiate a WorkflowTemplate on Google Cloud Dataproc. The operator will wait
-    until the WorkflowTemplate is finished executing.
+    """Instantiate a WorkflowTemplate on Google Cloud Dataproc.
+
+    The operator will wait until the WorkflowTemplate is finished executing.
 
     .. seealso::
         Please refer to:
@@ -1791,10 +1790,10 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
             )
 
     def execute_complete(self, context, event=None) -> None:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+        """Callback for when the trigger fires.
+
+        This returns immediately. It relies on trigger to throw an exception,
+        otherwise it assumes execution was successful.
         """
         if event["status"] == "failed" or event["status"] == "error":
             self.log.exception("Unexpected error in the operation.")
@@ -1804,9 +1803,9 @@ class DataprocInstantiateWorkflowTemplateOperator(GoogleCloudBaseOperator):
 
 
 class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator):
-    """
-    Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc. The operator will
-    wait until the WorkflowTemplate is finished executing.
+    """Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc.
+
+    The operator will wait until the WorkflowTemplate is finished executing.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1916,10 +1915,10 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
             )
 
     def execute_complete(self, context, event=None) -> None:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+        """Callback for when the trigger fires.
+
+        This returns immediately. It relies on trigger to throw an exception,
+        otherwise it assumes execution was successful.
         """
         if event["status"] == "failed" or event["status"] == "error":
             self.log.exception("Unexpected error in the operation.")
@@ -1929,8 +1928,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(GoogleCloudBaseOperator)
 
 
 class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
-    """
-    Submits a job to a cluster.
+    """Submit a job to a cluster.
 
     :param project_id: Optional. The ID of the Google Cloud project that the job belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
@@ -2030,6 +2028,14 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
 
         self.job_id = new_job_id
         if self.deferrable:
+            job = self.hook.get_job(project_id=self.project_id, region=self.region, job_id=self.job_id)
+            state = job.status.state
+            if state == JobStatus.State.DONE:
+                return self.job_id
+            elif state == JobStatus.State.ERROR:
+                raise AirflowException(f"Job failed:\n{job}")
+            elif state == JobStatus.State.CANCELLED:
+                raise AirflowException(f"Job was cancelled:\n{job}")
             self.defer(
                 trigger=DataprocSubmitTrigger(
                     job_id=self.job_id,
@@ -2050,10 +2056,10 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
         return self.job_id
 
     def execute_complete(self, context, event=None) -> None:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+        """Callback for when the trigger fires.
+
+        This returns immediately. It relies on trigger to throw an exception,
+        otherwise it assumes execution was successful.
         """
         job_state = event["job_state"]
         job_id = event["job_id"]
@@ -2070,8 +2076,7 @@ class DataprocSubmitJobOperator(GoogleCloudBaseOperator):
 
 
 class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
-    """
-    Updates a cluster in a project.
+    """Update a cluster in a project.
 
     :param region: Required. The Cloud Dataproc region in which to handle the request.
     :param project_id: Optional. The ID of the Google Cloud project the cluster belongs to.
@@ -2209,8 +2214,7 @@ class DataprocUpdateClusterOperator(GoogleCloudBaseOperator):
 
 
 class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
-    """
-    Creates a batch workload.
+    """Create a batch workload.
 
     :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to. (templated)
     :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
@@ -2378,10 +2382,10 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         return Batch.to_dict(result)
 
     def execute_complete(self, context, event=None) -> None:
-        """
-        Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+        """Callback for when the trigger fires.
+
+        This returns immediately. It relies on trigger to throw an exception,
+        otherwise it assumes execution was successful.
         """
         if event is None:
             raise AirflowException("Batch failed.")
@@ -2400,8 +2404,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
 
 
 class DataprocDeleteBatchOperator(GoogleCloudBaseOperator):
-    """
-    Deletes the batch workload resource.
+    """Delete the batch workload resource.
 
     :param batch_id: Required. The ID to use for the batch, which will become the final component
         of the batch's resource name.
@@ -2464,8 +2467,7 @@ class DataprocDeleteBatchOperator(GoogleCloudBaseOperator):
 
 
 class DataprocGetBatchOperator(GoogleCloudBaseOperator):
-    """
-    Gets the batch workload resource representation.
+    """Get the batch workload resource representation.
 
     :param batch_id: Required. The ID to use for the batch, which will become the final component
         of the batch's resource name.
@@ -2532,8 +2534,7 @@ class DataprocGetBatchOperator(GoogleCloudBaseOperator):
 
 
 class DataprocListBatchesOperator(GoogleCloudBaseOperator):
-    """
-    Lists batch workloads.
+    """List batch workloads.
 
     :param region: Required. The Cloud Dataproc region in which to handle the request.
     :param project_id: Optional. The ID of the Google Cloud project that the cluster belongs to.
@@ -2555,7 +2556,6 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-
     """
 
     template_fields: Sequence[str] = ("region", "project_id", "impersonation_chain")
@@ -2602,8 +2602,7 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
 
 
 class DataprocCancelOperationOperator(GoogleCloudBaseOperator):
-    """
-    Cancel the batch workload resource.
+    """Cancel the batch workload resource.
 
     :param operation_name: Required. The name of the operation resource to be cancelled.
     :param region: Required. The Cloud Dataproc region in which to handle the request.

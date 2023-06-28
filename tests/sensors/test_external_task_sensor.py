@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import tempfile
@@ -39,6 +38,7 @@ from airflow.operators.python import PythonOperator
 from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor, ExternalTaskSensorLink
 from airflow.sensors.time_sensor import TimeSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
+from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
@@ -66,7 +66,7 @@ def dag_zip_maker():
     class DagZipMaker:
         def __call__(self, *dag_files):
             self.__dag_files = [os.sep.join([TEST_DAGS_FOLDER.__str__(), dag_file]) for dag_file in dag_files]
-            dag_files_hash = hashlib.md5("".join(self.__dag_files).encode()).hexdigest()
+            dag_files_hash = md5("".join(self.__dag_files).encode()).hexdigest()
             self.__tmp_dir = os.sep.join([tempfile.tempdir, dag_files_hash])
 
             self.__zip_file_name = os.sep.join([self.__tmp_dir, f"{dag_files_hash}.zip"])
@@ -807,6 +807,26 @@ exit 0
             match=f"The external task_group '{TEST_TASK_GROUP_ID}' in DAG '{TEST_DAG_ID}' failed.",
         ):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_external_task_group_when_there_is_no_TIs(self):
+        """Test that the sensor does not fail when there are no TIs to check."""
+        self.add_time_sensor()
+        self.add_dummy_task_group_with_dynamic_tasks(State.FAILED)
+        op = ExternalTaskSensor(
+            task_id="test_external_task_sensor_check",
+            external_dag_id=TEST_DAG_ID,
+            external_task_group_id=TEST_TASK_GROUP_ID,
+            failed_states=[State.FAILED],
+            dag=self.dag,
+            poke_interval=1,
+            timeout=3,
+        )
+        with pytest.raises(AirflowSensorTimeout):
+            op.run(
+                start_date=DEFAULT_DATE + timedelta(hours=1),
+                end_date=DEFAULT_DATE + timedelta(hours=1),
+                ignore_ti_state=True,
+            )
 
 
 def test_external_task_sensor_check_zipped_dag_existence(dag_zip_maker):

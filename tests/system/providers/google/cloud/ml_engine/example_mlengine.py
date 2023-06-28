@@ -105,7 +105,7 @@ with models.DAG(
         region="us-central1",
         job_id="training-job-{{ ts_nodash }}-{{ params.model_name }}",
         runtime_version="2.1",
-        python_version="3.7",
+        python_version="3.8",
         job_dir=JOB_DIR,
         package_uris=[TRAINER_URI],
         training_python_module=TRAINER_PY_MODULE,
@@ -151,7 +151,7 @@ with models.DAG(
             "runtime_version": "2.1",
             "machineType": "mls1-c1-m2",
             "framework": "TENSORFLOW",
-            "pythonVersion": "3.7",
+            "pythonVersion": "3.8",
         },
     )
     # [END howto_operator_gcp_mlengine_create_version1]
@@ -168,7 +168,7 @@ with models.DAG(
             "runtime_version": "2.1",
             "machineType": "mls1-c1-m2",
             "framework": "TENSORFLOW",
-            "pythonVersion": "3.7",
+            "pythonVersion": "3.8",
         },
     )
     # [END howto_operator_gcp_mlengine_create_version2]

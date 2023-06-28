@@ -82,6 +82,20 @@ class TestWorker:
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 
+    def test_disable_wait_for_migration(self):
+        docs = render_chart(
+            values={
+                "workers": {
+                    "waitForMigrations": {"enabled": False},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+        actual = jmespath.search(
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
+        )
+        assert actual is None
+
     def test_should_add_extra_init_containers(self):
         docs = render_chart(
             values={
@@ -104,16 +118,21 @@ class TestWorker:
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
-                    "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumeMounts": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                    ],
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],
         )
 
-        assert "test-volume" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
-        assert "test-volume" == jmespath.search(
+        assert "test-volume-airflow" == jmespath.search("spec.template.spec.volumes[0].name", docs[0])
+        assert "test-volume-airflow" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
+        )
+        assert "test-volume-airflow" == jmespath.search(
+            "spec.template.spec.initContainers[0].volumeMounts[-1].name", docs[0]
         )
 
     def test_should_add_global_volume_and_global_volume_mount(self):

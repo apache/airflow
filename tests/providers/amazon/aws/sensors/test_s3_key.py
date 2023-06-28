@@ -225,3 +225,23 @@ class TestS3KeySensor:
 
         mock_head_object.return_value = {"ContentLength": 1}
         assert op.poke(None) is True
+
+    @mock.patch("airflow.providers.amazon.aws.sensors.s3.S3KeySensor.poke", return_value=False)
+    def test_s3_key_sensor_execute_complete_success_with_keys(self, mock_poke):
+        """
+        Asserts that a task is completed with success status and check function
+        """
+
+        def check_fn(files: list) -> bool:
+            return all(f.get("Size", 0) > 0 for f in files)
+
+        sensor = S3KeySensor(
+            task_id="s3_key_sensor_async",
+            bucket_key="key",
+            bucket_name="bucket",
+            check_fn=check_fn,
+            deferrable=True,
+        )
+        assert (
+            sensor.execute_complete(context={}, event={"status": "running", "files": [{"Size": 10}]}) is None
+        )
