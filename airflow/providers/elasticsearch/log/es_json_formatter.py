@@ -29,10 +29,7 @@ class ElasticsearchJSONFormatter(JSONFormatter):
     default_tz_format = "%z"
 
     def formatTime(self, record, datefmt=None):
-        """
-        Returns the creation time of the specified LogRecord in ISO 8601 date and time format
-        in the local time zone.
-        """
+        """Return the creation time of the LogRecord in ISO 8601 date/time format in the local time zone."""
         dt = pendulum.from_timestamp(record.created, tz=pendulum.local_timezone())
         if datefmt:
             s = dt.strftime(datefmt)

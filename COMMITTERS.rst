@@ -194,6 +194,7 @@ To be able to merge PRs, committers have to integrate their GitHub ID with Apach
 4.  Wait at least 30  minutes for an email inviting you to Apache GitHub Organization and accept invitation.
 5.  After accepting the GitHub Invitation verify that you are a member of the `Airflow committers team on GitHub <https://github.com/orgs/apache/teams/airflow-committers>`__.
 6.  Ask in ``#internal-airflow-ci-cd`` channel to be `configured in self-hosted runners <https://github.com/apache/airflow-ci-infra/blob/main/scripts/list_committers>`_
-    by the CI maintainers
-7.  After confirming that step 6 is done, open a PR to include your GitHub ID in ``dev/breeze/src/airflow_breeze/global_constants.py`` (COMMITTERS variable)
-    as well as your name and GitHub ID in `project.rst <https://github.com/apache/airflow/blob/main/docs/apache-airflow/project.rst>`__.
+    by the CI maintainers. Wait for confirmation that this is done and some helpful tips from the CI maintainer
+7.  After confirming that step 6 is done, open a PR to include your GitHub ID in:
+    * ``dev/breeze/src/airflow_breeze/global_constants.py`` (COMMITTERS variable)
+    * name and GitHub ID in `project.rst <https://github.com/apache/airflow/blob/main/docs/apache-airflow/project.rst>`__.
