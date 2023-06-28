@@ -2756,10 +2756,10 @@ class DAG(LoggingMixin):
                         task_try_number[ti.task_id] = 0
                     ti = _run_task(ti, session=session)
                 except Exception:
-                    if ti.state == State.UP_FOR_RETRY:
+                    if ti.state == TaskInstanceState.UP_FOR_RETRY:
                         try_number = task_try_number.get(ti.task_id, 0)
                         if try_number > ti.max_tries:
-                            ti.set_state(State.FAILED)
+                            ti.set_state(TaskInstanceState.FAILED)
                         else:
                             task_try_number[ti.task_id] = try_number + 1
                     self.log.info(
@@ -2768,18 +2768,18 @@ class DAG(LoggingMixin):
                     )
             for ti in dr.get_task_instances():
                 # Special case TI resume from deferred state
-                if ti.state == State.SCHEDULED:
+                if ti.state == TaskInstanceState.SCHEDULED:
                     if ti.next_method:
                         try:
                             execute_callable = getattr(tasks[ti.task_id], ti.next_method)
                             execute_callable(context={}, event=ti.next_kwargs)
-                            ti.set_state(State.SUCCESS)
+                            ti.set_state(TaskInstanceState.SUCCESS)
                         except Exception:
                             try_number = task_try_number.get(ti.task_id, 0)
                             if try_number > ti.max_tries:
-                                ti.set_state(State.FAILED)
+                                ti.set_state(TaskInstanceState.FAILED)
                             else:
-                                ti.set_state(State.UP_FOR_RETRY)
+                                ti.set_state(TaskInstanceState.UP_FOR_RETRY)
                                 task_try_number[ti.task_id] = try_number + 1
 
         if conn_file_path or variable_file_path:
