@@ -365,9 +365,22 @@ class TaskGroup(DAGNode):
         Returns a generator of tasks that are leaf tasks, i.e. those with no downstream
         dependencies within the TaskGroup.
         """
+
+        def recurse_for_first_non_setup_teardown(group, task):
+            for upstream_task in task.upstream_list:
+                if not group.has_task(upstream_task):
+                    continue
+                if upstream_task.is_setup or upstream_task.is_teardown:
+                    yield from recurse_for_first_non_setup_teardown(group, upstream_task)
+                else:
+                    yield upstream_task
+
         for task in self:
-            if not any(self.has_task(child) for child in task.get_direct_relatives(upstream=False)):
-                yield task
+            if not any(self.has_task(x) for x in task.get_direct_relatives(upstream=False)):
+                if not (task.is_teardown or task.is_setup):
+                    yield task
+                else:
+                    yield from recurse_for_first_non_setup_teardown(self, task)
 
     def child_id(self, label):
         """
@@ -424,6 +437,18 @@ class TaskGroup(DAGNode):
         from airflow.serialization.serialized_objects import TaskGroupSerialization
 
         return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
+
+    def hierarchical_alphabetical_sort(self):
+        """
+        Sorts children in hierarchical alphabetical order:
+        - groups in alphabetical order first
+        - tasks in alphabetical order after them.
+
+        :return: list of tasks in hierarchical alphabetical order
+        """
+        return sorted(
+            self.children.values(), key=lambda node: (not isinstance(node, TaskGroup), node.node_id)
+        )
 
     def topological_sort(self, _include_subdag_tasks: bool = False):
         """

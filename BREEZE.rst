@@ -84,8 +84,14 @@ Here is an example configuration with more than 200GB disk space for Docker:
 - ``newgrp docker``
 - 4. Check if docker can be run without root
 - ``docker run hello-world``
-|
-|
+- 5. Make sure that "Allow the default Docker socket to be used" in "Advanced" tab of "Docker Desktop" settings is checked
+
+.. raw:: html
+
+   <div align="center">
+        <img src="images/docker_socket.png" width="640"
+             alt="Docker socket used">
+    </div>
 
 Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
 /CONTRIBUTORS_QUICK_START.rst>`__
@@ -1924,6 +1930,21 @@ which utilises multiple processors on your local machine to generate such constr
 This bumps the constraint files to latest versions and stores hash of setup.py. The generated constraint
 and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
 of changes vs the previous constraint files is printed.
+
+Generating Providers Metadata
+.............................
+
+The release manager can generate providers metadata per provider version - information about provider versions
+including the associated Airflow version for the provider version (i.e first airflow version released after the
+provider has been released) and date of the release of the provider version.
+
+These are all of the available flags for the ``generate-providers-metadata`` command:
+
+.. image:: ./images/breeze/output_release-management_generate-providers-metadata.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-providers-metadata.svg
+  :width: 100%
+  :alt: Breeze release management generate providers metadata
+
 
 Releasing Production images
 ...........................

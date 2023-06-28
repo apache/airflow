@@ -29,6 +29,7 @@ from urllib.parse import quote
 import elasticsearch
 import pendulum
 import pytest
+from elasticsearch.exceptions import ElasticsearchException
 
 from airflow.configuration import conf
 from airflow.providers.elasticsearch.log.es_task_handler import ElasticsearchTaskHandler, getattr_nested
@@ -341,13 +342,12 @@ class TestElasticsearchTaskHandler:
 
     def test_read_raises(self, ti):
         with mock.patch.object(self.es_task_handler.log, "exception") as mock_exception:
-            with mock.patch("elasticsearch_dsl.Search.execute") as mock_execute:
-                mock_execute.side_effect = Exception("Failed to read")
+            with mock.patch.object(self.es_task_handler.client, "search") as mock_execute:
+                mock_execute.side_effect = ElasticsearchException("Failed to read")
                 logs, metadatas = self.es_task_handler.read(ti, 1)
             assert mock_exception.call_count == 1
             args, kwargs = mock_exception.call_args
             assert "Could not read log with log_id:" in args[0]
-
         assert 1 == len(logs)
         assert len(logs) == len(metadatas)
         assert [[]] == logs

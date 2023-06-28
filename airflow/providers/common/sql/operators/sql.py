@@ -294,6 +294,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 class SQLColumnCheckOperator(BaseSQLOperator):
     """
     Performs one or more of the templated checks in the column_checks dictionary.
+
     Checks are performed on a per-column basis specified by the column_mapping.
 
     Each check can take one or more of the following options:
@@ -540,6 +541,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 class SQLTableCheckOperator(BaseSQLOperator):
     """
     Performs one or more of the checks provided in the checks dictionary.
+
     Checks should be written to return a boolean result.
 
     :param table: the table to run checks on
@@ -650,10 +652,11 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
 class SQLCheckOperator(BaseSQLOperator):
     """
-    Performs checks against a db. The ``SQLCheckOperator`` expects
-    a sql query that will return a single row. Each value on that
-    first row is evaluated using python ``bool`` casting. If any of the
-    values return ``False`` the check is failed and errors out.
+    Performs checks against a db.
+
+    The ``SQLCheckOperator`` expects a sql query that will return a single row.
+    Each value on that first row is evaluated using python ``bool`` casting.
+    If any of the values return ``False`` the check is failed and errors out.
 
     Note that Python bool casting evals the following as ``False``:
 
@@ -808,8 +811,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
 
 class SQLIntervalCheckOperator(BaseSQLOperator):
     """
-    Checks that the values of metrics given as SQL expressions are within
-    a certain tolerance of the ones from days_back before.
+    Check that metrics given as SQL expressions are within tolerance of the ones from days_back before.
 
     :param table: the table name
     :param conn_id: the connection ID used to connect to the database.
@@ -946,9 +948,9 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
 
 class SQLThresholdCheckOperator(BaseSQLOperator):
     """
-    Performs a value check using sql code against a minimum threshold
-    and a maximum threshold. Thresholds can be in the form of a numeric
-    value OR a sql statement that results a numeric.
+    Performs a value check using sql code against a minimum threshold and a maximum threshold.
+
+    Thresholds can be in the form of a numeric value OR a sql statement that results a numeric.
 
     :param sql: the sql to be executed. (templated)
     :param conn_id: the connection ID used to connect to the database.
@@ -1028,6 +1030,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
     def push(self, meta_data):
         """
         Optional: Send data check info and metadata to an external database.
+
         Default functionality will log metadata.
         """
         info = "\n".join(f"""{key}: {item}""" for key, item in meta_data.items())

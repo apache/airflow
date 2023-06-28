@@ -44,9 +44,9 @@ def get_default_delete_local_copy():
 
 class S3TaskHandler(FileTaskHandler, LoggingMixin):
     """
-    S3TaskHandler is a python log handler that handles and reads
-    task instance logs. It extends airflow FileTaskHandler and
-    uploads to and reads from S3 remote storage.
+    S3TaskHandler is a python log handler that handles and reads task instance logs.
+
+    It extends airflow FileTaskHandler and uploads to and reads from S3 remote storage.
     """
 
     trigger_should_wrap = True
@@ -133,6 +133,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     def _read(self, ti, try_number, metadata=None):
         """
         Read logs of given task instance and try_number from S3 remote storage.
+
         If failed, read the log from task instance host machine.
 
         todo: when min airflow version >= 2.6 then remove this method (``_read``)
@@ -168,8 +169,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     def s3_read(self, remote_log_location: str, return_error: bool = False) -> str:
         """
-        Returns the log found at the remote_log_location. Returns '' if no
-        logs are found or there is an error.
+        Returns the log found at the remote_log_location. Return '' if no logs are found or there is an error.
 
         :param remote_log_location: the log's location in remote storage
         :param return_error: if True, returns a string error message if an
@@ -188,8 +188,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     def s3_write(self, log: str, remote_log_location: str, append: bool = True, max_retry: int = 1) -> bool:
         """
-        Writes the log to the remote_log_location and return `True` when done. Fails silently
-         and return `False` if no log was created.
+        Write the log to the remote_log_location; return `True` or fails silently and return `False`.
 
         :param log: the log to write to the remote_log_location
         :param remote_log_location: the log's location in remote storage

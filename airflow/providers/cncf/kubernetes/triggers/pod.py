@@ -32,7 +32,8 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class ContainerState(str, Enum):
     """
-    Possible container states
+    Possible container states.
+
     See https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase.
     """
 
