@@ -150,7 +150,7 @@ class LambdaInvokeFunctionOperator(BaseOperator):
         qualifier: str | None = None,
         invocation_type: str | None = None,
         client_context: str | None = None,
-        payload: str | None = None,
+        payload: str | bytes | None = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
@@ -162,6 +162,11 @@ class LambdaInvokeFunctionOperator(BaseOperator):
         self.invocation_type = invocation_type
         self.client_context = client_context
         self.aws_conn_id = aws_conn_id
+
+        if type(payload) == 'str':
+            payload = payload.encode()
+
+        self.payload = payload
 
     @cached_property
     def hook(self) -> LambdaHook:

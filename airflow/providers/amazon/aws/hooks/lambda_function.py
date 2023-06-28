@@ -48,7 +48,7 @@ class LambdaHook(AwsBaseHook):
         invocation_type: str | None = None,
         log_type: str | None = None,
         client_context: str | None = None,
-        payload: str | None = None,
+        payload: bytes | None = None,
         qualifier: str | None = None,
     ):
         """
