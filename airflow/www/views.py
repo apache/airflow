@@ -69,7 +69,7 @@ from pendulum.datetime import DateTime
 from pendulum.parsing.exceptions import ParserError
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import Date, and_, case, desc, func, inspect, or_, union_all
+from sqlalchemy import Date, and_, case, desc, func, inspect, or_, select, union_all
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from wtforms import SelectField, validators
@@ -3245,9 +3245,9 @@ class Airflow(AirflowBaseView):
         else:
             min_date = timezone.utc_epoch()
         ti_fails = (
-            session.query(TaskFail)
+            select(TaskFail)
             .join(TaskFail.dag_run)
-            .filter(
+            .where(
                 TaskFail.dag_id == dag.dag_id,
                 DagRun.execution_date >= min_date,
                 DagRun.execution_date <= base_date,
@@ -3596,8 +3596,8 @@ class Airflow(AirflowBaseView):
         form.execution_date.choices = dt_nr_dr_data["dr_choices"]
 
         tis = (
-            session.query(TaskInstance)
-            .filter(
+            select(TaskInstance)
+            .where(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.run_id == dag_run_id,
                 TaskInstance.start_date.is_not(None),
@@ -3606,7 +3606,7 @@ class Airflow(AirflowBaseView):
             .order_by(TaskInstance.start_date)
         )
 
-        ti_fails = session.query(TaskFail).filter_by(run_id=dag_run_id, dag_id=dag_id)
+        ti_fails = select(TaskFail).filter_by(run_id=dag_run_id, dag_id=dag_id)
         if dag.partial:
             ti_fails = ti_fails.filter(TaskFail.task_id.in_([t.task_id for t in dag.tasks]))
 
@@ -3715,12 +3715,13 @@ class Airflow(AirflowBaseView):
         if link_name is None:
             return {"url": None, "error": "Link name not passed"}, 400
 
-        ti = (
-            session.query(TaskInstance)
+        ti = session.scalar(
+            select(TaskInstance)
             .filter_by(dag_id=dag_id, task_id=task_id, execution_date=dttm, map_index=map_index)
             .options(joinedload(TaskInstance.dag_run))
-            .first()
+            .limit(1)
         )
+
         if not ti:
             return {"url": None, "error": "Task Instances not found"}, 404
         try:
@@ -3828,9 +3829,7 @@ class Airflow(AirflowBaseView):
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         with create_session() as session:
-            query = session.query(DagRun).filter(
-                DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date
-            )
+            query = select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
 
             run_type = request.args.get("run_type")
             if run_type:
