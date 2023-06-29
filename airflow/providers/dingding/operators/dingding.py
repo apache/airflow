@@ -28,7 +28,8 @@ if TYPE_CHECKING:
 
 class DingdingOperator(BaseOperator):
     """
-    This operator allows you send Dingding message using Dingding custom bot.
+    This operator allows you to send Dingding message using Dingding custom bot.
+
     Get Dingding token from conn_id.password. And prefer set domain to
     conn_id.host, if not will use default ``https://oapi.dingtalk.com``.
 

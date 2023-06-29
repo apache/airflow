@@ -438,6 +438,18 @@ class TaskGroup(DAGNode):
 
         return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
 
+    def hierarchical_alphabetical_sort(self):
+        """
+        Sorts children in hierarchical alphabetical order:
+        - groups in alphabetical order first
+        - tasks in alphabetical order after them.
+
+        :return: list of tasks in hierarchical alphabetical order
+        """
+        return sorted(
+            self.children.values(), key=lambda node: (not isinstance(node, TaskGroup), node.node_id)
+        )
+
     def topological_sort(self, _include_subdag_tasks: bool = False):
         """
         Sorts children in topographical order, such that a task comes after any of its
