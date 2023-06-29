@@ -28,7 +28,7 @@ from flask_babel import lazy_gettext
 from wtforms import BooleanField, Field, StringField
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
-from airflow.providers_manager import HookClassProvider, ProviderInfo, ProvidersManager
+from airflow.providers_manager import HookClassProvider, LazyDictWithCache, ProviderInfo, ProvidersManager
 
 
 class TestProviderManager:
@@ -372,3 +372,32 @@ class TestProviderManager:
             assert [
                 "Optional provider feature disabled when importing 'HookClass' from 'test_package' package"
             ] == self._caplog.messages
+
+
+@pytest.mark.parametrize(
+    "value, expected_outputs,",
+    [
+        ("a", "a"),
+        (1, 1),
+        (None, None),
+        (lambda: 0, 0),
+        (lambda: None, None),
+        (lambda: "z", "z"),
+    ],
+)
+def test_lazy_cache_dict_resolving(value, expected_outputs):
+    lazy_cache_dict = LazyDictWithCache()
+    lazy_cache_dict["key"] = value
+    assert lazy_cache_dict["key"] == expected_outputs
+    # Retrieve it again to see if it is correctly returned again
+    assert lazy_cache_dict["key"] == expected_outputs
+
+
+def test_lazy_cache_dict_raises_error():
+    def raise_method():
+        raise Exception("test")
+
+    lazy_cache_dict = LazyDictWithCache()
+    lazy_cache_dict["key"] = raise_method
+    with pytest.raises(Exception, match="test"):
+        _ = lazy_cache_dict["key"]

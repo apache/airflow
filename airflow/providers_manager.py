@@ -110,8 +110,7 @@ class LazyDictWithCache(MutableMapping):
             # callable itself
             value = value()
             self._resolved.add(key)
-            if value:
-                self._raw_dict.__setitem__(key, value)
+            self._raw_dict.__setitem__(key, value)
         return value
 
     def __delitem__(self, key):
