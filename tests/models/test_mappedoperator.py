@@ -395,17 +395,27 @@ def test_mapped_expand_against_params(dag_maker, dag_params, task_params, expect
 
 
 def test_mapped_render_template_fields_validating_operator(dag_maker, session):
-    class MyOperator(MockOperator):
-        def __init__(self, value, arg1, **kwargs):
-            assert isinstance(value, str), "value should have been resolved before unmapping"
-            assert isinstance(arg1, str), "value should have been resolved before unmapping"
-            super().__init__(arg1=arg1, **kwargs)
-            self.value = value
+    class MyOperator(BaseOperator):
+        template_fields = ("partial_template", "map_template")
+
+        def __init__(self, partial_template, partial_static, map_template, map_static, **kwargs):
+            for value in [partial_template, partial_static, map_template, map_static]:
+                assert isinstance(value, str), "value should have been resolved before unmapping"
+            super().__init__(**kwargs)
+            self.partial_template = partial_template
+            self.partial_static = partial_static
+            self.map_template = map_template
+            self.map_static = map_static
+
+        def execute(self, context):
+            pass
 
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
         output1 = task1.output
-        mapped = MyOperator.partial(task_id="a", arg2="{{ ti.task_id }}").expand(value=output1, arg1=output1)
+        mapped = MyOperator.partial(
+            task_id="a", partial_template="{{ ti.task_id }}", partial_static="{{ ti.task_id }}"
+        ).expand(map_template=output1, map_static=output1)
 
     dr = dag_maker.create_dagrun()
     ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
@@ -431,9 +441,10 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
     mapped.render_template_fields(context=mapped_ti.get_template_context(session=session))
     assert isinstance(mapped_ti.task, MyOperator)
 
-    assert mapped_ti.task.value == "{{ ds }}", "Should not be templated!"
-    assert mapped_ti.task.arg1 == "{{ ds }}", "Should not be templated!"
-    assert mapped_ti.task.arg2 == "a"
+    assert mapped_ti.task.partial_template == "a", "Should be templated!"
+    assert mapped_ti.task.partial_static == "{{ ti.task_id }}", "Should not be templated!"
+    assert mapped_ti.task.map_template == "2016-01-01", "Should be templated!"
+    assert mapped_ti.task.map_static == "{{ ds }}", "Should not be templated!"
 
 
 def test_mapped_render_nested_template_fields(dag_maker, session):
@@ -530,7 +541,7 @@ def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis
 @pytest.mark.parametrize(
     "map_index, expected",
     [
-        pytest.param(0, "{{ ds }}", id="0"),
+        pytest.param(0, "2016-01-01", id="0"),
         pytest.param(1, 2, id="1"),
     ],
 )
