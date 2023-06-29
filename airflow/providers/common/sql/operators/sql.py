@@ -305,6 +305,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             database_info = hook.get_openlineage_database_info(connection)
         except AttributeError:
             self.log.debug("%s has no database info provided", hook)
+            database_info = None
+
+        if database_info is None:
             return None
 
         try:
@@ -334,6 +337,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         try:
             database_specific_lineage = hook.get_openlineage_database_specific_lineage(task_instance)
         except AttributeError:
+            database_specific_lineage = None
+
+        if database_specific_lineage is None:
             return operator_lineage
 
         return OperatorLineage(

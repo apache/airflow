@@ -157,7 +157,7 @@ class SQLParser:
         if not parse_result:
             return OperatorLineage(job_facets=job_facets)
 
-        run_facets = {}
+        run_facets: dict[str, BaseFacet] = {}
         if parse_result.errors:
             run_facets["extractionError"] = ExtractionErrorRunFacet(
                 totalTasks=len(sql) if isinstance(sql, list) else 1,
