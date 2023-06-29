@@ -257,26 +257,10 @@ class TestSerDe:
             deserialize(data)
 
     def test_backwards_compat(self):
+        """
+        Verify deserialization of old-style encoded Xcom values including nested ones
+        """
         uri = "s3://does_not_exist"
-        data = {
-            "__type": "airflow.datasets.Dataset",
-            "__source": None,
-            "__var": {
-                "__var": {
-                    "uri": uri,
-                    "extra": {"__var": {"hi": "bye"}, "__type": "dict"},
-                },
-                "__type": "dict",
-            },
-        }
-        dataset = deserialize(data)
-        assert dataset.uri == uri
-
-    def test_backwards_compat_airflow_252(self):
-        """
-        Ensure that the Xcom value encoded by Airflow 2.5.2 is getting decoded by Airflow 2.6.
-        """
-        uri = "s3://dag1/output_1.txt"
         data = {
             "__classname__": "airflow.datasets.Dataset",
             "__version__": 1,
@@ -289,7 +273,18 @@ class TestSerDe:
             },
         }
         datasets = deserialize(data)
+        assert dataset.extra == {"hi": "bye"}
         assert datasets.uri == uri
+
+    def test_backwards_compat_wrapped(self):
+        """
+        Verify deserialization of old-style wrapped XCom value
+        """
+        i = {
+            "extra": {"__var": {"hi": "bye"}, "__type": "dict"},
+        }
+        e = deserialize(i)
+        assert e["extra"] == {"hi": "bye"}
 
     def test_encode_dataset(self):
         dataset = Dataset("mytest://dataset")
