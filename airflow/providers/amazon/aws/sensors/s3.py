@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.triggers.s3 import S3KeyTrigger
+from airflow.providers.amazon.aws.triggers.s3 import S3KeysUnchangedTrigger, S3KeyTrigger
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 
@@ -222,6 +222,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
     :param allow_delete: Should this sensor consider objects being deleted
         between pokes valid behavior. If true a warning message will be logged
         when this happens. If false an error will be raised.
+    :param deferrable: Run sensor in the deferrable mode
     """
 
     template_fields: Sequence[str] = ("bucket_name", "prefix")
@@ -237,6 +238,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         min_objects: int = 1,
         previous_objects: set[str] | None = None,
         allow_delete: bool = True,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
 
@@ -251,6 +253,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         self.previous_objects = previous_objects or set()
         self.inactivity_seconds = 0
         self.allow_delete = allow_delete
+        self.deferrable = deferrable
         self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.last_activity_time: datetime | None = None
@@ -325,3 +328,36 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
     def poke(self, context: Context):
         return self.is_keys_unchanged(set(self.hook.list_keys(self.bucket_name, prefix=self.prefix)))
+
+    def execute(self, context: Context) -> None:
+        """Airflow runs this method on the worker and defers using the trigger if deferrable is True."""
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            if not self.poke(context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=S3KeysUnchangedTrigger(
+                        bucket_name=self.bucket_name,
+                        prefix=self.prefix,
+                        inactivity_period=self.inactivity_period,
+                        min_objects=self.min_objects,
+                        previous_objects=self.previous_objects,
+                        inactivity_seconds=self.inactivity_seconds,
+                        allow_delete=self.allow_delete,
+                        aws_conn_id=self.aws_conn_id,
+                        verify=self.verify,
+                        last_activity_time=self.last_activity_time,
+                    ),
+                    method_name="execute_complete",
+                )
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event and event["status"] == "error":
+            raise AirflowException(event["message"])
+        return None
