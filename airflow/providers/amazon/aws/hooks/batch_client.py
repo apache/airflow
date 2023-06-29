@@ -44,6 +44,7 @@ from airflow.typing_compat import Protocol, runtime_checkable
 class BatchProtocol(Protocol):
     """
     A structured Protocol for ``boto3.client('batch') -> botocore.client.Batch``.
+
     This is used for type hints on :py:meth:`.BatchClient.client`; it covers
     only the subset of client methods required.
 
@@ -140,6 +141,7 @@ class BatchProtocol(Protocol):
 class BatchClientHook(AwsBaseHook):
     """
     Interact with AWS Batch.
+
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("batch") <Batch.Client>`.
 
     :param max_retries: exponential back-off retries, 4200 = 48 hours;
@@ -289,8 +291,9 @@ class BatchClientHook(AwsBaseHook):
 
     def poll_for_job_running(self, job_id: str, delay: int | float | None = None) -> None:
         """
-        Poll for job running. The status that indicates a job is running or
-        already complete are: 'RUNNING'|'SUCCEEDED'|'FAILED'.
+        Poll for job running.
+
+        The status that indicates a job is running or already complete are: 'RUNNING'|'SUCCEEDED'|'FAILED'.
 
         So the status options that this will wait for are the transitions from:
         'SUBMITTED'>'PENDING'>'RUNNABLE'>'STARTING'>'RUNNING'|'SUCCEEDED'|'FAILED'
@@ -311,8 +314,9 @@ class BatchClientHook(AwsBaseHook):
 
     def poll_for_job_complete(self, job_id: str, delay: int | float | None = None) -> None:
         """
-        Poll for job completion. The status that indicates job completion
-        are: 'SUCCEEDED'|'FAILED'.
+        Poll for job completion.
+
+        The status that indicates job completion are: 'SUCCEEDED'|'FAILED'.
 
         So the status options that this will wait for are the transitions from:
         'SUBMITTED'>'PENDING'>'RUNNABLE'>'STARTING'>'RUNNING'>'SUCCEEDED'|'FAILED'
@@ -555,8 +559,9 @@ class BatchClientHook(AwsBaseHook):
     @staticmethod
     def exponential_delay(tries: int) -> float:
         """
-        An exponential back-off delay, with random jitter.  There is a maximum
-        interval of 10 minutes (with random jitter between 3 and 10 minutes).
+        An exponential back-off delay, with random jitter.
+
+        There is a maximum interval of 10 minutes (with random jitter between 3 and 10 minutes).
         This is used in the :py:meth:`.poll_for_job_status` method.
 
         :param tries: Number of tries

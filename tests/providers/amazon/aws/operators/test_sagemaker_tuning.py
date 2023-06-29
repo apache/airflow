@@ -21,10 +21,11 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTuningOperator
+from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
 
 EXPECTED_INTEGER_FIELDS: list[list[str]] = [
     ["HyperParameterTuningJobConfig", "ResourceLimits", "MaxNumberOfTrainingJobs"],
@@ -107,3 +108,15 @@ class TestSageMakerTuningOperator:
         mock_tuning.return_value = {"TrainingJobArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 404}}
         with pytest.raises(AirflowException):
             self.sagemaker.execute(None)
+
+    @mock.patch.object(SageMakerHook, "create_tuning_job")
+    def test_defers(self, create_mock):
+        create_mock.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+        self.sagemaker.deferrable = True
+
+        with pytest.raises(TaskDeferred) as defer:
+            self.sagemaker.execute(None)
+
+        assert isinstance(defer.value.trigger, SageMakerTrigger)
+        assert defer.value.trigger.job_name == "job_name"
+        assert defer.value.trigger.job_type == "tuning"

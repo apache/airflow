@@ -487,6 +487,7 @@ class ExternalTaskMarker(EmptyOperator):
 class ExternalTaskSensorLink(ExternalDagLink):
     """
     This external link is deprecated.
+
     Please use :class:`airflow.sensors.external_task.ExternalDagLink`.
     """
 

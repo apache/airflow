@@ -58,7 +58,12 @@ here so that users affected can find the reason for the changes.
 Airflow 2.6
 ~~~~~~~~~~~~~
 
-* 2.6
+* 2.6.3
+
+  * Add ``libgeos-dev`` library to runtime PROD image as it is required by BigQuery library on ARM image
+
+
+* 2.6.0
 
   * Snowflake provider installed by default
 

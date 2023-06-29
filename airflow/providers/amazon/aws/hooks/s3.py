@@ -64,10 +64,7 @@ logger = logging.getLogger(__name__)
 
 
 def provide_bucket_name(func: T) -> T:
-    """
-    Function decorator that provides a bucket name taken from the connection
-    in case no bucket name has been passed to the function.
-    """
+    """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
     if hasattr(func, "_unify_bucket_name_and_key_wrapped"):
         logger.warning("`unify_bucket_name_and_key` should wrap `provide_bucket_name`.")
     function_signature = signature(func)
@@ -83,9 +80,9 @@ def provide_bucket_name(func: T) -> T:
                 bound_args.arguments["bucket_name"] = self.service_config["bucket_name"]
             elif self.conn_config and self.conn_config.schema:
                 warnings.warn(
-                    "s3 conn_type, and the associated schema field, is deprecated."
-                    " Please use aws conn_type instead, and specify `bucket_name`"
-                    " in `service_config.s3` within `extras`.",
+                    "s3 conn_type, and the associated schema field, is deprecated. "
+                    "Please use aws conn_type instead, and specify `bucket_name` "
+                    "in `service_config.s3` within `extras`.",
                     AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
@@ -97,10 +94,7 @@ def provide_bucket_name(func: T) -> T:
 
 
 def provide_bucket_name_async(func: T) -> T:
-    """
-    Function decorator that provides a bucket name taken from the connection
-    in case no bucket name has been passed to the function.
-    """
+    """Provide a bucket name taken from the connection if no bucket name has been passed to the function."""
     function_signature = signature(func)
 
     @wraps(func)
@@ -120,10 +114,7 @@ def provide_bucket_name_async(func: T) -> T:
 
 
 def unify_bucket_name_and_key(func: T) -> T:
-    """
-    Function decorator that unifies bucket name and key taken from the key
-    in case no bucket name and at least a key has been passed to the function.
-    """
+    """Unify bucket name and key in case no bucket name and at least a key has been passed to the function."""
     function_signature = signature(func)
 
     @wraps(func)
@@ -156,6 +147,7 @@ def unify_bucket_name_and_key(func: T) -> T:
 class S3Hook(AwsBaseHook):
     """
     Interact with Amazon Simple Storage Service (S3).
+
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("s3") <S3.Client>`
     and :external+boto3:py:class:`boto3.resource("s3") <S3.ServiceResource>`.
 
@@ -212,11 +204,16 @@ class S3Hook(AwsBaseHook):
         :param s3url: The S3 Url to parse.
         :return: the parsed bucket name and key
         """
+        valid_s3_format = "S3://bucket-name/key-name"
+        valid_s3_virtual_hosted_format = "https://bucket-name.s3.region-code.amazonaws.com/key-name"
         format = s3url.split("//")
         if re.match(r"s3[na]?:", format[0], re.IGNORECASE):
             parsed_url = urlsplit(s3url)
             if not parsed_url.netloc:
-                raise S3HookUriParseFailure(f'Please provide a bucket name using a valid format: "{s3url}"')
+                raise S3HookUriParseFailure(
+                    "Please provide a bucket name using a valid format of the form: "
+                    f'{valid_s3_format} or {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
+                )
 
             bucket_name = parsed_url.netloc
             key = parsed_url.path.lstrip("/")
@@ -229,8 +226,16 @@ class S3Hook(AwsBaseHook):
             elif temp_split[1] == "s3":
                 bucket_name = temp_split[0]
                 key = "/".join(format[1].split("/")[1:])
+            else:
+                raise S3HookUriParseFailure(
+                    "Please provide a bucket name using a valid virtually hosted format which should "
+                    f'be of the form: {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
+                )
         else:
-            raise S3HookUriParseFailure(f'Please provide a bucket name using a valid format: "{s3url}"')
+            raise S3HookUriParseFailure(
+                "Please provide a bucket name using a valid format of the form: "
+                f'{valid_s3_format} or {valid_s3_virtual_hosted_format} but provided: "{s3url}"'
+            )
         return bucket_name, key
 
     @staticmethod
@@ -482,8 +487,10 @@ class S3Hook(AwsBaseHook):
         key: str,
     ) -> bool:
         """
-        Function to check if wildcard_match is True get list of files that a key matching a wildcard
-        expression exists in a bucket asynchronously and return the boolean value. If  wildcard_match
+        Get a list of files that a key matching a wildcard expression or get the head object.
+
+        If wildcard_match is True get list of files that a key matching a wildcard
+        expression exists in a bucket asynchronously and return the boolean value. If wildcard_match
         is False get the head object from the bucket and return the boolean value.
 
         :param client: aiobotocore client
@@ -1346,8 +1353,7 @@ class S3Hook(AwsBaseHook):
         bucket_name: str | None = None,
     ) -> None:
         """
-        Overwrites the existing TagSet with provided tags.
-        Must provide a TagSet, a key/value pair, or both.
+        Overwrites the existing TagSet with provided tags; must provide a TagSet, a key/value pair, or both.
 
         .. seealso::
             - :external+boto3:py:meth:`S3.Client.put_bucket_tagging`

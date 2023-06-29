@@ -31,7 +31,7 @@ import yaml
 
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.github import download_file_from_github
+from airflow_breeze.utils.github import download_constraints_file, download_file_from_github
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, FILES_DIR
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
@@ -243,18 +243,14 @@ def produce_sbom_for_application_via_cdxgen_server(
     )
     source_dir = job.application_root_path / job.airflow_version / job.python_version
     source_dir.mkdir(parents=True, exist_ok=True)
-    constraints_tag = f"constraints-{job.airflow_version}"
     lock_file_relative_path = "airflow/www/yarn.lock"
     download_file_from_github(
         tag=job.airflow_version, path=lock_file_relative_path, output_file=source_dir / "yarn.lock"
     )
-    if job.include_provider_dependencies:
-        constraints_file_path = f"constraints-{job.python_version}.txt"
-    else:
-        constraints_file_path = f"constraints-no-providers-{job.python_version}.txt"
-    if not download_file_from_github(
-        tag=constraints_tag,
-        path=constraints_file_path,
+    if not download_constraints_file(
+        airflow_version=job.airflow_version,
+        python_version=job.python_version,
+        include_provider_dependencies=job.include_provider_dependencies,
         output_file=source_dir / "requirements.txt",
     ):
         get_console(output=output).print(

@@ -4790,7 +4790,7 @@
                     "default": []
                 },
                 "securityContext": {
-                    "description": "Security context for the StatsD pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the StatsD pod (deprecated, use `securityContexts` instead).",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -4803,7 +4803,7 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the statsd. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the statsd.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
@@ -5517,7 +5517,7 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the redis. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the redis.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {

@@ -540,10 +540,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
 
                         cfg_path = None
 
-                        executor_class, _ = ExecutorLoader.import_executor_cls(
-                            self.job.executor_class,
-                        )
-                        if executor_class.is_local:
+                        if executor.is_local:
                             cfg_path = tmp_configuration_copy()
 
                         executor.queue_task_instance(
@@ -819,8 +816,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
         session: Session = NEW_SESSION,
     ) -> None:
         """
-        Go through the dag_runs and update the state based on the task_instance state.
-        Then set DAG runs that are not finished to failed.
+        Update the state of each dagrun based on the task_instance state and set unfinished runs to failed.
 
         :param dag_runs: DAG runs
         :param session: session

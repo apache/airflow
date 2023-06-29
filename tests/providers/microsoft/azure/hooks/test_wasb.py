@@ -40,16 +40,19 @@ ACCESS_KEY_STRING = "AccountName=name;skdkskd"
 
 class TestWasbHook:
     def setup_method(self):
-        db.merge_conn(Connection(conn_id="wasb_test_key", conn_type="wasb", login="login", password="key"))
+        self.login = "login"
+        self.wasb_test_key = "wasb_test_key"
         self.connection_type = "wasb"
         self.connection_string_id = "azure_test_connection_string"
         self.shared_key_conn_id = "azure_shared_key_test"
+        self.shared_key_conn_id_without_host = "azure_shared_key_test_wihout_host"
         self.ad_conn_id = "azure_AD_test"
         self.sas_conn_id = "sas_token_id"
         self.extra__wasb__sas_conn_id = "extra__sas_token_id"
         self.http_sas_conn_id = "http_sas_token_id"
         self.extra__wasb__http_sas_conn_id = "extra__http_sas_token_id"
         self.public_read_conn_id = "pub_read_id"
+        self.public_read_conn_id_without_host = "pub_read_id_without_host"
         self.managed_identity_conn_id = "managed_identity"
         self.authority = "https://test_authority.com"
 
@@ -62,13 +65,28 @@ class TestWasbHook:
 
         db.merge_conn(
             Connection(
+                conn_id=self.wasb_test_key,
+                conn_type=self.connection_type,
+                login=self.login,
+                password="key",
+            )
+        )
+        db.merge_conn(
+            Connection(
                 conn_id=self.public_read_conn_id,
                 conn_type=self.connection_type,
                 host="https://accountname.blob.core.windows.net",
                 extra=json.dumps({"proxies": self.proxies}),
             )
         )
-
+        db.merge_conn(
+            Connection(
+                conn_id=self.public_read_conn_id_without_host,
+                conn_type=self.connection_type,
+                login=self.login,
+                extra=json.dumps({"proxies": self.proxies}),
+            )
+        )
         db.merge_conn(
             Connection(
                 conn_id=self.connection_string_id,
@@ -81,6 +99,14 @@ class TestWasbHook:
                 conn_id=self.shared_key_conn_id,
                 conn_type=self.connection_type,
                 host="https://accountname.blob.core.windows.net",
+                extra=json.dumps({"shared_access_key": "token", "proxies": self.proxies}),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=self.shared_key_conn_id_without_host,
+                conn_type=self.connection_type,
+                login=self.login,
                 extra=json.dumps({"shared_access_key": "token", "proxies": self.proxies}),
             )
         )
@@ -111,6 +137,7 @@ class TestWasbHook:
             Connection(
                 conn_id=self.sas_conn_id,
                 conn_type=self.connection_type,
+                login=self.login,
                 extra=json.dumps({"sas_token": "token", "proxies": self.proxies}),
             )
         )
@@ -118,6 +145,7 @@ class TestWasbHook:
             Connection(
                 conn_id=self.extra__wasb__sas_conn_id,
                 conn_type=self.connection_type,
+                login=self.login,
                 extra=json.dumps({"extra__wasb__sas_token": "token", "proxies": self.proxies}),
             )
         )
@@ -172,6 +200,23 @@ class TestWasbHook:
         assert isinstance(hook.get_conn().credential, ClientSecretCredential)
 
     @pytest.mark.parametrize(
+        argnames="conn_id_str",
+        argvalues=[
+            "wasb_test_key",
+            "shared_key_conn_id_without_host",
+            "public_read_conn_id_without_host",
+        ],
+    )
+    def test_account_url_without_host(self, conn_id_str):
+        conn_id = self.__getattribute__(conn_id_str)
+        hook = WasbHook(wasb_conn_id=conn_id)
+        hook_conn = hook.get_connection(hook.conn_id)
+        conn = hook.get_conn()
+        assert conn.url.startswith("https://")
+        assert conn.url.__contains__(hook_conn.login)
+        assert conn.url.endswith(".blob.core.windows.net/")
+
+    @pytest.mark.parametrize(
         argnames="conn_id_str, extra_key",
         argvalues=[
             ("sas_conn_id", "sas_token"),
@@ -187,6 +232,9 @@ class TestWasbHook:
         hook_conn = hook.get_connection(hook.conn_id)
         sas_token = hook_conn.extra_dejson[extra_key]
         assert isinstance(conn, BlobServiceClient)
+        assert conn.url.startswith("https://")
+        if hook_conn.login:
+            assert conn.url.__contains__(hook_conn.login)
         assert conn.url.endswith(sas_token + "/")
 
     @pytest.mark.parametrize(
@@ -459,4 +507,5 @@ class TestWasbHook:
             "extra__wasb__tenant_id",
             "extra__wasb__shared_access_key",
             "extra__wasb__sas_token",
+            "extra",
         ]

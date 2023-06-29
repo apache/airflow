@@ -19,16 +19,25 @@
 ``apache-airflow-providers-samba``
 ==================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/samba/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -39,6 +48,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -77,5 +87,3 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.4.0``
 ``smbprotocol``     ``>=1.5.0``
 ==================  ==================
-
-.. include:: ../../airflow/providers/samba/CHANGELOG.rst

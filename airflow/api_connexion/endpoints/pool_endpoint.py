@@ -20,7 +20,7 @@ from http import HTTPStatus
 
 from flask import Response
 from marshmallow import ValidationError
-from sqlalchemy import delete, func
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -52,7 +52,7 @@ def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIRespons
 @provide_session
 def get_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a pool."""
-    obj = session.query(Pool).filter(Pool.pool == pool_name).one_or_none()
+    obj = session.scalar(select(Pool).where(Pool.pool == pool_name))
     if obj is None:
         raise NotFound(detail=f"Pool with name:'{pool_name}' not found")
     return pool_schema.dump(obj)
@@ -71,10 +71,10 @@ def get_pools(
     """Get all pools."""
     to_replace = {"name": "pool"}
     allowed_filter_attrs = ["name", "slots", "id"]
-    total_entries = session.query(func.count(Pool.id)).scalar()
-    query = session.query(Pool)
+    total_entries = session.scalars(func.count(Pool.id)).one()
+    query = select(Pool)
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
-    pools = query.offset(offset).limit(limit).all()
+    pools = session.scalars(query.offset(offset).limit(limit)).all()
     return pool_collection_schema.dump(PoolCollection(pools=pools, total_entries=total_entries))
 
 
@@ -98,7 +98,7 @@ def patch_pool(
     except KeyError:
         pass
 
-    pool = session.query(Pool).filter(Pool.pool == pool_name).first()
+    pool = session.scalar(select(Pool).where(Pool.pool == pool_name).limit(1))
     if not pool:
         raise NotFound(detail=f"Pool with name:'{pool_name}' not found")
 

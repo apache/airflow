@@ -101,6 +101,7 @@ class TestCeleryExecutor:
         db.clear_db_runs()
         db.clear_db_jobs()
 
+    @pytest.mark.flaky(reruns=3)
     @pytest.mark.parametrize("broker_url", _prepare_test_bodies())
     def test_celery_integration(self, broker_url):
         success_command = ["airflow", "tasks", "run", "true", "some_parameter"]
@@ -308,6 +309,39 @@ class TestBulkStateFetcher:
 
         assert result == {"123": ("SUCCESS", None), "456": ("PENDING", None)}
         assert caplog.messages == ["Fetched 2 state(s) for 2 task(s)"]
+
+    @mock.patch("celery.backends.database.DatabaseBackend.ResultSession")
+    def test_should_retry_db_backend(self, mock_session, caplog):
+        caplog.set_level(logging.DEBUG, logger=self.bulk_state_fetcher_logger)
+        from sqlalchemy.exc import DatabaseError
+
+        with _prepare_app():
+            mock_backend = DatabaseBackend(app=celery_executor.app, url="sqlite3://")
+            with mock.patch("airflow.executors.celery_executor_utils.Celery.backend", mock_backend):
+                caplog.clear()
+                mock_session = mock_backend.ResultSession.return_value
+                mock_retry_db_result = mock_session.query.return_value.filter.return_value.all
+                mock_retry_db_result.return_value = [
+                    mock.MagicMock(**{"to_dict.return_value": {"status": "SUCCESS", "task_id": "123"}})
+                ]
+                mock_retry_db_result.side_effect = [
+                    DatabaseError("DatabaseError", "DatabaseError", "DatabaseError"),
+                    mock_retry_db_result.return_value,
+                ]
+
+                fetcher = celery_executor_utils.BulkStateFetcher()
+                result = fetcher.get_many(
+                    [
+                        mock.MagicMock(task_id="123"),
+                        mock.MagicMock(task_id="456"),
+                    ]
+                )
+        assert mock_retry_db_result.call_count == 2
+        assert result == {"123": ("SUCCESS", None), "456": ("PENDING", None)}
+        assert caplog.messages == [
+            "Failed operation _query_task_cls_from_db_backend.  Retrying 2 more times.",
+            "Fetched 2 state(s) for 2 task(s)",
+        ]
 
     def test_should_support_base_backend(self, caplog):
         caplog.set_level(logging.DEBUG, logger=self.bulk_state_fetcher_logger)
