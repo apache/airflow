@@ -256,8 +256,7 @@ class DbApiHook(BaseForDbApiHook):
         :return: list of individual expressions
         """
         splits = sqlparse.split(sqlparse.format(sql, strip_comments=True))
-        statements: list[str] = list(filter(None, splits))
-        return statements
+        return [s for s in splits if s]
 
     @property
     def last_description(self) -> Sequence[Sequence] | None:

@@ -91,8 +91,7 @@ class DatabaseInfo:
 
 
 class SQLParser:
-    """
-    An interface for `openlineage_sql` library.
+    """Interface for openlineage-sql.
 
     :param dialect: dialect specific to the database
     :param default_schema: schema applied to each table with no schema parsed
@@ -104,10 +103,7 @@ class SQLParser:
 
     def parse(self, sql: list[str] | str) -> SqlMeta | None:
         """Parse a single or a list of SQL statements."""
-        parse_result: SqlMeta | None = parse(
-            sql=sql, dialect=self.dialect, default_schema=self.default_schema
-        )
-        return parse_result
+        return parse(sql=sql, dialect=self.dialect, default_schema=self.default_schema)
 
     def parse_table_schemas(
         self,
@@ -131,8 +127,8 @@ class SQLParser:
             hook,
             namespace,
             database or database_info.database,
-            SQLParser.create_information_schema_query(tables=inputs, **database_kwargs) if inputs else None,
-            SQLParser.create_information_schema_query(tables=outputs, **database_kwargs) if outputs else None,
+            self.create_information_schema_query(tables=inputs, **database_kwargs) if inputs else None,
+            self.create_information_schema_query(tables=outputs, **database_kwargs) if outputs else None,
         )
 
     def generate_openlineage_metadata_from_sql(
@@ -142,28 +138,26 @@ class SQLParser:
         database_info: DatabaseInfo,
         database: str | None = None,
     ) -> OperatorLineage:
-        """
-        Parses SQL statement(s) and generates OpenLineage metadata.
+        """Parses SQL statement(s) and generates OpenLineage metadata.
 
         Generated OpenLineage metadata contains:
-            * input tables with schemas parsed
-            * output tables with schemas parsed
-            * run facets
-            * job facets.
+
+        * input tables with schemas parsed
+        * output tables with schemas parsed
+        * run facets
+        * job facets.
 
         :param sql: a SQL statement or list of SQL statement to be parsed
         :param hook: Airflow Hook used to connect to the database
         :param database_info: database specific information
         :param database: when passed it takes precedence over parsed database name
         """
-        job_facets: dict[str, BaseFacet] = {"sql": SqlJobFacet(query=SQLParser.normalize_sql(sql))}
-
-        parse_result: SqlMeta | None = self.parse(SQLParser.split_sql_string(sql))
+        job_facets: dict[str, BaseFacet] = {"sql": SqlJobFacet(query=self.normalize_sql(sql))}
+        parse_result = self.parse(self.split_sql_string(sql))
         if not parse_result:
             return OperatorLineage(job_facets=job_facets)
 
-        run_facets: dict = {}
-
+        run_facets = {}
         if parse_result.errors:
             run_facets["extractionError"] = ExtractionErrorRunFacet(
                 totalTasks=len(sql) if isinstance(sql, list) else 1,
@@ -179,7 +173,7 @@ class SQLParser:
                 ],
             )
 
-        namespace = SQLParser.create_namespace(database_info=database_info)
+        namespace = self.create_namespace(database_info=database_info)
         inputs, outputs = self.parse_table_schemas(
             hook=hook,
             inputs=parse_result.in_tables,
@@ -204,39 +198,35 @@ class SQLParser:
             else database_info.scheme
         )
 
-    @staticmethod
-    def normalize_sql(sql: list[str] | str) -> str:
+    @classmethod
+    def normalize_sql(cls, sql: list[str] | str) -> str:
         """Makes sure to return a semicolon-separated SQL statements."""
-        return ";\n".join(stmt.rstrip(" ;\r\n") for stmt in SQLParser.split_sql_string(sql))
+        return ";\n".join(stmt.rstrip(" ;\r\n") for stmt in cls.split_sql_string(sql))
 
-    @staticmethod
-    def split_sql_string(sql: list[str] | str) -> list[str]:
+    @classmethod
+    def split_sql_string(cls, sql: list[str] | str) -> list[str]:
         """
         Split SQL string into list of statements
         Tries to use `DbApiHook.split_sql_string` if available.
         Otherwise, uses the same logic.
         """
-        split_statement: Callable[[str], list[str]]
         try:
             from airflow.providers.common.sql.hooks.sql import DbApiHook
 
             split_statement = DbApiHook.split_sql_string
         except (ImportError, AttributeError):
-            # no common.sql Airflow provider available
+            # No common.sql Airflow provider available or version is too old.
             def split_statement(sql: str) -> list[str]:
-
                 splits = sqlparse.split(sqlparse.format(sql, strip_comments=True))
-                statements: list[str] = list(filter(None, splits))
-                return statements
-
-            pass
+                return [s for s in splits if s]
 
         if isinstance(sql, str):
             return split_statement(sql)
-        return [obj for stmt in sql for obj in SQLParser.split_sql_string(stmt) if obj != ""]
+        return [obj for stmt in sql for obj in cls.split_sql_string(stmt) if obj != ""]
 
-    @staticmethod
+    @classmethod
     def create_information_schema_query(
+        cls,
         tables: list[DbTableMeta],
         normalize_name: Callable[[str], str],
         is_cross_db: bool,
@@ -246,7 +236,7 @@ class SQLParser:
         database: str | None = None,
     ) -> str:
         """Creates SELECT statement to query information schema table."""
-        tables_hierarchy = SQLParser._get_tables_hierarchy(
+        tables_hierarchy = cls._get_tables_hierarchy(
             tables,
             normalize_name=normalize_name,
             database=database,
@@ -282,7 +272,7 @@ class SQLParser:
                 db = table.database or database
             else:
                 db = None
-            hierarchy.setdefault(normalize_name(db) if db else db, {}).setdefault(
-                normalize_name(table.schema) if table.schema else db, []
-            ).append(table.name)
+            schemas = hierarchy.setdefault(normalize_name(db) if db else db, {})
+            tables = schemas.setdefault(normalize_name(table.schema) if table.schema else db, [])
+            tables.append(table.name)
         return hierarchy
