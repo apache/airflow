@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os.path
 import tempfile
 from contextlib import ExitStack, contextmanager
 from typing import Collection, Generator, Sequence
@@ -140,7 +141,9 @@ def provide_gcp_conn_and_credentials(
     project_id: str | None = None,
 ) -> Generator[None, None, None]:
     """
-    Context manager that provides both:
+    Context manager that provides GPC connection and credentials.
+
+     It provides both:
 
     - Google Cloud credentials for application supporting `Application Default Credentials (ADC)
       strategy`__.
@@ -166,7 +169,7 @@ def provide_gcp_conn_and_credentials(
 
 class _CredentialProvider(LoggingMixin):
     """
-    Prepare the Credentials object for Google API and the associated project_id
+    Prepare the Credentials object for Google API and the associated project_id.
 
     Only either `key_path` or `keyfile_dict` should be provided, or an exception will
     occur. If neither of them are provided, return default credentials for the current environment
@@ -196,6 +199,7 @@ class _CredentialProvider(LoggingMixin):
         self,
         key_path: str | None = None,
         keyfile_dict: dict[str, str] | None = None,
+        credential_config_file: dict[str, str] | str | None = None,
         key_secret_name: str | None = None,
         key_secret_project_id: str | None = None,
         scopes: Collection[str] | None = None,
@@ -213,6 +217,7 @@ class _CredentialProvider(LoggingMixin):
             )
         self.key_path = key_path
         self.keyfile_dict = keyfile_dict
+        self.credential_config_file = credential_config_file
         self.key_secret_name = key_secret_name
         self.key_secret_project_id = key_secret_project_id
         self.scopes = scopes
@@ -233,6 +238,8 @@ class _CredentialProvider(LoggingMixin):
             credentials, project_id = self._get_credentials_using_key_secret_name()
         elif self.keyfile_dict:
             credentials, project_id = self._get_credentials_using_keyfile_dict()
+        elif self.credential_config_file:
+            credentials, project_id = self._get_credentials_using_credential_config_file()
         else:
             credentials, project_id = self._get_credentials_using_adc()
 
@@ -311,9 +318,33 @@ class _CredentialProvider(LoggingMixin):
         project_id = credentials.project_id
         return credentials, project_id
 
+    def _get_credentials_using_credential_config_file(self):
+        if isinstance(self.credential_config_file, str) and os.path.exists(self.credential_config_file):
+            self._log_info(
+                f"Getting connection using credential configuration file: `{self.credential_config_file}`"
+            )
+            credentials, project_id = google.auth.load_credentials_from_file(
+                self.credential_config_file, scopes=self.scopes
+            )
+        else:
+            with tempfile.NamedTemporaryFile(mode="w+t") as temp_credentials_fd:
+                if isinstance(self.credential_config_file, dict):
+                    self._log_info("Getting connection using credential configuration dict.")
+                    temp_credentials_fd.write(json.dumps(self.credential_config_file))
+                elif isinstance(self.credential_config_file, str):
+                    self._log_info("Getting connection using credential configuration string.")
+                    temp_credentials_fd.write(self.credential_config_file)
+
+                temp_credentials_fd.flush()
+                credentials, project_id = google.auth.load_credentials_from_file(
+                    temp_credentials_fd.name, scopes=self.scopes
+                )
+
+        return credentials, project_id
+
     def _get_credentials_using_adc(self):
         self._log_info(
-            "Getting connection using `google.auth.default()` since no key file is defined for hook."
+            "Getting connection using `google.auth.default()` since no explicit credentials are provided."
         )
         credentials, project_id = google.auth.default(scopes=self.scopes)
         return credentials, project_id

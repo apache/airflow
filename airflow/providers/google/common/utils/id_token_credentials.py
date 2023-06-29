@@ -24,7 +24,7 @@ To obtain info about this token, run the following commands:
     ID_TOKEN="$(python -m airflow.providers.google.common.utils.id_token_credentials)"
     curl "https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=${ID_TOKEN}" -v
 
-.. spelling::
+.. spelling:word-list::
 
     RefreshError
 """

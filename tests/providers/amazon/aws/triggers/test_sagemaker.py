@@ -16,11 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+from unittest.mock import AsyncMock
+
 import pytest
 
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
 from airflow.triggers.base import TriggerEvent
-from tests.providers.amazon.aws.utils.compat import AsyncMock, async_mock
 
 JOB_NAME = "job_name"
 JOB_TYPE = "job_type"
@@ -47,29 +49,26 @@ class TestSagemakerTrigger:
         assert args["aws_conn_id"] == AWS_CONN_ID
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_waiter")
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.async_conn")
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrigger._get_job_type_waiter")
-    @async_mock.patch(
-        "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrigger._get_job_type_waiter_job_name_arg"
+    @pytest.mark.parametrize(
+        "job_type",
+        [
+            "training",
+            "transform",
+            "processing",
+            "tuning",
+            "endpoint",
+        ],
     )
-    async def test_sagemaker_trigger_run(
-        self,
-        mock_get_job_type_waiter_job_name_arg,
-        mock_get_job_type_waiter,
-        mock_async_conn,
-        mock_get_waiter,
-    ):
-        mock_get_job_type_waiter_job_name_arg.return_value = "job_name"
-        mock_get_job_type_waiter.return_value = "waiter"
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
+    @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.get_waiter")
+    @mock.patch("airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.async_conn")
+    async def test_sagemaker_trigger_run_all_job_types(self, mock_async_conn, mock_get_waiter, job_type):
+        mock_async_conn.__aenter__.return_value = mock.MagicMock()
 
         mock_get_waiter().wait = AsyncMock()
 
         sagemaker_trigger = SageMakerTrigger(
             job_name=JOB_NAME,
-            job_type=JOB_TYPE,
+            job_type=job_type,
             poke_interval=POKE_INTERVAL,
             max_attempts=MAX_ATTEMPTS,
             aws_conn_id=AWS_CONN_ID,

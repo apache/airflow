@@ -17,10 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 from urllib.parse import urlsplit
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.sensors.base import BaseSensorOperator
@@ -31,9 +31,9 @@ if TYPE_CHECKING:
 
 class OSSKeySensor(BaseSensorOperator):
     """
-    Waits for a key (a file-like instance on OSS) to be present in a OSS bucket.
-    OSS being a key/value it does not support folders. The path is just a key
-    a resource.
+    Waits for a key (a file-like instance on OSS) to be present in an OSS bucket.
+
+    OSS being a key/value, it does not support folders. The path is just a key resource.
 
     :param bucket_key: The key being waited on. Supports full oss:// style url
         or relative path from root level. When it's specified as a full oss://
@@ -64,9 +64,10 @@ class OSSKeySensor(BaseSensorOperator):
     def poke(self, context: Context):
         """
         Check if the object exists in the bucket to pull key.
-        @param self - the object itself
-        @param context - the context of the object
-        @returns True if the object exists, False otherwise
+
+        :param self: the object itself
+        :param context: the context of the object
+        :returns: True if the object exists, False otherwise
         """
         if self.bucket_name is None:
             parsed_url = urlsplit(self.bucket_key)
@@ -88,7 +89,7 @@ class OSSKeySensor(BaseSensorOperator):
 
     @cached_property
     def get_hook(self) -> OSSHook:
-        """Create and return an OSSHook"""
+        """Create and return an OSSHook."""
         if self.hook:
             return self.hook
 

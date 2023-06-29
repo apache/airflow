@@ -31,7 +31,7 @@ BIGQUERY_DTS_LINK = BIGQUERY_BASE_LINK + "/locations/{region}/configs/{config_id
 
 
 class BigQueryDataTransferConfigLink(BaseGoogleLink):
-    """Helper class for constructing BigQuery Data Transfer Config Link"""
+    """Helper class for constructing BigQuery Data Transfer Config Link."""
 
     name = "BigQuery Data Transfer Config"
     key = "bigquery_dts_config"

@@ -30,7 +30,7 @@ from airflow.serialization.serialized_objects import BaseSerialization
 log = logging.getLogger(__name__)
 
 
-@functools.lru_cache()
+@functools.lru_cache
 def _initialize_map() -> dict[str, Callable]:
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor

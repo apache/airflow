@@ -20,33 +20,19 @@ import json
 import os
 import sys
 from enum import Enum
-
-from airflow_breeze.utils.exclude_from_matrix import excluded_combos
-from airflow_breeze.utils.github_actions import get_ga_output
-from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
-from airflow_breeze.utils.path_utils import (
-    AIRFLOW_PROVIDERS_ROOT,
-    AIRFLOW_SOURCES_ROOT,
-    DOCS_DIR,
-    SYSTEM_TESTS_PROVIDERS_ROOT,
-    TESTS_PROVIDERS_ROOT,
-)
-from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    # noinspection PyUnresolvedReferences
-    from cached_property import cached_property
-
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from re import match
 from typing import Any, Dict, List, TypeVar
 
-from typing_extensions import Literal
+if sys.version_info >= (3, 9):
+    from typing import Literal
+else:
+    from typing import Literal
 
 from airflow_breeze.global_constants import (
     ALL_PYTHON_MAJOR_MINOR_VERSIONS,
+    APACHE_AIRFLOW_GITHUB_REPOSITORY,
+    COMMITTERS,
     CURRENT_KUBERNETES_VERSIONS,
     CURRENT_MSSQL_VERSIONS,
     CURRENT_MYSQL_VERSIONS,
@@ -59,15 +45,29 @@ from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     HELM_VERSION,
     KIND_VERSION,
+    RUNS_ON_PUBLIC_RUNNER,
+    RUNS_ON_SELF_HOSTED_RUNNER,
+    SELF_HOSTED_RUNNERS_CPU_COUNT,
     GithubEvents,
     SelectiveUnitTestTypes,
     all_helm_test_packages,
     all_selective_test_types,
 )
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.exclude_from_matrix import excluded_combos
+from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_PROVIDERS_ROOT,
+    AIRFLOW_SOURCES_ROOT,
+    DOCS_DIR,
+    SYSTEM_TESTS_PROVIDERS_ROOT,
+    TESTS_PROVIDERS_ROOT,
+)
+from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related_providers
 
 FULL_TESTS_NEEDED_LABEL = "full tests needed"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
+USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 
 
 class FileGroupForCi(Enum):
@@ -295,6 +295,9 @@ class SelectiveChecks:
         commit_ref: str | None = None,
         pr_labels: tuple[str, ...] = (),
         github_event: GithubEvents = GithubEvents.PULL_REQUEST,
+        github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY,
+        github_actor: str = "",
+        github_context_dict: dict[str, Any] | None = None,
     ):
         self._files = files
         self._default_branch = default_branch
@@ -302,6 +305,9 @@ class SelectiveChecks:
         self._commit_ref = commit_ref
         self._pr_labels = pr_labels
         self._github_event = github_event
+        self._github_repository = github_repository
+        self._github_actor = github_actor
+        self._github_context_dict = github_context_dict or {}
 
     def __important_attributes(self) -> tuple[Any, ...]:
         return tuple(getattr(self, f) for f in self.__HASHABLE_FIELDS)
@@ -315,6 +321,8 @@ class SelectiveChecks:
         )
 
     def __str__(self) -> str:
+        from airflow_breeze.utils.github import get_ga_output
+
         output = []
         for field_name in dir(self):
             if not field_name.startswith("_"):
@@ -567,6 +575,9 @@ class SelectiveChecks:
         return "allow suspended provider changes" not in self._pr_labels
 
     def _get_test_types_to_run(self) -> list[str]:
+        if self.full_tests_needed:
+            return list(all_selective_test_types())
+
         candidate_test_types: set[str] = {"Always"}
         matched_files: set[str] = set()
         matched_files.update(
@@ -618,7 +629,7 @@ class SelectiveChecks:
     @staticmethod
     def _extract_long_provider_tests(current_test_types: set[str]):
         """
-        In case there are Provider tests in the list of test to run (either in the form of
+        In case there are Provider tests in the list of test to run - either in the form of
         Providers or Providers[...] we subtract them from the test type,
         and add them to the list of tests to run individually.
 
@@ -649,10 +660,7 @@ class SelectiveChecks:
     def parallel_test_types_list_as_string(self) -> str | None:
         if not self.run_tests:
             return None
-        if self.full_tests_needed:
-            current_test_types = set(all_selective_test_types())
-        else:
-            current_test_types = set(self._get_test_types_to_run())
+        current_test_types = set(self._get_test_types_to_run())
         if self._default_branch != "main":
             test_types_to_remove: set[str] = set()
             for test_type in current_test_types:
@@ -715,7 +723,9 @@ class SelectiveChecks:
         ):
             return _ALL_DOCS_LIST
         packages = []
-        if any([file.startswith("airflow/") for file in self._files]):
+        if any(
+            [file.startswith("airflow/") or file.startswith("docs/apache-airflow/") for file in self._files]
+        ):
             packages.append("apache-airflow")
         if any([file.startswith("chart/") or file.startswith("docs/helm-chart") for file in self._files]):
             packages.append("helm-chart")
@@ -728,13 +738,22 @@ class SelectiveChecks:
 
     @cached_property
     def skip_pre_commits(self) -> str:
-        return "identity" if self._default_branch == "main" else "identity,check-airflow-2-2-compatibility"
+        return (
+            "identity"
+            if self._default_branch == "main"
+            else "identity,check-airflow-provider-compatibility,"
+            "check-extra-packages-references,check-provider-yaml-valid"
+        )
 
     @cached_property
     def skip_provider_tests(self) -> bool:
-        return self._default_branch != "main" or not any(
-            test_type.startswith("Providers") for test_type in self._get_test_types_to_run()
-        )
+        if self._default_branch != "main":
+            return True
+        if self.full_tests_needed:
+            return False
+        if any(test_type.startswith("Providers") for test_type in self._get_test_types_to_run()):
+            return False
+        return True
 
     @cached_property
     def cache_directive(self) -> str:
@@ -765,3 +784,31 @@ class SelectiveChecks:
         if affected_providers == "ALL_PROVIDERS":
             return _ALL_PROVIDERS_LIST
         return " ".join(sorted(affected_providers))
+
+    @cached_property
+    def runs_on(self) -> str:
+        if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
+            if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
+                return RUNS_ON_SELF_HOSTED_RUNNER
+            actor = self._github_actor
+            if self._github_event in (GithubEvents.PULL_REQUEST, GithubEvents.PULL_REQUEST_TARGET):
+                try:
+                    actor = self._github_context_dict["event"]["pull_request"]["user"]["login"]
+                    get_console().print(
+                        f"[warning]The actor: {actor} retrieved from GITHUB_CONTEXT's"
+                        f" event.pull_request.user.login[/]"
+                    )
+                except Exception as e:
+                    get_console().print(f"[warning]Exception when reading user login: {e}[/]")
+                    get_console().print(
+                        f"[info]Could not find the actor from pull request, "
+                        f"falling back to the actor who triggered the PR: {actor}[/]"
+                    )
+            if actor in COMMITTERS and USE_PUBLIC_RUNNERS_LABEL not in self._pr_labels:
+                return RUNS_ON_SELF_HOSTED_RUNNER
+        return RUNS_ON_PUBLIC_RUNNER
+
+    @cached_property
+    def mssql_parallelism(self) -> int:
+        # Limit parallelism for MSSQL to 1 for public runners due to race conditions generated there
+        return SELF_HOSTED_RUNNERS_CPU_COUNT if self.runs_on == RUNS_ON_SELF_HOSTED_RUNNER else 1

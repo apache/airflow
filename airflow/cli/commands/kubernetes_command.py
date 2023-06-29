@@ -148,8 +148,8 @@ def cleanup_pods(args):
 
 def _delete_pod(name, namespace):
     """Helper Function for cleanup_pods."""
-    core_v1 = client.CoreV1Api()
+    kube_client = get_kube_client()
     delete_options = client.V1DeleteOptions()
     print(f'Deleting POD "{name}" from "{namespace}" namespace')
-    api_response = core_v1.delete_namespaced_pod(name=name, namespace=namespace, body=delete_options)
+    api_response = kube_client.delete_namespaced_pod(name=name, namespace=namespace, body=delete_options)
     print(api_response)

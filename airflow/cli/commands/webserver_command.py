@@ -17,7 +17,6 @@
 """Webserver command."""
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
 import signal
@@ -40,6 +39,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations, setup_logging
+from airflow.utils.hashlib_wrapper import md5
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.process_utils import check_if_pidfile_process_is_running
 
@@ -124,7 +124,7 @@ class GunicornMonitor(LoggingMixin):
     @staticmethod
     def _get_file_hash(fname: str):
         """Calculate MD5 hash for file."""
-        hash_md5 = hashlib.md5()
+        hash_md5 = md5()
         with open(fname, "rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
                 hash_md5.update(chunk)

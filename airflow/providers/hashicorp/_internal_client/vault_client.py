@@ -16,12 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+from functools import cached_property
+
 import hvac
 from hvac.api.auth_methods import Kubernetes
 from hvac.exceptions import InvalidPath, VaultError
-from requests import Response
+from requests import Response, Session
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
-from airflow.compat.functools import cached_property
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 DEFAULT_KUBERNETES_JWT_PATH = "/var/run/secrets/kubernetes.io/serviceaccount/token"
@@ -190,6 +193,22 @@ class _VaultClient(LoggingMixin):
         :return: Vault Client
 
         """
+        if "session" not in self.kwargs:
+            # If no session object provide one with retry as per hvac documentation:
+            # https://hvac.readthedocs.io/en/stable/advanced_usage.html#retrying-failed-requests
+            adapter = HTTPAdapter(
+                max_retries=Retry(
+                    total=3,
+                    backoff_factor=0.1,
+                    status_forcelist=[412, 500, 502, 503],
+                    raise_on_status=False,
+                )
+            )
+            session = Session()
+            session.mount("http://", adapter)
+            session.mount("https://", adapter)
+            self.kwargs["session"] = session
+
         _client = hvac.Client(url=self.url, **self.kwargs)
         if self.auth_type == "approle":
             self._auth_approle(_client)
@@ -221,11 +240,11 @@ class _VaultClient(LoggingMixin):
 
     def _auth_userpass(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
-            _client.auth_userpass(
+            _client.auth.userpass.login(
                 username=self.username, password=self.password, mount_point=self.auth_mount_point
             )
         else:
-            _client.auth_userpass(username=self.username, password=self.password)
+            _client.auth.userpass.login(username=self.username, password=self.password)
 
     def _auth_radius(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
@@ -300,14 +319,14 @@ class _VaultClient(LoggingMixin):
 
     def _auth_aws_iam(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:
-            _client.auth_aws_iam(
+            _client.auth.aws.iam_login(
                 access_key=self.key_id,
                 secret_key=self.secret_id,
                 role=self.role_id,
                 mount_point=self.auth_mount_point,
             )
         else:
-            _client.auth_aws_iam(access_key=self.key_id, secret_key=self.secret_id, role=self.role_id)
+            _client.auth.aws.iam_login(access_key=self.key_id, secret_key=self.secret_id, role=self.role_id)
 
     def _auth_approle(self, _client: hvac.Client) -> None:
         if self.auth_mount_point:

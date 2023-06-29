@@ -21,7 +21,7 @@ from http import HTTPStatus
 from connexion import NoContent
 from flask import request
 from marshmallow import ValidationError
-from sqlalchemy import asc, desc, func
+from sqlalchemy import asc, desc, func, select
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
@@ -69,7 +69,7 @@ def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) 
     """Get roles."""
     appbuilder = get_airflow_app().appbuilder
     session = appbuilder.get_session
-    total_entries = session.query(func.count(Role.id)).scalar()
+    total_entries = session.scalars(select(func.count(Role.id))).one()
     direction = desc if order_by.startswith("-") else asc
     to_replace = {"role_id": "id"}
     order_param = order_by.strip("-")
@@ -81,8 +81,12 @@ def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) 
             f"the attribute does not exist on the model"
         )
 
-    query = session.query(Role)
-    roles = query.order_by(direction(getattr(Role, order_param))).offset(offset).limit(limit).all()
+    query = select(Role)
+    roles = (
+        session.scalars(query.order_by(direction(getattr(Role, order_param))).offset(offset).limit(limit))
+        .unique()
+        .all()
+    )
 
     return role_collection_schema.dump(RoleCollection(roles=roles, total_entries=total_entries))
 
@@ -92,9 +96,9 @@ def get_roles(*, order_by: str = "name", limit: int, offset: int | None = None) 
 def get_permissions(*, limit: int, offset: int | None = None) -> APIResponse:
     """Get permissions."""
     session = get_airflow_app().appbuilder.get_session
-    total_entries = session.query(func.count(Action.id)).scalar()
-    query = session.query(Action)
-    actions = query.offset(offset).limit(limit).all()
+    total_entries = session.scalars(select(func.count(Action.id))).one()
+    query = select(Action)
+    actions = session.scalars(query.offset(offset).limit(limit)).all()
     return action_collection_schema.dump(ActionCollection(actions=actions, total_entries=total_entries))
 
 

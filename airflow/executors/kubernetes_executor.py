@@ -44,11 +44,16 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
 from airflow.kubernetes.kube_config import KubeConfig
-from airflow.kubernetes.kubernetes_helper_functions import annotations_to_key, create_pod_id
+from airflow.kubernetes.kubernetes_helper_functions import (
+    annotations_for_logging_task_metadata,
+    annotations_to_key,
+    create_pod_id,
+)
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin, remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.singleton import Singleton
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
@@ -69,16 +74,10 @@ ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
 
 
-class ResourceVersion:
+class ResourceVersion(metaclass=Singleton):
     """Singleton for tracking resourceVersion from Kubernetes."""
 
-    _instance: ResourceVersion | None = None
     resource_version: dict[str, str] = {}
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
@@ -216,15 +215,19 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         resource_version: str,
         event: Any,
     ) -> None:
+        pod = event["object"]
+        annotations_string = annotations_for_logging_task_metadata(annotations)
         """Process status response."""
         if status == "Pending":
-            if event["type"] == "DELETED":
-                self.log.info("Event: Failed to start pod %s", pod_name)
+            # deletion_timestamp is set by kube server when a graceful deletion is requested.
+            # since kube server have received request to delete pod set TI state failed
+            if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
+                self.log.info("Event: Failed to start pod %s, annotations: %s", pod_name, annotations_string)
                 self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
             else:
-                self.log.debug("Event: %s Pending", pod_name)
+                self.log.debug("Event: %s Pending, annotations: %s", pod_name, annotations_string)
         elif status == "Failed":
-            self.log.error("Event: %s Failed", pod_name)
+            self.log.error("Event: %s Failed, annotations: %s", pod_name, annotations_string)
             self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
         elif status == "Succeeded":
             # We get multiple events once the pod hits a terminal state, and we only want to
@@ -232,7 +235,6 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # If our event type is DELETED, we have the POD_EXECUTOR_DONE_KEY, or the pod has
             # a deletion timestamp, we've already seen the initial Succeeded event and sent it
             # along to the scheduler.
-            pod = event["object"]
             if (
                 event["type"] == "DELETED"
                 or POD_EXECUTOR_DONE_KEY in pod.metadata.labels
@@ -243,14 +245,20 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     pod_name,
                 )
                 return
-            self.log.info("Event: %s Succeeded", pod_name)
+            self.log.info("Event: %s Succeeded, annotations: %s", pod_name, annotations_string)
             self.watcher_queue.put((pod_name, namespace, None, annotations, resource_version))
         elif status == "Running":
-            if event["type"] == "DELETED":
-                self.log.info("Event: Pod %s deleted before it could complete", pod_name)
+            # deletion_timestamp is set by kube server when a graceful deletion is requested.
+            # since kube server have received request to delete pod set TI state failed
+            if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
+                self.log.info(
+                    "Event: Pod %s deleted before it could complete, annotations: %s",
+                    pod_name,
+                    annotations_string,
+                )
                 self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
             else:
-                self.log.info("Event: %s is Running", pod_name)
+                self.log.info("Event: %s is Running, annotations: %s", pod_name, annotations_string)
         else:
             self.log.warning(
                 "Event: Invalid state: %s on pod: %s in namespace %s with annotations: %s with "
@@ -377,7 +385,12 @@ class AirflowKubernetesScheduler(LoggingMixin):
         )
         # Reconcile the pod generated by the Operator and the Pod
         # generated by the .cfg file
-        self.log.info("Creating kubernetes pod for job is %s, with pod name %s", key, pod.metadata.name)
+        self.log.info(
+            "Creating kubernetes pod for job is %s, with pod name %s, annotations: %s",
+            key,
+            pod.metadata.name,
+            annotations_for_logging_task_metadata(pod.metadata.annotations),
+        )
         self.log.debug("Kubernetes running for command %s", command)
         self.log.debug("Kubernetes launching image %s", pod.spec.containers[0].image)
 
@@ -414,12 +427,9 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def sync(self) -> None:
         """
-        The sync function checks the status of all currently running kubernetes jobs.
-        If a job is completed, its status is placed in the result queue to
-        be sent back to the scheduler.
+        Checks the status of all currently running kubernetes jobs.
 
-        :return:
-
+        If a job is completed, its status is placed in the result queue to be sent back to the scheduler.
         """
         self.log.debug("Syncing KubernetesExecutor")
         self._health_check_kube_watchers()
@@ -438,7 +448,10 @@ class AirflowKubernetesScheduler(LoggingMixin):
         """Process the task by watcher."""
         pod_name, namespace, state, annotations, resource_version = task
         self.log.debug(
-            "Attempting to finish pod; pod_name: %s; state: %s; annotations: %s", pod_name, state, annotations
+            "Attempting to finish pod; pod_name: %s; state: %s; annotations: %s",
+            pod_name,
+            state,
+            annotations_for_logging_task_metadata(annotations),
         )
         key = annotations_to_key(annotations=annotations)
         if key:
@@ -859,6 +872,7 @@ class KubernetesExecutor(BaseExecutor):
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
+
         Tasks can get stuck in queued. If such a task is detected, it will be marked
         as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
         if it doesn't.

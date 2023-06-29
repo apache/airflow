@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class AQLOperator(BaseOperator):
     """
-    Executes AQL query in a ArangoDB database
+    Executes AQL query in a ArangoDB database.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

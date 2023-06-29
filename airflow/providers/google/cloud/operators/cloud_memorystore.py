@@ -18,7 +18,7 @@
 """
 Operators for Google Cloud Memorystore service.
 
-.. spelling::
+.. spelling:word-list::
 
     FieldMask
     memcache

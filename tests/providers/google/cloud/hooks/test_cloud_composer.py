@@ -18,13 +18,13 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import AsyncMock
 
 import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.orchestration.airflow.service_v1 import EnvironmentsAsyncClient
 
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerAsyncHook, CloudComposerHook
-from tests.providers.google.cloud.utils.compat import AsyncMock, async_mock
 
 TEST_GCP_REGION = "global"
 TEST_GCP_PROJECT = "test-project"
@@ -204,11 +204,11 @@ class TestCloudComposerAsyncHook:
             CloudComposerAsyncHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
 
     def setup_method(self, method):
-        with async_mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
+        with mock.patch(BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_init):
             self.hook = CloudComposerAsyncHook(gcp_conn_id="test")
 
     @pytest.mark.asyncio
-    @async_mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
+    @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
     async def test_create_environment(self, mock_client) -> None:
         mock_env_client = AsyncMock(EnvironmentsAsyncClient)
         mock_client.return_value = mock_env_client
@@ -232,7 +232,7 @@ class TestCloudComposerAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
+    @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
     async def test_delete_environment(self, mock_client) -> None:
         mock_env_client = AsyncMock(EnvironmentsAsyncClient)
         mock_client.return_value = mock_env_client
@@ -255,7 +255,7 @@ class TestCloudComposerAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
+    @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
     async def test_update_environment(self, mock_client) -> None:
         mock_env_client = AsyncMock(EnvironmentsAsyncClient)
         mock_client.return_value = mock_env_client

@@ -304,7 +304,7 @@ class DatasetHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ListAnnotationsPager:
         """
-        Lists Annotations belongs to a data item
+        Lists Annotations belongs to a data item.
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.

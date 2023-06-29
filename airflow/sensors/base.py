@@ -265,7 +265,8 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         if not self.exponential_backoff:
             return self.poke_interval
 
-        min_backoff = int(self.poke_interval * (2 ** (try_number - 2)))
+        # The value of min_backoff should always be greater than or equal to 1.
+        min_backoff = max(int(self.poke_interval * (2 ** (try_number - 2))), 1)
 
         run_hash = int(
             hashlib.sha1(f"{self.dag_id}#{self.task_id}#{started_at}#{try_number}".encode()).hexdigest(),

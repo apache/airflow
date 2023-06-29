@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, Mock, call
 import pytest
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
-from google.cloud.dataproc_v1 import Batch
+from google.cloud.dataproc_v1 import Batch, JobStatus
 
 from airflow.exceptions import (
     AirflowException,
@@ -1057,6 +1057,32 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
 
         assert isinstance(exc.value.trigger, DataprocSubmitTrigger)
         assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    @mock.patch("airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator.defer")
+    @mock.patch("airflow.providers.google.cloud.operators.dataproc.DataprocHook.submit_job")
+    def test_dataproc_operator_execute_async_done_before_defer(self, mock_submit_job, mock_defer, mock_hook):
+        mock_submit_job.return_value.reference.job_id = TEST_JOB_ID
+        job_status = mock_hook.return_value.get_job.return_value.status
+        job_status.state = JobStatus.State.DONE
+
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_REGION,
+            project_id=GCP_PROJECT,
+            job={},
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            asynchronous=True,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            request_id=REQUEST_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            deferrable=True,
+        )
+
+        op.execute(context=self.mock_context)
+        assert not mock_defer.called
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_on_kill(self, mock_hook):

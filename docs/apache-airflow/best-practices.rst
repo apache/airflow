@@ -873,7 +873,7 @@ Using DockerOperator or Kubernetes Pod Operator
 -----------------------------------------------
 
 Another strategy is to use the :class:`airflow.providers.docker.operators.docker.DockerOperator`
-:class:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
+:class:`airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
 Those require that Airflow has access to a Docker engine or Kubernetes cluster.
 
 Similarly as in case of Python operators, the taskflow decorators are handy for you if you would like to
@@ -932,7 +932,7 @@ The drawbacks:
 
 You can see detailed examples of using :class:`airflow.operators.providers.Docker` in
 :ref:`Taskflow Docker example <taskflow/docker_example>`
-and :class:`airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator`
+and :class:`airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`
 :ref:`Taskflow Kubernetes example <taskflow/kubernetes_example>`
 
 Using multiple Docker Images and Celery Queues

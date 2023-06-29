@@ -19,13 +19,13 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Sequence
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster
 from kubernetes.client.models import V1Pod
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 
 try:
@@ -268,40 +268,70 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
         self.impersonation_chain = impersonation_chain
         self.poll_interval = poll_interval
         self.deferrable = deferrable
-        self._check_input()
+        self._validate_input()
 
         self._hook: GKEHook | None = None
 
-    def _check_input(self) -> None:
-        if (
-            not all([self.project_id, self.location, self.body])
-            or (isinstance(self.body, dict) and "name" not in self.body)
-            or (
-                isinstance(self.body, dict)
-                and ("initial_node_count" not in self.body and "node_pools" not in self.body)
-            )
-            or (not (isinstance(self.body, dict)) and not (getattr(self.body, "name", None)))
-            or (
-                not (isinstance(self.body, dict))
-                and (
-                    not (getattr(self.body, "initial_node_count", None))
-                    and not (getattr(self.body, "node_pools", None))
+    def _validate_input(self) -> None:
+        """Primary validation of the input body."""
+        self._alert_deprecated_body_fields()
+
+        error_messages: list[str] = []
+        if not self._body_field("name"):
+            error_messages.append("Field body['name'] is missing or incorrect")
+
+        if self._body_field("initial_node_count"):
+            if self._body_field("node_pools"):
+                error_messages.append(
+                    "Do not use filed body['initial_node_count'] and body['node_pools'] at the same time."
                 )
-            )
-        ):
-            self.log.error(
-                "One of (project_id, location, body, body['name'], "
-                "body['initial_node_count']), body['node_pools'] is missing or incorrect"
-            )
+
+        if self._body_field("node_config"):
+            if self._body_field("node_pools"):
+                error_messages.append(
+                    "Do not use filed body['node_config'] and body['node_pools'] at the same time."
+                )
+
+        if self._body_field("node_pools"):
+            if any([self._body_field("node_config"), self._body_field("initial_node_count")]):
+                error_messages.append(
+                    "The field body['node_pools'] should not be set if "
+                    "body['node_config'] or body['initial_code_count'] are specified."
+                )
+
+        if not any([self._body_field("node_config"), self._body_field("initial_node_count")]):
+            if not self._body_field("node_pools"):
+                error_messages.append(
+                    "Field body['node_pools'] is required if none of fields "
+                    "body['initial_node_count'] or body['node_pools'] are specified."
+                )
+
+        for message in error_messages:
+            self.log.error(message)
+
+        if error_messages:
             raise AirflowException("Operator has incorrect or missing input.")
-        elif (
-            isinstance(self.body, dict) and ("initial_node_count" in self.body and "node_pools" in self.body)
-        ) or (
-            not (isinstance(self.body, dict))
-            and (getattr(self.body, "initial_node_count", None) and getattr(self.body, "node_pools", None))
-        ):
-            self.log.error("Only one of body['initial_node_count']) and body['node_pools'] may be specified")
-            raise AirflowException("Operator has incorrect or missing input.")
+
+    def _body_field(self, field_name: str, default_value: Any = None) -> Any:
+        """Extracts the value of the given field name."""
+        if isinstance(self.body, dict):
+            return self.body.get(field_name, default_value)
+        else:
+            return getattr(self.body, field_name, default_value)
+
+    def _alert_deprecated_body_fields(self) -> None:
+        """Generates warning messages if deprecated fields were used in the body."""
+        deprecated_body_fields_with_replacement = [
+            ("initial_node_count", "node_pool.initial_node_count"),
+            ("node_config", "node_pool.config"),
+            ("zone", "location"),
+            ("instance_group_urls", "node_pools.instance_group_urls"),
+        ]
+        for deprecated_field, replacement in deprecated_body_fields_with_replacement:
+            if self._body_field(deprecated_field):
+                warnings.warn(
+                    f"The body field '{deprecated_field}' is deprecated. Use '{replacement}' instead."
+                )
 
     def execute(self, context: Context) -> str:
         hook = self._get_hook()
@@ -414,7 +444,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         *,
         location: str,
         cluster_name: str,
-        use_internal_ip: bool | None = None,
+        use_internal_ip: bool = False,
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -433,15 +463,6 @@ class GKEStartPodOperator(KubernetesPodOperator):
             )
             is_delete_operator_pod = False
 
-        if use_internal_ip is not None:
-            warnings.warn(
-                f"You have set parameter use_internal_ip in class {self.__class__.__name__}. "
-                "In current implementation of the operator the parameter is not used and will "
-                "be deleted in future.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
         if regional is not None:
             warnings.warn(
                 f"You have set parameter regional in class {self.__class__.__name__}. "
@@ -457,6 +478,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.use_internal_ip = use_internal_ip
 
         self.pod: V1Pod | None = None
         self._ssl_ca_cert: str | None = None
@@ -516,7 +538,10 @@ class GKEStartPodOperator(KubernetesPodOperator):
             project_id=self.project_id,
         )
 
-        self._cluster_url = f"https://{cluster.endpoint}"
+        if not self.use_internal_ip:
+            self._cluster_url = f"https://{cluster.endpoint}"
+        else:
+            self._cluster_url = f"https://{cluster.private_cluster_config.private_endpoint}"
         self._ssl_ca_cert = cluster.master_auth.cluster_ca_certificate
         return self._cluster_url, self._ssl_ca_cert
 

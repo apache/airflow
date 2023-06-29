@@ -17,11 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import csv
 import os
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Any, Sequence
-
-import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook
@@ -46,7 +45,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
     :param delimiter: field delimiter in the file.
     :param encoding: encoding type for the file.
     :param quotechar: Character to use in quoting.
-    :param quoting: Quoting strategy. See unicodecsv quoting for more information.
+    :param quoting: Quoting strategy. See csv library for more information.
     """
 
     template_fields: Sequence[str] = ("filename", "sql", "sql_params")
@@ -65,7 +64,7 @@ class OracleToAzureDataLakeOperator(BaseOperator):
         delimiter: str = ",",
         encoding: str = "utf-8",
         quotechar: str = '"',
-        quoting: str = csv.QUOTE_MINIMAL,
+        quoting: int = csv.QUOTE_MINIMAL,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -83,11 +82,10 @@ class OracleToAzureDataLakeOperator(BaseOperator):
         self.quoting = quoting
 
     def _write_temp_file(self, cursor: Any, path_to_save: str | bytes | int) -> None:
-        with open(path_to_save, "wb") as csvfile:
+        with open(path_to_save, "w", encoding=self.encoding) as csvfile:
             csv_writer = csv.writer(
                 csvfile,
                 delimiter=self.delimiter,
-                encoding=self.encoding,
                 quotechar=self.quotechar,
                 quoting=self.quoting,
             )

@@ -31,11 +31,6 @@ This is where *Deferrable Operators* come in. A deferrable operator is one that 
 
 Using deferrable operators as a DAG author is almost transparent; writing them, however, takes a bit more work.
 
-.. note::
-
-    Deferrable Operators & Triggers rely on more recent ``asyncio`` features, and as a result only work
-    on Python 3.7 or higher.
-
 
 Using Deferrable Operators
 --------------------------
@@ -60,6 +55,7 @@ Writing a deferrable operator takes a bit more work. There are some main points 
 * Your Operator will be stopped and removed from its worker while deferred, and no state will persist automatically. You can persist state by asking Airflow to resume you at a certain method or pass certain kwargs, but that's it.
 * You can defer multiple times, and you can defer before/after your Operator does significant work, or only defer if certain conditions are met (e.g. a system does not have an immediate answer). Deferral is entirely under your control.
 * Any Operator can defer; no special marking on its class is needed, and it's not limited to Sensors.
+* In order for any changes to a Trigger to be reflected, the *triggerer* needs to be restarted whenever the Trigger is modified.
 
 
 Triggering Deferral
@@ -171,3 +167,25 @@ Airflow tries to only run triggers in one place at once, and maintains a heartbe
 This means it's possible, but unlikely, for triggers to run in multiple places at once; this is designed into the Trigger contract, however, and entirely expected. Airflow will de-duplicate events fired when a trigger is running in multiple places simultaneously, so this process should be transparent to your Operators.
 
 Note that every extra ``triggerer`` you run will result in an extra persistent connection to your database.
+
+
+Difference between Mode='reschedule' and Deferrable=True in Sensors
+-------------------------------------------------------------------
+
+In Airflow, Sensors wait for specific conditions to be met before proceeding with downstream tasks. Sensors have two options for managing idle periods: mode='reschedule' and deferrable=True. As mode='reschedule' is a parameter specific to the BaseSensorOperator in Airflow, which allows the sensor to reschedule itself if the condition is not met, whereas, 'deferrable=True' is a convention used by some operators to indicate that the task can be retried (or deferred) later, but it is not a built-in parameter or mode in the Airflow. The actual behavior of retrying the task may vary depending on the specific operator implementation.
+
++--------------------------------------------------------+--------------------------------------------------------+
+|           mode='reschedule'                            |          deferrable=True                               |
++========================================================+========================================================+
+| Continuously reschedules itself until condition is met |  Pauses execution when idle, resumes when condition    |
+|                                                        |  changes                                               |
++--------------------------------------------------------+--------------------------------------------------------+
+| Resource Usage is Higher (repeated execution)          |  Resource Usage is Lower (pauses when idle, frees      |
+|                                                        |  up worker slots)                                      |
++--------------------------------------------------------+--------------------------------------------------------+
+| Conditions expected to change over time                |  Waiting for external events or resources              |
+| (e.g. file creation)                                   |  (e.g. API response)                                   |
++--------------------------------------------------------+--------------------------------------------------------+
+| Built-in functionality for rescheduling                |  Requires custom logic to defer task and handle        |
+|                                                        |  external changes                                      |
++--------------------------------------------------------+--------------------------------------------------------+

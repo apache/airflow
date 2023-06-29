@@ -21,8 +21,8 @@
 ## Airflow Cleanup Role Binding
 #################################
 {{- if and .Values.rbac.create .Values.cleanup.enabled }}
-kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
 metadata:
   name: {{ .Release.Name }}-cleanup-rolebinding
   labels:

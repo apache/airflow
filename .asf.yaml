@@ -71,16 +71,15 @@ github:
         required_approving_review_count: 1
 
   collaborators:
-    - auvipy
-    - paolaperaza
-    - petedejoy
-    - gmcdonald
     - mhenc
     - ferruzzi
-    - mobuchowski
     - pankajkoti
-    - phanikumv
-    - pankajastro
+    - utkarsharma2
+    - Lee-W
+    - sunank200
+    - amoghrajesh
+    - jens-scheffler-bosch
+    - nathadfield
 
 notifications:
   jobs: jobs@airflow.apache.org

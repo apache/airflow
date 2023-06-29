@@ -73,6 +73,7 @@ class TaskMap(Base):
             ],
             name="task_map_task_instance_fkey",
             ondelete="CASCADE",
+            onupdate="CASCADE",
         ),
     )
 

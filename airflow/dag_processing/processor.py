@@ -30,7 +30,7 @@ from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import TYPE_CHECKING, Iterable, Iterator
 
 from setproctitle import setproctitle
-from sqlalchemy import func, or_
+from sqlalchemy import delete, func, or_
 from sqlalchemy.orm.session import Session
 
 from airflow import settings
@@ -611,9 +611,11 @@ class DagFileProcessor(LoggingMixin):
         # Clear the errors of the processed files
         # that no longer have errors
         for dagbag_file in files_without_error:
-            session.query(errors.ImportError).filter(
-                errors.ImportError.filename.startswith(dagbag_file)
-            ).delete(synchronize_session="fetch")
+            session.execute(
+                delete(errors.ImportError)
+                .where(errors.ImportError.filename.startswith(dagbag_file))
+                .execution_options(synchronize_session="fetch")
+            )
 
         # files that still have errors
         existing_import_error_files = [x.filename for x in session.query(errors.ImportError.filename).all()]

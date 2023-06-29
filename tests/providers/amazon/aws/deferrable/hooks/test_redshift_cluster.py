@@ -17,19 +17,19 @@
 from __future__ import annotations
 
 import asyncio
+from unittest import mock
 
 import pytest
 from botocore.exceptions import ClientError
 
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftAsyncHook
-from tests.providers.amazon.aws.utils.compat import async_mock
 
 pytest.importorskip("aiobotocore")
 
 
 class TestRedshiftAsyncHook:
     @pytest.mark.asyncio
-    @async_mock.patch("aiobotocore.client.AioBaseClient._make_api_call")
+    @mock.patch("aiobotocore.client.AioBaseClient._make_api_call")
     async def test_cluster_status(self, mock_make_api_call):
         """Test that describe_clusters get called with correct param"""
         hook = RedshiftAsyncHook(aws_conn_id="aws_default", client_type="redshift", resource_type="redshift")
@@ -39,7 +39,7 @@ class TestRedshiftAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch("aiobotocore.client.AioBaseClient._make_api_call")
+    @mock.patch("aiobotocore.client.AioBaseClient._make_api_call")
     async def test_pause_cluster(self, mock_make_api_call):
         """Test that pause_cluster get called with correct param"""
         hook = RedshiftAsyncHook(aws_conn_id="aws_default", client_type="redshift", resource_type="redshift")
@@ -49,10 +49,8 @@ class TestRedshiftAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(
-        "airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.get_client_async"
-    )
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.get_client_async")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.cluster_status")
     async def test_get_cluster_status(self, cluster_status, mock_client):
         """Test get_cluster_status async function with success response"""
         flag = asyncio.Event()
@@ -62,7 +60,7 @@ class TestRedshiftAsyncHook:
         assert result == {"status": "success", "cluster_state": "available"}
 
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.cluster_status")
     async def test_get_cluster_status_exception(self, cluster_status):
         """Test get_cluster_status async function with exception response"""
         flag = asyncio.Event()
@@ -84,7 +82,7 @@ class TestRedshiftAsyncHook:
         }
 
     @pytest.mark.asyncio
-    @async_mock.patch("aiobotocore.client.AioBaseClient._make_api_call")
+    @mock.patch("aiobotocore.client.AioBaseClient._make_api_call")
     async def test_resume_cluster(self, mock_make_api_call):
         """Test Resume cluster async hook function by mocking return value of resume_cluster"""
 
@@ -95,9 +93,7 @@ class TestRedshiftAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @async_mock.patch(
-        "airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.get_client_async"
-    )
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.get_client_async")
     async def test_resume_cluster_exception(self, mock_client):
         """Test Resume cluster async hook function with exception by mocking return value of resume_cluster"""
         mock_client.return_value.__aenter__.return_value.resume_cluster.side_effect = ClientError(

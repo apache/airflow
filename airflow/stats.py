@@ -22,7 +22,7 @@ import socket
 from typing import TYPE_CHECKING, Callable
 
 from airflow.configuration import conf
-from airflow.metrics import datadog_logger, statsd_logger
+from airflow.metrics import datadog_logger, otel_logger, statsd_logger
 from airflow.metrics.base_stats_logger import NoStatsLogger, StatsLogger
 
 log = logging.getLogger(__name__)
@@ -49,6 +49,8 @@ class _Stats(type):
                 cls.__class__.factory = datadog_logger.get_dogstatsd_logger
             elif conf.getboolean("metrics", "statsd_on"):
                 cls.__class__.factory = statsd_logger.get_statsd_logger
+            elif conf.getboolean("metrics", "otel_on"):
+                cls.__class__.factory = otel_logger.get_otel_logger
             else:
                 cls.__class__.factory = NoStatsLogger
 
