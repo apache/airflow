@@ -17,9 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from unittest.mock import patch
-import json
+
 from airflow.models import Connection
 from airflow.providers.vertica.hooks.vertica import VerticaHook
 
@@ -55,7 +56,7 @@ class TestVerticaHookConn:
             "connection_load_balance",
             "binary_transfer",
             "disable_copy_local",
-            "use_prepared_statements"
+            "use_prepared_statements",
         ]
         for bo in bool_options:
             extra_dict.update({bo: True})
@@ -67,7 +68,7 @@ class TestVerticaHookConn:
             "kerberos_service_name",
             "unicode_error",
             "workload",
-            "ssl"
+            "ssl",
         ]
         for so in std_options:
             extra_dict.update({so: so})
@@ -99,15 +100,16 @@ class TestVerticaHookConn:
         like log_level are correctly converted when passed as string
         (while test_get_conn_extra_parameters_no_cast tests them passed as int/bool)"""
         import logging
+
         extra_dict = self.connection.extra_dejson
         bool_options = [
             "connection_load_balance",
             "binary_transfer",
             "disable_copy_local",
-            "use_prepared_statements"
+            "use_prepared_statements",
         ]
         for bo in bool_options:
-            extra_dict.update({ bo: "True"})
+            extra_dict.update({bo: "True"})
         extra_dict.update({"request_complex_types": "False"})
         extra_dict.update({"log_level": "Error"})
         self.connection.extra = json.dumps(extra_dict)
@@ -120,6 +122,7 @@ class TestVerticaHookConn:
         assert kwargs["request_complex_types"] is False
         assert kwargs["log_level"] == logging.ERROR
         assert kwargs["log_path"] is None
+
 
 class TestVerticaHook:
     def setup_method(self):

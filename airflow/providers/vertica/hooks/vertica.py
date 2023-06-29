@@ -60,13 +60,13 @@ class VerticaHook(DbApiHook):
             "kerberos_service_name",
             "unicode_error",
             "workload",
-            "ssl"
+            "ssl",
         ]
         conn_extra = conn.extra_dejson
 
         for bo in bool_options:
             if bo in conn_extra:
-                conn_config[bo] = bool(conn_extra[bo])
+                conn_config[bo] = str(conn_extra[bo]).lower() in ["true", "on"]
 
         for so in std_options:
             if so in conn_extra:
