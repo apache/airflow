@@ -45,6 +45,7 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
+        body: dict,
         data_pipeline_name: str = "{{task.task_id}}",
         project_id: str | None = None,
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
@@ -53,6 +54,7 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
     ) -> None:
         super().__init__(**kwargs)
 
+        self.body = body
         self.project_id = project_id
         self.location = location
         self.data_pipeline_name = data_pipeline_name
@@ -66,6 +68,7 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
 
         self.data_pipeline = self.datapipeline_hook.create_data_pipeline(
             project_id = self.project_id,
+            body = self.body,
             location = self.location,
             data_pipeline_name = self.data_pipeline_name
         )

@@ -68,7 +68,7 @@ class DataPipelineHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def create_data_pipeline(
         self,
-        data_pipeline_name: str,
+        body: dict,
         project_id: str,
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
     ) -> None:
@@ -80,10 +80,8 @@ class DataPipelineHook(GoogleBaseHook):
         print(dir(service.projects().locations()))
         request = (
             service.projects().locations().pipelines().create(
-                parent=parent,
-                body={
-                    "name": f"{parent}/pipelines/{data_pipeline_name}",
-                },
+                parent = parent,
+                body = body,
             )
         )
         response = request.execute(num_retries=self.num_retries)
@@ -92,3 +90,25 @@ class DataPipelineHook(GoogleBaseHook):
     @staticmethod
     def build_parent_name(project_id: str, location: str):
         return f"projects/{project_id}/locations/{location}"
+    
+    @GoogleBaseHook.fallback_to_default_project_id
+    def run_data_pipeline(
+        self,
+        pipeline_id: str,
+        project_id: str,
+        location: str = DEFAULT_DATAPIPELINE_LOCATION,
+    ) -> None:
+        """
+        Runs DataPipeline.
+        """
+        parent = self.build_parent_name(project_id, location)
+        service = self.get_conn()
+        print(dir(service.projects().locations()))
+        request = (
+            service.projects().locations().pipelines().run(
+                name = f"{parent}/pipelines/{pipeline_id}",
+                body = {},
+            )
+        )
+        response = request.execute(num_retries=self.num_retries)
+        return response
