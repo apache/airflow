@@ -26,11 +26,7 @@
 {{- $tolerations := or .Values.cleanup.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.cleanup.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.cleanup) }}
-{{- if semverCompare ">= 1.21.x" (include "kubeVersion" .) }}
 apiVersion: batch/v1
-{{- else }}
-apiVersion: batch/v1beta1
-{{- end }}
 kind: CronJob
 metadata:
   name: {{ .Release.Name }}-cleanup

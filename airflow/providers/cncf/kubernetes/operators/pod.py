@@ -867,6 +867,7 @@ class KubernetesPodOperator(BaseOperator):
     def dry_run(self) -> None:
         """
         Prints out the pod definition that would be created by this operator.
+
         Does not include labels specific to the task instance (since there isn't
         one in a dry_run) and excludes all empty elements.
         """

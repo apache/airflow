@@ -85,7 +85,12 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
-from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
+from airflow.exceptions import (
+    AirflowConfigException,
+    AirflowException,
+    ParamValidationError,
+    RemovedInAirflow3Warning,
+)
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -308,6 +313,14 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
 
     grouped_tis = {task_id: list(tis) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)}
 
+    sort_order = conf.get("webserver", "grid_view_sorting_order", fallback="topological")
+    if sort_order == "topological":
+        sort_children_fn = lambda task_group: task_group.topological_sort()
+    elif sort_order == "hierarchical_alphabetical":
+        sort_children_fn = lambda task_group: task_group.hierarchical_alphabetical_sort()
+    else:
+        raise AirflowConfigException(f"Unsupported grid_view_sorting_order: {sort_order}")
+
     def task_group_to_grid(item, grouped_tis, *, is_parent_mapped: bool):
         if not isinstance(item, TaskGroup):
 
@@ -384,7 +397,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
 
         children = [
             task_group_to_grid(child, grouped_tis, is_parent_mapped=group_is_mapped)
-            for child in task_group.topological_sort()
+            for child in sort_children_fn(task_group)
         ]
 
         def get_summary(dag_run: DagRun):
@@ -1408,6 +1421,9 @@ class Airflow(AirflowBaseView):
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
         raw_task = dag.get_task(task_id).prepare_for_execution()
 
+        title = "Rendered Template"
+        html_dict = {}
+
         ti: TaskInstance
         if dag_run is None:
             # No DAG run matching given logical date. This usually means this
@@ -1419,7 +1435,21 @@ class Airflow(AirflowBaseView):
             ti.dag_run = DagRun(dag_id=dag_id, execution_date=dttm)
         else:
             ti = dag_run.get_task_instance(task_id=task_id, map_index=map_index, session=session)
-            ti.refresh_from_task(raw_task)
+            if ti:
+                ti.refresh_from_task(raw_task)
+            else:
+                flash(f"there is no task instance with the provided map_index {map_index}", "error")
+                return self.render_template(
+                    "airflow/ti_code.html",
+                    html_dict=html_dict,
+                    dag=dag,
+                    task_id=task_id,
+                    execution_date=execution_date,
+                    map_index=map_index,
+                    form=form,
+                    root=root,
+                    title=title,
+                )
 
         try:
             ti.get_rendered_template_fields(session=session)
@@ -1439,8 +1469,6 @@ class Airflow(AirflowBaseView):
         # but we'll display some quasi-meaingful field names.
         task = ti.task.unmap(None)
 
-        title = "Rendered Template"
-        html_dict = {}
         renderers = wwwutils.get_attr_renderer()
 
         for template_field in task.template_fields:
@@ -3087,6 +3115,7 @@ class Airflow(AirflowBaseView):
             t.task_id: {
                 "dag_id": t.dag_id,
                 "task_type": t.task_type,
+                "operator_name": t.operator_name,
                 "extra_links": t.extra_links,
                 "is_mapped": isinstance(t, MappedOperator),
                 "trigger_rule": t.trigger_rule,
@@ -3115,7 +3144,9 @@ class Airflow(AirflowBaseView):
             state_token=wwwutils.state_token(dt_nr_dr_data["dr_state"]),
             doc_md=doc_md,
             arrange=arrange,
-            operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
+            operators=sorted(
+                {op.operator_name: op for op in dag.tasks}.values(), key=lambda x: x.operator_name
+            ),
             root=root or "",
             task_instances=task_instances,
             tasks=tasks,
@@ -4159,11 +4190,9 @@ class ConfigurationView(AirflowBaseView):
         # TODO remove "if raw" usage in Airflow 3.0. Configuration can be fetched via the REST API.
         if raw:
             if expose_config == "non-sensitive-only":
-                from airflow.configuration import SENSITIVE_CONFIG_VALUES
-
                 updater = configupdater.ConfigUpdater()
                 updater.read(AIRFLOW_CONFIG)
-                for sect, key in SENSITIVE_CONFIG_VALUES:
+                for sect, key in conf.sensitive_config_values:
                     if updater.has_option(sect, key):
                         updater[sect][key].value = "< hidden >"
                 config = str(updater)

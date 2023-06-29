@@ -102,7 +102,9 @@ def _serve_logs(skip_serve_logs: bool = False):
 
 @after_setup_logger.connect()
 def logger_setup_handler(logger, **kwargs):
-    """Reconfigure the logger:
+    """
+    Reconfigure the logger.
+
     * remove any previously configured handlers
     * logs of severity error, and above goes to stderr,
     * logs of severity lower than error goes to stdout.

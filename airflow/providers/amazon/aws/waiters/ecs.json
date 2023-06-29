@@ -50,38 +50,6 @@
                   "argument": "failures[].reason"
                 }
             ]
-        },
-        "task_definition_active": {
-            "operation": "DescribeTaskDefinition",
-            "delay": 15,
-            "maxAttempts": 60,
-            "acceptors": [
-                {
-                    "expected": "ACTIVE",
-                    "matcher": "path",
-                    "state": "success",
-                    "argument": "taskDefinition.status"
-                },
-                {
-                    "expected": "DELETE_IN_PROGRESS",
-                    "matcher": "path",
-                    "state": "failure",
-                    "argument": "taskDefinition.status"
-                }
-            ]
-        },
-        "task_definition_inactive": {
-            "operation": "DescribeTaskDefinition",
-            "delay": 15,
-            "maxAttempts": 60,
-            "acceptors": [
-                {
-                    "expected": "INACTIVE",
-                    "matcher": "path",
-                    "state": "success",
-                    "argument": "taskDefinition.status"
-                }
-            ]
         }
     }
 }
