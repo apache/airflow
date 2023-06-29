@@ -270,7 +270,7 @@ class TestSerDe:
                     "extra": {
                         "__var": {"hi": "bye"},
                         "__type": "dict",
-                    }
+                    },
                 },
                 "__type": "dict",
             },
