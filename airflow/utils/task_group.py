@@ -654,11 +654,11 @@ def task_group_to_dict(task_item_or_group):
     from airflow.models.abstractoperator import AbstractOperator
 
     if isinstance(task := task_item_or_group, AbstractOperator):
-        setup_teardown_type = None
+        setup_teardown_type = {}
         if task.is_setup is True:
-            setup_teardown_type = "setup"
+            setup_teardown_type["setupTeardownType"] = "setup"
         elif task.is_teardown is True:
-            setup_teardown_type = "teardown"
+            setup_teardown_type["setupTeardownType"] = "teardown"
         return {
             "id": task.task_id,
             "value": {
@@ -667,7 +667,7 @@ def task_group_to_dict(task_item_or_group):
                 "style": f"fill:{task.ui_color};",
                 "rx": 5,
                 "ry": 5,
-                "setupTeardownType": setup_teardown_type,
+                **setup_teardown_type,
             },
         }
     task_group = task_item_or_group
