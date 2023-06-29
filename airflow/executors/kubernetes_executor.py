@@ -49,6 +49,7 @@ from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin, remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.singleton import Singleton
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
@@ -69,16 +70,10 @@ ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
 
 
-class ResourceVersion:
+class ResourceVersion(metaclass=Singleton):
     """Singleton for tracking resourceVersion from Kubernetes."""
 
-    _instance: ResourceVersion | None = None
     resource_version: dict[str, str] = {}
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):

@@ -39,6 +39,7 @@ from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
+from airflow.utils.singleton import Singleton
 
 log = logging.getLogger(__name__)
 
@@ -348,7 +349,7 @@ def provider_info_cache(cache_name: str) -> Callable[[T], T]:
     return provider_info_cache_decorator
 
 
-class ProvidersManager(LoggingMixin):
+class ProvidersManager(LoggingMixin, metaclass=Singleton):
     """
     Manages all provider packages.
 
@@ -357,13 +358,7 @@ class ProvidersManager(LoggingMixin):
     local source folders (if airflow is run from sources).
     """
 
-    _instance = None
     resource_version = "0"
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
 
     def __init__(self):
         """Initializes the manager."""
