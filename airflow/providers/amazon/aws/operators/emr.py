@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, Em
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
+    EmrContainerTrigger,
     EmrCreateJobFlowTrigger,
     EmrTerminateJobFlowTrigger,
 )
@@ -480,6 +481,7 @@ class EmrContainerOperator(BaseOperator):
         Defaults to None, which will poll until the job is *not* in a pending, submitted, or running state.
     :param tags: The tags assigned to job runs.
         Defaults to None
+    :param deferrable: Run operator in the deferrable mode.
     """
 
     template_fields: Sequence[str] = (
@@ -508,6 +510,7 @@ class EmrContainerOperator(BaseOperator):
         max_tries: int | None = None,
         tags: dict | None = None,
         max_polling_attempts: int | None = None,
+        deferrable: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -524,6 +527,7 @@ class EmrContainerOperator(BaseOperator):
         self.max_polling_attempts = max_polling_attempts
         self.tags = tags
         self.job_id: str | None = None
+        self.deferrable = deferrable
 
         if max_tries:
             warnings.warn(
@@ -556,6 +560,26 @@ class EmrContainerOperator(BaseOperator):
             self.client_request_token,
             self.tags,
         )
+        if self.deferrable:
+            query_status = self.hook.check_query_status(job_id=self.job_id)
+            self.check_failure(query_status)
+            if query_status in EmrContainerHook.SUCCESS_STATES:
+                return self.job_id
+            timeout = (
+                timedelta(seconds=self.max_polling_attempts * self.poll_interval)
+                if self.max_polling_attempts
+                else self.execution_timeout
+            )
+            self.defer(
+                timeout=timeout,
+                trigger=EmrContainerTrigger(
+                    virtual_cluster_id=self.virtual_cluster_id,
+                    job_id=self.job_id,
+                    aws_conn_id=self.aws_conn_id,
+                    poll_interval=self.poll_interval,
+                ),
+                method_name="execute_complete",
+            )
         if self.wait_for_completion:
             query_status = self.hook.poll_query_status(
                 self.job_id,
@@ -563,19 +587,29 @@ class EmrContainerOperator(BaseOperator):
                 poll_interval=self.poll_interval,
             )
 
-            if query_status in EmrContainerHook.FAILURE_STATES:
-                error_message = self.hook.get_job_failure_reason(self.job_id)
-                raise AirflowException(
-                    f"EMR Containers job failed. Final state is {query_status}. "
-                    f"query_execution_id is {self.job_id}. Error: {error_message}"
-                )
-            elif not query_status or query_status in EmrContainerHook.INTERMEDIATE_STATES:
+            self.check_failure(query_status)
+            if not query_status or query_status in EmrContainerHook.INTERMEDIATE_STATES:
                 raise AirflowException(
                     f"Final state of EMR Containers job is {query_status}. "
                     f"Max tries of poll status exceeded, query_execution_id is {self.job_id}."
                 )
 
         return self.job_id
+
+    def check_failure(self, query_status):
+        if query_status in EmrContainerHook.FAILURE_STATES:
+            error_message = self.hook.get_job_failure_reason(self.job_id)
+            raise AirflowException(
+                f"EMR Containers job failed. Final state is {query_status}. "
+                f"query_execution_id is {self.job_id}. Error: {error_message}"
+            )
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while running job: {event}")
+
+        self.log.info("%s", event["message"])
+        return event["job_id"]
 
     def on_kill(self) -> None:
         """Cancel the submitted job run."""
@@ -601,8 +635,8 @@ class EmrContainerOperator(BaseOperator):
 class EmrCreateJobFlowOperator(BaseOperator):
     """
     Creates an EMR JobFlow, reading the config from the EMR connection.
-    A dictionary of JobFlow overrides can be passed that override
-    the config from the connection.
+
+    A dictionary of JobFlow overrides can be passed that override the config from the connection.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -763,10 +797,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         return event["job_flow_id"]
 
     def on_kill(self) -> None:
-        """
-        Terminate the EMR cluster (job flow). If TerminationProtected=True on the cluster,
-        termination will be unsuccessful.
-        """
+        """Terminate the EMR cluster (job flow) unless TerminationProtected is enabled on the cluster."""
         if self._job_flow_id:
             self.log.info("Terminating job flow %s", self._job_flow_id)
             self._emr_hook.conn.terminate_job_flows(JobFlowIds=[self._job_flow_id])
@@ -1025,7 +1056,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         wait(
             waiter=waiter,
             waiter_delay=self.waiter_delay,
-            max_attempts=self.waiter_max_attempts,
+            waiter_max_attempts=self.waiter_max_attempts,
             args={"applicationId": application_id},
             failure_message="Serverless Application creation failed",
             status_message="Serverless Application status is",
@@ -1038,7 +1069,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             waiter = self.hook.get_waiter("serverless_app_started")
             wait(
                 waiter=waiter,
-                max_attempts=self.waiter_max_attempts,
+                waiter_max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
                 args={"applicationId": application_id},
                 failure_message="Serverless Application failed to start",
@@ -1158,7 +1189,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
             wait(
                 waiter=waiter,
-                max_attempts=self.waiter_max_attempts,
+                waiter_max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
                 args={"applicationId": self.application_id},
                 failure_message="Serverless Application failed to start",
@@ -1185,7 +1216,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
             waiter = self.hook.get_waiter("serverless_job_completed")
             wait(
                 waiter=waiter,
-                max_attempts=self.waiter_max_attempts,
+                waiter_max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
                 args={"applicationId": self.application_id, "jobRunId": self.job_id},
                 failure_message="Serverless Job failed",
@@ -1314,7 +1345,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             waiter = self.hook.get_waiter("serverless_app_stopped")
             wait(
                 waiter=waiter,
-                max_attempts=self.waiter_max_attempts,
+                waiter_max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
                 args={"applicationId": self.application_id},
                 failure_message="Error stopping application",
@@ -1409,7 +1440,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
 
             wait(
                 waiter=waiter,
-                max_attempts=self.waiter_max_attempts,
+                waiter_max_attempts=self.waiter_max_attempts,
                 waiter_delay=self.waiter_delay,
                 args={"applicationId": self.application_id},
                 failure_message="Error terminating application",

@@ -24,7 +24,8 @@ import pytest
 
 from airflow.decorators import dag, task_group as task_group_decorator
 from airflow.exceptions import TaskAlreadyInTaskGroup
-from airflow.models import DAG
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -1381,3 +1382,16 @@ def test_override_dag_default_args_in_multi_level_nested_tg():
     assert task.retries == 1
     assert task.owner == "z"
     assert task.execution_timeout == timedelta(seconds=10)
+
+
+def test_task_group_arrow_with_setups_teardowns():
+    with DAG(dag_id="hi", start_date=pendulum.datetime(2022, 1, 1)):
+        with TaskGroup(group_id="tg1") as tg1:
+            s1 = BaseOperator(task_id="s1")
+            w1 = BaseOperator(task_id="w1")
+            t1 = BaseOperator(task_id="t1")
+            s1 >> w1 >> t1.as_teardown(setups=s1)
+        w2 = BaseOperator(task_id="w2")
+        tg1 >> w2
+    assert t1.downstream_task_ids == set()
+    assert w1.downstream_task_ids == {"tg1.t1", "w2"}

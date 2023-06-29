@@ -486,6 +486,7 @@ Drivy
 dropdown
 druidHook
 ds
+dsl
 Dsn
 dsn
 dttm
@@ -523,6 +524,7 @@ enum
 Env
 env
 envFrom
+EnvFromSource
 EnvVar
 envvar
 eol
@@ -861,6 +863,7 @@ kwargs
 KYLIN
 Kylin
 kylin
+Lakehouse
 LanguageServiceClient
 lastname
 latencies
@@ -891,6 +894,7 @@ loadBalancerIP
 localExecutor
 localexecutor
 localhost
+LocalObjectReference
 localstack
 lodash
 logfile
@@ -1356,6 +1360,7 @@ sourceArchiveUrl
 sourceRepository
 sourceUploadUrl
 Spark
+sparkappinfo
 sparkApplication
 sparkcmd
 SparkPi

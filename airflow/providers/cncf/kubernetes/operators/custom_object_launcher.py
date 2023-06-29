@@ -21,7 +21,6 @@ import time
 from copy import deepcopy
 from datetime import datetime as dt
 from functools import cached_property
-from typing import Optional
 
 import tenacity
 from kubernetes import client
@@ -205,8 +204,8 @@ class CustomObjectLauncher(LoggingMixin):
 
     def __init__(
         self,
-        name: Optional[str],
-        namespace: Optional[str],
+        name: str | None,
+        namespace: str | None,
         kube_client: client.CoreV1Api,
         custom_obj_api: client.CustomObjectsApi,
         template_body: str | None = None,

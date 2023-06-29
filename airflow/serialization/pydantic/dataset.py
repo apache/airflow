@@ -21,10 +21,7 @@ from pydantic import BaseModel as BaseModelPydantic
 
 
 class DagScheduleDatasetReferencePydantic(BaseModelPydantic):
-    """
-    Serializable representation of the DagScheduleDatasetReference
-    ORM SqlAlchemyModel used by internal API.
-    """
+    """Serializable version of the DagScheduleDatasetReference ORM SqlAlchemyModel used by internal API."""
 
     dataset_id: int
     dag_id: str
@@ -38,10 +35,7 @@ class DagScheduleDatasetReferencePydantic(BaseModelPydantic):
 
 
 class TaskOutletDatasetReferencePydantic(BaseModelPydantic):
-    """
-    Serializable representation of the
-    TaskOutletDatasetReference ORM SqlAlchemyModel used by internal API.
-    """
+    """Serializable version of the TaskOutletDatasetReference ORM SqlAlchemyModel used by internal API."""
 
     dataset_id: int
     dag_id = str

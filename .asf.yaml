@@ -73,15 +73,13 @@ github:
   collaborators:
     - mhenc
     - ferruzzi
-    - mobuchowski
     - pankajkoti
-    - phanikumv
     - utkarsharma2
     - Lee-W
     - sunank200
     - amoghrajesh
     - jens-scheffler-bosch
-    # - nathadfield
+    - nathadfield
 
 notifications:
   jobs: jobs@airflow.apache.org

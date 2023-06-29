@@ -38,6 +38,7 @@ from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 class S3KeySensor(BaseSensorOperator):
     """
     Waits for one or multiple keys (a file-like instance on S3) to be present in a S3 bucket.
+
     The path is just a key/value pointer to a resource for the given S3 path.
     Note: S3 does not support folders directly, and only provides key/value pairs.
 
@@ -162,8 +163,8 @@ class S3KeySensor(BaseSensorOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]) -> bool | None:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "running":
             found_keys = self.check_fn(event["files"])  # type: ignore[misc]
@@ -189,11 +190,10 @@ class S3KeySensor(BaseSensorOperator):
 @poke_mode_only
 class S3KeysUnchangedSensor(BaseSensorOperator):
     """
-    Checks for changes in the number of objects at prefix in AWS S3
-    bucket and returns True if the inactivity period has passed with no
-    increase in the number of objects. Note, this sensor will not behave correctly
-    in reschedule mode, as the state of the listed objects in the S3 bucket will
-    be lost between rescheduled invocations.
+    Return True if inactivity_period has passed with no increase in the number of objects matching prefix.
+
+    Note, this sensor will not behave correctly in reschedule mode, as the state of the listed
+    objects in the S3 bucket will be lost between rescheduled invocations.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -262,8 +262,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
     def is_keys_unchanged(self, current_objects: set[str]) -> bool:
         """
-        Checks whether new objects have been uploaded and the inactivity_period
-        has passed and updates the state of the sensor accordingly.
+        Check for new objects after the inactivity_period and update the sensor state accordingly.
 
         :param current_objects: set of object ids in bucket during last poke.
         """

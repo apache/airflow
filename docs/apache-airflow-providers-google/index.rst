@@ -18,10 +18,18 @@
 ``apache-airflow-providers-google``
 ===================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -33,6 +41,7 @@ Content
     Sensors <sensors/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -41,11 +50,13 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/google/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -57,6 +68,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -105,7 +117,7 @@ PIP package                              Version required
 ``gcloud-aio-auth``                      ``>=4.0.0,<5.0.0``
 ``gcloud-aio-bigquery``                  ``>=6.1.2``
 ``gcloud-aio-storage``
-``google-ads``                           ``>=20.0.0``
+``google-ads``                           ``>=21.2.0``
 ``google-api-core``                      ``>=2.11.0``
 ``google-api-python-client``             ``>=1.6.0``
 ``google-auth``                          ``>=1.0.0``
@@ -196,5 +208,3 @@ You can download officially released packages and verify their checksums and sig
 
 * `The apache-airflow-providers-google 10.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-10.2.0.tar.gz.sha512>`__)
 * `The apache-airflow-providers-google 10.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.2.0-py3-none-any.whl.sha512>`__)
-
-.. include:: ../../airflow/providers/google/CHANGELOG.rst
