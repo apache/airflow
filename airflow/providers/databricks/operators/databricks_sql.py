@@ -70,14 +70,11 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
     :param csv_params: parameters that will be passed to the ``csv.DictWriter`` class used to write CSV data.
     """
 
-    template_fields: Sequence[str] = (
-        "sql",
-        "_output_path",
-        "schema",
-        "catalog",
-        "http_headers",
-        "databricks_conn_id",
+    template_fields: Sequence[str] = tuple(
+        {"_output_path", "schema", "catalog", "http_headers", "databricks_conn_id"}
+        | set(SQLExecuteQueryOperator.template_fields)
     )
+
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
 
