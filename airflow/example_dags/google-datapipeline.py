@@ -31,8 +31,6 @@ Requirements:
 from __future__ import annotations
 
 import os
-import sys
-print("PATHHHHHHH", sys.path)
 from datetime import datetime
 
 from airflow import models
