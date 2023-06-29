@@ -162,7 +162,7 @@ class LambdaInvokeFunctionOperator(BaseOperator):
         self.client_context = client_context
         self.aws_conn_id = aws_conn_id
 
-        if type(payload) == 'str':
+        if type(payload) == str:
             payload = payload.encode()
 
         self.payload = payload
