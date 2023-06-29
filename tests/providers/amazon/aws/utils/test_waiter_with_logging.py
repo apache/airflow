@@ -136,7 +136,7 @@ class TestWaiter:
             },
         )
 
-        assert mock_waiter.wait.call_count == 11
+        assert mock_waiter.wait.call_count == 2
         mock_sleep.assert_called_with(123)
         assert (
             caplog.record_tuples
@@ -271,7 +271,7 @@ class TestWaiter:
                 "MaxAttempts": 1,
             },
         )
-        mock_waiter.wait.call_count == 3
+        assert mock_waiter.wait.call_count == 3
         mock_sleep.assert_called_with(123)
         assert (
             caplog.record_tuples
@@ -312,7 +312,7 @@ class TestWaiter:
             status_message="test status message",
             status_args=["Clusters[0].Status", "Clusters[0].StatusDetails", "Clusters[0].ClusterName"],
         )
-        mock_waiter.wait.call_count == 3
+        assert mock_waiter.wait.call_count == 3
         mock_sleep.assert_called_with(123)
         assert (
             caplog.record_tuples
