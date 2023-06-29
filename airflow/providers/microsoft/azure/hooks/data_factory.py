@@ -1175,3 +1175,25 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
             return status
         except Exception as e:
             raise AirflowException(e)
+
+    @provide_targeted_factory_async
+    async def cancel_pipeline_run(
+        self,
+        run_id: str,
+        resource_group_name: str | None = None,
+        factory_name: str | None = None,
+        **config: Any,
+    ) -> None:
+        """
+        Cancel the pipeline run.
+
+        :param run_id: The pipeline run identifier.
+        :param resource_group_name: The resource group name.
+        :param factory_name: The factory name.
+        :param config: Extra parameters for the ADF client.
+        """
+        client = await self.get_async_conn()
+        try:
+            await client.pipeline_runs.cancel(resource_group_name, factory_name, run_id)
+        except Exception as e:
+            raise AirflowException(e)
