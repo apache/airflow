@@ -275,9 +275,9 @@ class TestSerDe:
                 "__type": "dict",
             },
         }
-        datasets = deserialize(data)
+        dataset = deserialize(data)
         assert dataset.extra == {"hi": "bye"}
-        assert datasets.uri == uri
+        assert dataset.uri == uri
 
     def test_backwards_compat_wrapped(self):
         """
