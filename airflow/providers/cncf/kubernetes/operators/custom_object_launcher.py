@@ -21,6 +21,7 @@ import time
 from copy import deepcopy
 from datetime import datetime as dt
 from functools import cached_property
+from typing import Optional
 
 import tenacity
 from kubernetes import client
@@ -104,8 +105,8 @@ class SparkResources:
 
     def __init__(
         self,
-        driver: dict = None,
-        executor: dict = None,
+        driver: dict = {None: None},
+        executor: dict = {None: None},
     ):
         self.default = {
             "gpu": {"name": None, "quantity": 0},
@@ -204,8 +205,8 @@ class CustomObjectLauncher(LoggingMixin):
 
     def __init__(
         self,
-        name: str,
-        namespace: str,
+        name: Optional[str],
+        namespace: Optional[str],
         kube_client: client.CoreV1Api,
         custom_obj_api: client.CustomObjectsApi,
         template_body: str | None = None,
