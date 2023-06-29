@@ -65,7 +65,7 @@ with DAG(
         print("I am outer_teardown")
 
     @task
-    def outer_normal_task():
+    def outer_work():
         print("I am just a normal task")
 
     s = outer_setup()
@@ -75,27 +75,29 @@ with DAG(
     # now we just need to make sure they are linked directly
     # what we need to do is this::
     #     s >> t
-    #     s >> outer_normal_task() >> t
+    #     s >> outer_work() >> t
     # but we can use a context manager to make it cleaner
     with s >> t:
-        outer_normal_task()
+        outer_work()
 
     @task_group
     def section_1():
-        @task
+        @setup
         def inner_setup():
             print("I set up")
             return "some_cluster_id"
 
         @task
-        def inner_normal_task(cluster_id):
+        def inner_work(cluster_id):
             print(f"doing some work with {cluster_id=}")
 
-        @task
+        @teardown
         def inner_teardown(cluster_id):
             print(f"tearing down {cluster_id=}")
 
-        inner_normal_task(s := inner_setup()) >> inner_teardown(s).as_teardown()
+        # this passes the return value of `inner_setup` to both `inner_work` and `inner_teardown`
+        inner_setup_task = inner_setup()
+        inner_work(inner_setup_task) >> inner_teardown(inner_setup_task)
 
     # and let's put section 1 inside the outer setup and teardown tasks
     s >> section_1() >> t
