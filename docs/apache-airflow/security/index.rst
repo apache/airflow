@@ -33,7 +33,7 @@ If you would like to know how to report security vulnerabilities and how
 security reports are handled by the security team of Airflow, head to
 `Airflow's Security Policy <https://github.com/apache/airflow/security/policy>`_.
 
-Airflow Security Model - user types
+Airflow security model - user types
 -----------------------------------
 
 The Airflow security model involves different types of users with
@@ -63,11 +63,11 @@ varying access and capabilities:
    unauthenticated users by default. If allowed, vulnerabilities must be
    addressed by the Deployment Manager.
 
-Capabilities of Authenticated UI users
+Capabilities of authenticated UI users
 --------------------------------------
 
 The capabilities of **Authenticated UI users** can vary depending on
-whether the users belong to one of the general categories:
+what roles have been configured by the Deployment Manager or Admin users as well as what permissions those roles have. Permissions on roles can be scoped as tightly as a single DAG, for example, or as broad as Admin. Below are three general categories to help conceptualize some of the capabilities authenticated users may have:
 
 1. **Admin users**: They manage and grant permissions to other users,
    with full access to all UI capabilities. They can potentially execute
@@ -133,28 +133,27 @@ fine-grained access control does not provide full isolation and
 separation of access allowing isolation of different user groups in a
 multi-tenant fashion yet. In the future versions of Airflow some of the
 fine-grained access features might become part of the Airflow security
-model. Airflow community works on a multi-tenant model that might
+model. The Airflow community is working on a multi-tenant model that might
 address some of the fine-grained access components.
 
 
 Releasing Airflow with security patches
 ---------------------------------------
 
-Apache Airflow uses strict [SemVer](https://semver.org) versioning policy, which means that we strive for
+Apache Airflow uses a strict [SemVer](https://semver.org) versioning policy, which means that we strive for
 any release of a given ``MAJOR`` Version (version "2" currently) to be backwards compatible. When we
-release ``MINOR`` version, the development continues in the ``main`` branch where we prepare the next
+release a ``MINOR`` version, the development continues in the ``main`` branch where we prepare the next
 ``MINOR`` version, but we release ``PATCHLEVEL`` releases with selected bugfixes (including security
 bugfixes) cherry-picked to the latest released ``MINOR`` line of Apache Airflow. At the moment, when we
 release a new ``MINOR`` version, we stop releasing ``PATCHLEVEL`` releases for the previous ``MINOR`` version.
 
-For example, when we released  ``2.6.0`` version on April 30, 2023, until we release ``2.7.0`` version,
-all the security patches will be cherry-picked and released in ``2.6.*`` versions only. There will be no
+For example, once we released ``2.6.0`` version on April 30, 2023 all the security patches will be cherry-picked and released in ``2.6.*`` versions until we release ``2.7.0`` version. There will be no
 ``2.5.*`` versions  released after ``2.6.0`` has been released.
 
 This means that in order to apply security fixes with Apache Airflow software released by us, you
 MUST upgrade to the latest ``MINOR`` version of Airflow.
 
-Releasing Airflow Providers with security patches
+Releasing Airflow providers with security patches
 -------------------------------------------------
 
 Similarly to Airflow, providers use strict [SemVer](https://semver.org) versioning policy, and the same

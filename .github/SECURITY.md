@@ -26,8 +26,8 @@ Before reporting vulnerabilities, please make sure to read and understand the
 some of the potential security vulnerabilities that are valid for projects that are publicly accessible
 from the Internet, are not valid for Airflow. Airflow is not designed to be used by untrusted users, and some
 trusted users are trusted enough to do a variety of operations that could be considered as vulnerabilities
-in other products/circumstances. This is the reason why some potential security vulnerabilities do not
-apply to Airflow, or have different severity than generic scoring systems (for example `CVSS`)
+in other products/circumstances. Therefore, some potential security vulnerabilities do not
+apply to Airflow, or have a different severity than some generic scoring systems (for example `CVSS`)
 calculation suggests.
 
 The [ASF Security team's page](https://www.apache.org/security/) describes
@@ -39,8 +39,8 @@ you wish to use them when you report the issues.
 Airflow core package is released separately from provider packages. While Airflow comes with ``constraints``
 which describe which version of providers have been tested when the version of Airflow was released, the
 users of Airflow are advised to install providers independently from Airflow core when they want to apply
-security fixes found and released in providers. Therefore the issues found and fixed in providers do
-not apply to Airflow core package. There are also airflow providers released by 3rd-parties, but the
+security fixes found and released in providers. Therefore, the issues found and fixed in providers do
+not apply to the Airflow core package. There are also Airflow providers released by 3rd-parties, but the
 Airflow community is not responsible for releasing and announcing security vulnerabilities in them, this
 is handled entirely by the 3rd-parties that release their own providers.
 
