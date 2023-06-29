@@ -26,8 +26,10 @@ from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, SkipMixin
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, return_single_query_results
+from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
+    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
 
 
@@ -289,6 +291,63 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         """Parse template file for attribute parameters."""
         if isinstance(self.parameters, str):
             self.parameters = ast.literal_eval(self.parameters)
+
+    def get_openlineage_facets_on_start(self) -> OperatorLineage | None:
+        try:
+            from airflow.providers.openlineage.sqlparser import SQLParser
+        except ImportError:
+            return None
+
+        hook = self.get_db_hook()
+
+        connection = hook.get_connection(getattr(hook, hook.conn_name_attr))
+        try:
+            database_info = hook.get_openlineage_database_info(connection)
+        except AttributeError:
+            self.log.debug("%s has no database info provided", hook)
+            database_info = None
+
+        if database_info is None:
+            return None
+
+        try:
+            sql_parser = SQLParser(
+                dialect=hook.get_openlineage_database_dialect(connection),
+                default_schema=hook.get_openlineage_default_schema(),
+            )
+        except AttributeError:
+            self.log.debug("%s failed to get database dialect", hook)
+            return None
+
+        operator_lineage = sql_parser.generate_openlineage_metadata_from_sql(
+            sql=self.sql, hook=hook, database_info=database_info, database=self.database
+        )
+
+        return operator_lineage
+
+    def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage | None:
+        operator_lineage = self.get_openlineage_facets_on_start() or OperatorLineage()
+
+        try:
+            from airflow.providers.openlineage.extractors import OperatorLineage
+        except ImportError:
+            return operator_lineage
+
+        hook = self.get_db_hook()
+        try:
+            database_specific_lineage = hook.get_openlineage_database_specific_lineage(task_instance)
+        except AttributeError:
+            database_specific_lineage = None
+
+        if database_specific_lineage is None:
+            return operator_lineage
+
+        return OperatorLineage(
+            inputs=operator_lineage.inputs + database_specific_lineage.inputs,
+            outputs=operator_lineage.outputs + database_specific_lineage.outputs,
+            run_facets=merge_dicts(operator_lineage.run_facets, database_specific_lineage.run_facets),
+            job_facets=merge_dicts(operator_lineage.job_facets, database_specific_lineage.job_facets),
+        )
 
 
 class SQLColumnCheckOperator(BaseSQLOperator):

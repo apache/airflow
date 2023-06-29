@@ -546,6 +546,9 @@ triggers:
   - integration-name: Amazon ECS
     python-modules:
       - airflow.providers.amazon.aws.triggers.ecs
+  - integration-name: Amazon RDS
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.rds
 
 transfers:
   - source-integration-name: Amazon DynamoDB

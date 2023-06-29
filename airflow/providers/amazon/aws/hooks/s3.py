@@ -23,6 +23,7 @@ import fnmatch
 import gzip as gz
 import io
 import logging
+import os
 import re
 import shutil
 import warnings
@@ -631,6 +632,117 @@ class S3Hook(AwsBaseHook):
             return True
 
         return [k["Key"] for k in keys if _is_in_period(k["LastModified"])]
+
+    async def is_keys_unchanged_async(
+        self,
+        client: AioBaseClient,
+        bucket_name: str,
+        prefix: str,
+        inactivity_period: float = 60 * 60,
+        min_objects: int = 1,
+        previous_objects: set[str] | None = None,
+        inactivity_seconds: int = 0,
+        allow_delete: bool = True,
+        last_activity_time: datetime | None = None,
+    ) -> dict[str, Any]:
+        """
+        Checks whether new objects have been uploaded and the inactivity_period
+        has passed and updates the state of the sensor accordingly.
+
+        :param client: aiobotocore client
+        :param bucket_name: the name of the bucket
+        :param prefix: a key prefix
+        :param inactivity_period:  the total seconds of inactivity to designate
+            keys unchanged. Note, this mechanism is not real time and
+            this operator may not return until a poke_interval after this period
+            has passed with no additional objects sensed.
+        :param min_objects: the minimum number of objects needed for keys unchanged
+            sensor to be considered valid.
+        :param previous_objects: the set of object ids found during the last poke.
+        :param inactivity_seconds: number of inactive seconds
+        :param allow_delete: Should this sensor consider objects being deleted
+            between pokes valid behavior. If true a warning message will be logged
+            when this happens. If false an error will be raised.
+        :param last_activity_time: last activity datetime.
+        """
+        if not previous_objects:
+            previous_objects = set()
+        list_keys = await self._list_keys_async(client=client, bucket_name=bucket_name, prefix=prefix)
+        current_objects = set(list_keys)
+        current_num_objects = len(current_objects)
+        if current_num_objects > len(previous_objects):
+            # When new objects arrived, reset the inactivity_seconds
+            # and update previous_objects for the next poke.
+            self.log.info(
+                "New objects found at %s, resetting last_activity_time.",
+                os.path.join(bucket_name, prefix),
+            )
+            self.log.debug("New objects: %s", current_objects - previous_objects)
+            last_activity_time = datetime.now()
+            inactivity_seconds = 0
+            previous_objects = current_objects
+            return {
+                "status": "pending",
+                "previous_objects": previous_objects,
+                "last_activity_time": last_activity_time,
+                "inactivity_seconds": inactivity_seconds,
+            }
+
+        if len(previous_objects) - len(current_objects):
+            # During the last poke interval objects were deleted.
+            if allow_delete:
+                deleted_objects = previous_objects - current_objects
+                previous_objects = current_objects
+                last_activity_time = datetime.now()
+                self.log.info(
+                    "Objects were deleted during the last poke interval. Updating the "
+                    "file counter and resetting last_activity_time:\n%s",
+                    deleted_objects,
+                )
+                return {
+                    "status": "pending",
+                    "previous_objects": previous_objects,
+                    "last_activity_time": last_activity_time,
+                    "inactivity_seconds": inactivity_seconds,
+                }
+
+            return {
+                "status": "error",
+                "message": f"{os.path.join(bucket_name, prefix)} between pokes.",
+            }
+
+        if last_activity_time:
+            inactivity_seconds = int((datetime.now() - last_activity_time).total_seconds())
+        else:
+            # Handles the first poke where last inactivity time is None.
+            last_activity_time = datetime.now()
+            inactivity_seconds = 0
+
+        if inactivity_seconds >= inactivity_period:
+            path = os.path.join(bucket_name, prefix)
+
+            if current_num_objects >= min_objects:
+                success_message = (
+                    f"SUCCESS: Sensor found {current_num_objects} objects at {path}. "
+                    "Waited at least {inactivity_period} seconds, with no new objects uploaded."
+                )
+                self.log.info(success_message)
+                return {
+                    "status": "success",
+                    "message": success_message,
+                }
+
+            self.log.error("FAILURE: Inactivity Period passed, not enough objects found in %s", path)
+            return {
+                "status": "error",
+                "message": f"FAILURE: Inactivity Period passed, not enough objects found in {path}",
+            }
+        return {
+            "status": "pending",
+            "previous_objects": previous_objects,
+            "last_activity_time": last_activity_time,
+            "inactivity_seconds": inactivity_seconds,
+        }
 
     @provide_bucket_name
     def list_keys(

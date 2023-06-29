@@ -244,9 +244,19 @@ with DAG(
         task_id="sensor_keys_unchanged",
         bucket_name=bucket_name_2,
         prefix=PREFIX,
-        inactivity_period=10,  # inactivity_period in seconds
+        inactivity_period=10,
     )
     # [END howto_sensor_s3_keys_unchanged]
+
+    # [START howto_sensor_s3_keys_unchanged_deferrable]
+    sensor_keys_unchanged = S3KeysUnchangedSensor(
+        task_id="sensor_keys_unchanged",
+        bucket_name=bucket_name_2,
+        prefix=PREFIX,
+        inactivity_period=10,  # inactivity_period in seconds
+        deferrable=True,
+    )
+    # [END howto_sensor_s3_keys_unchanged_deferrable]
 
     # [START howto_operator_s3_delete_objects]
     delete_objects = S3DeleteObjectsOperator(

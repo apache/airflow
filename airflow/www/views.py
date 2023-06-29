@@ -85,7 +85,12 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
-from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
+from airflow.exceptions import (
+    AirflowConfigException,
+    AirflowException,
+    ParamValidationError,
+    RemovedInAirflow3Warning,
+)
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
@@ -308,6 +313,14 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
 
     grouped_tis = {task_id: list(tis) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)}
 
+    sort_order = conf.get("webserver", "grid_view_sorting_order", fallback="topological")
+    if sort_order == "topological":
+        sort_children_fn = lambda task_group: task_group.topological_sort()
+    elif sort_order == "hierarchical_alphabetical":
+        sort_children_fn = lambda task_group: task_group.hierarchical_alphabetical_sort()
+    else:
+        raise AirflowConfigException(f"Unsupported grid_view_sorting_order: {sort_order}")
+
     def task_group_to_grid(item, grouped_tis, *, is_parent_mapped: bool):
         if not isinstance(item, TaskGroup):
 
@@ -384,7 +397,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session):
 
         children = [
             task_group_to_grid(child, grouped_tis, is_parent_mapped=group_is_mapped)
-            for child in task_group.topological_sort()
+            for child in sort_children_fn(task_group)
         ]
 
         def get_summary(dag_run: DagRun):
