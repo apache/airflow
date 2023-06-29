@@ -19,14 +19,11 @@ from __future__ import annotations
 
 import os
 import tempfile
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class AzureBlobStorageToS3(BaseOperator):
@@ -56,6 +53,7 @@ class AzureBlobStorageToS3(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
+    :param dest_s3_extra_args: Extra arguments that may be passed to the download/upload operations.
     :param replace: Whether or not to verify the existence of the files in the
         destination bucket.
         By default is set to False
@@ -65,6 +63,8 @@ class AzureBlobStorageToS3(BaseOperator):
         in the destination bucket.
     :param s3_acl_policy: Optional The string to specify the canned ACL policy for the
         object to be uploaded in S3
+    :param wasb_extra_kargs: kwargs to pass to WasbHook
+    :param s3_extra_kargs: kwargs to pass to S3Hook
     """
 
     template_fields: Sequence[str] = (
@@ -82,12 +82,13 @@ class AzureBlobStorageToS3(BaseOperator):
         prefix: str | None = None,
         delimiter: str = "",
         aws_conn_id: str = "aws_default",
-        dest_s3_bucket: str,
         dest_s3_key: str,
         dest_verify: str | bool | None = None,
         dest_s3_extra_args: dict | None = None,
         replace: bool = False,
         s3_acl_policy: str | None = None,
+        wasb_extra_args: dict = {},
+        s3_extra_args: dict = {},
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -97,23 +98,27 @@ class AzureBlobStorageToS3(BaseOperator):
         self.prefix = prefix
         self.delimiter = delimiter
         self.aws_conn_id = aws_conn_id
-        self.dest_s3_bucket = dest_s3_bucket
         self.dest_s3_key = dest_s3_key
         self.dest_verify = dest_verify
         self.dest_s3_extra_args = dest_s3_extra_args or {}
         self.replace = replace
         self.s3_acl_policy = s3_acl_policy
+        self.wasb_extra_args = wasb_extra_args
+        self.s3_extra_args = s3_extra_args
 
-    def execute(self, context: Context) -> list[str]:
+    def execute(self) -> list[str]:
         # list all files in the Azure Blob Storage container
-        wasb_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
+        wasb_hook = WasbHook(wasb_conn_id=self.wasb_conn_id, **self.wasb_extra_args)
         s3_hook = S3Hook(
-            aws_conn_id=self.aws_conn_id, verify=self.dest_verify, extra_args=self.dest_s3_extra_args
+            aws_conn_id=self.aws_conn_id,
+            verify=self.dest_verify,
+            extra_args=self.dest_s3_extra_args,
+            **self.s3_extra_args,
         )
 
         self.log.info(
             f"Getting list of the files in Container: {self.container_name}; "
-            "Prefix: {self.prefix}; Delimiter: {self.delimiter};"
+            f"Prefix: {self.prefix}; Delimiter: {self.delimiter};"
         )
 
         files = wasb_hook.get_blobs_list_recursive(
@@ -131,7 +136,7 @@ class AzureBlobStorageToS3(BaseOperator):
             # in case that no files exists, return an empty array to avoid errors
             existing_files = existing_files if existing_files is not None else []
             # remove the prefix for the existing files to allow the match
-            existing_files = [file.replace(prefix, "", 1) for file in existing_files]
+            existing_files = [file.replace(f"{prefix}/", "", 1) for file in existing_files]
             files = list(set(files) - set(existing_files))
 
         if files:
@@ -139,7 +144,6 @@ class AzureBlobStorageToS3(BaseOperator):
                 with tempfile.NamedTemporaryFile() as temp_file:
 
                     dest_key = os.path.join(self.dest_s3_key, file)
-
                     self.log.info(f"Downloading data from blob: {file}")
                     wasb_hook.get_file(
                         file_path=temp_file.name,
@@ -151,7 +155,6 @@ class AzureBlobStorageToS3(BaseOperator):
                     s3_hook.load_file(
                         filename=temp_file.name,
                         key=dest_key,
-                        # bucket_name=self.dest_s3_bucket,
                         replace=self.replace,
                         acl_policy=self.s3_acl_policy,
                     )

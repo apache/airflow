@@ -39,11 +39,11 @@ To copy data from an Azure Blob Storage container to an Amazon S3 bucket you can
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_gcs_to_s3.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_azure_blob_to_s3.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_transfer_gcs_to_s3]
-    :end-before: [END howto_transfer_gcs_to_s3]
+    :start-after: [START howto_transfer_azure_blob_to_s3]
+    :end-before: [END howto_transfer_azure_blob_to_s3]
 
 Reference
 ---------
