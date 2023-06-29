@@ -28,6 +28,7 @@ from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatabaseLink, CloudSQLInstanceLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.cloud_sql import CloudSQLExportTrigger
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
 from airflow.providers.google.common.hooks.base_google import get_field
 from airflow.providers.google.common.links.storage import FileDetailsLink
@@ -926,6 +927,9 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode.
+    :param poke_interval: (Deferrable mode only) Time (seconds) to wait between calls
+        to check the run status.
     """
 
     # [START gcp_sql_export_template_fields]
@@ -951,10 +955,14 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         api_version: str = "v1beta4",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = False,
+        poke_interval: int = 10,
         **kwargs,
     ) -> None:
         self.body = body
         self.validate_body = validate_body
+        self.deferrable = deferrable
+        self.poke_interval = poke_interval
         super().__init__(
             project_id=project_id,
             instance=instance,
@@ -994,7 +1002,38 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
             uri=self.body["exportContext"]["uri"][5:],
             project_id=self.project_id or hook.project_id,
         )
-        return hook.export_instance(project_id=self.project_id, instance=self.instance, body=self.body)
+
+        operation_name = hook.export_instance(
+            project_id=self.project_id, instance=self.instance, body=self.body
+        )
+
+        if not self.deferrable:
+            return hook._wait_for_operation_to_complete(
+                project_id=self.project_id, operation_name=operation_name
+            )
+        else:
+            self.defer(
+                trigger=CloudSQLExportTrigger(
+                    operation_name=operation_name,
+                    project_id=self.project_id or hook.project_id,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    poke_interval=self.poke_interval,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context, event=None) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "success":
+            self.log.info("Operation %s completed successfully", event["operation_name"])
+        else:
+            self.log.exception("Unexpected error in the operation.")
+            raise AirflowException(event["message"])
 
 
 class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
