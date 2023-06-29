@@ -262,12 +262,15 @@ class TestSerDe:
         """
         uri = "s3://does_not_exist"
         data = {
-            "__classname__": "airflow.datasets.Dataset",
-            "__version__": 1,
-            "__data__": {
+            "__type": "airflow.datasets.Dataset",
+            "__source": None,
+            "__var": {
                 "__var": {
-                    "uri": "s3://dag1/output_1.txt",
-                    "extra": {"__var": {"hi": "bye"}, "__type": "dict"},
+                    "uri": uri,
+                    "extra": {
+                        "__var": {"hi": "bye"},
+                        "__type": "dict",
+                    }
                 },
                 "__type": "dict",
             },
