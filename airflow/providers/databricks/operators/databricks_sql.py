@@ -56,7 +56,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
     :param sql: the SQL code to be executed as a single string, or
         a list of str (sql statements), or a reference to a template file. (templated)
         Template references are recognized by str ending in '.sql'
-    :param parameters: (optional) the parameters to render the SQL query with.
+    :param parameters: (optional, templated) the parameters to render the SQL query with.
     :param session_configuration: An optional dictionary of Spark session parameters. Defaults to None.
         If not specified, it could be specified in the Databricks connection's extra parameters.
     :param client_parameters: Additional parameters internal to Databricks SQL Connector parameters
@@ -71,7 +71,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
     """
 
     template_fields: Sequence[str] = tuple(
-        {"_output_path", "schema", "catalog", "http_headers", "databricks_conn_id"}
+        {"_output_path", "schema", "catalog", "http_headers", "databricks_conn_id", "parameters"}
         | set(SQLExecuteQueryOperator.template_fields)
     )
 
