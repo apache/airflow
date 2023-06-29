@@ -304,11 +304,11 @@ class TestWasbHook:
     def test_get_blobs_list_recursive(self, mock_service):
         hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
         hook.get_blobs_list_recursive(
-            container_name="mycontainer", prefix="my", include=None, endswith="file_extension"
+            container_name="mycontainer", prefix="test", include=None, endswith="file_extension"
         )
         mock_service.return_value.get_container_client.assert_called_once_with("mycontainer")
         mock_service.return_value.get_container_client.return_value.list_blobs.assert_called_once_with(
-            name_starts_with="my", include=None
+            name_starts_with="test", include=None
         )
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
@@ -320,7 +320,7 @@ class TestWasbHook:
             BlobProperties(name="test/abc.csv"),
         ]
         blob_list_output = hook.get_blobs_list_recursive(
-            container_name="mycontainer", prefix="my", include=None, endswith=".py"
+            container_name="mycontainer", prefix="test", include=None, endswith=".py"
         )
         assert blob_list_output == ["test/abc.py", "test/inside_test/abc.py"]
 
