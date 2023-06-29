@@ -156,7 +156,6 @@ class LambdaInvokeFunctionOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
         self.function_name = function_name
-        self.payload = payload
         self.log_type = log_type
         self.qualifier = qualifier
         self.invocation_type = invocation_type
