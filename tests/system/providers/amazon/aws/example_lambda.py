@@ -103,7 +103,7 @@ with models.DAG(
     invoke_lambda_function = LambdaInvokeFunctionOperator(
         task_id="invoke_lambda_function",
         function_name=lambda_function_name,
-        payload=json.dumps({"SampleEvent": {"SampleData": {"Name": "XYZ", "DoB": "1993-01-01"}}}).encode(),
+        payload=json.dumps({"SampleEvent": {"SampleData": {"Name": "XYZ", "DoB": "1993-01-01"}}}),
     )
     # [END howto_operator_invoke_lambda_function]
 

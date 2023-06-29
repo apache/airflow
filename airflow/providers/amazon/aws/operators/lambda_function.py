@@ -156,16 +156,12 @@ class LambdaInvokeFunctionOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
         self.function_name = function_name
+        self.payload = payload
         self.log_type = log_type
         self.qualifier = qualifier
         self.invocation_type = invocation_type
         self.client_context = client_context
         self.aws_conn_id = aws_conn_id
-
-        if type(payload) == str:
-            payload = payload.encode()
-
-        self.payload = payload
 
     @cached_property
     def hook(self) -> LambdaHook:
