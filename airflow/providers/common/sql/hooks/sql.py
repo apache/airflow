@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from contextlib import closing
 from datetime import datetime
-from typing import Any, Callable, Iterable, Mapping, Protocol, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Protocol, Sequence, cast
 from urllib.parse import urlparse
 
 import sqlparse
@@ -28,6 +28,10 @@ from sqlalchemy import create_engine
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from airflow.providers.openlineage.extractors import OperatorLineage
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
@@ -516,7 +520,7 @@ class DbApiHook(BaseForDbApiHook):
 
         return status, message
 
-    def get_openlineage_database_info(self, connection):
+    def get_openlineage_database_info(self, connection) -> DatabaseInfo | None:
         """
         Returns database specific information needed to generate and parse lineage metadata.
 
@@ -524,7 +528,6 @@ class DbApiHook(BaseForDbApiHook):
         and creating correct namespace.
 
         :param connection: Airflow connection to reduce calls of `get_connection` method
-        :return: A :class:`airflow.providers.openlineage.sqlparser.DatabaseInfo` instance.
         """
 
     def get_openlineage_database_dialect(self, connection) -> str:
@@ -535,7 +538,7 @@ class DbApiHook(BaseForDbApiHook):
         """
         return "generic"
 
-    def get_openlineage_default_schema(self):
+    def get_openlineage_default_schema(self) -> str:
         """
         Returns default schema specific to database.
 
@@ -544,7 +547,7 @@ class DbApiHook(BaseForDbApiHook):
         """
         return self.__schema or "public"
 
-    def get_openlineage_database_specific_lineage(self, task_instance):
+    def get_openlineage_database_specific_lineage(self, task_instance) -> OperatorLineage | None:
         """
         Returns additional database specific lineage, e.g. query execution information.
 

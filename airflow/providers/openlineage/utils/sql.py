@@ -74,7 +74,7 @@ class TableSchema:
         return Dataset(
             namespace=namespace,
             name=name,
-            facets={"schema": SchemaDatasetFacet(fields=self.fields)} if len(self.fields) is not None else {},
+            facets={"schema": SchemaDatasetFacet(fields=self.fields)} if len(self.fields) > 0 else {},
         )
 
 

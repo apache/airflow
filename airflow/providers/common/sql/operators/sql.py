@@ -20,7 +20,7 @@ from __future__ import annotations
 import ast
 import re
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
 
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
@@ -29,6 +29,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler,
 from airflow.utils.helpers import merge_dicts
 
 if TYPE_CHECKING:
+    from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.context import Context
 
 
@@ -291,7 +292,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         if isinstance(self.parameters, str):
             self.parameters = ast.literal_eval(self.parameters)
 
-    def get_openlineage_facets_on_start(self):
+    def get_openlineage_facets_on_start(self) -> OperatorLineage | None:
         try:
             from airflow.providers.openlineage.sqlparser import SQLParser
         except ImportError:
@@ -299,7 +300,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
         hook = self.get_db_hook()
 
-        connection = hook.get_connection(getattr(hook, cast(str, hook.conn_name_attr)))
+        connection = hook.get_connection(getattr(hook, hook.conn_name_attr))
         try:
             database_info = hook.get_openlineage_database_info(connection)
         except AttributeError:
@@ -321,8 +322,9 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
 
         return operator_lineage
 
-    def get_openlineage_facets_on_complete(self, task_instance):
-        operator_lineage = self.get_openlineage_facets_on_start()
+    def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage | None:
+        operator_lineage = self.get_openlineage_facets_on_start() or OperatorLineage()
+
         try:
             from airflow.providers.openlineage.extractors import OperatorLineage
         except ImportError:
