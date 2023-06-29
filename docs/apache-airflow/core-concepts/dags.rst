@@ -499,6 +499,9 @@ Key features of setup and teardown tasks:
   * Teardown tasks are ignored when setting dependencies against task groups.
   * A setup task must always have a teardown and vice versa. You may use EmptyOperator as a setup or teardown.
 
+How setup and teardown works
+""""""""""""""""""""""""""""
+
 Basic usage
 """""""""""
 
@@ -508,7 +511,15 @@ Suppose you have a dag that creates a cluster, runs a query, and deletes the clu
 
   create_cluster >> run_query >> delete_cluster
 
-We can use the ``as_teardown`` let airflow know that ``create_cluster`` is a setup task and ``delete_cluster`` is its teardown:
+To enable create_cluster and delete_cluster as setup and teardown tasks, we mark them as such methods ``as_setup`` and ``as_teardown`` and add an upstream / downstream relationship between them:
+
+
+.. code-block:: python
+
+  create_cluster.as_setup() >> run_query >> delete_cluster.as_teardown()
+  create_cluster >> delete_cluster
+
+For convenience we can do this in one line by passing ``create_cluster`` to the ``as_teardown`` method:
 
 .. code-block:: python
 
@@ -523,9 +534,9 @@ Observations:
 Setup "scope"
 """""""""""""
 
-We require that a setup always have a teardown in order to have a well-defined scope. If you wish to only add a teardown task or only a setup task, you may use EmptyOperator as your "empty setup" or "empty teardown".
+Tasks between a setup and its teardown are in the "scope" of the setup / teardown pair.  We require that a setup always have a teardown in order to have a well-defined scope. If you wish to only add a teardown task or only a setup task, you may use EmptyOperator as your "empty setup" or "empty teardown".
 
-The "scope" of a setup will be determined by where the teardown is.  Tasks between a setup and its teardown are in the "scope" of the setup / teardown pair. Example:
+Let's look at an example:
 
 .. code-block:: python
 
@@ -602,6 +613,8 @@ This is equivalent to the following:
 
     s >> a() >> t.as_teardown(setups=s)
     s >> b() >> c() >> t
+
+Passing data between setup, teardown, and normal task
 
 Dynamic DAGs
 ------------
