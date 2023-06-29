@@ -173,7 +173,7 @@ class LivyHook(HttpHook, LoggingMixin):
         batch_id = self._parse_post_response(response.json())
         if batch_id is None:
             raise AirflowException("Unable to parse the batch session id")
-        self.log.info("Batch submitted with session id: %d", batch_id)
+        self.log.info("Batch submitted with session id: %s", batch_id)
 
         return batch_id
 
@@ -186,13 +186,13 @@ class LivyHook(HttpHook, LoggingMixin):
         """
         self._validate_session_id(session_id)
 
-        self.log.debug("Fetching info for batch session %d", session_id)
+        self.log.debug("Fetching info for batch session %s", session_id)
         response = self.run_method(endpoint=f"/batches/{session_id}", headers=self.extra_headers)
 
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
+            self.log.warning("Got status code %d for session %s", err.response.status_code, session_id)
             raise AirflowException(
                 f"Unable to fetch batch with id: {session_id}. Message: {err.response.text}"
             )
@@ -210,7 +210,7 @@ class LivyHook(HttpHook, LoggingMixin):
         """
         self._validate_session_id(session_id)
 
-        self.log.debug("Fetching info for batch session %d", session_id)
+        self.log.debug("Fetching info for batch session %s", session_id)
         response = self.run_method(
             endpoint=f"/batches/{session_id}/state", retry_args=retry_args, headers=self.extra_headers
         )
@@ -218,7 +218,7 @@ class LivyHook(HttpHook, LoggingMixin):
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
+            self.log.warning("Got status code %d for session %s", err.response.status_code, session_id)
             raise AirflowException(
                 f"Unable to fetch batch with id: {session_id}. Message: {err.response.text}"
             )
@@ -237,7 +237,7 @@ class LivyHook(HttpHook, LoggingMixin):
         """
         self._validate_session_id(session_id)
 
-        self.log.info("Deleting batch session %d", session_id)
+        self.log.info("Deleting batch session %s", session_id)
         response = self.run_method(
             method="DELETE", endpoint=f"/batches/{session_id}", headers=self.extra_headers
         )
@@ -245,7 +245,7 @@ class LivyHook(HttpHook, LoggingMixin):
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
+            self.log.warning("Got status code %d for session %s", err.response.status_code, session_id)
             raise AirflowException(
                 f"Could not kill the batch with session id: {session_id}. Message: {err.response.text}"
             )
@@ -270,7 +270,7 @@ class LivyHook(HttpHook, LoggingMixin):
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:
-            self.log.warning("Got status code %d for session %d", err.response.status_code, session_id)
+            self.log.warning("Got status code %d for session %s", err.response.status_code, session_id)
             raise AirflowException(
                 f"Could not fetch the logs for batch with session id: {session_id}. "
                 f"Message: {err.response.text}"
@@ -284,7 +284,7 @@ class LivyHook(HttpHook, LoggingMixin):
         :param session_id: identifier of the batch sessions
         :return: response body
         """
-        self.log.info("Fetching the logs for batch session with id: %d", session_id)
+        self.log.info("Fetching the logs for batch session with id: %s", session_id)
         log_start_line = 0
         log_total_lines = 0
         log_batch_size = 100
@@ -618,7 +618,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         :return: batch state
         """
         self._validate_session_id(session_id)
-        self.log.info("Fetching info for batch session %d", session_id)
+        self.log.info("Fetching info for batch session %s", session_id)
         result = await self.run_method(endpoint=f"/batches/{session_id}/state")
         if result["status"] == "error":
             self.log.info(result)
@@ -667,7 +667,7 @@ class LivyAsyncHook(HttpAsyncHook, LoggingMixin):
         :param session_id: identifier of the batch sessions
         :return: response body
         """
-        self.log.info("Fetching the logs for batch session with id: %d", session_id)
+        self.log.info("Fetching the logs for batch session with id: %s", session_id)
         log_start_line = 0
         log_total_lines = 0
         log_batch_size = 100

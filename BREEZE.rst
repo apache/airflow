@@ -1931,6 +1931,21 @@ This bumps the constraint files to latest versions and stores hash of setup.py. 
 and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
 of changes vs the previous constraint files is printed.
 
+Generating Providers Metadata
+.............................
+
+The release manager can generate providers metadata per provider version - information about provider versions
+including the associated Airflow version for the provider version (i.e first airflow version released after the
+provider has been released) and date of the release of the provider version.
+
+These are all of the available flags for the ``generate-providers-metadata`` command:
+
+.. image:: ./images/breeze/output_release-management_generate-providers-metadata.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-providers-metadata.svg
+  :width: 100%
+  :alt: Breeze release management generate providers metadata
+
+
 Releasing Production images
 ...........................
 

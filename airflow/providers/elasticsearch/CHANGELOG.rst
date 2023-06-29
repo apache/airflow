@@ -17,18 +17,19 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog
----------
+Changelog for ``apache-airflow-providers-elasticsearch``
+--------------------------------------------------------
 
 5.0.0
 .....
 
 .. note::
   Deprecate non-official elasticsearch libraries. Only the official elasticsearch library was used
+
 
 4.5.1
 .....

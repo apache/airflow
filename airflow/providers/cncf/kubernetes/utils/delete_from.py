@@ -142,10 +142,7 @@ def _delete_from_yaml_single_item(
 
 
 class FailToDeleteError(Exception):
-    """
-    An exception class for handling error if an error occurred when
-    handling a yaml file during deletion of the resource.
-    """
+    """For handling error if an error occurred when handling a yaml file during deletion of the resource."""
 
     def __init__(self, api_exceptions: list):
         self.api_exceptions = api_exceptions

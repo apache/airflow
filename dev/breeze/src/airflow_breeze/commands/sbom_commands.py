@@ -38,6 +38,7 @@ from airflow_breeze.utils.common_options import (
     option_answer,
     option_debug_resources,
     option_dry_run,
+    option_historical_python_version,
     option_include_success_outputs,
     option_parallelism,
     option_run_in_parallel,
@@ -92,13 +93,7 @@ SBOM_INDEX_TEMPLATE = """
     envvar="AIRFLOW_VERSION",
     help="Version of airflow to update sbom from. (defaulted to all active airflow versions)",
 )
-@click.option(
-    "--python",
-    type=BetterChoice(ALL_HISTORICAL_PYTHON_VERSIONS),
-    required=False,
-    envvar="PYTHON_VERSION",
-    help="Python version to update sbom from. (defaults to all python versions)",
-)
+@option_historical_python_version
 @click.option(
     "--include-provider-dependencies",
     is_flag=True,

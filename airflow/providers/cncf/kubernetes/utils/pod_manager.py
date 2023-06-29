@@ -63,7 +63,8 @@ def should_retry_start_pod(exception: BaseException) -> bool:
 
 class PodPhase:
     """
-    Possible pod phases
+    Possible pod phases.
+
     See https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase.
     """
 
@@ -114,6 +115,7 @@ def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus |
 def container_is_running(pod: V1Pod, container_name: str) -> bool:
     """
     Examines V1Pod ``pod`` to determine whether ``container_name`` is running.
+
     If that container is present and running, returns True.  Returns False otherwise.
     """
     container_status = get_container_status(pod, container_name)
@@ -125,6 +127,7 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
 def container_is_terminated(pod: V1Pod, container_name: str) -> bool:
     """
     Examines V1Pod ``pod`` to determine whether ``container_name`` is terminated.
+
     If that container is present and terminated, returns True.  Returns False otherwise.
     """
     container_statuses = pod.status.container_statuses if pod and pod.status else None
@@ -145,8 +148,7 @@ def get_container_termination_message(pod: V1Pod, container_name: str):
 
 class PodLogsConsumer:
     """
-    PodLogsConsumer is responsible for pulling pod logs from a stream with checking a container status before
-    reading data.
+    Responsible for pulling pod logs from a stream with checking a container status before reading data.
 
     This class is a workaround for the issue https://github.com/apache/airflow/issues/23497.
 
@@ -239,10 +241,7 @@ class PodLoggingStatus:
 
 
 class PodManager(LoggingMixin):
-    """
-    Helper class for creating, monitoring, and otherwise interacting with Kubernetes pods
-    for use with the KubernetesPodOperator.
-    """
+    """Create, monitor, and otherwise interact with Kubernetes pods for use with the KubernetesPodOperator."""
 
     def __init__(
         self,
@@ -358,6 +357,7 @@ class PodManager(LoggingMixin):
         ) -> DateTime | None:
             """
             Tries to follow container logs until container completes.
+
             For a long-running container, sometimes the log read may be interrupted
             Such errors of this kind are suppressed.
 

@@ -52,6 +52,7 @@ if TYPE_CHECKING:
 class TriggerDagRunLink(BaseOperatorLink):
     """
     Operator link for TriggerDagRunOperator.
+
     It allows users to access DAG triggered by task using TriggerDagRunOperator.
     """
 
@@ -89,7 +90,13 @@ class TriggerDagRunOperator(BaseOperator):
         default is ``False``.
     """
 
-    template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
+    template_fields: Sequence[str] = (
+        "trigger_dag_id",
+        "trigger_run_id",
+        "execution_date",
+        "conf",
+        "wait_for_completion",
+    )
     template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
     operator_extra_links = [TriggerDagRunLink()]

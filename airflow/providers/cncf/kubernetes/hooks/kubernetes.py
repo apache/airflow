@@ -162,6 +162,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
     def _get_field(self, field_name):
         """
+        Handles backcompat for extra fields.
+
         Prior to Airflow 2.3, in order to make use of UI customizations for extra fields,
         we needed to store them with the prefix ``extra__kubernetes__``. This method
         handles the backcompat, i.e. if the extra dict contains prefixed fields.
@@ -429,10 +431,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
 
 
 def _get_bool(val) -> bool | None:
-    """
-    Converts val to bool if can be done with certainty.
-    If we cannot infer intention we return None.
-    """
+    """Converts val to bool if can be done with certainty; if we cannot infer intention we return None."""
     if isinstance(val, bool):
         return val
     elif isinstance(val, str):
@@ -569,9 +568,12 @@ class AsyncKubernetesHook(KubernetesHook):
 
     async def read_logs(self, name: str, namespace: str):
         """
-        Reads logs inside the pod while starting containers inside. All the logs will be outputted with its
-        timestamp to track the logs after the execution of the pod is completed. The method is used for async
-        output of the logs only in the pod failed it execution or the task was cancelled by the user.
+        Reads logs inside the pod while starting containers inside.
+
+        All the logs will be outputted with its timestamp to track
+        the logs after the execution of the pod is completed. The
+        method is used for async output of the logs only in the pod
+        failed it execution or the task was cancelled by the user.
 
         :param name: Name of the pod.
         :param namespace: Name of the pod's namespace.

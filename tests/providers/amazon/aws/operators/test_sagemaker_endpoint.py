@@ -22,10 +22,11 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerEndpointOperator
+from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
 
 CREATE_MODEL_PARAMS: dict = {
     "ModelName": "model_name",
@@ -83,12 +84,12 @@ class TestSageMakerEndpointOperator:
     @mock.patch.object(sagemaker, "serialize", return_value="")
     def test_execute(self, serialize, mock_endpoint, mock_endpoint_config, mock_model, mock_client):
         mock_endpoint.return_value = {"EndpointArn": "test_arn", "ResponseMetadata": {"HTTPStatusCode": 200}}
+
         self.sagemaker.execute(None)
+
         mock_model.assert_called_once_with(CREATE_MODEL_PARAMS)
         mock_endpoint_config.assert_called_once_with(CREATE_ENDPOINT_CONFIG_PARAMS)
-        mock_endpoint.assert_called_once_with(
-            CREATE_ENDPOINT_PARAMS, wait_for_completion=False, check_interval=5, max_ingestion_time=None
-        )
+        mock_endpoint.assert_called_once_with(CREATE_ENDPOINT_PARAMS, wait_for_completion=False)
         assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
         for variant in self.sagemaker.config["EndpointConfig"]["ProductionVariants"]:
             assert variant["InitialInstanceCount"] == int(variant["InitialInstanceCount"])
@@ -120,3 +121,18 @@ class TestSageMakerEndpointOperator:
             "ResponseMetadata": {"HTTPStatusCode": 200},
         }
         self.sagemaker.execute(None)
+
+    @mock.patch.object(SageMakerHook, "create_model")
+    @mock.patch.object(SageMakerHook, "create_endpoint_config")
+    @mock.patch.object(SageMakerHook, "create_endpoint")
+    def test_deferred(self, mock_create_endpoint, _, __):
+        self.sagemaker.deferrable = True
+
+        mock_create_endpoint.return_value = {"ResponseMetadata": {"HTTPStatusCode": 200}}
+
+        with pytest.raises(TaskDeferred) as defer:
+            self.sagemaker.execute(None)
+
+        assert isinstance(defer.value.trigger, SageMakerTrigger)
+        assert defer.value.trigger.job_name == "endpoint_name"
+        assert defer.value.trigger.job_type == "endpoint"

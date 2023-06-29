@@ -20,9 +20,11 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.operators.athena import AthenaOperator
+from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
@@ -158,3 +160,13 @@ class TestAthenaOperator:
         ti.dag_run = dag_run
 
         assert self.athena.execute(ti.get_template_context()) == ATHENA_QUERY_ID
+
+    @mock.patch.object(AthenaHook, "run_query", return_value=ATHENA_QUERY_ID)
+    def test_is_deferred(self, mock_run_query):
+        self.athena.deferrable = True
+
+        with pytest.raises(TaskDeferred) as deferred:
+            self.athena.execute(None)
+
+        assert isinstance(deferred.value.trigger, AthenaTrigger)
+        assert deferred.value.trigger.query_execution_id == ATHENA_QUERY_ID

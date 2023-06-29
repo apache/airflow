@@ -19,10 +19,18 @@
 ``apache-airflow-providers-apprise``
 ======================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -30,6 +38,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -37,6 +46,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -70,4 +80,48 @@ The minimum Apache Airflow version supported by this provider package is ``2.4.0
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.4.0``
+==================  ==================
+
+.. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
+
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Commits
+
+    Detailed list of commits <commits>
+
+
+Package apache-airflow-providers-apprise
+------------------------------------------------------
+
+`Apprise <https://github.com/caronc/apprise>`__
+
+
+Release: 1.0.0
+
+Provider package
+----------------
+
+This is a provider package for ``apprise`` provider. All classes for this provider package
+are in ``airflow.providers.apprise`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
+``pip install apache-airflow-providers-apprise``
+
+Requirements
+------------
+
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.4.0``
+``apprise``
 ==================  ==================

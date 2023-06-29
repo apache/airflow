@@ -290,9 +290,6 @@ class MappedOperator(AbstractOperator):
 
     subdag: None = None  # Since we don't support SubDagOperator, this is always None.
     supports_lineage: bool = False
-    is_setup: bool = False
-    is_teardown: bool = False
-    on_failure_fail_dagrun: bool = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
         (
@@ -326,6 +323,24 @@ class MappedOperator(AbstractOperator):
                 f"SLAs are unsupported with mapped tasks. Please set `sla=None` for task "
                 f"{self.task_id!r}."
             )
+
+    @AbstractOperator.is_setup.setter  # type: ignore[attr-defined]
+    def is_setup(self, value):
+        """
+        Setter for is_setup property. Disabled for MappedOperator.
+
+        :meta private:
+        """
+        raise ValueError("Cannot set is_setup for mapped operator.")
+
+    @AbstractOperator.is_teardown.setter  # type: ignore[attr-defined]
+    def is_teardown(self, value):
+        """
+        Setter for is_teardown property. Disabled for MappedOperator.
+
+        :meta private:
+        """
+        raise ValueError("Cannot set is_teardown for mapped operator.")
 
     @classmethod
     @cache
@@ -390,6 +405,11 @@ class MappedOperator(AbstractOperator):
     @property
     def trigger_rule(self) -> TriggerRule:
         return self.partial_kwargs.get("trigger_rule", DEFAULT_TRIGGER_RULE)
+
+    @trigger_rule.setter
+    def trigger_rule(self, value):
+        # required for mypy which complains about overriding writeable attr with read-only property
+        raise ValueError("Cannot set trigger_rule for mapped operator.")
 
     @property
     def depends_on_past(self) -> bool:
