@@ -26,9 +26,8 @@ from sqlalchemy.orm import Session
 
 from airflow import DAG
 from airflow.jobs.scheduler_job_runner import TI
-from airflow.models.dagrun import DagRun, _get_previous_dagrun, _get_previous_scheduled_dagrun
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState, TaskInstanceState
+from airflow.utils.state import TaskInstanceState
 
 
 class DagRunPydantic(BaseModelPydantic):
@@ -65,29 +64,8 @@ class DagRunPydantic(BaseModelPydantic):
         session: Session = NEW_SESSION,
     ) -> list[TI]:
         """
-        Returns the task instances for this dag run
+        Returns the task instances for this dag run.
 
         TODO: make it works for AIP-44
         """
         raise NotImplementedError()
-
-    @provide_session
-    def get_previous_scheduled_dagrun(self, session: Session = NEW_SESSION) -> DagRun | None:
-        """
-        The previous, SCHEDULED DagRun, if there is one.
-
-        :param session: SQLAlchemy ORM Session
-        """
-        return _get_previous_scheduled_dagrun(self, session)
-
-    @provide_session
-    def get_previous_dagrun(
-        self, state: DagRunState | None = None, session: Session = NEW_SESSION
-    ) -> DagRun | None:
-        """
-        The previous DagRun, if there is one.
-
-        :param session: SQLAlchemy ORM Session
-        :param state: the dag run state
-        """
-        return _get_previous_dagrun(self, state, session)

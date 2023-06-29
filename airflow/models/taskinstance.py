@@ -425,7 +425,7 @@ def _refresh_from_db(
     task_instance: TaskInstance | TaskInstancePydantic, session: Session, lock_for_update: bool = False
 ) -> None:
     """
-    Refreshes the task instance from the database based on the primary key
+    Refreshes the task instance from the database based on the primary key.
 
     :param task_instance: the task instance
     :param session: SQLAlchemy ORM Session
@@ -860,7 +860,7 @@ def _record_task_map_for_downstreams(
     task_instance: TaskInstance | TaskInstancePydantic, task: Operator, value: Any, session: Session
 ) -> None:
     """
-    Record the task map for downstream tasks
+    Record the task map for downstream tasks.
 
     :param task_instance: the task instance
     :param task: The task object
@@ -915,9 +915,9 @@ def _get_previous_dagrun(
     # `ignore_schedule` is `True`.
     ignore_schedule = state is not None or not dag.timetable.can_be_scheduled
     if dag.catchup is True and not ignore_schedule:
-        last_dagrun = dr.get_previous_scheduled_dagrun(session=session)
+        last_dagrun = DagRun.get_previous_scheduled_dagrun(dr, session=session)
     else:
-        last_dagrun = dr.get_previous_dagrun(session=session, state=state)
+        last_dagrun = DagRun.get_previous_dagrun(dag_run=dr, session=session, state=state)
 
     if last_dagrun:
         return last_dagrun
@@ -1104,7 +1104,7 @@ def _log_state(task_instance: TaskInstance | TaskInstancePydantic, lead_msg: str
 
 def _date_or_empty(task_instance: TaskInstance | TaskInstancePydantic, attr: str) -> str:
     """
-    Fetch a date attribute or None of it does not exist
+    Fetch a date attribute or None of it does not exist.
 
     :param task_instance: the task instance
     :param attr: the attribute name

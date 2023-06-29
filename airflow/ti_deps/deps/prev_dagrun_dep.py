@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from sqlalchemy import func
 
+from airflow.models import DagRun
 from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
@@ -64,9 +65,9 @@ class PrevDagrunDep(BaseTIDep):
         # Don't depend on the previous task instance if we are the first task.
         catchup = ti.task.dag and ti.task.dag.catchup
         if catchup:
-            last_dagrun = dr.get_previous_scheduled_dagrun(session)
+            last_dagrun = DagRun.get_previous_scheduled_dagrun(dr, session)
         else:
-            last_dagrun = dr.get_previous_dagrun(session=session)
+            last_dagrun = DagRun.get_previous_dagrun(dr, session=session)
 
         # First ever run for this DAG.
         if not last_dagrun:

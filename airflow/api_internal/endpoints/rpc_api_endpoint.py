@@ -57,6 +57,8 @@ def _initialize_map() -> dict[str, Callable]:
         DAG.fetch_callback,
         DAG.fetch_dagrun,
         DagRun.fetch_task_instances,
+        DagRun.get_previous_dagrun,
+        DagRun.get_previous_scheduled_dagrun,
         SerializedDagModel.get_serialized_dag,
         TaskInstance.get_task_instance,
         TaskInstance.fetch_handle_failure_context,

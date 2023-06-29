@@ -99,52 +99,6 @@ def _creator_note(val):
         return DagRunNote(*val)
 
 
-def _get_previous_scheduled_dagrun(
-    dag_run: DagRun | DagRunPydantic,
-    session: Session,
-) -> DagRun | None:
-    """
-    The previous, SCHEDULED DagRun, if there is one.
-
-    :param dag_run: the dag run
-    :param session: SQLAlchemy ORM Session
-
-    :meta private:
-    """
-    return session.scalar(
-        select(DagRun)
-            .where(
-            DagRun.dag_id == dag_run.dag_id,
-            DagRun.execution_date < dag_run.execution_date,
-            DagRun.run_type != DagRunType.MANUAL,
-        )
-            .order_by(DagRun.execution_date.desc())
-    )
-
-
-def _get_previous_dagrun(
-    dag_run: DagRun | DagRunPydantic,
-    session: Session,
-    state: DagRunState | None = None,
-) -> DagRun | None:
-    """
-    The previous DagRun, if there is one.
-
-    :param dag_run: the dag run
-    :param session: SQLAlchemy ORM Session
-    :param state: the dag run state
-
-    :meta private:
-    """
-    filters = [
-        DagRun.dag_id == dag_run.dag_id,
-        DagRun.execution_date < dag_run.execution_date,
-    ]
-    if state is not None:
-        filters.append(DagRun.state == state)
-    return session.scalar(select(DagRun).where(*filters).order_by(DagRun.execution_date.desc()))
-
-
 class DagRun(Base, LoggingMixin):
     """Invocation instance of a DAG.
 
@@ -572,26 +526,48 @@ class DagRun(Base, LoggingMixin):
 
         return self.dag
 
+    @staticmethod
+    @internal_api_call
     @provide_session
     def get_previous_dagrun(
-        self, state: DagRunState | None = None, session: Session = NEW_SESSION
+        dag_run: DagRun | DagRunPydantic, state: DagRunState | None = None, session: Session = NEW_SESSION
     ) -> DagRun | None:
         """
         The previous DagRun, if there is one.
 
+        :param dag_run: the dag run
         :param session: SQLAlchemy ORM Session
         :param state: the dag run state
         """
-        return _get_previous_dagrun(self, state, session)
+        filters = [
+            DagRun.dag_id == dag_run.dag_id,
+            DagRun.execution_date < dag_run.execution_date,
+        ]
+        if state is not None:
+            filters.append(DagRun.state == state)
+        return session.scalar(select(DagRun).where(*filters).order_by(DagRun.execution_date.desc()))
 
+    @staticmethod
+    @internal_api_call
     @provide_session
-    def get_previous_scheduled_dagrun(self, session: Session = NEW_SESSION) -> DagRun | None:
+    def get_previous_scheduled_dagrun(
+        dag_run: DagRun | DagRunPydantic, session: Session = NEW_SESSION
+    ) -> DagRun | None:
         """
         The previous, SCHEDULED DagRun, if there is one.
 
+        :param dag_run: the dag run
         :param session: SQLAlchemy ORM Session
         """
-        return _get_previous_scheduled_dagrun(self, session)
+        return session.scalar(
+            select(DagRun)
+            .where(
+                DagRun.dag_id == dag_run.dag_id,
+                DagRun.execution_date < dag_run.execution_date,
+                DagRun.run_type != DagRunType.MANUAL,
+            )
+            .order_by(DagRun.execution_date.desc())
+        )
 
     def _tis_for_dagrun_state(self, *, dag, tis):
         """

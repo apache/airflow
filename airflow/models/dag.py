@@ -1385,7 +1385,7 @@ class DAG(LoggingMixin):
         """
         Fetch the appropriate callbacks depending on the value of success, namely the
         on_failure_callback or on_success_callback. This method gets the context of a
-        single TaskInstance part of this DagRun and returns it along the list of callbacks
+        single TaskInstance part of this DagRun and returns it along the list of callbacks.
 
         :param dag: DAG object
         :param dagrun: DagRun object
@@ -1427,9 +1427,9 @@ class DAG(LoggingMixin):
         DAG.execute_callback(callbacks, context, self.dag_id)
 
     @classmethod
-    def execute_callback(cls, callbacks, context, dag_id: str):
+    def execute_callback(cls, callbacks: list[Callable] | None, context: Context, dag_id: str):
         """
-        Triggers the callbacks with the given context
+        Triggers the callbacks with the given context.
 
         :param callbacks: List of callbacks to call
         :param context: Context to pass to all callbacks
@@ -1514,7 +1514,7 @@ class DAG(LoggingMixin):
         execution_date: datetime | None = None,
         run_id: str | None = None,
         session: Session = NEW_SESSION,
-    ):
+    ) -> DagRun | DagRunPydantic:
         return DAG.fetch_dagrun(
             dag_id=self.dag_id, execution_date=execution_date, run_id=run_id, session=session
         )
