@@ -128,7 +128,7 @@ class AzureBlobStorageToS3(BaseOperator):
         if not self.replace:
             # if we are not replacing -> list all files in the S3 bucket
             # and only keep those files which are present in
-            # Google Cloud Storage and not in S3
+            # Azure Blob Storage and not in S3
             bucket_name, prefix = S3Hook.parse_s3_url(self.dest_s3_key)
             # look for the bucket and the prefix to avoid look into
             # parent directories/keys
