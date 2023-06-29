@@ -67,13 +67,10 @@ class TableSchema:
         # Prefix the table name with database and schema name using
         # the format: {database_name}.{table_schema}.{table_name}.
         name = ".".join(
-            [
-                x
-                for x in [self.database if self.database else database, self.schema, self.table]
-                if x is not None
-            ]
+            part
+            for part in [self.database if self.database else database, self.schema, self.table]
+            if part is not None
         )
-
         return Dataset(
             namespace=namespace,
             name=name,
@@ -87,33 +84,32 @@ def get_table_schemas(
     database: str | None,
     in_query: str | None,
     out_query: str | None,
-) -> tuple[list[Dataset], ...]:
-    """
-    Queries database for table schemas.
+) -> tuple[list[Dataset], list[Dataset]]:
+    """Query database for table schemas.
 
     Uses provided hook. Responsibility to provide queries for this function is on particular extractors.
     If query for input or output table isn't provided, the query is skipped.
     """
-    in_datasets: list[Dataset] = []
-    out_datasets: list[Dataset] = []
     # Do not query if we did not get both queries
     if not in_query and not out_query:
         return [], []
 
-    with closing(hook.get_conn()) as conn:
-        with closing(conn.cursor()) as cursor:
-            if in_query:
-                cursor.execute(in_query)
-                in_datasets += [x.to_dataset(namespace, database) for x in parse_query_result(cursor)]
-            if out_query:
-                cursor.execute(out_query)
-                out_datasets += [x.to_dataset(namespace, database) for x in parse_query_result(cursor)]
+    with closing(hook.get_conn()) as conn, closing(conn.cursor()) as cursor:
+        if in_query:
+            cursor.execute(in_query)
+            in_datasets = [x.to_dataset(namespace, database) for x in parse_query_result(cursor)]
+        else:
+            in_datasets = []
+        if out_query:
+            cursor.execute(out_query)
+            out_datasets = [x.to_dataset(namespace, database) for x in parse_query_result(cursor)]
+        else:
+            out_datasets = []
     return in_datasets, out_datasets
 
 
 def parse_query_result(cursor) -> list[TableSchema]:
-    """
-    Fetches results from DB-API 2.0 cursor and creates list of table schemas.
+    """Fetch results from DB-API 2.0 cursor and creates list of table schemas.
 
     For each row it creates :class:`TableSchema`.
     """
