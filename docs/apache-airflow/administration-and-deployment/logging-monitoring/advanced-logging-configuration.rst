@@ -16,6 +16,7 @@
     under the License.
 
 
+.. _write-logs-advanced:
 
 Advanced logging configuration
 ------------------------------
