@@ -17,12 +17,14 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
-    from airflow.models.operator import Operator
+    from airflow.models.abstractoperator import AbstractOperator
+    from airflow.models.taskmixin import DependencyMixin
+    from airflow.models.xcom_arg import PlainXComArg
 
 
 class BaseSetupTeardownContext:
@@ -32,26 +34,26 @@ class BaseSetupTeardownContext:
     """
 
     active: bool = False
-    context_map: dict = {}
-    _context_managed_setup_task: Operator | list[Operator] = []
-    _previous_context_managed_setup_task: list[Operator | list[Operator]] = []
-    _context_managed_teardown_task: Operator | list[Operator] = []
-    _previous_context_managed_teardown_task: list[Operator | list[Operator]] = []
+    context_map: dict[AbstractOperator | tuple[AbstractOperator], list[AbstractOperator]] = {}
+    _context_managed_setup_task: AbstractOperator | list[AbstractOperator] = []
+    _previous_context_managed_setup_task: list[AbstractOperator | list[AbstractOperator]] = []
+    _context_managed_teardown_task: AbstractOperator | list[AbstractOperator] = []
+    _previous_context_managed_teardown_task: list[AbstractOperator | list[AbstractOperator]] = []
 
     @classmethod
-    def push_context_managed_setup_task(cls, task: Operator | list[Operator]):
+    def push_context_managed_setup_task(cls, task: AbstractOperator | list[AbstractOperator]):
         if cls._context_managed_setup_task:
             cls._previous_context_managed_setup_task.append(cls._context_managed_setup_task)
         cls._context_managed_setup_task = task
 
     @classmethod
-    def push_context_managed_teardown_task(cls, task: Operator | list[Operator]):
+    def push_context_managed_teardown_task(cls, task: AbstractOperator | list[AbstractOperator]):
         if cls._context_managed_teardown_task:
             cls._previous_context_managed_teardown_task.append(cls._context_managed_teardown_task)
         cls._context_managed_teardown_task = task
 
     @classmethod
-    def pop_context_managed_setup_task(cls) -> Operator | list[Operator]:
+    def pop_context_managed_setup_task(cls) -> AbstractOperator | list[AbstractOperator]:
         old_setup_task = cls._context_managed_setup_task
         if cls._previous_context_managed_setup_task:
             cls._context_managed_setup_task = cls._previous_context_managed_setup_task.pop()
@@ -67,29 +69,33 @@ class BaseSetupTeardownContext:
         return old_setup_task
 
     @classmethod
-    def update_context_map(cls, operator: Operator):
+    def update_context_map(cls, task: DependencyMixin):
+        from airflow.models.abstractoperator import AbstractOperator
+
+        task_ = cast(AbstractOperator, task)
+        if task_.is_setup or task_.is_teardown:
+            return
         ctx = cls.context_map
+
+        def _get_or_set_item(item):
+            if ctx.get(item) is None:
+                ctx[item] = [task_]
+            else:
+                ctx[item].append(task_)
+
         if setup_task := cls.get_context_managed_setup_task():
             if isinstance(setup_task, list):
-                result = tuple(setup_task)
-            else:
-                result = setup_task
-            if ctx.get(result) is None:
-                ctx[result] = [operator]
-            else:
-                ctx[result].append(operator)
+                _get_or_set_item(tuple(setup_task))
+            elif not isinstance(setup_task, list):
+                _get_or_set_item(setup_task)
         if teardown_task := cls.get_context_managed_teardown_task():
             if isinstance(teardown_task, list):
-                result = tuple(teardown_task)
-            else:
-                result = teardown_task
-            if ctx.get(result) is None:
-                ctx[result] = [operator]
-            else:
-                ctx[result].append(operator)
+                _get_or_set_item(tuple(teardown_task))
+            elif not isinstance(teardown_task, list):
+                _get_or_set_item(teardown_task)
 
     @classmethod
-    def pop_context_managed_teardown_task(cls) -> Operator | list[Operator]:
+    def pop_context_managed_teardown_task(cls) -> AbstractOperator | list[AbstractOperator]:
         old_teardown_task = cls._context_managed_teardown_task
         if cls._previous_context_managed_teardown_task:
             cls._context_managed_teardown_task = cls._previous_context_managed_teardown_task.pop()
@@ -105,15 +111,15 @@ class BaseSetupTeardownContext:
         return old_teardown_task
 
     @classmethod
-    def get_context_managed_setup_task(cls) -> Operator | list[Operator]:
+    def get_context_managed_setup_task(cls) -> AbstractOperator | list[AbstractOperator]:
         return cls._context_managed_setup_task
 
     @classmethod
-    def get_context_managed_teardown_task(cls) -> Operator | list[Operator]:
+    def get_context_managed_teardown_task(cls) -> AbstractOperator | list[AbstractOperator]:
         return cls._context_managed_teardown_task
 
     @classmethod
-    def push_setup_teardown_task(cls, operator: Operator | list[Operator]):
+    def push_setup_teardown_task(cls, operator: AbstractOperator | list[AbstractOperator]):
         if isinstance(operator, list):
             if operator[0].is_teardown:
                 cls._push_tasks(operator)
@@ -126,7 +132,7 @@ class BaseSetupTeardownContext:
         cls.active = True
 
     @classmethod
-    def _push_tasks(cls, operator: Operator | list[Operator], setup: bool = False):
+    def _push_tasks(cls, operator: AbstractOperator | list[AbstractOperator], setup: bool = False):
         if isinstance(operator, list):
             upstream_tasks = operator[0].upstream_list
             downstream_list = operator[0].downstream_list
@@ -213,7 +219,7 @@ class SetupTeardownContext(BaseSetupTeardownContext):
     """Context manager for setup and teardown tasks."""
 
     @staticmethod
-    def add_task(task):
+    def add_task(task: AbstractOperator | PlainXComArg):
         """Add task to context manager."""
         from airflow.models.xcom_arg import PlainXComArg
 
