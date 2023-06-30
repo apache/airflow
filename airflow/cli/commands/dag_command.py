@@ -75,7 +75,9 @@ def _run_dag_backfill(dags: list[DAG], args) -> None:
             dagrun_infos = dag.iter_dagrun_infos_between(earliest=args.start_date, latest=args.end_date)
             for dagrun_info in dagrun_infos:
                 dr = DagRun(
-                    dag.dag_id, execution_date=args.start_date, data_interval=dagrun_info.data_interval
+                    dag.dag_id,
+                    execution_date=dagrun_info.logical_date,
+                    data_interval=dagrun_info.data_interval,
                 )
 
                 for task in dag.tasks:
