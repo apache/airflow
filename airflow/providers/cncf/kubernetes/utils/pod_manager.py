@@ -577,7 +577,7 @@ class PodManager(LoggingMixin):
             )
             if result and result.rstrip() != "__airflow_xcom_result_empty__":
                 # Note: result string is parsed to check if its valid json.
-                # This function still returns a string which is converted into json dict in the calling method.
+                # This function still returns a string which is converted into json in the calling method.
                 json.loads(result)
 
         if result is None:
