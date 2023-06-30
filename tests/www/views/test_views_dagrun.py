@@ -92,6 +92,58 @@ def test_get_dagrun_can_view_dags_without_edit_perms(session, running_dag_run, c
     check_content_in_response(dag_url_link, resp)
 
 
+class CustomClass:
+    attribute = None
+
+
+@pytest.fixture()
+def dag_run_with_problematic_config(session):
+    """Airflow 2.6 allows users to create DAG Runs which have configuration values in the scheduler that
+    cannot be parsed in the webserver."""
+    invalid_config = {"custom_class_instance": CustomClass()}
+    dag = DagBag().get_dag("example_bash_operator")
+    execution_date = timezone.datetime(2016, 1, 9)
+
+    dr = dag.create_dagrun(
+        state="running",
+        execution_date=execution_date,
+        data_interval=(execution_date, execution_date),
+        run_id="test_dag_runs_action",
+        conf=invalid_config,
+        session=session,
+    )
+    session.add(dr)
+    tis = [
+        TaskInstance(dag.get_task("runme_0"), run_id=dr.run_id, state="success"),
+        TaskInstance(dag.get_task("runme_1"), run_id=dr.run_id, state="failed"),
+    ]
+    session.bulk_save_objects(tis)
+    session.commit()
+
+    yield dr
+
+    session.query(DagRun).delete()
+    session.query(TaskInstance).delete()
+
+
+def test_get_dagrun_error_problematic_dagrun_config(
+    session, dag_run_with_problematic_config, client_dr_without_dag_edit
+):
+    """Test that a config which cannot be parsed in the webserver does not interfere with listing DAG Runs"""
+    assert session.query(DagRun).filter(DagRun.dag_id == dag_run_with_problematic_config.dag_id).count() == 1
+    resp = client_dr_without_dag_edit.get("/dagrun/list/", follow_redirects=True)
+    with client_dr_without_dag_edit.application.test_request_context():
+        url = flask.url_for(
+            "Airflow.graph",
+            dag_id=dag_run_with_problematic_config.dag_id,
+            execution_date=dag_run_with_problematic_config.execution_date,
+        )
+        dag_url_link = markupsafe.Markup('<a href="{url}">{dag_id}</a>').format(
+            url=url, dag_id=dag_run_with_problematic_config.dag_id
+        )
+    check_content_in_response(dag_url_link, resp)
+
+
 def test_create_dagrun_permission_denied(session, client_dr_without_dag_edit):
     data = {
         "state": "running",

@@ -5279,7 +5279,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "end_date",
         "note",
         "external_trigger",
-        "conf",
+        # "conf",
         "duration",
     ]
     search_columns = [
@@ -5303,7 +5303,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "start_date",
         "end_date",
         "run_id",
-        "conf",
+        # "conf",
         "note",
     ]
 
@@ -5319,7 +5319,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "end_date",
         # "note", # todo: maybe figure out how to re-enable this
         "external_trigger",
-        "conf",
+        # "conf",
     ]
 
     base_order = ("execution_date", "desc")
@@ -5347,7 +5347,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at": wwwutils.datetime_f("queued_at"),
         "dag_id": wwwutils.dag_link,
         "run_id": wwwutils.dag_run_link,
-        "conf": wwwutils.json_f("conf"),
+        # "conf": wwwutils.json_f("conf"),
         "duration": duration_f,
     }
 
