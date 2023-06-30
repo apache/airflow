@@ -30,8 +30,7 @@ from airflow.sensors.base import BaseSensorOperator
 
 class AthenaSensor(BaseSensorOperator):
     """
-    Asks for the state of the Query until it reaches a failure state or success state.
-    If the query fails, the task will fail.
+    Poll the state of the Query until it reaches a terminal state; fails if the query fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:

@@ -104,9 +104,6 @@ class Job(Base, LoggingMixin):
         self.hostname = get_hostname()
         if executor:
             self.executor = executor
-            self.executor_class = executor.__class__.__name__
-        else:
-            self.executor_class = conf.get("core", "EXECUTOR")
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
@@ -160,16 +157,13 @@ class Job(Base, LoggingMixin):
         self, heartbeat_callback: Callable[[Session], None], session: Session = NEW_SESSION
     ) -> None:
         """
-        Heartbeats update the job's entry in the database with a timestamp
-        for the latest_heartbeat and allows for the job to be killed
-        externally. This allows at the system level to monitor what is
-        actually active.
+        Update the job's entry in the database with the latest_heartbeat timestamp.
 
-        For instance, an old heartbeat for SchedulerJob would mean something
-        is wrong.
-
-        This also allows for any job to be killed externally, regardless
-        of who is running it or on which machine it is running.
+        This allows for the job to be killed externally and allows the system
+        to monitor what is actually active.  For instance, an old heartbeat
+        for SchedulerJob would mean something is wrong.  This also allows for
+        any job to be killed externally, regardless of who is running it or on
+        which machine it is running.
 
         Note that if your heart rate is set to 60 seconds and you call this
         method after 10 seconds of processing since the last heartbeat, it

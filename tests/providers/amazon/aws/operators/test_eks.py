@@ -37,6 +37,7 @@ from airflow.providers.amazon.aws.operators.eks import (
 from airflow.providers.amazon.aws.triggers.eks import (
     EksCreateFargateProfileTrigger,
     EksDeleteFargateProfileTrigger,
+    EksNodegroupTrigger,
 )
 from airflow.typing_compat import TypedDict
 from tests.providers.amazon.aws.utils.eks_test_constants import (
@@ -475,6 +476,36 @@ class TestEksCreateNodegroupOperator:
             mock_create_nodegroup.assert_called_with(**convert_keys(parameters))
             mock_waiter.assert_called_with(mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME)
             assert_expected_waiter_type(mock_waiter, "NodegroupActive")
+
+    @mock.patch.object(EksHook, "create_nodegroup")
+    def test_create_nodegroup_deferrable(self, mock_create_nodegroup):
+        mock_create_nodegroup.return_value = True
+        op_kwargs = {**self.create_nodegroup_params}
+        operator = EksCreateNodegroupOperator(
+            task_id=TASK_ID,
+            **op_kwargs,
+            deferrable=True,
+        )
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute({})
+        assert isinstance(exc.value.trigger, EksNodegroupTrigger), "Trigger is not a EksNodegroupTrigger"
+
+    def test_create_nodegroup_deferrable_versus_wait_for_completion(self):
+        op_kwargs = {**self.create_nodegroup_params}
+        operator = EksCreateNodegroupOperator(
+            task_id=TASK_ID,
+            **op_kwargs,
+            deferrable=True,
+            wait_for_completion=True,
+        )
+        assert operator.wait_for_completion is False
+        operator = EksCreateNodegroupOperator(
+            task_id=TASK_ID,
+            **op_kwargs,
+            deferrable=False,
+            wait_for_completion=True,
+        )
+        assert operator.wait_for_completion is True
 
 
 class TestEksDeleteClusterOperator:

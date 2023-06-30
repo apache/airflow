@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class GlueCatalogHook(AwsBaseHook):
     """
     Interact with AWS Glue Data Catalog.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("glue") <Glue.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and

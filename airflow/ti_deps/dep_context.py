@@ -85,11 +85,10 @@ class DepContext:
 
     def ensure_finished_tis(self, dag_run: DagRun, session: Session) -> list[TaskInstance]:
         """
-        This method makes sure finished_tis is populated if it's currently None.
-        This is for the strange feature of running tasks without dag_run.
+        Ensures finished_tis is populated if it's currently None, which allows running tasks without dag_run.
 
-        :param dag_run: The DagRun for which to find finished tasks
-        :return: A list of all the finished tasks of this DAG and execution_date
+         :param dag_run: The DagRun for which to find finished tasks
+         :return: A list of all the finished tasks of this DAG and execution_date
         """
         if self.finished_tis is None:
             finished_tis = dag_run.get_task_instances(state=State.finished, session=session)

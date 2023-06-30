@@ -3541,16 +3541,16 @@ class TestTaskClearingSetupTeardownBehavior:
         """
 
         def teardown_task(task_id):
-            return BaseOperator.as_teardown(task_id=task_id)
+            return BaseOperator(task_id=task_id).as_teardown()
 
         def teardown_task_f(task_id):
-            return BaseOperator.as_teardown(task_id=task_id, on_failure_fail_dagrun=True)
+            return BaseOperator(task_id=task_id).as_teardown(on_failure_fail_dagrun=True)
 
         def work_task(task_id):
             return BaseOperator(task_id=task_id)
 
         def setup_task(task_id):
-            return BaseOperator.as_setup(task_id=task_id)
+            return BaseOperator(task_id=task_id).as_setup()
 
         def make_task(task_id):
             """
@@ -3709,7 +3709,7 @@ class TestTaskClearingSetupTeardownBehavior:
         assert self.cleared_downstream(w1) == {s1, w1, w2, t1}
         assert self.cleared_downstream(w2) == {w2}
         # and if there's a downstream setup, it will be included as well
-        s2 = BaseOperator.as_setup(task_id="s2", dag=dag)
+        s2 = BaseOperator(task_id="s2", dag=dag).as_setup()
         t1 >> s2
         assert w1.get_flat_relative_ids(upstream=False) == {"t1", "w2", "s2"}
         assert self.cleared_downstream(w1) == {s1, w1, w2, t1, s2}
@@ -3755,16 +3755,16 @@ class TestTaskClearingSetupTeardownBehavior:
         """
         dag = DAG(dag_id="test_dag", start_date=pendulum.now())
         with dag:
-            dag_setup = BaseOperator.as_setup(task_id="dag_setup")
-            dag_teardown = BaseOperator.as_teardown(task_id="dag_teardown")
+            dag_setup = BaseOperator(task_id="dag_setup").as_setup()
+            dag_teardown = BaseOperator(task_id="dag_teardown").as_teardown()
             dag_setup >> dag_teardown
             for group_name in ("g1", "g2"):
                 with TaskGroup(group_name) as tg:
-                    group_setup = BaseOperator.as_setup(task_id="group_setup")
+                    group_setup = BaseOperator(task_id="group_setup").as_setup()
                     w1 = BaseOperator(task_id="w1")
                     w2 = BaseOperator(task_id="w2")
                     w3 = BaseOperator(task_id="w3")
-                    group_teardown = BaseOperator.as_teardown(task_id="group_teardown")
+                    group_teardown = BaseOperator(task_id="group_teardown").as_teardown()
                     group_setup >> w1 >> w2 >> w3 >> group_teardown
                     group_setup >> group_teardown
                 dag_setup >> tg >> dag_teardown
@@ -3772,13 +3772,20 @@ class TestTaskClearingSetupTeardownBehavior:
         g2_w3 = dag.task_dict["g2.w3"]
         g2_group_teardown = dag.task_dict["g2.group_teardown"]
 
-        with pytest.raises(Exception):
-            # fix_me
-            #   the line `dag_setup >> tg >> dag_teardown` should be equivalent to
-            #   dag_setup >> group_setup; w3 >> dag_teardown
-            #   i.e. not group_teardown >> dag_teardown
-            assert g2_group_teardown.downstream_task_ids == {}
-            assert g2_w3.downstream_task_ids == {"g2.group_teardown", "dag_teardown"}
+        # the line `dag_setup >> tg >> dag_teardown` should be equivalent to
+        # dag_setup >> group_setup; w3 >> dag_teardown
+        # i.e. not group_teardown >> dag_teardown
+        # this way the two teardowns can run in parallel
+        # so first, check that dag_teardown not downstream of group 2 teardown
+        # this means they can run in parallel
+        assert "dag_teardown" not in g2_group_teardown.downstream_task_ids
+        # and just document that g2 teardown is in effect a dag leaf
+        assert g2_group_teardown.downstream_task_ids == set()
+        # group 2 task w3 is in the scope of 2 teardowns -- the dag teardown and the group teardown
+        # it is arrowed to both of them
+        assert g2_w3.downstream_task_ids == {"g2.group_teardown", "dag_teardown"}
+        # dag teardown should have 3 upstreams: the last work task in groups 1 and 2, and its setup
+        assert dag_teardown.upstream_task_ids == {"g1.w3", "g2.w3", "dag_setup"}
 
         assert {x.task_id for x in g2_w2.get_upstreams_only_setups_and_teardowns()} == {
             "dag_setup",

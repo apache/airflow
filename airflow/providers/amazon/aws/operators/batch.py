@@ -38,7 +38,10 @@ from airflow.providers.amazon.aws.links.batch import (
     BatchJobQueueLink,
 )
 from airflow.providers.amazon.aws.links.logs import CloudWatchEventsLink
-from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger
+from airflow.providers.amazon.aws.triggers.batch import (
+    BatchCreateComputeEnvironmentTrigger,
+    BatchOperatorTrigger,
+)
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
@@ -402,14 +405,16 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         services on your behalf (templated).
     :param tags: Tags that you apply to the compute-environment to help you
         categorize and organize your resources.
-    :param max_retries: Exponential back-off retries, 4200 = 48 hours; polling
-        is only used when waiters is None.
-    :param status_retries: Number of HTTP retries to get job status, 10; polling
-        is only used when waiters is None.
+    :param poll_interval: How long to wait in seconds between 2 polls at the environment status.
+        Only useful when deferrable is True.
+    :param max_retries: How many times to poll for the environment status.
+        Only useful when deferrable is True.
     :param aws_conn_id: Connection ID of AWS credentials / region name. If None,
         credential boto3 strategy will be used.
     :param region_name: Region name to use in AWS Hook. Overrides the
         ``region_name`` in connection if provided.
+    :param deferrable: If True, the operator will wait asynchronously for the environment to be created.
+        This mode requires aiobotocore module to be installed. (default: False)
     """
 
     template_fields: Sequence[str] = (
@@ -428,13 +433,24 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         unmanaged_v_cpus: int | None = None,
         service_role: str | None = None,
         tags: dict | None = None,
+        poll_interval: int = 30,
         max_retries: int | None = None,
-        status_retries: int | None = None,
         aws_conn_id: str | None = None,
         region_name: str | None = None,
+        deferrable: bool = False,
         **kwargs,
     ):
+        if "status_retries" in kwargs:
+            warnings.warn(
+                "The `status_retries` parameter is unused and should be removed. "
+                "It'll be deleted in a future version.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            kwargs.pop("status_retries")  # remove before calling super() to prevent unexpected arg error
+
         super().__init__(**kwargs)
+
         self.compute_environment_name = compute_environment_name
         self.environment_type = environment_type
         self.state = state
@@ -442,17 +458,16 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
         self.compute_resources = compute_resources
         self.service_role = service_role
         self.tags = tags or {}
-        self.max_retries = max_retries
-        self.status_retries = status_retries
+        self.poll_interval = poll_interval
+        self.max_retries = max_retries or 120
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
+        self.deferrable = deferrable
 
     @cached_property
     def hook(self):
         """Create and return a BatchClientHook."""
         return BatchClientHook(
-            max_retries=self.max_retries,
-            status_retries=self.status_retries,
             aws_conn_id=self.aws_conn_id,
             region_name=self.region_name,
         )
@@ -468,6 +483,21 @@ class BatchCreateComputeEnvironmentOperator(BaseOperator):
             "serviceRole": self.service_role,
             "tags": self.tags,
         }
-        self.hook.client.create_compute_environment(**trim_none_values(kwargs))
+        response = self.hook.client.create_compute_environment(**trim_none_values(kwargs))
+        arn = response["computeEnvironmentArn"]
+
+        if self.deferrable:
+            self.defer(
+                trigger=BatchCreateComputeEnvironmentTrigger(
+                    arn, self.poll_interval, self.max_retries, self.aws_conn_id, self.region_name
+                ),
+                method_name="execute_complete",
+            )
 
         self.log.info("AWS Batch compute environment created successfully")
+        return arn
+
+    def execute_complete(self, context, event=None):
+        if event["status"] != "success":
+            raise AirflowException(f"Error while waiting for the compute environment to be ready: {event}")
+        return event["value"]

@@ -1328,18 +1328,18 @@ class TestStringifiedDAGs:
 
         execution_date = datetime(2020, 1, 1)
         with DAG("test_task_group_setup_teardown_tasks", start_date=execution_date) as dag:
-            EmptyOperator.as_setup(task_id="setup")
-            EmptyOperator.as_teardown(task_id="teardown")
+            EmptyOperator(task_id="setup").as_setup()
+            EmptyOperator(task_id="teardown").as_teardown()
 
             with TaskGroup("group1"):
-                EmptyOperator.as_setup(task_id="setup1")
+                EmptyOperator(task_id="setup1").as_setup()
                 EmptyOperator(task_id="task1")
-                EmptyOperator.as_teardown(task_id="teardown1")
+                EmptyOperator(task_id="teardown1").as_teardown()
 
                 with TaskGroup("group2"):
-                    EmptyOperator.as_setup(task_id="setup2")
+                    EmptyOperator(task_id="setup2").as_setup()
                     EmptyOperator(task_id="task2")
-                    EmptyOperator.as_teardown(task_id="teardown2")
+                    EmptyOperator(task_id="teardown2").as_teardown()
 
         dag_dict = SerializedDAG.to_dict(dag)
         SerializedDAG.validate_schema(dag_dict)
@@ -1394,8 +1394,8 @@ class TestStringifiedDAGs:
 
         serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
         task = serialized_dag.task_group.children["mytask"]
-        assert task.is_teardown
-        assert task.on_failure_fail_dagrun
+        assert task.is_teardown is True
+        assert task.on_failure_fail_dagrun is True
 
     def test_deps_sorted(self):
         """

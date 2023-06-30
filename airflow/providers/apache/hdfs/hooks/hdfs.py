@@ -29,10 +29,12 @@ using `pip install apache-airflow-providers-hdfs==3.2.1` (no constraints)
 
 class HDFSHookException(AirflowException):
     """
-    This Exception has been removed and is not functional. Please convert your DAGs to use the
-    WebHdfsHook or downgrade the provider to below 4.* if you want to continue using it.
-    If you want to use earlier provider you can downgrade to latest released 3.* version
-    using `pip install apache-airflow-providers-hdfs==3.2.1` (no constraints).
+    This Exception has been removed and is not functional.
+
+    Please convert your DAGs to use the WebHdfsHook or downgrade the provider
+    to below 4.* if you want to continue using it. If you want to use earlier
+    provider you can downgrade to latest released 3.* version using
+    `pip install apache-airflow-providers-hdfs==3.2.1` (no constraints).
     """
 
     def __init__(self, *args, **kwargs):
@@ -41,10 +43,12 @@ class HDFSHookException(AirflowException):
 
 class HDFSHook(BaseHook):
     """
-    This Hook has been removed and is not functional. Please convert your DAGs to use the
-    WebHdfsHook or downgrade the provider to below 4.*. if you want to continue using it.
-    If you want to use earlier provider you can downgrade to latest released 3.* version
-    using `pip install apache-airflow-providers-hdfs==3.2.1` (no constraints).
+    This Hook has been removed and is not functional.
+
+    Please convert your DAGs to use the WebHdfsHook or downgrade the provider
+    to below 4.*. if you want to continue using it. If you want to use earlier
+    provider you can downgrade to latest released 3.* version using
+    `pip install apache-airflow-providers-hdfs==3.2.1` (no constraints).
     """
 
     def __init__(self, *args, **kwargs):

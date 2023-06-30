@@ -19,10 +19,18 @@
 ``apache-airflow-providers-cloudant``
 =====================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -34,6 +42,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -72,5 +81,3 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.4.0``
 ``cloudant``        ``>=2.0``
 ==================  ==================
-
-.. include:: ../../airflow/providers/cloudant/CHANGELOG.rst
