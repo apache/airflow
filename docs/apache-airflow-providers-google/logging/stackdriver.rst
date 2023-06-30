@@ -67,7 +67,7 @@ be used. Make sure that with those credentials, you can read and write the logs.
   an important security measure.
 
 By using the ``logging_config_class`` option you can get
-:doc:`advanced features <apache-airflow:administration-and-deployment/logging-monitoring/advanced-logging-configuration>` of
+:ref:`advanced features <write-logs-advanced>` of
 this handler. Details are available in the handler's documentation -
 :class:`~airflow.providers.google.cloud.log.stackdriver_task_handler.StackdriverTaskHandler`.
 
