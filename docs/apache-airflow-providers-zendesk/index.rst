@@ -19,10 +19,18 @@
 ``apache-airflow-providers-zendesk``
 ====================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -30,11 +38,13 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/zendesk/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -46,6 +56,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -58,7 +69,7 @@ Package apache-airflow-providers-zendesk
 `Zendesk <https://www.zendesk.com/>`__
 
 
-Release: 4.3.0
+Release: 4.3.1
 
 Provider package
 ----------------
@@ -84,5 +95,3 @@ PIP package         Version required
 ``apache-airflow``  ``>=2.4.0``
 ``zenpy``           ``>=2.0.24``
 ==================  ==================
-
-.. include:: ../../airflow/providers/zendesk/CHANGELOG.rst

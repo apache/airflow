@@ -19,13 +19,14 @@ from __future__ import annotations
 
 import contextlib
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping, Sequence, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Mapping, Sequence, Union, overload
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.utils.context import Context
@@ -34,6 +35,7 @@ from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, ArgNotSet
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -209,7 +211,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         if not self.operator.is_setup and not self.operator.is_teardown:
             raise AirflowException("Only setup/teardown tasks can be used as context managers.")
         SetupTeardownContext.push_setup_teardown_task(self.operator)
-        return self
+        return SetupTeardownContext
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         SetupTeardownContext.set_work_task_roots_and_leaves()
@@ -296,6 +298,55 @@ class PlainXComArg(XComArg):
     def _deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
         return cls(dag.get_task(data["task_id"]), data["key"])
 
+    @property
+    def is_setup(self) -> bool:
+        return self.operator.is_setup
+
+    @is_setup.setter
+    def is_setup(self, val: bool):
+        self.operator.is_setup = val
+
+    @property
+    def is_teardown(self) -> bool:
+        return self.operator.is_teardown
+
+    @is_teardown.setter
+    def is_teardown(self, val: bool):
+        self.operator.is_teardown = val
+
+    @property
+    def on_failure_fail_dagrun(self) -> bool:
+        return self.operator.on_failure_fail_dagrun
+
+    @on_failure_fail_dagrun.setter
+    def on_failure_fail_dagrun(self, val: bool):
+        self.operator.on_failure_fail_dagrun = val
+
+    def as_setup(self) -> DependencyMixin:
+        for operator, _ in self.iter_references():
+            operator.is_setup = True
+        return self
+
+    def as_teardown(
+        self,
+        *,
+        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
+        on_failure_fail_dagrun=NOTSET,
+    ):
+        for operator, _ in self.iter_references():
+            operator.is_teardown = True
+            if TYPE_CHECKING:
+                assert isinstance(operator, BaseOperator)  # Can't set MappedOperator as teardown
+            operator.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
+            if on_failure_fail_dagrun is not NOTSET:
+                operator.on_failure_fail_dagrun = on_failure_fail_dagrun
+            if not isinstance(setups, ArgNotSet):
+                setups = [setups] if isinstance(setups, DependencyMixin) else setups
+                for s in setups:
+                    s.is_setup = True
+                    s >> operator
+        return self
+
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         yield self.operator, self.key
 
@@ -369,6 +420,13 @@ class PlainXComArg(XComArg):
         if not isinstance(result, ArgNotSet):
             return result
         if self.key == XCOM_RETURN_KEY:
+            return None
+        if getattr(self.operator, "multiple_outputs", False):
+            # If the operator is set to have multiple outputs and it was not executed,
+            # we should return "None" instead of showing an error. This is because when
+            # multiple outputs XComs are created, the XCom keys associated with them will have
+            # different names than the predefined "XCOM_RETURN_KEY" and won't be found.
+            # Therefore, it's better to return "None" like we did above where self.key==XCOM_RETURN_KEY.
             return None
         raise XComNotFound(ti.dag_id, task_id, self.key)
 

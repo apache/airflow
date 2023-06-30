@@ -351,6 +351,9 @@ class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
         This runs synchronously and handles all database reads/writes.
         """
         while not self.trigger_runner.stop:
+            if not self.trigger_runner.is_alive():
+                self.log.error("Trigger runner thread has died! Exiting.")
+                break
             # Clean out unused triggers
             Trigger.clean_unused()
             # Load/delete triggers
@@ -401,7 +404,10 @@ class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
             Stats.incr("triggers.failed")
 
     def emit_metrics(self):
-        Stats.gauge("triggers.running", len(self.trigger_runner.triggers))
+        Stats.gauge(f"triggers.running.{self.job.hostname}", len(self.trigger_runner.triggers))
+        Stats.gauge(
+            "triggers.running", len(self.trigger_runner.triggers), tags={"hostname": self.job.hostname}
+        )
 
 
 class TriggerDetails(TypedDict):
@@ -467,17 +473,21 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         watchdog = asyncio.create_task(self.block_watchdog())
         last_status = time.time()
         while not self.stop:
-            # Run core logic
-            await self.create_triggers()
-            await self.cancel_triggers()
-            await self.cleanup_finished_triggers()
-            # Sleep for a bit
-            await asyncio.sleep(1)
-            # Every minute, log status
-            if time.time() - last_status >= 60:
-                count = len(self.triggers)
-                self.log.info("%i triggers currently running", count)
-                last_status = time.time()
+            try:
+                # Run core logic
+                await self.create_triggers()
+                await self.cancel_triggers()
+                await self.cleanup_finished_triggers()
+                # Sleep for a bit
+                await asyncio.sleep(1)
+                # Every minute, log status
+                if time.time() - last_status >= 60:
+                    count = len(self.triggers)
+                    self.log.info("%i triggers currently running", count)
+                    last_status = time.time()
+            except Exception:
+                self.stop = True
+                raise
         # Wait for watchdog to complete
         await watchdog
 
@@ -680,7 +690,14 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                 # Either the trigger code or the path to it is bad. Fail the trigger.
                 self.failed_triggers.append((new_id, e))
                 continue
-            new_trigger_instance = trigger_class(**new_trigger_orm.kwargs)
+
+            try:
+                new_trigger_instance = trigger_class(**new_trigger_orm.kwargs)
+            except TypeError as err:
+                self.log.error("Trigger failed; message=%s", err)
+                self.failed_triggers.append((new_id, err))
+                continue
+
             self.set_trigger_logging_metadata(new_trigger_orm.task_instance, new_id, new_trigger_instance)
             self.to_create.append((new_id, new_trigger_instance))
         # Enqueue orphaned triggers for cancellation

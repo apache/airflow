@@ -32,8 +32,7 @@ if TYPE_CHECKING:
 
 class HiveToSambaOperator(BaseOperator):
     """
-    Executes hql code in a specific Hive database and loads the
-    results of the query as a csv to a Samba location.
+    Execute hql code in a specific Hive database and load the results as a csv to a Samba location.
 
     :param hql: the hql to be exported. (templated)
     :param destination_filepath: the file path to where the file will be pushed onto samba

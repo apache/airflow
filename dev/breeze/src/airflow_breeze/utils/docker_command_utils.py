@@ -626,6 +626,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "ONLY_MIN_VERSION_UPDATE", "false")
     set_value_to_default_if_not_set(env, "PACKAGE_FORMAT", ALLOWED_PACKAGE_FORMATS[0])
     set_value_to_default_if_not_set(env, "PYTHONDONTWRITEBYTECODE", "true")
+    set_value_to_default_if_not_set(env, "REGENERATE_MISSING_DOCS", "false")
     set_value_to_default_if_not_set(env, "REMOVE_ARM_PACKAGES", "false")
     set_value_to_default_if_not_set(env, "RUN_SYSTEM_TESTS", "false")
     set_value_to_default_if_not_set(env, "RUN_TESTS", "false")
@@ -673,6 +674,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "MYSQL_VERSION": "mysql_version",
     "NUM_RUNS": "num_runs",
     "ONLY_MIN_VERSION_UPDATE": "only_min_version_update",
+    "REGENERATE_MISSING_DOCS": "regenerate_missing_docs",
     "PACKAGE_FORMAT": "package_format",
     "POSTGRES_VERSION": "postgres_version",
     "PYTHON_MAJOR_MINOR_VERSION": "python",

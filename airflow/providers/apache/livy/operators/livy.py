@@ -31,8 +31,7 @@ if TYPE_CHECKING:
 
 class LivyOperator(BaseOperator):
     """
-    This operator wraps the Apache Livy batch REST API, allowing to submit a Spark
-    application to the underlying cluster.
+    Wraps the Apache Livy batch REST API, allowing to submit a Spark application to the underlying cluster.
 
     :param file: path of the file containing the application to execute (required). (templated)
     :param class_name: name of the application Java/Spark main class. (templated)
@@ -204,8 +203,8 @@ class LivyOperator(BaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         # dump the logs from livy to worker through triggerer.
         if event.get("log_lines", None) is not None:

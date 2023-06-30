@@ -20,6 +20,32 @@
           "state": "failed"
         }
       ]
+    },
+
+    "compute_env_ready": {
+      "delay": 30,
+      "operation": "DescribeComputeEnvironments",
+      "maxAttempts": 100,
+      "acceptors": [
+        {
+          "argument": "computeEnvironments[].status",
+          "expected": "VALID",
+          "matcher": "pathAll",
+          "state": "success"
+        },
+        {
+          "argument": "computeEnvironments[].status",
+          "expected": "INVALID",
+          "matcher": "pathAny",
+          "state": "failed"
+        },
+        {
+          "argument": "computeEnvironments[].status",
+          "expected": "DELETED",
+          "matcher": "pathAny",
+          "state": "failed"
+        }
+      ]
     }
   }
 }

@@ -1690,6 +1690,7 @@ def set(*args, **kwargs) -> None:
 def ensure_secrets_loaded() -> list[BaseSecretsBackend]:
     """
     Ensure that all secrets backends are loaded.
+
     If the secrets_backend_list contains only 2 default backends, reload it.
     """
     # Check if the secrets_backend_list contains only 2 default backends

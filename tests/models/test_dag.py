@@ -45,6 +45,7 @@ from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
+    AirflowDagInconsistent,
     AirflowException,
     DuplicateTaskIdFound,
     ParamValidationError,
@@ -481,7 +482,6 @@ class TestDag:
         session.close()
 
     def test_get_task_instances_before(self):
-
         BASE_DATE = timezone.datetime(2022, 7, 20, 20)
 
         test_dag_id = "test_get_task_instances_before"
@@ -644,7 +644,6 @@ class TestDag:
         assert isinstance(jinja_env, expected_env)
 
     def test_resolve_template_files_value(self):
-
         with NamedTemporaryFile(suffix=".template") as f:
             f.write(b"{{ ds }}")
             f.flush()
@@ -662,7 +661,6 @@ class TestDag:
         assert task.test_field == "{{ ds }}"
 
     def test_resolve_template_files_list(self):
-
         with NamedTemporaryFile(suffix=".template") as f:
             f.write(b"{{ ds }}")
             f.flush()
@@ -1275,7 +1273,6 @@ class TestDag:
         session.close()
 
     def test_existing_dag_default_view(self):
-
         with create_session() as session:
             session.add(DagModel(dag_id="dag_default_view_old", default_view=None))
             session.commit()
@@ -2495,7 +2492,6 @@ my_postgres_conn:
                 pass
 
     def test_continuous_schedule_interval_limits_max_active_runs(self):
-
         dag = DAG("continuous", start_date=DEFAULT_DATE, schedule_interval="@continuous", max_active_runs=1)
         assert isinstance(dag.timetable, ContinuousTimetable)
         assert dag.max_active_runs == 1
@@ -3524,3 +3520,321 @@ def test_create_dagrun_disallow_manual_to_use_automated_run_id(run_id_type: DagR
     assert str(ctx.value) == (
         f"A manual DAG run cannot use ID {run_id!r} since it is reserved for {run_id_type.value} runs"
     )
+
+
+class TestTaskClearingSetupTeardownBehavior:
+    """
+    Task clearing behavior is mainly controlled by dag.partial_subset.
+    Here we verify, primarily with regard to setups and teardowns, the
+    behavior of dag.partial_subset but also the supporting methods defined
+    on AbstractOperator.
+    """
+
+    @staticmethod
+    def make_tasks(dag, input_str):
+        """
+        Helper for building setup and teardown tasks for testing.
+
+        Given an input such as 's1, w1, t1, tf1', returns setup task "s1", normal task "w1"
+        (the w means *work*), teardown task "t1", and teardown task "tf1" where the f means
+        on_failure_fail_dagrun has been set to true.
+        """
+
+        def teardown_task(task_id):
+            return BaseOperator(task_id=task_id).as_teardown()
+
+        def teardown_task_f(task_id):
+            return BaseOperator(task_id=task_id).as_teardown(on_failure_fail_dagrun=True)
+
+        def work_task(task_id):
+            return BaseOperator(task_id=task_id)
+
+        def setup_task(task_id):
+            return BaseOperator(task_id=task_id).as_setup()
+
+        def make_task(task_id):
+            """
+            Task factory helper.
+
+            Will give a setup, teardown, work, or teardown-with-dagrun-failure task depending on input.
+            """
+            if task_id.startswith("s"):
+                factory = setup_task
+            elif task_id.startswith("w"):
+                factory = work_task
+            elif task_id.startswith("tf"):
+                factory = teardown_task_f
+            elif task_id.startswith("t"):
+                factory = teardown_task
+            else:
+                raise ValueError("unexpected")
+            return dag.task_dict.get(task_id) or factory(task_id=task_id)
+
+        return (make_task(x) for x in input_str.split(", "))
+
+    @staticmethod
+    def cleared_downstream(task):
+        """Helper to return tasks that would be cleared if **downstream** selected."""
+        upstream = False
+        return set(
+            task.dag.partial_subset(
+                task_ids_or_regex=[task.task_id],
+                include_downstream=not upstream,
+                include_upstream=upstream,
+            ).tasks
+        )
+
+    @staticmethod
+    def cleared_upstream(task):
+        """Helper to return tasks that would be cleared if **upstream** selected."""
+        upstream = True
+        return set(
+            task.dag.partial_subset(
+                task_ids_or_regex=[task.task_id],
+                include_downstream=not upstream,
+                include_upstream=upstream,
+            ).tasks
+        )
+
+    def test_get_flat_relative_ids_with_setup(self):
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, w1, w2, w3, t1 = self.make_tasks(dag, "s1, w1, w2, w3, t1")
+
+        s1 >> w1 >> w2 >> w3
+
+        # there is no teardown downstream of w1, so we assume w1 does not need s1
+        assert set(w1.get_upstreams_only_setups_and_teardowns()) == set()
+        # same with w2 and w3
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == set()
+        assert set(w3.get_upstreams_only_setups_and_teardowns()) == set()
+        assert self.cleared_downstream(w2) == {w2, w3}
+
+        w3 >> t1
+
+        # now, w2 has a downstream teardown, but it's not connected directly to s1
+        # (this is how we signal "this is the teardown for this setup")
+        # so still, we don't regard s1 as a setup for w2
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == set()
+        assert self.cleared_downstream(w2) == {w2, w3, t1}
+
+        s1 >> t1
+
+        # now, we know that t1 is the teardown for s1, and it's downstream of
+        # w2, so we can infer that w2 requires it, so now when we clear w2,
+        # we will get s1 (because it's a setup for w2) and t1 (because
+        # it is a teardown for s1)
+        assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
+        assert self.cleared_downstream(w1) == {s1, w1, w2, w3, t1}
+        assert self.cleared_upstream(w1) == {s1, w1, t1}
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
+        assert set(w2.get_upstreams_follow_setups()) == {s1, w1, t1}
+        assert self.cleared_downstream(w2) == {s1, w2, w3, t1}
+        assert self.cleared_upstream(w2) == {s1, w1, w2, t1}
+        assert self.cleared_downstream(w3) == {s1, w3, t1}
+        assert self.cleared_upstream(w3) == {s1, w1, w2, w3, t1}
+
+    def test_get_flat_relative_ids_with_setup_nested_ctx_mgr(self):
+        """Let's test some gnarlier cases here"""
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, t1, s2, t2 = self.make_tasks(dag, "s1, t1, s2, t2")
+            with s1 >> t1:
+                BaseOperator(task_id="w1")
+                with s2 >> t2:
+                    BaseOperator(task_id="w2")
+                    BaseOperator(task_id="w3")
+        # to_do: implement tests
+
+    def test_get_flat_relative_ids_with_setup_nested_no_ctx_mgr(self):
+        """Let's test some gnarlier cases here"""
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, t1, s2, t2, w1, w2, w3 = self.make_tasks(dag, "s1, t1, s2, t2, w1, w2, w3")
+        s1 >> t1
+        s1 >> w1 >> t1
+        s1 >> s2
+        s2 >> t2
+        s2 >> w2 >> w3 >> t2
+
+        assert w1.get_flat_relative_ids(upstream=True) == {"s1"}
+        assert w1.get_flat_relative_ids(upstream=False) == {"t1"}
+        assert self.cleared_downstream(w1) == {s1, w1, t1}
+        assert self.cleared_upstream(w1) == {s1, w1, t1}
+        assert w3.get_flat_relative_ids(upstream=True) == {"s1", "s2", "w2"}
+        assert w3.get_flat_relative_ids(upstream=False) == {"t2"}
+        assert t1 not in w2.get_flat_relatives(upstream=False)  # t1 not required by w2
+        # t1 only included because s1 is upstream
+        assert self.cleared_upstream(w2) == {s1, t1, s2, w2, t2}
+        # t1 not included because t1 is not downstream
+        assert self.cleared_downstream(w2) == {s2, w2, w3, t2}
+        # t1 only included because s1 is upstream
+        assert self.cleared_upstream(w3) == {s1, t1, s2, w2, w3, t2}
+        # t1 not included because t1 is not downstream
+        assert self.cleared_downstream(w3) == {s2, w3, t2}
+
+    def test_setup_without_teardown(self):
+        """A setup needs a teardown to define its scope."""
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, w1, t1 = self.make_tasks(dag, "s1, w1, t1")
+        # s1 has no teardown: fail
+        with pytest.raises(AirflowDagInconsistent):
+            dag.validate_setup_teardown()
+
+        s1 >> w1
+        # w1 depends on s1 but not as a "setup" per se, since s1 doesn't have a teardown to define
+        # its scope
+        with pytest.raises(AirflowDagInconsistent):
+            dag.validate_setup_teardown()
+
+        w1 >> t1
+        # now t1 is technically downstream of s1, but we still must wire it up explicitly
+        # to define the setup/teardown relationship
+        with pytest.raises(AirflowDagInconsistent):
+            dag.validate_setup_teardown()
+
+        s1 >> t1
+        # now, s1 and t1 are linked as setups and teardowns
+        # anything upstream of t1 and downstream of s1 is in the scope for s1
+        # so now this passes validation
+        dag.validate_setup_teardown()
+
+    def test_get_flat_relative_ids_follows_teardowns(self):
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
+        s1 >> w1 >> [w2, t1]
+        s1 >> t1
+        # w2, we infer, does not require s1, since t1 does not come after it
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == set()
+        # w1, however, *does* require s1, since t1 is downstream of it
+        assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
+        # downstream is just downstream and includes teardowns
+        assert self.cleared_downstream(w1) == {s1, w1, w2, t1}
+        assert self.cleared_downstream(w2) == {w2}
+        # and if there's a downstream setup, it will be included as well
+        s2 = BaseOperator(task_id="s2", dag=dag).as_setup()
+        t1 >> s2
+        assert w1.get_flat_relative_ids(upstream=False) == {"t1", "w2", "s2"}
+        assert self.cleared_downstream(w1) == {s1, w1, w2, t1, s2}
+
+    def test_get_flat_relative_ids_two_tasks_diff_setup_teardowns(self):
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, t1, s2, t2, w1, w2 = self.make_tasks(dag, "s1, t1, s2, t2, w1, w2")
+        s1 >> w1 >> [w2, t1]
+        s1 >> t1
+        s2 >> t2
+        s2 >> w2 >> t2
+
+        assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1, t1}
+        assert self.cleared_downstream(w1) == {s1, w1, t1, w2, t2}
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == {s2, t2}
+        assert self.cleared_downstream(w2) == {s2, w2, t2}
+
+    def test_get_flat_relative_ids_one_task_multiple_setup_teardowns(self):
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1a, s1b, t1, s2, t2, s3, t3a, t3b, w1, w2 = self.make_tasks(
+                dag, "s1a, s1b, t1, s2, t2, s3, t3a, t3b, w1, w2"
+            )
+        # teardown t1 has two setups, s1a and s1b
+        [s1a, s1b] >> t1
+        # work 1 requires s1a and s1b, both of which are torn down by t1
+        [s1a, s1b] >> w1 >> [w2, t1]
+
+        # work 2 requires s2, and s3. s2 is torn down by t2. s3 is torn down by two teardowns, t3a and t3b.
+        s2 >> t2
+        s2 >> w2 >> t2
+        s3 >> w2 >> [t3a, t3b]
+        s3 >> [t3a, t3b]
+        assert set(w1.get_upstreams_only_setups_and_teardowns()) == {s1a, s1b, t1}
+        assert self.cleared_downstream(w1) == {s1a, s1b, w1, t1, t3a, t3b, w2, t2}
+        assert set(w2.get_upstreams_only_setups_and_teardowns()) == {s2, t2, s3, t3a, t3b}
+        assert self.cleared_downstream(w2) == {s2, s3, w2, t2, t3a, t3b}
+
+    def test_get_flat_relative_ids_with_setup_and_groups(self):
+        """This is a dag with a setup / teardown at dag level and two task groups that have
+        their own setups / teardowns.
+
+        When we do tg >> dag_teardown, teardowns should be excluded from tg leaves.
+        """
+        dag = DAG(dag_id="test_dag", start_date=pendulum.now())
+        with dag:
+            dag_setup = BaseOperator(task_id="dag_setup").as_setup()
+            dag_teardown = BaseOperator(task_id="dag_teardown").as_teardown()
+            dag_setup >> dag_teardown
+            for group_name in ("g1", "g2"):
+                with TaskGroup(group_name) as tg:
+                    group_setup = BaseOperator(task_id="group_setup").as_setup()
+                    w1 = BaseOperator(task_id="w1")
+                    w2 = BaseOperator(task_id="w2")
+                    w3 = BaseOperator(task_id="w3")
+                    group_teardown = BaseOperator(task_id="group_teardown").as_teardown()
+                    group_setup >> w1 >> w2 >> w3 >> group_teardown
+                    group_setup >> group_teardown
+                dag_setup >> tg >> dag_teardown
+        g2_w2 = dag.task_dict["g2.w2"]
+        g2_w3 = dag.task_dict["g2.w3"]
+        g2_group_teardown = dag.task_dict["g2.group_teardown"]
+
+        # the line `dag_setup >> tg >> dag_teardown` should be equivalent to
+        # dag_setup >> group_setup; w3 >> dag_teardown
+        # i.e. not group_teardown >> dag_teardown
+        # this way the two teardowns can run in parallel
+        # so first, check that dag_teardown not downstream of group 2 teardown
+        # this means they can run in parallel
+        assert "dag_teardown" not in g2_group_teardown.downstream_task_ids
+        # and just document that g2 teardown is in effect a dag leaf
+        assert g2_group_teardown.downstream_task_ids == set()
+        # group 2 task w3 is in the scope of 2 teardowns -- the dag teardown and the group teardown
+        # it is arrowed to both of them
+        assert g2_w3.downstream_task_ids == {"g2.group_teardown", "dag_teardown"}
+        # dag teardown should have 3 upstreams: the last work task in groups 1 and 2, and its setup
+        assert dag_teardown.upstream_task_ids == {"g1.w3", "g2.w3", "dag_setup"}
+
+        assert {x.task_id for x in g2_w2.get_upstreams_only_setups_and_teardowns()} == {
+            "dag_setup",
+            "dag_teardown",
+            "g2.group_setup",
+            "g2.group_teardown",
+        }
+
+        # clearing g2.w2 clears all setups and teardowns and g2.w2 and g2.w2
+        # but not anything from g1
+        assert {x.task_id for x in self.cleared_downstream(g2_w2)} == {
+            "dag_setup",
+            "dag_teardown",
+            "g2.group_setup",
+            "g2.group_teardown",
+            "g2.w3",
+            "g2.w2",
+        }
+        assert {x.task_id for x in self.cleared_upstream(g2_w2)} == {
+            "dag_setup",
+            "dag_teardown",
+            "g2.group_setup",
+            "g2.group_teardown",
+            "g2.w1",
+            "g2.w2",
+        }
+
+    def test_clear_upstream_not_your_setup(self):
+        """
+        When you have a work task that comes after a setup, then if you clear upstream
+        the setup (and its teardown) will be cleared even though strictly speaking you don't
+        "require" it since, depending on speed of execution, it might be torn down by t1
+        before / while w2 runs.  It just gets cleared by virtue of it being upstream, and
+        that's what you requested.  And it's teardown gets cleared too.  But w1 doesn't.
+        """
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
+            s1 >> w1 >> t1
+            s1 >> w2
+            self.cleared_upstream(w2) == {s1, w2, t1}
+
+    def clearing_teardown_no_clear_setup(self):
+        with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
+            s1, w1, t1 = self.make_tasks(dag, "s1, w1, t1")
+            s1 >> t1
+            # clearing t1 does not clear s1
+            self.cleared_downstream(t1) == {t1}
+            s1 >> w1 >> t1
+            # that isn't changed with the introduction of w1
+            self.cleared_downstream(t1) == {t1}
+            # though, of course, clearing w1 clears them all
+            self.cleared_downstream(w1) == {s1, w1, t1}

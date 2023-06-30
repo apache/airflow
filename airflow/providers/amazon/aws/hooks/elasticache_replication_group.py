@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class ElastiCacheReplicationGroupHook(AwsBaseHook):
     """
     Interact with Amazon ElastiCache.
+
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("elasticache") <ElastiCache.Client>`.
 
     :param max_retries: Max retries for checking availability of and deleting replication group

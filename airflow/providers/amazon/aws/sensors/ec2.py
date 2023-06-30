@@ -31,8 +31,7 @@ if TYPE_CHECKING:
 
 class EC2InstanceStateSensor(BaseSensorOperator):
     """
-    Check the state of the AWS EC2 instance until
-    state of the instance become equal to the target state.
+    Poll the state of the AWS EC2 instance until the instance reaches the target state.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
