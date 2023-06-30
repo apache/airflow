@@ -356,13 +356,8 @@ html_use_index = True
 # If true, "(C) Copyright ..." is shown in the HTML footer. Default is True.
 html_show_copyright = False
 
-# Theme configuration
-if PACKAGE_NAME.startswith("apache-airflow-providers-"):
-    # Only hide hidden items for providers. For Chart and Airflow we are using the approach where
-    # TOC is hidden but sidebar still shows the content (but we are not doing it for providers).
-    html_theme_options: dict[str, Any] = {"hide_website_buttons": True, "sidebar_includehidden": False}
-else:
-    html_theme_options = {"hide_website_buttons": True, "sidebar_includehidden": True}
+html_theme_options: dict[str, Any] = {"hide_website_buttons": True, "sidebar_includehidden": True}
+
 if FOR_PRODUCTION:
     html_theme_options["navbar_links"] = [
         {"href": "/community/", "text": "Community"},
@@ -588,6 +583,8 @@ elif PACKAGE_NAME == "helm-chart":
 autodoc_mock_imports = [
     "MySQLdb",
     "adal",
+    "alibabacloud_adb20211201",
+    "alibabacloud_tea_openapi",
     "analytics",
     "azure",
     "azure.cosmos",

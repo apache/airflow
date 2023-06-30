@@ -175,8 +175,7 @@ class AirflowPlugin:
     @classmethod
     def on_load(cls, *args, **kwargs):
         """
-        Executed when the plugin is loaded.
-        This method is only called once during runtime.
+        Executed when the plugin is loaded; This method is only called once during runtime.
 
         :param args: If future arguments are passed in on call.
         :param kwargs: If future arguments are passed in on call.
@@ -217,6 +216,7 @@ def register_plugin(plugin_instance):
 def load_entrypoint_plugins():
     """
     Load and register plugins AirflowPlugin subclasses from the entrypoints.
+
     The entry_point group should be 'airflow.plugins'.
     """
     global import_errors

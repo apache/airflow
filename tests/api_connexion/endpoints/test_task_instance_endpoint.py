@@ -1803,14 +1803,16 @@ class TestPatchTaskInstance(TestTaskInstanceEndpoint):
                     "dry_run": True,
                     "new_state": "failede",
                 },
-                f"'failede' is not one of ['{State.SUCCESS}', '{State.FAILED}'] - 'new_state'",
+                f"'failede' is not one of ['{State.SUCCESS}', '{State.FAILED}', '{State.SKIPPED}']"
+                " - 'new_state'",
             ),
             (
                 {
                     "dry_run": True,
                     "new_state": "queued",
                 },
-                f"'queued' is not one of ['{State.SUCCESS}', '{State.FAILED}'] - 'new_state'",
+                f"'queued' is not one of ['{State.SUCCESS}', '{State.FAILED}', '{State.SKIPPED}']"
+                " - 'new_state'",
             ),
         ],
     )

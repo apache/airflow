@@ -186,8 +186,10 @@ class TestGitSyncSchedulerTest:
             values={
                 "executor": "CeleryExecutor",
                 "scheduler": {
-                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
-                    "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumeMounts": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                    ],
                 },
                 "dags": {
                     "gitSync": {
@@ -198,10 +200,10 @@ class TestGitSyncSchedulerTest:
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {"name": "test-volume", "emptyDir": {}} in jmespath.search(
+        assert {"name": "test-volume-airflow", "emptyDir": {}} in jmespath.search(
             "spec.template.spec.volumes", docs[0]
         )
-        assert {"name": "test-volume", "mountPath": "/opt/test"} in jmespath.search(
+        assert {"name": "test-volume-airflow", "mountPath": "/opt/test"} in jmespath.search(
             "spec.template.spec.containers[0].volumeMounts", docs[0]
         )
 
@@ -210,25 +212,27 @@ class TestGitSyncSchedulerTest:
             values={
                 "executor": "CeleryExecutor",
                 "scheduler": {
-                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
+                    "extraVolumes": [{"name": "test-volume-{{ .Values.executor }}", "emptyDir": {}}],
                 },
                 "dags": {
                     "gitSync": {
                         "enabled": True,
-                        "extraVolumeMounts": [{"mountPath": "/opt/test", "name": "test-volume"}],
+                        "extraVolumeMounts": [
+                            {"mountPath": "/opt/test", "name": "test-volume-{{ .Values.executor }}"}
+                        ],
                     }
                 },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert {"name": "test-volume", "emptyDir": {}} in jmespath.search(
+        assert {"name": "test-volume-CeleryExecutor", "emptyDir": {}} in jmespath.search(
             "spec.template.spec.volumes", docs[0]
         )
         assert {"mountPath": "/git", "name": "dags"} in jmespath.search(
             "spec.template.spec.containers[1].volumeMounts", docs[0]
         )
-        assert {"name": "test-volume", "mountPath": "/opt/test"} in jmespath.search(
+        assert {"name": "test-volume-CeleryExecutor", "mountPath": "/opt/test"} in jmespath.search(
             "spec.template.spec.containers[1].volumeMounts", docs[0]
         )
 

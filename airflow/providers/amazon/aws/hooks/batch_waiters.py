@@ -29,6 +29,7 @@ import json
 import sys
 from copy import deepcopy
 from pathlib import Path
+from typing import Callable
 
 import botocore.client
 import botocore.exceptions
@@ -36,6 +37,7 @@ import botocore.waiter
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 
 
 class BatchWaitersHook(BatchClientHook):
@@ -120,10 +122,11 @@ class BatchWaitersHook(BatchClientHook):
     @property
     def waiter_config(self) -> dict:
         """
-        An immutable waiter configuration for this instance; a ``deepcopy`` is returned by this
-        property. During the init for BatchWaiters, the waiter_config is used to build a
-        waiter_model and this only occurs during the class init, to avoid any accidental
-        mutations of waiter_config leaking into the waiter_model.
+        An immutable waiter configuration for this instance; a ``deepcopy`` is returned by this property.
+
+        During the init for BatchWaiters, the waiter_config is used to build a
+        waiter_model and this only occurs during the class init, to avoid any
+        accidental mutations of waiter_config leaking into the waiter_model.
 
         :return: a waiter configuration for AWS Batch services
         """
@@ -184,15 +187,25 @@ class BatchWaitersHook(BatchClientHook):
         """
         return self.waiter_model.waiter_names
 
-    def wait_for_job(self, job_id: str, delay: int | float | None = None) -> None:
+    def wait_for_job(
+        self,
+        job_id: str,
+        delay: int | float | None = None,
+        get_batch_log_fetcher: Callable[[str], AwsTaskLogFetcher | None] | None = None,
+    ) -> None:
         """
-        Wait for Batch job to complete.  This assumes that the ``.waiter_model`` is configured
-        using some variation of the ``.default_config`` so that it can generate waiters with the
-        following names: "JobExists", "JobRunning" and "JobComplete".
+        Wait for Batch job to complete.
+
+        This assumes that the ``.waiter_model`` is configured using some
+        variation of the ``.default_config`` so that it can generate waiters
+        with the following names: "JobExists", "JobRunning" and "JobComplete".
 
         :param job_id: a Batch job ID
 
         :param delay:  A delay before polling for job status
+
+        :param get_batch_log_fetcher: A method that returns batch_log_fetcher of
+            type AwsTaskLogFetcher or None when the CloudWatch log stream hasn't been created yet.
 
         :raises: AirflowException
 
@@ -216,10 +229,20 @@ class BatchWaitersHook(BatchClientHook):
             waiter.config.max_attempts = sys.maxsize  # timeout is managed by Airflow
             waiter.wait(jobs=[job_id])
 
-            waiter = self.get_waiter("JobComplete")
-            waiter.config.delay = self.add_jitter(waiter.config.delay, width=2, minima=1)
-            waiter.config.max_attempts = sys.maxsize  # timeout is managed by Airflow
-            waiter.wait(jobs=[job_id])
+            batch_log_fetcher = None
+            try:
+                if get_batch_log_fetcher:
+                    batch_log_fetcher = get_batch_log_fetcher(job_id)
+                    if batch_log_fetcher:
+                        batch_log_fetcher.start()
+                waiter = self.get_waiter("JobComplete")
+                waiter.config.delay = self.add_jitter(waiter.config.delay, width=2, minima=1)
+                waiter.config.max_attempts = sys.maxsize  # timeout is managed by Airflow
+                waiter.wait(jobs=[job_id])
+            finally:
+                if batch_log_fetcher:
+                    batch_log_fetcher.stop()
+                    batch_log_fetcher.join()
 
         except (botocore.exceptions.ClientError, botocore.exceptions.WaiterError) as err:
             raise AirflowException(err)

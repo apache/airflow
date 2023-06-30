@@ -1874,7 +1874,7 @@ export interface components {
        * @description Expected new state.
        * @enum {string}
        */
-      new_state?: "success" | "failed";
+      new_state?: "success" | "failed" | "skipped";
     };
     UpdateTaskInstance: {
       /**
@@ -1888,7 +1888,7 @@ export interface components {
        * @description Expected new state.
        * @enum {string}
        */
-      new_state?: "success" | "failed";
+      new_state?: "success" | "failed" | "skipped";
     };
     SetTaskInstanceNote: {
       /** @description The custom note to set for this Task Instance. */

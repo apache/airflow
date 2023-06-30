@@ -30,6 +30,7 @@ description: |
 
 suspended: false
 versions:
+  - 10.2.0
   - 10.1.1
   - 10.1.0
   - 10.0.0
@@ -73,7 +74,7 @@ dependencies:
   - gcloud-aio-auth>=4.0.0,<5.0.0
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage
-  - google-ads>=20.0.0
+  - google-ads>=21.2.0
   - google-api-core>=2.11.0
   - google-api-python-client>=1.6.0
   - google-auth>=1.0.0
@@ -628,6 +629,9 @@ sensors:
   - integration-name: Google Dataproc
     python-modules:
       - airflow.providers.google.cloud.sensors.dataproc
+  - integration-name: Google Dataproc Metastore
+    python-modules:
+      - airflow.providers.google.cloud.sensors.dataproc_metastore
   - integration-name: Google Cloud Storage (GCS)
     python-modules:
       - airflow.providers.google.cloud.sensors.gcs
@@ -843,6 +847,9 @@ triggers:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_composer
+  - integration-name: Google Cloud SQL
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_sql
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.triggers.dataflow
@@ -861,6 +868,9 @@ triggers:
   - integration-name: Google Machine Learning Engine
     python-modules:
       - airflow.providers.google.cloud.triggers.mlengine
+  - integration-name: Google Cloud Pub/Sub
+    python-modules:
+      - airflow.providers.google.cloud.triggers.pubsub
 
 transfers:
   - source-integration-name: Presto
@@ -1120,7 +1130,7 @@ additional-extras:
       - apache-beam[gcp]
   - name: cncf.kubernetes
     dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=6.2.0
+      - apache-airflow-providers-cncf-kubernetes>=7.2.0
   - name: leveldb
     dependencies:
       - plyvel

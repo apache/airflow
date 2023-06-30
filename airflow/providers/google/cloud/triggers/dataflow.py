@@ -107,6 +107,7 @@ class TemplateJobStartTrigger(BaseTrigger):
                             "message": "Job completed",
                         }
                     )
+                    return
                 elif status == JobState.JOB_STATE_FAILED:
                     yield TriggerEvent(
                         {
@@ -114,6 +115,7 @@ class TemplateJobStartTrigger(BaseTrigger):
                             "message": f"Dataflow job with id {self.job_id} has failed its execution",
                         }
                     )
+                    return
                 elif status == JobState.JOB_STATE_STOPPED:
                     yield TriggerEvent(
                         {
@@ -121,6 +123,7 @@ class TemplateJobStartTrigger(BaseTrigger):
                             "message": f"Dataflow job with id {self.job_id} was stopped",
                         }
                     )
+                    return
                 else:
                     self.log.info("Job is still running...")
                     self.log.info("Current job status is: %s", status)
@@ -129,6 +132,7 @@ class TemplateJobStartTrigger(BaseTrigger):
             except Exception as e:
                 self.log.exception("Exception occurred while checking for job completion.")
                 yield TriggerEvent({"status": "error", "message": str(e)})
+                return
 
     def _get_async_hook(self) -> AsyncDataflowHook:
         return AsyncDataflowHook(

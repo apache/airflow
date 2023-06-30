@@ -29,8 +29,8 @@
 {{- $revisionHistoryLimit := or .Values.flower.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.flower) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.flower) }}
-kind: Deployment
 apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: {{ .Release.Name }}-flower
   labels:
@@ -103,7 +103,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.flower.extraVolumeMounts }}
-              {{- toYaml .Values.flower.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.flower.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
           ports:
             - name: flower-ui
@@ -156,7 +156,7 @@ spec:
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.flower.extraVolumes }}
-          {{- toYaml .Values.flower.extraVolumes | nindent 8 }}
+          {{- tpl (toYaml .Values.flower.extraVolumes) . | nindent 8 }}
         {{- end }}
 {{- end }}
 {{- end }}

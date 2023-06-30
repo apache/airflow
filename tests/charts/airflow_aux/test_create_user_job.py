@@ -157,13 +157,13 @@ class TestCreateUserJob:
         docs = render_chart(
             values={
                 "createUserJob": {
-                    "extraVolumes": [{"name": "myvolume", "emptyDir": {}}],
+                    "extraVolumes": [{"name": "myvolume-{{ .Chart.Name }}", "emptyDir": {}}],
                 },
             },
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert {"name": "myvolume", "emptyDir": {}} == jmespath.search(
+        assert {"name": "myvolume-airflow", "emptyDir": {}} == jmespath.search(
             "spec.template.spec.volumes[-1]", docs[0]
         )
 
@@ -171,13 +171,13 @@ class TestCreateUserJob:
         docs = render_chart(
             values={
                 "createUserJob": {
-                    "extraVolumeMounts": [{"name": "foobar", "mountPath": "foo/bar"}],
+                    "extraVolumeMounts": [{"name": "foobar-{{ .Chart.Name }}", "mountPath": "foo/bar"}],
                 },
             },
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert {"name": "foobar", "mountPath": "foo/bar"} == jmespath.search(
+        assert {"name": "foobar-airflow", "mountPath": "foo/bar"} == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )
 

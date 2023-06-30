@@ -162,10 +162,9 @@ class DatabricksJobRunLink(BaseOperatorLink):
 
 class DatabricksSubmitRunOperator(BaseOperator):
     """
-    Submits a Spark job run to Databricks using the
-    `api/2.1/jobs/runs/submit
-    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_
-    API endpoint.
+    Submits a Spark job run to Databricks using the api/2.1/jobs/runs/submit API endpoint.
+
+    See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
 
     There are three ways to instantiate this operator.
 
@@ -303,7 +302,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         dbt_task: dict[str, str | list[str]] | None = None,
         new_cluster: dict[str, object] | None = None,
         existing_cluster_id: str | None = None,
-        libraries: list[dict[str, str]] | None = None,
+        libraries: list[dict[str, Any]] | None = None,
         run_name: str | None = None,
         timeout_seconds: int | None = None,
         databricks_conn_id: str = "databricks_default",
@@ -428,10 +427,9 @@ class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
 
 class DatabricksRunNowOperator(BaseOperator):
     """
-    Runs an existing Spark job run to Databricks using the
-    `api/2.1/jobs/run-now
-    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow>`_
-    API endpoint.
+    Runs an existing Spark job run to Databricks using the api/2.1/jobs/run-now API endpoint.
+
+    See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
 
     There are two ways to instantiate this operator.
 

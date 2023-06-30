@@ -194,3 +194,15 @@ To list backups you can use:
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_metastore_list_backups_operator]
     :end-before: [END how_to_cloud_dataproc_metastore_list_backups_operator]
+
+Check Hive partitions existence
+-------------------------------
+
+To check that Hive partitions have been created in the Metastore for a given table you can use:
+:class:`~airflow.providers.google.cloud.sensors.dataproc_metastore.MetastoreHivePartitionSensor`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc_metastore/example_dataproc_metastore_hive_partition_sensor.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_metastore_hive_partition_sensor]
+    :end-before: [END how_to_cloud_dataproc_metastore_hive_partition_sensor]

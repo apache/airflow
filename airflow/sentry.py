@@ -157,6 +157,7 @@ if conf.getboolean("sentry", "sentry_on", fallback=False):
         def enrich_errors(self, func):
             """
             Decorate errors.
+
             Wrap TaskInstance._run_raw_task and LocalTaskJob._run_mini_scheduler_on_child_tasks
             to support task specific tags and breadcrumbs.
             """

@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.utils import trim_none_values
 class LambdaHook(AwsBaseHook):
     """
     Interact with AWS Lambda.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("lambda") <Lambda.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
