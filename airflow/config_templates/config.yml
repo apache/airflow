@@ -2459,6 +2459,13 @@ triggerer:
       type: string
       example: ~
       default: "1000"
+    job_heartbeat_sec:
+      description: |
+        How often to heartbeat the Triggerer job to ensure it hasn't been killed.
+      version_added: 2.6.3
+      type: float
+      example: ~
+      default: "5"
 kerberos:
   description: ~
   options:

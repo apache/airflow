@@ -374,7 +374,7 @@ class TriggererJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
         adds them to our runner, and then removes ones from it we no longer
         need.
         """
-        Trigger.assign_unassigned(self.job.id, self.capacity)
+        Trigger.assign_unassigned(self.job.id, self.capacity, self.job.heartrate)
         ids = Trigger.ids_for_triggerer(self.job.id)
         self.trigger_runner.update_triggers(set(ids))
 
