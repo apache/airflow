@@ -822,7 +822,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         if op.operator_extra_links:
             serialize_op["_operator_extra_links"] = cls._serialize_operator_extra_links(
-                op.operator_extra_links.fget(op)  # type: ignore
+                op.operator_extra_links.__get__(op)
                 if isinstance(op.operator_extra_links, property)
                 else op.operator_extra_links
             )
