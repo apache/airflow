@@ -23,7 +23,8 @@ from urllib.parse import quote_plus
 import pytest
 from markupsafe import escape
 
-from airflow.models import DAG, BaseOperator, RenderedTaskInstanceFields, Variable
+from airflow.models import DAG, RenderedTaskInstanceFields, Variable
+from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -119,7 +120,7 @@ def init_blank_db():
 
 
 @pytest.fixture(autouse=True)
-def reset_db(dag, task1, task2, task_secret):
+def reset_db(dag, task1, task2, task3, task4, task_secret):
     yield
     clear_db_dags()
     clear_db_runs()
@@ -127,7 +128,7 @@ def reset_db(dag, task1, task2, task_secret):
 
 
 @pytest.fixture()
-def create_dag_run(dag, task1, task2, task_secret):
+def create_dag_run(dag, task1, task2, task3, task4, task_secret):
     def _create_dag_run(*, execution_date, session):
         dag_run = dag.create_dagrun(
             state=DagRunState.RUNNING,
@@ -142,9 +143,9 @@ def create_dag_run(dag, task1, task2, task_secret):
         ti2.state = TaskInstanceState.SCHEDULED
         ti3 = dag_run.get_task_instance(task_secret.task_id, session=session)
         ti3.state = TaskInstanceState.QUEUED
-        ti4 = dag_run.get_task_instance(task3().task_id, session=session)
+        ti4 = dag_run.get_task_instance(task3.task_id, session=session)
         ti4.state = TaskInstanceState.SUCCESS
-        ti5 = dag_run.get_task_instance(task4().task_id, session=session)
+        ti5 = dag_run.get_task_instance(task4.task_id, session=session)
         ti5.state = TaskInstanceState.SUCCESS
         session.flush()
         return dag_run
@@ -363,4 +364,3 @@ def test_rendered_template_view_for_op_args(admin_client, create_dag_run, task4)
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("testdag__task4__20200301_args", resp)
     check_content_in_response("testdag__task4__20200301_kwargs", resp)
-
