@@ -19,10 +19,18 @@
 ``apache-airflow-providers-mongo``
 ==================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -30,6 +38,7 @@ Content
     Python API <_api/airflow/providers/mongo/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -40,6 +49,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -52,7 +62,7 @@ Package apache-airflow-providers-mongo
 `MongoDB <https://www.mongodb.com/what-is-mongodb>`__
 
 
-Release: 3.2.0
+Release: 3.2.1
 
 Provider package
 ----------------
@@ -79,5 +89,3 @@ PIP package         Version required
 ``dnspython``       ``>=1.13.0``
 ``pymongo``         ``>=3.6.0``
 ==================  ==================
-
-.. include:: ../../airflow/providers/mongo/CHANGELOG.rst

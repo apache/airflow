@@ -47,6 +47,7 @@ CACHE = "__cache__"
 OLD_TYPE = "__type"
 OLD_SOURCE = "__source"
 OLD_DATA = "__var"
+OLD_DICT = "dict"
 
 DEFAULT_VERSION = 0
 
@@ -179,8 +180,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
 def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
     """
-    Deserializes an object of primitive type T into an object. Uses an allow
-    list to determine if a class can be loaded.
+    Deserialize an object of primitive type and uses an allow list to determine if a class can be loaded.
 
     :param o: primitive to deserialize into an arbitrary object.
     :param full: if False it will return a stringified representation
@@ -276,7 +276,11 @@ def deserialize(o: T | None, full=True, type_hint: Any = None) -> object:
 def _convert(old: dict) -> dict:
     """Converts an old style serialization to new style."""
     if OLD_TYPE in old and OLD_DATA in old:
-        return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA][OLD_DATA]}
+        # Return old style dicts directly as they do not need wrapping
+        if old[OLD_TYPE] == OLD_DICT:
+            return old[OLD_DATA]
+        else:
+            return {CLASSNAME: old[OLD_TYPE], VERSION: DEFAULT_VERSION, DATA: old[OLD_DATA]}
 
     return old
 

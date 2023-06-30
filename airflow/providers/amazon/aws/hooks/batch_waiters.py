@@ -122,10 +122,11 @@ class BatchWaitersHook(BatchClientHook):
     @property
     def waiter_config(self) -> dict:
         """
-        An immutable waiter configuration for this instance; a ``deepcopy`` is returned by this
-        property. During the init for BatchWaiters, the waiter_config is used to build a
-        waiter_model and this only occurs during the class init, to avoid any accidental
-        mutations of waiter_config leaking into the waiter_model.
+        An immutable waiter configuration for this instance; a ``deepcopy`` is returned by this property.
+
+        During the init for BatchWaiters, the waiter_config is used to build a
+        waiter_model and this only occurs during the class init, to avoid any
+        accidental mutations of waiter_config leaking into the waiter_model.
 
         :return: a waiter configuration for AWS Batch services
         """
@@ -193,9 +194,11 @@ class BatchWaitersHook(BatchClientHook):
         get_batch_log_fetcher: Callable[[str], AwsTaskLogFetcher | None] | None = None,
     ) -> None:
         """
-        Wait for Batch job to complete.  This assumes that the ``.waiter_model`` is configured
-        using some variation of the ``.default_config`` so that it can generate waiters with the
-        following names: "JobExists", "JobRunning" and "JobComplete".
+        Wait for Batch job to complete.
+
+        This assumes that the ``.waiter_model`` is configured using some
+        variation of the ``.default_config`` so that it can generate waiters
+        with the following names: "JobExists", "JobRunning" and "JobComplete".
 
         :param job_id: a Batch job ID
 

@@ -38,7 +38,7 @@ function get_dev_apt_deps() {
         DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
 freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
-libssl-dev locales lsb-release openssh-client sasl2-bin \
+libssl-dev locales lsb-release openssh-client pkgconf sasl2-bin \
 software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
         export DEV_APT_DEPS
     fi
@@ -47,7 +47,7 @@ software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
 function get_runtime_apt_deps() {
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
         RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
-curl dumb-init freetds-bin gosu krb5-user \
+curl dumb-init freetds-bin gosu krb5-user libgeos-dev \
 ldap-utils libffi7 libldap-2.4-2 libsasl2-2 libsasl2-modules libssl1.1 locales \
 lsb-release netcat openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
         export RUNTIME_APT_DEPS

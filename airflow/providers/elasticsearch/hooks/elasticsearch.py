@@ -20,14 +20,51 @@ from __future__ import annotations
 import warnings
 from functools import cached_property
 from typing import Any
+from urllib import parse
 
 from elasticsearch import Elasticsearch
-from es.elastic.api import Connection as ESConnection, connect
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection as AirflowConnection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+
+
+def connect(
+    host: str = "localhost",
+    port: int = 9200,
+    user: str | None = None,
+    password: str | None = None,
+    scheme: str = "http",
+    **kwargs: Any,
+) -> ESConnection:
+    return ESConnection(host, port, user, password, scheme, **kwargs)
+
+
+class ESConnection:
+    """wrapper class for elasticsearch.Elasticsearch."""
+
+    def __init__(
+        self,
+        host: str = "localhost",
+        port: int = 9200,
+        user: str | None = None,
+        password: str | None = None,
+        scheme: str = "http",
+        **kwargs: Any,
+    ):
+        self.host = host
+        self.port = port
+        self.user = user
+        self.password = password
+        self.scheme = scheme
+        self.kwargs = kwargs
+        netloc = f"{host}:{port}"
+        self.url = parse.urlunparse((scheme, netloc, "/", None, None, None))
+        if user and password:
+            self.es = Elasticsearch(self.url, http_auth=(user, password), **self.kwargs)
+        else:
+            self.es = Elasticsearch(self.url, **self.kwargs)
 
 
 class ElasticsearchSQLHook(DbApiHook):
@@ -104,6 +141,7 @@ class ElasticsearchSQLHook(DbApiHook):
 class ElasticsearchHook(ElasticsearchSQLHook):
     """
     This class is deprecated and was renamed to ElasticsearchSQLHook.
+
     Please use `airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`.
     """
 

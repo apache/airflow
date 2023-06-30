@@ -78,6 +78,7 @@ class NodegroupStates(Enum):
 class EksHook(AwsBaseHook):
     """
     Interact with Amazon Elastic Kubernetes Service (EKS).
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("eks") <EKS.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and

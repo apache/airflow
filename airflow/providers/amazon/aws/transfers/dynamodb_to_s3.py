@@ -15,10 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains operators to replicate records from
-DynamoDB table to S3.
-"""
+
 from __future__ import annotations
 
 import json
@@ -72,6 +69,7 @@ def _upload_file_to_s3(
 class DynamoDBToS3Operator(AwsToAwsBaseOperator):
     """
     Replicates records from a DynamoDB table to S3.
+
     It scans a DynamoDB table and writes the received records to a file
     on the local filesystem. It flushes the file to S3 once the file size
     exceeds the file size limit specified by the user.
@@ -88,7 +86,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
     :param file_size: Flush file to s3 if file size >= file_size
     :param dynamodb_scan_kwargs: kwargs pass to <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>
     :param s3_key_prefix: Prefix of s3 object key
-    :param process_func: How we transforms a dynamodb item to bytes. By default we dump the json
+    :param process_func: How we transform a dynamodb item to bytes. By default, we dump the json
     :param export_time: Time in the past from which to export table data, counted in seconds from the start of
      the Unix epoch. The table export will be a snapshot of the table's state at this point in time.
     :param export_format: The format for the exported data. Valid values for ExportFormat are DYNAMODB_JSON
@@ -147,8 +145,9 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
 
     def _export_table_to_point_in_time(self):
         """
-        Export data from start of epoc till `export_time`. Table export will be a snapshot of the table's
-         state at this point in time.
+        Export data from start of epoc till `export_time`.
+
+        Table export will be a snapshot of the table's state at this point in time.
         """
         if self.export_time and self.export_time > datetime.now(self.export_time.tzinfo):
             raise ValueError("The export_time parameter cannot be a future time.")

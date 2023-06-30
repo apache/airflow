@@ -19,22 +19,32 @@
 ``apache-airflow-providers-grpc``
 =================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
-    Connection types <connections/grpc>
+    Connection types <connections/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/grpc/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -45,6 +55,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -57,7 +68,7 @@ Package apache-airflow-providers-grpc
 `gRPC <https://grpc.io/>`__
 
 
-Release: 3.2.0
+Release: 3.2.1
 
 Provider package
 ----------------
@@ -85,5 +96,3 @@ PIP package               Version required
 ``google-auth-httplib2``  ``>=0.0.1``
 ``grpcio``                ``>=1.15.0``
 ========================  ===================
-
-.. include:: ../../airflow/providers/grpc/CHANGELOG.rst

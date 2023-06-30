@@ -150,7 +150,8 @@ def docker_task(
     **kwargs,
 ) -> TaskDecorator:
     """
-    Python operator decorator. Wraps a function into an Airflow operator.
+    Python operator decorator; wraps a function into an Airflow operator.
+
     Also accepts any argument that DockerOperator will via ``kwargs``. Can be reused in a single DAG.
 
     :param python_callable: Function to decorate

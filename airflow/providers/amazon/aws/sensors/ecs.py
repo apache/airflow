@@ -64,8 +64,7 @@ class EcsBaseSensor(BaseSensorOperator):
 
 class EcsClusterStateSensor(EcsBaseSensor):
     """
-    Polls the cluster state until it reaches a terminal state.  Raises an
-    AirflowException with the failure reason if a failed state is reached.
+    Poll the cluster state until it reaches a terminal state; raises AirflowException with the failure reason.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -103,8 +102,7 @@ class EcsClusterStateSensor(EcsBaseSensor):
 
 class EcsTaskDefinitionStateSensor(EcsBaseSensor):
     """
-    Polls the task definition state until it reaches a terminal state.  Raises an
-    AirflowException with the failure reason if a failed state is reached.
+    Poll task definition until it reaches a terminal state; raise AirflowException with the failure reason.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -149,8 +147,7 @@ class EcsTaskDefinitionStateSensor(EcsBaseSensor):
 
 class EcsTaskStateSensor(EcsBaseSensor):
     """
-    Polls the task state until it reaches a terminal state.  Raises an
-    AirflowException with the failure reason if a failed state is reached.
+    Poll the task state until it reaches a terminal state; raises AirflowException with the failure reason.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

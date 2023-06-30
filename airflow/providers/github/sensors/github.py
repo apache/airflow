@@ -91,10 +91,7 @@ class BaseGithubRepositorySensor(GithubSensor):
         )
 
     def poke(self, context: Context) -> bool:
-        """
-        Function that the sensors defined while deriving this class should
-        override.
-        """
+        """Function that the sensors defined while deriving this class should override."""
         raise AirflowException("Override me.")
 
 
