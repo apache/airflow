@@ -220,9 +220,9 @@ def create_connection_form_class() -> type[DynamicForm]:
             ),
         )
         description = StringField(lazy_gettext("Description"), widget=BS3TextAreaFieldWidget())
-        host = StringField(lazy_gettext("Host"), widget=BS3TextFieldWidget())
+        host = StringField(lazy_gettext("Host"), widget=BS3TextFieldWidget(), filters=[strip_filter])
         schema = StringField(lazy_gettext("Schema"), widget=BS3TextFieldWidget())
-        login = StringField(lazy_gettext("Login"), widget=BS3TextFieldWidget())
+        login = StringField(lazy_gettext("Login"), widget=BS3TextFieldWidget(), filters=[strip_filter])
         password = PasswordField(lazy_gettext("Password"), widget=BS3PasswordFieldWidget())
         port = IntegerField(lazy_gettext("Port"), validators=[Optional()], widget=BS3TextFieldWidget())
         extra = TextAreaField(lazy_gettext("Extra"), widget=BS3TextAreaFieldWidget())
@@ -231,3 +231,9 @@ def create_connection_form_class() -> type[DynamicForm]:
         setattr(ConnectionForm, key, value.field)
 
     return ConnectionForm
+
+
+def strip_filter(value):
+    if value is not None and hasattr(value, "strip"):
+        return value.strip()
+    return value
