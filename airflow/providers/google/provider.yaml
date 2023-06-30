@@ -847,6 +847,9 @@ triggers:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_composer
+  - integration-name: Google Cloud SQL
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_sql
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.triggers.dataflow

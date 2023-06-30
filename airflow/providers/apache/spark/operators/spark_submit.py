@@ -29,8 +29,7 @@ if TYPE_CHECKING:
 
 class SparkSubmitOperator(BaseOperator):
     """
-    This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
-    It requires that the "spark-submit" binary is in the PATH.
+    Wrap the spark-submit binary to kick off a spark-submit job; requires "spark-submit" binary in the PATH.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

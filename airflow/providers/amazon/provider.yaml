@@ -546,6 +546,9 @@ triggers:
   - integration-name: Amazon ECS
     python-modules:
       - airflow.providers.amazon.aws.triggers.ecs
+  - integration-name: Amazon RDS
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.rds
 
 transfers:
   - source-integration-name: Amazon DynamoDB
@@ -641,6 +644,9 @@ connection-types:
     connection-type: emr
   - hook-class-name: airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
     connection-type: redshift
+
+notifications:
+  - airflow.providers.amazon.aws.notifications.chime.ChimeNotifier
 
 
 secrets-backends:

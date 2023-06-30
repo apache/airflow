@@ -1175,6 +1175,48 @@ def test_topological_nested_groups():
     ]
 
 
+def test_hierarchical_alphabetical_sort():
+    execution_date = pendulum.parse("20200101")
+    with DAG("test_dag_edges", start_date=execution_date) as dag:
+        task1 = EmptyOperator(task_id="task1")
+        task5 = EmptyOperator(task_id="task5")
+        with TaskGroup("group_c"):
+            task7 = EmptyOperator(task_id="task7")
+        with TaskGroup("group_b"):
+            task6 = EmptyOperator(task_id="task6")
+        with TaskGroup("group_a"):
+            with TaskGroup("group_d"):
+                task2 = EmptyOperator(task_id="task2")
+                task3 = EmptyOperator(task_id="task3")
+                task4 = EmptyOperator(task_id="task4")
+            task9 = EmptyOperator(task_id="task9")
+            task8 = EmptyOperator(task_id="task8")
+
+    def nested(group):
+        return [
+            nested(node) if isinstance(node, TaskGroup) else node
+            for node in group.hierarchical_alphabetical_sort()
+        ]
+
+    sorted_list = nested(dag.task_group)
+
+    assert sorted_list == [
+        [  # group_a
+            [  # group_d
+                task2,
+                task3,
+                task4,
+            ],
+            task8,
+            task9,
+        ],
+        [task6],  # group_b
+        [task7],  # group_c
+        task1,
+        task5,
+    ]
+
+
 def test_topological_group_dep():
     execution_date = pendulum.parse("20200101")
     with DAG("test_dag_edges", start_date=execution_date) as dag:
