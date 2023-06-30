@@ -599,6 +599,7 @@ fn
 fo
 followsa
 formatter
+formatters
 Formaturas
 forwardability
 forwardable
@@ -1426,7 +1427,7 @@ Subdirectory
 subdirectory
 subfolder
 subfolders
-Submodules
+submodule
 submodules
 subnet
 subnets

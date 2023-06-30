@@ -49,6 +49,7 @@ from typing import (
 import attr
 import pendulum
 from dateutil.relativedelta import relativedelta
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -961,7 +962,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if not self.is_setup and not self.is_teardown:
             raise AirflowException("Only setup/teardown tasks can be used as context managers.")
         SetupTeardownContext.push_setup_teardown_task(self)
-        return self
+        return SetupTeardownContext
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         SetupTeardownContext.set_work_task_roots_and_leaves()
@@ -1256,12 +1257,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         Clears the state of task instances associated with the task, following
         the parameters specified.
         """
-        qry = session.query(TaskInstance).filter(TaskInstance.dag_id == self.dag_id)
+        qry = select(TaskInstance).where(TaskInstance.dag_id == self.dag_id)
 
         if start_date:
-            qry = qry.filter(TaskInstance.execution_date >= start_date)
+            qry = qry.where(TaskInstance.execution_date >= start_date)
         if end_date:
-            qry = qry.filter(TaskInstance.execution_date <= end_date)
+            qry = qry.where(TaskInstance.execution_date <= end_date)
 
         tasks = [self.task_id]
 
@@ -1271,8 +1272,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if downstream:
             tasks += [t.task_id for t in self.get_flat_relatives(upstream=False)]
 
-        qry = qry.filter(TaskInstance.task_id.in_(tasks))
-        results = qry.all()
+        qry = qry.where(TaskInstance.task_id.in_(tasks))
+        results = session.scalars(qry).all()
         count = len(results)
         clear_task_instances(results, session, dag=self.dag)
         session.commit()
@@ -1289,16 +1290,15 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         from airflow.models import DagRun
 
         end_date = end_date or timezone.utcnow()
-        return (
-            session.query(TaskInstance)
+        return session.scalars(
+            select(TaskInstance)
             .join(TaskInstance.dag_run)
-            .filter(TaskInstance.dag_id == self.dag_id)
-            .filter(TaskInstance.task_id == self.task_id)
-            .filter(DagRun.execution_date >= start_date)
-            .filter(DagRun.execution_date <= end_date)
+            .where(TaskInstance.dag_id == self.dag_id)
+            .where(TaskInstance.task_id == self.task_id)
+            .where(DagRun.execution_date >= start_date)
+            .where(DagRun.execution_date <= end_date)
             .order_by(DagRun.execution_date)
-            .all()
-        )
+        ).all()
 
     @provide_session
     def run(
@@ -1327,14 +1327,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         for info in self.dag.iter_dagrun_infos_between(start_date, end_date, align=False):
             ignore_depends_on_past = info.logical_date == start_date and ignore_first_depends_on_past
             try:
-                dag_run = (
-                    session.query(DagRun)
-                    .filter(
+                dag_run = session.scalars(
+                    select(DagRun).where(
                         DagRun.dag_id == self.dag_id,
                         DagRun.execution_date == info.logical_date,
                     )
-                    .one()
-                )
+                ).one()
                 ti = TaskInstance(self, run_id=dag_run.run_id)
             except NoResultFound:
                 # This is _mostly_ only used in tests
@@ -1825,14 +1823,21 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     :param elements: a list of operators / lists of operators
     """
+    if not elements:
+        raise ValueError("No tasks provided; nothing to do.")
     prev_elem = None
+    deps_set = False
     for curr_elem in elements:
         if isinstance(curr_elem, EdgeModifier):
             raise ValueError("Labels are not supported by chain_linear")
         if prev_elem is not None:
             for task in prev_elem:
                 task >> curr_elem
+                if not deps_set:
+                    deps_set = True
         prev_elem = [curr_elem] if isinstance(curr_elem, DependencyMixin) else curr_elem
+    if not deps_set:
+        raise ValueError("No dependencies were set. Did you forget to expand with `*`?")
 
 
 # pyupgrade assumes all type annotations can be lazily evaluated, but this is

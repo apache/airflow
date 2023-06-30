@@ -66,7 +66,7 @@ class AthenaTrigger(BaseTrigger):
             await async_wait(
                 waiter=waiter,
                 waiter_delay=self.poll_interval,
-                max_attempts=self.max_attempt,
+                waiter_max_attempts=self.max_attempt,
                 args={"QueryExecutionId": self.query_execution_id},
                 failure_message=f"Error while waiting for query {self.query_execution_id} to complete",
                 status_message=f"Query execution id: {self.query_execution_id}, "

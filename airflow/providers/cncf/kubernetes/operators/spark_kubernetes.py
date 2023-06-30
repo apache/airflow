@@ -17,10 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING, Sequence
 
 from kubernetes.watch import Watch
 
+from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
 
@@ -43,6 +45,7 @@ class SparkKubernetesOperator(BaseOperator):
         for the to Kubernetes cluster.
     :param api_group: kubernetes api group of sparkApplication
     :param api_version: kubernetes api version of sparkApplication
+    :param watch: whether to watch the job status and logs or not
     """
 
     template_fields: Sequence[str] = ("application_file", "namespace")
@@ -60,6 +63,7 @@ class SparkKubernetesOperator(BaseOperator):
         in_cluster: bool | None = None,
         cluster_context: str | None = None,
         config_file: str | None = None,
+        watch: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -72,6 +76,7 @@ class SparkKubernetesOperator(BaseOperator):
         self.in_cluster = in_cluster
         self.cluster_context = cluster_context
         self.config_file = config_file
+        self.watch = watch
 
         self.hook = KubernetesHook(
             conn_id=self.kubernetes_conn_id,
@@ -84,35 +89,67 @@ class SparkKubernetesOperator(BaseOperator):
         body = _load_body_to_dict(self.application_file)
         name = body["metadata"]["name"]
         namespace = self.namespace or self.hook.get_namespace()
-        namespace_event_stream = Watch().stream(
-            self.hook.core_v1_client.list_namespaced_pod,
-            namespace=namespace,
-            _preload_content=False,
-            watch=True,
-            label_selector=f"sparkoperator.k8s.io/app-name={name},spark-role=driver",
-            field_selector="status.phase=Running",
-        )
 
-        self.hook.create_custom_object(
-            group=self.api_group,
-            version=self.api_version,
-            plural=self.plural,
-            body=body,
-            namespace=namespace,
-        )
-        for event in namespace_event_stream:
-            if event["type"] == "ADDED":
-                pod_log_stream = Watch().stream(
-                    self.hook.core_v1_client.read_namespaced_pod_log,
-                    name=f"{name}-driver",
+        response = None
+        is_job_created = False
+        if self.watch:
+            try:
+                namespace_event_stream = Watch().stream(
+                    self.hook.core_v1_client.list_namespaced_event,
                     namespace=namespace,
-                    _preload_content=False,
-                    timestamps=True,
+                    watch=True,
+                    field_selector=f"involvedObject.kind=SparkApplication,involvedObject.name={name}",
                 )
-                for line in pod_log_stream:
-                    self.log.info(line)
-            else:
-                break
+
+                response = self.hook.create_custom_object(
+                    group=self.api_group,
+                    version=self.api_version,
+                    plural=self.plural,
+                    body=body,
+                    namespace=namespace,
+                )
+                is_job_created = True
+                for event in namespace_event_stream:
+                    obj = event["object"]
+                    if event["object"].last_timestamp >= datetime.datetime.strptime(
+                        response["metadata"]["creationTimestamp"], "%Y-%m-%dT%H:%M:%S%z"
+                    ):
+                        self.log.info(obj.message)
+                        if obj.reason == "SparkDriverRunning":
+                            pod_log_stream = Watch().stream(
+                                self.hook.core_v1_client.read_namespaced_pod_log,
+                                name=f"{name}-driver",
+                                namespace=namespace,
+                                timestamps=True,
+                            )
+                            for line in pod_log_stream:
+                                self.log.info(line)
+                        elif obj.reason in [
+                            "SparkApplicationSubmissionFailed",
+                            "SparkApplicationFailed",
+                            "SparkApplicationDeleted",
+                        ]:
+                            is_job_created = False
+                            raise AirflowException(obj.message)
+                        elif obj.reason == "SparkApplicationCompleted":
+                            break
+                        else:
+                            continue
+            except Exception:
+                if is_job_created:
+                    self.on_kill()
+                raise
+
+        else:
+            response = self.hook.create_custom_object(
+                group=self.api_group,
+                version=self.api_version,
+                plural=self.plural,
+                body=body,
+                namespace=namespace,
+            )
+
+        return response
 
     def on_kill(self) -> None:
         body = _load_body_to_dict(self.application_file)

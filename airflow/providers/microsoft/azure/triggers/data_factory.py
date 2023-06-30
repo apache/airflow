@@ -191,4 +191,11 @@ class AzureDataFactoryTrigger(BaseTrigger):
                     }
                 )
         except Exception as e:
+            if self.run_id:
+                await hook.cancel_pipeline_run(
+                    run_id=self.run_id,
+                    resource_group_name=self.resource_group_name,
+                    factory_name=self.factory_name,
+                )
+                self.log.info("Unexpected error %s caught. Cancel pipeline run %s", str(e), self.run_id)
             yield TriggerEvent({"status": "error", "message": str(e), "run_id": self.run_id})

@@ -101,6 +101,7 @@ RELEASE_MANAGEMENT_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--github-repository",
                 "--base-branch",
                 "--only-min-version-update",
+                "--regenerate-missing-docs",
             ],
         }
     ],

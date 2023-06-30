@@ -45,9 +45,9 @@ def get_default_delete_local_copy():
 
 class OSSTaskHandler(FileTaskHandler, LoggingMixin):
     """
-    OSSTaskHandler is a python log handler that handles and reads
-    task instance logs. It extends airflow FileTaskHandler and
-    uploads to and reads from OSS remote storage.
+    OSSTaskHandler is a python log handler that handles and reads task instance logs.
+
+    Extends airflow FileTaskHandler and uploads to and reads from OSS remote storage.
     """
 
     def __init__(self, base_log_folder, oss_log_folder, filename_template=None, **kwargs):
@@ -120,6 +120,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
     def _read(self, ti, try_number, metadata=None):
         """
         Read logs of given task instance and try_number from OSS remote storage.
+
         If failed, read the log from task instance host machine.
 
         :param ti: task instance object
@@ -128,8 +129,8 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
                          can be used for steaming log reading and auto-tailing.
         """
         # Explicitly getting log relative path is necessary as the given
-        # task instance might be different than task instance passed in
-        # in set_context method.
+        # task instance might be different from task instance passed in
+        # set_context method.
         log_relative_path = self._render_filename(ti, try_number)
         remote_loc = log_relative_path
 
@@ -156,12 +157,11 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
 
     def oss_read(self, remote_log_location, return_error=False):
         """
-        Returns the log found at the remote_log_location. Returns '' if no
-        logs are found or there is an error.
+        Returns the log at the remote_log_location. Returns '' if no logs are found or there is an error.
 
         :param remote_log_location: the log's location in remote storage
         :param return_error: if True, returns a string error message if an
-            error occurs. Otherwise returns '' when an error occurs.
+            error occurs. Otherwise, returns '' when an error occurs.
         """
         try:
             oss_remote_log_location = f"{self.base_folder}/{remote_log_location}"
@@ -176,8 +176,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
 
     def oss_write(self, log, remote_log_location, append=True) -> bool:
         """
-        Writes the log to the remote_log_location and return `True` when done. Fails silently
-         and return `False` if no log was created.
+        Write the log to remote_log_location and return `True`; fails silently and returns `False` on error.
 
         :param log: the log to write to the remote_log_location
         :param remote_log_location: the log's location in remote storage

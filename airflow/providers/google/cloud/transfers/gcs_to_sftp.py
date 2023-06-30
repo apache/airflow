@@ -145,8 +145,11 @@ class GCSToSFTPOperator(BaseOperator):
 
             prefix, delimiter = self.source_object.split(WILDCARD, 1)
             prefix_dirname = os.path.dirname(prefix)
-
             objects = gcs_hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
+            # TODO: After deprecating delimiter and wildcards in source objects,
+            #       remove the previous line and uncomment the following:
+            # match_glob = f"**/*{delimiter}" if delimiter else None
+            # objects = gcs_hook.list(self.source_bucket, prefix=prefix, match_glob=match_glob)
 
             for source_object in objects:
                 destination_path = self._resolve_destination_path(source_object, prefix=prefix_dirname)

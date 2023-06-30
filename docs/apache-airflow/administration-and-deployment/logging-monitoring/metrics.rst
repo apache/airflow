@@ -198,7 +198,7 @@ Name                                                Description
 ``pool.queued_slots.<pool_name>``                   Number of queued slots in the pool
 ``pool.running_slots.<pool_name>``                  Number of running slots in the pool
 ``pool.starving_tasks.<pool_name>``                 Number of starving tasks in the pool
-``triggers.running``                                Number of triggers currently running (per triggerer)
+``triggers.running.<hostname>``                     Number of triggers currently running for a triggerer (described by hostname)
 =================================================== ========================================================================
 
 Timers

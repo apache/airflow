@@ -33,6 +33,9 @@ class AthenaOperator(BaseOperator):
     """
     An operator that submits a presto query to athena.
 
+    .. note:: if the task is killed while it runs, it'll cancel the athena query that was launched,
+        EXCEPT if running in deferrable mode.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AthenaOperator`

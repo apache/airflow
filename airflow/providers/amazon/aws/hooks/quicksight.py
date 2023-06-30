@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.hooks.sts import StsHook
 class QuickSightHook(AwsBaseHook):
     """
     Interact with Amazon QuickSight.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("quicksight") <QuickSight.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and

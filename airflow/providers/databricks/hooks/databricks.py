@@ -459,7 +459,8 @@ class DatabricksHook(BaseDatabricksHook):
 
     def get_repo_by_path(self, path: str) -> str | None:
         """
-        Obtains Repos ID by path
+        Obtains Repos ID by path.
+
         :param path: path to a repository
         :return: Repos ID if it exists, None if doesn't.
         """

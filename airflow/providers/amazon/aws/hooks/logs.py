@@ -15,10 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains a hook (AwsLogsHook) with some very basic
-functionality for interacting with AWS CloudWatch.
-"""
 from __future__ import annotations
 
 import warnings
@@ -39,6 +35,7 @@ NUM_CONSECUTIVE_EMPTY_RESPONSE_EXIT_THRESHOLD = 3
 class AwsLogsHook(AwsBaseHook):
     """
     Interact with Amazon CloudWatch Logs.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("logs") <CloudWatchLogs.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -68,8 +65,7 @@ class AwsLogsHook(AwsBaseHook):
         continuation_token: ContinuationToken | None = None,
     ) -> Generator:
         """
-        A generator for log items in a single stream. This will yield all the
-        items that are available at the current moment.
+        A generator for log items in a single stream; yields all items available at the current moment.
 
         .. seealso::
             - :external+boto3:py:meth:`CloudWatchLogs.Client.get_log_events`

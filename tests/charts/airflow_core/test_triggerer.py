@@ -125,16 +125,21 @@ class TestTriggerer:
         docs = render_chart(
             values={
                 "triggerer": {
-                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
-                    "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumeMounts": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                    ],
                 },
             },
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
 
-        assert "test-volume" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
-        assert "test-volume" == jmespath.search(
+        assert "test-volume-airflow" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
+        assert "test-volume-airflow" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
+        )
+        assert "test-volume-airflow" == jmespath.search(
+            "spec.template.spec.initContainers[0].volumeMounts[-1].name", docs[0]
         )
 
     def test_should_add_global_volume_and_global_volume_mount(self):

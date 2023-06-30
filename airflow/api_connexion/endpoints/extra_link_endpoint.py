@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from sqlalchemy import select
 from sqlalchemy.orm.session import Session
 
 from airflow import DAG
@@ -57,14 +58,12 @@ def get_extra_links(
     except TaskNotFound:
         raise NotFound("Task not found", detail=f'Task with ID = "{task_id}" not found')
 
-    ti = (
-        session.query(TaskInstance)
-        .filter(
+    ti = session.scalar(
+        select(TaskInstance).where(
             TaskInstance.dag_id == dag_id,
             TaskInstance.run_id == dag_run_id,
             TaskInstance.task_id == task_id,
         )
-        .one_or_none()
     )
 
     if not ti:
