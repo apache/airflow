@@ -19,11 +19,14 @@ from __future__ import annotations
 
 import os
 import tempfile
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class AzureBlobStorageToS3(BaseOperator):
@@ -106,7 +109,7 @@ class AzureBlobStorageToS3(BaseOperator):
         self.wasb_extra_args = wasb_extra_args
         self.s3_extra_args = s3_extra_args
 
-    def execute(self) -> list[str]:
+    def execute(self, context: Context) -> list[str]:
         # list all files in the Azure Blob Storage container
         wasb_hook = WasbHook(wasb_conn_id=self.wasb_conn_id, **self.wasb_extra_args)
         s3_hook = S3Hook(
@@ -144,21 +147,21 @@ class AzureBlobStorageToS3(BaseOperator):
                 with tempfile.NamedTemporaryFile() as temp_file:
 
                     dest_key = os.path.join(self.dest_s3_key, file)
-                    self.log.info(f"Downloading data from blob: {file}")
+                    self.log.info("Downloading data from blob: %s", file)
                     wasb_hook.get_file(
                         file_path=temp_file.name,
                         container_name=self.container_name,
                         blob_name=file,
                     )
 
-                    self.log.info(f"Uploading data to s3: {dest_key}")
+                    self.log.info("Uploading data to s3: %s", dest_key)
                     s3_hook.load_file(
                         filename=temp_file.name,
                         key=dest_key,
                         replace=self.replace,
                         acl_policy=self.s3_acl_policy,
                     )
-            self.log.info(f"All done, uploaded {len(files)} files to S3")
+            self.log.info("All done, uploaded %d files to S3", len(files))
         else:
             self.log.info("All files are already in sync!")
         return files
