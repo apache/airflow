@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class AzureBlobStorageToS3(BaseOperator):
+class AzureBlobStorageToS3Operator(BaseOperator):
     """
     Operator transfers data from Azure Blob Storage to specified bucket in Amazon S3.
 

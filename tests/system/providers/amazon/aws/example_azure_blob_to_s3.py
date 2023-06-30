@@ -21,7 +21,7 @@ from datetime import datetime
 from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
-from airflow.providers.amazon.aws.transfers.azure_blob_to_s3 import AzureBlobStorageToS3
+from airflow.providers.amazon.aws.transfers.azure_blob_to_s3 import AzureBlobStorageToS3Operator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
@@ -47,7 +47,7 @@ with DAG(
     create_s3_bucket = S3CreateBucketOperator(task_id="create_s3_bucket", bucket_name=s3_bucket)
 
     # [START howto_transfer_azure_blob_to_s3]
-    azure_blob_to_s3 = AzureBlobStorageToS3(
+    azure_blob_to_s3 = AzureBlobStorageToS3Operator(
         task_id="azure_blob_to_s3",
         container_name=azure_container_name,
         dest_s3_key=s3_key_url,

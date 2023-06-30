@@ -23,7 +23,7 @@ from unittest import mock
 from moto import mock_s3
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.transfers.azure_blob_to_s3 import AzureBlobStorageToS3
+from airflow.providers.amazon.aws.transfers.azure_blob_to_s3 import AzureBlobStorageToS3Operator
 
 TASK_ID = "test-gcs-list-operator"
 CONTAINER_NAME = "test-container"
@@ -55,7 +55,7 @@ class TestAzureBlobToS3Operator:
         """
         mock_hook.return_value.get_blobs_list_recursive.return_value = MOCK_FILES
 
-        operator = AzureBlobStorageToS3(
+        operator = AzureBlobStorageToS3Operator(
             task_id=TASK_ID,
             container_name=CONTAINER_NAME,
             dest_s3_key=S3_BUCKET,
@@ -78,7 +78,7 @@ class TestAzureBlobToS3Operator:
         mock_hook.return_value.get_blobs_list_recursive.return_value = MOCK_FILES
         get_file = mock_hook.return_value.get_file
 
-        operator = AzureBlobStorageToS3(
+        operator = AzureBlobStorageToS3Operator(
             task_id=TASK_ID,
             container_name=CONTAINER_NAME,
             dest_s3_key=S3_BUCKET,
@@ -106,7 +106,7 @@ class TestAzureBlobToS3Operator:
         mock_hook.return_value.get_blobs_list_recursive.return_value = MOCK_FILES
         get_file = mock_hook.return_value.get_file
 
-        operator = AzureBlobStorageToS3(
+        operator = AzureBlobStorageToS3Operator(
             task_id=TASK_ID,
             container_name=CONTAINER_NAME,
             dest_s3_key=S3_BUCKET,
@@ -134,7 +134,7 @@ class TestAzureBlobToS3Operator:
         mock_hook.return_value.get_blobs_list_recursive.return_value = MOCK_FILES
         get_file = mock_hook.return_value.get_file
 
-        operator = AzureBlobStorageToS3(
+        operator = AzureBlobStorageToS3Operator(
             task_id=TASK_ID,
             container_name=CONTAINER_NAME,
             dest_s3_key=S3_BUCKET,
@@ -162,7 +162,7 @@ class TestAzureBlobToS3Operator:
         mock_hook.return_value.get_blobs_list_recursive.return_value = MOCK_FILES
         get_file = mock_hook.return_value.get_file
 
-        operator = AzureBlobStorageToS3(
+        operator = AzureBlobStorageToS3Operator(
             task_id=TASK_ID,
             container_name=CONTAINER_NAME,
             dest_s3_key=S3_BUCKET,
@@ -199,7 +199,7 @@ class TestAzureBlobToS3Operator:
         s3_hook_mock.parse_s3_url.return_value = ("bucket", wasb_blob_name)
         mock_load_files = s3_hook_mock.return_value.load_file
 
-        operator = AzureBlobStorageToS3(
+        operator = AzureBlobStorageToS3Operator(
             task_id=TASK_ID,
             container_name=CONTAINER_NAME,
             dest_s3_key=S3_BUCKET,

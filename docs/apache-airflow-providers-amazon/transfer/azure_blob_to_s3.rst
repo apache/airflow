@@ -19,7 +19,7 @@
 Azure Blob Storage to Amazon S3 transfer operator
 ===================================================
 
-Use the ``AzureBlobStorageToS3`` transfer to copy the data from Azure Blob Storage to Amazon Simple Storage Service (S3).
+Use the ``AzureBlobStorageToS3Operator`` transfer to copy the data from Azure Blob Storage to Amazon Simple Storage Service (S3).
 
 Prerequisite Tasks
 ------------------
@@ -29,13 +29,13 @@ Prerequisite Tasks
 Operators
 ---------
 
-.. _howto/operator:AzureBlobStorageToS3:
+.. _howto/operator:AzureBlobStorageToS3Operator:
 
 Azure Blob Storage to Amazon S3
 =================================
 
 To copy data from an Azure Blob Storage container to an Amazon S3 bucket you can use
-:class:`~airflow.providers.amazon.aws.transfers.azure_blob_to_s3.AzureBlobStorageToS3`
+:class:`~airflow.providers.amazon.aws.transfers.azure_blob_to_s3.AzureBlobStorageToS3Operator`
 
 Example usage:
 
