@@ -332,15 +332,15 @@ Follow the  `Ecosystem <https://airflow.apache.org/ecosystem/>`__ page to find a
 Notes about minimum requirements
 ''''''''''''''''''''''''''''''''
 
-There are often questions about minimum requirements for Airflow for Production systems, but it is
+There are often questions about minimum requirements for Airflow for production systems, but it is
 not possible to give a simple answer to that question.
 
 The requirements that Airflow might need depend on many factors, including (but not limited to):
   * The deployment your Airflow is installed with (see above ways of installing Airflow)
-  * The requirements of the Deployment environment (for example Kubernetes, Docker, Helm, etc.) that
+  * The requirements of the deployment environment (for example Kubernetes, Docker, Helm, etc.) that
     are completely independent from Airflow (for example DNS resources, sharing the nodes/resources
     with more (or less) pods and containers that are needed that might depend on particular choice of
-    the technology/cloud/integration of monitoring etc. etc.
+    the technology/cloud/integration of monitoring etc.
   * Technical details of database, hardware, network, etc. that your deployment is running on
   * The complexity of the code you add to your DAGS, configuration, plugins, settings etc. (note, that
     Airflow runs the code that DAG author and Deployment Manager provide)
@@ -380,9 +380,9 @@ There are few guidelines that you can use for optimizing your resource usage as 
 :ref:`fine-tuning-scheduler` is a good starting point to fine-tune your scheduler, you can also follow
 the :ref:`best_practice` guide to make sure you are using Airflow in the most efficient way.
 
-Also, one of the important things that Manages Services for Airflow provide is that they made a lot
-of opinionated choices and fine-tuned the system for you, so you don't have to worry about it too much.
-With such managed services, there are usually far less numbers knobs to turn and choices to made and one
+Also, one of the important things that Managed Services for Airflow provide is that they make a lot
+of opinionated choices and fine-tune the system for you, so you don't have to worry about it too much.
+With such managed services, there are usually far less number of knobs to turn and choices to make and one
 of the things you pay for is that the Managed Service provider manages the system for you and provides
 paid support and allows you to scale the system as needed and allocate the right resources - following the
-choices their made when it comes to kinds of deployment you might have.
+choices made there when it comes to the kinds of deployment you might have.
