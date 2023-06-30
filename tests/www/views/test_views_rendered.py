@@ -23,7 +23,7 @@ from urllib.parse import quote_plus
 import pytest
 from markupsafe import escape
 
-from airflow.models import DAG, RenderedTaskInstanceFields, Variable, BaseOperator
+from airflow.models import DAG, BaseOperator, RenderedTaskInstanceFields, Variable
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -68,7 +68,7 @@ def task2(dag):
 @pytest.fixture()
 def task3(dag):
     class TestOperator(BaseOperator):
-        template_fields = ('sql',)
+        template_fields = ("sql",)
 
         def __init__(self, *, sql, **kwargs):
             super().__init__(**kwargs)
@@ -78,8 +78,8 @@ def task3(dag):
             pass
 
     return TestOperator(
-        task_id='task3',
-        sql=['SELECT 1;', 'SELECT 2;'],
+        task_id="task3",
+        sql=["SELECT 1;", "SELECT 2;"],
         dag=dag,
     )
 
@@ -90,10 +90,10 @@ def task4(dag):
         pass
 
     return PythonOperator(
-        task_id='task4',
+        task_id="task4",
         python_callable=func,
-        op_args=['{{ task_instance_key_str }}_args'],
-        op_kwargs={'0': '{{ task_instance_key_str }}_kwargs'},
+        op_args=["{{ task_instance_key_str }}_args"],
+        op_kwargs={"0": "{{ task_instance_key_str }}_kwargs"},
         dag=dag,
     )
 
@@ -142,9 +142,9 @@ def create_dag_run(dag, task1, task2, task_secret):
         ti2.state = TaskInstanceState.SCHEDULED
         ti3 = dag_run.get_task_instance(task_secret.task_id, session=session)
         ti3.state = TaskInstanceState.QUEUED
-        ti4 = dag_run.get_task_instance(task3.task_id, session=session)
+        ti4 = dag_run.get_task_instance(task3().task_id, session=session)
         ti4.state = TaskInstanceState.SUCCESS
-        ti5 = dag_run.get_task_instance(task4.task_id, session=session)
+        ti5 = dag_run.get_task_instance(task4().task_id, session=session)
         ti5.state = TaskInstanceState.SUCCESS
         session.flush()
         return dag_run
@@ -335,12 +335,12 @@ def test_rendered_template_view_for_list_template_field_args(admin_client, creat
     """
     Test that the Rendered View can show a list of syntax-highlighted SQL statements
     """
-    assert task3.sql == ['SELECT 1;', 'SELECT 2;']
+    assert task3.sql == ["SELECT 1;", "SELECT 2;"]
 
     with create_session() as session:
         create_dag_run(execution_date=DEFAULT_DATE, session=session)
 
-    url = f'rendered-templates?task_id=task3&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+    url = f"rendered-templates?task_id=task3&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("List item #0", resp)
@@ -352,15 +352,15 @@ def test_rendered_template_view_for_op_args(admin_client, create_dag_run, task4)
     """
     Test that the Rendered View can show rendered values in op_args and op_kwargs
     """
-    assert task4.op_args == ['{{ task_instance_key_str }}_args']
-    assert list(task4.op_kwargs.values()) == ['{{ task_instance_key_str }}_kwargs']
+    assert task4.op_args == ["{{ task_instance_key_str }}_args"]
+    assert list(task4.op_kwargs.values()) == ["{{ task_instance_key_str }}_kwargs"]
 
     with create_session() as session:
         create_dag_run(execution_date=DEFAULT_DATE, session=session)
 
-    url = f'rendered-templates?task_id=task4&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+    url = f"rendered-templates?task_id=task4&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response('testdag__task4__20200301_args', resp)
-    check_content_in_response('testdag__task4__20200301_kwargs', resp)
+    check_content_in_response("testdag__task4__20200301_args", resp)
+    check_content_in_response("testdag__task4__20200301_kwargs", resp)
 
