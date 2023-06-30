@@ -399,7 +399,7 @@ class TestPodManager:
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager._exec_pod_command")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
     def test_extract_xcom_empty(self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream):
-        """test when None is retrieved from xcom sidecar container."""
+        """test when __airflow_xcom_result_empty__ is retrieved from xcom sidecar container."""
         mock_pod = MagicMock()
         xcom_result = "__airflow_xcom_result_empty__"
         mock_exec_pod_command.return_value = xcom_result
