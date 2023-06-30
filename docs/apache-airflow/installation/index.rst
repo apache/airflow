@@ -338,7 +338,7 @@ not possible to give a simple answer to that question.
 The requirements that Airflow might need depend on many factors, including (but not limited to):
   * The deployment your Airflow is installed with (see above ways of installing Airflow)
   * The requirements of the deployment environment (for example Kubernetes, Docker, Helm, etc.) that
-    are completely independent from Airflow (for example DNS resources, sharing the nodes/resources
+    are completely independent from Airflow (for example DNS resources, sharing the nodes/resources)
     with more (or less) pods and containers that are needed that might depend on particular choice of
     the technology/cloud/integration of monitoring etc.
   * Technical details of database, hardware, network, etc. that your deployment is running on
