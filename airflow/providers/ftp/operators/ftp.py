@@ -37,8 +37,8 @@ class FTPOperation:
 class FTPFileTransmitOperator(BaseOperator):
     """
     FTPFileTransmitOperator for transferring files from remote host to local or vice a versa.
-    This operator uses an FTPHook to open ftp transport channel that serve as basis
-    for file transfer.
+
+    This operator uses an FTPHook to open ftp transport channel that serve as basis for file transfer.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -139,8 +139,8 @@ class FTPFileTransmitOperator(BaseOperator):
 class FTPSFileTransmitOperator(FTPFileTransmitOperator):
     """
     FTPSFileTransmitOperator for transferring files from remote host to local or vice a versa.
-    This operator uses an FTPSHook to open ftps transport channel that serve as basis
-    for file transfer.
+
+    This operator uses an FTPSHook to open ftps transport channel that serve as basis for file transfer.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

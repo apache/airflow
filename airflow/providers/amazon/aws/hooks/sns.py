@@ -40,6 +40,7 @@ def _get_message_attribute(o):
 class SnsHook(AwsBaseHook):
     """
     Interact with Amazon Simple Notification Service.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("sns") <SNS.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and

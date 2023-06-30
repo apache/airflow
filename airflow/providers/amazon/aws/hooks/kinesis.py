@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class FirehoseHook(AwsBaseHook):
     """
     Interact with Amazon Kinesis Firehose.
+
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("firehose") <Firehose.Client>`.
 
     :param delivery_stream: Name of the delivery stream

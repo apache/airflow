@@ -28,9 +28,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
-    """
-    ADFPipelineRunStatusSensorTrigger is fired as deferred class with params to run the
-    task in trigger worker, when ADF Pipeline is running.
+    """Trigger with params to run the task when the ADF Pipeline is running.
 
     :param run_id: The pipeline run identifier.
     :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
@@ -93,9 +91,9 @@ class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
 
 
 class AzureDataFactoryTrigger(BaseTrigger):
-    """
-    AzureDataFactoryTrigger is triggered when Azure data factory pipeline job succeeded or failed.
-    When wait_for_termination is set to False it triggered immediately with success status.
+    """Trigger when the Azure data factory pipeline job finishes.
+
+    When wait_for_termination is set to False, it triggers immediately with success status.
 
     :param run_id: Run id of a Azure data pipeline run job.
     :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
@@ -193,4 +191,11 @@ class AzureDataFactoryTrigger(BaseTrigger):
                     }
                 )
         except Exception as e:
+            if self.run_id:
+                await hook.cancel_pipeline_run(
+                    run_id=self.run_id,
+                    resource_group_name=self.resource_group_name,
+                    factory_name=self.factory_name,
+                )
+                self.log.info("Unexpected error %s caught. Cancel pipeline run %s", str(e), self.run_id)
             yield TriggerEvent({"status": "error", "message": str(e), "run_id": self.run_id})

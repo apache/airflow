@@ -20,9 +20,9 @@ import logging
 import os
 import struct
 from datetime import datetime
-from typing import Iterable
+from typing import Collection, Iterable
 
-from sqlalchemy import BigInteger, Column, String, Text, delete
+from sqlalchemy import BigInteger, Column, String, Text, delete, select
 from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import literal
@@ -77,12 +77,11 @@ class DagCode(Base):
         """
         filelocs = set(filelocs)
         filelocs_to_hashes = {fileloc: DagCode.dag_fileloc_hash(fileloc) for fileloc in filelocs}
-        existing_orm_dag_codes = (
-            session.query(DagCode)
+        existing_orm_dag_codes = session.scalars(
+            select(DagCode)
             .filter(DagCode.fileloc_hash.in_(filelocs_to_hashes.values()))
             .with_for_update(of=DagCode)
-            .all()
-        )
+        ).all()
 
         if existing_orm_dag_codes:
             existing_orm_dag_codes_map = {
@@ -126,7 +125,7 @@ class DagCode(Base):
 
     @classmethod
     @provide_session
-    def remove_deleted_code(cls, alive_dag_filelocs: list[str], session: Session = NEW_SESSION) -> None:
+    def remove_deleted_code(cls, alive_dag_filelocs: Collection[str], session: Session = NEW_SESSION) -> None:
         """Deletes code not included in alive_dag_filelocs.
 
         :param alive_dag_filelocs: file paths of alive DAGs
@@ -151,7 +150,10 @@ class DagCode(Base):
         :param session: ORM Session
         """
         fileloc_hash = cls.dag_fileloc_hash(fileloc)
-        return session.query(literal(True)).filter(cls.fileloc_hash == fileloc_hash).one_or_none() is not None
+        return (
+            session.scalars(select(literal(True)).where(cls.fileloc_hash == fileloc_hash)).one_or_none()
+            is not None
+        )
 
     @classmethod
     def get_code_by_fileloc(cls, fileloc: str) -> str:
@@ -179,7 +181,7 @@ class DagCode(Base):
     @classmethod
     @provide_session
     def _get_code_from_db(cls, fileloc, session: Session = NEW_SESSION) -> str:
-        dag_code = session.query(cls).filter(cls.fileloc_hash == cls.dag_fileloc_hash(fileloc)).first()
+        dag_code = session.scalar(select(cls).where(cls.fileloc_hash == cls.dag_fileloc_hash(fileloc)))
         if not dag_code:
             raise DagCodeNotFound()
         else:

@@ -126,7 +126,7 @@ class WasbHook(BaseHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour."""
         return {
-            "hidden_fields": ["schema", "port", "extra"],
+            "hidden_fields": ["schema", "port"],
             "relabeling": {
                 "login": "Blob Storage Login (optional)",
                 "password": "Blob Storage Key (optional)",
@@ -140,6 +140,7 @@ class WasbHook(BaseHook):
                 "tenant_id": "tenant",
                 "shared_access_key": "shared access key",
                 "sas_token": "account url or token",
+                "extra": "additional options for use with ClientSecretCredential or DefaultAzureCredential",
             },
         }
 
@@ -174,39 +175,40 @@ class WasbHook(BaseHook):
         """Return the BlobServiceClient object."""
         conn = self.get_connection(self.conn_id)
         extra = conn.extra_dejson or {}
-
-        if self.public_read:
-            # Here we use anonymous public read
-            # more info
-            # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
-            return BlobServiceClient(account_url=conn.host, **extra)
+        client_secret_auth_config = extra.pop("client_secret_auth_config", {})
 
         connection_string = self._get_field(extra, "connection_string")
         if connection_string:
             # connection_string auth takes priority
             return BlobServiceClient.from_connection_string(connection_string, **extra)
 
-        shared_access_key = self._get_field(extra, "shared_access_key")
-        if shared_access_key:
-            # using shared access key
-            return BlobServiceClient(account_url=conn.host, credential=shared_access_key, **extra)
-
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            token_credential = ClientSecretCredential(tenant, app_id, app_secret)
+            token_credential = ClientSecretCredential(tenant, app_id, app_secret, **client_secret_auth_config)
             return BlobServiceClient(account_url=conn.host, credential=token_credential, **extra)
+
+        account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
+
+        if self.public_read:
+            # Here we use anonymous public read
+            # more info
+            # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
+            return BlobServiceClient(account_url=account_url, **extra)
+
+        shared_access_key = self._get_field(extra, "shared_access_key")
+        if shared_access_key:
+            # using shared access key
+            return BlobServiceClient(account_url=account_url, credential=shared_access_key, **extra)
 
         sas_token = self._get_field(extra, "sas_token")
         if sas_token:
             if sas_token.startswith("https"):
                 return BlobServiceClient(account_url=sas_token, **extra)
             else:
-                return BlobServiceClient(
-                    account_url=f"https://{conn.login}.blob.core.windows.net/{sas_token}", **extra
-                )
+                return BlobServiceClient(account_url=f"{account_url}/{sas_token}", **extra)
 
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
@@ -214,7 +216,7 @@ class WasbHook(BaseHook):
             credential = DefaultAzureCredential()
             self.log.info("Using DefaultAzureCredential as credential")
         return BlobServiceClient(
-            account_url=f"https://{conn.login}.blob.core.windows.net/",
+            account_url=account_url,
             credential=credential,
             **extra,
         )
@@ -542,13 +544,7 @@ class WasbAsyncHook(WasbHook):
 
         conn = await sync_to_async(self.get_connection)(self.conn_id)
         extra = conn.extra_dejson or {}
-
-        if self.public_read:
-            # Here we use anonymous public read
-            # more info
-            # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
-            self.blob_service_client = AsyncBlobServiceClient(account_url=conn.host, **extra)
-            return self.blob_service_client
+        client_secret_auth_config = extra.pop("client_secret_auth_config", {})
 
         connection_string = self._get_field(extra, "connection_string")
         if connection_string:
@@ -558,22 +554,33 @@ class WasbAsyncHook(WasbHook):
             )
             return self.blob_service_client
 
-        shared_access_key = self._get_field(extra, "shared_access_key")
-        if shared_access_key:
-            # using shared access key
-            self.blob_service_client = AsyncBlobServiceClient(
-                account_url=conn.host, credential=shared_access_key, **extra
-            )
-            return self.blob_service_client
-
         tenant = self._get_field(extra, "tenant_id")
         if tenant:
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            token_credential = AsyncClientSecretCredential(tenant, app_id, app_secret)
+            token_credential = AsyncClientSecretCredential(
+                tenant, app_id, app_secret, **client_secret_auth_config
+            )
             self.blob_service_client = AsyncBlobServiceClient(
                 account_url=conn.host, credential=token_credential, **extra  # type:ignore[arg-type]
+            )
+            return self.blob_service_client
+
+        account_url = conn.host if conn.host else f"https://{conn.login}.blob.core.windows.net/"
+
+        if self.public_read:
+            # Here we use anonymous public read
+            # more info
+            # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
+            self.blob_service_client = AsyncBlobServiceClient(account_url=account_url, **extra)
+            return self.blob_service_client
+
+        shared_access_key = self._get_field(extra, "shared_access_key")
+        if shared_access_key:
+            # using shared access key
+            self.blob_service_client = AsyncBlobServiceClient(
+                account_url=account_url, credential=shared_access_key, **extra
             )
             return self.blob_service_client
 
@@ -583,7 +590,7 @@ class WasbAsyncHook(WasbHook):
                 self.blob_service_client = AsyncBlobServiceClient(account_url=sas_token, **extra)
             else:
                 self.blob_service_client = AsyncBlobServiceClient(
-                    account_url=f"https://{conn.login}.blob.core.windows.net/{sas_token}", **extra
+                    account_url=f"{account_url}/{sas_token}", **extra
                 )
             return self.blob_service_client
 
@@ -593,7 +600,7 @@ class WasbAsyncHook(WasbHook):
             credential = AsyncDefaultAzureCredential()
             self.log.info("Using DefaultAzureCredential as credential")
         self.blob_service_client = AsyncBlobServiceClient(
-            account_url=f"https://{conn.login}.blob.core.windows.net/",
+            account_url=account_url,
             credential=credential,
             **extra,
         )

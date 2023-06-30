@@ -363,7 +363,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
     )
     @mock.patch("airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.run_pipeline")
     def test_azure_data_factory_run_pipeline_operator_async(self, mock_run_pipeline, mock_get_status, status):
-        """Assert that AzureDataFactoryRunPipelineOperatorAsync deferred"""
+        """Assert that AzureDataFactoryRunPipelineOperator(..., deferrable=True) deferred"""
 
         class CreateRunResponse:
             pass

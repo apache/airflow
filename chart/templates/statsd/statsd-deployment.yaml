@@ -27,7 +27,7 @@
 {{- $topologySpreadConstraints := or .Values.statsd.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.statsd.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "localPodSecurityContext" .Values.statsd }}
-{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.statsd) }}
+{{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.statsd }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:

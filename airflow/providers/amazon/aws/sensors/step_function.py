@@ -32,9 +32,7 @@ if TYPE_CHECKING:
 
 class StepFunctionExecutionSensor(BaseSensorOperator):
     """
-    Asks for the state of the AWS Step Function State Machine Execution until it
-    reaches a failure state or success state.
-    If it fails, then fail the task.
+    Poll the Step Function State Machine Execution until it reaches a terminal state; fails if the task fails.
 
     On successful completion of the Execution the Sensor will do an XCom Push
     of the State Machine's output to `output`

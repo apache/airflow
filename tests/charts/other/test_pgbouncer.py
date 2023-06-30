@@ -288,22 +288,25 @@ class TestPgbouncer:
                     "enabled": True,
                     "extraVolumes": [
                         {
-                            "name": "pgbouncer-client-certificates",
+                            "name": "pgbouncer-client-certificates-{{ .Chart.Name }}",
                             "secret": {"secretName": "pgbouncer-client-tls-certificate"},
                         }
                     ],
                     "extraVolumeMounts": [
-                        {"name": "pgbouncer-client-certificates", "mountPath": "/etc/pgbouncer/certs"}
+                        {
+                            "name": "pgbouncer-client-certificates-{{ .Chart.Name }}",
+                            "mountPath": "/etc/pgbouncer/certs",
+                        }
                     ],
                 },
             },
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
         )
 
-        assert "pgbouncer-client-certificates" in jmespath.search(
+        assert "pgbouncer-client-certificates-airflow" in jmespath.search(
             "spec.template.spec.volumes[*].name", docs[0]
         )
-        assert "pgbouncer-client-certificates" in jmespath.search(
+        assert "pgbouncer-client-certificates-airflow" in jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
         )
 

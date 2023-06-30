@@ -589,9 +589,22 @@ class TestKubernetesPodOperator:
         pod = k.build_pod_request_obj(create_context(k))
         assert pod.spec.containers[0].image_pull_policy == "Always"
 
+    @pytest.mark.parametrize(
+        "task_kwargs, should_be_deleted",
+        [
+            ({}, True),  # default values
+            ({"is_delete_operator_pod": True}, True),  # check b/c of is_delete_operator_pod
+            ({"is_delete_operator_pod": False}, False),  # check b/c of is_delete_operator_pod
+            ({"on_finish_action": "delete_pod"}, True),
+            ({"on_finish_action": "delete_succeeded_pod"}, False),
+            ({"on_finish_action": "keep_pod"}, False),
+        ],
+    )
     @patch(f"{POD_MANAGER_CLASS}.delete_pod")
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.find_pod")
-    def test_pod_delete_after_await_container_error(self, find_pod_mock, delete_pod_mock):
+    def test_pod_delete_after_await_container_error(
+        self, find_pod_mock, delete_pod_mock, task_kwargs, should_be_deleted
+    ):
         """
         When KPO fails unexpectedly during await_container, we should still try to delete the pod,
         and the pod we try to delete should be the one returned from find_pod earlier.
@@ -600,13 +613,16 @@ class TestKubernetesPodOperator:
         cont_status.name = "base"
         cont_status.state.terminated.message = "my-failure"
         find_pod_mock.return_value.status.container_statuses = [cont_status]
-        k = KubernetesPodOperator(task_id="task")
+        k = KubernetesPodOperator(task_id="task", **task_kwargs)
         self.await_pod_mock.side_effect = AirflowException("fake failure")
         with pytest.raises(AirflowException, match="my-failure"):
             context = create_context(k)
             context["ti"].xcom_push = MagicMock()
             k.execute(context=context)
-        delete_pod_mock.assert_called_with(find_pod_mock.return_value)
+        if should_be_deleted:
+            delete_pod_mock.assert_called_with(find_pod_mock.return_value)
+        else:
+            delete_pod_mock.assert_not_called()
 
     @pytest.mark.parametrize("should_fail", [True, False])
     @patch(f"{POD_MANAGER_CLASS}.delete_pod")
@@ -618,7 +634,7 @@ class TestKubernetesPodOperator:
         """
         k = KubernetesPodOperator(
             task_id="task",
-            is_delete_operator_pod=True,
+            on_finish_action="delete_pod",
         )
 
         if should_fail:
@@ -1019,7 +1035,7 @@ class TestKubernetesPodOperator:
         """If we aren't deleting pods and have an exception, mark it so we don't reattach to it"""
         k = KubernetesPodOperator(
             task_id="task",
-            is_delete_operator_pod=False,
+            on_finish_action="keep_pod",
         )
         self.await_pod_mock.side_effect = AirflowException("oops")
         context = create_context(k)
@@ -1045,16 +1061,50 @@ class TestKubernetesPodOperator:
         else:
             mock_await.assert_not_called()
 
-    @pytest.mark.parametrize("should_fail", [True, False])
+    @pytest.mark.parametrize(
+        "task_kwargs, should_fail, should_be_deleted",
+        [
+            ({}, False, True),
+            ({}, True, True),
+            (
+                {"is_delete_operator_pod": True, "on_finish_action": "keep_pod"},
+                False,
+                True,
+            ),  # check backcompat of is_delete_operator_pod
+            (
+                {"is_delete_operator_pod": True, "on_finish_action": "keep_pod"},
+                True,
+                True,
+            ),  # check b/c of is_delete_operator_pod
+            (
+                {"is_delete_operator_pod": False, "on_finish_action": "delete_pod"},
+                False,
+                False,
+            ),  # check b/c of is_delete_operator_pod
+            (
+                {"is_delete_operator_pod": False, "on_finish_action": "delete_pod"},
+                True,
+                False,
+            ),  # check b/c of is_delete_operator_pod
+            ({"on_finish_action": "keep_pod"}, False, False),
+            ({"on_finish_action": "keep_pod"}, True, False),
+            ({"on_finish_action": "delete_pod"}, False, True),
+            ({"on_finish_action": "delete_pod"}, True, True),
+            ({"on_finish_action": "delete_succeeded_pod"}, False, True),
+            ({"on_finish_action": "delete_succeeded_pod"}, True, False),
+        ],
+    )
     @patch(f"{POD_MANAGER_CLASS}.delete_pod")
     @patch(f"{KPO_MODULE}.KubernetesPodOperator.patch_already_checked")
-    def test_mark_checked_if_not_deleted(self, mock_patch_already_checked, mock_delete_pod, should_fail):
+    def test_mark_checked_if_not_deleted(
+        self, mock_patch_already_checked, mock_delete_pod, task_kwargs, should_fail, should_be_deleted
+    ):
         """If we aren't deleting pods mark "checked" if the task completes (successful or otherwise)"""
         dag = DAG("hello2", start_date=pendulum.now())
         k = KubernetesPodOperator(
             task_id="task",
-            is_delete_operator_pod=False,
             dag=dag,
+            **task_kwargs,
         )
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = "Failed" if should_fail else "Succeeded"
@@ -1065,8 +1115,14 @@ class TestKubernetesPodOperator:
                 k.execute(context=context)
         else:
             k.execute(context=context)
-        mock_patch_already_checked.assert_called_once()
-        mock_delete_pod.assert_not_called()
+        if should_fail or not should_be_deleted:
+            mock_patch_already_checked.assert_called_once()
+        else:
+            mock_patch_already_checked.assert_not_called()
+        if should_be_deleted:
+            mock_delete_pod.assert_called_once()
+        else:
+            mock_delete_pod.assert_not_called()
 
     @patch(HOOK_CLASS, new=MagicMock)
     def test_patch_already_checked(self):
@@ -1141,7 +1197,7 @@ class TestKubernetesPodOperator:
     ):
         """Tests that an AirflowSkipException is raised when the container exits with the skip_on_exit_code"""
         k = KubernetesPodOperator(
-            task_id="task", is_delete_operator_pod=True, **(extra_kwargs if extra_kwargs else {})
+            task_id="task", on_finish_action="delete_pod", **(extra_kwargs if extra_kwargs else {})
         )
 
         base_container = MagicMock()
@@ -1282,7 +1338,7 @@ class TestKubernetesPodOperatorAsync:
             arguments=TEST_ARGS,
             labels=TEST_LABELS,
             name=TEST_NAME,
-            is_delete_operator_pod=False,
+            on_finish_action="keep_pod",
             in_cluster=True,
             get_logs=True,
             deferrable=True,
@@ -1306,7 +1362,7 @@ class TestKubernetesPodOperatorAsync:
             arguments=TEST_ARGS,
             labels=TEST_LABELS,
             name=TEST_NAME,
-            is_delete_operator_pod=False,
+            on_finish_action="keep_pod",
             in_cluster=True,
             get_logs=True,
             deferrable=True,
@@ -1353,7 +1409,7 @@ class TestKubernetesPodOperatorAsync:
             arguments=TEST_ARGS,
             labels=TEST_LABELS,
             name=TEST_NAME,
-            is_delete_operator_pod=False,
+            on_finish_action="keep_pod",
             in_cluster=True,
             get_logs=True,
             deferrable=True,

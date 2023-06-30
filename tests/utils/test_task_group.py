@@ -24,7 +24,8 @@ import pytest
 
 from airflow.decorators import dag, task_group as task_group_decorator
 from airflow.exceptions import TaskAlreadyInTaskGroup
-from airflow.models import DAG
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -1174,6 +1175,48 @@ def test_topological_nested_groups():
     ]
 
 
+def test_hierarchical_alphabetical_sort():
+    execution_date = pendulum.parse("20200101")
+    with DAG("test_dag_edges", start_date=execution_date) as dag:
+        task1 = EmptyOperator(task_id="task1")
+        task5 = EmptyOperator(task_id="task5")
+        with TaskGroup("group_c"):
+            task7 = EmptyOperator(task_id="task7")
+        with TaskGroup("group_b"):
+            task6 = EmptyOperator(task_id="task6")
+        with TaskGroup("group_a"):
+            with TaskGroup("group_d"):
+                task2 = EmptyOperator(task_id="task2")
+                task3 = EmptyOperator(task_id="task3")
+                task4 = EmptyOperator(task_id="task4")
+            task9 = EmptyOperator(task_id="task9")
+            task8 = EmptyOperator(task_id="task8")
+
+    def nested(group):
+        return [
+            nested(node) if isinstance(node, TaskGroup) else node
+            for node in group.hierarchical_alphabetical_sort()
+        ]
+
+    sorted_list = nested(dag.task_group)
+
+    assert sorted_list == [
+        [  # group_a
+            [  # group_d
+                task2,
+                task3,
+                task4,
+            ],
+            task8,
+            task9,
+        ],
+        [task6],  # group_b
+        [task7],  # group_c
+        task1,
+        task5,
+    ]
+
+
 def test_topological_group_dep():
     execution_date = pendulum.parse("20200101")
     with DAG("test_dag_edges", start_date=execution_date) as dag:
@@ -1381,3 +1424,16 @@ def test_override_dag_default_args_in_multi_level_nested_tg():
     assert task.retries == 1
     assert task.owner == "z"
     assert task.execution_timeout == timedelta(seconds=10)
+
+
+def test_task_group_arrow_with_setups_teardowns():
+    with DAG(dag_id="hi", start_date=pendulum.datetime(2022, 1, 1)):
+        with TaskGroup(group_id="tg1") as tg1:
+            s1 = BaseOperator(task_id="s1")
+            w1 = BaseOperator(task_id="w1")
+            t1 = BaseOperator(task_id="t1")
+            s1 >> w1 >> t1.as_teardown(setups=s1)
+        w2 = BaseOperator(task_id="w2")
+        tg1 >> w2
+    assert t1.downstream_task_ids == set()
+    assert w1.downstream_task_ids == {"tg1.t1", "w2"}

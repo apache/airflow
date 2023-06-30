@@ -20,7 +20,7 @@ from http import HTTPStatus
 
 from flask import Response
 from marshmallow import ValidationError
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
@@ -57,10 +57,10 @@ def delete_variable(*, variable_key: str) -> Response:
 @provide_session
 def get_variable(*, variable_key: str, session: Session = NEW_SESSION) -> Response:
     """Get a variable by key."""
-    var = session.query(Variable).filter(Variable.key == variable_key)
-    if not var.count():
+    var = session.scalar(select(Variable).where(Variable.key == variable_key).limit(1))
+    if not var:
         raise NotFound("Variable not found")
-    return variable_schema.dump(var.first())
+    return variable_schema.dump(var)
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE)])
@@ -74,12 +74,12 @@ def get_variables(
     session: Session = NEW_SESSION,
 ) -> Response:
     """Get all variable values."""
-    total_entries = session.query(func.count(Variable.id)).scalar()
+    total_entries = session.execute(select(func.count(Variable.id))).scalar()
     to_replace = {"value": "val"}
     allowed_filter_attrs = ["value", "key", "id"]
-    query = session.query(Variable)
+    query = select(Variable)
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
-    variables = query.offset(offset).limit(limit).all()
+    variables = session.scalars(query.offset(offset).limit(limit)).all()
     return variable_collection_schema.dump(
         {
             "variables": variables,
@@ -111,7 +111,7 @@ def patch_variable(
     if data["key"] != variable_key:
         raise BadRequest("Invalid post body", detail="key from request body doesn't match uri parameter")
     non_update_fields = ["key"]
-    variable = session.query(Variable).filter_by(key=variable_key).first()
+    variable = session.scalar(select(Variable).filter_by(key=variable_key).limit(1))
     if update_mask:
         data = extract_update_mask_data(update_mask, non_update_fields, data)
     for key, val in data.items():
