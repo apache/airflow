@@ -20,6 +20,7 @@ from __future__ import annotations
 from tempfile import NamedTemporaryFile
 from unittest import mock
 
+import pytest
 from moto import mock_s3
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -47,9 +48,9 @@ def _create_test_bucket():
 @mock_s3
 class TestGCSToS3Operator:
 
-    # Test1: incremental behaviour (just some files missing)
+    # Test0: match_glob
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
-    def test_execute_incremental(self, mock_hook):
+    def test_execute__match_glob(self, mock_hook):
         mock_hook.return_value.list.return_value = MOCK_FILES
         with NamedTemporaryFile() as f:
             gcs_provide_file = mock_hook.return_value.provide_file
@@ -59,11 +60,37 @@ class TestGCSToS3Operator:
                 task_id=TASK_ID,
                 bucket=GCS_BUCKET,
                 prefix=PREFIX,
-                delimiter=DELIMITER,
                 dest_aws_conn_id="aws_default",
                 dest_s3_key=S3_BUCKET,
                 replace=False,
+                match_glob=f"**/*{DELIMITER}",
             )
+            hook, bucket = _create_test_bucket()
+            bucket.put_object(Key=MOCK_FILES[0], Body=b"testing")
+
+            operator.execute(None)
+            mock_hook.return_value.list.assert_called_once_with(
+                bucket_name=GCS_BUCKET, delimiter=None, match_glob=f"**/*{DELIMITER}", prefix=PREFIX
+            )
+
+    # Test1: incremental behaviour (just some files missing)
+    @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
+    def test_execute_incremental(self, mock_hook):
+        mock_hook.return_value.list.return_value = MOCK_FILES
+        with NamedTemporaryFile() as f:
+            gcs_provide_file = mock_hook.return_value.provide_file
+            gcs_provide_file.return_value.__enter__.return_value.name = f.name
+
+            with pytest.deprecated_call():
+                operator = GCSToS3Operator(
+                    task_id=TASK_ID,
+                    bucket=GCS_BUCKET,
+                    prefix=PREFIX,
+                    delimiter=DELIMITER,
+                    dest_aws_conn_id="aws_default",
+                    dest_s3_key=S3_BUCKET,
+                    replace=False,
+                )
             hook, bucket = _create_test_bucket()
             bucket.put_object(Key=MOCK_FILES[0], Body=b"testing")
 
@@ -81,15 +108,16 @@ class TestGCSToS3Operator:
             gcs_provide_file = mock_hook.return_value.provide_file
             gcs_provide_file.return_value.__enter__.return_value.name = f.name
 
-            operator = GCSToS3Operator(
-                task_id=TASK_ID,
-                bucket=GCS_BUCKET,
-                prefix=PREFIX,
-                delimiter=DELIMITER,
-                dest_aws_conn_id="aws_default",
-                dest_s3_key=S3_BUCKET,
-                replace=False,
-            )
+            with pytest.deprecated_call():
+                operator = GCSToS3Operator(
+                    task_id=TASK_ID,
+                    bucket=GCS_BUCKET,
+                    prefix=PREFIX,
+                    delimiter=DELIMITER,
+                    dest_aws_conn_id="aws_default",
+                    dest_s3_key=S3_BUCKET,
+                    replace=False,
+                )
             hook, bucket = _create_test_bucket()
             for mock_file in MOCK_FILES:
                 bucket.put_object(Key=mock_file, Body=b"testing")
@@ -108,15 +136,16 @@ class TestGCSToS3Operator:
             gcs_provide_file = mock_hook.return_value.provide_file
             gcs_provide_file.return_value.__enter__.return_value.name = f.name
 
-            operator = GCSToS3Operator(
-                task_id=TASK_ID,
-                bucket=GCS_BUCKET,
-                prefix=PREFIX,
-                delimiter=DELIMITER,
-                dest_aws_conn_id="aws_default",
-                dest_s3_key=S3_BUCKET,
-                replace=False,
-            )
+            with pytest.deprecated_call():
+                operator = GCSToS3Operator(
+                    task_id=TASK_ID,
+                    bucket=GCS_BUCKET,
+                    prefix=PREFIX,
+                    delimiter=DELIMITER,
+                    dest_aws_conn_id="aws_default",
+                    dest_s3_key=S3_BUCKET,
+                    replace=False,
+                )
             hook, _ = _create_test_bucket()
 
             # we expect all MOCK_FILES to be uploaded
@@ -133,15 +162,16 @@ class TestGCSToS3Operator:
             gcs_provide_file = mock_hook.return_value.provide_file
             gcs_provide_file.return_value.__enter__.return_value.name = f.name
 
-            operator = GCSToS3Operator(
-                task_id=TASK_ID,
-                bucket=GCS_BUCKET,
-                prefix=PREFIX,
-                delimiter=DELIMITER,
-                dest_aws_conn_id="aws_default",
-                dest_s3_key=S3_BUCKET,
-                replace=True,
-            )
+            with pytest.deprecated_call():
+                operator = GCSToS3Operator(
+                    task_id=TASK_ID,
+                    bucket=GCS_BUCKET,
+                    prefix=PREFIX,
+                    delimiter=DELIMITER,
+                    dest_aws_conn_id="aws_default",
+                    dest_s3_key=S3_BUCKET,
+                    replace=True,
+                )
             hook, bucket = _create_test_bucket()
             for mock_file in MOCK_FILES:
                 bucket.put_object(Key=mock_file, Body=b"testing")
@@ -160,15 +190,16 @@ class TestGCSToS3Operator:
             gcs_provide_file = mock_hook.return_value.provide_file
             gcs_provide_file.return_value.__enter__.return_value.name = f.name
 
-            operator = GCSToS3Operator(
-                task_id=TASK_ID,
-                bucket=GCS_BUCKET,
-                prefix=PREFIX,
-                delimiter=DELIMITER,
-                dest_aws_conn_id="aws_default",
-                dest_s3_key=S3_BUCKET,
-                replace=True,
-            )
+            with pytest.deprecated_call():
+                operator = GCSToS3Operator(
+                    task_id=TASK_ID,
+                    bucket=GCS_BUCKET,
+                    prefix=PREFIX,
+                    delimiter=DELIMITER,
+                    dest_aws_conn_id="aws_default",
+                    dest_s3_key=S3_BUCKET,
+                    replace=True,
+                )
             hook, bucket = _create_test_bucket()
             for mock_file in MOCK_FILES[:2]:
                 bucket.put_object(Key=mock_file, Body=b"testing")
@@ -187,15 +218,16 @@ class TestGCSToS3Operator:
         s3_mock_hook.return_value = mock.Mock()
         s3_mock_hook.parse_s3_url.return_value = mock.Mock()
 
-        operator = GCSToS3Operator(
-            task_id=TASK_ID,
-            bucket=GCS_BUCKET,
-            prefix=PREFIX,
-            delimiter=DELIMITER,
-            dest_aws_conn_id="aws_default",
-            dest_s3_key=S3_BUCKET,
-            replace=True,
-        )
+        with pytest.deprecated_call():
+            operator = GCSToS3Operator(
+                task_id=TASK_ID,
+                bucket=GCS_BUCKET,
+                prefix=PREFIX,
+                delimiter=DELIMITER,
+                dest_aws_conn_id="aws_default",
+                dest_s3_key=S3_BUCKET,
+                replace=True,
+            )
         operator.execute(None)
         s3_mock_hook.assert_called_once_with(aws_conn_id="aws_default", extra_args={}, verify=None)
 
@@ -209,18 +241,19 @@ class TestGCSToS3Operator:
             s3_mock_hook.return_value = mock.Mock()
             s3_mock_hook.parse_s3_url.return_value = mock.Mock()
 
-            operator = GCSToS3Operator(
-                task_id=TASK_ID,
-                bucket=GCS_BUCKET,
-                prefix=PREFIX,
-                delimiter=DELIMITER,
-                dest_aws_conn_id="aws_default",
-                dest_s3_key=S3_BUCKET,
-                replace=True,
-                dest_s3_extra_args={
-                    "ContentLanguage": "value",
-                },
-            )
+            with pytest.deprecated_call():
+                operator = GCSToS3Operator(
+                    task_id=TASK_ID,
+                    bucket=GCS_BUCKET,
+                    prefix=PREFIX,
+                    delimiter=DELIMITER,
+                    dest_aws_conn_id="aws_default",
+                    dest_s3_key=S3_BUCKET,
+                    replace=True,
+                    dest_s3_extra_args={
+                        "ContentLanguage": "value",
+                    },
+                )
             operator.execute(None)
             s3_mock_hook.assert_called_once_with(
                 aws_conn_id="aws_default", extra_args={"ContentLanguage": "value"}, verify=None
@@ -235,16 +268,17 @@ class TestGCSToS3Operator:
             gcs_provide_file = mock_gcs_hook.return_value.provide_file
             gcs_provide_file.return_value.__enter__.return_value.name = f.name
 
-            operator = GCSToS3Operator(
-                task_id=TASK_ID,
-                bucket=GCS_BUCKET,
-                prefix=PREFIX,
-                delimiter=DELIMITER,
-                dest_aws_conn_id="aws_default",
-                dest_s3_key=S3_BUCKET,
-                replace=False,
-                s3_acl_policy=S3_ACL_POLICY,
-            )
+            with pytest.deprecated_call():
+                operator = GCSToS3Operator(
+                    task_id=TASK_ID,
+                    bucket=GCS_BUCKET,
+                    prefix=PREFIX,
+                    delimiter=DELIMITER,
+                    dest_aws_conn_id="aws_default",
+                    dest_s3_key=S3_BUCKET,
+                    replace=False,
+                    s3_acl_policy=S3_ACL_POLICY,
+                )
             _create_test_bucket()
             operator.execute(None)
 
@@ -259,16 +293,17 @@ class TestGCSToS3Operator:
             gcs_provide_file = mock_hook.return_value.provide_file
             gcs_provide_file.return_value.__enter__.return_value.name = f.name
 
-            operator = GCSToS3Operator(
-                task_id=TASK_ID,
-                bucket=GCS_BUCKET,
-                prefix=PREFIX,
-                delimiter=DELIMITER,
-                dest_aws_conn_id="aws_default",
-                dest_s3_key=S3_BUCKET,
-                replace=False,
-                keep_directory_structure=False,
-            )
+            with pytest.deprecated_call():
+                operator = GCSToS3Operator(
+                    task_id=TASK_ID,
+                    bucket=GCS_BUCKET,
+                    prefix=PREFIX,
+                    delimiter=DELIMITER,
+                    dest_aws_conn_id="aws_default",
+                    dest_s3_key=S3_BUCKET,
+                    replace=False,
+                    keep_directory_structure=False,
+                )
             hook, _ = _create_test_bucket()
 
             # we expect all except first file in MOCK_FILES to be uploaded

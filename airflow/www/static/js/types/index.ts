@@ -117,6 +117,7 @@ interface DepNode {
     isOpen?: boolean;
     isJoinNode?: boolean;
     childCount?: number;
+    setupTeardownType?: "setup" | "teardown";
   };
   children?: DepNode[];
 }

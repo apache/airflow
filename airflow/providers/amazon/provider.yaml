@@ -667,3 +667,6 @@ additional-extras:
   - name: aiobotocore
     dependencies:
       - aiobotocore[boto3]>=2.2.0
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=7.2.0
