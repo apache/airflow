@@ -44,10 +44,10 @@ class TaskOutletDatasetReferencePydantic(BaseModelPydantic):
     """
 
     dataset_id: int
-    dag_id = str
-    task_id = str
-    created_at = datetime
-    updated_at = datetime
+    dag_id: str
+    task_id: str
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         """Make sure it deals automatically with ORM classes of SQL Alchemy"""
