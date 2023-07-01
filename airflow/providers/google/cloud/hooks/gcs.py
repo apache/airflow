@@ -182,6 +182,7 @@ class GCSHook(GoogleBaseHook):
         source_object: str,
         destination_bucket: str | None = None,
         destination_object: str | None = None,
+        user_project: str | None = None,
     ) -> None:
         """
         Copies an object from a bucket to another, with renaming if requested.
@@ -195,6 +196,7 @@ class GCSHook(GoogleBaseHook):
             Can be omitted; then the same bucket is used.
         :param destination_object: The (renamed) path of the object if given.
             Can be omitted; then the same name is used.
+        :param user_project: The user project to be billed for the request.
         """
         destination_bucket = destination_bucket or source_bucket
         destination_object = destination_object or source_object
@@ -208,7 +210,7 @@ class GCSHook(GoogleBaseHook):
             raise ValueError("source_bucket and source_object cannot be empty.")
 
         client = self.get_conn()
-        source_bucket = client.bucket(source_bucket)
+        source_bucket = client.bucket(source_bucket, user_project=user_project)
         source_object = source_bucket.blob(source_object)  # type: ignore[attr-defined]
         destination_bucket = client.bucket(destination_bucket)
         destination_object = source_bucket.copy_blob(  # type: ignore[attr-defined]
@@ -259,24 +261,24 @@ class GCSHook(GoogleBaseHook):
             raise ValueError("source_bucket and source_object cannot be empty.")
 
         client = self.get_conn()
-        src_bucket = client.bucket(source_bucket)
-        src_blob = src_bucket.blob(blob_name=source_object)  # type: ignore[attr-defined]
-        dest_bucket = client.bucket(destination_bucket, user_project=user_project)
-        dest_blob = dest_bucket.blob(blob_name=destination_object)  # type: ignore[attr-defined]
+        source_bucket_obj = client.bucket(source_bucket)
+        source_blob = source_bucket_obj.blob(blob_name=source_object)  # type: ignore[attr-defined]
+        destination_bucket_obj = client.bucket(destination_bucket, user_project=user_project)
+        destination_blob = destination_bucket_obj.blob(blob_name=destination_object)  # type: ignore[attr-defined]
 
-        token, bytes_rewritten, total_bytes = dest_blob.rewrite(source=src_blob)
+        token, bytes_rewritten, total_bytes = destination_blob.rewrite(source=source_blob)
         self.log.info("Total Bytes: %s | Bytes Written: %s", total_bytes, bytes_rewritten)
 
         while token is not None:
-            token, bytes_rewritten, total_bytes = dest_blob.rewrite(source=src_blob, token=token)
+            token, bytes_rewritten, total_bytes = destination_blob.rewrite(source=source_blob, token=token)
             self.log.info("Total Bytes: %s | Bytes Written: %s", total_bytes, bytes_rewritten)
 
         self.log.info(
             "Object %s in bucket %s rewritten to object %s in bucket %s",
-            src_blob.name,  # type: ignore[attr-defined]
-            src_bucket.name,  # type: ignore[attr-defined]
-            dest_blob.name,  # type: ignore[attr-defined]
-            dest_bucket.name,  # type: ignore[attr-defined]
+            source_blob.name,  # type: ignore[attr-defined]
+            source_bucket_obj.name,  # type: ignore[attr-defined]
+            destination_blob.name,  # type: ignore[attr-defined]
+            destination_bucket_obj.name,  # type: ignore[attr-defined]
         )
 
     @overload
@@ -288,6 +290,7 @@ class GCSHook(GoogleBaseHook):
         chunk_size: int | None = None,
         timeout: int | None = DEFAULT_TIMEOUT,
         num_max_attempts: int | None = 1,
+        user_project: str | None = None,
     ) -> bytes:
         ...
 
@@ -300,6 +303,7 @@ class GCSHook(GoogleBaseHook):
         chunk_size: int | None = None,
         timeout: int | None = DEFAULT_TIMEOUT,
         num_max_attempts: int | None = 1,
+        user_project: str | None = None,
     ) -> str:
         ...
 
@@ -595,7 +599,7 @@ class GCSHook(GoogleBaseHook):
         :param user_project: (Optional) The project to be billed for this request.
         """
         client = self.get_conn()
-        bucket = client.bucket(bucket_name)
+        bucket = client.bucket(bucket_name, user_project=user_project)
         blob = bucket.blob(blob_name=object_name)
         return blob.exists(retry=retry)
 
@@ -921,6 +925,7 @@ class GCSHook(GoogleBaseHook):
         prefix: str | None = None,
         delimiter: str | None = None,
         match_glob: str | None = None,
+        user_project: str | None = None,
     ) -> List[str]:
         """
         List all objects from the bucket with the give string prefix in name that were
@@ -939,7 +944,7 @@ class GCSHook(GoogleBaseHook):
         :return: a stream of object names matching the filtering criteria
         """
         client = self.get_conn()
-        bucket = client.bucket(bucket_name)
+        bucket = client.bucket(bucket_name, user_project=user_project)
 
         ids = []
         page_token = None
@@ -982,7 +987,7 @@ class GCSHook(GoogleBaseHook):
                 break
         return ids
 
-    def get_size(self, bucket_name: str, object_name: str) -> int:
+    def get_size(self, bucket_name: str, object_name: str, user_project: str | None = None) -> int:
         """
         Gets the size of a file in Google Cloud Storage.
 
@@ -993,13 +998,13 @@ class GCSHook(GoogleBaseHook):
         """
         self.log.info("Checking the file size of object: %s in bucket_name: %s", object_name, bucket_name)
         client = self.get_conn()
-        bucket = client.bucket(bucket_name)
+        bucket = client.bucket(bucket_name, user_project=user_project)
         blob = bucket.get_blob(blob_name=object_name)
         blob_size = blob.size
         self.log.info("The file size of %s is %s bytes.", object_name, blob_size)
         return blob_size
 
-    def get_crc32c(self, bucket_name: str, object_name: str):
+    def get_crc32c(self, bucket_name: str, object_name: str, user_project: str | None = None) -> str:
         """
         Gets the CRC32c checksum of an object in Google Cloud Storage.
 
@@ -1013,13 +1018,13 @@ class GCSHook(GoogleBaseHook):
             bucket_name,
         )
         client = self.get_conn()
-        bucket = client.bucket(bucket_name)
+        bucket = client.bucket(bucket_name, user_project=user_project)
         blob = bucket.get_blob(blob_name=object_name)
         blob_crc32c = blob.crc32c
         self.log.info("The crc32c checksum of %s is %s", object_name, blob_crc32c)
         return blob_crc32c
 
-    def get_md5hash(self, bucket_name: str, object_name: str) -> str:
+    def get_md5hash(self, bucket_name: str, object_name: str, user_project: str | None = None) -> str:
         """
         Gets the MD5 hash of an object in Google Cloud Storage.
 
@@ -1029,7 +1034,7 @@ class GCSHook(GoogleBaseHook):
         """
         self.log.info("Retrieving the MD5 hash of object: %s in bucket: %s", object_name, bucket_name)
         client = self.get_conn()
-        bucket = client.bucket(bucket_name)
+        bucket = client.bucket(bucket_name, user_project=user_project)
         blob = bucket.get_blob(blob_name=object_name)
         blob_md5hash = blob.md5_hash
         self.log.info("The md5Hash of %s is %s", object_name, blob_md5hash)
@@ -1170,7 +1175,13 @@ class GCSHook(GoogleBaseHook):
 
         self.log.info("A new ACL entry created for object: %s in bucket: %s", object_name, bucket_name)
 
-    def compose(self, bucket_name: str, source_objects: List[str], destination_object: str) -> None:
+    def compose(
+        self,
+        bucket_name: str,
+        source_objects: List[str],
+        destination_object: str,
+        user_project: str | None = None,
+    ) -> None:
         """
         Composes a list of existing object into a new object in the same storage bucket_name.
 
@@ -1193,7 +1204,7 @@ class GCSHook(GoogleBaseHook):
 
         self.log.info("Composing %s to %s in the bucket %s", source_objects, destination_object, bucket_name)
         client = self.get_conn()
-        bucket = client.bucket(bucket_name)
+        bucket = client.bucket(bucket_name, user_project=user_project)
         destination_blob = bucket.blob(destination_object)
         destination_blob.compose(
             sources=[bucket.blob(blob_name=source_object) for source_object in source_objects]
@@ -1210,6 +1221,7 @@ class GCSHook(GoogleBaseHook):
         recursive: bool = True,
         allow_overwrite: bool = False,
         delete_extra_files: bool = False,
+        user_project: str | None = None,
     ) -> None:
         """
         Synchronizes the contents of the buckets.
@@ -1235,13 +1247,14 @@ class GCSHook(GoogleBaseHook):
 
             .. note::
                 This option can delete data quickly if you specify the wrong source/destination combination.
+        :param user_project: (Optional) The project to be billed for all requests made from this method.
 
         :return: none
         """
         client = self.get_conn()
         # Create bucket object
-        source_bucket_obj = client.bucket(source_bucket)
-        destination_bucket_obj = client.bucket(destination_bucket)
+        source_bucket_obj = client.bucket(source_bucket, user_project=user_project)
+        destination_bucket_obj = client.bucket(destination_bucket,)
         # Normalize parameters when they are passed
         source_object = normalize_directory_path(source_object)
         destination_object = normalize_directory_path(destination_object)
@@ -1277,6 +1290,7 @@ class GCSHook(GoogleBaseHook):
                     source_object=blob.name,
                     destination_bucket=destination_bucket_obj.name,
                     destination_object=dst_object,
+                    user_project=user_project,
                 )
             self.log.info("Blobs copied.")
         # Delete redundant files
@@ -1285,7 +1299,7 @@ class GCSHook(GoogleBaseHook):
         elif delete_extra_files:
             # TODO: Add batch. I tried to do it, but the Google library is not stable at the moment.
             for blob in to_delete_blobs:
-                self.delete(blob.bucket.name, blob.name)
+                self.delete(blob.bucket.name, blob.name, user_project=user_project)
             self.log.info("Blobs deleted.")
 
         # Overwrite files that are different
@@ -1301,6 +1315,7 @@ class GCSHook(GoogleBaseHook):
                     source_object=blob.name,
                     destination_bucket=destination_bucket_obj.name,
                     destination_object=dst_object,
+                    user_project=user_project,
                 )
             self.log.info("Blobs rewritten.")
 
