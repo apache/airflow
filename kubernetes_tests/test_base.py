@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 import tempfile
 import time
@@ -26,6 +25,7 @@ from pathlib import Path
 from subprocess import check_call, check_output
 
 import pytest
+import re2
 import requests
 import requests.exceptions
 from requests.adapters import HTTPAdapter
@@ -103,7 +103,7 @@ class BaseK8STest:
     def _num_pods_in_namespace(namespace):
         air_pod = check_output(["kubectl", "get", "pods", "-n", namespace]).decode()
         air_pod = air_pod.split("\n")
-        names = [re.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" in x]
+        names = [re2.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" in x]
         return len(names)
 
     @staticmethod
@@ -111,7 +111,7 @@ class BaseK8STest:
         suffix = "-" + name if name else ""
         air_pod = check_output(["kubectl", "get", "pods"]).decode()
         air_pod = air_pod.split("\n")
-        names = [re.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" + suffix in x]
+        names = [re2.compile(r"\s+").split(x)[0] for x in air_pod if "airflow" + suffix in x]
         if names:
             check_call(["kubectl", "delete", "pod", names[0]])
 

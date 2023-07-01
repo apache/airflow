@@ -929,6 +929,14 @@ repos:
         language: python
         pass_filenames: true
         files: ^tests/.*\.py$
+      - id: check-usage-of-re2-over-re
+        language: pygrep
+        name: Use re2 over re
+        description: Use re2 module instead of re
+        entry: "^\\s*from re\\s|^\\s*import re\\s"
+        pass_filenames: true
+        files: \.py$
+        exclude: ^airflow/providers|^dev/.*\.py$|^scripts/.*\.py$|^tests/|^docker_tests/|^docs/.*\.py$|^airflow/utils/helpers.py$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev
