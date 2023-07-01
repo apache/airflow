@@ -21,11 +21,10 @@ import os
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.google.cloud.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
 from airflow.providers.microsoft.azure.sensors.wasb import (
     WasbBlobSensor,
-    WasbPrefixSensor,
 )
-from airflow.providers.google.cloud.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
 
 # Ignore missing args provided by default_args
 # type: ignore[call-arg]
@@ -43,8 +42,10 @@ with DAG(
     schedule=None,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
 ) as dag:
-    wait_for_blob = WasbBlobSensor(task_id="wait_for_blob", container_name=AZURE_CONTAINER_NAME, blob_name=BLOB_NAME)
-    
+    wait_for_blob = WasbBlobSensor(
+        task_id="wait_for_blob", container_name=AZURE_CONTAINER_NAME, blob_name=BLOB_NAME
+    )
+
     # [START how_to_azure_blob_to_gcs]
     transfer_files_to_gcs = AzureBlobStorageToGCSOperator(
         task_id="transfer_files_to_gcs",
@@ -60,10 +61,7 @@ with DAG(
     )
     # [END how_to_azure_blob_to_gcs]
 
-    (
-        wait_for_blob
-        >> transfer_files_to_gcs
-    )
+    (wait_for_blob >> transfer_files_to_gcs)
 
     from tests.system.utils.watcher import watcher
 

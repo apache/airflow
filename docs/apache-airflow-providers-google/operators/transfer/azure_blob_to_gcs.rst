@@ -31,7 +31,7 @@ Use the :class:`~airflow.providers.google.cloud.transfers.azure_blob_to_gcs.Azur
 to transfer data from Azure Blob Storage to Google Cloud Storage.
 
 Transfer Data from Azure Blob Storage to Google Cloud Storage
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Operator transfers data from Azure Blob Storage to specified bucket in Google Cloud Storage
 
 To get information about jobs within a Azure Blob Storage use:
@@ -39,7 +39,7 @@ To get information about jobs within a Azure Blob Storage use:
 
 Example usage:
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/example_azure_blob_to_gcs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/azure/example_azure_blob_to_gcs.py
     :language: python
     :start-after: [START how_to_azure_blob_to_gcs]
     :end-before: [END how_to_azure_blob_to_gcs]
