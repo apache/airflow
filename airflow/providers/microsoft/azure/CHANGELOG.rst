@@ -24,6 +24,30 @@
 Changelog for ``apache-airflow-providers-microsoft-azure``
 ----------------------------------------------------------
 
+6.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adds connection test for ADLS Gen2  (#32126)``
+* ``Add option to pass extra configs to ClientSecretCredential  (#31783)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Cancel pipeline if unexpected exception caught (#32238)``
+* ``Fix where account url is build if not provided using login (account name) (#32082)``
+
+Misc
+~~~~
+
+* ``Doc changes: Added Transfers section in Azure provider docs (#32241)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve provider documentation and README structure (#32125)``
+
 6.1.2
 .....
 

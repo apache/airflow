@@ -23,6 +23,19 @@
 Changelog for ``apache-airflow-providers-apache-kafka``
 -------------------------------------------------------
 
+1.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Break AwaitMessageTrigger execution when finding a message with the desired format (#31803)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 1.1.1
 .....
 

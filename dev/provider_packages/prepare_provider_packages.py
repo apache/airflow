@@ -2014,7 +2014,12 @@ def generate_new_changelog(package_id, provider_details, changelog_path, changes
             template_name="UPDATE_CHANGELOG", context=context, extension=".rst"
         )
     else:
-        classified_changes = get_changes_classified(changes[0])
+        if changes:
+            classified_changes = get_changes_classified(changes[0])
+        else:
+            # change log exist but without version 1.0.0 entry
+            classified_changes = None
+
         context = {
             "version": latest_version,
             "version_header": "." * len(latest_version),
