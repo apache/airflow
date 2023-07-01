@@ -65,7 +65,7 @@ class LambdaHook(AwsBaseHook):
         :param payload: The JSON that you want to provide to your Lambda function as input.
         :param qualifier: AWS Lambda Function Version or Alias Name
         """
-        if type(payload) == str:
+        if isinstance(payload, str):
             payload = payload.encode()
 
         invoke_args = {
