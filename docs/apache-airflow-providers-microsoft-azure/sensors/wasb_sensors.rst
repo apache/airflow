@@ -21,7 +21,7 @@ The Blob service stores text and binary data as objects in the cloud.
 The Blob service offers the following three resources: the storage account, containers, and blobs.
 Within your storage account, containers provide a way to organize sets of blobs.
 For more information about the service visit `Azure Blob Storage API documentation <https://docs.microsoft.com/en-us/rest/api/storageservices/blob-service-rest-api>`_.
-This page shows how to check for blobs in a particular container. 
+This page shows how to check for blobs in a particular container.
 
 Wasb Blob Sensor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -17,9 +17,9 @@
 
 Azure Cosmos DB
 ==================
-Cosmos Database (DB) is a globally distributed, low latency, multi-model database for managing data at large scales. 
-It is a cloud-based NoSQL database offered as a PaaS (Platform as a Service) from Microsoft Azure. 
-It is a highly available, high throughput, reliable database and is often called a serverless database. 
+Cosmos Database (DB) is a globally distributed, low latency, multi-model database for managing data at large scales.
+It is a cloud-based NoSQL database offered as a PaaS (Platform as a Service) from Microsoft Azure.
+It is a highly available, high throughput, reliable database and is often called a serverless database.
 Cosmos database contains the Azure Document DB and is available everywhere.
 
 Azure Cosmos Document Sensor

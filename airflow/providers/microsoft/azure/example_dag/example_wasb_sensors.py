@@ -50,7 +50,7 @@ with DAG(
         task_id="wasb_sense_blob",
     )
     # [END wasb_blob_sensor]
-    
+
     # [START wasb_prefix_sensor]
     azure_wasb_prefix_sensor = WasbPrefixSensor(
         container_name=CONTAINER_NAME,
