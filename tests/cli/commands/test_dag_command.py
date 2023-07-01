@@ -394,16 +394,18 @@ class TestCliDags:
         """
         start_date = DEFAULT_DATE + timedelta(days=1)
         end_date = start_date + timedelta(days=1)
-        cli_args = self.parser.parse_args([
-            "dags",
-            "backfill",
-            "example_workday_timetable",
-            "--start-date",
-            start_date.isoformat(),
-            "--end-date",
-            end_date.isoformat(),
-            "--dry-run"
-        ])
+        cli_args = self.parser.parse_args(
+            [
+                "dags",
+                "backfill",
+                "example_workday_timetable",
+                "--start-date",
+                start_date.isoformat(),
+                "--end-date",
+                end_date.isoformat(),
+                "--dry-run",
+            ]
+        )
         dag_command.dag_backfill(cli_args)
         assert "data_interval" in mock_dagrun.call_args.kwargs
 

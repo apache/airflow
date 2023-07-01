@@ -510,15 +510,7 @@ class TestCliTasks:
         mock_query.side_effect = sqlalchemy.exc.NoResultFound
 
         task_command.task_render(
-            self.parser.parse_args(
-                [
-                    "tasks",
-                    "render",
-                    "example_workday_timetable",
-                    "run_this",
-                    "2022-01-01"
-                ]
-            )
+            self.parser.parse_args(["tasks", "render", "example_workday_timetable", "run_this", "2022-01-01"])
         )
         assert "data_interval" in mock_dagrun.call_args.kwargs
 
