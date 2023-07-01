@@ -27,6 +27,8 @@ Prerequisite Tasks
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+.. _howto/operator:AzureBlobStorageToGCSOperator:
+
 Use the :class:`~airflow.providers.google.cloud.transfers.azure_blob_to_gcs.AzureBlobStorageToGCSOperator`
 to transfer data from Azure Blob Storage to Google Cloud Storage.
 
