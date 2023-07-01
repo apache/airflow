@@ -91,7 +91,7 @@ class TestOtelMetrics:
         self.meter.assert_not_called()
 
     def test_old_name_exception_works(self, caplog):
-        name = "task_instance_created-OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit"
+        name = "task_instance_created_OperatorNameWhichIsSuperLongAndExceedsTheOpenTelemetryCharacterLimit"
         assert len(name) > OTEL_NAME_MAX_LENGTH
 
         with pytest.warns(MetricNameLengthExemptionWarning):

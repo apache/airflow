@@ -19,10 +19,18 @@
 ``apache-airflow-providers-smtp``
 =================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -31,6 +39,7 @@ Content
     Python API <_api/airflow/providers/smtp/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -41,6 +50,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -78,5 +88,3 @@ PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.4.0``
 ==================  ==================
-
-.. include:: ../../airflow/providers/smtp/CHANGELOG.rst

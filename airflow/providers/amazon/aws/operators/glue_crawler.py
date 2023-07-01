@@ -32,9 +32,11 @@ from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 
 class GlueCrawlerOperator(BaseOperator):
     """
-    Creates, updates and triggers an AWS Glue Crawler. AWS Glue Crawler is a serverless
-    service that manages a catalog of metadata tables that contain the inferred
-    schema, format and data types of data stores within the AWS cloud.
+    Creates, updates and triggers an AWS Glue Crawler.
+
+    AWS Glue Crawler is a serverless service that manages a catalog of
+    metadata tables that contain the inferred schema, format and data
+    types of data stores within the AWS cloud.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

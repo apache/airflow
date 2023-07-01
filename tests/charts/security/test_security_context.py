@@ -211,6 +211,46 @@ class TestSecurityContext:
             )
 
     # Test securityContexts for main containers
+    def test_global_security_context(self):
+        ctx_value_pod = {"runAsUser": 7000}
+        ctx_value_container = {"allowPrivilegeEscalation": False}
+        docs = render_chart(
+            values={"securityContexts": {"containers": ctx_value_container, "pod": ctx_value_pod}},
+            show_only=[
+                "templates/flower/flower-deployment.yaml",
+                "templates/scheduler/scheduler-deployment.yaml",
+                "templates/webserver/webserver-deployment.yaml",
+                "templates/workers/worker-deployment.yaml",
+                "templates/jobs/create-user-job.yaml",
+                "templates/jobs/migrate-database-job.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/statsd/statsd-deployment.yaml",
+                "templates/redis/redis-statefulset.yaml",
+            ],
+        )
+
+        for index in range(len(docs) - 2):
+            assert ctx_value_container == jmespath.search(
+                "spec.template.spec.containers[0].securityContext", docs[index]
+            )
+            assert ctx_value_pod == jmespath.search("spec.template.spec.securityContext", docs[index])
+
+        # Global security context is not propagated to redis and statsd, so we test default value
+        default_ctx_value_container = {"allowPrivilegeEscalation": False, "capabilities": {"drop": ["ALL"]}}
+        default_ctx_value_pod_statsd = {"runAsUser": 65534}
+        default_ctx_value_pod_redis = {"runAsUser": 0}
+        for index in range(len(docs) - 2, len(docs)):
+            assert default_ctx_value_container == jmespath.search(
+                "spec.template.spec.containers[0].securityContext", docs[index]
+            )
+        assert default_ctx_value_pod_statsd == jmespath.search(
+            "spec.template.spec.securityContext", docs[len(docs) - 2]
+        )
+        assert default_ctx_value_pod_redis == jmespath.search(
+            "spec.template.spec.securityContext", docs[len(docs) - 1]
+        )
+
+    # Test securityContexts for main containers
     def test_main_container_setting(self):
         ctx_value = {"allowPrivilegeEscalation": False}
         security_context = {"securityContexts": {"container": ctx_value}}

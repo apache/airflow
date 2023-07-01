@@ -54,7 +54,7 @@ CLUSTER = {
 }
 BATCH = {"batch": "test-batch"}
 BATCH_ID = "batch-id"
-BATCH_NAME = "projects/{}/regions/{}/batches/{}"
+BATCH_NAME = "projects/{}/locations/{}/batches/{}"
 PARENT = "projects/{}/regions/{}"
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"

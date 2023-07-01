@@ -55,7 +55,8 @@ def triggerer(args):
     """Starts Airflow Triggerer."""
     settings.MASK_SECRETS_IN_LOGS = True
     print(settings.HEADER)
-    triggerer_job_runner = TriggererJobRunner(job=Job(), capacity=args.capacity)
+    triggerer_heartrate = conf.getfloat("triggerer", "JOB_HEARTBEAT_SEC")
+    triggerer_job_runner = TriggererJobRunner(job=Job(heartrate=triggerer_heartrate), capacity=args.capacity)
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations(

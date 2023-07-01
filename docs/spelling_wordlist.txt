@@ -486,6 +486,7 @@ Drivy
 dropdown
 druidHook
 ds
+dsl
 Dsn
 dsn
 dttm
@@ -598,6 +599,7 @@ fn
 fo
 followsa
 formatter
+formatters
 Formaturas
 forwardability
 forwardable
@@ -861,6 +863,7 @@ kwargs
 KYLIN
 Kylin
 kylin
+Lakehouse
 LanguageServiceClient
 lastname
 latencies
@@ -1356,6 +1359,7 @@ sourceArchiveUrl
 sourceRepository
 sourceUploadUrl
 Spark
+sparkappinfo
 sparkApplication
 sparkcmd
 SparkPi
@@ -1423,7 +1427,7 @@ Subdirectory
 subdirectory
 subfolder
 subfolders
-Submodules
+submodule
 submodules
 subnet
 subnets

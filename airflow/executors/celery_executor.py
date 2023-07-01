@@ -295,6 +295,7 @@ class CeleryExecutor(BaseExecutor):
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
+
         Tasks can get stuck in queued. If such a task is detected, it will be marked
         as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
         if it doesn't.

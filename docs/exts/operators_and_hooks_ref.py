@@ -100,7 +100,7 @@ def _prepare_operators_data(tags: set[str] | None):
 
     all_operators_by_integration = _prepare_resource_index(package_data, "operators")
     all_hooks_by_integration = _prepare_resource_index(package_data, "hooks")
-    all_sensors_by_integration = _prepare_resource_index(package_data, "hooks")
+    all_sensors_by_integration = _prepare_resource_index(package_data, "sensors")
     results = []
 
     for integration in to_display_integration:
@@ -116,7 +116,7 @@ def _prepare_operators_data(tags: set[str] | None):
         if operators:
             item["operators"] = operators
         if sensors:
-            item["hooks"] = sensors
+            item["sensors"] = sensors
         if hooks:
             item["hooks"] = hooks
         if operators or sensors or hooks:

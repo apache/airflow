@@ -121,7 +121,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.dagProcessor.extraVolumeMounts }}
-              {{- toYaml .Values.dagProcessor.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.dagProcessor.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- include "airflow_config_mount" . | nindent 12 }}
           args: {{- include "wait-for-migrations-command" . | indent 10 }}

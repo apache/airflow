@@ -27,7 +27,10 @@ from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
 
 # Use dummy AWS credentials
-from airflow.providers.amazon.aws.triggers.batch import BatchOperatorTrigger
+from airflow.providers.amazon.aws.triggers.batch import (
+    BatchCreateComputeEnvironmentTrigger,
+    BatchOperatorTrigger,
+)
 
 AWS_REGION = "eu-west-1"
 AWS_ACCESS_KEY_ID = "airflow_dummy_key"
@@ -326,3 +329,26 @@ class TestBatchCreateComputeEnvironmentOperator:
             computeResources=compute_resources,
             tags=tags,
         )
+
+    @mock.patch.object(BatchClientHook, "client")
+    def test_defer(self, client_mock):
+        client_mock.create_compute_environment.return_value = {"computeEnvironmentArn": "my_arn"}
+
+        operator = BatchCreateComputeEnvironmentOperator(
+            task_id="task",
+            compute_environment_name="my_env_name",
+            environment_type="my_env_type",
+            state="my_state",
+            compute_resources={},
+            max_retries=123456,
+            poll_interval=456789,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as deferred:
+            operator.execute(None)
+
+        assert isinstance(deferred.value.trigger, BatchCreateComputeEnvironmentTrigger)
+        assert deferred.value.trigger.compute_env_arn == "my_arn"
+        assert deferred.value.trigger.poll_interval == 456789
+        assert deferred.value.trigger.max_retries == 123456

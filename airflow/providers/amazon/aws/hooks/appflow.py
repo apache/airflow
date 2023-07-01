@@ -29,6 +29,7 @@ if TYPE_CHECKING:
 class AppflowHook(AwsBaseHook):
     """
     Interact with Amazon Appflow.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("appflow") <Appflow.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -80,8 +81,7 @@ class AppflowHook(AwsBaseHook):
         self, flow_name: str, filter_tasks: list[TaskTypeDef], set_trigger_ondemand: bool = False
     ) -> None:
         """
-        Update the flow task filter.
-        All filters will be removed if an empty array is passed to filter_tasks.
+        Update the flow task filter; all filters will be removed if an empty array is passed to filter_tasks.
 
         :param flow_name: The flow name
         :param filter_tasks: List flow tasks to be added

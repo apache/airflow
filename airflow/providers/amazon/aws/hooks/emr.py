@@ -32,6 +32,7 @@ from airflow.utils.helpers import prune_dict
 class EmrHook(AwsBaseHook):
     """
     Interact with Amazon Elastic MapReduce Service (EMR).
+
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("emr") <EMR.Client>`.
 
     :param emr_conn_id: :ref:`Amazon Elastic MapReduce Connection <howto/connection:emr>`.
@@ -57,8 +58,7 @@ class EmrHook(AwsBaseHook):
 
     def get_cluster_id_by_name(self, emr_cluster_name: str, cluster_states: list[str]) -> str | None:
         """
-        Fetch id of EMR cluster with given name and (optional) states.
-        Will return only if single id is found.
+        Fetch id of EMR cluster with given name and (optional) states; returns only if single id is found.
 
         .. seealso::
             - :external+boto3:py:meth:`EMR.Client.list_clusters`
@@ -185,7 +185,6 @@ class EmrHook(AwsBaseHook):
         """
         Return failed state for test Amazon Elastic MapReduce Connection (untestable).
 
-
         We need to overwrite this method because this hook is based on
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`,
         otherwise it will try to test connection to AWS STS by using the default boto3 credential strategy.
@@ -234,6 +233,7 @@ class EmrHook(AwsBaseHook):
 class EmrServerlessHook(AwsBaseHook):
     """
     Interact with Amazon EMR Serverless.
+
     Provide thin wrapper around :py:class:`boto3.client("emr-serverless") <EMRServerless.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -258,8 +258,8 @@ class EmrServerlessHook(AwsBaseHook):
 
     def cancel_running_jobs(self, application_id: str, waiter_config: dict = {}):
         """
-        List all jobs in an intermediate state and cancel them.
-        Then wait for those jobs to reach a terminal state.
+        List all jobs in an intermediate state, cancel them, then wait for those jobs to reach terminal state.
+
         Note: if new jobs are triggered while this operation is ongoing,
         it's going to time out and return an error.
         """
@@ -296,6 +296,7 @@ class EmrServerlessHook(AwsBaseHook):
 class EmrContainerHook(AwsBaseHook):
     """
     Interact with Amazon EMR Containers (Amazon EMR on EKS).
+
     Provide thick wrapper around :py:class:`boto3.client("emr-containers") <EMRContainers.Client>`.
 
     :param virtual_cluster_id: Cluster ID of the EMR on EKS virtual cluster
@@ -367,6 +368,7 @@ class EmrContainerHook(AwsBaseHook):
     ) -> str:
         """
         Submit a job to the EMR Containers API and return the job ID.
+
         A job run is a unit of work, such as a Spark jar, PySpark script,
         or SparkSQL query, that you submit to Amazon EMR on EKS.
 
@@ -464,8 +466,7 @@ class EmrContainerHook(AwsBaseHook):
         max_polling_attempts: int | None = None,
     ) -> str | None:
         """
-        Poll the status of submitted job run until query state reaches final state.
-        Returns one of the final states.
+        Poll the status of submitted job run until query state reaches final state; returns the final state.
 
         :param job_id: The ID of the job run request.
         :param poll_interval: Time (in seconds) to wait between calls to check query status on EMR

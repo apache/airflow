@@ -46,8 +46,7 @@ class BaseJobRunner(Generic[J]):
 
     def _execute(self) -> int | None:
         """
-        Executes the logic connected to the runner. This method should be
-        overridden by subclasses.
+        Executes the logic connected to the runner. This method should be overridden by subclasses.
 
         :meta private:
         :return: return code if available, otherwise None
