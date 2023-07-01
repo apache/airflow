@@ -574,3 +574,31 @@ class TestTriggererServiceAccount:
 class TestTriggererLogGroomer(LogGroomerTestBase):
     obj_name = "triggerer"
     folder = "triggerer"
+
+
+class TestTriggererKedaAutoScaler:
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "keda": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_should_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "keda": {"enabled": True},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert "replicas" not in jmespath.search("spec", docs[0])
