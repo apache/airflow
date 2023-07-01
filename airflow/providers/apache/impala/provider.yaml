@@ -28,7 +28,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - impyla>=0.18.0,<1.0
+  - impyla[kerberos]>=0.18.0,<1.0
   - apache-airflow>=2.4.0
 
 integrations:
