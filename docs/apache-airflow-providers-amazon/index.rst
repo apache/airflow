@@ -34,6 +34,7 @@
     :caption: Guides
 
     Connection types <connections/index>
+    Notifications <notifications/index>
     Operators <operators/index>
     Transfers <transfer/index>
     Deferrable Operators <deferrable>

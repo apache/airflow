@@ -119,7 +119,14 @@ from airflow.utils.decorators import fixup_decorator_warning_stack
 from airflow.utils.helpers import at_most_one, exactly_one, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import (
+    Interval,
+    UtcDateTime,
+    lock_rows,
+    skip_locked,
+    tuple_in_condition,
+    with_row_locks,
+)
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
 
@@ -900,7 +907,9 @@ class DAG(LoggingMixin):
         this method only considers ``schedule_interval`` values valid prior to
         Airflow 2.2.
 
-        DO NOT use this method is there is a known data interval.
+        DO NOT call this method if there is a known data interval.
+
+        :meta private:
         """
         timetable_type = type(self.timetable)
         if issubclass(timetable_type, (NullTimetable, OnceTimetable, DatasetTriggeredTimetable)):
@@ -910,6 +919,12 @@ class DAG(LoggingMixin):
             end = cast(CronDataIntervalTimetable, self.timetable)._get_next(start)
         elif issubclass(timetable_type, DeltaDataIntervalTimetable):
             end = cast(DeltaDataIntervalTimetable, self.timetable)._get_next(start)
+        # Contributors: When the exception below is raised, you might want to
+        # add an 'elif' block here to handle custom timetables. Stop! The bug
+        # you're looking for is instead at when the DAG run (represented by
+        # logical_date) was created. See GH-31969 for an example:
+        # * Wrong fix: GH-32074 (modifies this function).
+        # * Correct fix: GH-32118 (modifies the DAG run creation code).
         else:
             raise ValueError(f"Not a valid timetable: {self.timetable!r}")
         return DataInterval(start, end)
@@ -2003,7 +2018,6 @@ class DAG(LoggingMixin):
 
         tasks_to_set_state: list[BaseOperator | tuple[BaseOperator, int]] = []
         task_ids: list[str] = []
-        locked_dag_run_ids: list[int] = []
 
         if execution_date is None:
             dag_run = session.scalars(
@@ -2022,57 +2036,52 @@ class DAG(LoggingMixin):
             raise ValueError("TaskGroup {group_id} could not be found")
         tasks_to_set_state = [task for task in task_group.iter_tasks() if isinstance(task, BaseOperator)]
         task_ids = [task.task_id for task in task_group.iter_tasks()]
-        dag_runs_query = session.query(DagRun.id).where(DagRun.dag_id == self.dag_id).with_for_update()
 
+        dag_runs_query = session.query(DagRun.id).where(DagRun.dag_id == self.dag_id)
         if start_date is None and end_date is None:
             dag_runs_query = dag_runs_query.where(DagRun.execution_date == start_date)
         else:
             if start_date is not None:
                 dag_runs_query = dag_runs_query.where(DagRun.execution_date >= start_date)
-
             if end_date is not None:
                 dag_runs_query = dag_runs_query.where(DagRun.execution_date <= end_date)
 
-        locked_dag_run_ids = dag_runs_query.all()
+        with lock_rows(dag_runs_query, session):
+            altered = set_state(
+                tasks=tasks_to_set_state,
+                execution_date=execution_date,
+                run_id=run_id,
+                upstream=upstream,
+                downstream=downstream,
+                future=future,
+                past=past,
+                state=state,
+                commit=commit,
+                session=session,
+            )
+            if not commit:
+                return altered
 
-        altered = set_state(
-            tasks=tasks_to_set_state,
-            execution_date=execution_date,
-            run_id=run_id,
-            upstream=upstream,
-            downstream=downstream,
-            future=future,
-            past=past,
-            state=state,
-            commit=commit,
-            session=session,
-        )
+            # Clear downstream tasks that are in failed/upstream_failed state to resume them.
+            # Flush the session so that the tasks marked success are reflected in the db.
+            session.flush()
+            task_subset = self.partial_subset(
+                task_ids_or_regex=task_ids,
+                include_downstream=True,
+                include_upstream=False,
+            )
 
-        if not commit:
-            del locked_dag_run_ids
-            return altered
+            task_subset.clear(
+                start_date=start_date,
+                end_date=end_date,
+                include_subdags=True,
+                include_parentdag=True,
+                only_failed=True,
+                session=session,
+                # Exclude the task from the current group from being cleared
+                exclude_task_ids=frozenset(task_ids),
+            )
 
-        # Clear downstream tasks that are in failed/upstream_failed state to resume them.
-        # Flush the session so that the tasks marked success are reflected in the db.
-        session.flush()
-        task_subset = self.partial_subset(
-            task_ids_or_regex=task_ids,
-            include_downstream=True,
-            include_upstream=False,
-        )
-
-        task_subset.clear(
-            start_date=start_date,
-            end_date=end_date,
-            include_subdags=True,
-            include_parentdag=True,
-            only_failed=True,
-            session=session,
-            # Exclude the task from the current group from being cleared
-            exclude_task_ids=frozenset(task_ids),
-        )
-
-        del locked_dag_run_ids
         return altered
 
     @property

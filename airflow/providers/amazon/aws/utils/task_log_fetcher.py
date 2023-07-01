@@ -29,10 +29,7 @@ from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
 
 class AwsTaskLogFetcher(Thread):
-    """
-    Fetches Cloudwatch log events with specific interval as a thread
-    and sends the log events to the info channel of the provided logger.
-    """
+    """Fetch Cloudwatch log events with specific interval and send the log events to the logger.info."""
 
     def __init__(
         self,
@@ -95,7 +92,9 @@ class AwsTaskLogFetcher(Thread):
 
     def get_last_log_messages(self, number_messages) -> list:
         """
-        Gets the last logs messages in one single request, so restrictions apply:
+        Gets the last logs messages in one single request.
+
+         NOTE: some restrictions apply:
          - if logs are too old, the response will be empty
          - the max number of messages we can retrieve is constrained by cloudwatch limits (10,000).
         """

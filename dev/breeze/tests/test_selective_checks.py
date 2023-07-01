@@ -994,6 +994,7 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
                 "--package-filter apache-airflow-providers-microsoft-mssql "
                 "--package-filter apache-airflow-providers-mysql "
                 "--package-filter apache-airflow-providers-odbc "
+                "--package-filter apache-airflow-providers-openlineage "
                 "--package-filter apache-airflow-providers-oracle "
                 "--package-filter apache-airflow-providers-postgres "
                 "--package-filter apache-airflow-providers-presto "
@@ -1022,6 +1023,20 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
                 "--package-filter apache-airflow-providers-http",
             },
             id="Airbyte provider and airflow core docs changed",
+        ),
+        pytest.param(
+            (
+                "docs/apache-airflow-providers-airbyte/docs.rst",
+                "docs/apache-airflow/docs.rst",
+                "docs/apache-airflow-providers/docs.rst",
+            ),
+            {
+                "docs-filter-list-as-string": "--package-filter apache-airflow "
+                "--package-filter apache-airflow-providers "
+                "--package-filter apache-airflow-providers-airbyte "
+                "--package-filter apache-airflow-providers-http",
+            },
+            id="Airbyte provider and airflow core and common provider docs changed",
         ),
         pytest.param(
             ("docs/apache-airflow/docs.rst",),
