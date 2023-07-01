@@ -60,6 +60,7 @@ with models.DAG(
         task_id="create_bucket_src",
         bucket_name=BUCKET_NAME_SRC,
         project_id=PROJECT_ID,
+        resource={"billing": {"requesterPays": True}},
     )
 
     create_bucket_dst = GCSCreateBucketOperator(
@@ -73,10 +74,13 @@ with models.DAG(
         src=UPLOAD_FILE_PATH,
         dst=FILE_NAME,
         bucket=BUCKET_NAME_SRC,
+        user_project=PROJECT_ID,
     )
 
     # [START howto_operator_gcs_list_bucket]
-    list_buckets = GCSListObjectsOperator(task_id="list_buckets", bucket=BUCKET_NAME_SRC)
+    list_buckets = GCSListObjectsOperator(
+        task_id="list_buckets", bucket=BUCKET_NAME_SRC, user_project=PROJECT_ID
+    )
     # [END howto_operator_gcs_list_bucket]
 
     list_buckets_result = BashOperator(
@@ -90,16 +94,20 @@ with models.DAG(
         source_object=FILE_NAME,
         destination_bucket=BUCKET_NAME_DST,
         destination_object=FILE_NAME,
+        source_bucket_user_project=PROJECT_ID,
     )
 
     # [START howto_operator_gcs_delete_object]
     delete_files = GCSDeleteObjectsOperator(
-        task_id="delete_files", bucket_name=BUCKET_NAME_SRC, objects=[FILE_NAME]
+        task_id="delete_files", bucket_name=BUCKET_NAME_SRC, objects=[FILE_NAME], user_project=PROJECT_ID
     )
     # [END howto_operator_gcs_delete_object]
 
     delete_bucket_src = GCSDeleteBucketOperator(
-        task_id="delete_bucket_src", bucket_name=BUCKET_NAME_SRC, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket_src",
+        bucket_name=BUCKET_NAME_SRC,
+        trigger_rule=TriggerRule.ALL_DONE,
+        user_project=PROJECT_ID,
     )
     delete_bucket_dst = GCSDeleteBucketOperator(
         task_id="delete_bucket_dst", bucket_name=BUCKET_NAME_DST, trigger_rule=TriggerRule.ALL_DONE

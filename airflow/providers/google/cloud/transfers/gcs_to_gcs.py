@@ -93,6 +93,8 @@ class GCSToGCSOperator(BaseOperator):
         copied.
     :param match_glob: (Optional) filters objects based on the glob pattern given by the string (
         e.g, ``'**/*/.json'``)
+    :param source_bucket_user_project: (Optional) The project to bill when accessing the source bucket.
+        Required when the source bucket is Requester Pays bucket.
 
     :Example:
 
@@ -172,6 +174,7 @@ class GCSToGCSOperator(BaseOperator):
         "destination_object",
         "delimiter",
         "impersonation_chain",
+        "source_bucket_user_project",
     )
     ui_color = "#f0eee4"
 
@@ -194,6 +197,7 @@ class GCSToGCSOperator(BaseOperator):
         source_object_required=False,
         exact_match=False,
         match_glob: str | None = None,
+        source_bucket_user_project: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -232,9 +236,9 @@ class GCSToGCSOperator(BaseOperator):
         self.source_object_required = source_object_required
         self.exact_match = exact_match
         self.match_glob = match_glob
+        self.source_bucket_user_project = source_bucket_user_project
 
     def execute(self, context: Context):
-
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -274,7 +278,6 @@ class GCSToGCSOperator(BaseOperator):
         for prefix in self.source_objects:
             # Check if prefix contains wildcard
             if WILDCARD in prefix:
-
                 self._copy_source_with_wildcard(hook=hook, prefix=prefix)
             # Now search with prefix using provided delimiter if any
             else:
@@ -367,7 +370,11 @@ class GCSToGCSOperator(BaseOperator):
             )
         """
         objects = hook.list(
-            self.source_bucket, prefix=prefix, delimiter=self.delimiter, match_glob=self.match_glob
+            self.source_bucket,
+            prefix=prefix,
+            delimiter=self.delimiter,
+            match_glob=self.match_glob,
+            user_project=self.source_bucket_user_project,
         )
 
         if not self.replace:
@@ -428,7 +435,12 @@ class GCSToGCSOperator(BaseOperator):
             raise AirflowException(error_msg)
         self.log.info("Delimiter ignored because wildcard is in prefix")
         prefix_, delimiter = prefix.split(WILDCARD, 1)
-        objects = hook.list(self.source_bucket, prefix=prefix_, delimiter=delimiter)
+        objects = hook.list(
+            self.source_bucket,
+            prefix=prefix_,
+            delimiter=delimiter,
+            user_project=self.source_bucket_user_project,
+        )
         # TODO: After deprecating delimiter and wildcards in source objects,
         #       remove previous line and uncomment the following:
         # match_glob = f"**/*{delimiter}" if delimiter else None
@@ -456,7 +468,12 @@ class GCSToGCSOperator(BaseOperator):
         if self.is_older_than:
             # Here we check if the given object is older than the given time
             # If given, last_modified_time and maximum_modified_time is ignored
-            if hook.is_older_than(self.source_bucket, source_object, self.is_older_than):
+            if hook.is_older_than(
+                self.source_bucket,
+                source_object,
+                self.is_older_than,
+                user_project=self.source_bucket_user_project,
+            ):
                 self.log.info("Object is older than %s seconds ago", self.is_older_than)
             else:
                 self.log.debug("Object is not older than %s seconds ago", self.is_older_than)
@@ -465,7 +482,11 @@ class GCSToGCSOperator(BaseOperator):
             # check to see if object was modified between last_modified_time and
             # maximum_modified_time
             if hook.is_updated_between(
-                self.source_bucket, source_object, self.last_modified_time, self.maximum_modified_time
+                self.source_bucket,
+                source_object,
+                self.last_modified_time,
+                self.maximum_modified_time,
+                user_project=self.source_bucket_user_project,
             ):
                 self.log.info(
                     "Object has been modified between %s and %s",
@@ -479,17 +500,26 @@ class GCSToGCSOperator(BaseOperator):
                     self.maximum_modified_time,
                 )
                 return
-
         elif self.last_modified_time is not None:
             # Check to see if object was modified after last_modified_time
-            if hook.is_updated_after(self.source_bucket, source_object, self.last_modified_time):
+            if hook.is_updated_after(
+                self.source_bucket,
+                source_object,
+                self.last_modified_time,
+                user_project=self.source_bucket_user_project,
+            ):
                 self.log.info("Object has been modified after %s ", self.last_modified_time)
             else:
                 self.log.debug("Object was not modified after %s ", self.last_modified_time)
                 return
         elif self.maximum_modified_time is not None:
             # Check to see if object was modified before maximum_modified_time
-            if hook.is_updated_before(self.source_bucket, source_object, self.maximum_modified_time):
+            if hook.is_updated_before(
+                self.source_bucket,
+                source_object,
+                self.maximum_modified_time,
+                user_project=self.source_bucket_user_project,
+            ):
                 self.log.info("Object has been modified before %s ", self.maximum_modified_time)
             else:
                 self.log.debug("Object was not modified before %s ", self.maximum_modified_time)
@@ -503,7 +533,13 @@ class GCSToGCSOperator(BaseOperator):
             destination_object,
         )
 
-        hook.rewrite(self.source_bucket, source_object, self.destination_bucket, destination_object)
+        hook.rewrite(
+            self.source_bucket,
+            source_object,
+            self.destination_bucket,
+            destination_object,
+            user_project=self.source_bucket_user_project,
+        )
 
         if self.move_object:
-            hook.delete(self.source_bucket, source_object)
+            hook.delete(self.source_bucket, source_object, user_project=self.source_bucket_user_project)

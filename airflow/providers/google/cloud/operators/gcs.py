@@ -181,6 +181,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     :param match_glob: (Optional) filters objects based on the glob pattern given by the string
         (e.g, ``'**/*/.json'``)
+    :param user_project: (Optional) the project to be billed for this request.
 
     **Example**:
         The following Operator would list all the Avro files from ``sales/sales-2017``
@@ -200,6 +201,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         "prefix",
         "delimiter",
         "impersonation_chain",
+        "user_project",
     )
 
     ui_color = "#f0eee4"
@@ -215,6 +217,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         match_glob: str | None = None,
+        user_project: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -230,6 +233,7 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.match_glob = match_glob
+        self.user_project = user_project
 
     def execute(self, context: Context) -> list:
         hook = GCSHook(
@@ -259,7 +263,11 @@ class GCSListObjectsOperator(GoogleCloudBaseOperator):
             project_id=hook.project_id,
         )
         return hook.list(
-            bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter, match_glob=self.match_glob
+            bucket_name=self.bucket,
+            prefix=self.prefix,
+            delimiter=self.delimiter,
+            match_glob=self.match_glob,
+            user_project=self.user_project,
         )
 
 
@@ -283,6 +291,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param user_project: (Optional) The project to be billed for this request.
     """
 
     template_fields: Sequence[str] = (
@@ -290,6 +299,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         "prefix",
         "objects",
         "impersonation_chain",
+        "user_project",
     )
 
     def __init__(
@@ -300,6 +310,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         prefix: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
+        user_project: str | None = None,
         **kwargs,
     ) -> None:
         self.bucket_name = bucket_name
@@ -307,6 +318,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         self.prefix = prefix
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
+        self.user_project = user_project
 
         if objects is None and prefix is None:
             err_message = "(Task {task_id}) Either object or prefix should be set. Both are None.".format(
@@ -325,10 +337,12 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
         if self.objects:
             objects = self.objects
         else:
-            objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
+            objects = hook.list(
+                bucket_name=self.bucket_name, prefix=self.prefix, user_project=self.user_project
+            )
         self.log.info("Deleting %s objects from %s", len(objects), self.bucket_name)
         for object_name in objects:
-            hook.delete(bucket_name=self.bucket_name, object_name=object_name)
+            hook.delete(bucket_name=self.bucket_name, object_name=object_name, user_project=self.user_project)
 
 
 class GCSBucketCreateAclEntryOperator(GoogleCloudBaseOperator):
@@ -880,7 +894,7 @@ class GCSDeleteBucketOperator(GoogleCloudBaseOperator):
         "bucket_name",
         "gcp_conn_id",
         "impersonation_chain",
-        "user_project"
+        "user_project",
     )
 
     def __init__(

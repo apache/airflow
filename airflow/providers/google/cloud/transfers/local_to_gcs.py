@@ -55,6 +55,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param user_project: (Optional) The project to be billed for this request.
     """
 
     template_fields: Sequence[str] = (
@@ -62,6 +63,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         "dst",
         "bucket",
         "impersonation_chain",
+        "user_project",
     )
 
     def __init__(
@@ -74,6 +76,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         mime_type="application/octet-stream",
         gzip=False,
         impersonation_chain: str | Sequence[str] | None = None,
+        user_project: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -85,6 +88,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         self.mime_type = mime_type
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
+        self.user_project = user_project
 
     def execute(self, context: Context):
         """Uploads a file or list of files to Google Cloud Storage."""
@@ -114,4 +118,5 @@ class LocalFilesystemToGCSOperator(BaseOperator):
                 mime_type=self.mime_type,
                 filename=filepath,
                 gzip=self.gzip,
+                user_project=self.user_project,
             )

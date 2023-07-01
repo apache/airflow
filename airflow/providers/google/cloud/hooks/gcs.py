@@ -229,6 +229,7 @@ class GCSHook(GoogleBaseHook):
         source_object: str,
         destination_bucket: str,
         destination_object: str | None = None,
+        user_project: str | None = None,
     ) -> None:
         """
         Has the same functionality as copy, except that will work on files
@@ -242,6 +243,11 @@ class GCSHook(GoogleBaseHook):
         :param destination_bucket: The destination of the object to copied to.
         :param destination_object: The (renamed) path of the object if given.
             Can be omitted; then the same name is used.
+        :param user_project: (Optional) The project to bill for the rewrite.
+            In the case of a rewrite, you need to include a billing project if either the
+            source bucket or destination bucket (or both) have Requester Pays enabled.
+            This is because such operations make calls to both the source and destination
+            buckets in the course of performing the action.
         """
         destination_object = destination_object or source_object
         if source_bucket == destination_bucket and source_object == destination_object:
@@ -253,28 +259,24 @@ class GCSHook(GoogleBaseHook):
             raise ValueError("source_bucket and source_object cannot be empty.")
 
         client = self.get_conn()
-        source_bucket = client.bucket(source_bucket)
-        source_object = source_bucket.blob(blob_name=source_object)  # type: ignore[attr-defined]
-        destination_bucket = client.bucket(destination_bucket)
+        src_bucket = client.bucket(source_bucket)
+        src_blob = src_bucket.blob(blob_name=source_object)  # type: ignore[attr-defined]
+        dest_bucket = client.bucket(destination_bucket, user_project=user_project)
+        dest_blob = dest_bucket.blob(blob_name=destination_object)  # type: ignore[attr-defined]
 
-        token, bytes_rewritten, total_bytes = destination_bucket.blob(  # type: ignore[attr-defined]
-            blob_name=destination_object
-        ).rewrite(source=source_object)
-
+        token, bytes_rewritten, total_bytes = dest_blob.rewrite(source=src_blob)
         self.log.info("Total Bytes: %s | Bytes Written: %s", total_bytes, bytes_rewritten)
 
         while token is not None:
-            token, bytes_rewritten, total_bytes = destination_bucket.blob(  # type: ignore[attr-defined]
-                blob_name=destination_object
-            ).rewrite(source=source_object, token=token)
-
+            token, bytes_rewritten, total_bytes = dest_blob.rewrite(source=src_blob, token=token)
             self.log.info("Total Bytes: %s | Bytes Written: %s", total_bytes, bytes_rewritten)
+
         self.log.info(
             "Object %s in bucket %s rewritten to object %s in bucket %s",
-            source_object.name,  # type: ignore[attr-defined]
-            source_bucket.name,  # type: ignore[attr-defined]
-            destination_object,
-            destination_bucket.name,  # type: ignore[attr-defined]
+            src_blob.name,  # type: ignore[attr-defined]
+            src_bucket.name,  # type: ignore[attr-defined]
+            dest_blob.name,  # type: ignore[attr-defined]
+            dest_bucket.name,  # type: ignore[attr-defined]
         )
 
     @overload
@@ -590,28 +592,32 @@ class GCSHook(GoogleBaseHook):
         :param object_name: The name of the blob_name to check in the Google cloud
             storage bucket.
         :param retry: (Optional) How to retry the RPC
+        :param user_project: (Optional) The project to be billed for this request.
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_name=object_name)
         return blob.exists(retry=retry)
 
-    def get_blob_update_time(self, bucket_name: str, object_name: str):
+    def get_blob_update_time(self, bucket_name: str, object_name: str, user_project: str | None = None):
         """
         Get the update time of a file in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the blob to get updated time from the Google cloud
             storage bucket.
+        :param user_project: (Optional) The project to be billed for this request.
         """
         client = self.get_conn()
-        bucket = client.bucket(bucket_name)
+        bucket = client.bucket(bucket_name, user_project=user_project)
         blob = bucket.get_blob(blob_name=object_name)
         if blob is None:
             raise ValueError(f"Object ({object_name}) not found in Bucket ({bucket_name})")
         return blob.updated
 
-    def is_updated_after(self, bucket_name: str, object_name: str, ts: datetime) -> bool:
+    def is_updated_after(
+        self, bucket_name: str, object_name: str, ts: datetime, user_project: str | None = None
+    ) -> bool:
         """
         Checks if an blob_name is updated in Google Cloud Storage.
 
@@ -619,8 +625,9 @@ class GCSHook(GoogleBaseHook):
         :param object_name: The name of the object to check in the Google cloud
             storage bucket.
         :param ts: The timestamp to check against.
+        :param user_project: (Optional) The project to be billed for this request.
         """
-        blob_update_time = self.get_blob_update_time(bucket_name, object_name)
+        blob_update_time = self.get_blob_update_time(bucket_name, object_name, user_project=user_project)
         if blob_update_time is not None:
             if not ts.tzinfo:
                 ts = ts.replace(tzinfo=timezone.utc)
@@ -630,7 +637,12 @@ class GCSHook(GoogleBaseHook):
         return False
 
     def is_updated_between(
-        self, bucket_name: str, object_name: str, min_ts: datetime, max_ts: datetime
+        self,
+        bucket_name: str,
+        object_name: str,
+        min_ts: datetime,
+        max_ts: datetime,
+        user_project: str | None = None,
     ) -> bool:
         """
         Checks if an blob_name is updated in Google Cloud Storage.
@@ -640,8 +652,9 @@ class GCSHook(GoogleBaseHook):
                 storage bucket.
         :param min_ts: The minimum timestamp to check against.
         :param max_ts: The maximum timestamp to check against.
+        :param user_project: (Optional) The project to be billed for this request.
         """
-        blob_update_time = self.get_blob_update_time(bucket_name, object_name)
+        blob_update_time = self.get_blob_update_time(bucket_name, object_name, user_project=user_project)
         if blob_update_time is not None:
             if not min_ts.tzinfo:
                 min_ts = min_ts.replace(tzinfo=timezone.utc)
@@ -652,7 +665,9 @@ class GCSHook(GoogleBaseHook):
                 return True
         return False
 
-    def is_updated_before(self, bucket_name: str, object_name: str, ts: datetime) -> bool:
+    def is_updated_before(
+        self, bucket_name: str, object_name: str, ts: datetime, user_project: str | None = None
+    ) -> bool:
         """
         Checks if an blob_name is updated before given time in Google Cloud Storage.
 
@@ -660,8 +675,9 @@ class GCSHook(GoogleBaseHook):
         :param object_name: The name of the object to check in the Google cloud
             storage bucket.
         :param ts: The timestamp to check against.
+        :param user_project: (Optional) The project to be billed for this request.
         """
-        blob_update_time = self.get_blob_update_time(bucket_name, object_name)
+        blob_update_time = self.get_blob_update_time(bucket_name, object_name, user_project=user_project)
         if blob_update_time is not None:
             if not ts.tzinfo:
                 ts = ts.replace(tzinfo=timezone.utc)
@@ -670,7 +686,9 @@ class GCSHook(GoogleBaseHook):
                 return True
         return False
 
-    def is_older_than(self, bucket_name: str, object_name: str, seconds: int) -> bool:
+    def is_older_than(
+        self, bucket_name: str, object_name: str, seconds: int, user_project: str | None = None
+    ) -> bool:
         """
         Check if object is older than given time.
 
@@ -678,8 +696,9 @@ class GCSHook(GoogleBaseHook):
         :param object_name: The name of the object to check in the Google cloud
             storage bucket.
         :param seconds: The time in seconds to check against
+        :param user_project: (Optional) The project to be billed for this request.
         """
-        blob_update_time = self.get_blob_update_time(bucket_name, object_name)
+        blob_update_time = self.get_blob_update_time(bucket_name, object_name, user_project=user_project)
         if blob_update_time is not None:
             from datetime import timedelta
 
@@ -690,15 +709,16 @@ class GCSHook(GoogleBaseHook):
                 return True
         return False
 
-    def delete(self, bucket_name: str, object_name: str) -> None:
+    def delete(self, bucket_name: str, object_name: str, user_project: str | None) -> None:
         """
         Deletes an object from the bucket.
 
         :param bucket_name: name of the bucket, where the object resides
         :param object_name: name of the object to delete
+        :param user_project: (Optional) The project to be billed for this request.
         """
         client = self.get_conn()
-        bucket = client.bucket(bucket_name)
+        bucket = client.bucket(bucket_name, user_project=user_project)
         blob = bucket.blob(blob_name=object_name)
         blob.delete()
 
@@ -711,7 +731,7 @@ class GCSHook(GoogleBaseHook):
         :param bucket_name: name of the bucket which will be deleted
         :param force: false not allow to delete non empty bucket, set force=True
             allows to delete non empty bucket
-        :param user_project: The project to be billed for this request.
+        :param user_project: (Optional) The project to be billed for this request.
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name, user_project=user_project)
