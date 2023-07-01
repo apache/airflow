@@ -51,11 +51,5 @@ spec:
       metadata:
         targetQueryValue: "1"
         connectionFromEnv: AIRFLOW_CONN_AIRFLOW_DB
-        query: >-
-          SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
-          FROM task_instance
-          WHERE (state='running' OR state='queued')
-          {{- if eq .Values.executor "CeleryKubernetesExecutor" }}
-          AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
-          {{- end }}
+        query: {{ tpl .Values.workers.keda.query . | quote }}
 {{- end }}
