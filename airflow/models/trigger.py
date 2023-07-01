@@ -200,10 +200,11 @@ class Trigger(Base):
     @classmethod
     @internal_api_call
     @provide_session
-    def assign_unassigned(cls, triggerer_id, capacity, session: Session = NEW_SESSION) -> None:
+    def assign_unassigned(cls, triggerer_id, capacity, heartrate, session: Session = NEW_SESSION) -> None:
         """
-        Takes a triggerer_id and the capacity for that triggerer and assigns unassigned
-        triggers until that capacity is reached, or there are no more unassigned triggers.
+        Takes a triggerer_id, the capacity for that triggerer and the Triggerer job heartrate,
+        and assigns unassigned triggers until that capacity is reached, or there are no more
+        unassigned triggers.
         """
         from airflow.jobs.job import Job  # To avoid circular import
 
@@ -212,12 +213,14 @@ class Trigger(Base):
 
         if capacity <= 0:
             return
-
+        # we multiply heartrate by a grace_multiplier to give the triggerer
+        # a chance to heartbeat before we consider it dead
+        health_check_threshold = heartrate * 2.1
         alive_triggerer_ids = [
             row[0]
             for row in session.query(Job.id).filter(
                 Job.end_date.is_(None),
-                Job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=30),
+                Job.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=health_check_threshold),
                 Job.job_type == "TriggererJob",
             )
         ]
