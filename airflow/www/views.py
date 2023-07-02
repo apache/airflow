@@ -231,16 +231,15 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     # loaded and the actual requested run would be excluded by the limit().  Once
     # the user has changed base date to be anything else we want to use that instead.
     query_date = base_date
-    if date_time < base_date and date_time + datetime.timedelta(seconds=1) >= base_date:
+    if date_time < base_date <= date_time + datetime.timedelta(seconds=1):
         query_date = date_time
 
-    drs = (
-        session.query(DagRun)
-        .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= query_date)
+    drs = session.scalars(
+        select(DagRun)
+        .where(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= query_date)
         .order_by(desc(DagRun.execution_date))
         .limit(num_runs)
-        .all()
-    )
+    ).all()
     dr_choices = []
     dr_state = None
     for dr in drs:
@@ -1907,17 +1906,19 @@ class Airflow(AirflowBaseView):
         form = DateTimeForm(data={"execution_date": dttm})
         root = request.args.get("root", "")
         dag = DagModel.get_dagmodel(dag_id)
-        ti = session.query(TaskInstance).filter_by(dag_id=dag_id, task_id=task_id).first()
+        ti = session.scalar(select(TaskInstance).filter_by(dag_id=dag_id, task_id=task_id).limit(1))
 
         if not ti:
             flash(f"Task [{dag_id}.{task_id}] doesn't seem to exist at the moment", "error")
             return redirect(url_for("Airflow.index"))
 
-        xcom_query = session.query(XCom.key, XCom.value).where(
-            XCom.dag_id == dag_id,
-            XCom.task_id == task_id,
-            XCom.execution_date == dttm,
-            XCom.map_index == map_index,
+        xcom_query = session.execute(
+            select(XCom.key, XCom.value).where(
+                XCom.dag_id == dag_id,
+                XCom.task_id == task_id,
+                XCom.execution_date == dttm,
+                XCom.map_index == map_index,
+            )
         )
         attributes = [(k, v) for k, v in xcom_query if not k.startswith("_")]
 
@@ -1987,7 +1988,7 @@ class Airflow(AirflowBaseView):
         request_execution_date = request.values.get("execution_date", default=timezone.utcnow().isoformat())
         is_dag_run_conf_overrides_params = conf.getboolean("core", "dag_run_conf_overrides_params")
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
-        dag_orm: DagModel = session.query(DagModel).where(DagModel.dag_id == dag_id).first()
+        dag_orm: DagModel = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id).limit(1))
 
         # Prepare form fields with param struct details to render a proper form with schema information
         form_fields = {}
@@ -2025,10 +2026,8 @@ class Airflow(AirflowBaseView):
             flash(f"Cannot create dagruns because the dag {dag_id} has import errors", "error")
             return redirect(origin)
 
-        recent_runs = (
-            session.query(
-                DagRun.conf, func.max(DagRun.run_id).label("run_id"), func.max(DagRun.execution_date)
-            )
+        recent_runs = session.execute(
+            select(DagRun.conf, func.max(DagRun.run_id).label("run_id"), func.max(DagRun.execution_date))
             .where(
                 DagRun.dag_id == dag_id,
                 DagRun.run_type == DagRunType.MANUAL,
@@ -2302,7 +2301,9 @@ class Airflow(AirflowBaseView):
 
             # Lock the related dag runs to prevent from possible dead lock.
             # https://github.com/apache/airflow/pull/26658
-            dag_runs_query = session.query(DagRun.id).where(DagRun.dag_id == dag_id).with_for_update()
+            dag_runs_query = session.scalars(
+                select(DagRun.id).where(DagRun.dag_id == dag_id).with_for_update()
+            )
             if start_date is None and end_date is None:
                 dag_runs_query = dag_runs_query.where(DagRun.execution_date == start_date)
             else:
@@ -2399,8 +2400,8 @@ class Airflow(AirflowBaseView):
         if not filter_dag_ids:
             return flask.json.jsonify([])
 
-        dags = (
-            session.query(DagRun.dag_id, sqla.func.count(DagRun.id))
+        dags = session.execute(
+            select(DagRun.dag_id, sqla.func.count(DagRun.id))
             .where(DagRun.state == DagRunState.RUNNING)
             .where(DagRun.dag_id.in_(filter_dag_ids))
             .group_by(DagRun.dag_id)
@@ -2483,9 +2484,11 @@ class Airflow(AirflowBaseView):
             # Identify tasks that will be queued up to run when confirmed
             all_task_ids = [task.task_id for task in dag.tasks]
 
-            existing_tis = session.query(TaskInstance.task_id).where(
-                TaskInstance.dag_id == dag.dag_id,
-                TaskInstance.run_id == dag_run_id,
+            existing_tis = session.execute(
+                select(TaskInstance.task_id).where(
+                    TaskInstance.dag_id == dag.dag_id,
+                    TaskInstance.run_id == dag_run_id,
+                )
             )
 
             completed_tis_ids = [task_id for task_id, in existing_tis]
@@ -2967,9 +2970,9 @@ class Airflow(AirflowBaseView):
         if root:
             dag = dag.partial_subset(task_ids_or_regex=root, include_downstream=False, include_upstream=True)
 
-        dag_states = (
-            session.query(
-                (_convert_to_date(session, DagRun.execution_date)).label("date"),
+        dag_states = session.execute(
+            select(
+                _convert_to_date(session, DagRun.execution_date).label("date"),
                 DagRun.state,
                 func.max(DagRun.data_interval_start).label("data_interval_start"),
                 func.max(DagRun.data_interval_end).label("data_interval_end"),
@@ -2978,8 +2981,7 @@ class Airflow(AirflowBaseView):
             .where(DagRun.dag_id == dag.dag_id)
             .group_by(_convert_to_date(session, DagRun.execution_date), DagRun.state)
             .order_by(_convert_to_date(session, DagRun.execution_date).asc())
-            .all()
-        )
+        ).all()
 
         data_dag_states = [
             {
@@ -3933,28 +3935,32 @@ class Airflow(AirflowBaseView):
         with create_session() as session:
             data = [
                 dict(info)
-                for info in session.query(
-                    DatasetModel.id,
-                    DatasetModel.uri,
-                    func.max(DatasetEvent.timestamp).label("lastUpdate"),
+                for info in session.execute(
+                    select(
+                        DatasetModel.id,
+                        DatasetModel.uri,
+                        func.max(DatasetEvent.timestamp).label("lastUpdate"),
+                    )
+                    .join(
+                        DagScheduleDatasetReference, DagScheduleDatasetReference.dataset_id == DatasetModel.id
+                    )
+                    .join(
+                        DatasetDagRunQueue,
+                        and_(
+                            DatasetDagRunQueue.dataset_id == DatasetModel.id,
+                            DatasetDagRunQueue.target_dag_id == DagScheduleDatasetReference.dag_id,
+                        ),
+                        isouter=True,
+                    )
+                    .join(
+                        DatasetEvent,
+                        DatasetEvent.dataset_id == DatasetModel.id,
+                        isouter=True,
+                    )
+                    .where(DagScheduleDatasetReference.dag_id == dag_id, ~DatasetModel.is_orphaned)
+                    .group_by(DatasetModel.id, DatasetModel.uri)
+                    .order_by(DatasetModel.uri)
                 )
-                .join(DagScheduleDatasetReference, DagScheduleDatasetReference.dataset_id == DatasetModel.id)
-                .join(
-                    DatasetDagRunQueue,
-                    and_(
-                        DatasetDagRunQueue.dataset_id == DatasetModel.id,
-                        DatasetDagRunQueue.target_dag_id == DagScheduleDatasetReference.dag_id,
-                    ),
-                    isouter=True,
-                )
-                .join(
-                    DatasetEvent,
-                    DatasetEvent.dataset_id == DatasetModel.id,
-                    isouter=True,
-                )
-                .where(DagScheduleDatasetReference.dag_id == dag_id, ~DatasetModel.is_orphaned)
-                .group_by(DatasetModel.id, DatasetModel.uri)
-                .order_by(DatasetModel.uri)
             ]
         return (
             htmlsafe_json_dumps(data, separators=(",", ":"), dumps=flask.json.dumps),
@@ -4052,12 +4058,12 @@ class Airflow(AirflowBaseView):
                     if session.bind.dialect.name == "postgresql":
                         order_by = (order_by[0].nulls_first(), *order_by[1:])
 
-            count_query = session.query(func.count(DatasetModel.id))
+            count_query = select(func.count(DatasetModel.id))
 
             has_event_filters = bool(updated_before or updated_after)
 
             query = (
-                session.query(
+                select(
                     DatasetModel.id,
                     DatasetModel.uri,
                     func.max(DatasetEvent.timestamp).label("last_dataset_update"),
@@ -4085,8 +4091,9 @@ class Airflow(AirflowBaseView):
             query = query.where(*filters).offset(offset).limit(limit)
             count_query = count_query.where(*filters)
 
+            query = session.execute(query)
             datasets = [dict(dataset) for dataset in query]
-            data = {"datasets": datasets, "total_entries": count_query.scalar()}
+            data = {"datasets": datasets, "total_entries": session.scalar(count_query)}
 
             return (
                 htmlsafe_json_dumps(data, separators=(",", ":"), cls=utils_json.WebEncoder),
@@ -4132,7 +4139,7 @@ class Airflow(AirflowBaseView):
         included_events_raw = conf.get("webserver", "audit_view_included_events", fallback=None)
         excluded_events_raw = conf.get("webserver", "audit_view_excluded_events", fallback=None)
 
-        query = session.query(Log).where(Log.dag_id == dag_id)
+        query = select(Log).where(Log.dag_id == dag_id)
         if included_events_raw:
             included_events = {event.strip() for event in included_events_raw.split(",")}
             query = query.where(Log.event.in_(included_events))
@@ -4145,7 +4152,7 @@ class Airflow(AirflowBaseView):
         arg_sorting_direction = request.args.get("sorting_direction", default="desc")
 
         logs_per_page = PAGE_SIZE
-        audit_logs_count = query.count()
+        audit_logs_count = session.scalar(select(func.count()).select_from(query))
         num_of_pages = int(math.ceil(audit_logs_count / float(logs_per_page)))
 
         start = current_page * logs_per_page
@@ -4157,7 +4164,7 @@ class Airflow(AirflowBaseView):
                 sort_column = sort_column.desc()
             query = query.order_by(sort_column)
 
-        dag_audit_logs = query.offset(start).limit(logs_per_page).all()
+        dag_audit_logs = session.scalars(query.offset(start).limit(logs_per_page)).all()
         return self.render_template(
             "airflow/dag_audit_log.html",
             dag=dag,
@@ -4723,7 +4730,9 @@ class ConnectionModelView(AirflowModelView):
 
             potential_connection_ids = [f"{base_conn_id}_copy{i}" for i in range(1, 11)]
 
-            query = session.query(Connection.conn_id).where(Connection.conn_id.in_(potential_connection_ids))
+            query = session.execute(
+                select(Connection.conn_id).where(Connection.conn_id.in_(potential_connection_ids))
+            )
 
             found_conn_id_set = {conn_id for conn_id, in query}
 
@@ -5395,7 +5404,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         """This routine only supports Running and Queued state."""
         try:
             count = 0
-            for dr in session.query(DagRun).where(DagRun.id.in_(dagrun.id for dagrun in drs)):
+            for dr in session.scalars(select(DagRun).where(DagRun.id.in_(dagrun.id for dagrun in drs))):
                 count += 1
                 if state == State.RUNNING:
                     dr.start_date = timezone.utcnow()
@@ -5421,7 +5430,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         try:
             count = 0
             altered_tis = []
-            for dr in session.query(DagRun).where(DagRun.id.in_(dagrun.id for dagrun in drs)):
+            for dr in session.scalars(select(DagRun).where(DagRun.id.in_(dagrun.id for dagrun in drs))):
                 count += 1
                 altered_tis += set_dag_run_state_to_failed(
                     dag=get_airflow_app().dag_bag.get_dag(dr.dag_id),
@@ -5449,7 +5458,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         try:
             count = 0
             altered_tis = []
-            for dr in session.query(DagRun).where(DagRun.id.in_(dagrun.id for dagrun in drs)):
+            for dr in session.scalars(select(DagRun).where(DagRun.id.in_(dagrun.id for dagrun in drs))):
                 count += 1
                 altered_tis += set_dag_run_state_to_success(
                     dag=get_airflow_app().dag_bag.get_dag(dr.dag_id),
@@ -5473,7 +5482,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
             count = 0
             cleared_ti_count = 0
             dag_to_tis: dict[DAG, list[TaskInstance]] = {}
-            for dr in session.query(DagRun).where(DagRun.id.in_(dagrun.id for dagrun in drs)):
+            for dr in session.scalars(select(DagRun).where(DagRun.id.in_(dagrun.id for dagrun in drs))):
                 count += 1
                 dag = get_airflow_app().dag_bag.get_dag(dr.dag_id)
                 tis_to_clear = dag_to_tis.setdefault(dag, [])
@@ -5889,13 +5898,13 @@ class AutocompleteView(AirflowBaseView):
             return flask.json.jsonify([])
 
         # Provide suggestions of dag_ids and owners
-        dag_ids_query = session.query(
+        dag_ids_query = select(
             sqla.literal("dag").label("type"),
             DagModel.dag_id.label("name"),
         ).where(~DagModel.is_subdag, DagModel.is_active, DagModel.dag_id.ilike(f"%{query}%"))
 
         owners_query = (
-            session.query(
+            select(
                 sqla.literal("owner").label("type"),
                 DagModel.owners.label("name"),
             )
@@ -5916,8 +5925,10 @@ class AutocompleteView(AirflowBaseView):
 
         dag_ids_query = dag_ids_query.where(DagModel.dag_id.in_(filter_dag_ids))
         owners_query = owners_query.where(DagModel.dag_id.in_(filter_dag_ids))
-
-        payload = [row._asdict() for row in dag_ids_query.union(owners_query).order_by("name").limit(10)]
+        payload = [
+            row._asdict()
+            for row in session.execute(dag_ids_query.union(owners_query).order_by("name").limit(10))
+        ]
         return flask.json.jsonify(payload)
 
 
