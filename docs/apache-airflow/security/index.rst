@@ -156,7 +156,7 @@ MUST upgrade to the latest ``MINOR`` version of Airflow.
 Releasing Airflow providers with security patches
 -------------------------------------------------
 
-Similarly to Airflow, providers use strict [SemVer](https://semver.org) versioning policy, and the same
+Similarly to Airflow, providers use strict `SemVer <https://semver.org>`_ versioning policy, and the same
 policies apply for providers as for Airflow itself. This means that you need to upgrade to the latest
 ``MINOR`` version of the provider to get the latest security fixes.
 Airflow providers are released independently from Airflow itself and the information about vulnerabilities
