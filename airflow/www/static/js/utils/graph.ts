@@ -19,8 +19,7 @@
 
 import ELK, { ElkExtendedEdge, ElkShape } from "elkjs";
 
-import type { DepNode } from "src/types";
-import type { NodeType } from "src/datasets/Graph/Node";
+import type { NodeType, DepNode, WebserverEdge } from "src/types";
 import { useQuery } from "react-query";
 import useFilters from "src/dag/useFilters";
 
@@ -30,12 +29,6 @@ interface GenerateProps {
   font: string;
   openGroupIds?: string[];
   arrange: string;
-}
-
-interface WebserverEdge {
-  label?: string;
-  sourceId: string;
-  targetId: string;
 }
 
 interface Graph extends ElkShape {

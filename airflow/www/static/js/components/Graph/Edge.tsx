@@ -18,11 +18,11 @@
  */
 
 import React from "react";
-import { Text } from "@chakra-ui/react";
+import { Text, useTheme } from "@chakra-ui/react";
 import type { ElkEdgeSection, ElkLabel, ElkPoint, LayoutOptions } from "elkjs";
 
-import Edge from "src/datasets/Graph/Edge";
 import { Group } from "@visx/group";
+import { LinePath } from "@visx/shape";
 
 interface EdgeProps {
   data?: {
@@ -40,6 +40,7 @@ interface EdgeProps {
 }
 
 const CustomEdge = ({ data }: EdgeProps) => {
+  const { colors } = useTheme();
   if (!data) return null;
   const { rest } = data;
   return (
@@ -54,11 +55,16 @@ const CustomEdge = ({ data }: EdgeProps) => {
           </Group>
         );
       })}
-      <Edge
-        edge={rest}
-        showMarker={false}
-        isSelected={rest.isSelected || undefined}
-      />
+      {(rest.sections || []).map((s) => (
+        <LinePath
+          key={s.id}
+          stroke={rest.isSelected ? colors.blue[400] : colors.gray[400]}
+          strokeWidth={rest.isSelected ? 3 : 2}
+          x={(d) => d.x || 0}
+          y={(d) => d.y || 0}
+          data={[s.startPoint, ...(s.bendPoints || []), s.endPoint]}
+        />
+      ))}
     </>
   );
 };
