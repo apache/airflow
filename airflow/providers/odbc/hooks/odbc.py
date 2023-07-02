@@ -17,7 +17,7 @@
 """This module contains ODBC hook."""
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any
 from urllib.parse import quote_plus
 
 import pyodbc
@@ -213,7 +213,7 @@ class OdbcHook(DbApiHook):
         return cnx
 
     @staticmethod
-    def _make_serializable(result: List[pyodbc.Row]) -> List[tuple]:
+    def _make_serializable(result: list[pyodbc.Row]) -> list[tuple]:
         """Transform the pyodbc.Row objects returned from a SQL command into
         JSON-serializable objects.
         """
