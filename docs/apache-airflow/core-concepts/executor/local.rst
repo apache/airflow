@@ -50,7 +50,7 @@ locally, into just one :class:`~airflow.executors.local_executor.LocalExecutor` 
 
 .. note::
 
-   When using the ``@task`` decorator with multiple Schedulers configured with ``executor = LocalExecutor`` in the [core] section of airflow.cfg, each scheduler will run a LocalExecutor. This means tasks would be processed in a distributed fashion across the machines running the Schedulers. 
+   When using the ``@task`` decorator with multiple Schedulers configured with ``executor = LocalExecutor`` in the ``[core]`` section of your ``airflow.cfg``, each scheduler will run a LocalExecutor. This means tasks would be processed in a distributed fashion across the machines running the Schedulers. 
 
    Some considerations should be taken into account:
 
