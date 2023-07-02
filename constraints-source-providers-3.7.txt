@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-06-26T17:11:39Z
+# This constraints file was automatically generated on 2023-07-02T08:34:48Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-6-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -46,7 +46,7 @@ Sphinx==5.3.0
 WTForms==3.0.1
 Werkzeug==2.2.3
 adal==1.2.7
-aiobotocore==2.5.0
+aiobotocore==2.5.1
 aiofiles==23.1.0
 aiohttp==3.8.4
 aioitertools==0.11.0
@@ -109,9 +109,9 @@ bitarray==2.7.6
 black==23.3.0
 bleach==6.0.0
 blinker==1.6.2
-boto3==1.26.76
+boto3==1.26.161
 boto==2.49.0
-botocore==1.29.76
+botocore==1.29.161
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -146,7 +146,7 @@ croniter==1.4.1
 cryptography==40.0.2
 curlify==2.2.1
 dask==2022.2.0
-databricks-sql-connector==2.6.2
+databricks-sql-connector==2.7.0
 datadog==0.45.0
 db-dtypes==1.1.1
 decorator==5.1.1
@@ -180,7 +180,7 @@ flower==2.0.0
 frozenlist==1.3.3
 fsspec==2023.1.0
 future==0.18.3
-gcloud-aio-auth==4.2.1
+gcloud-aio-auth==4.2.3
 gcloud-aio-bigquery==6.3.0
 gcloud-aio-storage==8.2.0
 gcsfs==2023.1.0
@@ -189,21 +189,21 @@ gevent==22.10.2
 gitdb==4.0.10
 google-ads==21.2.0
 google-api-core==2.11.0
-google-api-python-client==2.90.0
+google-api-python-client==2.91.0
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==1.0.0
-google-auth==2.20.0
-google-cloud-aiplatform==1.26.1
+google-auth==2.21.0
+google-cloud-aiplatform==1.27.0
 google-cloud-appengine-logging==1.3.0
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.11.1
 google-cloud-bigquery-datatransfer==3.11.1
 google-cloud-bigquery-storage==2.20.0
-google-cloud-bigquery==3.11.2
+google-cloud-bigquery==3.11.3
 google-cloud-bigtable==2.19.0
-google-cloud-build==3.16.0
+google-cloud-build==3.17.0
 google-cloud-compute==1.11.0
-google-cloud-container==2.24.0
+google-cloud-container==2.25.0
 google-cloud-core==2.3.2
 google-cloud-datacatalog==3.13.0
 google-cloud-dataflow-client==0.8.3
@@ -225,7 +225,7 @@ google-cloud-resource-manager==1.10.1
 google-cloud-secret-manager==2.16.1
 google-cloud-spanner==3.36.0
 google-cloud-speech==2.20.0
-google-cloud-storage==2.9.0
+google-cloud-storage==2.10.0
 google-cloud-tasks==2.13.1
 google-cloud-texttospeech==2.14.1
 google-cloud-translate==3.11.1
@@ -320,15 +320,15 @@ msrest==0.7.1
 msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.4
-mypy-boto3-appflow==1.26.157
-mypy-boto3-rds==1.26.160
+mypy-boto3-appflow==1.26.162
+mypy-boto3-rds==1.26.163
 mypy-boto3-redshift-data==1.26.109
 mypy-extensions==1.0.0
 mypy==1.0.0
 mysqlclient==2.1.1
 nbclient==0.7.4
 nbformat==5.8.0
-neo4j==5.9.0
+neo4j==5.10.0
 nest-asyncio==1.5.6
 networkx==2.6.3
 nodeenv==1.8.0
@@ -362,7 +362,7 @@ partd==1.4.0
 pathable==0.4.3
 pathspec==0.9.0
 pbr==5.11.1
-pdpyras==5.0.4
+pdpyras==5.1.0
 pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
@@ -397,7 +397,7 @@ pycountry==22.3.5
 pycparser==2.21
 pycryptodome==3.18.0
 pycryptodomex==3.18.0
-pydantic==1.10.9
+pydantic==1.10.10
 pydata-google-auth==1.8.0
 pydot==1.4.2
 pydruid==0.6.5
@@ -527,7 +527,7 @@ twine==4.0.2
 typed-ast==1.5.4
 types-Deprecated==1.2.9.2
 types-Markdown==3.4.2.9
-types-PyMySQL==1.0.19.7
+types-PyMySQL==1.1.0.0
 types-PyYAML==6.0.12.10
 types-boto==2.49.18.8
 types-certifi==2021.10.8.3
@@ -539,14 +539,14 @@ types-pyOpenSSL==23.2.0.1
 types-python-dateutil==2.8.19.13
 types-python-slugify==8.0.0.2
 types-pytz==2023.3.0.0
-types-redis==4.5.5.2
+types-redis==4.6.0.1
 types-requests==2.31.0.1
 types-setuptools==68.0.0.0
 types-tabulate==0.9.0.2
 types-termcolor==1.1.6.2
 types-toml==0.10.8.6
 types-urllib3==1.26.25.13
-typing_extensions==4.6.3
+typing_extensions==4.7.0
 tzlocal==5.0.1
 uc-micro-py==1.0.2
 unicodecsv==0.14.1
