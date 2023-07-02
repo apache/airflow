@@ -90,10 +90,10 @@ class TestLambdaInvokeFunctionOperator:
 
     @patch.object(LambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
     @pytest.mark.parametrize(
-        "payload",
-        ["e", b"e"],
+        "payload, invoke_payload",
+        [("e", b"e"), (b"e", b"e")],
     )
-    def test_invoke_lambda(self, hook_mock, payload):
+    def test_invoke_lambda(self, hook_mock, payload, invoke_payload):
         operator = LambdaInvokeFunctionOperator(
             task_id="task_test",
             function_name="a",
@@ -115,7 +115,6 @@ class TestLambdaInvokeFunctionOperator:
 
         assert value == "data was read"
 
-        invoke_payload = payload.encode() if isinstance(payload, str) else payload
         hook_mock().invoke_lambda.assert_called_once_with(
             function_name="a",
             invocation_type="b",

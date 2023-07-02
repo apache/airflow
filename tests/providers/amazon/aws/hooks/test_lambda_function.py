@@ -25,7 +25,8 @@ import pytest
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
 
 FUNCTION_NAME = "test_function"
-PAYLOADS = ['{"hello": "airflow"}', b'{"hello": "airflow"}']
+PAYLOAD = '{"hello": "airflow"}'
+BYTES_PAYLOAD = b'{"hello": "airflow"}'
 RUNTIME = "python3.9"
 ROLE = "role"
 HANDLER = "handler"
@@ -48,12 +49,14 @@ class TestLambdaHook:
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.lambda_function.LambdaHook.conn", new_callable=mock.PropertyMock
     )
-    @pytest.mark.parametrize("payload", PAYLOADS)
-    def test_invoke_lambda(self, mock_conn, payload):
+    @pytest.mark.parametrize(
+        "payload, invoke_payload",
+        [(PAYLOAD, BYTES_PAYLOAD), (BYTES_PAYLOAD, BYTES_PAYLOAD)],
+    )
+    def test_invoke_lambda(self, mock_conn, payload, invoke_payload):
         hook = LambdaHook()
         hook.invoke_lambda(function_name=FUNCTION_NAME, payload=payload)
 
-        invoke_payload = payload.encode() if isinstance(payload, str) else payload
         mock_conn().invoke.assert_called_once_with(
             FunctionName=FUNCTION_NAME,
             Payload=invoke_payload,
