@@ -17,7 +17,7 @@
 """This module contains ODBC hook."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, List
 from urllib.parse import quote_plus
 
 import pyodbc
@@ -211,3 +211,10 @@ class OdbcHook(DbApiHook):
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         cnx = engine.connect(**(connect_kwargs or {}))
         return cnx
+
+    @staticmethod
+    def _make_serializable(result: List[pyodbc.Row]) -> List[tuple]:
+        """Transform the pyodbc.Row objects returned from a SQL command into
+        JSON-serializable objects.
+        """
+        return [tuple(row) for row in result]
