@@ -461,6 +461,7 @@ Currently, **officially** using Airflow:
 1. [Trocafone](https://www.trocafone.com/) [[@idontdomath](https://github.com/idontdomath) & [@gseva](https://github.com/gseva) & [@ordonezf](https://github.com/ordonezf) & [@PalmaLeandro](https://github.com/PalmaLeandro)]
 1. [TruFactor](https://trufactor.io/) [[@gholmes](https://github.com/gholmes) & [@angadsingh](https://github.com/angadsingh/)]
 1. [Twine Labs](https://www.twinelabs.com/) [[@ivorpeles](https://github.com/ivorpeles)]
+1. [Twilio](https://www.twilio.com/) [[@twilio](https://github.com/twilio)]
 1. [Twitter](https://www.twitter.com/) [[@aoen](https://github.com/aoen)]
 1. [Ubisoft](https://www.ubisoft.com/) [[@Walkoss](https://github.com/Walkoss)]
 1. [Udacity](https://www.udacity.com/) [[@dandikunited](https://github.com/DandikUnited), [@simon-uc](https://github.com/simon-uc)]
