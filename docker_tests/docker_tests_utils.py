@@ -20,7 +20,7 @@ import os
 
 from docker_tests.command_utils import run_command
 
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.7"
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = "3.8"
 
 docker_image = os.environ.get(
     "DOCKER_IMAGE", f"ghcr.io/apache/airflow/main/prod/python{DEFAULT_PYTHON_MAJOR_MINOR_VERSION}:latest"
@@ -87,11 +87,11 @@ In case 2) - Follow the steps below:
 
 CI image:
 
-     breeze ci-image build --upgrade-to-newer-dependencies --python 3.7
+     breeze ci-image build --upgrade-to-newer-dependencies --python 3.8
 
 Production image:
 
-     breeze ci-image build --production-image --upgrade-to-newer-dependencies --python 3.7
+     breeze ci-image build --production-image --upgrade-to-newer-dependencies --python 3.8
 
 * You will see error messages there telling which requirements are conflicting and which packages caused the
   conflict. Add the limitation that caused the conflict to EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS

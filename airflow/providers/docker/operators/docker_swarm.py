@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Run ephemeral Docker Swarm services"""
+"""Run ephemeral Docker Swarm services."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -32,6 +32,7 @@ if TYPE_CHECKING:
 class DockerSwarmOperator(DockerOperator):
     """
     Execute a command as an ephemeral docker swarm service.
+
     Example use-case - Using Docker Swarm orchestration to make one-time
     scripts highly available.
 

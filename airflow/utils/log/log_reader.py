@@ -18,11 +18,11 @@ from __future__ import annotations
 
 import logging
 import time
+from functools import cached_property
 from typing import Iterator
 
 from sqlalchemy.orm.session import Session
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.helpers import render_log_filename

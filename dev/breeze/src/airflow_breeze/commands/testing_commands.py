@@ -51,6 +51,7 @@ from airflow_breeze.utils.common_options import (
     option_python,
     option_run_in_parallel,
     option_skip_cleanup,
+    option_use_airflow_version,
     option_verbose,
 )
 from airflow_breeze.utils.console import Output, get_console
@@ -145,6 +146,7 @@ def _run_test(
     output: Output | None,
     test_timeout: int,
     output_outside_the_group: bool = False,
+    skip_docker_compose_down: bool = False,
 ) -> tuple[int, str]:
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
     env_variables["RUN_TESTS"] = "true"
@@ -209,22 +211,23 @@ def _run_test(
                 with open(dump_path, "w") as outfile:
                     run_command(["docker", "logs", container_id], check=False, stdout=outfile)
     finally:
-        run_command(
-            [
-                *DOCKER_COMPOSE_COMMAND,
-                "--project-name",
-                f"airflow-test-{project_name}",
-                "rm",
-                "--stop",
-                "--force",
-                "-v",
-            ],
-            env=env_variables,
-            output=output,
-            check=False,
-            verbose_override=False,
-        )
-        remove_docker_networks(networks=[f"airflow-test-{project_name}_default"])
+        if not skip_docker_compose_down:
+            run_command(
+                [
+                    *DOCKER_COMPOSE_COMMAND,
+                    "--project-name",
+                    f"airflow-test-{project_name}",
+                    "rm",
+                    "--stop",
+                    "--force",
+                    "-v",
+                ],
+                env=env_variables,
+                output=output,
+                check=False,
+                verbose_override=False,
+            )
+            remove_docker_networks(networks=[f"airflow-test-{project_name}_default"])
     return result.returncode, f"Test: {exec_shell_params.test_type}"
 
 
@@ -238,6 +241,7 @@ def _run_tests_in_pool(
     include_success_outputs: bool,
     debug_resources: bool,
     skip_cleanup: bool,
+    skip_docker_compose_down: bool,
 ):
     escaped_tests = [test.replace("[", "\\[") for test in tests_to_run]
     with ci_group(f"Testing {' '.join(escaped_tests)}"):
@@ -261,6 +265,7 @@ def _run_tests_in_pool(
                         "db_reset": db_reset,
                         "output": outputs[index],
                         "test_timeout": test_timeout,
+                        "skip_docker_compose_down": skip_docker_compose_down,
                     },
                 )
                 for index, test_type in enumerate(tests_to_run)
@@ -287,6 +292,7 @@ def run_tests_in_parallel(
     debug_resources: bool,
     parallelism: int,
     skip_cleanup: bool,
+    skio_docker_compose_down: bool,
 ) -> None:
     _run_tests_in_pool(
         tests_to_run=parallel_test_types_list,
@@ -298,6 +304,7 @@ def run_tests_in_parallel(
         include_success_outputs=include_success_outputs,
         debug_resources=debug_resources,
         skip_cleanup=skip_cleanup,
+        skip_docker_compose_down=skio_docker_compose_down,
     )
 
 
@@ -316,6 +323,7 @@ def run_tests_in_parallel(
 @option_mssql_version
 @option_integration
 @option_image_tag_for_running
+@option_use_airflow_version
 @option_mount_sources
 @click.option(
     "--test-type",
@@ -363,6 +371,12 @@ def run_tests_in_parallel(
     is_flag=True,
     envvar="REMOVE_ARM_PACKAGES",
 )
+@click.option(
+    "--skip-docker-compose-down",
+    help="Skips running docker-compose down after tests",
+    is_flag=True,
+    envvar="SKIP_DOCKER_COMPOSE_DOWN",
+)
 @option_verbose
 @option_dry_run
 @option_github_repository
@@ -378,6 +392,7 @@ def command_for_tests(
     test_timeout: int,
     db_reset: bool,
     image_tag: str | None,
+    use_airflow_version: str | None,
     run_in_parallel: bool,
     parallelism: int,
     skip_cleanup: bool,
@@ -390,6 +405,7 @@ def command_for_tests(
     collect_only: bool,
     remove_arm_packages: bool,
     github_repository: str,
+    skip_docker_compose_down: bool,
 ):
     docker_filesystem = get_filesystem_type("/var/lib/docker")
     get_console().print(f"Docker filesystem: {docker_filesystem}")
@@ -401,6 +417,7 @@ def command_for_tests(
         mysql_version=mysql_version,
         mssql_version=mssql_version,
         image_tag=image_tag,
+        use_airflow_version=use_airflow_version,
         mount_sources=mount_sources,
         forward_ports=False,
         test_type=test_type,
@@ -424,6 +441,7 @@ def command_for_tests(
             parallelism=parallelism,
             skip_cleanup=skip_cleanup,
             debug_resources=debug_resources,
+            skio_docker_compose_down=skip_docker_compose_down,
         )
     else:
         returncode, _ = _run_test(
@@ -432,6 +450,7 @@ def command_for_tests(
             db_reset=db_reset,
             output=None,
             test_timeout=test_timeout,
+            skip_docker_compose_down=skip_docker_compose_down,
         )
         sys.exit(returncode)
 

@@ -228,6 +228,11 @@ $(document).ready(() => {
     }
   }
 
+  function hideAlert() {
+    const alertBox = $(".container .row .alert");
+    alertBox.hide();
+  }
+
   /**
    * Produces JSON stringified data from a html form data
    *
@@ -299,6 +304,7 @@ $(document).ready(() => {
   // Bind click event to Test Connection button & perform an AJAX call via REST API
   $("#test-connection").on("click", (e) => {
     e.preventDefault();
+    hideAlert();
     $.ajax({
       url: connectionTestUrl,
       type: "post",

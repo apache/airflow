@@ -34,7 +34,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 
 class StackdriverHook(GoogleBaseHook):
-    """Stackdriver Hook for connecting with Google Cloud Stackdriver"""
+    """Stackdriver Hook for connecting with Google Cloud Stackdriver."""
 
     def __init__(
         self,

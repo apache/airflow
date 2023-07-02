@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
 import boto3
@@ -36,6 +37,8 @@ from tests.system.providers.amazon.aws.utils import (
     prune_logs,
     split_string,
 )
+
+log = logging.getLogger(__name__)
 
 DAG_ID = "example_batch"
 
@@ -92,6 +95,15 @@ def create_job_queue(job_compute_environment_name, job_queue_name):
         priority=1,
         state="ENABLED",
     )
+
+
+# Only describe the job if a previous task failed, to help diagnose
+@task(trigger_rule=TriggerRule.ONE_FAILED)
+def describe_job(job_id):
+    client = boto3.client("batch")
+    response = client.describe_jobs(jobs=[job_id])
+    log.info("Describing the job %s for debugging purposes", job_id)
+    log.info(response["jobs"])
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -250,6 +262,7 @@ with DAG(
         submit_batch_job,
         wait_for_batch_job,
         # TEST TEARDOWN
+        describe_job(submit_batch_job.output),
         disable_job_queue(batch_job_queue_name),
         wait_for_job_queue_modified,
         delete_job_queue(batch_job_queue_name),

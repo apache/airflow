@@ -28,7 +28,7 @@ runs:
     - name: "Setup python"
       uses: actions/setup-python@v4
       with:
-        python-version: 3.7
+        python-version: 3.8
         cache: 'pip'
         cache-dependency-path: ./dev/breeze/setup*
     - name: Cache breeze
@@ -37,8 +37,8 @@ runs:
         path: ~/.local/pipx
         # README has the latest breeze's hash and python location is used to distinguish between
         # different minor versions of python
-        key: "breeze-${{ env.pythonLocation }}-${{ hashFiles('dev/breeze/README.md') }}"
-        restore-keys: breeze-${{ env.pythonLocation }}
+        key: "breeze-3.8-${{ env.pythonLocation }}-${{ hashFiles('dev/breeze/README.md') }}"
+        restore-keys: breeze-3.8-${{ env.pythonLocation }}
     - name: "Install Breeze"
       shell: bash
       run: ./scripts/ci/install_breeze.sh

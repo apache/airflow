@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import time
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -31,7 +32,6 @@ from google.cloud.bigquery_datatransfer_v1 import (
 )
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
 from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransferConfigLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator

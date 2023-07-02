@@ -538,7 +538,7 @@ class MLEngineHook(GoogleBaseHook):
 
 
 class MLEngineAsyncHook(GoogleBaseAsyncHook):
-    """Class to get asynchronous hook for MLEngine"""
+    """Class to get asynchronous hook for MLEngine."""
 
     sync_hook_class = MLEngineHook
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]

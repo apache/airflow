@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 4.2.0
   - 4.1.0
   - 4.0.5
   - 4.0.4
@@ -75,6 +76,7 @@ hooks:
   - integration-name: Snowflake
     python-modules:
       - airflow.providers.snowflake.hooks.snowflake
+      - airflow.providers.snowflake.hooks.snowflake_sql_api
 
 transfers:
   - source-integration-name: Amazon Simple Storage Service (S3)

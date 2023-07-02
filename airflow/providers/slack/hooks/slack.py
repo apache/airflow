@@ -19,14 +19,13 @@ from __future__ import annotations
 
 import json
 import warnings
-from functools import wraps
+from functools import cached_property, wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Sequence
 
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.slack.utils import ConnectionExtraConfig

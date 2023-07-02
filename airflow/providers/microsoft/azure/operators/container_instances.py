@@ -60,7 +60,7 @@ DEFAULT_CPU = 1.0
 
 class AzureContainerInstancesOperator(BaseOperator):
     """
-    Start a container on Azure Container Instances
+    Start a container on Azure Container Instances.
 
     :param ci_conn_id: connection id of a service principal which will be used
         to start the container instance

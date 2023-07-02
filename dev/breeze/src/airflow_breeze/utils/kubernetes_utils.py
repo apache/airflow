@@ -170,11 +170,7 @@ def _download_tool_if_needed(
     get_console().print(f"[info]Downloading from:[/] {url}")
     if get_dry_run():
         return
-    try:
-        # we can add missing_ok when we drop Python 3.7
-        path.unlink()
-    except OSError:
-        pass
+    path.unlink(missing_ok=True)
     path.parent.mkdir(parents=True, exist_ok=True)
     num_tries = 4
     if not uncompress_file:

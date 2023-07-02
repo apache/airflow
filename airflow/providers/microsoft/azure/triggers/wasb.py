@@ -143,7 +143,7 @@ class WasbPrefixSensorTrigger(BaseTrigger):
         prefix_exists = False
         hook = WasbAsyncHook(wasb_conn_id=self.wasb_conn_id, public_read=self.public_read)
         try:
-            async with hook.blob_service_client:
+            async with await hook.get_async_conn():
                 while not prefix_exists:
                     prefix_exists = await hook.check_for_prefix_async(
                         container_name=self.container_name,

@@ -18,16 +18,20 @@ from __future__ import annotations
 
 from contextlib import closing
 from datetime import datetime
-from typing import Any, Callable, Iterable, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Protocol, Sequence, cast
+from urllib.parse import urlparse
 
 import sqlparse
 from packaging.version import Version
 from sqlalchemy import create_engine
-from typing_extensions import Protocol
 
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from airflow.providers.openlineage.extractors import OperatorLineage
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
 
 def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
@@ -59,7 +63,7 @@ def return_single_query_results(sql: str | Iterable[str], return_last: bool, spl
 
 
 def fetch_all_handler(cursor) -> list[tuple] | None:
-    """Handler for DbApiHook.run() to return results"""
+    """Handler for DbApiHook.run() to return results."""
     if not hasattr(cursor, "description"):
         raise RuntimeError(
             "The database we interact with does not support DBAPI 2.0. Use operator and "
@@ -72,7 +76,7 @@ def fetch_all_handler(cursor) -> list[tuple] | None:
 
 
 def fetch_one_handler(cursor) -> list[tuple] | None:
-    """Handler for DbApiHook.run() to return first result"""
+    """Handler for DbApiHook.run() to return first result."""
     if not hasattr(cursor, "description"):
         raise RuntimeError(
             "The database we interact with does not support DBAPI 2.0. Use operator and "
@@ -155,7 +159,7 @@ class DbApiHook(BaseForDbApiHook):
         self.descriptions: list[Sequence[Sequence] | None] = []
 
     def get_conn(self):
-        """Returns a connection object"""
+        """Returns a connection object."""
         db = self.get_connection(getattr(self, cast(str, self.conn_name_attr)))
         return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
 
@@ -182,7 +186,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_pandas_df(self, sql, parameters=None, **kwargs):
         """
-        Executes the sql and returns a pandas dataframe
+        Executes the sql and returns a pandas dataframe.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -202,7 +206,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_pandas_df_by_chunks(self, sql, parameters=None, *, chunksize, **kwargs):
         """
-        Executes the sql and returns a generator
+        Executes the sql and returns a generator.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -250,14 +254,13 @@ class DbApiHook(BaseForDbApiHook):
     @staticmethod
     def split_sql_string(sql: str) -> list[str]:
         """
-        Splits string into multiple SQL expressions
+        Splits string into multiple SQL expressions.
 
         :param sql: SQL string potentially consisting of multiple expressions
         :return: list of individual expressions
         """
         splits = sqlparse.split(sqlparse.format(sql, strip_comments=True))
-        statements: list[str] = list(filter(None, splits))
-        return statements
+        return [s for s in splits if s]
 
     @property
     def last_description(self) -> Sequence[Sequence] | None:
@@ -274,10 +277,10 @@ class DbApiHook(BaseForDbApiHook):
         split_statements: bool = False,
         return_last: bool = True,
     ) -> Any | list[Any] | None:
-        """
-        Runs a command or a list of commands. Pass a list of sql
-        statements to the sql parameter to get them to execute
-        sequentially.
+        """Run a command or a list of commands.
+
+        Pass a list of SQL statements to the sql parameter to get them to
+        execute sequentially.
 
         The method will return either single query results (typically list of rows) or list of those results
         where each element in the list are results of one of the queries (typically list of list of rows :D)
@@ -384,7 +387,7 @@ class DbApiHook(BaseForDbApiHook):
             self.log.info("Rows affected: %s", cur.rowcount)
 
     def set_autocommit(self, conn, autocommit):
-        """Sets the autocommit flag on the connection"""
+        """Sets the autocommit flag on the connection."""
         if not self.supports_autocommit and autocommit:
             self.log.warning(
                 "%s connection doesn't support autocommit but autocommit activated.",
@@ -393,25 +396,23 @@ class DbApiHook(BaseForDbApiHook):
         conn.autocommit = autocommit
 
     def get_autocommit(self, conn) -> bool:
-        """
-        Get autocommit setting for the provided connection.
-        Return True if conn.autocommit is set to True.
-        Return False if conn.autocommit is not set or set to False or conn
-        does not support autocommit.
+        """Get autocommit setting for the provided connection.
 
         :param conn: Connection to get autocommit setting from.
-        :return: connection autocommit setting.
+        :return: connection autocommit setting. True if ``autocommit`` is set
+            to True on the connection. False if it is either not set, set to
+            False, or the connection does not support auto-commit.
         """
         return getattr(conn, "autocommit", False) and self.supports_autocommit
 
     def get_cursor(self):
-        """Returns a cursor"""
+        """Returns a cursor."""
         return self.get_conn().cursor()
 
     @classmethod
     def _generate_insert_sql(cls, table, values, target_fields, replace, **kwargs) -> str:
-        """
-        Helper class method that generates the INSERT SQL statement.
+        """Helper class method that generates the INSERT SQL statement.
+
         The REPLACE variant is specific to MySQL syntax.
 
         :param table: Name of the target table
@@ -438,9 +439,10 @@ class DbApiHook(BaseForDbApiHook):
         return sql
 
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000, replace=False, **kwargs):
-        """
-        A generic way to insert a set of tuples into a table,
-        a new transaction is created every commit_every rows
+        """Insert a collection of tuples into a table.
+
+        Rows are inserted in chunks, each chunk (of size ``commit_every``) is
+        done in a new transaction.
 
         :param table: Name of the target table
         :param rows: The rows to insert into the table
@@ -489,7 +491,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def bulk_dump(self, table, tmp_file):
         """
-        Dumps a database table into a tab-delimited file
+        Dumps a database table into a tab-delimited file.
 
         :param table: The name of the source table
         :param tmp_file: The path of the target file
@@ -498,7 +500,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def bulk_load(self, table, tmp_file):
         """
-        Loads a tab-delimited file into a database table
+        Loads a tab-delimited file into a database table.
 
         :param table: The name of the target table
         :param tmp_file: The path of the file to load into the table
@@ -506,7 +508,7 @@ class DbApiHook(BaseForDbApiHook):
         raise NotImplementedError()
 
     def test_connection(self):
-        """Tests the connection using db-specific query"""
+        """Tests the connection using db-specific query."""
         status, message = False, ""
         try:
             if self.get_first(self._test_connection_sql):
@@ -517,3 +519,52 @@ class DbApiHook(BaseForDbApiHook):
             message = str(e)
 
         return status, message
+
+    def get_openlineage_database_info(self, connection) -> DatabaseInfo | None:
+        """
+        Returns database specific information needed to generate and parse lineage metadata.
+
+        This includes information helpful for constructing information schema query
+        and creating correct namespace.
+
+        :param connection: Airflow connection to reduce calls of `get_connection` method
+        """
+
+    def get_openlineage_database_dialect(self, connection) -> str:
+        """
+        Returns database dialect used for SQL parsing.
+
+        For a list of supported dialects check: https://openlineage.io/docs/development/sql#sql-dialects
+        """
+        return "generic"
+
+    def get_openlineage_default_schema(self) -> str:
+        """
+        Returns default schema specific to database.
+
+        .. seealso::
+            - :class:`airflow.providers.openlineage.sqlparser.SQLParser`
+        """
+        return self.__schema or "public"
+
+    def get_openlineage_database_specific_lineage(self, task_instance) -> OperatorLineage | None:
+        """
+        Returns additional database specific lineage, e.g. query execution information.
+
+        This method is called only on completion of the task.
+
+        :param task_instance: this may be used to retrieve additional information
+            that is collected during runtime of the task
+        """
+
+    @staticmethod
+    def get_openlineage_authority_part(connection) -> str:
+        """
+        This method serves as common method for several hooks to get authority part from Airflow Connection.
+
+        The authority represents the hostname and port of the connection
+        and conforms OpenLineage naming convention for a number of databases (e.g. MySQL, Postgres, Trino).
+        """
+        parsed = urlparse(connection.get_uri())
+        authority = f"{parsed.hostname}:{parsed.port}"
+        return authority

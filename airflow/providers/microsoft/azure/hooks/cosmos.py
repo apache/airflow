@@ -56,7 +56,7 @@ class AzureCosmosDBHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -73,7 +73,7 @@ class AzureCosmosDBHook(BaseHook):
     @staticmethod
     @_ensure_prefixes(conn_type="azure_cosmos")  # todo: remove when min airflow version >= 2.5
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "host", "extra"],
             "relabeling": {
@@ -357,15 +357,15 @@ class AzureCosmosDBHook(BaseHook):
 
 
 def get_database_link(database_id: str) -> str:
-    """Get Azure CosmosDB database link"""
+    """Get Azure CosmosDB database link."""
     return "dbs/" + database_id
 
 
 def get_collection_link(database_id: str, collection_id: str) -> str:
-    """Get Azure CosmosDB collection link"""
+    """Get Azure CosmosDB collection link."""
     return get_database_link(database_id) + "/colls/" + collection_id
 
 
 def get_document_link(database_id: str, collection_id: str, document_id: str) -> str:
-    """Get Azure CosmosDB document link"""
+    """Get Azure CosmosDB document link."""
     return get_collection_link(database_id, collection_id) + "/docs/" + document_id

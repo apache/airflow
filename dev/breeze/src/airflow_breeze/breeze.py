@@ -34,6 +34,7 @@ from airflow_breeze.commands.ci_image_commands import ci_image  # noqa
 from airflow_breeze.commands.kubernetes_commands import kubernetes_group  # noqa
 from airflow_breeze.commands.production_image_commands import prod_image  # noqa
 from airflow_breeze.commands.release_management_commands import release_management  # noqa
+from airflow_breeze.commands.sbom_commands import sbom  # noqa
 from airflow_breeze.commands.setup_commands import setup  # noqa
 from airflow_breeze.commands.testing_commands import group_for_testing  # noqa
 
@@ -44,6 +45,7 @@ main.add_command(ci_image)
 main.add_command(prod_image)
 main.add_command(setup)
 main.add_command(release_management)
+main.add_command(sbom)
 
 if __name__ == "__main__":
     main()

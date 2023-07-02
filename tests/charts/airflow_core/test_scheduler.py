@@ -79,7 +79,9 @@ class TestScheduler:
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
-        actual = jmespath.search("spec.template.spec.initContainers", docs[0])
+        actual = jmespath.search(
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
+        )
         assert actual is None
 
     def test_should_add_extra_init_containers(self):
@@ -104,16 +106,21 @@ class TestScheduler:
             values={
                 "executor": "CeleryExecutor",
                 "scheduler": {
-                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
-                    "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumeMounts": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                    ],
                 },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert "test-volume" in jmespath.search("spec.template.spec.volumes[*].name", docs[0])
-        assert "test-volume" in jmespath.search(
+        assert "test-volume-airflow" in jmespath.search("spec.template.spec.volumes[*].name", docs[0])
+        assert "test-volume-airflow" in jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
+        )
+        assert "test-volume-airflow" == jmespath.search(
+            "spec.template.spec.initContainers[0].volumeMounts[-1].name", docs[0]
         )
 
     def test_should_add_global_volume_and_global_volume_mount(self):
@@ -366,6 +373,59 @@ class TestScheduler:
         )
 
         assert {"name": "logs", **expected_volume} in jmespath.search("spec.template.spec.volumes", docs[0])
+
+    def test_scheduler_security_contexts_are_configurable(self):
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "securityContexts": {
+                        "pod": {
+                            "fsGroup": 1000,
+                            "runAsGroup": 1001,
+                            "runAsNonRoot": True,
+                            "runAsUser": 2000,
+                        },
+                        "container": {
+                            "allowPrivilegeEscalation": False,
+                            "readOnlyRootFilesystem": True,
+                        },
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+        assert {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True} == jmespath.search(
+            "spec.template.spec.containers[0].securityContext", docs[0]
+        )
+
+        assert {
+            "runAsUser": 2000,
+            "runAsGroup": 1001,
+            "fsGroup": 1000,
+            "runAsNonRoot": True,
+        } == jmespath.search("spec.template.spec.securityContext", docs[0])
+
+    def test_scheduler_security_context_legacy(self):
+        docs = render_chart(
+            values={
+                "scheduler": {
+                    "securityContext": {
+                        "fsGroup": 1000,
+                        "runAsGroup": 1001,
+                        "runAsNonRoot": True,
+                        "runAsUser": 2000,
+                    }
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {
+            "runAsUser": 2000,
+            "runAsGroup": 1001,
+            "fsGroup": 1000,
+            "runAsNonRoot": True,
+        } == jmespath.search("spec.template.spec.securityContext", docs[0])
 
     def test_scheduler_resources_are_configurable(self):
         docs = render_chart(

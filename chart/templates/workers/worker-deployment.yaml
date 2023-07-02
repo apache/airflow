@@ -28,9 +28,14 @@
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
 {{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $revisionHistoryLimit := or .Values.workers.revisionHistoryLimit .Values.revisionHistoryLimit }}
-{{- $securityContext := include "airflowSecurityContext" (list . .Values.workers) }}
-kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
+{{- $securityContext := include "airflowPodSecurityContext" (list . .Values.workers) }}
+{{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.workers) }}
+{{- $containerSecurityContextPersistence := include "containerSecurityContext" (list . .Values.workers.persistence) }}
+{{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.workers.waitForMigrations) }}
+{{- $containerSecurityContextLogGroomerSidecar := include "containerSecurityContext" (list . .Values.workers.logGroomerSidecar) }}
+{{- $containerSecurityContextKerberosSidecar := include "containerSecurityContext" (list . .Values.workers.kerberosSidecar) }}
 apiVersion: apps/v1
+kind: {{ if $persistence }}StatefulSet{{ else }}Deployment{{ end }}
 metadata:
   name: {{ .Release.Name }}-worker
   labels:
@@ -133,25 +138,26 @@ spec:
           command:
             - chown
             - -R
-            - "{{ include "airflowSecurityContextIds" (list . .Values.workers) }}"
+            - "{{ include "airflowPodSecurityContextsIds" (list . .Values.workers) }}"
             - {{ template "airflow_logs" . }}
-          securityContext:
-            runAsUser: 0
+          securityContext: {{ $containerSecurityContextPersistence | nindent 12 }}
           volumeMounts:
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
         {{- end }}
+        {{- if .Values.workers.waitForMigrations.enabled }}
         - name: wait-for-airflow-migrations
           resources: {{- toYaml .Values.workers.resources | nindent 12 }}
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.workers.extraVolumeMounts }}
-              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
@@ -164,8 +170,9 @@ spec:
             {{- if .Values.workers.waitForMigrations.env }}
               {{- tpl (toYaml .Values.workers.waitForMigrations.env) $ | nindent 12 }}
             {{- end }}
+        {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
-          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
+          {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 8 }}
         {{- end }}
         {{- if .Values.workers.extraInitContainers }}
           {{- toYaml .Values.workers.extraInitContainers | nindent 8 }}
@@ -174,6 +181,7 @@ spec:
         - name: worker
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContext | nindent 12 }}
           {{- if .Values.workers.command }}
           command: {{ tpl (toYaml .Values.workers.command) . | nindent 12 }}
           {{- end }}
@@ -205,7 +213,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.workers.extraVolumeMounts }}
-              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             - name: logs
               mountPath: {{ template "airflow_logs" . }}
@@ -250,6 +258,7 @@ spec:
         - name: worker-log-groomer
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContextLogGroomerSidecar | nindent 12 }}
           {{- if .Values.workers.logGroomerSidecar.command }}
           command: {{ tpl (toYaml .Values.workers.logGroomerSidecar.command) . | nindent 12 }}
           {{- end }}
@@ -269,7 +278,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.workers.extraVolumeMounts }}
-              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
@@ -279,6 +288,7 @@ spec:
         - name: worker-kerberos
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
+          securityContext: {{ $containerSecurityContextKerberosSidecar | nindent 12 }}
           args: ["kerberos"]
           resources: {{- toYaml .Values.workers.kerberosSidecar.resources | nindent 12 }}
           volumeMounts:
@@ -300,7 +310,7 @@ spec:
               {{- toYaml .Values.volumeMounts | nindent 12 }}
             {{- end }}
             {{- if .Values.workers.extraVolumeMounts }}
-              {{- toYaml .Values.workers.extraVolumeMounts | nindent 12 }}
+              {{- tpl (toYaml .Values.workers.extraVolumeMounts) . | nindent 12 }}
             {{- end }}
             {{- if or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName }}
               {{- include "airflow_webserver_config_mount" . | nindent 12 }}
@@ -322,7 +332,7 @@ spec:
           {{- toYaml .Values.volumes | nindent 8 }}
         {{- end }}
         {{- if .Values.workers.extraVolumes }}
-          {{- toYaml .Values.workers.extraVolumes | nindent 8 }}
+          {{- tpl (toYaml .Values.workers.extraVolumes) . | nindent 8 }}
         {{- end }}
         - name: config
           configMap:

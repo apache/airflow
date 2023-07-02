@@ -21,11 +21,13 @@ from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.snowflake.operators.snowflake import (
     SnowflakeCheckOperator,
     SnowflakeIntervalCheckOperator,
     SnowflakeOperator,
+    SnowflakeSqlApiOperator,
     SnowflakeValueCheckOperator,
 )
 from airflow.utils import timezone
@@ -34,6 +36,17 @@ DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = "unit_test_dag"
+
+TASK_ID = "snowflake_check"
+CONN_ID = "my_snowflake_conn"
+TEST_SQL = "select * from any;"
+
+SQL_MULTIPLE_STMTS = (
+    "create or replace table user_test (i int); insert into user_test (i) "
+    "values (200); insert into user_test (i) values (300); select i from user_test order by i;"
+)
+
+SINGLE_STMT = "select i from user_test order by i;"
 
 
 class TestSnowflakeOperator:
@@ -73,3 +86,59 @@ class TestSnowflakeCheckOperators:
         operator = operator_class(task_id="snowflake_check", snowflake_conn_id="snowflake_default", **kwargs)
         operator.get_db_hook()
         mock_get_db_hook.assert_called_once()
+
+
+class TestSnowflakeSqlApiOperator:
+    @pytest.fixture
+    def mock_execute_query(self):
+        with mock.patch(
+            "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiHook.execute_query"
+        ) as execute_query:
+            yield execute_query
+
+    @pytest.fixture
+    def mock_get_sql_api_query_status(self):
+        with mock.patch(
+            "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiHook.get_sql_api_query_status"
+        ) as get_sql_api_query_status:
+            yield get_sql_api_query_status
+
+    @pytest.fixture
+    def mock_check_query_output(self):
+        with mock.patch(
+            "airflow.providers.snowflake.operators.snowflake.SnowflakeSqlApiHook.check_query_output"
+        ) as check_query_output:
+            yield check_query_output
+
+    def test_snowflake_sql_api_to_succeed_when_no_query_fails(
+        self, mock_execute_query, mock_get_sql_api_query_status, mock_check_query_output
+    ):
+        """Tests SnowflakeSqlApiOperator passed if poll_on_queries method gives no error"""
+
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=False,
+        )
+        mock_execute_query.return_value = ["uuid1", "uuid2"]
+        mock_get_sql_api_query_status.side_effect = [{"status": "success"}, {"status": "success"}]
+        operator.execute(context=None)
+
+    def test_snowflake_sql_api_to_fails_when_one_query_fails(
+        self, mock_execute_query, mock_get_sql_api_query_status
+    ):
+        """Tests SnowflakeSqlApiOperator passed if poll_on_queries method gives one or more error"""
+
+        operator = SnowflakeSqlApiOperator(
+            task_id=TASK_ID,
+            snowflake_conn_id="snowflake_default",
+            sql=SQL_MULTIPLE_STMTS,
+            statement_count=4,
+            do_xcom_push=False,
+        )
+        mock_execute_query.return_value = ["uuid1", "uuid2"]
+        mock_get_sql_api_query_status.side_effect = [{"status": "error"}, {"status": "success"}]
+        with pytest.raises(AirflowException):
+            operator.execute(context=None)

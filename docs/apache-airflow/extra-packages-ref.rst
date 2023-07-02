@@ -100,7 +100,7 @@ with a consistent set of dependencies based on constraint files provided by Airf
     :substitutions:
 
     pip install apache-airflow[google,amazon,apache.spark]==|version| \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.7.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.8.txt"
 
 Note, that this will install providers in the versions that were released at the time of Airflow |version| release. You can later
 upgrade those providers manually if you want to use latest versions of the providers.
@@ -163,6 +163,8 @@ These are extras that add dependencies needed for integration with external serv
 | airbyte             | ``pip install 'apache-airflow[airbyte]'``           | Airbyte hooks and operators                         |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | alibaba             | ``pip install 'apache-airflow[alibaba]'``           | Alibaba Cloud                                       |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| apprise             | ``pip install 'apache-airflow[apprise]'``           | Apprise Notification                                |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | amazon              | ``pip install 'apache-airflow[amazon]'``            | Amazon Web Services                                 |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+

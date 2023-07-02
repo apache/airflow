@@ -52,7 +52,7 @@ class PagerdutyHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["port", "login", "schema", "host"],
             "relabeling": {

@@ -16,12 +16,28 @@
     under the License.
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog
----------
+Changelog for ``apache-airflow-providers-mysql``
+------------------------------------------------
+
+5.1.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Replace unicodecsv with standard csv library (#31693)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 5.1.0
 .....

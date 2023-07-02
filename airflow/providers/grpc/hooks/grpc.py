@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""GRPC Hook"""
+"""GRPC Hook."""
 from __future__ import annotations
 
 from typing import Any, Callable, Generator
@@ -53,7 +53,7 @@ class GrpcHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import StringField
@@ -124,7 +124,7 @@ class GrpcHook(BaseHook):
     def run(
         self, stub_class: Callable, call_func: str, streaming: bool = False, data: dict | None = None
     ) -> Generator:
-        """Call gRPC function and yield response to caller"""
+        """Call gRPC function and yield response to caller."""
         if data is None:
             data = {}
         with self.get_conn() as channel:

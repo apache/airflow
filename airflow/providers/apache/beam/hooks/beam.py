@@ -42,8 +42,8 @@ from airflow.utils.python_virtualenv import prepare_virtualenv
 class BeamRunnerType:
     """
     Helper class for listing runner types.
-    For more information about runners see:
-    https://beam.apache.org/documentation/
+
+    For more information about runners see: https://beam.apache.org/documentation/
     """
 
     DataflowRunner = "DataflowRunner"
@@ -58,7 +58,7 @@ class BeamRunnerType:
 
 def beam_options_to_args(options: dict) -> list[str]:
     """
-    Returns a formatted pipeline options from a dictionary of arguments
+    Returns a formatted pipeline options from a dictionary of arguments.
 
     The logic of this method should be compatible with Apache Beam:
     https://github.com/apache/beam/blob/b56740f0e8cd80c2873412847d0b336837429fb9/sdks/python/

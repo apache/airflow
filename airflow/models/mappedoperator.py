@@ -289,6 +289,7 @@ class MappedOperator(AbstractOperator):
     """
 
     subdag: None = None  # Since we don't support SubDagOperator, this is always None.
+    supports_lineage: bool = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
         (
@@ -323,6 +324,24 @@ class MappedOperator(AbstractOperator):
                 f"{self.task_id!r}."
             )
 
+    @AbstractOperator.is_setup.setter  # type: ignore[attr-defined]
+    def is_setup(self, value):
+        """
+        Setter for is_setup property. Disabled for MappedOperator.
+
+        :meta private:
+        """
+        raise ValueError("Cannot set is_setup for mapped operator.")
+
+    @AbstractOperator.is_teardown.setter  # type: ignore[attr-defined]
+    def is_teardown(self, value):
+        """
+        Setter for is_teardown property. Disabled for MappedOperator.
+
+        :meta private:
+        """
+        raise ValueError("Cannot set is_teardown for mapped operator.")
+
     @classmethod
     @cache
     def get_serialized_fields(cls):
@@ -334,6 +353,10 @@ class MappedOperator(AbstractOperator):
             "subdag",
             "task_group",
             "upstream_task_ids",
+            "supports_lineage",
+            "is_setup",
+            "is_teardown",
+            "on_failure_fail_dagrun",
         }
 
     @staticmethod
@@ -382,6 +405,11 @@ class MappedOperator(AbstractOperator):
     @property
     def trigger_rule(self) -> TriggerRule:
         return self.partial_kwargs.get("trigger_rule", DEFAULT_TRIGGER_RULE)
+
+    @trigger_rule.setter
+    def trigger_rule(self, value):
+        # required for mypy which complains about overriding writeable attr with read-only property
+        raise ValueError("Cannot set trigger_rule for mapped operator.")
 
     @property
     def depends_on_past(self) -> bool:

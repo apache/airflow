@@ -22,11 +22,11 @@ from unittest import mock
 import pytest
 from botocore.exceptions import ClientError
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 
 AWS_ACCOUNT_ID = "123456789012"
-
 
 MOCK_DATA = {
     "DataSetId": "DemoDataSet",
@@ -98,6 +98,16 @@ class TestQuicksight:
         expected_call_params = MOCK_DATA
         mock_conn.return_value.create_ingestion.assert_called_with(**expected_call_params)
         assert result == MOCK_CREATE_INGESTION_RESPONSE
+
+    @mock.patch.object(QuickSightHook, "get_conn")
+    @mock.patch.object(QuickSightHook, "get_status")
+    def test_fast_failing_ingestion(self, mock_get_status, mock_conn):
+        quicksight_hook = QuickSightHook(aws_conn_id="aws_default", region_name="us-east-1")
+        mock_get_status.return_value = "FAILED"
+        with pytest.raises(AirflowException):
+            quicksight_hook.wait_for_state(
+                "account_id", "data_set_id", "ingestion_id", target_state={"COMPLETED"}, check_interval=1
+            )
 
     @mock.patch.object(StsHook, "get_conn")
     @mock.patch.object(StsHook, "get_account_number")

@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from airflow_breeze.commands.sbom_commands_config import SBOM_COMMANDS, SBOM_PARAMETERS
+
 from airflow_breeze.utils import recording  # isort:skip # noqa
 
 try:
@@ -69,13 +71,26 @@ else:
         **PRODUCTION_IMAGE_TOOLS_PARAMETERS,
         **CI_PARAMETERS,
         **RELEASE_MANAGEMENT_PARAMETERS,
+        **SBOM_PARAMETERS,
     }
     click.rich_click.COMMAND_GROUPS = {
         "breeze": [
             DEVELOPER_COMMANDS,
             {
-                "name": "Advanced command groups",
-                "commands": ["testing", "ci-image", "k8s", "prod-image", "setup", "release-management", "ci"],
+                "name": "Testing commands",
+                "commands": ["testing", "k8s"],
+            },
+            {
+                "name": "Image commands",
+                "commands": ["ci-image", "prod-image"],
+            },
+            {
+                "name": "Release management commands",
+                "commands": ["release-management", "sbom"],
+            },
+            {
+                "name": "Other commands",
+                "commands": ["setup", "ci"],
             },
         ],
         "breeze testing": [TESTING_COMMANDS],
@@ -86,7 +101,8 @@ else:
         ],
         "breeze ci-image": [CI_IMAGE_TOOLS_COMMANDS],
         "breeze prod-image": [PRODUCTION_IMAGE_TOOLS_COMMANDS],
-        "setup": [SETUP_COMMANDS],
-        "release-management": [RELEASE_MANAGEMENT_COMMANDS],
+        "breeze setup": [SETUP_COMMANDS],
+        "breeze release-management": [RELEASE_MANAGEMENT_COMMANDS],
+        "breeze sbom": [SBOM_COMMANDS],
         "breeze ci": [CI_COMMANDS],
     }

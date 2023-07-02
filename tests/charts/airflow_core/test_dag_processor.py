@@ -64,7 +64,9 @@ class TestDagProcessor:
             },
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
-        actual = jmespath.search("spec.template.spec.initContainers", docs[0])
+        actual = jmespath.search(
+            "spec.template.spec.initContainers[?name=='wait-for-airflow-migrations']", docs[0]
+        )
         assert actual is None
 
     def test_should_add_extra_containers(self):
@@ -108,18 +110,20 @@ class TestDagProcessor:
             values={
                 "dagProcessor": {
                     "enabled": True,
-                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
-                    "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumeMounts": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                    ],
                 },
             },
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
 
-        assert "test-volume" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
-        assert "test-volume" == jmespath.search(
+        assert "test-volume-airflow" == jmespath.search("spec.template.spec.volumes[1].name", docs[0])
+        assert "test-volume-airflow" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
-        assert "test-volume" == jmespath.search(
+        assert "test-volume-airflow" == jmespath.search(
             "spec.template.spec.initContainers[0].volumeMounts[0].name", docs[0]
         )
 

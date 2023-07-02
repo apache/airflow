@@ -167,8 +167,8 @@ class TestParam:
         p = Param(42, type="number")
         assert p.resolve() == 42
 
-        p = Param(1.0, type="number")
-        assert p.resolve() == 1.0
+        p = Param(1.2, type="number")
+        assert p.resolve() == 1.2
 
         with pytest.raises(ParamValidationError):
             p = Param("42", type="number")

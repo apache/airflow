@@ -18,13 +18,13 @@
 """This module contains an operator to move data from MySQL to Hive."""
 from __future__ import annotations
 
+import csv
 from collections import OrderedDict
 from contextlib import closing
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
 import MySQLdb
-import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
@@ -36,8 +36,11 @@ if TYPE_CHECKING:
 
 class MySqlToHiveOperator(BaseOperator):
     """
-    Moves data from MySql to Hive. The operator runs your query against
-    MySQL, stores the file locally before loading it into a Hive table.
+    Moves data from MySql to Hive.
+
+    The operator runs your query against MySQL, stores the file locally
+    before loading it into a Hive table.
+
     If the ``create`` or ``recreate`` arguments are set to ``True``,
     a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.
     Hive data types are inferred from the cursor's metadata. Note that the
@@ -84,7 +87,7 @@ class MySqlToHiveOperator(BaseOperator):
         recreate: bool = False,
         partition: dict | None = None,
         delimiter: str = chr(1),
-        quoting: str | None = None,
+        quoting: int | None = None,
         quotechar: str = '"',
         escapechar: str | None = None,
         mysql_conn_id: str = "mysql_default",
@@ -133,7 +136,7 @@ class MySqlToHiveOperator(BaseOperator):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id, auth=self.hive_auth)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         self.log.info("Dumping MySQL query results to local file")
-        with NamedTemporaryFile("wb") as f:
+        with NamedTemporaryFile(mode="w", encoding="utf-8") as f:
             with closing(mysql.get_conn()) as conn:
                 with closing(conn.cursor()) as cursor:
                     cursor.execute(self.sql)
@@ -143,7 +146,6 @@ class MySqlToHiveOperator(BaseOperator):
                         quoting=self.quoting,
                         quotechar=self.quotechar if self.quoting != csv.QUOTE_NONE else None,
                         escapechar=self.escapechar,
-                        encoding="utf-8",
                     )
                     field_dict = OrderedDict()
                     if cursor.description is not None:

@@ -140,6 +140,7 @@ class TaskGroup(DAGNode):
 
         if parent_group:
             parent_group.add(self)
+            self._update_default_args(parent_group)
 
         self.used_group_ids.add(self.group_id)
         if self.group_id:
@@ -175,6 +176,10 @@ class TaskGroup(DAGNode):
                 self._group_id += "__1"
             else:
                 self._group_id = f"{base}__{suffixes[-1] + 1}"
+
+    def _update_default_args(self, parent_group: TaskGroup):
+        if parent_group.default_args:
+            self.default_args = {**parent_group.default_args, **self.default_args}
 
     @classmethod
     def create_root(cls, dag: DAG) -> TaskGroup:
@@ -360,9 +365,22 @@ class TaskGroup(DAGNode):
         Returns a generator of tasks that are leaf tasks, i.e. those with no downstream
         dependencies within the TaskGroup.
         """
+
+        def recurse_for_first_non_setup_teardown(group, task):
+            for upstream_task in task.upstream_list:
+                if not group.has_task(upstream_task):
+                    continue
+                if upstream_task.is_setup or upstream_task.is_teardown:
+                    yield from recurse_for_first_non_setup_teardown(group, upstream_task)
+                else:
+                    yield upstream_task
+
         for task in self:
-            if not any(self.has_task(child) for child in task.get_direct_relatives(upstream=False)):
-                yield task
+            if not any(self.has_task(x) for x in task.get_direct_relatives(upstream=False)):
+                if not (task.is_teardown or task.is_setup):
+                    yield task
+                else:
+                    yield from recurse_for_first_non_setup_teardown(self, task)
 
     def child_id(self, label):
         """
@@ -419,6 +437,18 @@ class TaskGroup(DAGNode):
         from airflow.serialization.serialized_objects import TaskGroupSerialization
 
         return DagAttributeTypes.TASK_GROUP, TaskGroupSerialization.serialize_task_group(self)
+
+    def hierarchical_alphabetical_sort(self):
+        """
+        Sorts children in hierarchical alphabetical order:
+        - groups in alphabetical order first
+        - tasks in alphabetical order after them.
+
+        :return: list of tasks in hierarchical alphabetical order
+        """
+        return sorted(
+            self.children.values(), key=lambda node: (not isinstance(node, TaskGroup), node.node_id)
+        )
 
     def topological_sort(self, _include_subdag_tasks: bool = False):
         """
@@ -623,15 +653,21 @@ def task_group_to_dict(task_item_or_group):
     """
     from airflow.models.abstractoperator import AbstractOperator
 
-    if isinstance(task_item_or_group, AbstractOperator):
+    if isinstance(task := task_item_or_group, AbstractOperator):
+        setup_teardown_type = {}
+        if task.is_setup is True:
+            setup_teardown_type["setupTeardownType"] = "setup"
+        elif task.is_teardown is True:
+            setup_teardown_type["setupTeardownType"] = "teardown"
         return {
-            "id": task_item_or_group.task_id,
+            "id": task.task_id,
             "value": {
-                "label": task_item_or_group.label,
-                "labelStyle": f"fill:{task_item_or_group.ui_fgcolor};",
-                "style": f"fill:{task_item_or_group.ui_color};",
+                "label": task.label,
+                "labelStyle": f"fill:{task.ui_fgcolor};",
+                "style": f"fill:{task.ui_color};",
                 "rx": 5,
                 "ry": 5,
+                **setup_teardown_type,
             },
         }
     task_group = task_item_or_group

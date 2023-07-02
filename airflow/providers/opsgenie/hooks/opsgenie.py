@@ -60,7 +60,7 @@ class OpsgenieAlertHook(BaseHook):
 
     def _get_api_key(self) -> str:
         """
-        Get the API key from the connection
+        Get the API key from the connection.
 
         :return: API key
         """
@@ -69,7 +69,7 @@ class OpsgenieAlertHook(BaseHook):
 
     def get_conn(self) -> AlertApi:
         """
-        Get the underlying AlertApi client
+        Get the underlying AlertApi client.
 
         :return: AlertApi client
         """
@@ -77,7 +77,7 @@ class OpsgenieAlertHook(BaseHook):
 
     def create_alert(self, payload: dict | None = None) -> SuccessResponse:
         """
-        Create an alert on Opsgenie
+        Create an alert on Opsgenie.
 
         :param payload: Opsgenie API Create Alert payload values
             See https://docs.opsgenie.com/docs/alert-api#section-create-alert
@@ -101,7 +101,7 @@ class OpsgenieAlertHook(BaseHook):
         **kwargs: dict | None,
     ) -> SuccessResponse:
         """
-        Close an alert in Opsgenie
+        Close an alert in Opsgenie.
 
         :param identifier: Identifier of alert which could be alert id, tiny id or alert alias
         :param identifier_type: Type of the identifier that is provided as an in-line parameter.
@@ -135,7 +135,7 @@ class OpsgenieAlertHook(BaseHook):
         source: str | None = None,
     ) -> SuccessResponse:
         """
-        Delete an alert in Opsgenie
+        Delete an alert in Opsgenie.
 
         :param identifier: Identifier of alert which could be alert id, tiny id or alert alias.
         :param identifier_type: Type of the identifier that is provided as an in-line parameter.

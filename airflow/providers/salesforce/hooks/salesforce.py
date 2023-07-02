@@ -26,13 +26,13 @@ from __future__ import annotations
 
 import logging
 import time
+from functools import cached_property
 from typing import Any, Iterable
 
 import pandas as pd
 from requests import Session
 from simple_salesforce import Salesforce, api
 
-from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 
 log = logging.getLogger(__name__)
@@ -92,7 +92,7 @@ class SalesforceHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -115,7 +115,7 @@ class SalesforceHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["schema", "port", "extra", "host"],
             "relabeling": {
@@ -125,7 +125,7 @@ class SalesforceHook(BaseHook):
 
     @cached_property
     def conn(self) -> api.Salesforce:
-        """Returns a Salesforce instance. (cached)"""
+        """Returns a Salesforce instance. (cached)."""
         connection = self.get_connection(self.conn_id)
         extras = connection.extra_dejson
         # all extras below (besides the version one) are explicitly defaulted to None
@@ -153,7 +153,7 @@ class SalesforceHook(BaseHook):
         return conn
 
     def get_conn(self) -> api.Salesforce:
-        """Returns a Salesforce instance. (cached)"""
+        """Returns a Salesforce instance. (cached)."""
         return self.conn
 
     def make_query(self, query: str, include_deleted: bool = False, query_params: dict | None = None) -> dict:
@@ -225,7 +225,7 @@ class SalesforceHook(BaseHook):
     @classmethod
     def _to_timestamp(cls, column: pd.Series) -> pd.Series:
         """
-        Convert a column of a dataframe to UNIX timestamps if applicable
+        Convert a column of a dataframe to UNIX timestamps if applicable.
 
         :param column: A Series object representing a column of a dataframe.
         :return: a new series that maintains the same index as the original
@@ -393,7 +393,7 @@ class SalesforceHook(BaseHook):
         return df
 
     def test_connection(self):
-        """Test the Salesforce connectivity"""
+        """Test the Salesforce connectivity."""
         try:
             self.describe_object("Account")
             status = True
