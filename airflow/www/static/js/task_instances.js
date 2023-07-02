@@ -119,12 +119,14 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   if (ti.state === "running") {
     const startDate =
       ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
+    // eslint-disable-next-line no-param-reassign
     ti.duration = moment().diff(startDate, "second");
   } else if (!ti.duration && ti.end_date) {
     const startDate =
       ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
     const endDate =
       ti.end_date instanceof moment ? ti.end_date : moment(ti.end_date);
+    // eslint-disable-next-line no-param-reassign
     ti.duration = moment(endDate).diff(startDate, "second");
   }
 

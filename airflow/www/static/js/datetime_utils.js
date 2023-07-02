@@ -104,6 +104,7 @@ export function updateAllDateTimes() {
   // Since we have set the default timezone for moment, it will automatically
   // convert it to the new target for us
   $(".datetime input").each((_, el) => {
+    // eslint-disable-next-line no-param-reassign
     el.value = moment(el.value).format();
   });
 }

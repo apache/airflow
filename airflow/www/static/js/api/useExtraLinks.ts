@@ -46,14 +46,16 @@ export default function useExtraLinks({
     async () => {
       const data = await Promise.all(
         extraLinks.map(async (link) => {
-          mapIndex ??= -1;
+          const definedMapIndex = mapIndex ?? -1;
           const url = `${extraLinksUrl}?task_id=${encodeURIComponent(
             taskId
           )}&dag_id=${encodeURIComponent(
             dagId
           )}&execution_date=${encodeURIComponent(
             executionDate
-          )}&link_name=${encodeURIComponent(link)}&map_index=${mapIndex}`;
+          )}&link_name=${encodeURIComponent(
+            link
+          )}&map_index=${definedMapIndex}`;
           try {
             const datum = await axios.get<AxiosResponse, LinkData>(url);
             return {
@@ -61,6 +63,7 @@ export default function useExtraLinks({
               url: datum.url,
             };
           } catch (e) {
+            // eslint-disable-next-line no-console
             console.error(e);
             return {
               name: link,
