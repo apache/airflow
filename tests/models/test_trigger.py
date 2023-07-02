@@ -243,31 +243,101 @@ def test_assign_unassigned_missing_heartbeat(session, create_task_instance, chec
             second_triggerer.latest_heartbeat += datetime.timedelta(seconds=check_triggerer_heartrate)
 
 
-def test_get_sorted_triggers(session, create_task_instance):
+def test_get_sorted_triggers_same_priority_weight(session, create_task_instance):
     """
-    Tests that triggers are sorted by the creation_date.
+    Tests that triggers are sorted by the creation_date if they have the same priority.
     """
+    old_execution_date = datetime.datetime(
+        2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
+    )
     trigger_old = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
-        created_date=datetime.datetime(
-            2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
-        ),
+        created_date=old_execution_date + datetime.timedelta(seconds=30),
     )
     trigger_old.id = 1
+    session.add(trigger_old)
+    TI_old = create_task_instance(
+        task_id="old",
+        execution_date=old_execution_date,
+        run_id="old_run_id",
+    )
+    TI_old.priority_weight = 1
+    TI_old.trigger_id = trigger_old.id
+    session.add(TI_old)
+
+    new_execution_date = datetime.datetime(
+        2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
+    )
     trigger_new = Trigger(
         classpath="airflow.triggers.testing.SuccessTrigger",
         kwargs={},
-        created_date=datetime.datetime(
-            2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
-        ),
+        created_date=new_execution_date + datetime.timedelta(seconds=30),
     )
     trigger_new.id = 2
-    session.add(trigger_old)
     session.add(trigger_new)
+    TI_new = create_task_instance(
+        task_id="new",
+        execution_date=new_execution_date,
+        run_id="new_run_id",
+    )
+    TI_new.priority_weight = 1
+    TI_new.trigger_id = trigger_new.id
+    session.add(TI_new)
+
     session.commit()
     assert session.query(Trigger).count() == 2
 
     trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
 
     assert trigger_ids_query == [(1,), (2,)]
+
+
+def test_get_sorted_triggers_different_priority_weights(session, create_task_instance):
+    """
+    Tests that triggers are sorted by the priority_weight.
+    """
+    old_execution_date = datetime.datetime(
+        2023, 5, 9, 12, 16, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
+    )
+    trigger_old = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger",
+        kwargs={},
+        created_date=old_execution_date + datetime.timedelta(seconds=30),
+    )
+    trigger_old.id = 1
+    session.add(trigger_old)
+    TI_old = create_task_instance(
+        task_id="old",
+        execution_date=old_execution_date,
+        run_id="old_run_id",
+    )
+    TI_old.priority_weight = 1
+    TI_old.trigger_id = trigger_old.id
+    session.add(TI_old)
+
+    new_execution_date = datetime.datetime(
+        2023, 5, 9, 12, 17, 14, 474415, tzinfo=pytz.timezone("Africa/Abidjan")
+    )
+    trigger_new = Trigger(
+        classpath="airflow.triggers.testing.SuccessTrigger",
+        kwargs={},
+        created_date=new_execution_date + datetime.timedelta(seconds=30),
+    )
+    trigger_new.id = 2
+    session.add(trigger_new)
+    TI_new = create_task_instance(
+        task_id="new",
+        execution_date=new_execution_date,
+        run_id="new_run_id",
+    )
+    TI_new.priority_weight = 2
+    TI_new.trigger_id = trigger_new.id
+    session.add(TI_new)
+
+    session.commit()
+    assert session.query(Trigger).count() == 2
+
+    trigger_ids_query = Trigger.get_sorted_triggers(capacity=100, alive_triggerer_ids=[], session=session)
+
+    assert trigger_ids_query == [(2,), (1,)]
