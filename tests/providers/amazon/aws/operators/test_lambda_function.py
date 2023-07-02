@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from unittest import mock
 from unittest.mock import Mock, patch
 
@@ -92,10 +91,10 @@ class TestLambdaInvokeFunctionOperator:
 
     @patch.object(LambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
     @pytest.mark.parametrize(
-        "payload, invoke_payload",
-        [(PAYLOAD, BYTES_PAYLOAD), (BYTES_PAYLOAD, BYTES_PAYLOAD)],
+        "payload",
+        [PAYLOAD, BYTES_PAYLOAD],
     )
-    def test_invoke_lambda(self, hook_mock, payload, invoke_payload):
+    def test_invoke_lambda(self, hook_mock, payload):
         operator = LambdaInvokeFunctionOperator(
             task_id="task_test",
             function_name="a",
@@ -121,7 +120,7 @@ class TestLambdaInvokeFunctionOperator:
             invocation_type="b",
             log_type="c",
             client_context="d",
-            payload=invoke_payload,
+            payload=payload,
             qualifier="f",
         )
 
