@@ -28,16 +28,6 @@ Use the ``@task`` decorator to execute Python callables.
     The ``@task`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonOperator`
     to execute Python callables.
 
-.. note::
-
-   When using the ``@task`` decorator with multiple Schedulers configured with ``executor = LocalExecutor`` in the [core] section of airflow.cfg, each scheduler will run a LocalExecutor. This means tasks would be processed in a distributed fashion across the machines running the Schedulers. 
-
-   Some considerations should be taken into account:
-
-   - Restarting a Scheduler: If a scheduler is restarted, it may take some time for other schedulers to recognize the orphaned tasks and restart or fail them.
-
-   - Sharing of instances: While a single LocalExecutor allows tasks to share the same Python process and exchange information via variables, this is not possible when using multiple Schedulers, as each Scheduler will run in its own separate Python process.
-
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python
     :dedent: 4
