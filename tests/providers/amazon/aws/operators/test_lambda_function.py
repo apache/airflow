@@ -30,6 +30,8 @@ from airflow.providers.amazon.aws.operators.lambda_function import (
 )
 
 FUNCTION_NAME = "function_name"
+PAYLOAD = '{"hello": "airflow"}'
+BYTES_PAYLOAD = b'{"hello": "airflow"}'
 ROLE_ARN = "role_arn"
 IMAGE_URI = "image_uri"
 
@@ -72,7 +74,7 @@ class TestLambdaCreateFunctionOperator:
 class TestLambdaInvokeFunctionOperator:
     @pytest.mark.parametrize(
         "payload",
-        ['{"TestInput": "Testdata"}', b'{"TestInput": "Testdata"}'],
+        [PAYLOAD, BYTES_PAYLOAD],
     )
     def test_init(self, payload):
         lambda_operator = LambdaInvokeFunctionOperator(
@@ -91,7 +93,7 @@ class TestLambdaInvokeFunctionOperator:
     @patch.object(LambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
     @pytest.mark.parametrize(
         "payload, invoke_payload",
-        [("e", b"e"), (b"e", b"e")],
+        [(PAYLOAD, BYTES_PAYLOAD), (BYTES_PAYLOAD, BYTES_PAYLOAD)],
     )
     def test_invoke_lambda(self, hook_mock, payload, invoke_payload):
         operator = LambdaInvokeFunctionOperator(
@@ -114,7 +116,6 @@ class TestLambdaInvokeFunctionOperator:
         value = operator.execute(None)
 
         assert value == "data was read"
-
         hook_mock().invoke_lambda.assert_called_once_with(
             function_name="a",
             invocation_type="b",
