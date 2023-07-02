@@ -161,6 +161,9 @@ class GCSToS3Operator(BaseOperator):
             # and only keep those files which are present in
             # Google Cloud Storage and not in S3
             bucket_name, prefix = S3Hook.parse_s3_url(self.dest_s3_key)
+            # only if prefix is not empty
+            if prefix:
+                prefix = prefix if prefix.endswith("/") else f"{prefix}/"
             # look for the bucket and the prefix to avoid look into
             # parent directories/keys
             existing_files = s3_hook.list_keys(bucket_name, prefix=prefix)
