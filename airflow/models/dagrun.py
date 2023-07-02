@@ -24,6 +24,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, TypeVar, overload
 
+import re2 as re
 from sqlalchemy import (
     Boolean,
     Column,
@@ -43,7 +44,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.orm import Session, declared_attr, joinedload, relationship, synonym
+from sqlalchemy.orm import Session, declared_attr, joinedload, relationship, synonym, validates
 from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
@@ -74,6 +75,8 @@ if TYPE_CHECKING:
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
     TaskCreator = Callable[[Operator, Iterable[int]], CreatedTasks]
+
+RUN_ID_REGEX = r"^(?:manual|scheduled|dataset_triggered)__(?:\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00)$"
 
 
 class TISchedulingDecision(NamedTuple):
@@ -237,6 +240,17 @@ class DagRun(Base, LoggingMixin):
             queued_at=self.queued_at,
             external_trigger=self.external_trigger,
         )
+
+    @validates("run_id")
+    def validate_run_id(self, key: str, run_id: str) -> str | None:
+        if not run_id:
+            return None
+        regex = airflow_conf.get("scheduler", "allowed_run_id_pattern")
+        if not re.match(regex, run_id) and not re.match(RUN_ID_REGEX, run_id):
+            raise ValueError(
+                f"The run_id provided '{run_id}' does not match the pattern '{regex}' or '{RUN_ID_REGEX}'"
+            )
+        return run_id
 
     @property
     def logical_date(self) -> datetime:

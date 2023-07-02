@@ -96,7 +96,7 @@ from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail,
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
-from airflow.models.dagrun import DagRun, DagRunType
+from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
@@ -1896,7 +1896,7 @@ class Airflow(AirflowBaseView):
     def trigger(self, session: Session = NEW_SESSION):
         """Triggers DAG Run."""
         dag_id = request.values["dag_id"]
-        run_id = request.values.get("run_id", "")
+        run_id = request.values.get("run_id", "").replace(" ", "+")
         origin = get_safe_url(request.values.get("origin"))
         unpause = request.values.get("unpause")
         request_conf = request.values.get("conf")
@@ -2016,13 +2016,27 @@ class Airflow(AirflowBaseView):
             flash(message, "error")
             return redirect(origin)
 
-        # Flash a warning when slash is used, but still allow it to continue on.
-        if run_id and "/" in run_id:
-            flash(
-                "Using forward slash ('/') in a DAG run ID is deprecated. Note that this character "
-                "also makes the run impossible to retrieve via Airflow's REST API.",
-                "warning",
-            )
+        regex = conf.get("scheduler", "allowed_run_id_pattern")
+        if run_id and not re.match(RUN_ID_REGEX, run_id):
+            if not regex.strip() or not re.match(regex.strip(), run_id):
+                flash(
+                    f"The provided run ID '{run_id}' is invalid. It does not match either "
+                    f"the configured pattern: '{regex}' or the built-in pattern: '{RUN_ID_REGEX}'",
+                    "error",
+                )
+
+                form = DateTimeForm(data={"execution_date": execution_date})
+                return self.render_template(
+                    "airflow/trigger.html",
+                    form_fields=form_fields,
+                    dag=dag,
+                    dag_id=dag_id,
+                    origin=origin,
+                    conf=request_conf,
+                    form=form,
+                    is_dag_run_conf_overrides_params=is_dag_run_conf_overrides_params,
+                    recent_confs=recent_confs,
+                )
 
         run_conf = {}
         if request_conf:

@@ -2440,6 +2440,15 @@ scheduler:
       type: float
       example: ~
       default: "120.0"
+    allowed_run_id_pattern:
+      description: |
+        The run_id pattern used to verify the validity of user input to the run_id parameter when
+        triggering a DAG. This pattern cannot change the pattern used by scheduler to generate run_id
+        for scheduled DAG runs or DAG runs triggered without changing the run_id parameter.
+      version_added: 2.6.3
+      type: string
+      example: ~
+      default: "^[A-Za-z0-9_.~:+-]+$"
 triggerer:
   description: ~
   options:
