@@ -114,12 +114,14 @@ class TestLambdaInvokeFunctionOperator:
         value = operator.execute(None)
 
         assert value == "data was read"
+
+        invoke_payload = payload.encode() if isinstance(payload, str) else payload
         hook_mock().invoke_lambda.assert_called_once_with(
             function_name="a",
             invocation_type="b",
             log_type="c",
             client_context="d",
-            payload=payload,
+            payload=invoke_payload,
             qualifier="f",
         )
 

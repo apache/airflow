@@ -53,9 +53,10 @@ class TestLambdaHook:
         hook = LambdaHook()
         hook.invoke_lambda(function_name=FUNCTION_NAME, payload=payload)
 
+        invoke_payload = payload.encode() if isinstance(payload, str) else payload
         mock_conn().invoke.assert_called_once_with(
             FunctionName=FUNCTION_NAME,
-            Payload=payload,
+            Payload=invoke_payload,
         )
 
     @pytest.mark.parametrize(
