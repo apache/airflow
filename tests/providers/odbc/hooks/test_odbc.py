@@ -19,20 +19,32 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import namedtuple
 from unittest import mock
 from unittest.mock import patch
 from urllib.parse import quote_plus, urlsplit
 
 import pyodbc
+import pytest
 
 from airflow.models import Connection
 from airflow.providers.odbc.hooks.odbc import OdbcHook
+
+
+@pytest.fixture
+def Row():
+    """
+    Use namedtuple instead of pyodbc.Row, because Row objects can only be
+    created from C API of pyodbc.
+    """
+    return namedtuple("Row", ["id", "value"])
 
 
 class TestOdbcHook:
     def get_hook(self=None, hook_params=None, conn_params=None):
         hook_params = hook_params or {}
         conn_params = conn_params or {}
+
         connection = Connection(
             **{
                 **dict(login="login", password="password", host="host", schema="schema", port=1234),
@@ -40,10 +52,22 @@ class TestOdbcHook:
             }
         )
 
-        hook = OdbcHook(**hook_params)
-        hook.get_connection = mock.Mock()
-        hook.get_connection.return_value = connection
-        return hook
+        cursor = mock.MagicMock(
+            rowcount=0, spec=["description", "rowcount", "execute", "fetchall", "fetchone", "close"]
+        )
+        conn = mock.MagicMock()
+        conn.cursor.return_value = cursor
+
+        class UnitTestOdbcHook(OdbcHook):
+            conn_name_attr = "test_conn_id"
+
+            def get_connection(self, conn_id: str):
+                return connection
+
+            def get_conn(self):
+                return conn
+
+        return UnitTestOdbcHook(**hook_params)
 
     def test_driver_in_extra_not_used(self):
         conn_params = dict(extra=json.dumps(dict(Driver="Fake Driver", Fake_Param="Fake Param")))
@@ -235,3 +259,14 @@ class TestOdbcHook:
         hook = self.get_hook(conn_params=dict(extra=json.dumps(dict(sqlalchemy_scheme="my-scheme"))))
         uri = hook.get_uri()
         assert urlsplit(uri).scheme == "my-scheme"
+
+    def test_query_return_value_serialization(self, Row):
+        pyodbc_result = [Row(id=1, value="value1"), Row(id=2, value="value2")]
+        hook_result = [(1, "value1"), (2, "value2")]
+
+        def mock_handler(*_):
+            return pyodbc_result
+
+        hook = self.get_hook()
+        result = hook.run("SQL", handler=mock_handler)
+        assert hook_result == result
