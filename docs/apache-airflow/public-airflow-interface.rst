@@ -339,7 +339,7 @@ All Secrets Backend implementations are public. You can extend their functionali
 
   _api/airflow/secrets/index
 
-You can read more about Secret Backends in :doc:`administration-and-deployment/security/secrets/secrets-backend/index`.
+You can read more about Secret Backends in :doc:`security/secrets/secrets-backend/index`.
 You can also find all the available Secrets Backends implemented in community providers
 in :doc:`apache-airflow-providers:core-extensions/secrets-backends`.
 
