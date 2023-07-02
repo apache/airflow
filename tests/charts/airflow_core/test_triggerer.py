@@ -602,3 +602,37 @@ class TestTriggererKedaAutoScaler:
         )
 
         assert "replicas" not in jmespath.search("spec", docs[0])
+
+    @pytest.mark.parametrize(
+        "query, expected_query",
+        [
+            # default query
+            (
+                None,
+                "SELECT ceil(COUNT(*)::decimal / 1000) FROM trigger",
+            ),
+            # test custom static query
+            (
+                "SELECT ceil(COUNT(*)::decimal / 2000) FROM trigger",
+                "SELECT ceil(COUNT(*)::decimal / 2000) FROM trigger",
+            ),
+            # test custom template query
+            (
+                "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.triggerer.default_capacity 2 }})"
+                " FROM trigger",
+                "SELECT ceil(COUNT(*)::decimal / 2000) FROM trigger",
+            ),
+        ],
+    )
+    def test_should_use_keda_query(self, query, expected_query):
+
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "enabled": True,
+                    "keda": {"enabled": True, **({"query": query} if query else {})},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
+        )
+        assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])

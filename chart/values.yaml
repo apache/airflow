@@ -1383,6 +1383,11 @@ triggerer:
     #           value: 100
     #           periodSeconds: 15
 
+    # Query to use for KEDA autoscaling. Must return a single integer.
+    query: >-
+      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.triggerer.default_capacity }})
+      FROM trigger
+
 # Airflow Dag Processor Config
 dagProcessor:
   enabled: false
