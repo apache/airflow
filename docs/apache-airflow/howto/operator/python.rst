@@ -71,7 +71,6 @@ is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
     :start-after: [START howto_operator_python_render_sql]
     :end-before: [END howto_operator_python_render_sql]
 
-...
 
 
 
