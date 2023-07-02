@@ -2268,6 +2268,15 @@ scheduler:
       type: string
       example: ~
       default: "5"
+    local_task_job_heartbeat_sec:
+      description: |
+        The frequency (in seconds) at which the LocalTaskJob should send heartbeat signals to the
+        scheduler to notify it's still alive. The value of this parameter should be less than the 
+        scheduler's `scheduler_zombie_task_threshold` config.
+      version_added: ~
+      type: int
+      example: ~
+      default: "5"
     num_runs:
       description: |
         The number of times to try to schedule each DAG file
