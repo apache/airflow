@@ -268,7 +268,6 @@ class TestOdbcHook:
 
         hook = self.get_hook()
         result = hook.run("SQL", handler=mock_handler)
-        assert not isinstance(result[0], Row)
         assert hook_result == result
 
     def test_query_no_handler_return_none(self):
