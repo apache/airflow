@@ -158,7 +158,7 @@ class LocalTaskJobRunner(BaseJobRunner["Job | JobPydantic"], LoggingMixin):
         try:
             self.task_runner.start()
 
-            heartbeat_time_limit = conf.getint("scheduler", "scheduler_zombie_task_threshold")
+            heartbeat_time_limit = conf.getint("scheduler", "local_task_job_heartbeat_sec")
 
             # LocalTaskJob should not run callbacks, which are handled by TaskInstance._run_raw_task
             # 1, LocalTaskJob does not parse DAG, thus cannot run callbacks
