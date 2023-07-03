@@ -162,6 +162,18 @@ class TestGlueCrawlerHook:
 
     @mock_sts
     @mock.patch.object(GlueCrawlerHook, "get_conn")
+    def test_update_missing_tags(self, mock_get_conn):
+        mock_config_missing_tags = deepcopy(mock_config)
+        mock_config_missing_tags.pop("Tags")
+        mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config_missing_tags}
+
+        assert self.hook.update_crawler(**mock_config_missing_tags) is False
+        mock_get_conn.return_value.get_tags.assert_not_called()
+        mock_get_conn.return_value.tag_resource.assert_not_called()
+        mock_get_conn.return_value.untag_resource.assert_not_called()
+
+    @mock_sts
+    @mock.patch.object(GlueCrawlerHook, "get_conn")
     def test_replace_tag(self, mock_get_conn):
         mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
         mock_get_conn.return_value.get_tags.return_value = {"Tags": mock_config["Tags"]}
