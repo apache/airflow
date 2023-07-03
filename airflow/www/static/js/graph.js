@@ -153,6 +153,7 @@ function collapseGroup(nodeId, node) {
 
   getChildrenIds(node).forEach((childId) => mapTaskToNode.set(childId, nodeId));
 
+  // eslint-disable-next-line no-param-reassign
   node = g.node(nodeId);
 
   // Set children edges onto the group edge

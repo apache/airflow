@@ -132,7 +132,7 @@ export const nodeColor = ({
 
 export const nodeStrokeColor = (
   { data: { isSelected } }: ReactFlowNode<CustomNodeProps>,
-  colors: any
+  colors: Record<string, string>
 ) => (isSelected ? colors.blue[500] : "");
 
 interface BuildEdgesProps {

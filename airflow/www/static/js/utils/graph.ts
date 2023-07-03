@@ -84,13 +84,21 @@ const generateGraph = ({
 }: GenerateProps) => {
   const closedGroupIds: string[] = [];
 
-  const formatChildNode = (node: any) => {
+  const formatChildNode = (
+    node: DepNode
+  ): DepNode & {
+    label: string;
+    layoutOptions?: Record<string, string>;
+    width?: number;
+    height?: number;
+  } => {
     const { id, value, children } = node;
     const isOpen = openGroupIds?.includes(value.label);
     const childCount =
-      children?.filter((c: any) => !c.id.includes("join_id")).length || 0;
-    if (isOpen && children.length) {
+      children?.filter((c: DepNode) => !c.id.includes("join_id")).length || 0;
+    if (isOpen && children?.length) {
       return {
+        ...node,
         id,
         value: {
           ...value,
