@@ -267,6 +267,7 @@ class TestOdbcHook:
         def mock_handler(*_):
             return pyodbc_result
 
-        hook = self.get_hook()
+        hook = self.get_hook(hook_params={"return_serializable": True})
         result = hook.run("SQL", handler=mock_handler)
+        assert not isinstance(result[0], Row)
         assert hook_result == result
