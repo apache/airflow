@@ -45,6 +45,8 @@ class OdbcHook(DbApiHook):
     :param connect_kwargs: keyword arguments passed to ``pyodbc.connect``
     :param sqlalchemy_scheme: Scheme sqlalchemy connection.  Default is ``mssql+pyodbc`` Only used for
         ``get_sqlalchemy_engine`` and ``get_sqlalchemy_connection`` methods.
+    :param return_serializable: Set to True to transform the returned rows into JSON-serializable objects.
+        By default (False), the returned rows will be in the original ``pyodbc.Row`` format.
     :param kwargs: passed to DbApiHook
     """
 
@@ -65,6 +67,7 @@ class OdbcHook(DbApiHook):
         dsn: str | None = None,
         connect_kwargs: dict | None = None,
         sqlalchemy_scheme: str | None = None,
+        return_serializable: bool | None = False,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -75,6 +78,7 @@ class OdbcHook(DbApiHook):
         self._sqlalchemy_scheme = sqlalchemy_scheme
         self._connection = None
         self._connect_kwargs = connect_kwargs
+        self._return_serializable = return_serializable
 
     @property
     def connection(self):
@@ -212,9 +216,8 @@ class OdbcHook(DbApiHook):
         cnx = engine.connect(**(connect_kwargs or {}))
         return cnx
 
-    @staticmethod
-    def _make_serializable(result: list[pyodbc.Row]) -> list[tuple]:
-        """Transform the pyodbc.Row objects returned from a SQL command into
-        JSON-serializable objects.
-        """
-        return [tuple(row) for row in result]
+    def _make_serializable(self, result: list[pyodbc.Row]) -> list[tuple] | list[pyodbc.Row]:
+        """Transform the pyodbc.Row objects returned from a SQL command into JSON-serializable objects."""
+        if self._return_serializable:
+            return [tuple(row) for row in result]
+        return result
