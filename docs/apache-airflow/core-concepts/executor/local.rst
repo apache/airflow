@@ -54,6 +54,5 @@ locally, into just one :class:`~airflow.executors.local_executor.LocalExecutor` 
 
    Some considerations should be taken into account:
 
-   - Restarting a Scheduler: If a scheduler is restarted, it may take some time for other schedulers to recognize the orphaned tasks and restart or fail them.
-
+   - Restarting a Scheduler: If a Scheduler is restarted, it may take some time for other Schedulers to recognize the orphaned tasks and restart or fail them.
    - Sharing of instances: While a single LocalExecutor allows tasks to share the same Python process and exchange information via variables, this is not possible when using multiple Schedulers, as each Scheduler will run in its own separate Python process.
