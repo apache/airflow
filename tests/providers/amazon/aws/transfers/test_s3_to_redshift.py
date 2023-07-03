@@ -63,17 +63,19 @@ class TestS3ToRedshiftTransfer:
             dag=None,
         )
         op.execute(None)
-        copy_query = """
+        expected_copy_query = """
                         COPY schema.table
                         FROM 's3://bucket/key'
                         credentials
                         'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
                         ;
                      """
+        actual_copy_query = mock_run.call_args.args[0]
+
         assert mock_run.call_count == 1
-        assert access_key in copy_query
-        assert secret_key in copy_query
-        assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], copy_query)
+        assert access_key in actual_copy_query
+        assert secret_key in actual_copy_query
+        assert_equal_ignore_multiple_spaces(actual_copy_query, expected_copy_query)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
@@ -110,17 +112,19 @@ class TestS3ToRedshiftTransfer:
             dag=None,
         )
         op.execute(None)
-        copy_query = """
+        expected_copy_query = """
                         COPY schema.table (column_1, column_2)
                         FROM 's3://bucket/key'
                         credentials
                         'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
                         ;
                      """
+        actual_copy_query = mock_run.call_args.args[0]
+
         assert mock_run.call_count == 1
-        assert access_key in copy_query
-        assert secret_key in copy_query
-        assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], copy_query)
+        assert access_key in actual_copy_query
+        assert secret_key in actual_copy_query
+        assert_equal_ignore_multiple_spaces(actual_copy_query, expected_copy_query)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
@@ -263,18 +267,20 @@ class TestS3ToRedshiftTransfer:
             dag=None,
         )
         op.execute(None)
-        copy_statement = """
+        expected_copy_query = """
                             COPY schema.table
                             FROM 's3://bucket/key'
                             credentials
                             'aws_access_key_id=ASIA_aws_access_key_id;aws_secret_access_key=aws_secret_access_key;token=aws_secret_token'
                             ;
                          """
-        assert access_key in copy_statement
-        assert secret_key in copy_statement
-        assert token in copy_statement
+        actual_copy_query = mock_run.call_args.args[0]
+
+        assert access_key in actual_copy_query
+        assert secret_key in actual_copy_query
+        assert token in actual_copy_query
         assert mock_run.call_count == 1
-        assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], copy_statement)
+        assert_equal_ignore_multiple_spaces(actual_copy_query, expected_copy_query)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
@@ -312,17 +318,18 @@ class TestS3ToRedshiftTransfer:
             dag=None,
         )
         op.execute(None)
-        copy_statement = """
+        expected_copy_query = """
                             COPY schema.table
                             FROM 's3://bucket/key'
                             credentials
                             'aws_iam_role=arn:aws:iam::112233445566:role/myRole'
                             ;
                          """
+        actual_copy_query = mock_run.call_args.args[0]
 
-        assert extra["role_arn"] in copy_statement
+        assert extra["role_arn"] in actual_copy_query
         assert mock_run.call_count == 1
-        assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], copy_statement)
+        assert_equal_ignore_multiple_spaces(actual_copy_query, expected_copy_query)
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
     @mock.patch("airflow.models.connection.Connection")
@@ -358,7 +365,7 @@ class TestS3ToRedshiftTransfer:
             dag=None,
         )
         op.execute(None)
-        copy_query = """
+        expected_copy_query = """
                         COPY schema.table
                         FROM 's3://bucket/key'
                         credentials
@@ -366,12 +373,13 @@ class TestS3ToRedshiftTransfer:
                         region 'eu-central-1'
                         ;
                      """
+        actual_copy_query = mock_run.call_args.args[0]
 
-        assert access_key in copy_query
-        assert secret_key in copy_query
-        assert extra["region"] in copy_query
+        assert access_key in actual_copy_query
+        assert secret_key in actual_copy_query
+        assert extra["region"] in actual_copy_query
         assert mock_run.call_count == 1
-        assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], copy_query)
+        assert_equal_ignore_multiple_spaces(actual_copy_query, expected_copy_query)
 
     def test_template_fields_overrides(self):
         assert S3ToRedshiftOperator.template_fields == (
@@ -469,16 +477,8 @@ class TestS3ToRedshiftTransfer:
             ),
         )
         op.execute(None)
-        copy_query = """
-                        COPY schema.table
-                        FROM 's3://bucket/key'
-                        credentials
-                        'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
-                        ;
-                     """
+
         mock_run.assert_not_called()
-        assert access_key in copy_query
-        assert secret_key in copy_query
 
         mock_rs.execute_statement.assert_called_once()
         # test with all args besides sql
@@ -492,8 +492,21 @@ class TestS3ToRedshiftTransfer:
             StatementName=statement_name,
             WithEvent=False,
         )
+
+        expected_copy_query = """
+                        COPY schema.table
+                        FROM 's3://bucket/key'
+                        credentials
+                        'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
+                        ;
+                     """
+        actual_copy_query = mock_rs.execute_statement.call_args.kwargs["Sql"]
+
         mock_rs.describe_statement.assert_called_once_with(
             Id="STATEMENT_ID",
         )
+
+        assert access_key in actual_copy_query
+        assert secret_key in actual_copy_query
         # test sql arg
-        assert_equal_ignore_multiple_spaces(mock_rs.execute_statement.call_args.kwargs["Sql"], copy_query)
+        assert_equal_ignore_multiple_spaces(actual_copy_query, expected_copy_query)
