@@ -16,8 +16,8 @@
     under the License.
 
 
-Installation
-------------
+Installation of Airflow™
+------------------------
 
 .. contents:: :local:
 
@@ -34,7 +34,7 @@ Installation
     Setting up the database <setting-up-the-database>
     Upgrading <upgrading>
 
-This page describes installations options that you might use when considering how to install Airflow.
+This page describes installations options that you might use when considering how to install Airflow™.
 Airflow consists of many components, often distributed among many physical or virtual machines, therefore
 installation of Airflow might be quite complex, depending on the options you choose.
 
@@ -77,6 +77,9 @@ More details: :doc:`installing-from-sources`
 * You should develop and handle the deployment for all components of Airflow.
 * You are responsible for setting up database, creating and managing database schema with ``airflow db`` commands,
   automated startup and recovery, maintenance, cleanup and upgrades of Airflow and the Airflow Providers.
+* You need to setup monitoring of your system allowing you to observe resources and react to problems.
+* You are expected to configure and manage appropriate resources for the installation (memory, CPU, etc) based
+  on the monitoring of your installation and feedback loop. See the notes about requirements.
 
 **What Apache Airflow Community provides for that method**
 
@@ -123,6 +126,9 @@ More details:  :doc:`/installation/installing-from-pypi`
 * You should develop and handle the deployment for all components of Airflow.
 * You are responsible for setting up database, creating and managing database schema with ``airflow db`` commands,
   automated startup and recovery, maintenance, cleanup and upgrades of Airflow and Airflow Providers.
+* You need to setup monitoring of your system allowing you to observe resources and react to problems.
+* You are expected to configure and manage appropriate resources for the installation (memory, CPU, etc) based
+  on the monitoring of your installation and feedback loop.
 
 **What Apache Airflow Community provides for that method**
 
@@ -181,6 +187,9 @@ and official constraint files- same that are used for installing Airflow from Py
   deployments of containers. You can use your own custom mechanism, custom Kubernetes deployments,
   custom Docker Compose, custom Helm charts etc., and you should choose it based on your experience
   and expectations.
+* You need to setup monitoring of your system allowing you to observe resources and react to problems.
+* You are expected to configure and manage appropriate resources for the installation (memory, CPU, etc) based
+  on the monitoring of your installation and feedback loop.
 
 **What Apache Airflow Community provides for that method**
 
@@ -238,6 +247,9 @@ More details: :doc:`helm-chart:index`
   those changes when released by upgrading the base image. However, you are responsible in creating a
   pipeline of building your own custom images with your own added dependencies and Providers and need to
   repeat the customization step and building your own image when new version of Airflow image is released.
+* You need to setup monitoring of your system allowing you to observe resources and react to problems.
+* You are expected to configure and manage appropriate resources for the installation (memory, CPU, etc) based
+  on the monitoring of your installation and feedback loop.
 
 **What Apache Airflow Community provides for that method**
 
@@ -255,7 +267,6 @@ More details: :doc:`helm-chart:index`
   if you look for longer discussion and have more information to share.
 * If you can provide description of a reproducible problem with Airflow software, you can open
   issue at `GitHub issues <https://github.com/apache/airflow/issues>`__
-
 
 Using Managed Airflow Services
 ''''''''''''''''''''''''''''''
@@ -316,3 +327,62 @@ Follow the  `Ecosystem <https://airflow.apache.org/ecosystem/>`__ page to find a
 **Where to ask for help**
 
 * Depends on what the 3rd-party provides. Look at the documentation of the 3rd-party deployment you use.
+
+
+Notes about minimum requirements
+''''''''''''''''''''''''''''''''
+
+There are often questions about minimum requirements for Airflow for production systems, but it is
+not possible to give a simple answer to that question.
+
+The requirements that Airflow might need depend on many factors, including (but not limited to):
+  * The deployment your Airflow is installed with (see above ways of installing Airflow)
+  * The requirements of the deployment environment (for example Kubernetes, Docker, Helm, etc.) that
+    are completely independent from Airflow (for example DNS resources, sharing the nodes/resources)
+    with more (or less) pods and containers that are needed that might depend on particular choice of
+    the technology/cloud/integration of monitoring etc.
+  * Technical details of database, hardware, network, etc. that your deployment is running on
+  * The complexity of the code you add to your DAGS, configuration, plugins, settings etc. (note, that
+    Airflow runs the code that DAG author and Deployment Manager provide)
+  * The number and choice of providers you install and use (Airflow has more than 80 providers) that can
+    be installed by choice of the Deployment Manager and using them might require more resources.
+  * The choice of parameters that you use when tuning Airflow. Airflow has many configuration parameters
+    that can fine-tuned to your needs
+  * The number of DagRuns and tasks instances you run with parallel instances of each in consideration
+  * How complex are the tasks you run
+
+The above "DAG" characteristics will change over time and even will change depending on the time of the day
+or week, so you have to be prepared to continuously monitor the system and adjust the parameters to make
+it works smoothly.
+
+While we can provide some specific minimum requirements for some development "quick start" - such as
+in case of our :ref:`running-airflow-in-docker` quick-start guide, it is not possible to provide any minimum
+requirements for production systems.
+
+The best way to think of resource allocation for Airflow instance is to think of it in terms of process
+control theory - where there are two types of systems:
+
+1. Fully predictable, with few knobs and variables, where you can reliably set the values for the
+   knobs and have an easy way to determine the behaviour of the system
+
+2. Complex systems with multiple variables, that are hard to predict and where you need to monitor
+   the system and adjust the knobs continuously to make sure the system is running smoothly.
+
+Airflow (and generally any modern system running usually on cloud services, with multiple layers responsible
+for resources as well multiple parameters to control their behaviour) is a complex system and they fall
+much more in the second category. If you decide to run Airflow in production on your own, you should be
+prepared for the monitor/observe/adjust feedback loop to make sure the system is running smoothly.
+
+Having a good monitoring system that will allow you to monitor the system and adjust the parameters
+is a must to put that in practice.
+
+There are few guidelines that you can use for optimizing your resource usage as well. The
+:ref:`fine-tuning-scheduler` is a good starting point to fine-tune your scheduler, you can also follow
+the :ref:`best_practice` guide to make sure you are using Airflow in the most efficient way.
+
+Also, one of the important things that Managed Services for Airflow provide is that they make a lot
+of opinionated choices and fine-tune the system for you, so you don't have to worry about it too much.
+With such managed services, there are usually far less number of knobs to turn and choices to make and one
+of the things you pay for is that the Managed Service provider manages the system for you and provides
+paid support and allows you to scale the system as needed and allocate the right resources - following the
+choices made there when it comes to the kinds of deployment you might have.

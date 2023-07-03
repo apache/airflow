@@ -26,6 +26,7 @@ from airflow.providers.common.sql.operators.sql import SQLCheckOperator
 class DruidCheckOperator(SQLCheckOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.common.sql.operators.sql.SQLCheckOperator`.
     """
 

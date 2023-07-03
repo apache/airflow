@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import Connection
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCloneInstanceOperator,
@@ -36,6 +36,8 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLInstancePatchOperator,
     CloudSQLPatchInstanceDatabaseOperator,
 )
+from airflow.providers.google.cloud.triggers.cloud_sql import CloudSQLExportTrigger
+from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 
 PROJECT_ID = os.environ.get("PROJECT_ID", "project-id")
 INSTANCE_NAME = os.environ.get("INSTANCE_NAME", "test-name")
@@ -668,6 +670,39 @@ class TestCloudSql:
             project_id=None, instance=INSTANCE_NAME, body=EXPORT_BODY
         )
         assert result
+
+    @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
+    @mock.patch("airflow.providers.google.cloud.triggers.cloud_sql.CloudSQLAsyncHook")
+    def test_execute_call_defer_method(self, mock_trigger_hook, mock_hook):
+        operator = CloudSQLExportInstanceOperator(
+            task_id="test_task",
+            instance=INSTANCE_NAME,
+            body=EXPORT_BODY,
+            deferrable=True,
+        )
+
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(mock.MagicMock())
+
+        mock_hook.return_value.export_instance.assert_called_once()
+
+        mock_hook.return_value.get_operation.assert_not_called()
+        assert isinstance(exc.value.trigger, CloudSQLExportTrigger)
+        assert exc.value.method_name == GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+
+    def test_async_execute_should_should_throw_exception(self):
+        """Tests that an AirflowException is raised in case of error event"""
+
+        op = CloudSQLExportInstanceOperator(
+            task_id="test_task",
+            instance=INSTANCE_NAME,
+            body=EXPORT_BODY,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            op.execute_complete(
+                context=mock.MagicMock(), event={"status": "error", "message": "test failure message"}
+            )
 
     @mock.patch("airflow.providers.google.cloud.operators.cloud_sql.CloudSQLHook")
     def test_instance_import(self, mock_hook):

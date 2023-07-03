@@ -118,6 +118,12 @@ class AbstractProgressInfoMatcher(metaclass=ABCMeta):
         """
 
 
+class ShowLastLineProgressMatcher(AbstractProgressInfoMatcher):
+    def get_best_matching_lines(self, output: Output) -> list[str] | None:
+        last_lines, _ = get_last_lines_of_file(output.file_name, num_lines=1)
+        return last_lines
+
+
 class DockerBuildxProgressMatcher(AbstractProgressInfoMatcher):
     DOCKER_BUILDX_PROGRESS_MATCHER = re.compile(r"\s*#(\d*) ")
 

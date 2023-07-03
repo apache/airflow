@@ -26,6 +26,7 @@ import pytest
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator,
     GKEDeleteClusterOperator,
@@ -318,6 +319,66 @@ class TestGKEPodOperator:
 
         assert cluster_url == CLUSTER_PRIVATE_URL if use_internal_ip else CLUSTER_URL
         assert ssl_ca_cert == SSL_CA_CERT
+
+    @pytest.mark.parametrize(
+        "compatible_kpo, kwargs, expected_attributes",
+        [
+            (
+                True,
+                {"on_finish_action": "delete_succeeded_pod"},
+                {"on_finish_action": OnFinishAction.DELETE_SUCCEEDED_POD},
+            ),
+            (
+                # test that priority for deprecated param
+                True,
+                {"on_finish_action": "keep_pod", "is_delete_operator_pod": True},
+                {"on_finish_action": OnFinishAction.DELETE_POD, "is_delete_operator_pod": True},
+            ),
+            (
+                # test default
+                True,
+                {},
+                {"on_finish_action": OnFinishAction.KEEP_POD, "is_delete_operator_pod": False},
+            ),
+            (
+                False,
+                {"is_delete_operator_pod": True},
+                {"is_delete_operator_pod": True},
+            ),
+            (
+                False,
+                {"is_delete_operator_pod": False},
+                {"is_delete_operator_pod": False},
+            ),
+            (
+                # test default
+                False,
+                {},
+                {"is_delete_operator_pod": False},
+            ),
+        ],
+    )
+    def test_on_finish_action_handler(
+        self,
+        compatible_kpo,
+        kwargs,
+        expected_attributes,
+    ):
+        kpo_init_args_mock = mock.MagicMock(**{"parameters": ["on_finish_action"] if compatible_kpo else []})
+
+        with mock.patch("inspect.signature", return_value=kpo_init_args_mock):
+            op = GKEStartPodOperator(
+                project_id=TEST_GCP_PROJECT_ID,
+                location=PROJECT_LOCATION,
+                cluster_name=CLUSTER_NAME,
+                task_id=PROJECT_TASK_ID,
+                name=TASK_NAME,
+                namespace=NAMESPACE,
+                image=IMAGE,
+                **kwargs,
+            )
+            for expected_attr in expected_attributes:
+                assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
 
 
 class TestGKEPodOperatorAsync:

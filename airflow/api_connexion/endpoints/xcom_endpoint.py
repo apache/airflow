@@ -19,7 +19,7 @@ from __future__ import annotations
 import copy
 
 from flask import g
-from sqlalchemy import and_
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
@@ -53,23 +53,23 @@ def get_xcom_entries(
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get all XCom values."""
-    query = session.query(XCom)
+    query = select(XCom)
     if dag_id == "~":
         appbuilder = get_airflow_app().appbuilder
         readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
-        query = query.filter(XCom.dag_id.in_(readable_dag_ids))
+        query = query.where(XCom.dag_id.in_(readable_dag_ids))
         query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
     else:
-        query = query.filter(XCom.dag_id == dag_id)
+        query = query.where(XCom.dag_id == dag_id)
         query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
 
     if task_id != "~":
-        query = query.filter(XCom.task_id == task_id)
+        query = query.where(XCom.task_id == task_id)
     if dag_run_id != "~":
-        query = query.filter(DR.run_id == dag_run_id)
+        query = query.where(DR.run_id == dag_run_id)
     query = query.order_by(DR.execution_date, XCom.task_id, XCom.dag_id, XCom.key)
-    total_entries = query.count()
-    query = query.offset(offset).limit(limit)
+    total_entries = session.execute(select(func.count()).select_from(query)).scalar()
+    query = session.scalars(query.offset(offset).limit(limit))
     return xcom_collection_schema.dump(XComCollection(xcom_entries=query, total_entries=total_entries))
 
 
@@ -93,15 +93,19 @@ def get_xcom_entry(
 ) -> APIResponse:
     """Get an XCom entry."""
     if deserialize:
-        query = session.query(XCom, XCom.value)
+        query = select(XCom, XCom.value)
     else:
-        query = session.query(XCom)
+        query = select(XCom)
 
-    query = query.filter(XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.key == xcom_key)
+    query = query.where(XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.key == xcom_key)
     query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
-    query = query.filter(DR.run_id == dag_run_id)
+    query = query.where(DR.run_id == dag_run_id)
 
-    item = query.one_or_none()
+    if deserialize:
+        item = session.execute(query).one_or_none()
+    else:
+        item = session.scalars(query).one_or_none()
+
     if item is None:
         raise NotFound("XCom entry not found")
 
