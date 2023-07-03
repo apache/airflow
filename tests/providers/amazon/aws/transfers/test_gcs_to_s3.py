@@ -100,6 +100,9 @@ class TestGCSToS3Operator:
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     def test_execute_without_replace(self, mock_hook):
+        """
+        Tests scenario where all the files are already in origin and destination without replace
+        """
         mock_hook.return_value.list.return_value = MOCK_FILES
         with NamedTemporaryFile() as f:
             gcs_provide_file = mock_hook.return_value.provide_file
@@ -163,6 +166,9 @@ class TestGCSToS3Operator:
 
     @mock.patch("airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSHook")
     def test_execute(self, mock_hook):
+        """
+        Tests the scenario where there are no files in destination bucket
+        """
         mock_hook.return_value.list.return_value = MOCK_FILES
         with NamedTemporaryFile() as f:
             gcs_provide_file = mock_hook.return_value.provide_file
