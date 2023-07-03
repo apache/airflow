@@ -70,12 +70,15 @@ function getControlsContainer() {
 function restoreFieldBehaviours() {
   Array.from(document.querySelectorAll("label[data-orig-text]")).forEach(
     (elem) => {
+      // eslint-disable-next-line no-param-reassign
       elem.innerText = elem.dataset.origText;
+      // eslint-disable-next-line no-param-reassign
       delete elem.dataset.origText;
     }
   );
 
   Array.from(document.querySelectorAll(".form-control")).forEach((elem) => {
+    // eslint-disable-next-line no-param-reassign
     elem.placeholder = "";
     elem.parentElement.parentElement.classList.remove("hide");
   });
@@ -259,6 +262,7 @@ $(document).ready(() => {
         - All other custom form fields (i.e. fields that are named ``extra__...``) in
           alphabetical order
     */
+    // eslint-disable-next-line func-names
     $.each(inArray, function () {
       if (this.name === "conn_id") {
         outObj.connection_id = this.value;
