@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.3.0
 .....
 
-Latest change: 2023-06-30
+Latest change: 2023-07-03
 
 =================================================================================================  ===========  ============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================================================
+`5c72befcfd <https://github.com/apache/airflow/commit/5c72befcfde63ade2870491cfeb708675399d9d6>`_  2023-07-03   ``Fix 'LambdaInvokeFunctionOperator' payload parameter type (#32259)``
 `d6e254db68 <https://github.com/apache/airflow/commit/d6e254db689db070f2f181006e7d6bc593482300>`_  2023-06-30   ``Deprecate 'delimiter' param and source object's wildcards in GCS, introduce 'match_glob' param. (#31261)``
 `dd937e51fe <https://github.com/apache/airflow/commit/dd937e51fe1ae3cd36a6993bd42e425960644e1d>`_  2023-06-30   ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
 `e781aef1a7 <https://github.com/apache/airflow/commit/e781aef1a76f594392e0b8c4a13bbccef4bf8969>`_  2023-06-29   ``aws waiter util: log status info with error level on waiter error (#32247)``

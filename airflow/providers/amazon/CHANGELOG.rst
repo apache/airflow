@@ -50,6 +50,7 @@ Bug Fixes
 
 * ``bugfix: break down run+wait method in ECS operator (#32104)``
 * ``Handle 'UnboundLocalError' while parsing invalid 's3_url' (#32120)``
+* ``Fix 'LambdaInvokeFunctionOperator' payload parameter type (#32259)``
 
 Misc
 ~~~~
