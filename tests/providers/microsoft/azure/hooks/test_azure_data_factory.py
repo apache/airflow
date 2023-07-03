@@ -720,6 +720,14 @@ def test_backcompat_prefix_both_prefers_short(mock_connect):
         mock_connect.return_value.factories.delete.assert_called_with("non-prefixed", "n/a")
 
 
+def test_refresh_conn(hook):
+    """Test refresh_conn method _conn is reset and get_conn is called"""
+    with patch.object(hook, "get_conn") as mock_get_conn:
+        hook.refresh_conn()
+        assert not hook._conn
+        assert mock_get_conn.called
+
+
 class TestAzureDataFactoryAsyncHook:
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
@@ -958,3 +966,12 @@ class TestAzureDataFactoryAsyncHook:
         assert get_field(extras, "factory_name", strict=True) == DATAFACTORY_NAME
         with pytest.raises(KeyError):
             get_field(extras, "non-existent-field", strict=True)
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_async_conn")
+    async def test_refresh_conn(self, mock_get_async_conn):
+        """Test refresh_conn method _conn is reset and get_async_conn is called"""
+        hook = AzureDataFactoryAsyncHook(AZURE_DATA_FACTORY_CONN_ID)
+        await hook.refresh_conn()
+        assert not hook._conn
+        assert mock_get_async_conn.called
