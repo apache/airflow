@@ -324,6 +324,55 @@ class TestS3ToRedshiftTransfer:
         assert mock_run.call_count == 1
         assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], copy_statement)
 
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.models.connection.Connection")
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
+    def test_different_region(self, mock_run, mock_session, mock_connection, mock_hook):
+        access_key = "aws_access_key_id"
+        secret_key = "aws_secret_access_key"
+        extra = {"region": "eu-central-1"}
+        mock_session.return_value = Session(access_key, secret_key)
+        mock_session.return_value.access_key = access_key
+        mock_session.return_value.secret_key = secret_key
+        mock_session.return_value.token = None
+
+        mock_connection.return_value = Connection(extra=extra)
+        mock_hook.return_value = Connection(extra=extra)
+
+        schema = "schema"
+        table = "table"
+        s3_bucket = "bucket"
+        s3_key = "key"
+        copy_options = ""
+
+        op = S3ToRedshiftOperator(
+            schema=schema,
+            table=table,
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            copy_options=copy_options,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            dag=None,
+        )
+        op.execute(None)
+        copy_query = """
+                        COPY schema.table
+                        FROM 's3://bucket/key'
+                        credentials
+                        'aws_access_key_id=aws_access_key_id;aws_secret_access_key=aws_secret_access_key'
+                        region 'eu-central-1'
+                        ;
+                     """
+
+        assert access_key in copy_query
+        assert secret_key in copy_query
+        assert extra["region"] in copy_query
+        assert mock_run.call_count == 1
+        assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], copy_query)
+
     def test_template_fields_overrides(self):
         assert S3ToRedshiftOperator.template_fields == (
             "s3_bucket",
