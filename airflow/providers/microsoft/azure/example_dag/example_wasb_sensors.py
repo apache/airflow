@@ -54,7 +54,6 @@ with DAG(
     # [START wasb_prefix_sensor]
     azure_wasb_prefix_sensor = WasbPrefixSensor(
         container_name=CONTAINER_NAME,
-        blob_name=BLOB_NAME,
         prefix=PREFIX,
         task_id="wasb_sense_prefix",
     )
