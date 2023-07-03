@@ -214,6 +214,10 @@ class AzureDataFactoryHook(BaseHook):
 
         return self._conn
 
+    def refresh_conn(self) -> DataFactoryManagementClient:
+        self._conn = None
+        return self.get_conn()
+
     @provide_targeted_factory
     def get_factory(
         self, resource_group_name: str | None = None, factory_name: str | None = None, **config: Any
@@ -1131,6 +1135,10 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         )
 
         return self._async_conn
+
+    async def refresh_conn(self) -> AsyncDataFactoryManagementClient:
+        self._conn = None
+        return await self.get_async_conn()
 
     @provide_targeted_factory_async
     async def get_pipeline_run(
