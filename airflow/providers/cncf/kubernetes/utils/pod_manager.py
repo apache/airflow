@@ -76,12 +76,6 @@ class PodPhase:
     terminal_states = {FAILED, SUCCEEDED}
 
 
-class ContainerNames:
-    """Possible container names for airflow."""
-
-    XCOM_CONTAINER = "airflow-xcom-sidecar"
-
-
 class PodOperatorHookProtocol(Protocol):
     """
     Protocol to define methods relied upon by KubernetesPodOperator.
@@ -602,7 +596,7 @@ class PodManager(LoggingMixin):
         return [
             container_spec.name
             for container_spec in pod_info.spec.containers
-            if container_spec.name != ContainerNames.XCOM_CONTAINER
+            if container_spec.name != PodDefaults.SIDECAR_CONTAINER_NAME
         ]
 
     @tenacity.retry(stop=tenacity.stop_after_attempt(3), wait=tenacity.wait_exponential(), reraise=True)
