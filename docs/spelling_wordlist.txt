@@ -1699,3 +1699,5 @@ zope
 Zsh
 zsh
 Zymergen
+EnvFromSource
+LocalObjectReference
