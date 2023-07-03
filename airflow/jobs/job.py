@@ -21,7 +21,7 @@ from functools import cached_property
 from time import sleep
 from typing import Callable, NoReturn
 
-from sqlalchemy import Column, Index, Integer, String, case
+from sqlalchemy import Column, Index, Integer, String, case, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import backref, foreign, relationship
 from sqlalchemy.orm.session import Session, make_transient
@@ -104,9 +104,6 @@ class Job(Base, LoggingMixin):
         self.hostname = get_hostname()
         if executor:
             self.executor = executor
-            self.executor_class = executor.__class__.__name__
-        else:
-            self.executor_class = conf.get("core", "EXECUTOR")
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
@@ -142,7 +139,7 @@ class Job(Base, LoggingMixin):
     @provide_session
     def kill(self, session: Session = NEW_SESSION) -> NoReturn:
         """Handles on_kill callback and updates state in database."""
-        job = session.query(Job).filter(Job.id == self.id).first()
+        job = session.scalar(select(Job).where(Job.id == self.id).limit(1))
         job.end_date = timezone.utcnow()
         try:
             self.on_kill()
@@ -160,16 +157,13 @@ class Job(Base, LoggingMixin):
         self, heartbeat_callback: Callable[[Session], None], session: Session = NEW_SESSION
     ) -> None:
         """
-        Heartbeats update the job's entry in the database with a timestamp
-        for the latest_heartbeat and allows for the job to be killed
-        externally. This allows at the system level to monitor what is
-        actually active.
+        Update the job's entry in the database with the latest_heartbeat timestamp.
 
-        For instance, an old heartbeat for SchedulerJob would mean something
-        is wrong.
-
-        This also allows for any job to be killed externally, regardless
-        of who is running it or on which machine it is running.
+        This allows for the job to be killed externally and allows the system
+        to monitor what is actually active.  For instance, an old heartbeat
+        for SchedulerJob would mean something is wrong.  This also allows for
+        any job to be killed externally, regardless of who is running it or on
+        which machine it is running.
 
         Note that if your heart rate is set to 60 seconds and you call this
         method after 10 seconds of processing since the last heartbeat, it
@@ -252,15 +246,15 @@ def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None
     :param job_type: job type to query for to get the most recent job for
     :param session: Database session
     """
-    return (
-        session.query(Job)
-        .filter(Job.job_type == job_type)
+    return session.scalar(
+        select(Job)
+        .where(Job.job_type == job_type)
         .order_by(
             # Put "running" jobs at the front.
             case({State.RUNNING: 0}, value=Job.state, else_=1),
             Job.latest_heartbeat.desc(),
         )
-        .first()
+        .limit(1)
     )
 
 

@@ -451,6 +451,7 @@ execution of the script below. You will use link to that issue in the next step.
 set as your environment variable.
 
 You can also pass the token as `--github-token` option in the script.
+You can also pass list of PR to be excluded from the issue with `--excluded-pr-list`.
 
 ```shell script
 breeze release-management generate-issue-content-providers --only-available-in-dist
@@ -1012,7 +1013,9 @@ Announcement is done from official Apache-Airflow accounts.
 
 * Twitter: https://twitter.com/ApacheAirflow
 * Linkedin: https://www.linkedin.com/company/apache-airflow/
+* Fosstodon: https://fosstodon.org/@airflow
 
+Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask PMC to post.
 
 ------------------------------------------------------------------------------------------------------------

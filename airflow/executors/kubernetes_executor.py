@@ -53,6 +53,7 @@ from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import LoggingMixin, remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.singleton import Singleton
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
@@ -73,16 +74,10 @@ ALL_NAMESPACES = "ALL_NAMESPACES"
 POD_EXECUTOR_DONE_KEY = "airflow_executor_done"
 
 
-class ResourceVersion:
+class ResourceVersion(metaclass=Singleton):
     """Singleton for tracking resourceVersion from Kubernetes."""
 
-    _instance: ResourceVersion | None = None
     resource_version: dict[str, str] = {}
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
@@ -220,10 +215,13 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         resource_version: str,
         event: Any,
     ) -> None:
+        pod = event["object"]
         annotations_string = annotations_for_logging_task_metadata(annotations)
         """Process status response."""
         if status == "Pending":
-            if event["type"] == "DELETED":
+            # deletion_timestamp is set by kube server when a graceful deletion is requested.
+            # since kube server have received request to delete pod set TI state failed
+            if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
                 self.log.info("Event: Failed to start pod %s, annotations: %s", pod_name, annotations_string)
                 self.watcher_queue.put((pod_name, namespace, State.FAILED, annotations, resource_version))
             else:
@@ -237,7 +235,6 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # If our event type is DELETED, we have the POD_EXECUTOR_DONE_KEY, or the pod has
             # a deletion timestamp, we've already seen the initial Succeeded event and sent it
             # along to the scheduler.
-            pod = event["object"]
             if (
                 event["type"] == "DELETED"
                 or POD_EXECUTOR_DONE_KEY in pod.metadata.labels
@@ -251,7 +248,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             self.log.info("Event: %s Succeeded, annotations: %s", pod_name, annotations_string)
             self.watcher_queue.put((pod_name, namespace, None, annotations, resource_version))
         elif status == "Running":
-            if event["type"] == "DELETED":
+            # deletion_timestamp is set by kube server when a graceful deletion is requested.
+            # since kube server have received request to delete pod set TI state failed
+            if event["type"] == "DELETED" and pod.metadata.deletion_timestamp:
                 self.log.info(
                     "Event: Pod %s deleted before it could complete, annotations: %s",
                     pod_name,
@@ -428,12 +427,9 @@ class AirflowKubernetesScheduler(LoggingMixin):
 
     def sync(self) -> None:
         """
-        The sync function checks the status of all currently running kubernetes jobs.
-        If a job is completed, its status is placed in the result queue to
-        be sent back to the scheduler.
+        Checks the status of all currently running kubernetes jobs.
 
-        :return:
-
+        If a job is completed, its status is placed in the result queue to be sent back to the scheduler.
         """
         self.log.debug("Syncing KubernetesExecutor")
         self._health_check_kube_watchers()
@@ -876,6 +872,7 @@ class KubernetesExecutor(BaseExecutor):
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
         """
         Handle remnants of tasks that were failed because they were stuck in queued.
+
         Tasks can get stuck in queued. If such a task is detected, it will be marked
         as `UP_FOR_RETRY` if the task instance has remaining retries or marked as `FAILED`
         if it doesn't.

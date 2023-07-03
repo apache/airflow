@@ -29,7 +29,7 @@ if TYPE_CHECKING:
 
 
 class RdsBaseSensor(BaseSensorOperator):
-    """Base operator that implements common functions for all sensors"""
+    """Base operator that implements common functions for all sensors."""
 
     ui_color = "#ddbb77"
     ui_fgcolor = "#ffffff"
@@ -140,7 +140,7 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
 
 class RdsDbSensor(RdsBaseSensor):
     """
-    Waits for an RDS instance or cluster to enter one of a number of states
+    Waits for an RDS instance or cluster to enter one of a number of states.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:

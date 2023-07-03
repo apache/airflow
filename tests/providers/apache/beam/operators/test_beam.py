@@ -426,7 +426,7 @@ class TestBeamRunGoPipelineOperator:
         """
 
         def tmp_dir_side_effect(prefix: str) -> str:
-            sub_dir = tmp_path / mock_tmp_dir.call_args[1]["prefix"]
+            sub_dir = tmp_path / mock_tmp_dir.call_args.kwargs["prefix"]
             sub_dir.mkdir()
             return str(sub_dir)
 
@@ -591,7 +591,7 @@ class TestBeamRunGoPipelineOperator:
         """
 
         def tmp_dir_side_effect(prefix: str) -> str:
-            sub_dir = tmp_path / mock_tmp_dir.call_args[1]["prefix"]
+            sub_dir = tmp_path / mock_tmp_dir.call_args.kwargs["prefix"]
             sub_dir.mkdir()
             return str(sub_dir)
 

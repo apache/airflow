@@ -243,7 +243,7 @@ class TestLivyHook:
             method="POST", endpoint="/batches", data=json.dumps({"file": "sparkapp"}), headers={}
         )
 
-        request_args = mock_request.call_args[1]
+        request_args = mock_request.call_args.kwargs
         assert "data" in request_args
         assert isinstance(request_args["data"], str)
 

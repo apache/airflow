@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import MagicMock
 
 from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
@@ -783,7 +784,12 @@ class TestVertexAICreateAutoMLTabularTrainingJobOperator:
     @mock.patch("google.cloud.aiplatform.datasets.TabularDataset")
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute(self, mock_hook, mock_dataset):
-        mock_hook.return_value.create_auto_ml_tabular_training_job.return_value = (None, "training_id")
+        mock_hook.return_value = MagicMock(
+            **{
+                "create_auto_ml_tabular_training_job.return_value": (None, "training_id"),
+                "get_credentials_and_project_id.return_value": ("creds", "project_id"),
+            }
+        )
         op = CreateAutoMLTabularTrainingJobOperator(
             task_id=TASK_ID,
             gcp_conn_id=GCP_CONN_ID,
@@ -798,7 +804,9 @@ class TestVertexAICreateAutoMLTabularTrainingJobOperator:
         )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
-        mock_dataset.assert_called_once_with(dataset_name=TEST_DATASET_ID)
+        mock_dataset.assert_called_once_with(
+            dataset_name=TEST_DATASET_ID, project=GCP_PROJECT, credentials="creds"
+        )
         mock_hook.return_value.create_auto_ml_tabular_training_job.assert_called_once_with(
             project_id=GCP_PROJECT,
             region=GCP_LOCATION,

@@ -57,29 +57,25 @@ T = TypeVar("T", bound=Callable)
 def process_line_and_extract_dataflow_job_id_callback(
     on_new_job_id_callback: Callable[[str], None] | None
 ) -> Callable[[str], None]:
-    """
-    Returns callback which triggers function passed as `on_new_job_id_callback` when Dataflow job_id is found.
-    To be used for `process_line_callback` in
-    :py:class:`~airflow.providers.apache.beam.hooks.beam.BeamCommandRunner`
+    """Build callback that triggers the specified function.
+
+    The returned callback is intended to be used as ``process_line_callback`` in
+    :py:class:`~airflow.providers.apache.beam.hooks.beam.BeamCommandRunner`.
 
     :param on_new_job_id_callback: Callback called when the job ID is known
     """
 
-    def _process_line_and_extract_job_id(
-        line: str,
-        # on_new_job_id_callback: Callable[[str], None] | None
-    ) -> None:
+    def _process_line_and_extract_job_id(line: str) -> None:
         # Job id info: https://goo.gl/SE29y9.
+        if on_new_job_id_callback is None:
+            return
         matched_job = JOB_ID_PATTERN.search(line)
-        if matched_job:
-            job_id = matched_job.group("job_id_java") or matched_job.group("job_id_python")
-            if on_new_job_id_callback:
-                on_new_job_id_callback(job_id)
+        if matched_job is None:
+            return
+        job_id = matched_job.group("job_id_java") or matched_job.group("job_id_python")
+        on_new_job_id_callback(job_id)
 
-    def wrap(line: str):
-        return _process_line_and_extract_job_id(line)
-
-    return wrap
+    return _process_line_and_extract_job_id
 
 
 def _fallback_variable_parameter(parameter_name: str, variable_key_name: str) -> Callable[[T], T]:
@@ -127,6 +123,7 @@ _fallback_to_project_id_from_variables = _fallback_variable_parameter("project_i
 class DataflowJobStatus:
     """
     Helper class with Dataflow job statuses.
+
     Reference: https://cloud.google.com/dataflow/docs/reference/rest/v1b3/projects.jobs#Job.JobState
     """
 
@@ -221,7 +218,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def is_job_running(self) -> bool:
         """
-        Helper method to check if jos is still running in dataflow
+        Helper method to check if jos is still running in dataflow.
 
         :return: True if job is running.
         """
@@ -236,7 +233,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def _get_current_jobs(self) -> list[dict]:
         """
-        Helper method to get list of jobs that start with job name or id
+        Helper method to get list of jobs that start with job name or id.
 
         :return: list of jobs including id's
         """
@@ -374,7 +371,7 @@ class _DataflowJobsController(LoggingMixin):
 
     def _refresh_jobs(self) -> None:
         """
-        Helper method to get all jobs by name
+        Helper method to get all jobs by name.
 
         :return: jobs
         """
@@ -393,7 +390,7 @@ class _DataflowJobsController(LoggingMixin):
     def _check_dataflow_job_state(self, job) -> bool:
         """
         Helper method to check the state of one job in dataflow for this task
-        if job failed raise exception
+        if job failed raise exception.
 
         :return: True if job is done.
         :raise: Exception
@@ -467,7 +464,7 @@ class _DataflowJobsController(LoggingMixin):
             time.sleep(self._poll_sleep)
 
     def cancel(self) -> None:
-        """Cancels or drains current job"""
+        """Cancels or drains current job."""
         self._jobs = [
             job for job in self.get_jobs() if job["currentState"] not in DataflowJobStatus.TERMINAL_STATES
         ]
@@ -898,7 +895,7 @@ class DataflowHook(GoogleBaseHook):
         variables: dict | None = None,
     ) -> bool:
         """
-        Helper method to check if jos is still running in dataflow
+        Helper method to check if jos is still running in dataflow.
 
         :param name: The name of the job.
         :param project_id: Optional, the Google Cloud project ID in which to start a job.

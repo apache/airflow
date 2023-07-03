@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class Neo4jOperator(BaseOperator):
     """
-    Executes sql code in a specific Neo4j database
+    Executes sql code in a specific Neo4j database.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

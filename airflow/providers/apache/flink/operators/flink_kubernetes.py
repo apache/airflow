@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class FlinkKubernetesOperator(BaseOperator):
     """
-    Creates flinkDeployment object in kubernetes cluster:
+    Creates flinkDeployment object in kubernetes cluster.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

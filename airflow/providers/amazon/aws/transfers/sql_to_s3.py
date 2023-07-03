@@ -133,6 +133,7 @@ class SqlToS3Operator(BaseOperator):
     def _fix_dtypes(df: DataFrame, file_format: FILE_FORMAT) -> None:
         """
         Mutate DataFrame to set dtypes for float columns containing NaN values.
+
         Set dtype of object to str to allow for downstream transformations.
         """
         try:
@@ -188,7 +189,7 @@ class SqlToS3Operator(BaseOperator):
                 )
 
     def _partition_dataframe(self, df: DataFrame) -> Iterable[tuple[str, DataFrame]]:
-        """Partition dataframe using pandas groupby() method"""
+        """Partition dataframe using pandas groupby() method."""
         if not self.groupby_kwargs:
             yield "", df
         else:

@@ -14,11 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module handles all xcom functionality for the KubernetesPodOperator
-by attaching a sidecar container that blocks the pod from completing until
-Airflow has pulled result data into the worker for xcom serialization.
-"""
+"""Attach a sidecar container that blocks the pod from completing until Airflow pulls result data."""
 from __future__ import annotations
 
 import copy
@@ -27,7 +23,7 @@ from kubernetes.client import models as k8s
 
 
 class PodDefaults:
-    """Static defaults for Pods"""
+    """Static defaults for Pods."""
 
     XCOM_MOUNT_PATH = "/airflow/xcom"
     SIDECAR_CONTAINER_NAME = "airflow-xcom-sidecar"
@@ -54,7 +50,7 @@ def add_xcom_sidecar(
     sidecar_container_image: str | None = None,
     sidecar_container_resources: k8s.V1ResourceRequirements | dict | None = None,
 ) -> k8s.V1Pod:
-    """Adds sidecar"""
+    """Adds sidecar."""
     pod_cp = copy.deepcopy(pod)
     pod_cp.spec.volumes = pod.spec.volumes or []
     pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)

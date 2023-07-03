@@ -21,6 +21,7 @@ from functools import cached_property
 from typing import Any
 
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
+from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -41,7 +42,7 @@ class SageMakerTrigger(BaseTrigger):
         job_name: str,
         job_type: str,
         poke_interval: int = 30,
-        max_attempts: int | None = None,
+        max_attempts: int = 480,
         aws_conn_id: str = "aws_default",
     ):
         super().__init__()
@@ -74,14 +75,28 @@ class SageMakerTrigger(BaseTrigger):
             "training": "TrainingJobComplete",
             "transform": "TransformJobComplete",
             "processing": "ProcessingJobComplete",
+            "tuning": "TuningJobComplete",
+            "endpoint": "endpoint_in_service",  # this one is provided by boto
         }[job_type.lower()]
 
     @staticmethod
-    def _get_job_type_waiter_job_name_arg(job_type: str) -> str:
+    def _get_waiter_arg_name(job_type: str) -> str:
         return {
             "training": "TrainingJobName",
             "transform": "TransformJobName",
             "processing": "ProcessingJobName",
+            "tuning": "HyperParameterTuningJobName",
+            "endpoint": "EndpointName",
+        }[job_type.lower()]
+
+    @staticmethod
+    def _get_response_status_key(job_type: str) -> str:
+        return {
+            "training": "TrainingJobStatus",
+            "transform": "TransformJobStatus",
+            "processing": "ProcessingJobStatus",
+            "tuning": "HyperParameterTuningJobStatus",
+            "endpoint": "EndpointStatus",
         }[job_type.lower()]
 
     async def run(self):
@@ -90,12 +105,13 @@ class SageMakerTrigger(BaseTrigger):
             waiter = self.hook.get_waiter(
                 self._get_job_type_waiter(self.job_type), deferrable=True, client=client
             )
-            waiter_args = {
-                self._get_job_type_waiter_job_name_arg(self.job_type): self.job_name,
-                "WaiterConfig": {
-                    "Delay": self.poke_interval,
-                    "MaxAttempts": self.max_attempts,
-                },
-            }
-            await waiter.wait(**waiter_args)
-        yield TriggerEvent({"status": "success", "message": "Job completed."})
+            await async_wait(
+                waiter=waiter,
+                waiter_delay=self.poke_interval,
+                waiter_max_attempts=self.max_attempts,
+                args={self._get_waiter_arg_name(self.job_type): self.job_name},
+                failure_message=f"Error while waiting for {self.job_type} job",
+                status_message=f"{self.job_type} job not done yet",
+                status_args=[self._get_response_status_key(self.job_type)],
+            )
+            yield TriggerEvent({"status": "success", "message": "Job completed."})

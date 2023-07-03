@@ -177,7 +177,7 @@ The variables are automatically set in GitHub actions
 The Variables beginning with ``GITHUB_`` cannot be overridden in GitHub Actions by the workflow.
 Those variables are set by GitHub Actions automatically and they are immutable. Therefore if
 you want to override them in your own CI workflow and use ``breeze``, you need to pass the
-values by corresponding ``breeze`` flags ``--github-repository``, ``--github-username``,
+values by corresponding ``breeze`` flags ``--github-repository``,
 ``--github-token`` rather than by setting them as environment variables in your workflow.
 Unless you want to keep your own copy of constraints in orphaned ``constraints-*``
 branches, the ``CONSTRAINTS_GITHUB_REPOSITORY`` should remain ``apache/airflow``, regardless in which

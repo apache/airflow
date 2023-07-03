@@ -30,8 +30,7 @@ if TYPE_CHECKING:
 
 class FTPToS3Operator(BaseOperator):
     """
-    This operator enables the transfer of files from a FTP server to S3. It can be used to
-    transfer one or multiple files.
+    Transfer of one or more files from an FTP server to S3.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

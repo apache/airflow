@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Handler that integrates with Stackdriver"""
+"""Handler that integrates with Stackdriver."""
 from __future__ import annotations
 
 import logging
@@ -119,7 +119,7 @@ class StackdriverTaskHandler(logging.Handler):
 
     @property
     def _client(self) -> gcp_logging.Client:
-        """The Cloud Library API client"""
+        """The Cloud Library API client."""
         credentials, project = self._credentials_and_project
         client = gcp_logging.Client(
             credentials=credentials,
@@ -140,13 +140,12 @@ class StackdriverTaskHandler(logging.Handler):
 
     @cached_property
     def _transport(self) -> Transport:
-        """Object responsible for sending data to Stackdriver"""
+        """Object responsible for sending data to Stackdriver."""
         # The Transport object is badly defined (no init) but in the docs client/name as constructor
         # arguments are a requirement for any class that derives from Transport class, hence ignore:
         return self.transport_type(self._client, self.name)  # type: ignore[call-arg]
 
     def _get_labels(self, task_instance=None):
-        """When"""
         if task_instance:
             ti_labels = self._task_instance_to_labels(task_instance)
         else:
@@ -179,7 +178,7 @@ class StackdriverTaskHandler(logging.Handler):
 
     def set_context(self, task_instance: TaskInstance) -> None:
         """
-        Configures the logger to add information with information about the current task
+        Configures the logger to add information with information about the current task.
 
         :param task_instance: Currently executed task
         """
@@ -350,8 +349,9 @@ class StackdriverTaskHandler(logging.Handler):
     def get_external_log_url(self, task_instance: TaskInstance, try_number: int) -> str:
         """
         Creates an address for an external log collecting service.
+
         :param task_instance: task instance object
-        :param try_number: task instance try_number to read logs from.
+        :param try_number: task instance try_number to read logs from
         :return: URL to the external log collection service
         """
         _, project_id = self._credentials_and_project

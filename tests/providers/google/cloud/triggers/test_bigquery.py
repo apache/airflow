@@ -528,15 +528,10 @@ class TestBigQueryIntervalCheckTrigger:
         mock_job_status.side_effect = Exception("Test exception")
         caplog.set_level(logging.DEBUG)
 
-        # trigger event is yielded so it creates a generator object
-        # so i have used async for to get all the values and added it to task
-        task = [i async for i in interval_check_trigger.run()]
-        # since we use return as soon as we yield the trigger event
-        # at any given point there should be one trigger event returned to the task
-        # so we validate for length of task to be 1
+        generator = interval_check_trigger.run()
+        actual = await generator.asend(None)
 
-        assert len(task) == 1
-        assert TriggerEvent({"status": "error", "message": "Test exception"}) in task
+        assert TriggerEvent({"status": "error", "message": "Test exception"}) == actual
 
 
 class TestBigQueryValueCheckTrigger:
@@ -627,16 +622,9 @@ class TestBigQueryValueCheckTrigger:
             job_id=TEST_JOB_ID,
             project_id=TEST_GCP_PROJECT_ID,
         )
-
-        # trigger event is yielded so it creates a generator object
-        # so i have used async for to get all the values and added it to task
-        task = [i async for i in trigger.run()]
-        # since we use return as soon as we yield the trigger event
-        # at any given point there should be one trigger event returned to the task
-        # so we validate for length of task to be 1
-
-        assert len(task) == 1
-        assert TriggerEvent({"status": "error", "message": "Test exception"}) in task
+        generator = trigger.run()
+        actual = await generator.asend(None)
+        assert TriggerEvent({"status": "error", "message": "Test exception"}) == actual
 
 
 class TestBigQueryTableExistenceTrigger:
@@ -693,9 +681,9 @@ class TestBigQueryTableExistenceTrigger:
         """Test BigQueryTableExistenceTrigger throws exception if any error."""
         mock_table_exists.side_effect = AsyncMock(side_effect=Exception("Test exception"))
 
-        task = [i async for i in table_existence_trigger.run()]
-        assert len(task) == 1
-        assert TriggerEvent({"status": "error", "message": "Test exception"}) in task
+        generator = table_existence_trigger.run()
+        actual = await generator.asend(None)
+        assert TriggerEvent({"status": "error", "message": "Test exception"}) == actual
 
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryTableAsyncHook.get_table_client")

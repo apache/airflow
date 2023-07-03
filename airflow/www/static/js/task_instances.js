@@ -99,7 +99,9 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   if (ti.task_id !== undefined) {
     tt += `Task_id: ${escapeHtml(ti.task_id)}<br>`;
   }
-  tt += `Run: ${formatDateTime(ti.execution_date)}<br>`;
+  if (ti.execution_date !== undefined) {
+    tt += `Run: ${formatDateTime(ti.execution_date)}<br>`;
+  }
   if (ti.run_id !== undefined) {
     tt += `Run Id: <nobr>${escapeHtml(ti.run_id)}</nobr><br>`;
   }
@@ -117,12 +119,14 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   if (ti.state === "running") {
     const startDate =
       ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
+    // eslint-disable-next-line no-param-reassign
     ti.duration = moment().diff(startDate, "second");
   } else if (!ti.duration && ti.end_date) {
     const startDate =
       ti.start_date instanceof moment ? ti.start_date : moment(ti.start_date);
     const endDate =
       ti.end_date instanceof moment ? ti.end_date : moment(ti.end_date);
+    // eslint-disable-next-line no-param-reassign
     ti.duration = moment(endDate).diff(startDate, "second");
   }
 
@@ -149,8 +153,8 @@ export function taskNoInstanceTooltip(taskId, task) {
   if (taskId) {
     tt += `Task_id: ${escapeHtml(taskId)}<br>`;
   }
-  if (task.task_type !== undefined) {
-    tt += `Operator: ${escapeHtml(task.task_type)}<br>`;
+  if (task.operator_name !== undefined) {
+    tt += `Operator: ${escapeHtml(task.operator_name)}<br>`;
   }
   tt += "<br><em>DAG has yet to run.</em>";
   return tt;

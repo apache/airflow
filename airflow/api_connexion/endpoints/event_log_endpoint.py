@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
@@ -65,10 +65,10 @@ def get_event_logs(
         "owner",
         "extra",
     ]
-    total_entries = session.query(func.count(Log.id)).scalar()
-    query = session.query(Log)
+    total_entries = session.scalars(func.count(Log.id)).one()
+    query = select(Log)
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
-    event_logs = query.offset(offset).limit(limit).all()
+    event_logs = session.scalars(query.offset(offset).limit(limit)).all()
     return event_log_collection_schema.dump(
         EventLogCollection(event_logs=event_logs, total_entries=total_entries)
     )

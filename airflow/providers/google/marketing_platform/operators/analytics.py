@@ -156,7 +156,7 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
 
 class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
     """
-    Lists webProperty-Google Ads links for a given web property
+    Lists webProperty-Google Ads links for a given web property.
 
     .. seealso::
         Check official API docs:

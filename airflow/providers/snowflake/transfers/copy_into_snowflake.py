@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains abstract operator that child classes implements
-COPY INTO <TABLE> SQL in Snowflake
+"""
+This module contains abstract operator that child classes
+implement "COPY INTO <TABLE> SQL in Snowflake".
 """
 from __future__ import annotations
 
@@ -29,7 +30,7 @@ from airflow.providers.snowflake.utils.common import enclose_param
 
 class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
     """
-    Executes a COPY INTO command to load files from an external stage from clouds to Snowflake
+    Executes a COPY INTO command to load files from an external stage from clouds to Snowflake.
 
     This operator requires the snowflake_conn_id connection. The snowflake host, login,
     and, password field must be setup in the connection. Other inputs can be defined

@@ -17,11 +17,13 @@
 """Database sub-commands."""
 from __future__ import annotations
 
+import logging
 import os
 import textwrap
 from tempfile import NamedTemporaryFile
 
 from packaging.version import parse as parse_version
+from tenacity import RetryCallState, Retrying, stop_after_attempt, wait_fixed
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -29,6 +31,8 @@ from airflow.utils import cli as cli_utils, db
 from airflow.utils.db import REVISION_HEADS_MAP
 from airflow.utils.db_cleanup import config_dict, drop_archived_tables, export_archived_records, run_cleanup
 from airflow.utils.process_utils import execute_interactive
+
+log = logging.getLogger(__name__)
 
 
 def initdb(args):
@@ -187,9 +191,23 @@ def shell(args):
 
 
 @cli_utils.action_cli(check_db=False)
-def check(_):
+def check(args):
     """Runs a check command that checks if db is available."""
-    db.check()
+    retries: int = args.retry
+    retry_delay: int = args.retry_delay
+
+    def _warn_remaining_retries(retrystate: RetryCallState):
+        remain = retries - retrystate.attempt_number
+        log.warning("%d retries remain. Will retry in %d seconds", remain, retry_delay)
+
+    for attempt in Retrying(
+        stop=stop_after_attempt(1 + retries),
+        wait=wait_fixed(retry_delay),
+        reraise=True,
+        before_sleep=_warn_remaining_retries,
+    ):
+        with attempt:
+            db.check()
 
 
 # lazily imported by CLI parser for `help` command

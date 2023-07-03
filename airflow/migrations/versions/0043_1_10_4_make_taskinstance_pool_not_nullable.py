@@ -27,7 +27,7 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy import Column, String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import UtcDateTime

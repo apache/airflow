@@ -80,7 +80,7 @@ class DynamoDBValueSensor(BaseSensorOperator):
         self.region_name = region_name
 
     def poke(self, context: Context) -> bool:
-        """Test DynamoDB item for matching attribute value"""
+        """Test DynamoDB item for matching attribute value."""
         key = {self.partition_key_name: self.partition_key_value}
         msg = (
             f"Checking table {self.table_name} for "
@@ -110,5 +110,5 @@ class DynamoDBValueSensor(BaseSensorOperator):
 
     @cached_property
     def hook(self) -> DynamoDBHook:
-        """Create and return a DynamoDBHook"""
+        """Create and return a DynamoDBHook."""
         return DynamoDBHook(self.aws_conn_id, region_name=self.region_name)

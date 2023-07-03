@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 
+from airflow import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.utils.types import NOTSET
@@ -137,3 +138,60 @@ class TestRedshiftSQLHookConn:
         ):
             self.db_hook.get_conn()
             mock_connect.assert_called_once_with(**expected_call_args)
+
+    @pytest.mark.parametrize(
+        "connection_host, connection_extra, expected_cluster_identifier, expected_exception_msg",
+        [
+            # test without a connection host and without a cluster_identifier in connection extra
+            (None, {"iam": True}, None, "Please set cluster_identifier or host in redshift connection."),
+            # test without a connection host but with a cluster_identifier in connection extra
+            (
+                None,
+                {"iam": True, "cluster_identifier": "cluster_identifier_from_extra"},
+                "cluster_identifier_from_extra",
+                None,
+            ),
+            # test with a connection host and without a cluster_identifier in connection extra
+            ("cluster_identifier_from_host.x.y", {"iam": True}, "cluster_identifier_from_host", None),
+            # test with both connection host and cluster_identifier in connection extra
+            (
+                "cluster_identifier_from_host.x.y",
+                {"iam": True, "cluster_identifier": "cluster_identifier_from_extra"},
+                "cluster_identifier_from_extra",
+                None,
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.redshift_connector.connect")
+    def test_get_iam_token(
+        self,
+        mock_connect,
+        mock_aws_hook_conn,
+        connection_host,
+        connection_extra,
+        expected_cluster_identifier,
+        expected_exception_msg,
+    ):
+        self.connection.host = connection_host
+        self.connection.extra = json.dumps(connection_extra)
+
+        mock_db_user = f"IAM:{self.connection.login}"
+        mock_db_pass = "aws_token"
+
+        # Mock AWS Connection
+        mock_aws_hook_conn.get_cluster_credentials.return_value = {
+            "DbPassword": mock_db_pass,
+            "DbUser": mock_db_user,
+        }
+        if expected_exception_msg is not None:
+            with pytest.raises(AirflowException, match=expected_exception_msg):
+                self.db_hook.get_conn()
+        else:
+            self.db_hook.get_conn()
+            mock_aws_hook_conn.get_cluster_credentials.assert_called_once_with(
+                DbUser=LOGIN_USER,
+                DbName=LOGIN_SCHEMA,
+                ClusterIdentifier=expected_cluster_identifier,
+                AutoCreate=False,
+            )

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Reads and then deletes the message from SQS queue"""
+"""Reads and then deletes the message from SQS queue."""
 from __future__ import annotations
 
 import json
@@ -37,6 +37,7 @@ if TYPE_CHECKING:
 class SqsSensor(BaseSensorOperator):
     """
     Get messages from an Amazon SQS queue and then delete the messages from the queue.
+
     If deletion of messages fails, an AirflowException is thrown. Otherwise, the messages
     are pushed through XCom with the key ``messages``.
 
@@ -184,7 +185,7 @@ class SqsSensor(BaseSensorOperator):
 
     @deprecated(reason="use `hook` property instead.")
     def get_hook(self) -> SqsHook:
-        """Create and return an SqsHook"""
+        """Create and return an SqsHook."""
         return self.hook
 
     @cached_property

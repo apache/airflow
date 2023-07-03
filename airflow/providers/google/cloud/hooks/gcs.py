@@ -20,21 +20,23 @@ from __future__ import annotations
 
 import functools
 import gzip as gz
+import json
 import os
 import shutil
 import time
+import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import IO, Callable, Generator, Sequence, TypeVar, cast, overload
+from typing import IO, Any, Callable, Generator, Sequence, TypeVar, cast, overload
 from urllib.parse import urlsplit
 
 from aiohttp import ClientSession
 from gcloud.aio.storage import Storage
-from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import GoogleAPICallError, NotFound
 from google.api_core.retry import Retry
 
 # not sure why but mypy complains on missing `storage` but it is clearly there and is importable
@@ -43,7 +45,7 @@ from google.cloud.exceptions import GoogleCloudError
 from google.cloud.storage.retry import DEFAULT_RETRY
 from requests import Session
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
@@ -400,7 +402,7 @@ class GCSHook(GoogleBaseHook):
         dir: str | None = None,
     ) -> Generator[IO[bytes], None, None]:
         """
-        Downloads the file to a temporary directory and returns a file handle
+        Downloads the file to a temporary directory and returns a file handle.
 
         You can use this method by passing the bucket_name and object_name parameters
         or just object_url parameter.
@@ -461,6 +463,7 @@ class GCSHook(GoogleBaseHook):
         timeout: int | None = DEFAULT_TIMEOUT,
         num_max_attempts: int = 1,
         metadata: dict | None = None,
+        cache_control: str | None = None,
     ) -> None:
         """
         Uploads a local file or file data as string or bytes to Google Cloud Storage.
@@ -476,6 +479,7 @@ class GCSHook(GoogleBaseHook):
         :param timeout: Request timeout in seconds.
         :param num_max_attempts: Number of attempts to try to upload the file.
         :param metadata: The metadata to be uploaded with the file.
+        :param cache_control: Cache-Control metadata field.
         """
 
         def _call_with_retry(f: Callable[[], None]) -> None:
@@ -511,6 +515,9 @@ class GCSHook(GoogleBaseHook):
 
         if metadata:
             blob.metadata = metadata
+
+        if cache_control:
+            blob.cacheControl = cache_control
 
         if filename and data:
             raise ValueError(
@@ -569,7 +576,7 @@ class GCSHook(GoogleBaseHook):
 
     def get_blob_update_time(self, bucket_name: str, object_name: str):
         """
-        Get the update time of a file in Google Cloud Storage
+        Get the update time of a file in Google Cloud Storage.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the blob to get updated time from the Google cloud
@@ -646,7 +653,7 @@ class GCSHook(GoogleBaseHook):
 
     def is_older_than(self, bucket_name: str, object_name: str, seconds: int) -> bool:
         """
-        Check if object is older than given time
+        Check if object is older than given time.
 
         :param bucket_name: The Google Cloud Storage bucket where the object is.
         :param object_name: The name of the object to check in the Google cloud
@@ -703,17 +710,28 @@ class GCSHook(GoogleBaseHook):
         max_results: int | None = None,
         prefix: str | List[str] | None = None,
         delimiter: str | None = None,
+        match_glob: str | None = None,
     ):
         """
-        List all objects from the bucket with the given a single prefix or multiple prefixes
+        List all objects from the bucket with the given a single prefix or multiple prefixes.
 
         :param bucket_name: bucket name
         :param versions: if true, list all versions of the objects
         :param max_results: max count of items to return in a single page of responses
         :param prefix: string or list of strings which filter objects whose name begin with it/them
-        :param delimiter: filters objects based on the delimiter (for e.g '.csv')
+        :param delimiter: (Deprecated) filters objects based on the delimiter (for e.g '.csv')
+        :param match_glob: (Optional) filters objects based on the glob pattern given by the string
+            (e.g, ``'**/*/.json'``).
         :return: a stream of object names matching the filtering criteria
         """
+        if delimiter and delimiter != "/":
+            warnings.warn(
+                "Usage of 'delimiter' param is deprecated, please use 'match_glob' instead",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        if match_glob and delimiter and delimiter != "/":
+            raise AirflowException("'match_glob' param cannot be used with 'delimiter' that differs than '/'")
         objects = []
         if isinstance(prefix, list):
             for prefix_item in prefix:
@@ -724,6 +742,7 @@ class GCSHook(GoogleBaseHook):
                         max_results=max_results,
                         prefix=prefix_item,
                         delimiter=delimiter,
+                        match_glob=match_glob,
                     )
                 )
         else:
@@ -734,6 +753,7 @@ class GCSHook(GoogleBaseHook):
                     max_results=max_results,
                     prefix=prefix,
                     delimiter=delimiter,
+                    match_glob=match_glob,
                 )
             )
         return objects
@@ -745,15 +765,18 @@ class GCSHook(GoogleBaseHook):
         max_results: int | None = None,
         prefix: str | None = None,
         delimiter: str | None = None,
+        match_glob: str | None = None,
     ) -> List:
         """
-        List all objects from the bucket with the give string prefix in name
+        List all objects from the bucket with the give string prefix in name.
 
         :param bucket_name: bucket name
         :param versions: if true, list all versions of the objects
         :param max_results: max count of items to return in a single page of responses
         :param prefix: string which filters objects whose name begin with it
-        :param delimiter: filters objects based on the delimiter (for e.g '.csv')
+        :param delimiter: (Deprecated) filters objects based on the delimiter (for e.g '.csv')
+        :param match_glob: (Optional) filters objects based on the glob pattern given by the string
+            (e.g, ``'**/*/.json'``).
         :return: a stream of object names matching the filtering criteria
         """
         client = self.get_conn()
@@ -762,13 +785,25 @@ class GCSHook(GoogleBaseHook):
         ids = []
         page_token = None
         while True:
-            blobs = bucket.list_blobs(
-                max_results=max_results,
-                page_token=page_token,
-                prefix=prefix,
-                delimiter=delimiter,
-                versions=versions,
-            )
+            if match_glob:
+                blobs = self._list_blobs_with_match_glob(
+                    bucket=bucket,
+                    client=client,
+                    match_glob=match_glob,
+                    max_results=max_results,
+                    page_token=page_token,
+                    path=bucket.path + "/o",
+                    prefix=prefix,
+                    versions=versions,
+                )
+            else:
+                blobs = bucket.list_blobs(
+                    max_results=max_results,
+                    page_token=page_token,
+                    prefix=prefix,
+                    delimiter=delimiter,
+                    versions=versions,
+                )
 
             blob_names = []
             for blob in blobs:
@@ -786,6 +821,52 @@ class GCSHook(GoogleBaseHook):
                 break
         return ids
 
+    @staticmethod
+    def _list_blobs_with_match_glob(
+        bucket,
+        client,
+        path: str,
+        max_results: int | None = None,
+        page_token: str | None = None,
+        match_glob: str | None = None,
+        prefix: str | None = None,
+        versions: bool | None = None,
+    ) -> Any:
+        """
+        List blobs when match_glob param is given.
+        This method is a patched version of google.cloud.storage Client.list_blobs().
+        It is used as a temporary workaround to support "match_glob" param,
+        as it isn't officially supported by GCS Python client.
+        (follow `issue #1035<https://github.com/googleapis/python-storage/issues/1035>`__).
+        """
+        from google.api_core import page_iterator
+        from google.cloud.storage.bucket import _blobs_page_start, _item_to_blob
+
+        extra_params: Any = {}
+        if prefix is not None:
+            extra_params["prefix"] = prefix
+        if match_glob is not None:
+            extra_params["matchGlob"] = match_glob
+        if versions is not None:
+            extra_params["versions"] = versions
+        api_request = functools.partial(
+            client._connection.api_request, timeout=DEFAULT_TIMEOUT, retry=DEFAULT_RETRY
+        )
+
+        blobs: Any = page_iterator.HTTPIterator(
+            client=client,
+            api_request=api_request,
+            path=path,
+            item_to_value=_item_to_blob,
+            page_token=page_token,
+            max_results=max_results,
+            extra_params=extra_params,
+            page_start=_blobs_page_start,
+        )
+        blobs.prefixes = set()
+        blobs.bucket = bucket
+        return blobs
+
     def list_by_timespan(
         self,
         bucket_name: str,
@@ -795,6 +876,7 @@ class GCSHook(GoogleBaseHook):
         max_results: int | None = None,
         prefix: str | None = None,
         delimiter: str | None = None,
+        match_glob: str | None = None,
     ) -> List[str]:
         """
         List all objects from the bucket with the give string prefix in name that were
@@ -807,7 +889,9 @@ class GCSHook(GoogleBaseHook):
         :param max_results: max count of items to return in a single page of responses
         :param prefix: prefix string which filters objects whose name begin with
             this prefix
-        :param delimiter: filters objects based on the delimiter (for e.g '.csv')
+        :param delimiter: (Deprecated) filters objects based on the delimiter (for e.g '.csv')
+        :param match_glob: (Optional) filters objects based on the glob pattern given by the string
+            (e.g, ``'**/*/.json'``).
         :return: a stream of object names matching the filtering criteria
         """
         client = self.get_conn()
@@ -817,13 +901,25 @@ class GCSHook(GoogleBaseHook):
         page_token = None
 
         while True:
-            blobs = bucket.list_blobs(
-                max_results=max_results,
-                page_token=page_token,
-                prefix=prefix,
-                delimiter=delimiter,
-                versions=versions,
-            )
+            if match_glob:
+                blobs = self._list_blobs_with_match_glob(
+                    bucket=bucket,
+                    client=client,
+                    match_glob=match_glob,
+                    max_results=max_results,
+                    page_token=page_token,
+                    path=bucket.path + "/o",
+                    prefix=prefix,
+                    versions=versions,
+                )
+            else:
+                blobs = bucket.list_blobs(
+                    max_results=max_results,
+                    page_token=page_token,
+                    prefix=prefix,
+                    delimiter=delimiter,
+                    versions=versions,
+                )
 
             blob_names = []
             for blob in blobs:
@@ -965,6 +1061,7 @@ class GCSHook(GoogleBaseHook):
     ) -> None:
         """
         Creates a new ACL entry on the specified bucket_name.
+
         See: https://cloud.google.com/storage/docs/json_api/v1/bucketAccessControls/insert
 
         :param bucket_name: Name of a bucket_name.
@@ -999,6 +1096,7 @@ class GCSHook(GoogleBaseHook):
     ) -> None:
         """
         Creates a new ACL entry on the specified object.
+
         See: https://cloud.google.com/storage/docs/json_api/v1/objectAccessControls/insert
 
         :param bucket_name: Name of a bucket_name.
@@ -1030,7 +1128,7 @@ class GCSHook(GoogleBaseHook):
 
     def compose(self, bucket_name: str, source_objects: List[str], destination_object: str) -> None:
         """
-        Composes a list of existing object into a new object in the same storage bucket_name
+        Composes a list of existing object into a new object in the same storage bucket_name.
 
         Currently it only supports up to 32 objects that can be concatenated
         in a single operation
@@ -1225,6 +1323,36 @@ def gcs_object_is_directory(bucket: str) -> bool:
     return len(blob) == 0 or blob.endswith("/")
 
 
+def parse_json_from_gcs(gcp_conn_id: str, file_uri: str) -> Any:
+    """
+    Downloads and parses json file from Google cloud Storage.
+
+    :param gcp_conn_id: Airflow Google Cloud connection ID.
+    :param file_uri: full path to json file
+        example: ``gs://test-bucket/dir1/dir2/file``
+    """
+    gcs_hook = GCSHook(gcp_conn_id=gcp_conn_id)
+    bucket, blob = _parse_gcs_url(file_uri)
+    with NamedTemporaryFile(mode="w+b") as file:
+        try:
+            gcs_hook.download(bucket_name=bucket, object_name=blob, filename=file.name)
+        except GoogleAPICallError as ex:
+            raise AirflowException(f"Failed to download file with query result: {ex}")
+
+        file.seek(0)
+        try:
+            json_data = file.read()
+        except (ValueError, OSError, RuntimeError) as ex:
+            raise AirflowException(f"Failed to read file: {ex}")
+
+        try:
+            result = json.loads(json_data)
+        except json.JSONDecodeError as ex:
+            raise AirflowException(f"Failed to decode query result from bytes to json: {ex}")
+
+        return result
+
+
 def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
     """
     Given a Google Cloud Storage URL (gs://<bucket>/<blob>), returns a
@@ -1243,7 +1371,7 @@ def _parse_gcs_url(gsurl: str) -> tuple[str, str]:
 
 
 class GCSAsyncHook(GoogleBaseAsyncHook):
-    """GCSAsyncHook run on the trigger worker, inherits from GoogleBaseHookAsync"""
+    """GCSAsyncHook run on the trigger worker, inherits from GoogleBaseHookAsync."""
 
     sync_hook_class = GCSHook
 

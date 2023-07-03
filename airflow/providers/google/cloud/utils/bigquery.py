@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 
 def bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str:
     """
@@ -34,3 +36,18 @@ def bq_cast(string_field: str, bq_type: str) -> None | int | float | bool | str:
         return string_field == "true"
     else:
         return string_field
+
+
+def convert_job_id(job_id: str | list[str], project_id: str, location: str | None) -> Any:
+    """
+    Helper method that converts to path: project_id:location:job_id
+    :param project_id: Required. The ID of the Google Cloud project where workspace located.
+    :param location: Optional. The ID of the Google Cloud region where workspace located.
+    :param job_id: Required. The ID of the job.
+    :return: str or list[str] of project_id:location:job_id.
+    """
+    location = location if location else "US"
+    if isinstance(job_id, list):
+        return [f"{project_id}:{location}:{i}" for i in job_id]
+    else:
+        return f"{project_id}:{location}:{job_id}"

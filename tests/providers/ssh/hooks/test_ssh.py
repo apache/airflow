@@ -1034,7 +1034,7 @@ class TestSSHHook:
         with hook.get_conn():
             assert ssh_mock.return_value.set_missing_host_key_policy.called is True
             assert isinstance(
-                ssh_mock.return_value.set_missing_host_key_policy.call_args[0][0], paramiko.AutoAddPolicy
+                ssh_mock.return_value.set_missing_host_key_policy.call_args.args[0], paramiko.AutoAddPolicy
             )
             assert ssh_mock.return_value.load_host_keys.called is False
 
@@ -1046,7 +1046,8 @@ class TestSSHHook:
             with hook.get_conn():
                 assert ssh_mock.return_value.set_missing_host_key_policy.called is True
                 assert isinstance(
-                    ssh_mock.return_value.set_missing_host_key_policy.call_args[0][0], paramiko.AutoAddPolicy
+                    ssh_mock.return_value.set_missing_host_key_policy.call_args.args[0],
+                    paramiko.AutoAddPolicy,
                 )
                 assert ssh_mock.return_value.load_host_keys.called is True
 
@@ -1055,7 +1056,8 @@ class TestSSHHook:
             with hook.get_conn():
                 assert ssh_mock.return_value.set_missing_host_key_policy.called is True
                 assert isinstance(
-                    ssh_mock.return_value.set_missing_host_key_policy.call_args[0][0], paramiko.AutoAddPolicy
+                    ssh_mock.return_value.set_missing_host_key_policy.call_args.args[0],
+                    paramiko.AutoAddPolicy,
                 )
                 assert ssh_mock.return_value.load_host_keys.called is False
 
