@@ -25,10 +25,6 @@ apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
   name: {{ .Release.Name }}-{{ $e.name }}
-{{- if $e.preemptionPolicy }}
-preemptionPolicy: {{ $e.preemptionPolicy }}
-{{ else }}
-preemptionPolicy: PreemptLowerPriority
-{{- end }}
-value: {{ $e.value }}
+preemptionPolicy: {{ default "PreemptLowerPriority" $e.preemptionPolicy }}
+value: {{ $e.value | required "value is required" }}
 {{- end }}

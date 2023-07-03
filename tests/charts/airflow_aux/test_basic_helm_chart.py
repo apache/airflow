@@ -538,6 +538,18 @@ class TestBaseChartTest:
             == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
         )
 
+    def test_priority_classes(self):
+        render_chart(
+            "my-release",
+            show_only=["templates/priorityclasses/priority-classes.yaml"],
+            values={
+                "priorityClasses": [
+                    {"name": "class1", "preemptionPolicy": "PreemptLowerPriority", "value": 1000},
+                    {"name": "class2", "preemptionPolicy": "Never", "value": 10000},
+                ]
+            },
+        )[0]
+
     @staticmethod
     def default_trigger_obj(version):
         if version == "default":
