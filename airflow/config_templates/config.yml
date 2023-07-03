@@ -2256,7 +2256,7 @@ scheduler:
         from the CLI or the UI), this defines the frequency at which they should
         listen (in seconds).
       version_added: ~
-      type: string
+      type: float
       example: ~
       default: "5"
     scheduler_heartbeat_sec:
@@ -2265,7 +2265,7 @@ scheduler:
         scheduler section in the docs for more information). This defines
         how often the scheduler should run (in seconds).
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "5"
     num_runs:
@@ -2273,7 +2273,7 @@ scheduler:
         The number of times to try to schedule each DAG file
         -1 indicates unlimited number
       version_added: 1.10.6
-      type: string
+      type: integer
       example: ~
       default: "-1"
     scheduler_idle_sleep_time:
@@ -2282,7 +2282,7 @@ scheduler:
         in the loop. i.e. if it scheduled something then it will start the next loop
         iteration straight away.
       version_added: 2.2.0
-      type: string
+      type: float
       example: ~
       default: "1"
     min_file_process_interval:
@@ -2291,7 +2291,7 @@ scheduler:
         ``min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
         this interval. Keeping this number low will increase CPU usage.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "30"
     parsing_cleanup_interval:
@@ -2319,14 +2319,14 @@ scheduler:
       description: |
         How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "300"
     print_stats_interval:
       description: |
         How often should stats be printed to the logs. Setting to 0 will disable printing stats
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "30"
     pool_metrics_interval:
@@ -2343,7 +2343,7 @@ scheduler:
         This is used by the health check in the "/health" endpoint and in `airflow jobs check` CLI
         for SchedulerJob.
       version_added: 1.10.2
-      type: string
+      type: integer
       example: ~
       default: "30"
     enable_health_check:
@@ -2359,7 +2359,7 @@ scheduler:
         When you start a scheduler, airflow starts a tiny web server
         subprocess to serve a health check on this port
       version_added: 2.4.0
-      type: string
+      type: integer
       example: ~
       default: "8974"
     orphaned_tasks_check_interval:
@@ -2381,7 +2381,7 @@ scheduler:
         not heartbeat in this many seconds, the scheduler will mark the
         associated task instance as failed and will re-schedule the task.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "300"
     zombie_detection_interval:
@@ -2400,7 +2400,7 @@ scheduler:
         however it can be set on a per DAG basis in the
         DAG definition (catchup)
       version_added: ~
-      type: string
+      type: boolean
       example: ~
       default: "True"
     ignore_first_depends_on_past_by_default:
@@ -2411,7 +2411,7 @@ scheduler:
         in the DB with an execution_date earlier than it., i.e. no manual marking
         success will be needed for a newly added task to be scheduled.
       version_added: 2.3.0
-      type: string
+      type: boolean
       example: ~
       default: "True"
     max_tis_per_query:
@@ -2422,7 +2422,7 @@ scheduler:
         Additionally, you may hit the maximum allowable query length for your db.
         Set this to 0 for no limit (not advised)
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "512"
     use_row_level_locking:
@@ -2439,7 +2439,7 @@ scheduler:
         Max number of DAGs to create DagRuns for per scheduler loop.
       example: ~
       version_added: 2.0.0
-      type: string
+      type: integer
       default: "10"
       see_also: ":ref:`scheduler:ha:tunables`"
     max_dagruns_per_loop_to_schedule:
@@ -2448,7 +2448,7 @@ scheduler:
         and queuing tasks.
       example: ~
       version_added: 2.0.0
-      type: string
+      type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
     schedule_after_task_execution:
@@ -2475,7 +2475,7 @@ scheduler:
         The scheduler can run multiple processes in parallel to parse dags.
         This defines how many processes will run.
       version_added: 1.10.14
-      type: string
+      type: integer
       example: ~
       default: "2"
     file_parsing_sort_mode:
@@ -2522,7 +2522,7 @@ scheduler:
         Turn off scheduler use of cron intervals by setting this to False.
         DAGs submitted manually in the web UI or with trigger_dag will still run.
       version_added: 1.10.2
-      type: string
+      type: boolean
       example: ~
       default: "True"
     allow_trigger_in_future:
@@ -2530,14 +2530,14 @@ scheduler:
         Allow externally triggered DagRuns for Execution Dates in the future
         Only has effect if schedule_interval is set to None in DAG
       version_added: 1.10.8
-      type: string
+      type: boolean
       example: ~
       default: "False"
     trigger_timeout_check_interval:
       description: |
         How often to check for expired trigger requests that have not run yet.
       version_added: 2.2.0
-      type: string
+      type: float
       example: ~
       default: "15"
     task_queued_timeout:

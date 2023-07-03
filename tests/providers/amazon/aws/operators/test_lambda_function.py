@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import json
 from unittest import mock
 from unittest.mock import Mock, patch
 
@@ -30,6 +29,8 @@ from airflow.providers.amazon.aws.operators.lambda_function import (
 )
 
 FUNCTION_NAME = "function_name"
+PAYLOAD = '{"hello": "airflow"}'
+BYTES_PAYLOAD = b'{"hello": "airflow"}'
 ROLE_ARN = "role_arn"
 IMAGE_URI = "image_uri"
 
@@ -70,29 +71,37 @@ class TestLambdaCreateFunctionOperator:
 
 
 class TestLambdaInvokeFunctionOperator:
-    def test_init(self):
+    @pytest.mark.parametrize(
+        "payload",
+        [PAYLOAD, BYTES_PAYLOAD],
+    )
+    def test_init(self, payload):
         lambda_operator = LambdaInvokeFunctionOperator(
             task_id="test",
             function_name="test",
-            payload=json.dumps({"TestInput": "Testdata"}),
+            payload=payload,
             log_type="None",
             aws_conn_id="aws_conn_test",
         )
         assert lambda_operator.task_id == "test"
         assert lambda_operator.function_name == "test"
-        assert lambda_operator.payload == json.dumps({"TestInput": "Testdata"})
+        assert lambda_operator.payload == payload
         assert lambda_operator.log_type == "None"
         assert lambda_operator.aws_conn_id == "aws_conn_test"
 
     @patch.object(LambdaInvokeFunctionOperator, "hook", new_callable=mock.PropertyMock)
-    def test_invoke_lambda(self, hook_mock):
+    @pytest.mark.parametrize(
+        "payload",
+        [PAYLOAD, BYTES_PAYLOAD],
+    )
+    def test_invoke_lambda(self, hook_mock, payload):
         operator = LambdaInvokeFunctionOperator(
             task_id="task_test",
             function_name="a",
             invocation_type="b",
             log_type="c",
             client_context="d",
-            payload="e",
+            payload=payload,
             qualifier="f",
         )
         returned_payload = Mock()
@@ -111,7 +120,7 @@ class TestLambdaInvokeFunctionOperator:
             invocation_type="b",
             log_type="c",
             client_context="d",
-            payload="e",
+            payload=payload,
             qualifier="f",
         )
 
