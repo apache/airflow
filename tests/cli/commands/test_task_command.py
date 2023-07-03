@@ -500,6 +500,7 @@ class TestCliTasks:
         assert 'echo "2022-01-01"' in output
         assert 'echo "2022-01-08"' in output
 
+    @pytest.mark.usefixtures("register_example_timetables")
     @mock.patch("sqlalchemy.orm.session.Session.query")
     @mock.patch("airflow.cli.commands.task_command.DagRun")
     def test_task_render_with_custom_timetable(self, mock_dagrun, mock_query):
