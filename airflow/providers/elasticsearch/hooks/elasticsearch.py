@@ -141,6 +141,7 @@ class ElasticsearchSQLHook(DbApiHook):
 class ElasticsearchHook(ElasticsearchSQLHook):
     """
     This class is deprecated and was renamed to ElasticsearchSQLHook.
+
     Please use `airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`.
     """
 

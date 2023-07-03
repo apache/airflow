@@ -137,7 +137,7 @@ repos:
       - id: insert-license
         name: Add license for all Markdown files
         files: \.md$
-        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md$|^.*/.*_vendor/
+        exclude: PROVIDER_CHANGES.*\.md$|^.*/.*_vendor/
         args:
           - --comment-style
           - "<!--|| -->"
@@ -495,7 +495,7 @@ repos:
           ^airflow/providers/microsoft/winrm/hooks/winrm.py$|
           ^airflow/www/fab_security/manager.py$|
           ^docs/.*commits.rst$|
-          ^docs/apache-airflow/administration-and-deployment/security/webserver.rst$|
+          ^docs/apache-airflow/security/webserver.rst$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^airflow/providers/microsoft/winrm/operators/winrm.py$|
           ^airflow/providers/opsgenie/hooks/opsgenie.py$|

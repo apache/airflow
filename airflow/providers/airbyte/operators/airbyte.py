@@ -28,8 +28,7 @@ if TYPE_CHECKING:
 
 class AirbyteTriggerSyncOperator(BaseOperator):
     """
-    This operator allows you to submit a job to an Airbyte server to run a integration
-    process between your source and destination.
+    Submits a job to an Airbyte server to run a integration process between your source and destination.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

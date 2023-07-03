@@ -51,6 +51,7 @@ def check_system_test_entry_hidden(provider_index: Path):
     expected_text = f"""
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/{provider_path}/index>

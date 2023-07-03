@@ -21,7 +21,7 @@ from http import HTTPStatus
 from connexion import NoContent
 from flask import request
 from marshmallow import ValidationError
-from sqlalchemy import asc, desc, func
+from sqlalchemy import asc, desc, func, select
 from werkzeug.security import generate_password_hash
 
 from airflow.api_connexion import security
@@ -55,7 +55,7 @@ def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) ->
     """Get users."""
     appbuilder = get_airflow_app().appbuilder
     session = appbuilder.get_session
-    total_entries = session.query(func.count(User.id)).scalar()
+    total_entries = session.execute(select(func.count(User.id))).scalar()
     direction = desc if order_by.startswith("-") else asc
     to_replace = {"user_id": "id"}
     order_param = order_by.strip("-")
@@ -75,8 +75,8 @@ def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) ->
             f"the attribute does not exist on the model"
         )
 
-    query = session.query(User)
-    users = query.order_by(direction(getattr(User, order_param))).offset(offset).limit(limit).all()
+    query = select(User).order_by(direction(getattr(User, order_param))).offset(offset).limit(limit)
+    users = session.scalars(query).all()
 
     return user_collection_schema.dump(UserCollection(users=users, total_entries=total_entries))
 

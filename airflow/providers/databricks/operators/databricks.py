@@ -162,10 +162,9 @@ class DatabricksJobRunLink(BaseOperatorLink):
 
 class DatabricksSubmitRunOperator(BaseOperator):
     """
-    Submits a Spark job run to Databricks using the
-    `api/2.1/jobs/runs/submit
-    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_
-    API endpoint.
+    Submits a Spark job run to Databricks using the api/2.1/jobs/runs/submit API endpoint.
+
+    See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
 
     There are three ways to instantiate this operator.
 
@@ -428,10 +427,9 @@ class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
 
 class DatabricksRunNowOperator(BaseOperator):
     """
-    Runs an existing Spark job run to Databricks using the
-    `api/2.1/jobs/run-now
-    <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow>`_
-    API endpoint.
+    Runs an existing Spark job run to Databricks using the api/2.1/jobs/run-now API endpoint.
+
+    See: https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunNow
 
     There are two ways to instantiate this operator.
 

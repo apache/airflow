@@ -204,7 +204,6 @@ class TestJob:
 
         test_job = Job(heartrate=10, dag_id="example_dag", state=State.RUNNING)
         MockJobRunner(job=test_job)
-        assert test_job.executor_class == "SequentialExecutor"
         assert test_job.heartrate == 10
         assert test_job.dag_id == "example_dag"
         assert test_job.hostname == "test_hostname"

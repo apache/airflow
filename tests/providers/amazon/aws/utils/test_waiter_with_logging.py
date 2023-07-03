@@ -51,7 +51,7 @@ class TestWaiter:
         wait(
             waiter=mock_waiter,
             waiter_delay=123,
-            max_attempts=456,
+            waiter_max_attempts=456,
             args={"test_arg": "test_value"},
             failure_message="test failure message",
             status_message="test status message",
@@ -92,7 +92,7 @@ class TestWaiter:
         await async_wait(
             waiter=mock_waiter,
             waiter_delay=0,
-            max_attempts=456,
+            waiter_max_attempts=456,
             args={"test_arg": "test_value"},
             failure_message="test failure message",
             status_message="test status message",
@@ -122,7 +122,7 @@ class TestWaiter:
             wait(
                 waiter=mock_waiter,
                 waiter_delay=123,
-                max_attempts=2,
+                waiter_max_attempts=2,
                 args={"test_arg": "test_value"},
                 failure_message="test failure message",
                 status_message="test status message",
@@ -136,7 +136,7 @@ class TestWaiter:
             },
         )
 
-        mock_waiter.wait.call_count == 11
+        assert mock_waiter.wait.call_count == 2
         mock_sleep.assert_called_with(123)
         assert (
             caplog.record_tuples
@@ -165,16 +165,18 @@ class TestWaiter:
             last_response=generate_response("Failure"),
         )
         mock_waiter.wait.side_effect = [error, error, error, failure_error]
+
         with pytest.raises(AirflowException) as exc:
             wait(
                 waiter=mock_waiter,
                 waiter_delay=123,
-                max_attempts=10,
+                waiter_max_attempts=10,
                 args={"test_arg": "test_value"},
                 failure_message="test failure message",
                 status_message="test status message",
                 status_args=["Status.State"],
             )
+
         assert "test failure message" in str(exc)
         mock_waiter.wait.assert_called_with(
             **{"test_arg": "test_value"},
@@ -183,17 +185,7 @@ class TestWaiter:
             },
         )
         assert mock_waiter.wait.call_count == 4
-        assert (
-            caplog.record_tuples
-            == [
-                (
-                    "airflow.providers.amazon.aws.utils.waiter_with_logging",
-                    logging.INFO,
-                    "test status message: Pending",
-                )
-            ]
-            * 3
-        )
+        assert caplog.messages == ["test status message: Pending"] * 3 + ["test failure message: Failure"]
 
     @mock.patch("time.sleep")
     def test_wait_with_list_response(self, mock_sleep, caplog):
@@ -217,7 +209,7 @@ class TestWaiter:
         wait(
             waiter=mock_waiter,
             waiter_delay=123,
-            max_attempts=456,
+            waiter_max_attempts=456,
             args={"test_arg": "test_value"},
             failure_message="test failure message",
             status_message="test status message",
@@ -266,7 +258,7 @@ class TestWaiter:
         wait(
             waiter=mock_waiter,
             waiter_delay=123,
-            max_attempts=456,
+            waiter_max_attempts=456,
             args={"test_arg": "test_value"},
             failure_message="test failure message",
             status_message="test status message",
@@ -279,7 +271,7 @@ class TestWaiter:
                 "MaxAttempts": 1,
             },
         )
-        mock_waiter.wait.call_count == 3
+        assert mock_waiter.wait.call_count == 3
         mock_sleep.assert_called_with(123)
         assert (
             caplog.record_tuples
@@ -314,13 +306,13 @@ class TestWaiter:
         wait(
             waiter=mock_waiter,
             waiter_delay=123,
-            max_attempts=456,
+            waiter_max_attempts=456,
             args={"test_arg": "test_value"},
             failure_message="test failure message",
             status_message="test status message",
             status_args=["Clusters[0].Status", "Clusters[0].StatusDetails", "Clusters[0].ClusterName"],
         )
-        mock_waiter.wait.call_count == 3
+        assert mock_waiter.wait.call_count == 3
         mock_sleep.assert_called_with(123)
         assert (
             caplog.record_tuples
@@ -348,7 +340,7 @@ class TestWaiter:
             wait(
                 waiter=mock_waiter,
                 waiter_delay=0,
-                max_attempts=456,
+                waiter_max_attempts=456,
                 args={"test_arg": "test_value"},
                 failure_message="test failure message",
                 status_message="test status message",
