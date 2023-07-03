@@ -1102,7 +1102,7 @@ def check_conn_type_null(session: Session) -> Iterable[str]:
 
     n_nulls = []
     try:
-        n_nulls = session.execute(select(Connection.conn_id).filter(Connection.conn_type.is_(None))).all()
+        n_nulls = session.scalars(select(Connection.conn_id).where(Connection.conn_type.is_(None))).all()
     except (exc.OperationalError, exc.ProgrammingError, exc.InternalError):
         # fallback if tables hasn't been created yet
         session.rollback()
@@ -1144,7 +1144,7 @@ def check_run_id_null(session: Session) -> Iterable[str]:
         dagrun_table.c.run_id.is_(None),
         dagrun_table.c.execution_date.is_(None),
     )
-    invalid_dagrun_count = session.scalar(select(func.count(dagrun_table.c.id)).filter(invalid_dagrun_filter))
+    invalid_dagrun_count = session.scalar(select(func.count(dagrun_table.c.id)).where(invalid_dagrun_filter))
     if invalid_dagrun_count > 0:
         dagrun_dangling_table_name = _format_airflow_moved_table_name(dagrun_table.name, "2.2", "dangling")
         if dagrun_dangling_table_name in inspect(session.get_bind()).get_table_names():
@@ -1335,7 +1335,7 @@ def _move_duplicate_data_to_new_table(
     dialect_name = bind.dialect.name
 
     query = (
-        session.select(*[getattr(source_table.c, x.name).label(str(x.name)) for x in source_table.columns])
+        select(*[getattr(source_table.c, x.name).label(str(x.name)) for x in source_table.columns])
         .select_from(source_table)
         .join(subquery, and_(*[getattr(source_table.c, x) == getattr(subquery.c, x) for x in uniqueness]))
     )

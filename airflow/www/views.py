@@ -941,7 +941,6 @@ class Airflow(AirflowBaseView):
                 select(Log)
                 .where(Log.event == "robots")
                 .where(Log.dttm > (utcnow() - datetime.timedelta(days=7)))
-                # .count()
             )
             robots_file_access_count = session.scalar(
                 select(func.count()).select_from(robots_file_access_count)
@@ -4734,11 +4733,11 @@ class ConnectionModelView(AirflowModelView):
 
             potential_connection_ids = [f"{base_conn_id}_copy{i}" for i in range(1, 11)]
 
-            query = session.execute(
+            query = session.scalars(
                 select(Connection.conn_id).where(Connection.conn_id.in_(potential_connection_ids))
             )
 
-            found_conn_id_set = {conn_id for conn_id, in query}
+            found_conn_id_set = {conn_id for conn_id in query}
 
             possible_conn_id_iter = (
                 connection_id
