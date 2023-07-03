@@ -71,6 +71,7 @@ def wait(
             break
         except WaiterError as error:
             if "terminal failure" in str(error):
+                log.error("%s: %s", failure_message, _LazyStatusFormatter(status_args, error.last_response))
                 raise AirflowException(f"{failure_message}: {error}")
 
             log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, error.last_response))
@@ -122,6 +123,7 @@ async def async_wait(
             break
         except WaiterError as error:
             if "terminal failure" in str(error):
+                log.error("%s: %s", failure_message, _LazyStatusFormatter(status_args, error.last_response))
                 raise AirflowException(f"{failure_message}: {error}")
 
             log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, error.last_response))

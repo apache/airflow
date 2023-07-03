@@ -38,10 +38,10 @@ class TaskOutletDatasetReferencePydantic(BaseModelPydantic):
     """Serializable version of the TaskOutletDatasetReference ORM SqlAlchemyModel used by internal API."""
 
     dataset_id: int
-    dag_id = str
-    task_id = str
-    created_at = datetime
-    updated_at = datetime
+    dag_id: str
+    task_id: str
+    created_at: datetime
+    updated_at: datetime
 
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
