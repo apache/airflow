@@ -539,7 +539,7 @@ class TestBaseChartTest:
         )
 
     def test_priority_classes(self):
-        render_chart(
+        objs = render_chart(
             "my-release",
             show_only=["templates/priorityclasses/priority-classes.yaml"],
             values={
@@ -548,7 +548,14 @@ class TestBaseChartTest:
                     {"name": "class2", "preemptionPolicy": "Never", "value": 10000},
                 ]
             },
-        )[0]
+        )
+
+        assert len(objs) == 2
+
+        for obj in objs:
+            assert obj["kind"] == "PriorityClass"
+            assert obj["apiVersion"] == "scheduling.k8s.io/v1"
+            assert len(obj["preemptionPolicy"]) != 0
 
     @staticmethod
     def default_trigger_obj(version):
