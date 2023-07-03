@@ -423,8 +423,7 @@ class DbApiHook(BaseForDbApiHook):
         else:
             return results
 
-    @staticmethod
-    def _make_serializable(result: Any) -> Any:
+    def _make_serializable(self, result: Any) -> Any:
         """Ensure the data returned from a SQL command is JSON-serializable.
 
         This method is intended to be overridden by subclasses of the
