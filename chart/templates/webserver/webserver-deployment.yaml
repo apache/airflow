@@ -28,6 +28,8 @@
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.webserver) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.webserver) }}
 {{- $containerSecurityContextWaitForMigrations := include "containerSecurityContext" (list . .Values.webserver.waitForMigrations) }}
+{{- $containerLifecycleHooks := include "containerLifecycleHooks" (list . .Values.webserver) }}
+{{- $containerLifecycleHooksWaitForMigrations := include "containerLifecycleHooks" (list . .Values.webserver.waitForMigrations) }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -134,6 +136,7 @@ spec:
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContextWaitForMigrations | nindent 12 }}
+          {{- $containerLifecycleHooksWaitForMigrations | nindent 12 }}
           volumeMounts:
             {{- include "airflow_config_mount" . | nindent 12 }}
             {{- if .Values.volumeMounts }}
@@ -165,6 +168,7 @@ spec:
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ or $containerSecurityContext .Values.webserver.securityContexts.container .Values.securityContexts.container | nindent 12 }}
+          {{- $containerLifecycleHooks | nindent 12 }}
           {{- if .Values.webserver.command }}
           command: {{ tpl (toYaml .Values.webserver.command) . | nindent 12 }}
           {{- end }}

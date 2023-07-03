@@ -27,6 +27,7 @@
 {{- $topologySpreadConstraints := or .Values.migrateDatabaseJob.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowPodSecurityContext" (list . .Values.migrateDatabaseJob) }}
 {{- $containerSecurityContext := include "containerSecurityContext" (list . .Values.migrateDatabaseJob) }}
+{{- $containerLifecycleHooks := include "containerLifecycleHooks" (list . .Values.migrateDatabaseJob) }}
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -88,6 +89,7 @@ spec:
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- $containerLifecycleHooks | nindent 12 }}
           {{- if .Values.migrateDatabaseJob.command }}
           command: {{- tpl (toYaml .Values.migrateDatabaseJob.command) . | nindent 12 }}
           {{- end }}

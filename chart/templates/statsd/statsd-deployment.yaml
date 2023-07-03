@@ -28,6 +28,7 @@
 {{- $revisionHistoryLimit := or .Values.statsd.revisionHistoryLimit .Values.revisionHistoryLimit }}
 {{- $securityContext := include "localPodSecurityContext" .Values.statsd }}
 {{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.statsd }}
+{{- $containerLifecycleHooks := include "externalContainerLifecycleHooks" .Values.statsd }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -90,6 +91,7 @@ spec:
           image: {{ template "statsd_image" . }}
           imagePullPolicy: {{ .Values.images.statsd.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
+          {{- $containerLifecycleHooks | nindent 12 }}
           {{- if .Values.statsd.args }}
           args: {{ tpl (toYaml .Values.statsd.args) . | nindent 12 }}
           {{- else}}

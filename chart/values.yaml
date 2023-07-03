@@ -43,6 +43,11 @@ securityContexts:
   pod: {}
   containers: {}
 
+# Default container level lifecycle hooks for every container
+# See:
+# https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
+containerLifecycleHooks: {}
+
 # Airflow home directory
 # Used for mount paths
 airflowHome: /opt/airflow
@@ -512,6 +517,11 @@ workers:
   securityContexts:
     pod: {}
     container: {}
+
+  # container level lifecycle hooks
+  # See:
+  # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
+  containerLifecycleHooks: {}
 
   # Create ServiceAccount
   serviceAccount:
