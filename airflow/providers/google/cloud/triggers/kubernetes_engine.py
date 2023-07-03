@@ -69,6 +69,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         pod_namespace: str,
         cluster_url: str,
         ssl_ca_cert: str,
+        kubeconfig_dict: dict[str, Any],
         base_container_name: str,
         trigger_start_time: datetime,
         cluster_context: str | None = None,
@@ -98,6 +99,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         self.in_cluster = in_cluster
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
+        self.kubeconfig_dict = kubeconfig_dict
 
         if should_delete_pod is not None:
             warnings.warn(
@@ -132,6 +134,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
                 "base_container_name": self.base_container_name,
                 "should_delete_pod": self.should_delete_pod,
                 "on_finish_action": self.on_finish_action.value,
+                "kubeconfig_dict": self.kubeconfig_dict,
             },
         )
 
@@ -139,6 +142,7 @@ class GKEStartPodTrigger(KubernetesPodTrigger):
         return GKEPodAsyncHook(
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
+            kubeconfig_dict=self.kubeconfig_dict,
         )
 
 

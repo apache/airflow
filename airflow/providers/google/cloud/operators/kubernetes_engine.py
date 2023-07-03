@@ -18,6 +18,8 @@
 """This module contains Google Kubernetes Engine operators."""
 from __future__ import annotations
 
+import json
+import tempfile
 import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
@@ -28,6 +30,8 @@ from kubernetes.client.models import V1Pod
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+from airflow.utils.process_utils import execute_in_subprocess, patch_environ
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -453,7 +457,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        regional: bool | None = None,
+        regional: bool = False,
         on_finish_action: str | None = None,
         is_delete_operator_pod: bool | None = None,
         **kwargs,
@@ -481,15 +485,6 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 )
                 kwargs["on_finish_action"] = OnFinishAction.KEEP_POD
 
-        if regional is not None:
-            warnings.warn(
-                f"You have set parameter regional in class {self.__class__.__name__}. "
-                "In current implementation of the operator the parameter is not used and will "
-                "be deleted in future.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
         super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
@@ -497,6 +492,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.use_internal_ip = use_internal_ip
+        self.regional = regional
 
         self.pod: V1Pod | None = None
         self._ssl_ca_cert: str | None = None
@@ -512,6 +508,71 @@ class GKEStartPodOperator(KubernetesPodOperator):
         # All Kubernetes parameters (except config_file) are also valid for the GKEStartPodOperator.
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
+
+    @staticmethod
+    def get_gke_config_file_dict(
+        gcp_conn_id,
+        project_id: str | None,
+        cluster_name: str,
+        impersonation_chain: str | Sequence[str] | None,
+        regional: bool,
+        location: str,
+        use_internal_ip: bool,
+    ) -> dict[str, Any]:
+        hook = GoogleBaseHook(gcp_conn_id=gcp_conn_id)
+        project_id = project_id or hook.project_id
+        if not project_id:
+            raise AirflowException(
+                "The project id must be passed either as "
+                "keyword project_id parameter or as project_id extra "
+                "in Google Cloud connection definition. Both are not set!"
+            )
+        # Write config to a temp file and set the environment variable to point to it.
+        # This is to avoid race conditions of reading/writing a single file
+        with tempfile.NamedTemporaryFile() as conf_file, patch_environ(
+            {KUBE_CONFIG_ENV_VAR: conf_file.name}
+        ), hook.provide_authorized_gcloud():
+            # Attempt to get/update credentials
+            # We call gcloud directly instead of using google-cloud-python api
+            # because there is no way to write kubernetes config to a file, which is
+            # required by KubernetesPodOperator.
+            # The gcloud command looks at the env variable `KUBECONFIG` for where to save
+            # the kubernetes config file.
+            cmd = [
+                "gcloud",
+                "container",
+                "clusters",
+                "get-credentials",
+                cluster_name,
+                "--project",
+                project_id,
+            ]
+            if impersonation_chain:
+                if isinstance(impersonation_chain, str):
+                    impersonation_account = impersonation_chain
+                elif len(impersonation_chain) == 1:
+                    impersonation_account = impersonation_chain[0]
+                else:
+                    raise AirflowException(
+                        "Chained list of accounts is not supported, please specify only one service account"
+                    )
+
+                cmd.extend(
+                    [
+                        "--impersonate-service-account",
+                        impersonation_account,
+                    ]
+                )
+            if regional:
+                cmd.append("--region")
+            else:
+                cmd.append("--zone")
+            cmd.append(location)
+            if use_internal_ip:
+                cmd.append("--internal-ip")
+            execute_in_subprocess(cmd)
+
+        return json.load(open(conf_file.name))
 
     @staticmethod
     def get_gke_config_file():
@@ -541,6 +602,15 @@ class GKEStartPodOperator(KubernetesPodOperator):
         hook = GKEPodHook(
             cluster_url=self._cluster_url,
             ssl_ca_cert=self._ssl_ca_cert,
+            kubeconfig_dict=self.get_gke_config_file_dict(
+                gcp_conn_id=self.gcp_conn_id,
+                project_id=self.project_id,
+                cluster_name=self.cluster_name,
+                impersonation_chain=self.impersonation_chain,
+                regional=self.regional,
+                location=self.location,
+                use_internal_ip=self.use_internal_ip,
+            ),
         )
         return hook
 
