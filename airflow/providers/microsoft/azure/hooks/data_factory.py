@@ -816,6 +816,7 @@ class AzureDataFactoryHook(BaseHook):
             resource_group_name=resource_group_name,
         )
         pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
+        executed_after_token_refresh = True
 
         start_time = time.monotonic()
 
@@ -832,7 +833,14 @@ class AzureDataFactoryHook(BaseHook):
             # Wait to check the status of the pipeline run based on the ``check_interval`` configured.
             time.sleep(check_interval)
 
-            pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
+            try:
+                pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
+                executed_after_token_refresh = True
+            except Exception:
+                if executed_after_token_refresh:
+                    self.refresh_conn()
+                    continue
+                raise
 
         return pipeline_run_status in expected_statuses
 
