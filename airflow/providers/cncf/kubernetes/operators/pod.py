@@ -349,8 +349,8 @@ class KubernetesPodOperator(BaseOperator):
         self.reattach_on_restart = reattach_on_restart
         self.get_logs = get_logs
         self.container_logs = container_logs
-        if base_container_name and self.container_logs == KubernetesPodOperator.BASE_CONTAINER_NAME:
-            self.container_logs = base_container_name
+        if self.container_logs == KubernetesPodOperator.BASE_CONTAINER_NAME:
+            self.container_logs = KubernetesPodOperator.BASE_CONTAINER_NAME
         self.image_pull_policy = image_pull_policy
         self.node_selector = node_selector or {}
         self.annotations = annotations or {}
