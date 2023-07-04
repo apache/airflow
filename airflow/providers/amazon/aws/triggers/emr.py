@@ -218,6 +218,7 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
         aws_conn_id: str = "aws_default",
         poll_interval: int | None = None,  # deprecated
         waiter_delay: int = 30,
+        waiter_max_attempts: int = 600,
     ):
         if poll_interval is not None:
             warnings.warn(
@@ -236,7 +237,7 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
             return_key="job_id",
             return_value=job_id,
             waiter_delay=waiter_delay,
-            waiter_max_attempts=600,
+            waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
         )
 

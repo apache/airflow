@@ -36,8 +36,8 @@ from airflow.providers.amazon.aws.operators.eks import (
 )
 from airflow.providers.amazon.aws.triggers.eks import (
     EksCreateFargateProfileTrigger,
+    EksCreateNodegroupTrigger,
     EksDeleteFargateProfileTrigger,
-    EksNodegroupTrigger,
 )
 from airflow.typing_compat import TypedDict
 from tests.providers.amazon.aws.utils.eks_test_constants import (
@@ -488,7 +488,7 @@ class TestEksCreateNodegroupOperator:
         )
         with pytest.raises(TaskDeferred) as exc:
             operator.execute({})
-        assert isinstance(exc.value.trigger, EksNodegroupTrigger), "Trigger is not a EksNodegroupTrigger"
+        assert isinstance(exc.value.trigger, EksCreateNodegroupTrigger)
 
     def test_create_nodegroup_deferrable_versus_wait_for_completion(self):
         op_kwargs = {**self.create_nodegroup_params}

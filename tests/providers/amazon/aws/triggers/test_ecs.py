@@ -22,62 +22,10 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-from airflow.providers.amazon.aws.triggers.ecs import ClusterWaiterTrigger, TaskDoneTrigger
+from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
 from airflow.triggers.base import TriggerEvent
-
-
-class TestClusterWaiterTrigger:
-    @pytest.mark.asyncio
-    @mock.patch.object(EcsHook, "async_conn")
-    async def test_run_max_attempts(self, client_mock):
-        a_mock = mock.MagicMock()
-        client_mock.__aenter__.return_value = a_mock
-        wait_mock = AsyncMock()
-        wait_mock.side_effect = WaiterError("name", "reason", {"clusters": [{"status": "my_status"}]})
-        a_mock.get_waiter().wait = wait_mock
-
-        max_attempts = 5
-        trigger = ClusterWaiterTrigger("my_waiter", "cluster_arn", 0, max_attempts, None, None)
-
-        with pytest.raises(AirflowException):
-            generator = trigger.run()
-            await generator.asend(None)
-
-        assert wait_mock.call_count == max_attempts
-
-    @pytest.mark.asyncio
-    @mock.patch.object(EcsHook, "async_conn")
-    async def test_run_success(self, client_mock):
-        a_mock = mock.MagicMock()
-        client_mock.__aenter__.return_value = a_mock
-        wait_mock = AsyncMock()
-        a_mock.get_waiter().wait = wait_mock
-
-        trigger = ClusterWaiterTrigger("my_waiter", "cluster_arn", 0, 5, None, None)
-
-        generator = trigger.run()
-        response: TriggerEvent = await generator.asend(None)
-
-        assert response.payload["status"] == "success"
-        assert response.payload["arn"] == "cluster_arn"
-
-    @pytest.mark.asyncio
-    @mock.patch.object(EcsHook, "async_conn")
-    async def test_run_error(self, client_mock):
-        a_mock = mock.MagicMock()
-        client_mock.__aenter__.return_value = a_mock
-        wait_mock = AsyncMock()
-        wait_mock.side_effect = WaiterError("terminal failure", "reason", {})
-        a_mock.get_waiter().wait = wait_mock
-
-        trigger = ClusterWaiterTrigger("my_waiter", "cluster_arn", 0, 5, None, None)
-
-        with pytest.raises(AirflowException):
-            generator = trigger.run()
-            await generator.asend(None)
 
 
 class TestTaskDoneTrigger:
