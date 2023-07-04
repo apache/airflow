@@ -89,7 +89,7 @@ with models.DAG(
         source_bucket=BUCKET_NAME,
         source_object=f"{TMP_PATH}/{FILE_NAME}",
         destination_object=f"copied_tmp/copied_{FILE_NAME}",
-        destination_folder_id=FOLDER_ID
+        destination_folder_id=FOLDER_ID,
     )
     # [END howto_operator_gcs_to_gdrive_copy_single_file_into_folder]
 
