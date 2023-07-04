@@ -67,7 +67,7 @@ class OdbcHook(DbApiHook):
         dsn: str | None = None,
         connect_kwargs: dict | None = None,
         sqlalchemy_scheme: str | None = None,
-        return_serializable: bool | None = False,
+        return_serializable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
