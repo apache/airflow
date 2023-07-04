@@ -39,6 +39,7 @@ class GlueCrawlerCompleteTrigger(AwsBaseWaiterTrigger):
         poll_interval: int | None = None,
         aws_conn_id: str = "aws_default",
         waiter_delay: int = 5,
+        waiter_max_attempts: int = 1500,
     ):
         if poll_interval is not None:
             warnings.warn(
@@ -56,7 +57,7 @@ class GlueCrawlerCompleteTrigger(AwsBaseWaiterTrigger):
             status_queries=["Crawler.State", "Crawler.LastCrawl"],
             return_value=None,
             waiter_delay=waiter_delay,
-            waiter_max_attempts=1500,
+            waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
         )
 
