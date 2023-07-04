@@ -30,6 +30,7 @@ In addition to the standard logging and metrics capabilities, Airflow supports t
 
     logging-architecture
     logging-tasks
+    advanced-logging-configuration
     metrics
     callbacks
 

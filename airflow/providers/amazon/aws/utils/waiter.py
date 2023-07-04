@@ -38,8 +38,7 @@ def waiter(
     check_interval_seconds: int = 60,
 ) -> None:
     """
-    Will call get_state_callable until it reaches the desired_state or the failure_states.
-    It will also time out if it waits longer than countdown seconds.
+    Call get_state_callable until it reaches the desired_state or the failure_states.
 
     PLEASE NOTE:  While not yet deprecated, we are moving away from this method
                   and encourage using the custom boto waiters as explained in

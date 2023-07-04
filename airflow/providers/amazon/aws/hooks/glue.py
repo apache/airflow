@@ -33,6 +33,7 @@ ERROR_LOG_SUFFIX = "error"
 class GlueJobHook(AwsBaseHook):
     """
     Interact with AWS Glue.
+
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("glue") <Glue.Client>`.
 
     :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
@@ -182,8 +183,7 @@ class GlueJobHook(AwsBaseHook):
 
     def get_job_state(self, job_name: str, run_id: str) -> str:
         """
-        Get state of the Glue job.
-        The job state can be running, finished, failed, stopped or timeout.
+        Get state of the Glue job; the job state can be running, finished, failed, stopped or timeout.
 
         .. seealso::
             - :external+boto3:py:meth:`Glue.Client.get_job_run`
@@ -263,8 +263,7 @@ class GlueJobHook(AwsBaseHook):
 
     def job_completion(self, job_name: str, run_id: str, verbose: bool = False) -> dict[str, str]:
         """
-        Waits until Glue job with job_name completes or fails and return final state if finished.
-        Raises AirflowException when the job failed.
+        Wait until Glue job with job_name finishes; return final state if finished or raises AirflowException.
 
         :param job_name: unique job name per AWS account
         :param run_id: The job-run ID of the predecessor job run
@@ -282,8 +281,7 @@ class GlueJobHook(AwsBaseHook):
 
     async def async_job_completion(self, job_name: str, run_id: str, verbose: bool = False) -> dict[str, str]:
         """
-        Waits until Glue job with job_name completes or fails and return final state if finished.
-        Raises AirflowException when the job failed.
+        Wait until Glue job with job_name finishes; return final state if finished or raises AirflowException.
 
         :param job_name: unique job name per AWS account
         :param run_id: The job-run ID of the predecessor job run

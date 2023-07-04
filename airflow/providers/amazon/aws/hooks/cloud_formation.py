@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class CloudFormationHook(AwsBaseHook):
     """
     Interact with AWS CloudFormation.
+
     Provide thin wrapper around
     :external+boto3:py:class:`boto3.client("cloudformation") <CloudFormation.Client>`.
 

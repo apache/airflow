@@ -521,19 +521,21 @@ class TestPodTemplateFile:
         docs = render_chart(
             values={
                 "workers": {
-                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
-                    "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumeMounts": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                    ],
                 }
             },
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
 
-        assert "test-volume" in jmespath.search(
+        assert "test-volume-airflow" in jmespath.search(
             "spec.volumes[*].name",
             docs[0],
         )
-        assert "test-volume" in jmespath.search(
+        assert "test-volume-airflow" in jmespath.search(
             "spec.containers[0].volumeMounts[*].name",
             docs[0],
         )

@@ -31,9 +31,8 @@ from airflow.utils.helpers import prune_dict
 
 class EmrAddStepsTrigger(BaseTrigger):
     """
-    AWS Emr Add Steps Trigger
-    The trigger will asynchronously poll the boto3 API and wait for the
-    steps to finish executing.
+    Asynchronously poll the boto3 API and wait for the steps to finish executing.
+
     :param job_flow_id: The id of the job flow.
     :param step_ids: The id of the steps being waited upon.
     :param poll_interval: The amount of time in seconds to wait between attempts.
@@ -105,9 +104,7 @@ class EmrAddStepsTrigger(BaseTrigger):
 
 class EmrCreateJobFlowTrigger(BaseTrigger):
     """
-    Trigger for EmrCreateJobFlowOperator.
-    The trigger will asynchronously poll the boto3 API and wait for the
-    JobFlow to finish executing.
+    Asynchronously poll the boto3 API and wait for the JobFlow to finish executing.
 
     :param job_flow_id: The id of the job flow to wait for.
     :param poll_interval: The amount of time in seconds to wait between attempts.
@@ -179,9 +176,7 @@ class EmrCreateJobFlowTrigger(BaseTrigger):
 
 class EmrTerminateJobFlowTrigger(BaseTrigger):
     """
-    Trigger that terminates a running EMR Job Flow.
-    The trigger will asynchronously poll the boto3 API and wait for the
-    JobFlow to finish terminating.
+    Asynchronously poll the boto3 API and wait for the JobFlow to finish terminating.
 
     :param job_flow_id: ID of the EMR Job Flow to terminate
     :param poll_interval: The amount of time in seconds to wait between attempts.

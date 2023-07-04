@@ -540,10 +540,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
 
                         cfg_path = None
 
-                        executor_class, _ = ExecutorLoader.import_executor_cls(
-                            self.job.executor_class,
-                        )
-                        if executor_class.is_local:
+                        if executor.is_local:
                             cfg_path = tmp_configuration_copy()
 
                         executor.queue_task_instance(

@@ -15,14 +15,13 @@
     specific language governing permissions and limitations
     under the License.
 
-Security
-========
+
+
+Microsoft Azure Sensors
+=======================
 
 .. toctree::
     :maxdepth: 1
     :glob:
 
     *
-    secrets/index
-
-.. include:: /../../.github/SECURITY.rst

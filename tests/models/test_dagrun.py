@@ -30,6 +30,7 @@ from sqlalchemy.orm.session import Session
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
+from airflow.exceptions import AirflowException
 from airflow.models import (
     DAG,
     DagBag,
@@ -54,6 +55,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE as _DEFAULT_DATE
 from tests.test_utils import db
+from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import MockOperator
 
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
@@ -2541,3 +2543,33 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
     tis = dr.task_instance_scheduling_decisions(session).tis
     tis_for_state = {x.task_id for x in dr._tis_for_dagrun_state(dag=dag, tis=tis)}
     assert tis_for_state == expected
+
+
+@pytest.mark.parametrize(
+    "pattern, run_id, result",
+    [
+        ["^[A-Z]", "ABC", True],
+        ["^[A-Z]", "abc", False],
+        ["^[0-9]", "123", True],
+        # The below params tests that user configuration does not affect internally generated
+        # run_ids
+        ["", "scheduled__2023-01-01T00:00:00+00:00", True],
+        ["", "manual__2023-01-01T00:00:00+00:00", True],
+        ["", "dataset_triggered__2023-01-01T00:00:00+00:00", True],
+        ["", "scheduled_2023-01-01T00", False],
+        ["", "manual_2023-01-01T00", False],
+        ["", "dataset_triggered_2023-01-01T00", False],
+        ["^[0-9]", "scheduled__2023-01-01T00:00:00+00:00", True],
+        ["^[0-9]", "manual__2023-01-01T00:00:00+00:00", True],
+        ["^[a-z]", "dataset_triggered__2023-01-01T00:00:00+00:00", True],
+    ],
+)
+def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):
+    with conf_vars({("scheduler", "allowed_run_id_pattern"): pattern}):
+        with dag_maker():
+            ...
+        if result:
+            dag_maker.create_dagrun(run_id=run_id)
+        else:
+            with pytest.raises(AirflowException):
+                dag_maker.create_dagrun(run_id=run_id)

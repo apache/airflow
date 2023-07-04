@@ -133,6 +133,7 @@ so coding will always be required.
     Overview <self>
     start
     installation/index
+    security/index
     tutorial/index
     howto/index
     ui
