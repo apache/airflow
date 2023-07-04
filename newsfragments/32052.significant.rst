@@ -13,3 +13,5 @@ This is also the default value set in the Airflow configuration.
 activates the Test Connection button in the UI.
 3. ``Hidden``: Disables the test connection functionality and
 hides the Test Connection button in UI.
+For more information on capabilities of users, see the documentation:
+https://airflow.apache.org/docs/apache-airflow/stable/security/index.html#capabilities-of-authenticated-ui-users
