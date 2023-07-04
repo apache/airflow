@@ -84,12 +84,15 @@ class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
                         yield TriggerEvent(
                             {"status": "error", "message": f"Pipeline run {self.run_id} has Failed."}
                         )
+                        return
                     elif pipeline_status == AzureDataFactoryPipelineRunStatus.CANCELLED:
                         msg = f"Pipeline run {self.run_id} has been Cancelled."
                         yield TriggerEvent({"status": "error", "message": msg})
+                        return
                     elif pipeline_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
                         msg = f"Pipeline run {self.run_id} has been Succeeded."
                         yield TriggerEvent({"status": "success", "message": msg})
+                        return
                     await asyncio.sleep(self.poke_interval)
                 except ServiceRequestError:
                     # conn might expire during long running pipeline.
@@ -181,6 +184,7 @@ class AzureDataFactoryTrigger(BaseTrigger):
                                     "run_id": self.run_id,
                                 }
                             )
+                            return
                         elif pipeline_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
                             yield TriggerEvent(
                                 {
@@ -189,6 +193,7 @@ class AzureDataFactoryTrigger(BaseTrigger):
                                     "run_id": self.run_id,
                                 }
                             )
+                            return
                         self.log.info(
                             "Sleeping for %s. The pipeline state is %s.", self.check_interval, pipeline_status
                         )
