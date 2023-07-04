@@ -17,13 +17,18 @@
 """This module contains ODBC hook."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Iterable, Mapping, Callable
 from urllib.parse import quote_plus
 
 import pyodbc
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
+
+
+def make_serializable(result: list[pyodbc.Row]) -> list[tuple]:
+    """Transform the pyodbc.Row objects returned from a SQL command into JSON-serializable objects."""
+    return [tuple(row) for row in result]
 
 
 class OdbcHook(DbApiHook):
@@ -45,8 +50,6 @@ class OdbcHook(DbApiHook):
     :param connect_kwargs: keyword arguments passed to ``pyodbc.connect``
     :param sqlalchemy_scheme: Scheme sqlalchemy connection.  Default is ``mssql+pyodbc`` Only used for
         ``get_sqlalchemy_engine`` and ``get_sqlalchemy_connection`` methods.
-    :param return_serializable: Set to True to transform the returned rows into JSON-serializable objects.
-        By default (False), the returned rows will be in the original ``pyodbc.Row`` format.
     :param kwargs: passed to DbApiHook
     """
 
@@ -67,7 +70,6 @@ class OdbcHook(DbApiHook):
         dsn: str | None = None,
         connect_kwargs: dict | None = None,
         sqlalchemy_scheme: str | None = None,
-        return_serializable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -78,7 +80,6 @@ class OdbcHook(DbApiHook):
         self._sqlalchemy_scheme = sqlalchemy_scheme
         self._connection = None
         self._connect_kwargs = connect_kwargs
-        self._return_serializable = return_serializable
 
     @property
     def connection(self):
@@ -216,8 +217,28 @@ class OdbcHook(DbApiHook):
         cnx = engine.connect(**(connect_kwargs or {}))
         return cnx
 
-    def _make_serializable(self, result: list[pyodbc.Row]) -> list[tuple] | list[pyodbc.Row]:
-        """Transform the pyodbc.Row objects returned from a SQL command into JSON-serializable objects."""
-        if self._return_serializable:
-            return [tuple(row) for row in result]
-        return result
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = False,
+        parameters: Iterable | Mapping | None = None,
+        handler: Callable | None = None,
+        split_statements: bool = False,
+        return_last: bool = True,
+    ) -> Any | list[Any] | None:
+        if handler is None:
+            return super().run(
+                sql=sql,
+                autocommit=autocommit,
+                parameters=parameters,
+                split_statements=split_statements,
+            )
+
+        return super().run(
+            sql=sql,
+            autocommit=autocommit,
+            parameters=parameters,
+            handler=lambda cursor: make_serializable(handler(cursor)),
+            split_statements=split_statements,
+            return_last=return_last,
+        )

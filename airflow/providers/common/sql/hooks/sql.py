@@ -403,7 +403,7 @@ class DbApiHook(BaseForDbApiHook):
                     self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
-                        result = self._make_serializable(handler(cur))
+                        result = handler(cur)
                         if return_single_query_results(sql, return_last, split_statements):
                             _last_result = result
                             _last_description = cur.description
@@ -422,18 +422,6 @@ class DbApiHook(BaseForDbApiHook):
             return _last_result
         else:
             return results
-
-    def _make_serializable(self, result: Any) -> Any:
-        """Ensure the data returned from an SQL command is JSON-serializable.
-
-        This method is intended to be overridden by subclasses of the
-        `DbApiHook`. Its purpose is to transform the result of a SQL command
-        (typically returned by cursor methods) into a JSON-serializable format.
-
-        If the output of the cursor is already JSON-serializable, this method
-        should be ignored. By default, original result data is returned as-is.
-        """
-        return result
 
     def _run_command(self, cur, sql_statement, parameters):
         """Run a statement using an already open cursor."""
