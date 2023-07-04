@@ -30,6 +30,7 @@ from sqlalchemy.orm import exc
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.compat.functools import cache
+from airflow.configuration import conf
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
@@ -343,6 +344,12 @@ def _import_helper(file_path: str, overwrite: bool) -> None:
 def connections_test(args) -> None:
     """Test an Airflow connection."""
     console = AirflowConsole()
+    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
+        console.print(
+            "[bold yellow]\nTesting connections is disabled in Airflow configuration. "
+            "Contact your deployment admin to enable it.\n"
+        )
+        raise SystemExit(1)
 
     print(f"Retrieving connection: {args.conn_id!r}")
     try:

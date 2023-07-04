@@ -95,6 +95,9 @@ class TestGcsToGDriveOperator:
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
                 mock.call().list("data", delimiter=".avro", prefix="sales/sales-2017/"),
+                # TODO: After deprecating delimiter and wildcards in source objects,
+                #       remove previous line and uncomment the following:
+                # mock.call().list("data", match_glob="**/*.avro", prefix="sales/sales-2017/"),
                 mock.call().download(bucket_name="data", filename="TMP1", object_name="sales/A.avro"),
                 mock.call().download(bucket_name="data", filename="TMP2", object_name="sales/B.avro"),
                 mock.call().download(bucket_name="data", filename="TMP3", object_name="sales/C.avro"),
@@ -137,6 +140,9 @@ class TestGcsToGDriveOperator:
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
                 mock.call().list("data", delimiter=".avro", prefix="sales/sales-2017/"),
+                # TODO: After deprecating delimiter and wildcards in source objects,
+                #       remove previous line and uncomment the following:
+                # mock.call().list("data", match_glob="**/*.avro", prefix="sales/sales-2017/"),
                 mock.call().download(bucket_name="data", filename="TMP1", object_name="sales/A.avro"),
                 mock.call().delete("data", "sales/A.avro"),
                 mock.call().download(bucket_name="data", filename="TMP2", object_name="sales/B.avro"),

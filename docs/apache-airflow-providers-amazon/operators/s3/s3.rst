@@ -289,12 +289,6 @@ You can also run this sensor in deferrable mode by setting the parameter ``defer
 This will lead to efficient utilization of Airflow workers as polling for job status happens on
 the triggerer asynchronously. Note that this will need triggerer to be available on your Airflow deployment.
 
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_s3.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_sensor_s3_keys_unchanged_deferrable]
-    :end-before: [END howto_sensor_s3_keys_unchanged_deferrable]
-
 Reference
 ---------
 

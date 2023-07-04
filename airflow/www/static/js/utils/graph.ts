@@ -19,8 +19,7 @@
 
 import ELK, { ElkExtendedEdge, ElkShape } from "elkjs";
 
-import type { DepNode } from "src/types";
-import type { NodeType } from "src/datasets/Graph/Node";
+import type { NodeType, DepNode, WebserverEdge } from "src/types";
 import { useQuery } from "react-query";
 import useFilters from "src/dag/useFilters";
 
@@ -30,12 +29,6 @@ interface GenerateProps {
   font: string;
   openGroupIds?: string[];
   arrange: string;
-}
-
-interface WebserverEdge {
-  label?: string;
-  sourceId: string;
-  targetId: string;
 }
 
 interface Graph extends ElkShape {
@@ -84,13 +77,21 @@ const generateGraph = ({
 }: GenerateProps) => {
   const closedGroupIds: string[] = [];
 
-  const formatChildNode = (node: any) => {
+  const formatChildNode = (
+    node: DepNode
+  ): DepNode & {
+    label: string;
+    layoutOptions?: Record<string, string>;
+    width?: number;
+    height?: number;
+  } => {
     const { id, value, children } = node;
     const isOpen = openGroupIds?.includes(value.label);
     const childCount =
-      children?.filter((c: any) => !c.id.includes("join_id")).length || 0;
-    if (isOpen && children.length) {
+      children?.filter((c: DepNode) => !c.id.includes("join_id")).length || 0;
+    if (isOpen && children?.length) {
       return {
+        ...node,
         id,
         value: {
           ...value,

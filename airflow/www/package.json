@@ -7,7 +7,7 @@
     "dev": "NODE_ENV=development webpack --watch --progress --devtool eval-cheap-source-map --mode development",
     "prod": "NODE_ENV=production node --max_old_space_size=4096 ./node_modules/webpack/bin/webpack.js --mode production --progress",
     "build": "NODE_ENV=production webpack --progress --mode production",
-    "lint": "eslint --ignore-path=.eslintignore --ext .js,.jsx,.ts,.tsx . && tsc",
+    "lint": "eslint --ignore-path=.eslintignore --max-warnings=0 --ext .js,.jsx,.ts,.tsx . && tsc",
     "lint:fix": "eslint --fix --ignore-path=.eslintignore --ext .js,.jsx,.ts,.tsx . && tsc",
     "format": "yarn prettier --write .",
     "generate-api-types": "npx openapi-typescript \"../api_connexion/openapi/v1.yaml\" --output static/js/types/api-generated.ts && node alias-rest-types.js static/js/types/api-generated.ts"
@@ -92,9 +92,7 @@
     "@emotion/react": "^11.9.3",
     "@emotion/styled": "^11",
     "@visx/group": "^2.10.0",
-    "@visx/marker": "^2.12.2",
     "@visx/shape": "^2.12.2",
-    "@visx/zoom": "^2.10.0",
     "axios": "^0.26.0",
     "bootstrap-3-typeahead": "^4.0.2",
     "camelcase-keys": "^7.0.0",

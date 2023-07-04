@@ -20,7 +20,7 @@ import os
 from http import HTTPStatus
 
 from connexion import NoContent
-from flask import request
+from flask import Response, request
 from marshmallow import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -36,6 +36,7 @@ from airflow.api_connexion.schemas.connection_schema import (
     connection_test_schema,
 )
 from airflow.api_connexion.types import APIResponse, UpdateMask
+from airflow.configuration import conf
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.security import permissions
@@ -180,6 +181,13 @@ def test_connection() -> APIResponse:
     env var, as some hook classes tries to find out the conn from their __init__ method & errors out
     if not found. It also deletes the conn id env variable after the test.
     """
+    if conf.get("core", "test_connection", fallback="Disabled").lower().strip() != "enabled":
+        return Response(
+            "Testing connections is disabled in Airflow configuration. Contact your deployment admin to "
+            "enable it.",
+            403,
+        )
+
     body = request.json
     transient_conn_id = get_random_string()
     conn_env_var = f"{CONN_ENV_PREFIX}{transient_conn_id.upper()}"
