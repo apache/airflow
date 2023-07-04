@@ -62,11 +62,8 @@ def test_invalid_connection_id_trailing_blanks(admin_client, session):
     invalid_conn_id = "conn_id_with_trailing_blanks   "
     invalid_connection = {**CONNECTION, "conn_id": invalid_conn_id}
     resp = admin_client.post("/connection/add", data=invalid_connection, follow_redirects=True)
-    check_content_in_response(
-        f"The key '{invalid_conn_id}' has to be made of alphanumeric characters, "
-        + "dashes, dots and underscores exclusively",
-        resp,
-    )
+    # all the whitespaces get stripped off
+    check_content_in_response("Added Row", resp)
 
 
 def test_action_logging_connection_masked_secrets(session, admin_client):
