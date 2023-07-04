@@ -36,6 +36,7 @@ from functools import wraps
 from typing import Any, Callable, TypeVar, Union, cast
 
 from asgiref.sync import sync_to_async
+from azure.core.exceptions import ServiceRequestError
 from azure.core.polling import LROPoller
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.identity.aio import (
@@ -836,7 +837,7 @@ class AzureDataFactoryHook(BaseHook):
             try:
                 pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
                 executed_after_token_refresh = True
-            except Exception:
+            except ServiceRequestError:
                 if executed_after_token_refresh:
                     self.refresh_conn()
                     continue
@@ -1165,11 +1166,8 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         :param config: Extra parameters for the ADF client.
         """
         client = await self.get_async_conn()
-        try:
-            pipeline_run = await client.pipeline_runs.get(resource_group_name, factory_name, run_id)
-            return pipeline_run
-        except Exception as e:
-            raise AirflowException(e)
+        pipeline_run = await client.pipeline_runs.get(resource_group_name, factory_name, run_id)
+        return pipeline_run
 
     async def get_adf_pipeline_run_status(
         self, run_id: str, resource_group_name: str | None = None, factory_name: str | None = None
@@ -1181,16 +1179,13 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         :param resource_group_name: The resource group name.
         :param factory_name: The factory name.
         """
-        try:
-            pipeline_run = await self.get_pipeline_run(
-                run_id=run_id,
-                factory_name=factory_name,
-                resource_group_name=resource_group_name,
-            )
-            status: str = pipeline_run.status
-            return status
-        except Exception as e:
-            raise AirflowException(e)
+        pipeline_run = await self.get_pipeline_run(
+            run_id=run_id,
+            factory_name=factory_name,
+            resource_group_name=resource_group_name,
+        )
+        status: str = pipeline_run.status
+        return status
 
     @provide_targeted_factory_async
     async def cancel_pipeline_run(

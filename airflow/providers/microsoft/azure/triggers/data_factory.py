@@ -20,6 +20,8 @@ import asyncio
 import time
 from typing import Any, AsyncIterator
 
+from azure.core.exceptions import ServiceRequestError
+
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryAsyncHook,
     AzureDataFactoryPipelineRunStatus,
@@ -89,8 +91,7 @@ class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
                         msg = f"Pipeline run {self.run_id} has been Succeeded."
                         yield TriggerEvent({"status": "success", "message": msg})
                     await asyncio.sleep(self.poke_interval)
-
-                except Exception:
+                except ServiceRequestError:
                     # conn might expire during long running pipeline.
                     # If expcetion is caught, it tries to refresh connection once.
                     # If it still doesn't fix the issue,
@@ -192,7 +193,7 @@ class AzureDataFactoryTrigger(BaseTrigger):
                             "Sleeping for %s. The pipeline state is %s.", self.check_interval, pipeline_status
                         )
                         await asyncio.sleep(self.check_interval)
-                    except Exception:
+                    except ServiceRequestError:
                         # conn might expire during long running pipeline.
                         # If expcetion is caught, it tries to refresh connection once.
                         # If it still doesn't fix the issue,
