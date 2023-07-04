@@ -20,11 +20,15 @@
 #################################################
 ## Priority classes provisioned via the chart values
 #################################################
+{{- $Global := . }}
 {{- range $e := .Values.priorityClasses }}
+---
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
-  name: {{ .Release.Name }}-{{ $e.name }}
+  name: {{ $Global.Release.Name }}-{{ $e.name }}
+  labels:
+    release: {{ $Global.Release.Name }}
 preemptionPolicy: {{ default "PreemptLowerPriority" $e.preemptionPolicy }}
 value: {{ $e.value | required "value is required" }}
 {{- end }}
