@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session
 
 from airflow import DAG
 from airflow.jobs.scheduler_job_runner import TI
+from airflow.models.dagrun import _get_task_instance
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
@@ -37,6 +38,7 @@ class DagRunPydantic(BaseModelPydantic):
     dag_id: str
     queued_at: datetime | None
     execution_date: DateTime
+    logical_date: DateTime
     start_date: datetime | None
     end_date: datetime | None
     state: str
@@ -51,6 +53,7 @@ class DagRunPydantic(BaseModelPydantic):
     dag_hash: str | None
     updated_at: datetime
     dag: DAG | None
+    consumed_dataset_events: list
 
     class Config:
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
@@ -69,3 +72,19 @@ class DagRunPydantic(BaseModelPydantic):
         TODO: make it works for AIP-44
         """
         raise NotImplementedError()
+
+    @provide_session
+    def get_task_instance(
+        self,
+        task_id: str,
+        session: Session = NEW_SESSION,
+        *,
+        map_index: int = -1,
+    ) -> TI | None:
+        """
+        Returns the task instance specified by task_id for this dag run.
+
+        :param task_id: the task id
+        :param session: Sqlalchemy ORM Session
+        """
+        return _get_task_instance(self, task_id, session, map_index)

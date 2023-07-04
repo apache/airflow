@@ -46,6 +46,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.operator import Operator, needs_expansion
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskReturnCode
+from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.settings import IS_K8S_EXECUTOR_POD
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import SCHEDULER_QUEUED_DEPS
@@ -87,7 +88,7 @@ def _get_dag_run(
     create_if_necessary: CreateIfNecessary,
     exec_date_or_run_id: str | None = None,
     session: Session,
-) -> tuple[DagRun, bool]:
+) -> tuple[DagRun | DagRunPydantic, bool]:
     """Try to retrieve a DAG run from a string representing either a run ID or logical date.
 
     This checks DAG runs like this:

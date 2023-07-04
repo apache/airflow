@@ -368,7 +368,7 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context, t
 
     :meta private:
     """
-    task_to_execute: BaseOperator = task_instance.task
+    task_to_execute = task_instance.task
     # If the task has been deferred and is being executed due to a trigger,
     # then we need to pick the right method to come back to, otherwise
     # we go for the default execute
