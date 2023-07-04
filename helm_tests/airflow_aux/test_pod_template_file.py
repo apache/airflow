@@ -750,3 +750,22 @@ class TestPodTemplateFile:
         )
 
         assert "test-priority" == jmespath.search("spec.priorityClassName", docs[0])
+
+    def test_workers_container_lifecycle_webhooks_are_configurable(self):
+        post_start_value = {"exec": {"command": ["bash", "-c", "echo postStart"]}}
+        pre_stop_value = {"exec": {"command": ["bash", "-c", "echo preStop"]}}
+        docs = render_chart(
+            values={
+                "workers": {
+                    "containerLifecycleHooks": {
+                        "postStart": post_start_value,
+                        "preStop": pre_stop_value,
+                    }
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert post_start_value == jmespath.search("spec.containers[0].lifecycle.postStart", docs[0])
+        assert pre_stop_value == jmespath.search("spec.containers[0].lifecycle.preStop", docs[0])

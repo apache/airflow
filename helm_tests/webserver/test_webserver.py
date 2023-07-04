@@ -569,6 +569,26 @@ class TestWebserverDeployment:
             "runAsNonRoot": True,
         } == jmespath.search("spec.template.spec.securityContext", docs[0])
 
+    def test_webserver_container_lifecycle_webhooks_are_configurable(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "containerLifecycleHooks": {
+                        "postStart": {"exec": {"command": ["bash", "-c", "echo postStart"]}},
+                        "preStop": {"exec": {"command": ["bash", "-c", "echo preStop"]}},
+                    }
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {"exec": {"command": ["bash", "-c", "echo postStart"]}} == jmespath.search(
+            "spec.template.spec.containers[0].lifecycle.postStart", docs[0]
+        )
+        assert {"exec": {"command": ["bash", "-c", "echo preStop"]}} == jmespath.search(
+            "spec.template.spec.containers[0].lifecycle.preStop", docs[0]
+        )
+
     def test_webserver_security_context_legacy(self):
         docs = render_chart(
             values={
