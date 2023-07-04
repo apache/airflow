@@ -143,7 +143,7 @@ class TaskInstancePydantic(BaseModelPydantic):
     @provide_session
     def get_dagrun(self, session: Session = NEW_SESSION) -> DagRunPydantic:
         """
-        Returns the DagRun for this TaskInstance
+        Returns the DagRun for this TaskInstance.
 
         :param session: SQLAlchemy ORM Session
 
@@ -165,7 +165,7 @@ class TaskInstancePydantic(BaseModelPydantic):
     @provide_session
     def refresh_from_db(self, session: Session = NEW_SESSION, lock_for_update: bool = False) -> None:
         """
-        Refreshes the task instance from the database based on the primary key
+        Refreshes the task instance from the database based on the primary key.
 
         :param session: SQLAlchemy ORM Session
         :param lock_for_update: if True, indicates that the database should
