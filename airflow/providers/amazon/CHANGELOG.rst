@@ -44,6 +44,7 @@ Features
 * ``EKS Create/Delete Nodegroup Deferrable mode (#32165)``
 * ``Deferrable mode for ECS operators (#31881)``
 * ``feature: AWS - GlueJobOperator - job_poll_interval (#32147)``
+* ``Added 'AzureBlobStorageToS3Operator' transfer operator (#32270)``
 
 Bug Fixes
 ~~~~~~~~~

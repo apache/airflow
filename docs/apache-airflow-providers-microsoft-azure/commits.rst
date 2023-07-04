@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.2.0
 .....
 
-Latest change: 2023-06-29
+Latest change: 2023-07-04
 
 =================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
+`17132ef4c6 <https://github.com/apache/airflow/commit/17132ef4c65b842dab4ff311fd2b0e6d08969e1b>`_  2023-07-04   ``Added 'AzureBlobStorageToS3Operator' transfer operator (#32270)``
+`985a6cd2a8 <https://github.com/apache/airflow/commit/985a6cd2a84daa4511649dfdc9e94b704de5c6d1>`_  2023-07-03   ``invalid args fix (#32326)``
+`c03d7b7c33 <https://github.com/apache/airflow/commit/c03d7b7c337df7eee4cc7722a1c8da56abd7027a>`_  2023-07-03   ``Adds Sensor section in the Azure providers docs  (#32299)``
 `2ce51ac5d3 <https://github.com/apache/airflow/commit/2ce51ac5d3b1e3bcb253b04bd72c04cfb2af700a>`_  2023-06-29   ``Cancel pipeline if unexpected exception caught (#32238)``
 `57b7ba16a3 <https://github.com/apache/airflow/commit/57b7ba16a3d860268f03cd2619e5d029c7994013>`_  2023-06-29   ``Doc changes: Added Transfers section in Azure provider docs (#32241)``
 `46ee1c2c8d <https://github.com/apache/airflow/commit/46ee1c2c8d3d0e5793f42fd10bcd80150caa538b>`_  2023-06-28   ``Fix where account url is build if not provided using login (account name) (#32082)``
