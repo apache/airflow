@@ -27,6 +27,7 @@ from google.cloud.container_v1.types import Cluster
 from kubernetes.client.models import V1Pod
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -44,7 +45,6 @@ from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
 
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
@@ -427,11 +427,16 @@ class GKEStartPodOperator(KubernetesPodOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param regional: The location param is region name.
+    :param deferrable: Run operator in the deferrable mode.
+    :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
+        If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
+        only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
+        Current default is `keep_pod`, but this will be changed in the next major release of this provider.
     :param is_delete_operator_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True, delete the
         pod; if False, leave the pod. Current default is False, but this will be
         changed in the next major release of this provider.
-    :param deferrable: Run operator in the deferrable mode.
+        Deprecated - use `on_finish_action` instead.
     """
 
     template_fields: Sequence[str] = tuple(
@@ -449,19 +454,32 @@ class GKEStartPodOperator(KubernetesPodOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         regional: bool | None = None,
+        on_finish_action: str | None = None,
         is_delete_operator_pod: bool | None = None,
         **kwargs,
     ) -> None:
-        if is_delete_operator_pod is None:
+        if is_delete_operator_pod is not None:
             warnings.warn(
-                f"You have not set parameter `is_delete_operator_pod` in class {self.__class__.__name__}. "
-                "Currently the default for this parameter is `False` but in a future release the default "
-                "will be changed to `True`. To ensure pods are not deleted in the future you will need to "
-                "set `is_delete_operator_pod=False` explicitly.",
+                "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            is_delete_operator_pod = False
+            kwargs["on_finish_action"] = (
+                OnFinishAction.DELETE_POD if is_delete_operator_pod else OnFinishAction.KEEP_POD
+            )
+        else:
+            if on_finish_action is not None:
+                kwargs["on_finish_action"] = OnFinishAction(on_finish_action)
+            else:
+                warnings.warn(
+                    f"You have not set parameter `on_finish_action` in class {self.__class__.__name__}. "
+                    "Currently the default for this parameter is `keep_pod` but in a future release"
+                    " the default will be changed to `delete_pod`. To ensure pods are not deleted in"
+                    " the future you will need to set `on_finish_action=keep_pod` explicitly.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
+                kwargs["on_finish_action"] = OnFinishAction.KEEP_POD
 
         if regional is not None:
             warnings.warn(
@@ -472,7 +490,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 stacklevel=2,
             )
 
-        super().__init__(is_delete_operator_pod=is_delete_operator_pod, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
         self.cluster_name = cluster_name
@@ -560,8 +578,8 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 cluster_context=self.cluster_context,
                 poll_interval=self.poll_interval,
                 in_cluster=self.in_cluster,
-                should_delete_pod=self.is_delete_operator_pod,
                 base_container_name=self.base_container_name,
+                on_finish_action=self.on_finish_action,
             ),
             method_name="execute_complete",
             kwargs={"cluster_url": self._cluster_url, "ssl_ca_cert": self._ssl_ca_cert},
