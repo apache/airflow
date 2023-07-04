@@ -17,13 +17,18 @@
 """This module contains ODBC hook."""
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Iterable, Mapping, Callable
 from urllib.parse import quote_plus
 
 import pyodbc
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
+
+
+def make_serializable(result: list[pyodbc.Row]) -> list[tuple]:
+    """Transform the pyodbc.Row objects returned from a SQL command into JSON-serializable objects."""
+    return [tuple(row) for row in result]
 
 
 class OdbcHook(DbApiHook):
@@ -212,9 +217,28 @@ class OdbcHook(DbApiHook):
         cnx = engine.connect(**(connect_kwargs or {}))
         return cnx
 
-    @staticmethod
-    def _make_serializable(result: list[pyodbc.Row]) -> list[tuple]:
-        """Transform the pyodbc.Row objects returned from a SQL command into
-        JSON-serializable objects.
-        """
-        return [tuple(row) for row in result]
+    def run(
+        self,
+        sql: str | Iterable[str],
+        autocommit: bool = False,
+        parameters: Iterable | Mapping | None = None,
+        handler: Callable | None = None,
+        split_statements: bool = False,
+        return_last: bool = True,
+    ) -> Any | list[Any] | None:
+        if handler is None:
+            return super().run(
+                sql=sql,
+                autocommit=autocommit,
+                parameters=parameters,
+                split_statements=split_statements,
+            )
+
+        return super().run(
+            sql=sql,
+            autocommit=autocommit,
+            parameters=parameters,
+            handler=lambda cursor: make_serializable(handler(cursor)),
+            split_statements=split_statements,
+            return_last=return_last,
+        )
