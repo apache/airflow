@@ -37,6 +37,7 @@ function recurse(delay = DELAY) {
     setTimeout(resolve, delay);
   });
 }
+/* eslint-disable no-console */
 
 // Enable auto tailing only when users scroll down to the bottom
 // of the page. This prevent auto tailing the page if users want
@@ -166,15 +167,16 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
 }
 
 function setDownloadUrl(tryNumber) {
-  if (!tryNumber) {
+  let tryNumberData = tryNumber;
+  if (!tryNumberData) {
     // default to the currently selected tab
-    tryNumber = $("#ti_log_try_number_list .active a").data("try-number");
+    tryNumberData = $("#ti_log_try_number_list .active a").data("try-number");
   }
   const query = new URLSearchParams({
     dag_id: dagId,
     task_id: taskId,
     execution_date: executionDate,
-    try_number: tryNumber,
+    try_number: tryNumberData,
     metadata: "null",
     format: "file",
   });
@@ -187,6 +189,7 @@ $(document).ready(() => {
   autoTailingLog(TOTAL_ATTEMPTS, null, true);
 
   setDownloadUrl();
+  // eslint-disable-next-line func-names
   $("#ti_log_try_number_list a").click(function () {
     const tryNumber = $(this).data("try-number");
 

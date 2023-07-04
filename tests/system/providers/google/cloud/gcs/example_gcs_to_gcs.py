@@ -173,6 +173,17 @@ with models.DAG(
     )
     # [END howto_operator_gcs_to_gcs_delimiter]
 
+    # [START howto_operator_gcs_to_gcs_match_glob]
+    copy_files_with_match_glob = GCSToGCSOperator(
+        task_id="copy_files_with_match_glob",
+        source_bucket=BUCKET_NAME_SRC,
+        source_object="data/",
+        destination_bucket=BUCKET_NAME_DST,
+        destination_object="backup/",
+        match_glob="**/*.txt",
+    )
+    # [END howto_operator_gcs_to_gcs_match_glob]
+
     # [START howto_operator_gcs_to_gcs_list]
     copy_files_with_list = GCSToGCSOperator(
         task_id="copy_files_with_list",
@@ -226,6 +237,7 @@ with models.DAG(
         copy_files_with_wildcard,
         copy_files_without_wildcard,
         copy_files_with_delimiter,
+        copy_files_with_match_glob,
         copy_files_with_list,
         move_single_file,
         move_files_with_list,

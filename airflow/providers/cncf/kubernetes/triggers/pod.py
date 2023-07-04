@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import warnings
 from asyncio import CancelledError
 from datetime import datetime
 from enum import Enum
@@ -25,8 +26,9 @@ from typing import Any, AsyncIterator
 import pytz
 from kubernetes_asyncio.client.models import V1Pod
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodPhase
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodPhase
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
@@ -57,11 +59,15 @@ class KubernetesPodTrigger(BaseTrigger):
     :param poll_interval: Polling period in seconds to check for the status.
     :param trigger_start_time: time in Datetime format when the trigger was started
     :param in_cluster: run kubernetes client with in_cluster configuration.
+    :param get_logs: get the stdout of the container as logs of the tasks.
+    :param startup_timeout: timeout in seconds to start up the pod.
+    :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
+        If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
+        only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
     :param should_delete_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
-    :param get_logs: get the stdout of the container as logs of the tasks.
-    :param startup_timeout: timeout in seconds to start up the pod.
+        Deprecated - use `on_finish_action` instead.
     """
 
     def __init__(
@@ -75,9 +81,10 @@ class KubernetesPodTrigger(BaseTrigger):
         cluster_context: str | None = None,
         config_file: str | None = None,
         in_cluster: bool | None = None,
-        should_delete_pod: bool = True,
         get_logs: bool = True,
         startup_timeout: int = 120,
+        on_finish_action: str = "delete_pod",
+        should_delete_pod: bool | None = None,
     ):
         super().__init__()
         self.pod_name = pod_name
@@ -89,9 +96,21 @@ class KubernetesPodTrigger(BaseTrigger):
         self.cluster_context = cluster_context
         self.config_file = config_file
         self.in_cluster = in_cluster
-        self.should_delete_pod = should_delete_pod
         self.get_logs = get_logs
         self.startup_timeout = startup_timeout
+
+        if should_delete_pod is not None:
+            warnings.warn(
+                "`should_delete_pod` parameter is deprecated, please use `on_finish_action`",
+                AirflowProviderDeprecationWarning,
+            )
+            self.on_finish_action = (
+                OnFinishAction.DELETE_POD if should_delete_pod else OnFinishAction.KEEP_POD
+            )
+            self.should_delete_pod = should_delete_pod
+        else:
+            self.on_finish_action = OnFinishAction(on_finish_action)
+            self.should_delete_pod = self.on_finish_action == OnFinishAction.DELETE_POD
 
         self._hook: AsyncKubernetesHook | None = None
         self._since_time = None
@@ -109,10 +128,11 @@ class KubernetesPodTrigger(BaseTrigger):
                 "cluster_context": self.cluster_context,
                 "config_file": self.config_file,
                 "in_cluster": self.in_cluster,
-                "should_delete_pod": self.should_delete_pod,
                 "get_logs": self.get_logs,
                 "startup_timeout": self.startup_timeout,
                 "trigger_start_time": self.trigger_start_time,
+                "should_delete_pod": self.should_delete_pod,
+                "on_finish_action": self.on_finish_action.value,
             },
         )
 
@@ -191,7 +211,7 @@ class KubernetesPodTrigger(BaseTrigger):
                         name=self.pod_name,
                         namespace=self.pod_namespace,
                     )
-                if self.should_delete_pod:
+                if self.on_finish_action == OnFinishAction.DELETE_POD:
                     self.log.info("Deleting pod...")
                     await self._get_async_hook().delete_pod(
                         name=self.pod_name,

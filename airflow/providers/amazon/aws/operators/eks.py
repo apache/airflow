@@ -34,6 +34,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksNodegroupTrigger,
 )
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -854,10 +855,15 @@ class EksPodOperator(KubernetesPodOperator):
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
+    :param on_finish_action: What to do when the pod reaches its final state, or the execution is interrupted.
+        If "delete_pod", the pod will be deleted regardless it's state; if "delete_succeeded_pod",
+        only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
+        Current default is `keep_pod`, but this will be changed in the next major release of this provider.
     :param is_delete_operator_pod: What to do when the pod reaches its final
         state, or the execution is interrupted. If True, delete the
-        pod; if False, leave the pod.  Current default is False, but this will be
+        pod; if False, leave the pod. Current default is False, but this will be
         changed in the next major release of this provider.
+        Deprecated - use `on_finish_action` instead.
 
     """
 
@@ -885,19 +891,32 @@ class EksPodOperator(KubernetesPodOperator):
         pod_username: str | None = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
+        on_finish_action: str | None = None,
         is_delete_operator_pod: bool | None = None,
         **kwargs,
     ) -> None:
-        if is_delete_operator_pod is None:
+        if is_delete_operator_pod is not None:
             warnings.warn(
-                f"You have not set parameter `is_delete_operator_pod` in class {self.__class__.__name__}. "
-                "Currently the default for this parameter is `False` but in a future release the default "
-                "will be changed to `True`. To ensure pods are not deleted in the future you will need to "
-                "set `is_delete_operator_pod=False` explicitly.",
+                "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            is_delete_operator_pod = False
+            kwargs["on_finish_action"] = (
+                OnFinishAction.DELETE_POD if is_delete_operator_pod else OnFinishAction.KEEP_POD
+            )
+        else:
+            if on_finish_action is not None:
+                kwargs["on_finish_action"] = OnFinishAction(on_finish_action)
+            else:
+                warnings.warn(
+                    f"You have not set parameter `on_finish_action` in class {self.__class__.__name__}. "
+                    "Currently the default for this parameter is `keep_pod` but in a future release"
+                    " the default will be changed to `delete_pod`. To ensure pods are not deleted in"
+                    " the future you will need to set `on_finish_action=keep_pod` explicitly.",
+                    AirflowProviderDeprecationWarning,
+                    stacklevel=2,
+                )
+                kwargs["on_finish_action"] = OnFinishAction.KEEP_POD
 
         self.cluster_name = cluster_name
         self.in_cluster = in_cluster
@@ -909,7 +928,6 @@ class EksPodOperator(KubernetesPodOperator):
             in_cluster=self.in_cluster,
             namespace=self.namespace,
             name=self.pod_name,
-            is_delete_operator_pod=is_delete_operator_pod,
             **kwargs,
         )
         # There is no need to manage the kube_config file, as it will be generated automatically.
