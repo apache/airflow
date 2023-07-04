@@ -103,7 +103,7 @@ class SQLParser:
 
     def parse(self, sql: list[str] | str) -> SqlMeta | None:
         """Parse a single or a list of SQL statements."""
-        return parse(sql=sql, dialect=self.dialect, default_schema=self.default_schema)
+        return parse(sql=sql, dialect=self.dialect)
 
     def parse_table_schemas(
         self,
@@ -126,6 +126,7 @@ class SQLParser:
         return get_table_schemas(
             hook,
             namespace,
+            self.default_schema,
             database or database_info.database,
             self.create_information_schema_query(tables=inputs, **database_kwargs) if inputs else None,
             self.create_information_schema_query(tables=outputs, **database_kwargs) if outputs else None,
