@@ -450,6 +450,21 @@ core:
       type: string
       default: ~
       example: 'http://localhost:8080'
+    test_connection:
+      description: |
+        The ability to allow testing connections across Airflow UI, API and CLI.
+        Supported options: Disabled, Enabled, Hidden. Default: Disabled
+        Disabled - Disables the test connection functionality and disables the Test Connection button in UI.
+        Enabled - Enables the test connection functionality and shows the Test Connection button in UI.
+        Hidden - Disables the test connection functionality and hides the Test Connection button in UI.
+        Before setting this to Enabled, make sure that you review the users who are able to add/edit
+        connections and ensure they are trusted. Connection testing can be done maliciously leading to
+        undesired and insecure outcomes. For more information on capabilities of users, see the documentation:
+        https://airflow.apache.org/docs/apache-airflow/stable/security/index.html#capabilities-of-authenticated-ui-users
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "Disabled"
 database:
   description: ~
   options:
@@ -891,8 +906,6 @@ logging:
       type: boolean
       example: ~
       default: "False"
-
-
 metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
@@ -1801,7 +1814,6 @@ webserver:
       type: string
       example: "sha256"
       default: "md5"
-
 email:
   description: |
     Configuration email backend and whether to
@@ -1859,7 +1871,6 @@ email:
       type: string
       example: "Airflow <airflow@example.com>"
       default: ~
-
 smtp:
   description: |
     If you want airflow to send emails on retries, failure, and you want to use
