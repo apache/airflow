@@ -32,8 +32,7 @@ from airflow.sensors.base import BaseSensorOperator
 
 class LambdaFunctionStateSensor(BaseSensorOperator):
     """
-    Asks for the state of the Lambda until it reaches a target state.
-    If the query fails, the task will fail.
+    Poll the state of the Lambda until it reaches a target state; fails if the query fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:

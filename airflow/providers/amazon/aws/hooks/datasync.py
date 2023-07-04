@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 class DataSyncHook(AwsBaseHook):
     """
     Interact with AWS DataSync.
+
     Provide thick wrapper around :external+boto3:py:class:`boto3.client("datasync") <DataSync.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -198,8 +199,7 @@ class DataSyncHook(AwsBaseHook):
         destination_location_arns: list,
     ) -> list:
         """
-        Return list of TaskArns for which use any one of the specified
-        source LocationArns and any one of the specified destination LocationArns.
+        Return list of TaskArns which use both a specified source and destination LocationArns.
 
         :param source_location_arns: List of source LocationArns.
         :param destination_location_arns: List of destination LocationArns.
@@ -224,6 +224,7 @@ class DataSyncHook(AwsBaseHook):
     def start_task_execution(self, task_arn: str, **kwargs) -> str:
         """
         Start a TaskExecution for the specified task_arn.
+
         Each task can have at most one TaskExecution.
         Additional keyword arguments send to ``start_task_execution`` boto3 method.
 
@@ -300,6 +301,7 @@ class DataSyncHook(AwsBaseHook):
     def wait_for_task_execution(self, task_execution_arn: str, max_iterations: int = 60) -> bool:
         """
         Wait for Task Execution status to be complete (SUCCESS/ERROR).
+
         The ``task_execution_arn`` must exist, or a boto3 ClientError will be raised.
 
         :param task_execution_arn: TaskExecutionArn

@@ -106,16 +106,21 @@ class TestScheduler:
             values={
                 "executor": "CeleryExecutor",
                 "scheduler": {
-                    "extraVolumes": [{"name": "test-volume", "emptyDir": {}}],
-                    "extraVolumeMounts": [{"name": "test-volume", "mountPath": "/opt/test"}],
+                    "extraVolumes": [{"name": "test-volume-{{ .Chart.Name }}", "emptyDir": {}}],
+                    "extraVolumeMounts": [
+                        {"name": "test-volume-{{ .Chart.Name }}", "mountPath": "/opt/test"}
+                    ],
                 },
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert "test-volume" in jmespath.search("spec.template.spec.volumes[*].name", docs[0])
-        assert "test-volume" in jmespath.search(
+        assert "test-volume-airflow" in jmespath.search("spec.template.spec.volumes[*].name", docs[0])
+        assert "test-volume-airflow" in jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
+        )
+        assert "test-volume-airflow" == jmespath.search(
+            "spec.template.spec.initContainers[0].volumeMounts[-1].name", docs[0]
         )
 
     def test_should_add_global_volume_and_global_volume_mount(self):

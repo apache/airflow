@@ -39,12 +39,12 @@ POLL_INTERVAL = 2
 CLUSTER_CONTEXT = "test-context"
 CONFIG_FILE = "/path/to/config/file"
 IN_CLUSTER = False
-SHOULD_DELETE_POD = True
 GET_LOGS = True
 STARTUP_TIMEOUT_SECS = 120
 TRIGGER_START_TIME = datetime.now(tz=pytz.UTC)
 FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."
 BASE_CONTAINER_NAME = "base"
+ON_FINISH_ACTION = "delete_pod"
 
 
 @pytest.fixture
@@ -58,10 +58,10 @@ def trigger():
         cluster_context=CLUSTER_CONTEXT,
         config_file=CONFIG_FILE,
         in_cluster=IN_CLUSTER,
-        should_delete_pod=SHOULD_DELETE_POD,
         get_logs=GET_LOGS,
         startup_timeout=STARTUP_TIMEOUT_SECS,
         trigger_start_time=TRIGGER_START_TIME,
+        on_finish_action=ON_FINISH_ACTION,
     )
 
 
@@ -85,17 +85,19 @@ class TestKubernetesPodTrigger:
             "cluster_context": CLUSTER_CONTEXT,
             "config_file": CONFIG_FILE,
             "in_cluster": IN_CLUSTER,
-            "should_delete_pod": SHOULD_DELETE_POD,
             "get_logs": GET_LOGS,
             "startup_timeout": STARTUP_TIMEOUT_SECS,
             "trigger_start_time": TRIGGER_START_TIME,
+            "on_finish_action": ON_FINISH_ACTION,
+            "should_delete_pod": ON_FINISH_ACTION == "delete_pod",
         }
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
     @mock.patch(f"{TRIGGER_PATH}._get_async_hook")
     async def test_run_loop_return_success_event(self, mock_hook, mock_method, trigger):
-        mock_hook.return_value.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
+        pod_mock = mock.MagicMock(**{"status.phase": "Succeeded"})
+        mock_hook.return_value.get_pod.return_value = self._mock_pod_result(pod_mock)
         mock_method.return_value = ContainerState.TERMINATED
 
         expected_event = TriggerEvent(
@@ -109,6 +111,35 @@ class TestKubernetesPodTrigger:
         actual_event = await (trigger.run()).asend(None)
 
         assert actual_event == expected_event
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}.define_container_state")
+    @mock.patch(f"{TRIGGER_PATH}._get_async_hook")
+    async def test_run_loop_wait_pod_termination_before_returning_success_event(
+        self, mock_hook, mock_method, trigger
+    ):
+        running_state = mock.MagicMock(**{"status.phase": "Running"})
+        succeeded_state = mock.MagicMock(**{"status.phase": "Succeeded"})
+        mock_hook.return_value.get_pod.side_effect = [
+            self._mock_pod_result(running_state),
+            self._mock_pod_result(running_state),
+            self._mock_pod_result(succeeded_state),
+        ]
+        mock_method.return_value = ContainerState.TERMINATED
+
+        expected_event = TriggerEvent(
+            {
+                "name": POD_NAME,
+                "namespace": NAMESPACE,
+                "status": "success",
+                "message": "All containers inside pod have started successfully.",
+            }
+        )
+        with mock.patch.object(asyncio, "sleep") as mock_sleep:
+            actual_event = await (trigger.run()).asend(None)
+
+        assert actual_event == expected_event
+        assert mock_sleep.call_count == 2
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}.define_container_state")
@@ -207,8 +238,10 @@ class TestKubernetesPodTrigger:
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_PATH}._get_async_hook")
-    async def test_logging_in_trigger_when_cancelled_should_execute_successfully(
-        self, mock_hook, trigger, caplog
+    async def test_logging_in_trigger_when_cancelled_should_execute_successfully_and_delete_pod(
+        self,
+        mock_hook,
+        caplog,
     ):
         """
         Test that KubernetesPodTrigger fires the correct event in case if the task was cancelled.
@@ -217,6 +250,21 @@ class TestKubernetesPodTrigger:
         mock_hook.return_value.get_pod.side_effect = CancelledError()
         mock_hook.return_value.read_logs.return_value = self._mock_pod_result(mock.MagicMock())
         mock_hook.return_value.delete_pod.return_value = self._mock_pod_result(mock.MagicMock())
+
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            kubernetes_conn_id=CONN_ID,
+            poll_interval=POLL_INTERVAL,
+            cluster_context=CLUSTER_CONTEXT,
+            config_file=CONFIG_FILE,
+            in_cluster=IN_CLUSTER,
+            get_logs=GET_LOGS,
+            startup_timeout=STARTUP_TIMEOUT_SECS,
+            trigger_start_time=TRIGGER_START_TIME,
+            on_finish_action="delete_pod",
+        )
 
         generator = trigger.run()
         actual = await generator.asend(None)
@@ -233,6 +281,52 @@ class TestKubernetesPodTrigger:
         )
         assert "Outputting container logs..." in caplog.text
         assert "Deleting pod..." in caplog.text
+
+    @pytest.mark.asyncio
+    @mock.patch(f"{TRIGGER_PATH}._get_async_hook")
+    async def test_logging_in_trigger_when_cancelled_should_execute_successfully_without_delete_pod(
+        self,
+        mock_hook,
+        caplog,
+    ):
+        """
+        Test that KubernetesPodTrigger fires the correct event if the task was cancelled.
+        """
+
+        mock_hook.return_value.get_pod.side_effect = CancelledError()
+        mock_hook.return_value.read_logs.return_value = self._mock_pod_result(mock.MagicMock())
+        mock_hook.return_value.delete_pod.return_value = self._mock_pod_result(mock.MagicMock())
+
+        trigger = KubernetesPodTrigger(
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=BASE_CONTAINER_NAME,
+            kubernetes_conn_id=CONN_ID,
+            poll_interval=POLL_INTERVAL,
+            cluster_context=CLUSTER_CONTEXT,
+            config_file=CONFIG_FILE,
+            in_cluster=IN_CLUSTER,
+            get_logs=GET_LOGS,
+            startup_timeout=STARTUP_TIMEOUT_SECS,
+            trigger_start_time=TRIGGER_START_TIME,
+            on_finish_action="delete_succeeded_pod",
+        )
+
+        generator = trigger.run()
+        actual = await generator.asend(None)
+        assert (
+            TriggerEvent(
+                {
+                    "name": POD_NAME,
+                    "namespace": NAMESPACE,
+                    "status": "cancelled",
+                    "message": "Pod execution was cancelled",
+                }
+            )
+            == actual
+        )
+        assert "Outputting container logs..." in caplog.text
+        assert "Deleting pod..." not in caplog.text
 
     @pytest.mark.parametrize(
         "container_state, expected_state",

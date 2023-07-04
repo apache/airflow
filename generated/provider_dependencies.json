@@ -45,6 +45,7 @@
       "google",
       "http",
       "imap",
+      "microsoft.azure",
       "mongo",
       "salesforce",
       "ssh"
@@ -271,7 +272,9 @@
       "apache-airflow>=2.4.0",
       "sqlparse>=0.4.2"
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "openlineage"
+    ],
     "excluded-python-versions": []
   },
   "databricks": {
@@ -637,7 +640,9 @@
       "openlineage-integration-common>=0.28.0",
       "openlineage-python>=0.28.0"
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.sql"
+    ],
     "excluded-python-versions": []
   },
   "opsgenie": {

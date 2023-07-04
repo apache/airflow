@@ -19,10 +19,18 @@
 ``apache-airflow-providers-oracle``
 ===================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -30,12 +38,14 @@ Content
     Operators <operators/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/oracle/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -47,6 +57,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -114,5 +125,3 @@ You can download officially released packages and verify their checksums and sig
 
 * `The apache-airflow-providers-oracle 3.7.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-oracle-3.7.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-oracle-3.7.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-oracle-3.7.1.tar.gz.sha512>`__)
 * `The apache-airflow-providers-oracle 3.7.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-3.7.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-3.7.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_oracle-3.7.1-py3-none-any.whl.sha512>`__)
-
-.. include:: ../../airflow/providers/oracle/CHANGELOG.rst

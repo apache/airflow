@@ -241,6 +241,12 @@ def prepare_airflow_packages(
     is_flag=True,
     help="Only update minimum version in __init__.py files and regenerate corresponding documentation",
 )
+@click.option(
+    "--regenerate-missing-docs",
+    is_flag=True,
+    help="Only regenerate missing documentation, do not bump version. Useful if templates were added"
+    " and you need to regenerate documentation.",
+)
 @option_verbose
 @option_dry_run
 @option_answer
@@ -250,6 +256,7 @@ def prepare_provider_documentation(
     debug: bool,
     packages: list[str],
     only_min_version_update: bool,
+    regenerate_missing_docs: bool,
 ):
     perform_environment_checks()
     check_remote_ghcr_io_commands()
@@ -260,6 +267,7 @@ def prepare_provider_documentation(
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         base_branch=base_branch,
         only_min_version_update=only_min_version_update,
+        regenerate_missing_docs=regenerate_missing_docs,
         skip_environment_initialization=True,
     )
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)

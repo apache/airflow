@@ -99,8 +99,7 @@ class AnalyticDBSparkBaseOperator(BaseOperator):
 
 class AnalyticDBSparkSQLOperator(AnalyticDBSparkBaseOperator):
     """
-    This operator warps the AnalyticDB Spark REST API, allowing to submit a Spark sql
-    application to the underlying cluster.
+    Submits a Spark SQL application to the underlying cluster; wraps the AnalyticDB Spark REST API.
 
     :param sql: The SQL query to execute.
     :param conf: Spark configuration properties.
@@ -153,8 +152,7 @@ class AnalyticDBSparkSQLOperator(AnalyticDBSparkBaseOperator):
 
 class AnalyticDBSparkBatchOperator(AnalyticDBSparkBaseOperator):
     """
-    This operator warps the AnalyticDB Spark REST API, allowing to submit a Spark batch
-    application to the underlying cluster.
+    Submits a Spark batch application to the underlying cluster; wraps the AnalyticDB Spark REST API.
 
     :param file: path of the file containing the application to execute.
     :param class_name: name of the application Java/Spark main class.

@@ -39,7 +39,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 class AppState(Enum):
     """
-    AnalyticDB Spark application states doc:
+    AnalyticDB Spark application states.
+
+    See:
     https://www.alibabacloud.com/help/en/analyticdb-for-mysql/latest/api-doc-adb-2021-12-01-api-struct
     -sparkappinfo.
 

@@ -21,7 +21,7 @@ from itertools import product
 
 import pytest
 
-from airflow.decorators import task
+from airflow.decorators import setup, task, teardown
 from airflow.models.baseoperator import BaseOperator
 
 
@@ -37,9 +37,27 @@ def get_task_attr(task_like, attr):
         return getattr(task_like.operator, attr)
 
 
-def make_task(name, type_):
-    if type_ == "classic":
+def make_task(name, type_, setup_=False, teardown_=False):
+    if type_ == "classic" and setup_:
+        return BaseOperator(task_id=name).as_setup()
+    elif type_ == "classic" and teardown_:
+        return BaseOperator(task_id=name).as_teardown()
+    elif type_ == "classic":
         return BaseOperator(task_id=name)
+    elif setup_:
+
+        @setup
+        def setuptask():
+            pass
+
+        return setuptask.override(task_id=name)()
+    elif teardown_:
+
+        @teardown
+        def teardowntask():
+            pass
+
+        return teardowntask.override(task_id=name)()
     else:
 
         @task
@@ -246,3 +264,100 @@ def test_no_setup_or_teardown_for_mapped_operator(dag_maker):
         added_vals = add_one.expand(x=[1, 2, 3])
         with pytest.raises(ValueError, match="Cannot set is_setup for mapped operator"):
             added_vals.is_setup = True
+
+
+def test_set_setup_teardown_ctx_dependencies_using_decorated_tasks(dag_maker):
+
+    with dag_maker():
+        t1 = make_task("t1", type_="decorated")
+        setuptask = make_task("setuptask", type_="decorated", setup_=True)
+        teardowntask = make_task("teardowntask", type_="decorated", teardown_=True)
+        with setuptask >> teardowntask as scope:
+            scope.add_task(t1)
+
+    assert t1.operator.upstream_task_ids == {"setuptask"}
+    assert t1.operator.downstream_task_ids == {"teardowntask"}
+
+    with dag_maker():
+        t1 = make_task("t1", type_="decorated")
+        t2 = make_task("t2", type_="decorated")
+        setuptask = make_task("setuptask", type_="decorated", setup_=True)
+        teardowntask = make_task("teardowntask", type_="decorated", teardown_=True)
+        with setuptask >> teardowntask:
+            t1 >> t2
+    assert t1.operator.upstream_task_ids == {"setuptask"}
+    assert t2.operator.downstream_task_ids == {"teardowntask"}
+
+    with dag_maker():
+        t1 = make_task("t1", type_="decorated")
+        t2 = make_task("t2", type_="decorated")
+        t3 = make_task("t3", type_="decorated")
+        setuptask = make_task("setuptask", type_="decorated", setup_=True)
+        teardowntask = make_task("teardowntask", type_="decorated", teardown_=True)
+        with setuptask >> teardowntask:
+            t1 >> [t2, t3]
+
+    assert t1.operator.upstream_task_ids == {"setuptask"}
+    assert t2.operator.downstream_task_ids == {"teardowntask"}
+    assert t3.operator.downstream_task_ids == {"teardowntask"}
+
+    with dag_maker():
+        t1 = make_task("t1", type_="decorated")
+        t2 = make_task("t2", type_="decorated")
+        t3 = make_task("t3", type_="decorated")
+        setuptask = make_task("setuptask", type_="decorated", setup_=True)
+        teardowntask = make_task("teardowntask", type_="decorated", teardown_=True)
+        with setuptask >> teardowntask:
+            [t1, t2] >> t3
+
+    assert t1.operator.upstream_task_ids == {"setuptask"}
+    assert t2.operator.upstream_task_ids == {"setuptask"}
+    assert t3.operator.downstream_task_ids == {"teardowntask"}
+
+
+def test_set_setup_teardown_ctx_dependencies_using_classic_tasks(dag_maker):
+    with dag_maker():
+        t1 = make_task("t1", type_="classic")
+        setuptask = make_task("setuptask", type_="classic", setup_=True)
+        teardowntask = make_task("teardowntask", type_="classic", teardown_=True)
+        with setuptask >> teardowntask as scope:
+            scope.add_task(t1)
+
+    assert t1.upstream_task_ids == {"setuptask"}
+    assert t1.downstream_task_ids == {"teardowntask"}
+
+    with dag_maker():
+        t1 = make_task("t1", type_="classic")
+        t2 = make_task("t2", type_="classic")
+        setuptask = make_task("setuptask", type_="classic", setup_=True)
+        teardowntask = make_task("teardowntask", type_="classic", teardown_=True)
+        with setuptask >> teardowntask:
+            t1 >> t2
+    assert t1.upstream_task_ids == {"setuptask"}
+    assert t2.downstream_task_ids == {"teardowntask"}
+
+    with dag_maker():
+        t1 = make_task("t1", type_="classic")
+        t2 = make_task("t2", type_="classic")
+        t3 = make_task("t3", type_="classic")
+        setuptask = make_task("setuptask", type_="classic", setup_=True)
+        teardowntask = make_task("teardowntask", type_="classic", teardown_=True)
+        with setuptask >> teardowntask:
+            t1 >> [t2, t3]
+
+    assert t1.upstream_task_ids == {"setuptask"}
+    assert t2.downstream_task_ids == {"teardowntask"}
+    assert t3.downstream_task_ids == {"teardowntask"}
+
+    with dag_maker():
+        t1 = make_task("t1", type_="classic")
+        t2 = make_task("t2", type_="classic")
+        t3 = make_task("t3", type_="classic")
+        setuptask = make_task("setuptask", type_="classic", setup_=True)
+        teardowntask = make_task("teardowntask", type_="classic", teardown_=True)
+        with setuptask >> teardowntask:
+            [t1, t2] >> t3
+
+    assert t1.upstream_task_ids == {"setuptask"}
+    assert t2.upstream_task_ids == {"setuptask"}
+    assert t3.downstream_task_ids == {"teardowntask"}

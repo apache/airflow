@@ -1088,6 +1088,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def _deserialize_operator_extra_links(cls, encoded_op_links: list) -> dict[str, BaseOperatorLink]:
         """
         Deserialize Operator Links if the Classes are registered in Airflow Plugins.
+
         Error is raised if the OperatorLink is not found in Plugins too.
 
         :param encoded_op_links: Serialized Operator Link
@@ -1447,7 +1448,9 @@ class TaskGroupSerialization(BaseSerialization):
 
 @dataclass(frozen=True, order=True)
 class DagDependency:
-    """Dataclass for representing dependencies between DAGs.
+    """
+    Dataclass for representing dependencies between DAGs.
+
     These are calculated during serialization and attached to serialized DAGs.
     """
 

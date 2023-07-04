@@ -3772,13 +3772,20 @@ class TestTaskClearingSetupTeardownBehavior:
         g2_w3 = dag.task_dict["g2.w3"]
         g2_group_teardown = dag.task_dict["g2.group_teardown"]
 
-        with pytest.raises(Exception):
-            # fix_me
-            #   the line `dag_setup >> tg >> dag_teardown` should be equivalent to
-            #   dag_setup >> group_setup; w3 >> dag_teardown
-            #   i.e. not group_teardown >> dag_teardown
-            assert g2_group_teardown.downstream_task_ids == {}
-            assert g2_w3.downstream_task_ids == {"g2.group_teardown", "dag_teardown"}
+        # the line `dag_setup >> tg >> dag_teardown` should be equivalent to
+        # dag_setup >> group_setup; w3 >> dag_teardown
+        # i.e. not group_teardown >> dag_teardown
+        # this way the two teardowns can run in parallel
+        # so first, check that dag_teardown not downstream of group 2 teardown
+        # this means they can run in parallel
+        assert "dag_teardown" not in g2_group_teardown.downstream_task_ids
+        # and just document that g2 teardown is in effect a dag leaf
+        assert g2_group_teardown.downstream_task_ids == set()
+        # group 2 task w3 is in the scope of 2 teardowns -- the dag teardown and the group teardown
+        # it is arrowed to both of them
+        assert g2_w3.downstream_task_ids == {"g2.group_teardown", "dag_teardown"}
+        # dag teardown should have 3 upstreams: the last work task in groups 1 and 2, and its setup
+        assert dag_teardown.upstream_task_ids == {"g1.w3", "g2.w3", "dag_setup"}
 
         assert {x.task_id for x in g2_w2.get_upstreams_only_setups_and_teardowns()} == {
             "dag_setup",

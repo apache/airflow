@@ -543,6 +543,7 @@ class BaseDatabricksHook(BaseHook):
     async def _a_do_api_call(self, endpoint_info: tuple[str, str], json: dict[str, Any] | None = None):
         """
         Async version of `_do_api_call()`.
+
         :param endpoint_info: Tuple of method and endpoint
         :param json: Parameters for this API call.
         :return: If the api call returns a OK status code,

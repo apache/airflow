@@ -24,7 +24,7 @@ import pytest
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
-from airflow.providers.amazon.aws.triggers.emr import EmrContainerSensorTrigger
+from airflow.providers.amazon.aws.triggers.emr import EmrContainerTrigger
 
 
 class TestEmrContainerSensor:
@@ -79,8 +79,8 @@ class TestEmrContainerSensor:
     def test_sensor_defer(self, mock_poke):
         self.sensor.deferrable = True
         mock_poke.return_value = False
-        with pytest.raises(TaskDeferred) as exc:
+        with pytest.raises(TaskDeferred) as e:
             self.sensor.execute(context=None)
         assert isinstance(
-            exc.value.trigger, EmrContainerSensorTrigger
-        ), "Trigger is not a EmrContainerSensorTrigger"
+            e.value.trigger, EmrContainerTrigger
+        ), f"{e.value.trigger} is not a EmrContainerTrigger"
