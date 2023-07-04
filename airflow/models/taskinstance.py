@@ -620,9 +620,9 @@ class TaskInstance(Base, LoggingMixin):
         return self._try_number + 1
 
     @property
-    def operator_name(self) -> str:
+    def operator_name(self) -> str | None:
         """@property: use a more friendly display name for the operator, if set."""
-        return self.custom_operator_name or self.operator  # type: ignore
+        return self.custom_operator_name or self.operator
 
     def command_as_list(
         self,
