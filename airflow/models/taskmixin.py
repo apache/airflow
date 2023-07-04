@@ -97,12 +97,14 @@ class DependencyMixin:
         """Implements Task << Task."""
         self.set_upstream(other)
         self.set_setup_teardown_ctx_dependencies(other)
+        self.set_taskgroup_ctx_dependencies(other)
         return other
 
     def __rshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Implements Task >> Task."""
         self.set_downstream(other)
         self.set_setup_teardown_ctx_dependencies(other)
+        self.set_taskgroup_ctx_dependencies(other)
         return other
 
     def __rrshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
@@ -133,6 +135,27 @@ class DependencyMixin:
         if isinstance(other, PlainXComArg):
             other = other.operator
         SetupTeardownContext.update_context_map(other)
+
+    def set_taskgroup_ctx_dependencies(self, other: DependencyMixin | Sequence[DependencyMixin]):
+        from airflow.utils.task_group import TaskGroupContext
+
+        if not TaskGroupContext.active:
+            return
+        from airflow.models.xcom_arg import PlainXComArg
+
+        op1 = self
+        if isinstance(self, PlainXComArg):
+            op1 = self.operator
+        TaskGroupContext.add_task(op1)
+        if isinstance(other, Sequence):
+            for op in other:
+                if isinstance(op, PlainXComArg):
+                    op = op.operator
+                TaskGroupContext.add_task(op)
+            return
+        if isinstance(other, PlainXComArg):
+            other = other.operator
+        TaskGroupContext.add_task(other)
 
 
 class TaskMixin(DependencyMixin):

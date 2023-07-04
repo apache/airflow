@@ -25,7 +25,7 @@ import copy
 import functools
 import operator
 import weakref
-from typing import TYPE_CHECKING, Any, Generator, Iterator, Sequence
+from typing import TYPE_CHECKING, Any, Generator, Iterator, Sequence, cast
 
 import re2
 
@@ -207,13 +207,23 @@ class TaskGroup(DAGNode):
             else:
                 yield child
 
-    def add(self, task: DAGNode) -> None:
+    def add(self, task: DAGNode) -> DAGNode:
         """Add a task to this TaskGroup.
 
         :meta private:
         """
         from airflow.models.abstractoperator import AbstractOperator
+        from airflow.models.xcom_arg import PlainXComArg
 
+        if TaskGroupContext.active:
+            if isinstance(task, PlainXComArg):
+                task = task.operator
+                if task.task_group and task.task_group != self:
+                    task.task_group.children.pop(task.node_id, None)
+                    task.task_group = self
+            elif task.task_group and task.task_group != self:
+                task.task_group.children.pop(task.node_id, None)
+                task.task_group = self
         existing_tg = task.task_group
         if isinstance(task, AbstractOperator) and existing_tg is not None and existing_tg != self:
             raise TaskAlreadyInTaskGroup(task.node_id, existing_tg.node_id, self.node_id)
@@ -237,6 +247,7 @@ class TaskGroup(DAGNode):
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
         self.children[key] = task
+        return task
 
     def _remove(self, task: DAGNode) -> None:
         key = task.node_id
@@ -613,6 +624,7 @@ class MappedTaskGroup(TaskGroup):
 class TaskGroupContext:
     """TaskGroup context is used to keep the current TaskGroup when TaskGroup is used as ContextManager."""
 
+    active: bool = False
     _context_managed_task_group: TaskGroup | None = None
     _previous_context_managed_task_groups: list[TaskGroup] = []
 
@@ -622,6 +634,7 @@ class TaskGroupContext:
         if cls._context_managed_task_group:
             cls._previous_context_managed_task_groups.append(cls._context_managed_task_group)
         cls._context_managed_task_group = task_group
+        cls.active = True
 
     @classmethod
     def pop_context_managed_task_group(cls) -> TaskGroup | None:
@@ -631,6 +644,7 @@ class TaskGroupContext:
             cls._context_managed_task_group = cls._previous_context_managed_task_groups.pop()
         else:
             cls._context_managed_task_group = None
+        cls.active = False
         return old_task_group
 
     @classmethod
@@ -645,6 +659,20 @@ class TaskGroupContext:
                 return dag.task_group
 
         return cls._context_managed_task_group
+
+    @classmethod
+    def add_task(cls, task: DependencyMixin) -> None:
+        """Add the task to the current TaskGroup if not already there."""
+        from airflow.utils.edgemodifier import EdgeModifier
+
+        if isinstance(task, TaskGroup) or isinstance(task, EdgeModifier):
+            return
+        task_ = cast(DAGNode, task)
+        task_group = cls.get_current_task_group(task_.dag)
+        if task_group:
+            if task_.node_id in task_group.children:
+                return
+            task_group.add(task_)
 
 
 def task_group_to_dict(task_item_or_group):
