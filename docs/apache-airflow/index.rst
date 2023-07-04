@@ -98,8 +98,16 @@ Rich scheduling and execution semantics enable you to easily define complex pipe
 intervals. Backfilling allows you to (re-)run pipelines on historical data after making changes to your logic.
 And the ability to rerun partial pipelines after resolving an error helps maximize efficiency.
 
-Airflow's user interface provides both in-depth views of pipelines, and individual tasks and an overview of
-pipelines over time. From the interface, you can inspect logs and manage tasks, for example retrying a task in
+Airflow's user interface provides:
+
+  1. In-depth views of two things:
+
+    i. Pipelines
+    ii. Tasks
+
+  2. Overview of your pipelines over time
+
+From the interface, you can inspect logs and manage tasks, for example retrying a task in
 case of failure.
 
 The open-source nature of Airflow ensures you work on components developed, tested, and used by many other
