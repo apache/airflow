@@ -254,7 +254,7 @@ class BigQueryToGCSOperator(BaseOperator):
                 trigger=BigQueryInsertJobTrigger(
                     conn_id=self.gcp_conn_id,
                     job_id=job_id,
-                    project_id=self.hook.project_id,
+                    project_id=self.project_id or self.hook.project_id,
                 ),
                 method_name="execute_complete",
             )
