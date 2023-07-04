@@ -27,7 +27,7 @@
 {{- $topologySpreadConstraints := or .Values.redis.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "localPodSecurityContext" .Values.redis }}
 {{- $containerSecurityContext := include "externalContainerSecurityContext" .Values.redis }}
-{{- $containerLifecycleHooks := include "externalContainerLifecycleHooks" .Values.redis }}
+{{- $containerLifecycleHooks := include "externalContainerLifecycleHooks" (list . .Values.redis) }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -82,7 +82,9 @@ spec:
           image: {{ template "redis_image" . }}
           imagePullPolicy: {{ .Values.images.redis.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
-          {{- $containerLifecycleHooks | nindent 12 }}
+          {{- if $containerLifecycleHooks }}
+          lifecycle: {{- $containerLifecycleHooks | nindent 12 }}
+          {{- end }}
           command: ["/bin/sh"]
           resources: {{- toYaml .Values.redis.resources | nindent 12 }}
           args: ["-c", "redis-server --requirepass ${REDIS_PASSWORD}"]

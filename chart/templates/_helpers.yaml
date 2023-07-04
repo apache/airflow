@@ -967,13 +967,11 @@ Where `.` is the global variables scope and `.Values.statsd` the local variables
 {{- define "containerLifecycleHooks" -}}
   {{- $ := index . 0 -}}
   {{- with index . 1 }}
-    {{- if or (.containerLifecycleHooks) ($.Values.containerLifecycleHooks) -}}
-lifecycle:
-      {{- if .containerLifecycleHooks -}}
-        {{- tpl (toYaml .containerLifecycleHooks) $ | nindent 2 }}
-      {{- else if $.Values.containerLifecycleHooks -}}
-        {{- tpl (toYaml $.Values.containerLifecycleHooks) $ | nindent 2 }}
-      {{- end -}}
+    {{- if .containerLifecycleHooks -}}
+      {{- tpl (toYaml .containerLifecycleHooks) $ }}
+    {{- else if $.Values.containerLifecycleHooks -}}
+        {{- tpl (toYaml $.Values.containerLifecycleHooks) $ }}
+    {{- else -}}
     {{- end -}}
   {{- end -}}
 {{- end -}}
@@ -983,12 +981,14 @@ Set the default value for container Lifecycle Hooks (redis, statsd).
 If no value is passed for <node>.containerLifecycleHooks, lifecycle will not be set
 
 The template can be called like so:
-    include "externalContainerSecurityContext" .Values.statsd
+    include "externalContainerSecurityContext" (list . .Values.statsd)
 
 */}}
 {{- define "externalContainerLifecycleHooks" -}}
-  {{- if .containerLifecycleHooks -}}
-lifecycle:
-      {{- tpl (toYaml .containerLifecycleHooks) $ | nindent 2 }}
+  {{- $ := index . 0 -}}
+  {{- with index . 1 }}
+    {{- if .containerLifecycleHooks -}}
+      {{- tpl (toYaml .containerLifecycleHooks) $ }}
+    {{- end -}}
   {{- end -}}
 {{- end -}}

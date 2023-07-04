@@ -91,7 +91,9 @@ spec:
           image: {{ template "flower_image" . }}
           imagePullPolicy: {{ .Values.images.flower.pullPolicy }}
           securityContext: {{ $containerSecurityContext | nindent 12 }}
-          {{- $containerLifecycleHooks | nindent 12 }}
+          {{- if $containerLifecycleHooks  }}
+          lifecycle: {{- $containerLifecycleHooks  | nindent 12 }}
+          {{- end }}
           {{- if .Values.flower.command }}
           command: {{ tpl (toYaml .Values.flower.command) . | nindent 12 }}
           {{- end }}
