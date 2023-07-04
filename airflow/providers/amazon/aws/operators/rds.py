@@ -47,7 +47,8 @@ class RdsBaseOperator(BaseOperator):
             warnings.warn(
                 "The parameter hook_params is deprecated and will be removed. "
                 "If you were using it, please get in touch either on airflow slack, "
-                "or by opening a github issue on the project.",
+                "or by opening a github issue on the project. "
+                "You can mention https://github.com/apache/airflow/pull/32352",
                 AirflowProviderDeprecationWarning,
                 stacklevel=3,  # 2 is in the operator's init, 3 is in the user code creating the operator
             )
