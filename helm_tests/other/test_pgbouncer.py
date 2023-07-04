@@ -531,10 +531,11 @@ class TestPgbouncerConfig:
         docs = render_chart(
             values={
                 "pgbouncer": {
+                    "enabled": True,
                     "containerLifecycleHooks": {
                         "postStart": post_start_value,
                         "preStop": pre_stop_value,
-                    }
+                    },
                 },
             },
             show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],

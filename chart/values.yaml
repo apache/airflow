@@ -1861,6 +1861,11 @@ pgbouncer:
   # Additional network policies as needed
   extraNetworkPolicies: []
 
+  # Default container level lifecycle hooks for every container
+  # See:
+  # https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/
+  containerLifecycleHooks: {}
+
   # Pool sizes
   metadataPoolSize: 10
   resultBackendPoolSize: 5
