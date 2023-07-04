@@ -266,7 +266,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
 
         :param query_id: statement handle id for the individual statements.
         """
-        self.log.info("Retrieving status for query id %s", {query_id})
+        self.log.info("Retrieving status for query id %s", query_id)
         header, params, url = self.get_request_url_header_params(query_id)
         async with aiohttp.ClientSession(headers=header) as session:
             async with session.get(url, params=params) as response:
