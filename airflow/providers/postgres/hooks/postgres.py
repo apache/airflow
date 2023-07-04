@@ -322,6 +322,7 @@ class PostgresHook(DbApiHook):
         return sql
 
     def get_openlineage_database_info(self, connection) -> DatabaseInfo:
+        """Returns Postgres specific information for OpenLineage."""
         from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
         return DatabaseInfo(
@@ -331,7 +332,9 @@ class PostgresHook(DbApiHook):
         )
 
     def get_openlineage_database_dialect(self, _) -> str:
+        """Returns postgres dialect."""
         return "postgres"
 
     def get_openlineage_default_schema(self) -> str | None:
+        """Returns current schema. This is usually changed with ``SEARCH_PATH`` parameter."""
         return self.get_first("SELECT CURRENT_SCHEMA;")[0]
