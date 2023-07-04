@@ -29,8 +29,7 @@ from contextlib import AbstractContextManager
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from kubernetes.client import CoreV1Api
-from kubernetes.client import models as k8s
+from kubernetes.client import CoreV1Api, models as k8s
 from slugify import slugify
 from urllib3.exceptions import HTTPError
 

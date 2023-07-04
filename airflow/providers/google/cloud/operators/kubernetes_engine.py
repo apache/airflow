@@ -28,6 +28,7 @@ from kubernetes.client.models import V1Pod
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 
 try:
     from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
