@@ -60,10 +60,6 @@ CROSS_PROVIDERS_DEPS = "cross-providers-deps"
 DEPS = "deps"
 CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 
-# we do not yet release some providers so we should skip them when releasing and when referring to
-# in cross-provider-dependencies.
-NOT_RELEASED_YET_PROVIDERS = ["openlineage"]
-
 
 #
 # NOTE! IN Airflow 2.4.+ dependencies for providers are maintained in `provider.yaml` files for each

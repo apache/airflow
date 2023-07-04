@@ -272,7 +272,9 @@
       "apache-airflow>=2.4.0",
       "sqlparse>=0.4.2"
     ],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "openlineage"
+    ],
     "excluded-python-versions": []
   },
   "databricks": {

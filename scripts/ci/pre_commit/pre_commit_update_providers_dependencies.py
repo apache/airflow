@@ -52,7 +52,6 @@ ALL_DEPENDENCIES: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultd
 ALL_PROVIDERS: dict[str, dict[str, Any]] = defaultdict(lambda: defaultdict())
 ALL_PROVIDER_FILES: list[Path] = []
 
-
 # Allow AST to parse the files.
 sys.path.append(str(AIRFLOW_SOURCES_ROOT))
 
@@ -169,15 +168,9 @@ def check_if_different_provider_used(file_path: Path) -> None:
     imports = get_imports_from_file(file_path)
     for import_name in imports:
         imported_provider = get_provider_id_from_import(import_name, file_path)
-        from setup import NOT_RELEASED_YET_PROVIDERS
-
         if imported_provider is not None and imported_provider not in ALL_PROVIDERS:
             warnings.append(f"The provider {imported_provider} from {file_path} cannot be found.")
-        elif (
-            imported_provider
-            and file_provider != imported_provider
-            and imported_provider not in NOT_RELEASED_YET_PROVIDERS
-        ):
+        elif imported_provider and file_provider != imported_provider:
             ALL_DEPENDENCIES[file_provider]["cross-providers-deps"].append(imported_provider)
 
 
