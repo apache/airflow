@@ -378,6 +378,16 @@ class TestWorker:
             docs[0],
         )
 
+    def test_runtime_class_name_values_are_configurable(self):
+        docs = render_chart(
+            values={
+                "workers": {"runtimeClassName": "nvidia"},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.runtimeClassName", docs[0]) == "nvidia"
+
     def test_livenessprobe_values_are_configurable(self):
         docs = render_chart(
             values={

@@ -1625,6 +1625,14 @@
                         "type": "string"
                     }
                 },
+                "runtimeClassName": {
+                    "description": "Specify runtime for worker pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "priorityClassName": {
                     "description": "Specify priority for worker pods.",
                     "type": [
