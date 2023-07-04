@@ -39,7 +39,6 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexer import Lexer
 from sqlalchemy import delete, func, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
-from sqlalchemy.sql import Select
 
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import errors
@@ -54,6 +53,7 @@ from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql.operators import ColumnOperators
 
@@ -518,21 +518,18 @@ def _get_run_ordering_expr(name: str) -> ColumnOperators:
     return expr.desc()
 
 
-def sorted_dag_runs(
-    query: Select, *, ordering: Sequence[str], limit: int, session: Session
-) -> Sequence[DagRun]:
+def sorted_dag_runs(query: Query, *, ordering: Sequence[str], limit: int) -> Sequence[DagRun]:
     """Produce DAG runs sorted by specified columns.
 
-    :param query: An ORM select object against *DagRun*.
+    :param query: An ORM query object against *DagRun*.
     :param ordering: Column names to sort the runs. should generally come from a
         timetable's ``run_ordering``.
     :param limit: Number of runs to limit to.
-    :param session: SQLAlchemy ORM session object
     :return: A list of DagRun objects ordered by the specified columns. The list
         contains only the *last* objects, but in *ascending* order.
     """
     ordering_exprs = (_get_run_ordering_expr(name) for name in ordering)
-    runs = session.scalars(query.order_by(*ordering_exprs, DagRun.id.desc()).limit(limit)).all()
+    runs = query.order_by(*ordering_exprs, DagRun.id.desc()).limit(limit).all()
     runs.reverse()
     return runs
 
