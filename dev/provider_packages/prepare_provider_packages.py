@@ -123,7 +123,11 @@ ALL_DEPENDENCIES = json.loads(DEPENDENCIES_JSON_FILE_PATH.read_text())
 # those imports need to come after the above sys.path.insert to make sure that Airflow
 # sources are importable without having to add the airflow sources to the PYTHONPATH before
 # running the script
-from setup import PREINSTALLED_PROVIDERS, ALL_PROVIDERS  # type: ignore[attr-defined] # isort:skip # noqa
+from setup import (  # type: ignore[attr-defined] # isort:skip # noqa
+    ALL_PROVIDERS,
+    NOT_RELEASED_YET_PROVIDERS,
+    PREINSTALLED_PROVIDERS,
+)
 
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
@@ -1675,10 +1679,10 @@ def verify_changelog_exists(package: str) -> str:
 def list_providers_packages():
     """List all provider packages."""
     providers = get_all_providers()
-    # For now we should exclude open-lineage from being consider for releasing until it is ready to
-    # be released
-    if "openlineage" in providers:
-        providers.remove("openlineage")
+    # exclude providers we do not release yet
+    for provider in NOT_RELEASED_YET_PROVIDERS:
+        if provider in providers:
+            providers.remove(provider)
     for provider in providers:
         console.print(provider)
 
