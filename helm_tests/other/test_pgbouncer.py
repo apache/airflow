@@ -525,29 +525,6 @@ class TestPgbouncerConfig:
         assert "server_round_robin = 1" in ini
         assert "stats_period = 30" in ini
 
-    def test_pgbouncer_container_lifecycle_webhooks_are_configurable(self):
-        post_start_value = {"exec": {"command": ["bash", "-c", "echo postStart"]}}
-        pre_stop_value = {"exec": {"command": ["bash", "-c", "echo preStop"]}}
-        docs = render_chart(
-            values={
-                "pgbouncer": {
-                    "enabled": True,
-                    "containerLifecycleHooks": {
-                        "postStart": post_start_value,
-                        "preStop": pre_stop_value,
-                    },
-                },
-            },
-            show_only=["templates/pgbouncer/pgbouncer-deployment.yaml"],
-        )
-
-        assert post_start_value == jmespath.search(
-            "spec.template.spec.containers[0].lifecycle.postStart", docs[0]
-        )
-        assert pre_stop_value == jmespath.search(
-            "spec.template.spec.containers[0].lifecycle.preStop", docs[0]
-        )
-
 
 class TestPgbouncerExporter:
     """Tests PgBouncer exporter."""
