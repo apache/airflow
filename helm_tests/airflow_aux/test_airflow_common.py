@@ -439,6 +439,6 @@ class TestAirflowCommon:
                 "spec.template.spec.containers[0].lifecycle.preStop", docs[index]
             )
 
-        # Global security context is not propagated to redis and statsd, so we test default value
+        # Global containerLifecycleHooks is not propagated to redis and statsd, so we test default value
         for index in range(len(docs) - 2, len(docs)):
             assert jmespath.search("spec.template.spec.containers[0].lifecycle", docs[index]) is None

@@ -981,7 +981,7 @@ Set the default value for container Lifecycle Hooks (redis, statsd).
 If no value is passed for <node>.containerLifecycleHooks, lifecycle will not be set
 
 The template can be called like so:
-    include "externalContainerSecurityContext" (list . .Values.statsd)
+    include "containerLifecycleHooks" (list . .Values.statsd)
 
 */}}
 {{- define "externalContainerLifecycleHooks" -}}
