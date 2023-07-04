@@ -44,7 +44,6 @@ class TestOdbcHook:
     def get_hook(self=None, hook_params=None, conn_params=None):
         hook_params = hook_params or {}
         conn_params = conn_params or {}
-
         connection = Connection(
             **{
                 **dict(login="login", password="password", host="host", schema="schema", port=1234),
