@@ -259,7 +259,18 @@ class TestOdbcHook:
         uri = hook.get_uri()
         assert urlsplit(uri).scheme == "my-scheme"
 
-    def test_query_return_value_serialization(self, Row):
+    def test_query_return_pyodbc_row_result(self, Row):
+        pyodbc_result = [Row(id=1, value="value1"), Row(id=2, value="value2")]
+
+        def mock_handler(*_):
+            return pyodbc_result
+
+        hook = self.get_hook(hook_params={"return_serializable": False})
+        result = hook.run("SQL", handler=mock_handler)
+        assert isinstance(result[0], Row)
+        assert pyodbc_result == result
+
+    def test_query_return_serializable_result(self, Row):
         pyodbc_result = [Row(id=1, value="value1"), Row(id=2, value="value2")]
         hook_result = [(1, "value1"), (2, "value2")]
 
