@@ -19,6 +19,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.providers.amazon.aws.triggers.eks import (
+    EksCreateClusterTrigger,
     EksCreateFargateProfileTrigger,
     EksCreateNodegroupTrigger,
     EksDeleteFargateProfileTrigger,
