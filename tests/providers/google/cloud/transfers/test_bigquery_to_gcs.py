@@ -78,7 +78,7 @@ class TestBigQueryToGCSOperator:
             field_delimiter=field_delimiter,
             print_header=print_header,
             labels=labels,
-            project_id=JOB_PROJECT_ID
+            project_id=JOB_PROJECT_ID,
         )
         operator.execute(context=mock.MagicMock())
 
