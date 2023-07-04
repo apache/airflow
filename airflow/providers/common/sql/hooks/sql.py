@@ -424,11 +424,14 @@ class DbApiHook(BaseForDbApiHook):
             return results
 
     def _make_serializable(self, result: Any) -> Any:
-        """Ensure the data returned from a SQL command is JSON-serializable.
+        """Ensure the data returned from an SQL command is JSON-serializable.
 
         This method is intended to be overridden by subclasses of the
         `DbApiHook`. Its purpose is to transform the result of a SQL command
-        into a JSON-serializable format.
+        (typically returned by cursor methods) into a JSON-serializable format.
+
+        If the output of the cursor is already JSON-serializable, this method
+        should be ignored. By default, original result data is returned as-is.
         """
         return result
 
