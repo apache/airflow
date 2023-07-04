@@ -38,7 +38,7 @@ class ValidStateDep(BaseTIDep):
         super().__init__()
 
         if not valid_states:
-            raise AirflowException('ValidStatesDep received an empty set of valid states.')
+            raise AirflowException("ValidStatesDep received an empty set of valid states.")
         self._valid_states = valid_states
 
     def __eq__(self, other):

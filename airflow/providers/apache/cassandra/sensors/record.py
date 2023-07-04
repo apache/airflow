@@ -15,10 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains sensor that check the existence
-of a record in a Cassandra cluster.
-"""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
@@ -54,7 +50,7 @@ class CassandraRecordSensor(BaseSensorOperator):
         when connecting to Cassandra cluster
     """
 
-    template_fields: Sequence[str] = ('table', 'keys')
+    template_fields: Sequence[str] = ("table", "keys")
 
     def __init__(
         self,
@@ -70,6 +66,6 @@ class CassandraRecordSensor(BaseSensorOperator):
         self.keys = keys
 
     def poke(self, context: Context) -> bool:
-        self.log.info('Sensor check existence of record: %s', self.keys)
+        self.log.info("Sensor check existence of record: %s", self.keys)
         hook = CassandraHook(self.cassandra_conn_id)
         return hook.record_exists(self.table, self.keys)

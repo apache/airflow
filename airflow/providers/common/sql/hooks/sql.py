@@ -16,50 +16,76 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from contextlib import closing
 from datetime import datetime
-from typing import Any, Callable, Iterable, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, Protocol, Sequence, cast
+from urllib.parse import urlparse
 
 import sqlparse
 from packaging.version import Version
 from sqlalchemy import create_engine
-from typing_extensions import Protocol
 
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.providers_manager import ProvidersManager
-from airflow.utils.module_loading import import_string
 from airflow.version import version
+
+if TYPE_CHECKING:
+    from airflow.providers.openlineage.extractors import OperatorLineage
+    from airflow.providers.openlineage.sqlparser import DatabaseInfo
+
+
+def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
+    """
+    Determines when results of single query only should be returned.
+
+    For compatibility reasons, the behaviour of the DBAPIHook is somewhat confusing.
+    In some cases, when multiple queries are run, the return value will be an iterable (list) of results
+    -- one for each query. However, in other cases, when single query is run, the return value will be just
+    the result of that single query without wrapping the results in a list.
+
+    The cases when single query results are returned without wrapping them in a list are as follows:
+
+    a) sql is string and ``return_last`` is True (regardless what ``split_statements`` value is)
+    b) sql is string and ``split_statements`` is False
+
+    In all other cases, the results are wrapped in a list, even if there is only one statement to process.
+    In particular, the return value will be a list of query results in the following circumstances:
+
+    a) when ``sql`` is an iterable of string statements (regardless what ``return_last`` value is)
+    b) when ``sql`` is string, ``split_statements`` is True and ``return_last`` is False
+
+    :param sql: sql to run (either string or list of strings)
+    :param return_last: whether last statement output should only be returned
+    :param split_statements: whether to split string statements.
+    :return: True if the hook should return single query results
+    """
+    return isinstance(sql, str) and (return_last or not split_statements)
 
 
 def fetch_all_handler(cursor) -> list[tuple] | None:
-    """Handler for DbApiHook.run() to return results"""
+    """Handler for DbApiHook.run() to return results."""
+    if not hasattr(cursor, "description"):
+        raise RuntimeError(
+            "The database we interact with does not support DBAPI 2.0. Use operator and "
+            "handlers that are specifically designed for your database."
+        )
     if cursor.description is not None:
         return cursor.fetchall()
     else:
         return None
 
 
-def _backported_get_hook(connection, *, hook_params=None):
-    """Return hook based on conn_type
-    For supporting Airflow versions < 2.3, we backport "get_hook()" method. This should be removed
-    when "apache-airflow-providers-slack" will depend on Airflow >= 2.3.
-    """
-    hook = ProvidersManager().hooks.get(connection.conn_type, None)
-
-    if hook is None:
-        raise AirflowException(f'Unknown hook type "{connection.conn_type}"')
-    try:
-        hook_class = import_string(hook.hook_class_name)
-    except ImportError:
-        warnings.warn(
-            f"Could not import {hook.hook_class_name} when discovering {hook.hook_name} {hook.package_name}",
+def fetch_one_handler(cursor) -> list[tuple] | None:
+    """Handler for DbApiHook.run() to return first result."""
+    if not hasattr(cursor, "description"):
+        raise RuntimeError(
+            "The database we interact with does not support DBAPI 2.0. Use operator and "
+            "handlers that are specifically designed for your database."
         )
-        raise
-    if hook_params is None:
-        hook_params = {}
-    return hook_class(**{hook.connection_id_attribute_name: connection.conn_id}, **hook_params)
+    if cursor.description is not None:
+        return cursor.fetchone()
+    else:
+        return None
 
 
 class ConnectorProtocol(Protocol):
@@ -81,7 +107,7 @@ class ConnectorProtocol(Protocol):
 # We want the DbApiHook to derive from the original DbApiHook from airflow, because otherwise
 # SqlSensor and BaseSqlOperator from "airflow.operators" and "airflow.sensors" will refuse to
 # accept the new Hooks as not derived from the original DbApiHook
-if Version(version) < Version('2.4'):
+if Version(version) < Version("2.4"):
     try:
         from airflow.hooks.dbapi import DbApiHook as BaseForDbApiHook
     except ImportError:
@@ -102,13 +128,13 @@ class DbApiHook(BaseForDbApiHook):
     """
 
     # Override to provide the connection name.
-    conn_name_attr = None  # type: str
+    conn_name_attr: str
     # Override to have a default connection id for a particular dbHook
-    default_conn_name = 'default_conn_id'
+    default_conn_name = "default_conn_id"
     # Override if this db supports autocommit.
     supports_autocommit = False
     # Override with the object that exposes the connect method
-    connector = None  # type: Optional[ConnectorProtocol]
+    connector: ConnectorProtocol | None = None
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
     # Override with the db-specific value used for placeholders
@@ -127,13 +153,14 @@ class DbApiHook(BaseForDbApiHook):
         # We should not make schema available in deriving hooks for backwards compatibility
         # If a hook deriving from DBApiHook has a need to access schema, then it should retrieve it
         # from kwargs and store it on its own. We do not run "pop" here as we want to give the
-        # Hook deriving from the DBApiHook to still have access to the field in it's constructor
+        # Hook deriving from the DBApiHook to still have access to the field in its constructor
         self.__schema = schema
         self.log_sql = log_sql
+        self.descriptions: list[Sequence[Sequence] | None] = []
 
     def get_conn(self):
-        """Returns a connection object"""
-        db = self.get_connection(getattr(self, self.conn_name_attr))
+        """Returns a connection object."""
+        db = self.get_connection(getattr(self, cast(str, self.conn_name_attr)))
         return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
 
     def get_uri(self) -> str:
@@ -159,7 +186,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_pandas_df(self, sql, parameters=None, **kwargs):
         """
-        Executes the sql and returns a pandas dataframe
+        Executes the sql and returns a pandas dataframe.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -179,7 +206,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def get_pandas_df_by_chunks(self, sql, parameters=None, *, chunksize, **kwargs):
         """
-        Executes the sql and returns a generator
+        Executes the sql and returns a generator.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -202,54 +229,44 @@ class DbApiHook(BaseForDbApiHook):
         self,
         sql: str | list[str],
         parameters: Iterable | Mapping | None = None,
-        **kwargs: dict,
-    ):
+    ) -> Any:
         """
         Executes the sql and returns a set of records.
 
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                if parameters is not None:
-                    cur.execute(sql, parameters)
-                else:
-                    cur.execute(sql)
-                return cur.fetchall()
+        return self.run(sql=sql, parameters=parameters, handler=fetch_all_handler)
 
-    def get_first(self, sql: str | list[str], parameters=None):
+    def get_first(self, sql: str | list[str], parameters: Iterable | Mapping | None = None) -> Any:
         """
         Executes the sql and returns the first resulting row.
 
-        :param sql: the sql statement to be executed (str) or a list of
-            sql statements to execute
+        :param sql: the sql statement to be executed (str) or a list of sql statements to execute
         :param parameters: The parameters to render the SQL query with.
         """
-        with closing(self.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                if parameters is not None:
-                    cur.execute(sql, parameters)
-                else:
-                    cur.execute(sql)
-                return cur.fetchone()
+        return self.run(sql=sql, parameters=parameters, handler=fetch_one_handler)
 
     @staticmethod
     def strip_sql_string(sql: str) -> str:
-        return sql.strip().rstrip(';')
+        return sql.strip().rstrip(";")
 
     @staticmethod
     def split_sql_string(sql: str) -> list[str]:
         """
-        Splits string into multiple SQL expressions
+        Splits string into multiple SQL expressions.
 
         :param sql: SQL string potentially consisting of multiple expressions
         :return: list of individual expressions
         """
         splits = sqlparse.split(sqlparse.format(sql, strip_comments=True))
-        statements: list[str] = list(filter(None, splits))
-        return statements
+        return [s for s in splits if s]
+
+    @property
+    def last_description(self) -> Sequence[Sequence] | None:
+        if not self.descriptions:
+            return None
+        return self.descriptions[-1]
 
     def run(
         self,
@@ -260,10 +277,45 @@ class DbApiHook(BaseForDbApiHook):
         split_statements: bool = False,
         return_last: bool = True,
     ) -> Any | list[Any] | None:
-        """
-        Runs a command or a list of commands. Pass a list of sql
-        statements to the sql parameter to get them to execute
-        sequentially
+        """Run a command or a list of commands.
+
+        Pass a list of SQL statements to the sql parameter to get them to
+        execute sequentially.
+
+        The method will return either single query results (typically list of rows) or list of those results
+        where each element in the list are results of one of the queries (typically list of list of rows :D)
+
+        For compatibility reasons, the behaviour of the DBAPIHook is somewhat confusing.
+        In some cases, when multiple queries are run, the return value will be an iterable (list) of results
+        -- one for each query. However, in other cases, when single query is run, the return value will
+        be the result of that single query without wrapping the results in a list.
+
+        The cases when single query results are returned without wrapping them in a list are as follows:
+
+        a) sql is string and ``return_last`` is True (regardless what ``split_statements`` value is)
+        b) sql is string and ``split_statements`` is False
+
+        In all other cases, the results are wrapped in a list, even if there is only one statement to process.
+        In particular, the return value will be a list of query results in the following circumstances:
+
+        a) when ``sql`` is an iterable of string statements (regardless what ``return_last`` value is)
+        b) when ``sql`` is string, ``split_statements`` is True and ``return_last`` is False
+
+        After ``run`` is called, you may access the following properties on the hook object:
+
+        * ``descriptions``: an array of cursor descriptions. If ``return_last`` is True, this will be
+          a one-element array containing the cursor ``description`` for the last statement.
+          Otherwise, it will contain the cursor description for each statement executed.
+        * ``last_description``: the description for the last statement executed
+
+        Note that query result will ONLY be actually returned when a handler is provided; if
+        ``handler`` is None, this method will return None.
+
+        Handler is a way to process the rows from cursor (Iterator) into a value that is suitable to be
+        returned to XCom and generally fit in memory.
+
+        You can use pre-defined handles (``fetch_all_handler``, ``fetch_one_handler``) or implement your
+        own handler.
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
@@ -273,32 +325,40 @@ class DbApiHook(BaseForDbApiHook):
         :param handler: The result handler which is called with the result of each statement.
         :param split_statements: Whether to split a single SQL string into statements and run separately
         :param return_last: Whether to return result for only last statement or for all after split
-        :return: return only result of the ALL SQL expressions if handler was provided.
+        :return: if handler provided, returns query results (may be list of results depending on params)
         """
-        scalar_return_last = isinstance(sql, str) and return_last
+        self.descriptions = []
+
         if isinstance(sql, str):
             if split_statements:
-                sql = self.split_sql_string(sql)
+                sql_list: Iterable[str] = self.split_sql_string(sql)
             else:
-                sql = [sql]
+                sql_list = [sql] if sql.strip() else []
+        else:
+            sql_list = sql
 
-        if sql:
-            self.log.debug("Executing following statements against DB: %s", list(sql))
+        if sql_list:
+            self.log.debug("Executing following statements against DB: %s", sql_list)
         else:
             raise ValueError("List of SQL statements is empty")
-
+        _last_result = None
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
                 self.set_autocommit(conn, autocommit)
 
             with closing(conn.cursor()) as cur:
                 results = []
-                for sql_statement in sql:
+                for sql_statement in sql_list:
                     self._run_command(cur, sql_statement, parameters)
 
                     if handler is not None:
                         result = handler(cur)
-                        results.append(result)
+                        if return_single_query_results(sql, return_last, split_statements):
+                            _last_result = result
+                            _last_description = cur.description
+                        else:
+                            results.append(result)
+                            self.descriptions.append(cur.description)
 
             # If autocommit was set to False or db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
@@ -306,8 +366,9 @@ class DbApiHook(BaseForDbApiHook):
 
         if handler is None:
             return None
-        elif scalar_return_last:
-            return results[-1]
+        if return_single_query_results(sql, return_last, split_statements):
+            self.descriptions = [_last_description]
+            return _last_result
         else:
             return results
 
@@ -326,7 +387,7 @@ class DbApiHook(BaseForDbApiHook):
             self.log.info("Rows affected: %s", cur.rowcount)
 
     def set_autocommit(self, conn, autocommit):
-        """Sets the autocommit flag on the connection"""
+        """Sets the autocommit flag on the connection."""
         if not self.supports_autocommit and autocommit:
             self.log.warning(
                 "%s connection doesn't support autocommit but autocommit activated.",
@@ -334,27 +395,24 @@ class DbApiHook(BaseForDbApiHook):
             )
         conn.autocommit = autocommit
 
-    def get_autocommit(self, conn):
-        """
-        Get autocommit setting for the provided connection.
-        Return True if conn.autocommit is set to True.
-        Return False if conn.autocommit is not set or set to False or conn
-        does not support autocommit.
+    def get_autocommit(self, conn) -> bool:
+        """Get autocommit setting for the provided connection.
 
         :param conn: Connection to get autocommit setting from.
-        :return: connection autocommit setting.
-        :rtype: bool
+        :return: connection autocommit setting. True if ``autocommit`` is set
+            to True on the connection. False if it is either not set, set to
+            False, or the connection does not support auto-commit.
         """
-        return getattr(conn, 'autocommit', False) and self.supports_autocommit
+        return getattr(conn, "autocommit", False) and self.supports_autocommit
 
     def get_cursor(self):
-        """Returns a cursor"""
+        """Returns a cursor."""
         return self.get_conn().cursor()
 
     @classmethod
-    def _generate_insert_sql(cls, table, values, target_fields, replace, **kwargs):
-        """
-        Helper class method that generates the INSERT SQL statement.
+    def _generate_insert_sql(cls, table, values, target_fields, replace, **kwargs) -> str:
+        """Helper class method that generates the INSERT SQL statement.
+
         The REPLACE variant is specific to MySQL syntax.
 
         :param table: Name of the target table
@@ -362,7 +420,6 @@ class DbApiHook(BaseForDbApiHook):
         :param target_fields: The names of the columns to fill in the table
         :param replace: Whether to replace instead of insert
         :return: The generated INSERT or REPLACE SQL statement
-        :rtype: str
         """
         placeholders = [
             cls.placeholder,
@@ -372,7 +429,7 @@ class DbApiHook(BaseForDbApiHook):
             target_fields = ", ".join(target_fields)
             target_fields = f"({target_fields})"
         else:
-            target_fields = ''
+            target_fields = ""
 
         if not replace:
             sql = "INSERT INTO "
@@ -382,9 +439,10 @@ class DbApiHook(BaseForDbApiHook):
         return sql
 
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000, replace=False, **kwargs):
-        """
-        A generic way to insert a set of tuples into a table,
-        a new transaction is created every commit_every rows
+        """Insert a collection of tuples into a table.
+
+        Rows are inserted in chunks, each chunk (of size ``commit_every``) is
+        done in a new transaction.
 
         :param table: Name of the target table
         :param rows: The rows to insert into the table
@@ -414,17 +472,16 @@ class DbApiHook(BaseForDbApiHook):
                         self.log.info("Loaded %s rows into %s so far", i, table)
 
             conn.commit()
-        self.log.info("Done loading. Loaded a total of %s rows", i)
+        self.log.info("Done loading. Loaded a total of %s rows into %s", i, table)
 
     @staticmethod
-    def _serialize_cell(cell, conn=None):
+    def _serialize_cell(cell, conn=None) -> str | None:
         """
         Returns the SQL literal of the cell as a string.
 
         :param cell: The cell to insert into the table
         :param conn: The database connection
         :return: The serialized cell
-        :rtype: str
         """
         if cell is None:
             return None
@@ -434,7 +491,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def bulk_dump(self, table, tmp_file):
         """
-        Dumps a database table into a tab-delimited file
+        Dumps a database table into a tab-delimited file.
 
         :param table: The name of the source table
         :param tmp_file: The path of the target file
@@ -443,7 +500,7 @@ class DbApiHook(BaseForDbApiHook):
 
     def bulk_load(self, table, tmp_file):
         """
-        Loads a tab-delimited file into a database table
+        Loads a tab-delimited file into a database table.
 
         :param table: The name of the target table
         :param tmp_file: The path of the file to load into the table
@@ -451,14 +508,63 @@ class DbApiHook(BaseForDbApiHook):
         raise NotImplementedError()
 
     def test_connection(self):
-        """Tests the connection using db-specific query"""
-        status, message = False, ''
+        """Tests the connection using db-specific query."""
+        status, message = False, ""
         try:
             if self.get_first(self._test_connection_sql):
                 status = True
-                message = 'Connection successfully tested'
+                message = "Connection successfully tested"
         except Exception as e:
             status = False
             message = str(e)
 
         return status, message
+
+    def get_openlineage_database_info(self, connection) -> DatabaseInfo | None:
+        """
+        Returns database specific information needed to generate and parse lineage metadata.
+
+        This includes information helpful for constructing information schema query
+        and creating correct namespace.
+
+        :param connection: Airflow connection to reduce calls of `get_connection` method
+        """
+
+    def get_openlineage_database_dialect(self, connection) -> str:
+        """
+        Returns database dialect used for SQL parsing.
+
+        For a list of supported dialects check: https://openlineage.io/docs/development/sql#sql-dialects
+        """
+        return "generic"
+
+    def get_openlineage_default_schema(self) -> str:
+        """
+        Returns default schema specific to database.
+
+        .. seealso::
+            - :class:`airflow.providers.openlineage.sqlparser.SQLParser`
+        """
+        return self.__schema or "public"
+
+    def get_openlineage_database_specific_lineage(self, task_instance) -> OperatorLineage | None:
+        """
+        Returns additional database specific lineage, e.g. query execution information.
+
+        This method is called only on completion of the task.
+
+        :param task_instance: this may be used to retrieve additional information
+            that is collected during runtime of the task
+        """
+
+    @staticmethod
+    def get_openlineage_authority_part(connection) -> str:
+        """
+        This method serves as common method for several hooks to get authority part from Airflow Connection.
+
+        The authority represents the hostname and port of the connection
+        and conforms OpenLineage naming convention for a number of databases (e.g. MySQL, Postgres, Trino).
+        """
+        parsed = urlparse(connection.get_uri())
+        authority = f"{parsed.hostname}:{parsed.port}"
+        return authority

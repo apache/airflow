@@ -26,7 +26,7 @@ import sys
 
 from airflow.compat.functools import cache
 
-IS_WINDOWS = platform.system() == 'Windows'
+IS_WINDOWS = platform.system() == "Windows"
 
 log = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ def get_airflow_git_version():
     """Returns the git commit hash representing the current version of the application."""
     git_version = None
     try:
-        git_version = str(pkgutil.get_data('airflow', 'git_version'), encoding="UTF-8")
+        git_version = str(pkgutil.get_data("airflow", "git_version"), encoding="UTF-8")
     except Exception as e:
         log.debug(e)
 

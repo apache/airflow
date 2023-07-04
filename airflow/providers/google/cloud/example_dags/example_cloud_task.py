@@ -32,22 +32,22 @@ from datetime import datetime
 from airflow import models
 from airflow.providers.google.cloud.sensors.tasks import TaskQueueEmptySensor
 
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
-GCP_ZONE = os.environ.get('GCE_ZONE', 'europe-west1-b')
-QUEUE_NAME = os.environ.get('GCP_QUEUE_NAME', 'testqueue')
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
+GCP_ZONE = os.environ.get("GCE_ZONE", "europe-west1-b")
+QUEUE_NAME = os.environ.get("GCP_QUEUE_NAME", "testqueue")
 
 
 with models.DAG(
-    'example_gcp_cloud_tasks_sensor',
+    "example_gcp_cloud_tasks_sensor",
     start_date=datetime(2022, 8, 8),
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START cloud_tasks_empty_sensor]
     gcp_cloud_tasks_sensor = TaskQueueEmptySensor(
         project_id=GCP_PROJECT_ID,
         location=GCP_ZONE,
-        task_id='gcp_sense_cloud_tasks_empty',
+        task_id="gcp_sense_cloud_tasks_empty",
         queue_name=QUEUE_NAME,
     )
     # [END cloud_tasks_empty_sensor]

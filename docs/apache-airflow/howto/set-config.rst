@@ -38,6 +38,19 @@ or by creating a corresponding environment variable:
 
     export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=my_conn_string
 
+Note that when the section name has a dot in it, you must replace it with an underscore when setting the env var.
+For example consider the pretend section ``providers.some_provider``:
+
+.. code-block:: ini
+
+    [providers.some_provider>]
+    this_param = true
+
+.. code-block:: bash
+
+    export AIRFLOW__PROVIDERS_SOME_PROVIDER__THIS_PARAM=true
+
+
 You can also derive the connection string at run time by appending ``_cmd`` to
 the key like this:
 
@@ -118,7 +131,7 @@ the example below.
     For more information on configuration options, see :doc:`../configurations-ref`
 
 .. note::
-    See :doc:`../modules_management` for details on how Python and Airflow manage modules.
+    See :doc:`/administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
 
 .. note::
     Use the same configuration across all the Airflow components. While each component
@@ -130,3 +143,15 @@ the example below.
     generated using the secret key has a short expiry time though - make sure that time on ALL the machines
     that you run airflow components on is synchronized (for example using ntpd) otherwise you might get
     "forbidden" errors when the logs are accessed.
+
+
+Configuring Flask Application for Airflow Webserver
+===================================================
+
+Airflow uses Flask to render the web UI. When you initialize the Airflow webserver, predefined configuration
+is used, based on the ``webserver`` section of the ``airflow.cfg`` file. You can override these settings
+and add any extra settings however by adding flask configuration to ``webserver_config.py`` file in your
+``$AIRFLOW_HOME`` directory. This file is automatically loaded by the webserver.
+
+For example if you would like to change rate limit strategy to "moving window", you can set the
+``RATELIMIT_STRATEGY`` to ``moving-window``.

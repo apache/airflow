@@ -82,3 +82,11 @@ should be documented inside the docstring of the test file.
 
 Please see [CONTRIBUTING.md](CONTRIBUTING.md) for community guidelines and best practices for
 writing AWS System Tests for Apache Airflow.
+
+## Dashboard
+
+You can see the latest health status of all AWS-related system tests in
+[this dashboard](https://aws-mwaa.github.io/open-source/system-tests/dashboard.html). In this dashboard are listed all
+AWS-related system tests and some statistics about the last executions, such as: number of invocations, number of
+successes, number of failures and average duration. You can also see the status (succeed/failed) of the last 10
+executions for each system test.

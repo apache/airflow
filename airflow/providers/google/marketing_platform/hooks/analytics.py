@@ -79,7 +79,6 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         :param web_property_ad_words_link_id: to retrieve the Google Ads link for.
 
         :returns: web property-Google Ads
-        :rtype: Dict
         """
         self.log.info("Retrieving ad words links...")
         ad_words_link = (
@@ -103,7 +102,6 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         :param web_property_id: Web property UA-string to retrieve the Google Ads links for.
 
         :returns: list of entity Google Ads links.
-        :rtype: list
         """
         self.log.info("Retrieving ad words list...")
         conn = self.get_conn()
@@ -121,7 +119,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         resumable_upload: bool = False,
     ) -> None:
         """
-        Uploads file to GA via the Data Import API
+        Uploads file to GA via the Data Import API.
 
         :param file_location: The path and name of the file to upload.
         :param account_id: The GA account Id to which the data upload belongs.
@@ -158,7 +156,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
         delete_request_body: dict[str, Any],
     ) -> None:
         """
-        Deletes the uploaded data for a given account/property/dataset
+        Deletes the uploaded data for a given account/property/dataset.
 
         :param account_id: The GA account Id to which the data upload belongs.
         :param web_property_id: UA-string associated with the upload.
@@ -182,7 +180,7 @@ class GoogleAnalyticsHook(GoogleBaseHook):
 
     def list_uploads(self, account_id, web_property_id, custom_data_source_id) -> list[dict[str, Any]]:
         """
-        Get list of data upload from GA
+        Get list of data upload from GA.
 
         :param account_id: The GA account Id to which the data upload belongs.
         :param web_property_id: UA-string associated with the upload.

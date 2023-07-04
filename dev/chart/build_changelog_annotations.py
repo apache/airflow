@@ -59,7 +59,7 @@ PREFIXES_TO_STRIP = [
 
 
 def parse_line(line: str) -> tuple[str | None, int | None]:
-    match = re.search(r'^- (.*?)(?:\(#(\d+)\)){0,1}$', line)
+    match = re.search(r"^- (.*?)(?:\(#(\d+)\)){0,1}$", line)
     if not match:
         return None, None
     desc, pr_number = match.groups()
@@ -96,7 +96,7 @@ with open("chart/RELEASE_NOTES.rst") as f:
                 break
             in_first_release = True
             continue
-        if line.startswith('"""') or line.startswith('----') or line.startswith('^^^^'):
+        if line.startswith('"""') or line.startswith("----") or line.startswith("^^^^"):
             continue
 
         # Make sure we get past "significant features" before we actually start keeping track
@@ -106,7 +106,7 @@ with open("chart/RELEASE_NOTES.rst") as f:
                 past_significant_changes = True
             continue
 
-        if not line.startswith('- '):
+        if not line.startswith("- "):
             section = line
             continue
 

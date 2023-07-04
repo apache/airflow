@@ -31,23 +31,23 @@ from airflow.security import permissions
 from airflow.www.fab_security.sqla.models import Action, Permission, Resource
 
 # revision identifiers, used by Alembic.
-revision = '849da589634d'
-down_revision = '45ba3f1493b9'
+revision = "849da589634d"
+down_revision = "45ba3f1493b9"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.0'
+airflow_version = "2.0.0"
 
 
 def prefix_individual_dag_permissions(session):
-    dag_perms = ['can_dag_read', 'can_dag_edit']
+    dag_perms = ["can_dag_read", "can_dag_edit"]
     prefix = "DAG:"
     perms = (
         session.query(Permission)
         .join(Action)
         .filter(Action.name.in_(dag_perms))
         .join(Resource)
-        .filter(Resource.name != 'all_dags')
-        .filter(Resource.name.notlike(prefix + '%'))
+        .filter(Resource.name != "all_dags")
+        .filter(Resource.name.notlike(prefix + "%"))
         .all()
     )
     resource_ids = {permission.resource.id for permission in perms}
@@ -57,14 +57,14 @@ def prefix_individual_dag_permissions(session):
 
 
 def remove_prefix_in_individual_dag_permissions(session):
-    dag_perms = ['can_read', 'can_edit']
+    dag_perms = ["can_read", "can_edit"]
     prefix = "DAG:"
     perms = (
         session.query(Permission)
         .join(Action)
         .filter(Action.name.in_(dag_perms))
         .join(Resource)
-        .filter(Resource.name.like(prefix + '%'))
+        .filter(Resource.name.like(prefix + "%"))
         .all()
     )
     for permission in perms:
@@ -86,12 +86,12 @@ def get_or_create_dag_resource(session):
 
 
 def get_or_create_all_dag_resource(session):
-    all_dag_resource = get_resource_query(session, 'all_dags').first()
+    all_dag_resource = get_resource_query(session, "all_dags").first()
     if all_dag_resource:
         return all_dag_resource
 
     all_dag_resource = Resource()
-    all_dag_resource.name = 'all_dags'
+    all_dag_resource.name = "all_dags"
     session.add(all_dag_resource)
     session.commit()
 
@@ -156,19 +156,19 @@ def migrate_to_new_dag_permissions(db):
     prefix_individual_dag_permissions(db.session)
 
     # Update existing permissions to use `can_read` instead of `can_dag_read`
-    can_dag_read_action = get_action_query(db.session, 'can_dag_read').first()
+    can_dag_read_action = get_action_query(db.session, "can_dag_read").first()
     old_can_dag_read_permissions = get_permission_with_action_query(db.session, can_dag_read_action)
-    can_read_action = get_or_create_action(db.session, 'can_read')
+    can_read_action = get_or_create_action(db.session, "can_read")
     update_permission_action(db.session, old_can_dag_read_permissions, can_read_action)
 
     # Update existing permissions to use `can_edit` instead of `can_dag_edit`
-    can_dag_edit_action = get_action_query(db.session, 'can_dag_edit').first()
+    can_dag_edit_action = get_action_query(db.session, "can_dag_edit").first()
     old_can_dag_edit_permissions = get_permission_with_action_query(db.session, can_dag_edit_action)
-    can_edit_action = get_or_create_action(db.session, 'can_edit')
+    can_edit_action = get_or_create_action(db.session, "can_edit")
     update_permission_action(db.session, old_can_dag_edit_permissions, can_edit_action)
 
     # Update existing permissions for `all_dags` resource to use `DAGs` resource.
-    all_dags_resource = get_resource_query(db.session, 'all_dags').first()
+    all_dags_resource = get_resource_query(db.session, "all_dags").first()
     if all_dags_resource:
         old_all_dags_permission = get_permission_with_resource_query(db.session, all_dags_resource)
         dag_resource = get_or_create_dag_resource(db.session)
@@ -193,15 +193,15 @@ def undo_migrate_to_new_dag_permissions(session):
     remove_prefix_in_individual_dag_permissions(session)
 
     # Update existing permissions to use `can_dag_read` instead of `can_read`
-    can_read_action = get_action_query(session, 'can_read').first()
+    can_read_action = get_action_query(session, "can_read").first()
     new_can_read_permissions = get_permission_with_action_query(session, can_read_action)
-    can_dag_read_action = get_or_create_action(session, 'can_dag_read')
+    can_dag_read_action = get_or_create_action(session, "can_dag_read")
     update_permission_action(session, new_can_read_permissions, can_dag_read_action)
 
     # Update existing permissions to use `can_dag_edit` instead of `can_edit`
-    can_edit_action = get_action_query(session, 'can_edit').first()
+    can_edit_action = get_action_query(session, "can_edit").first()
     new_can_edit_permissions = get_permission_with_action_query(session, can_edit_action)
-    can_dag_edit_action = get_or_create_action(session, 'can_dag_edit')
+    can_dag_edit_action = get_or_create_action(session, "can_dag_edit")
     update_permission_action(session, new_can_edit_permissions, can_dag_edit_action)
 
     # Update existing permissions for `DAGs` resource to use `all_dags` resource.

@@ -28,14 +28,169 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.1.1
+.....
+
+Latest change: 2023-06-20
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
+`6724eeb621 <https://github.com/apache/airflow/commit/6724eeb6210d5965937eaf9dae3e476eb30f8268>`_  2023-06-18   ``Sanitize beeline principal parameter (#31983)``
+`13890788ae <https://github.com/apache/airflow/commit/13890788ae939328d451daeaea54f493f4aaaa69>`_  2023-06-07   ``Apache provider docstring improvements (#31730)``
+`fbeb01cb17 <https://github.com/apache/airflow/commit/fbeb01cb17b7cb9c2e27ac7010f423a2bced78b4>`_  2023-06-07   ``Replace unicodecsv with standard csv library (#31693)``
+`9276310a43 <https://github.com/apache/airflow/commit/9276310a43d17a9e9e38c2cb83686a15656896b2>`_  2023-06-05   ``Improve docstrings in providers (#31681)``
+`a473facf6c <https://github.com/apache/airflow/commit/a473facf6c0b36f7d051ecc2d1aa94ba6957468d>`_  2023-06-01   ``Add D400 pydocstyle check - Apache providers only (#31424)``
+`c5597d1fab <https://github.com/apache/airflow/commit/c5597d1fabe5d8f3a170885f6640344d93bf64bf>`_  2023-05-23   ``Add Python 3.11 support (#27264)``
+=================================================================================================  ===========  ==============================================================
+
+6.1.0
+.....
+
+Latest change: 2023-05-19
+
+=================================================================================================  ===========  ======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================
+`45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
+`abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
+`f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
+`cb71d41c75 <https://github.com/apache/airflow/commit/cb71d41c75ca1b2ddf06b383e767a25c817e5b9f>`_  2023-05-03   ``Update return types of 'get_key' methods on 'S3Hook' (#30923)``
+`0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+`58294c5440 <https://github.com/apache/airflow/commit/58294c5440608b1a58828cbae36f91b7148c04b4>`_  2023-04-10   ``Decouple "job runner" from BaseJob ORM model (#30255)``
+`d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``
+=================================================================================================  ===========  ======================================================================================
+
+6.0.0
+.....
+
+Latest change: 2023-04-02
+
+=================================================================================================  ===========  =============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================
+`55dbf1ff1f <https://github.com/apache/airflow/commit/55dbf1ff1fb0b22714f695a66f6108b3249d1199>`_  2023-04-02   ``Prepare docs for April 2023 wave of Providers (#30378)``
+`f01140141f <https://github.com/apache/airflow/commit/f01140141f1fe51b6ee1eba5b02ab7516a67c9c7>`_  2023-03-21   ``Move auth parameter from extra to Hook parameter (#30212)``
+=================================================================================================  ===========  =============================================================
+
+5.1.3
+.....
+
+Latest change: 2023-02-18
+
+=================================================================================================  ===========  ================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================
+`470fdaea27 <https://github.com/apache/airflow/commit/470fdaea275660970777c0f72b8867b382eabc14>`_  2023-02-18   ``Prepare docs for 02 2023 midmonth wave of Providers (#29589)``
+`1cb127b9fd <https://github.com/apache/airflow/commit/1cb127b9fd22a7dc8e0b82cab8acb7cd4c317c9c>`_  2023-02-15   ``Validate Hive Beeline parameters (#29502)``
+=================================================================================================  ===========  ================================================================
+
+5.1.2
+.....
+
+Latest change: 2023-02-08
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`ce6ae2457e <https://github.com/apache/airflow/commit/ce6ae2457ef3d9f44f0086b58026909170bbf22a>`_  2023-02-08   ``Prepare docs for Feb 2023 wave of Providers (#29379)``
+`23da4daaa0 <https://github.com/apache/airflow/commit/23da4daaa018e72b39b977afcde85deaf2224f1e>`_  2023-01-18   ``Revert "Remove conn.close() ignores (#29005)" (#29010)``
+`85f8df7b8a <https://github.com/apache/airflow/commit/85f8df7b8a18e1147c7e014a7af7fc4e66aaa8be>`_  2023-01-18   ``Remove conn.close() ignores (#29005)``
+`aa97474020 <https://github.com/apache/airflow/commit/aa97474020712d3f450ab169a5a054580e7b7d28>`_  2023-01-18   ``Fixed MyPy errors introduced by new mysql-connector-python (#28995)``
+=================================================================================================  ===========  =======================================================================
+
+5.1.1
+.....
+
+Latest change: 2023-01-14
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`911b708ffd <https://github.com/apache/airflow/commit/911b708ffddd4e7cb6aaeac84048291891eb0f1f>`_  2023-01-14   ``Prepare docs for Jan 2023 mid-month wave of Providers (#28929)``
+`45dd0c484e <https://github.com/apache/airflow/commit/45dd0c484e16ff56800cc9c047f56b4a909d2d0d>`_  2023-01-11   ``Move local_infile option from extra to hook parameter (#28811)``
+=================================================================================================  ===========  ==================================================================
+
+5.1.0
+.....
+
+Latest change: 2023-01-02
+
+=================================================================================================  ===========  ================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================
+`5246c009c5 <https://github.com/apache/airflow/commit/5246c009c557b4f6bdf1cd62bf9b89a2da63f630>`_  2023-01-02   ``Prepare docs for Jan 2023 wave of Providers (#28651)``
+`4e545c6e54 <https://github.com/apache/airflow/commit/4e545c6e54712eedb6ca9cbb8333393ae3f6cba2>`_  2022-12-27   ``Move Hive macros to the provider (#28538)``
+`d9ae90fc64 <https://github.com/apache/airflow/commit/d9ae90fc6478133767e29774920ed797175146bc>`_  2022-12-21   ``Make pandas dependency optional for Amazon Provider (#28505)``
+=================================================================================================  ===========  ================================================================
+
+5.0.0
+.....
+
+Latest change: 2022-12-13
+
+=================================================================================================  ===========  ===============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================
+`443df3b9c8 <https://github.com/apache/airflow/commit/443df3b9c8ef698e0204490c535f78c6c70276f3>`_  2022-12-13   ``Prepare ad hoc providers release (#28327)``
+`5f8481c799 <https://github.com/apache/airflow/commit/5f8481c799ea6bd742a5ccc194b2ff8dbe01eab5>`_  2022-12-06   ``Move hive_cli_params to hook parameters (#28101)``
+`2d45f9d6c3 <https://github.com/apache/airflow/commit/2d45f9d6c30aabebce3449eae9f152ba6d2306e2>`_  2022-11-27   ``Improve filtering for invalid schemas in Hive hook (#27808)``
+=================================================================================================  ===========  ===============================================================
+
+4.1.1
+.....
+
+Latest change: 2022-11-26
+
+=================================================================================================  ===========  ================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================
+`25bdbc8e67 <https://github.com/apache/airflow/commit/25bdbc8e6768712bad6043618242eec9c6632618>`_  2022-11-26   ``Updated docs for RC3 wave of providers (#27937)``
+`2e20e9f7eb <https://github.com/apache/airflow/commit/2e20e9f7ebf5f43bf27069f4c0063cdd72e6b2e2>`_  2022-11-24   ``Prepare for follow-up relase for November providers (#27774)``
+`80c327bd3b <https://github.com/apache/airflow/commit/80c327bd3b45807ff2e38d532325bccd6fe0ede0>`_  2022-11-24   ``Bump common.sql provider to 1.3.1 (#27888)``
+=================================================================================================  ===========  ================================================================
+
+4.1.0
+.....
+
+Latest change: 2022-11-15
+
+=================================================================================================  ===========  =========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================
+`12c3c39d1a <https://github.com/apache/airflow/commit/12c3c39d1a816c99c626fe4c650e88cf7b1cc1bc>`_  2022-11-15   ``pRepare docs for November 2022 wave of Providers (#27613)``
+`150dd927c3 <https://github.com/apache/airflow/commit/150dd927c3297daccab507bc5a5f2c3a32f24d5f>`_  2022-11-14   ``Filter out invalid schemas in Hive hook (#27647)``
+`9ab1a6a3e7 <https://github.com/apache/airflow/commit/9ab1a6a3e70b32a3cddddf0adede5d2f3f7e29ea>`_  2022-10-27   ``Update old style typing (#26872)``
+`78b8ea2f22 <https://github.com/apache/airflow/commit/78b8ea2f22239db3ef9976301234a66e50b47a94>`_  2022-10-24   ``Move min airflow version to 2.3.0 for all providers (#27196)``
+`2a34dc9e84 <https://github.com/apache/airflow/commit/2a34dc9e8470285b0ed2db71109ef4265e29688b>`_  2022-10-23   ``Enable string normalization in python formatting - providers (#27205)``
+=================================================================================================  ===========  =========================================================================
+
+4.0.1
+.....
+
+Latest change: 2022-09-28
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`f8db64c35c <https://github.com/apache/airflow/commit/f8db64c35c8589840591021a48901577cff39c07>`_  2022-09-28   ``Update docs for September Provider's release (#26731)``
+`06acf40a43 <https://github.com/apache/airflow/commit/06acf40a4337759797f666d5bb27a5a393b74fed>`_  2022-09-13   ``Apply PEP-563 (Postponed Evaluation of Annotations) to non-core airflow (#26289)``
+`ca9229b6fe <https://github.com/apache/airflow/commit/ca9229b6fe7eda198c7ce32da13afb97ab9f3e28>`_  2022-08-18   ``Add common-sql lower bound for common-sql (#25789)``
+=================================================================================================  ===========  ====================================================================================
+
 4.0.0
 .....
 
-Latest change: 2022-08-04
+Latest change: 2022-08-10
 
 =================================================================================================  ===========  ===========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
+`e5ac6c7cfb <https://github.com/apache/airflow/commit/e5ac6c7cfb189c33e3b247f7d5aec59fe5e89a00>`_  2022-08-10   ``Prepare docs for new providers release (August 2022) (#25618)``
 `7e3d2350db <https://github.com/apache/airflow/commit/7e3d2350dbb23b9c98bbadf73296425648e1e42d>`_  2022-08-04   ``Remove Smart Sensors (#25507)``
 `5d4abbd58c <https://github.com/apache/airflow/commit/5d4abbd58c33e7dfa8505e307d43420459d3df55>`_  2022-07-27   ``Deprecate hql parameters and synchronize DBApiHook method APIs (#25299)``
 =================================================================================================  ===========  ===========================================================================

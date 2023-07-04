@@ -32,8 +32,15 @@ from google.cloud.automl_v1beta1 import (
     TableSpec,
 )
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
+from airflow.providers.google.cloud.links.automl import (
+    AutoMLDatasetLink,
+    AutoMLDatasetListLink,
+    AutoMLModelLink,
+    AutoMLModelPredictLink,
+    AutoMLModelTrainLink,
+)
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -41,7 +48,7 @@ if TYPE_CHECKING:
 MetaData = Sequence[Tuple[str, str]]
 
 
-class AutoMLTrainModelOperator(BaseOperator):
+class AutoMLTrainModelOperator(GoogleCloudBaseOperator):
     """
     Creates Google Cloud AutoML model.
 
@@ -75,6 +82,10 @@ class AutoMLTrainModelOperator(BaseOperator):
         "project_id",
         "impersonation_chain",
     )
+    operator_extra_links = (
+        AutoMLModelTrainLink(),
+        AutoMLModelLink(),
+    )
 
     def __init__(
         self,
@@ -105,7 +116,7 @@ class AutoMLTrainModelOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info("Creating model.")
+        self.log.info("Creating model %s...", self.model["display_name"])
         operation = hook.create_model(
             model=self.model,
             location=self.location,
@@ -114,15 +125,27 @@ class AutoMLTrainModelOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = Model.to_dict(operation.result())
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLModelTrainLink.persist(context=context, task_instance=self, project_id=project_id)
+        operation_result = hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        result = Model.to_dict(operation_result)
         model_id = hook.extract_object_id(result)
-        self.log.info("Model created: %s", model_id)
+        self.log.info("Model is created, model_id: %s", model_id)
 
         self.xcom_push(context, key="model_id", value=model_id)
+        if project_id:
+            AutoMLModelLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=self.model["dataset_id"] or "-",
+                model_id=model_id,
+                project_id=project_id,
+            )
         return result
 
 
-class AutoMLPredictOperator(BaseOperator):
+class AutoMLPredictOperator(GoogleCloudBaseOperator):
     """
     Runs prediction operation on Google Cloud AutoML.
 
@@ -158,6 +181,7 @@ class AutoMLPredictOperator(BaseOperator):
         "project_id",
         "impersonation_chain",
     )
+    operator_extra_links = (AutoMLModelPredictLink(),)
 
     def __init__(
         self,
@@ -202,10 +226,18 @@ class AutoMLPredictOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLModelPredictLink.persist(
+                context=context,
+                task_instance=self,
+                model_id=self.model_id,
+                project_id=project_id,
+            )
         return PredictResponse.to_dict(result)
 
 
-class AutoMLBatchPredictOperator(BaseOperator):
+class AutoMLBatchPredictOperator(GoogleCloudBaseOperator):
     """
     Perform a batch prediction on Google Cloud AutoML.
 
@@ -252,6 +284,7 @@ class AutoMLBatchPredictOperator(BaseOperator):
         "project_id",
         "impersonation_chain",
     )
+    operator_extra_links = (AutoMLModelPredictLink(),)
 
     def __init__(
         self,
@@ -300,12 +333,21 @@ class AutoMLBatchPredictOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = BatchPredictResult.to_dict(operation.result())
-        self.log.info("Batch prediction ready.")
+        operation_result = hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        result = BatchPredictResult.to_dict(operation_result)
+        self.log.info("Batch prediction is ready.")
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLModelPredictLink.persist(
+                context=context,
+                task_instance=self,
+                model_id=self.model_id,
+                project_id=project_id,
+            )
         return result
 
 
-class AutoMLCreateDatasetOperator(BaseOperator):
+class AutoMLCreateDatasetOperator(GoogleCloudBaseOperator):
     """
     Creates a Google Cloud AutoML dataset.
 
@@ -341,6 +383,7 @@ class AutoMLCreateDatasetOperator(BaseOperator):
         "project_id",
         "impersonation_chain",
     )
+    operator_extra_links = (AutoMLDatasetLink(),)
 
     def __init__(
         self,
@@ -371,7 +414,7 @@ class AutoMLCreateDatasetOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info("Creating dataset")
+        self.log.info("Creating dataset %s...", self.dataset)
         result = hook.create_dataset(
             dataset=self.dataset,
             location=self.location,
@@ -385,10 +428,18 @@ class AutoMLCreateDatasetOperator(BaseOperator):
         self.log.info("Creating completed. Dataset id: %s", dataset_id)
 
         self.xcom_push(context, key="dataset_id", value=dataset_id)
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLDatasetLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=dataset_id,
+                project_id=project_id,
+            )
         return result
 
 
-class AutoMLImportDataOperator(BaseOperator):
+class AutoMLImportDataOperator(GoogleCloudBaseOperator):
     """
     Imports data to a Google Cloud AutoML dataset.
 
@@ -426,6 +477,7 @@ class AutoMLImportDataOperator(BaseOperator):
         "project_id",
         "impersonation_chain",
     )
+    operator_extra_links = (AutoMLDatasetLink(),)
 
     def __init__(
         self,
@@ -458,7 +510,7 @@ class AutoMLImportDataOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info("Importing dataset")
+        self.log.info("Importing data to dataset...")
         operation = hook.import_data(
             dataset_id=self.dataset_id,
             input_config=self.input_config,
@@ -468,11 +520,19 @@ class AutoMLImportDataOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        operation.result()
-        self.log.info("Import completed")
+        hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        self.log.info("Import is completed")
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLDatasetLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=self.dataset_id,
+                project_id=project_id,
+            )
 
 
-class AutoMLTablesListColumnSpecsOperator(BaseOperator):
+class AutoMLTablesListColumnSpecsOperator(GoogleCloudBaseOperator):
     """
     Lists column specs in a table.
 
@@ -518,6 +578,7 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         "project_id",
         "impersonation_chain",
     )
+    operator_extra_links = (AutoMLDatasetLink(),)
 
     def __init__(
         self,
@@ -570,11 +631,18 @@ class AutoMLTablesListColumnSpecsOperator(BaseOperator):
         )
         result = [ColumnSpec.to_dict(spec) for spec in page_iterator]
         self.log.info("Columns specs obtained.")
-
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLDatasetLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=self.dataset_id,
+                project_id=project_id,
+            )
         return result
 
 
-class AutoMLTablesUpdateDatasetOperator(BaseOperator):
+class AutoMLTablesUpdateDatasetOperator(GoogleCloudBaseOperator):
     """
     Updates a dataset.
 
@@ -610,6 +678,7 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
         "location",
         "impersonation_chain",
     )
+    operator_extra_links = (AutoMLDatasetLink(),)
 
     def __init__(
         self,
@@ -649,10 +718,18 @@ class AutoMLTablesUpdateDatasetOperator(BaseOperator):
             metadata=self.metadata,
         )
         self.log.info("Dataset updated.")
+        project_id = hook.project_id
+        if project_id:
+            AutoMLDatasetLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=hook.extract_object_id(self.dataset),
+                project_id=project_id,
+            )
         return Dataset.to_dict(result)
 
 
-class AutoMLGetModelOperator(BaseOperator):
+class AutoMLGetModelOperator(GoogleCloudBaseOperator):
     """
     Get Google Cloud AutoML model.
 
@@ -687,6 +764,7 @@ class AutoMLGetModelOperator(BaseOperator):
         "project_id",
         "impersonation_chain",
     )
+    operator_extra_links = (AutoMLModelLink(),)
 
     def __init__(
         self,
@@ -725,10 +803,20 @@ class AutoMLGetModelOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return Model.to_dict(result)
+        model = Model.to_dict(result)
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLModelLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=model["dataset_id"],
+                model_id=self.model_id,
+                project_id=project_id,
+            )
+        return model
 
 
-class AutoMLDeleteModelOperator(BaseOperator):
+class AutoMLDeleteModelOperator(GoogleCloudBaseOperator):
     """
     Delete Google Cloud AutoML model.
 
@@ -801,10 +889,11 @@ class AutoMLDeleteModelOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        operation.result()
+        hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        self.log.info("Deletion is completed")
 
 
-class AutoMLDeployModelOperator(BaseOperator):
+class AutoMLDeployModelOperator(GoogleCloudBaseOperator):
     """
     Deploys a model. If a model is already deployed, deploying it with the same parameters
     has no effect. Deploying with different parameters (as e.g. changing node_number) will
@@ -890,11 +979,11 @@ class AutoMLDeployModelOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        operation.result()
-        self.log.info("Model deployed.")
+        hook.wait_for_operation(timeout=self.timeout, operation=operation)
+        self.log.info("Model was deployed successfully.")
 
 
-class AutoMLTablesListTableSpecsOperator(BaseOperator):
+class AutoMLTablesListTableSpecsOperator(GoogleCloudBaseOperator):
     """
     Lists table specs in a dataset.
 
@@ -935,6 +1024,7 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
         "project_id",
         "impersonation_chain",
     )
+    operator_extra_links = (AutoMLDatasetLink(),)
 
     def __init__(
         self,
@@ -982,10 +1072,18 @@ class AutoMLTablesListTableSpecsOperator(BaseOperator):
         result = [TableSpec.to_dict(spec) for spec in page_iterator]
         self.log.info(result)
         self.log.info("Table specs obtained.")
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLDatasetLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=self.dataset_id,
+                project_id=project_id,
+            )
         return result
 
 
-class AutoMLListDatasetOperator(BaseOperator):
+class AutoMLListDatasetOperator(GoogleCloudBaseOperator):
     """
     Lists AutoML Datasets in project.
 
@@ -1017,6 +1115,7 @@ class AutoMLListDatasetOperator(BaseOperator):
         "project_id",
         "impersonation_chain",
     )
+    operator_extra_links = (AutoMLDatasetListLink(),)
 
     def __init__(
         self,
@@ -1060,10 +1159,13 @@ class AutoMLListDatasetOperator(BaseOperator):
             key="dataset_id_list",
             value=[hook.extract_object_id(d) for d in result],
         )
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            AutoMLDatasetListLink.persist(context=context, task_instance=self, project_id=project_id)
         return result
 
 
-class AutoMLDeleteDatasetOperator(BaseOperator):
+class AutoMLDeleteDatasetOperator(GoogleCloudBaseOperator):
     """
     Deletes a dataset and all of its contents.
 

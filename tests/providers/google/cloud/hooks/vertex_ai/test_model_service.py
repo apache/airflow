@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.hooks.vertex_ai.model_service import ModelServiceHook
@@ -38,8 +39,12 @@ BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 MODEL_SERVICE_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.model_service.{}"
 
 
-class TestModelServiceWithDefaultProjectIdHook(TestCase):
-    def setUp(self):
+class TestModelServiceWithDefaultProjectIdHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            ModelServiceHook(gcp_conn_id=TEST_GCP_CONN_ID, delegate_to="delegate_to")
+
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
@@ -127,8 +132,8 @@ class TestModelServiceWithDefaultProjectIdHook(TestCase):
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
 
 
-class TestModelServiceWithoutDefaultProjectIdHook(TestCase):
-    def setUp(self):
+class TestModelServiceWithoutDefaultProjectIdHook:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
         ):

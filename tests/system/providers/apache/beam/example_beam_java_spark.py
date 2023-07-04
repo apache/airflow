@@ -35,7 +35,7 @@ with models.DAG(
     schedule=None,  # Override to match your needs
     start_date=START_DATE,
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
 
     jar_to_local_spark_runner = GCSToLocalFilesystemOperator(
@@ -50,10 +50,10 @@ with models.DAG(
         runner="SparkRunner",
         jar="/tmp/beam_wordcount_spark_runner_{{ ds_nodash }}.jar",
         pipeline_options={
-            'output': '/tmp/start_java_pipeline_spark_runner',
-            'inputFile': GCS_INPUT,
+            "output": "/tmp/start_java_pipeline_spark_runner",
+            "inputFile": GCS_INPUT,
         },
-        job_class='org.apache.beam.examples.WordCount',
+        job_class="org.apache.beam.examples.WordCount",
     )
 
     jar_to_local_spark_runner >> start_java_pipeline_spark_runner

@@ -20,5 +20,8 @@ services:
   mssql:
     volumes:
       - mssql-db-volume:/var/opt/mssql
+  mssqlsetup:
+    volumes:
+      - mssql-db-volume:/var/opt/mssql
 volumes:
   mssql-db-volume:

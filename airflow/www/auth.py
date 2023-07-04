@@ -38,7 +38,8 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
             appbuilder = current_app.appbuilder
 
             dag_id = (
-                request.args.get("dag_id")
+                kwargs.get("dag_id")
+                or request.args.get("dag_id")
                 or request.form.get("dag_id")
                 or (request.is_json and request.json.get("dag_id"))
                 or None
@@ -48,10 +49,10 @@ def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable
             elif not g.user.is_anonymous and not g.user.perms:
                 return (
                     render_template(
-                        'airflow/no_roles_permissions.html',
+                        "airflow/no_roles_permissions.html",
                         hostname=get_hostname()
-                        if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
-                        else 'redact',
+                        if conf.getboolean("webserver", "EXPOSE_HOSTNAME")
+                        else "redact",
                         logout_url=appbuilder.get_url_for_logout,
                     ),
                     403,

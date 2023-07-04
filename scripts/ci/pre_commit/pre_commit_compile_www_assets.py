@@ -23,10 +23,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
-from common_precommit_utils import get_directory_hash  # isort: skip # noqa
+from common_precommit_utils import get_directory_hash  # isort: skip # noqa E402
 
 AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
-WWW_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "www_dir_hash.txt"
+WWW_HASH_FILE = AIRFLOW_SOURCES_PATH / ".build" / "www" / "hash.txt"
 
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
@@ -34,16 +34,16 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To run this script, run the ./{__file__} command"
     )
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     www_directory = AIRFLOW_SOURCES_PATH / "airflow" / "www"
     WWW_HASH_FILE.parent.mkdir(exist_ok=True)
     old_hash = WWW_HASH_FILE.read_text() if WWW_HASH_FILE.exists() else ""
-    new_hash = get_directory_hash(www_directory, skip_path_regexp=r'.*node_modules.*')
+    new_hash = get_directory_hash(www_directory, skip_path_regexp=r".*node_modules.*")
     if new_hash == old_hash:
         print("The WWW directory has not changed! Skip regeneration.")
         sys.exit(0)
-    WWW_HASH_FILE.write_text(new_hash)
     env = os.environ.copy()
-    env['FORCE_COLOR'] = "true"
-    subprocess.check_call(['yarn', 'install', '--frozen-lockfile'], cwd=str(www_directory))
-    subprocess.check_call(['yarn', 'run', 'build'], cwd=str(www_directory), env=env)
+    env["FORCE_COLOR"] = "true"
+    subprocess.check_call(["yarn", "install", "--frozen-lockfile"], cwd=os.fspath(www_directory))
+    subprocess.check_call(["yarn", "run", "build"], cwd=os.fspath(www_directory), env=env)
+    WWW_HASH_FILE.write_text(new_hash)

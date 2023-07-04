@@ -60,13 +60,13 @@ class OpsgenieCreateAlertOperator(BaseOperator):
     :param note: Additional note that will be added while creating the alert. (templated)
     """
 
-    template_fields: Sequence[str] = ('message', 'alias', 'description', 'entity', 'priority', 'note')
+    template_fields: Sequence[str] = ("message", "alias", "description", "entity", "priority", "note")
 
     def __init__(
         self,
         *,
         message: str,
-        opsgenie_conn_id: str = 'opsgenie_default',
+        opsgenie_conn_id: str = "opsgenie_default",
         alias: str | None = None,
         description: str | None = None,
         responders: list[dict] | None = None,
@@ -129,7 +129,7 @@ class OpsgenieCreateAlertOperator(BaseOperator):
         return payload
 
     def execute(self, context: Context) -> None:
-        """Call the OpsgenieAlertHook to post message"""
+        """Call the OpsgenieAlertHook to post message."""
         self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
         self.hook.create_alert(self._build_opsgenie_payload())
 
@@ -162,7 +162,7 @@ class OpsgenieCloseAlertOperator(BaseOperator):
         self,
         *,
         identifier: str,
-        opsgenie_conn_id: str = 'opsgenie_default',
+        opsgenie_conn_id: str = "opsgenie_default",
         identifier_type: str | None = None,
         user: str | None = None,
         note: str | None = None,
@@ -201,7 +201,7 @@ class OpsgenieCloseAlertOperator(BaseOperator):
         return payload
 
     def execute(self, context: Context) -> None:
-        """Call the OpsgenieAlertHook to close alert"""
+        """Call the OpsgenieAlertHook to close alert."""
         self.hook = OpsgenieAlertHook(self.opsgenie_conn_id)
         self.hook.close_alert(
             identifier=self.identifier,
@@ -233,13 +233,13 @@ class OpsgenieDeleteAlertOperator(BaseOperator):
     :param source: Display name of the request source
     """
 
-    template_fields: Sequence[str] = ('identifier',)
+    template_fields: Sequence[str] = ("identifier",)
 
     def __init__(
         self,
         *,
         identifier: str,
-        opsgenie_conn_id: str = 'opsgenie_default',
+        opsgenie_conn_id: str = "opsgenie_default",
         identifier_type: str | None = None,
         user: str | None = None,
         source: str | None = None,
@@ -254,7 +254,7 @@ class OpsgenieDeleteAlertOperator(BaseOperator):
         self.source = source
 
     def execute(self, context: Context) -> None:
-        """Call the OpsgenieAlertHook to delete alert"""
+        """Call the OpsgenieAlertHook to delete alert."""
         hook = OpsgenieAlertHook(self.opsgenie_conn_id)
         hook.delete_alert(
             identifier=self.identifier,

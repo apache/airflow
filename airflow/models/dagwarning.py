@@ -19,11 +19,13 @@ from __future__ import annotations
 
 from enum import Enum
 
-from sqlalchemy import Column, ForeignKeyConstraint, String, Text, false
+from sqlalchemy import Column, ForeignKeyConstraint, String, Text, delete, false, select
 from sqlalchemy.orm import Session
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.models.base import Base, StringID
 from airflow.utils import timezone
+from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -45,10 +47,10 @@ class DagWarning(Base):
     __tablename__ = "dag_warning"
     __table_args__ = (
         ForeignKeyConstraint(
-            ('dag_id',),
-            ['dag.dag_id'],
-            name='dcw_dag_id_fkey',
-            ondelete='CASCADE',
+            ("dag_id",),
+            ["dag.dag_id"],
+            name="dcw_dag_id_fkey",
+            ondelete="CASCADE",
         ),
     )
 
@@ -65,6 +67,7 @@ class DagWarning(Base):
         return hash((self.dag_id, self.warning_type))
 
     @classmethod
+    @internal_api_call
     @provide_session
     def purge_inactive_dag_warnings(cls, session: Session = NEW_SESSION) -> None:
         """
@@ -72,14 +75,20 @@ class DagWarning(Base):
 
         :return: None
         """
+        cls._purge_inactive_dag_warnings_with_retry(session)
+
+    @classmethod
+    @retry_db_transaction
+    def _purge_inactive_dag_warnings_with_retry(cls, session: Session) -> None:
         from airflow.models.dag import DagModel
 
-        if session.get_bind().dialect.name == 'sqlite':
-            dag_ids = session.query(DagModel.dag_id).filter(DagModel.is_active == false())
-            query = session.query(cls).filter(cls.dag_id.in_(dag_ids))
+        if session.get_bind().dialect.name == "sqlite":
+            dag_ids_stmt = select(DagModel.dag_id).where(DagModel.is_active == false())
+            query = delete(cls).where(cls.dag_id.in_(dag_ids_stmt.scalar_subquery()))
         else:
-            query = session.query(cls).filter(cls.dag_id == DagModel.dag_id, DagModel.is_active == false())
-        query.delete(synchronize_session=False)
+            query = delete(cls).where(cls.dag_id == DagModel.dag_id, DagModel.is_active == false())
+
+        session.execute(query.execution_options(synchronize_session=False))
         session.commit()
 
 
@@ -91,4 +100,4 @@ class DagWarningType(str, Enum):
     in the DagWarning model.
     """
 
-    NONEXISTENT_POOL = 'non-existent pool'
+    NONEXISTENT_POOL = "non-existent pool"

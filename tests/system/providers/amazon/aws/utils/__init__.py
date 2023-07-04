@@ -29,26 +29,29 @@ from botocore.client import BaseClient
 from botocore.exceptions import ClientError, NoCredentialsError
 
 from airflow.decorators import task
+from airflow.providers.amazon.aws.hooks.ssm import SsmHook
+from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID_ENVIRON_KEY: str = 'SYSTEM_TESTS_ENV_ID'
-ENV_ID_KEY: str = 'ENV_ID'
-DEFAULT_ENV_ID_PREFIX: str = 'env'
+ENV_ID_ENVIRON_KEY: str = "SYSTEM_TESTS_ENV_ID"
+ENV_ID_KEY: str = "ENV_ID"
+DEFAULT_ENV_ID_PREFIX: str = "env"
 DEFAULT_ENV_ID_LEN: int = 8
-DEFAULT_ENV_ID: str = f'{DEFAULT_ENV_ID_PREFIX}{str(uuid4())[:DEFAULT_ENV_ID_LEN]}'
+DEFAULT_ENV_ID: str = f"{DEFAULT_ENV_ID_PREFIX}{str(uuid4())[:DEFAULT_ENV_ID_LEN]}"
 PURGE_LOGS_INTERVAL_PERIOD = 5
 
 # All test file names will contain this string.
-TEST_FILE_IDENTIFIER: str = 'example'
+TEST_FILE_IDENTIFIER: str = "example"
 
 INVALID_ENV_ID_MSG: str = (
-    'In order to maximize compatibility, the SYSTEM_TESTS_ENV_ID must be an alphanumeric string '
-    'which starts with a letter. Please see `tests/system/providers/amazon/aws/README.md`.'
+    "In order to maximize compatibility, the SYSTEM_TESTS_ENV_ID must be an alphanumeric string "
+    "which starts with a letter. Please see `tests/system/providers/amazon/aws/README.md`."
 )
 LOWERCASE_ENV_ID_MSG: str = (
-    'The provided Environment ID contains uppercase letters and '
-    'will be converted to lowercase for the AWS System Tests.'
+    "The provided Environment ID contains uppercase letters and "
+    "will be converted to lowercase for the AWS System Tests."
 )
-NO_VALUE_MSG: str = 'No Value Found: Variable {key} could not be found and no default value was provided.'
+NO_VALUE_MSG: str = "No Value Found: Variable {key} could not be found and no default value was provided."
 
 log = logging.getLogger(__name__)
 
@@ -92,18 +95,18 @@ def _fetch_from_ssm(key: str, test_name: str | None = None) -> str:
     :return: The value of the provided key from SSM
     """
     _test_name: str = test_name if test_name else _get_test_name()
-    ssm_client: BaseClient = boto3.client('ssm')
-    value: str = ''
+    hook = SsmHook(aws_conn_id=None)
+    value: str = ""
 
     try:
-        value = json.loads(ssm_client.get_parameter(Name=_test_name)['Parameter']['Value'])[key]
+        value = json.loads(hook.get_parameter_value(_test_name))[key]
     # Since a default value after the SSM check is allowed, these exceptions should not stop execution.
     except NoCredentialsError as e:
-        log.info('No boto credentials found: %s', e)
-    except ssm_client.exceptions.ParameterNotFound as e:
-        log.info('SSM does not contain any parameter for this test: %s', e)
+        log.info("No boto credentials found: %s", e)
+    except hook.conn.exceptions.ParameterNotFound as e:
+        log.info("SSM does not contain any parameter for this test: %s", e)
     except KeyError as e:
-        log.info('SSM contains one parameter for this test, but not the requested value: %s', e)
+        log.info("SSM contains one parameter for this test, but not the requested value: %s", e)
     return value
 
 
@@ -128,12 +131,12 @@ class Variable:
         self.test_name = test_name
         self.to_split = to_split
         if to_split:
-            self.delimiter = delimiter or ','
+            self.delimiter = delimiter or ","
         elif delimiter:
-            raise ValueError(f'Variable {name} has a delimiter but split_string is set to False.')
+            raise ValueError(f"Variable {name} has a delimiter but split_string is set to False.")
 
     def get_value(self):
-        if hasattr(self, 'default_value'):
+        if hasattr(self, "default_value"):
             return self._format_value(
                 fetch_variable(
                     key=self.name,
@@ -152,7 +155,7 @@ class Variable:
     def _format_value(self, value):
         if self.to_split:
             if type(value) is not str:
-                raise TypeError(f'{self.name} is type {type(value)} and can not be split as requested.')
+                raise TypeError(f"{self.name} is type {type(value)} and can not be split as requested.")
             return value.split(self.delimiter)
         return value
 
@@ -178,7 +181,7 @@ class SystemTestContextBuilder:
     ):
         """Register a variable to fetch from environment or cloud parameter store"""
         if variable_name in [variable.name for variable in self.variables]:
-            raise ValueError(f'Variable name {variable_name} already exists in the fetched variables list.')
+            raise ValueError(f"Variable name {variable_name} already exists in the fetched variables list.")
 
         new_variable = Variable(
             name=variable_name,
@@ -191,8 +194,8 @@ class SystemTestContextBuilder:
         # default value needs to be provided in the method stub.  For example, if we
         # set it to None, we would have no way to know if that was our default or the
         # legitimate default value that the caller wishes to pass through.
-        if 'default_value' in kwargs:
-            new_variable.set_default(kwargs['default_value'])
+        if "default_value" in kwargs:
+            new_variable.set_default(kwargs["default_value"])
 
         self.variables.add(new_variable)
 
@@ -248,7 +251,43 @@ def set_env_id() -> str:
     return env_id
 
 
-def purge_logs(
+def all_tasks_passed(ti) -> bool:
+    task_runs = ti.get_dagrun().get_task_instances()
+    return all([_task.state != State.FAILED for _task in task_runs])
+
+
+@task(trigger_rule=TriggerRule.ALL_DONE)
+def prune_logs(
+    logs: list[tuple[str, str | None]],
+    force_delete: bool = False,
+    retry: bool = False,
+    retry_times: int = 3,
+    ti=None,
+):
+    """
+    If all tasks in this dagrun have succeeded, then delete the associated logs.
+    Otherwise, append the logs with a retention policy.  This allows the logs
+    to be used for troubleshooting but assures they won't build up indefinitely.
+
+    :param logs: A list of log_group/stream_prefix tuples to delete.
+    :param force_delete: Whether to check log streams within the log group before
+        removal. If True, removes the log group and all its log streams inside it.
+    :param retry: Whether to retry if the log group/stream was not found. In some
+        cases, the log group/stream is created seconds after the main resource has
+        been created. By default, it retries for 3 times with a 5s waiting period.
+    :param retry_times: Number of retries.
+    :param ti: Used to check the status of the tasks. This gets pulled from the
+        DAG's context and does not need to be passed manually.
+    """
+    if all_tasks_passed(ti):
+        _purge_logs(logs, force_delete, retry, retry_times)
+    else:
+        client: BaseClient = boto3.client("logs")
+        for group, _ in logs:
+            client.put_retention_policy(logGroupName=group, retentionInDays=30)
+
+
+def _purge_logs(
     test_logs: list[tuple[str, str | None]],
     force_delete: bool = False,
     retry: bool = False,
@@ -270,7 +309,7 @@ def purge_logs(
         with a 5s waiting period
     :param retry_times: Number of retries
     """
-    client: BaseClient = boto3.client('logs')
+    client: BaseClient = boto3.client("logs")
 
     for group, prefix in test_logs:
         try:
@@ -278,19 +317,19 @@ def purge_logs(
                 log_streams = client.describe_log_streams(
                     logGroupName=group,
                     logStreamNamePrefix=prefix,
-                )['logStreams']
+                )["logStreams"]
 
-                for stream_name in [stream['logStreamName'] for stream in log_streams]:
+                for stream_name in [stream["logStreamName"] for stream in log_streams]:
                     client.delete_log_stream(logGroupName=group, logStreamName=stream_name)
 
-            if force_delete or not client.describe_log_streams(logGroupName=group)['logStreams']:
+            if force_delete or not client.describe_log_streams(logGroupName=group)["logStreams"]:
                 client.delete_log_group(logGroupName=group)
         except ClientError as e:
-            if not retry or retry_times == 0 or e.response['Error']['Code'] != 'ResourceNotFoundException':
+            if not retry or retry_times == 0 or e.response["Error"]["Code"] != "ResourceNotFoundException":
                 raise e
 
             sleep(PURGE_LOGS_INTERVAL_PERIOD)
-            purge_logs(
+            _purge_logs(
                 test_logs=test_logs,
                 force_delete=force_delete,
                 retry=retry,
@@ -300,4 +339,4 @@ def purge_logs(
 
 @task
 def split_string(string):
-    return string.split(',')
+    return string.split(",")

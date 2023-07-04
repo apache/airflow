@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -29,7 +28,7 @@ MODULE = "airflow.providers.google.suite.transfers.gcs_to_gdrive"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestGcsToGDriveOperator(unittest.TestCase):
+class TestGcsToGDriveOperator:
     @mock.patch(MODULE + ".GCSHook")
     @mock.patch(MODULE + ".GoogleDriveHook")
     @mock.patch(MODULE + ".tempfile.NamedTemporaryFile")
@@ -49,7 +48,6 @@ class TestGcsToGDriveOperator(unittest.TestCase):
         mock_gcs_hook.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=None,
                 ),
@@ -62,7 +60,6 @@ class TestGcsToGDriveOperator(unittest.TestCase):
         mock_gdrive.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=None,
                 ),
@@ -94,11 +91,13 @@ class TestGcsToGDriveOperator(unittest.TestCase):
         mock_gcs_hook.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
                 mock.call().list("data", delimiter=".avro", prefix="sales/sales-2017/"),
+                # TODO: After deprecating delimiter and wildcards in source objects,
+                #       remove previous line and uncomment the following:
+                # mock.call().list("data", match_glob="**/*.avro", prefix="sales/sales-2017/"),
                 mock.call().download(bucket_name="data", filename="TMP1", object_name="sales/A.avro"),
                 mock.call().download(bucket_name="data", filename="TMP2", object_name="sales/B.avro"),
                 mock.call().download(bucket_name="data", filename="TMP3", object_name="sales/C.avro"),
@@ -108,7 +107,6 @@ class TestGcsToGDriveOperator(unittest.TestCase):
         mock_gdrive.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
@@ -138,11 +136,13 @@ class TestGcsToGDriveOperator(unittest.TestCase):
         mock_gcs_hook.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),
                 mock.call().list("data", delimiter=".avro", prefix="sales/sales-2017/"),
+                # TODO: After deprecating delimiter and wildcards in source objects,
+                #       remove previous line and uncomment the following:
+                # mock.call().list("data", match_glob="**/*.avro", prefix="sales/sales-2017/"),
                 mock.call().download(bucket_name="data", filename="TMP1", object_name="sales/A.avro"),
                 mock.call().delete("data", "sales/A.avro"),
                 mock.call().download(bucket_name="data", filename="TMP2", object_name="sales/B.avro"),
@@ -155,7 +155,6 @@ class TestGcsToGDriveOperator(unittest.TestCase):
         mock_gdrive.assert_has_calls(
             [
                 mock.call(
-                    delegate_to=None,
                     gcp_conn_id="google_cloud_default",
                     impersonation_chain=IMPERSONATION_CHAIN,
                 ),

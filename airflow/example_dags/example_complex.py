@@ -31,7 +31,7 @@ with models.DAG(
     schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
-    tags=['example', 'example2', 'example3'],
+    tags=["example", "example2", "example3"],
 ) as dag:
     # Create
     create_entry_group = BashOperator(task_id="create_entry_group", bash_command="echo create_entry_group")

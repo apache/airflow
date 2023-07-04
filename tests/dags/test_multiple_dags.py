@@ -22,20 +22,20 @@ import datetime
 from airflow.models import DAG
 from airflow.operators.bash import BashOperator
 
-args = {'owner': 'airflow', 'retries': 3, 'start_date': datetime.datetime(2022, 1, 1)}
+args = {"owner": "airflow", "retries": 3, "start_date": datetime.datetime(2022, 1, 1)}
 
 
 def create_dag(suffix):
     dag = DAG(
-        dag_id=f'test_multiple_dags__{suffix}',
+        dag_id=f"test_multiple_dags__{suffix}",
         default_args=args,
-        schedule='0 0 * * *',
+        schedule="0 0 * * *",
         dagrun_timeout=datetime.timedelta(minutes=60),
     )
 
     with dag:
         BashOperator(
-            task_id='test_task',
+            task_id="test_task",
             bash_command="echo",
             dag=dag,
         )

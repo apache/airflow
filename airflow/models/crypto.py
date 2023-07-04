@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -28,13 +27,13 @@ log = logging.getLogger(__name__)
 
 
 class FernetProtocol(Protocol):
-    """This class is only used for TypeChecking (for IDEs, mypy, etc)"""
+    """This class is only used for TypeChecking (for IDEs, mypy, etc)."""
 
     def decrypt(self, b):
-        """Decrypt with Fernet"""
+        """Decrypt with Fernet."""
 
     def encrypt(self, b):
-        """Encrypt with Fernet"""
+        """Encrypt with Fernet."""
 
 
 class NullFernet:
@@ -58,7 +57,7 @@ class NullFernet:
         return b
 
 
-_fernet = None  # type: Optional[FernetProtocol]
+_fernet: FernetProtocol | None = None
 
 
 def get_fernet():
@@ -79,13 +78,13 @@ def get_fernet():
         return _fernet
 
     try:
-        fernet_key = conf.get('core', 'FERNET_KEY')
+        fernet_key = conf.get("core", "FERNET_KEY")
         if not fernet_key:
             log.warning("empty cryptography key - values will not be stored encrypted.")
             _fernet = NullFernet()
         else:
             _fernet = MultiFernet(
-                [Fernet(fernet_part.encode('utf-8')) for fernet_part in fernet_key.split(',')]
+                [Fernet(fernet_part.encode("utf-8")) for fernet_part in fernet_key.split(",")]
             )
             _fernet.is_encrypted = True
     except (ValueError, TypeError) as value_error:

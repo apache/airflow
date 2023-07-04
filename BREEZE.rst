@@ -66,6 +66,36 @@ Here is an example configuration with more than 200GB disk space for Docker:
              alt="Disk space MacOS">
     </div>
 
+
+- **Docker is not running** - even if it is running with Docker Desktop. This is an issue
+  specific to Docker Desktop 4.13.0 (released in late October 2022). Please upgrade Docker
+  Desktop to 4.13.1 or later to resolve the issue. For technical details, see also
+  `docker/for-mac#6529 <https://github.com/docker/for-mac/issues/6529>`_.
+
+**Docker errors that may come while running breeze**
+
+- If docker not running in python virtual environment
+- **Solution**
+- 1. Create the docker group if it does not exist
+- ``sudo groupadd docker``
+- 2. Add your user to the docker group.
+- ``sudo usermod -aG docker $USER``
+- 3. Log in to the new docker group
+- ``newgrp docker``
+- 4. Check if docker can be run without root
+- ``docker run hello-world``
+- 5. Make sure that "Allow the default Docker socket to be used" in "Advanced" tab of "Docker Desktop" settings is checked
+
+.. raw:: html
+
+   <div align="center">
+        <img src="images/docker_socket.png" width="640"
+             alt="Docker socket used">
+    </div>
+
+Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
+/CONTRIBUTORS_QUICK_START.rst>`__
+
 Docker Compose
 --------------
 
@@ -196,7 +226,7 @@ them, you may end up with some unused image data.
 
 To clean up the Docker environment:
 
-1. Stop Breeze with ``breeze stop``. (If Breeze is already running)
+1. Stop Breeze with ``breeze down``. (If Breeze is already running)
 
 2. Run the ``breeze cleanup`` command.
 
@@ -214,11 +244,23 @@ In case of disk space errors on macOS, increase the disk space available for Doc
 Installation
 ============
 
+Set your working directory to root of (this) cloned repository.
 Run this command to install Breeze (make sure to use ``-e`` flag):
 
 .. code-block:: bash
 
     pipx install -e ./dev/breeze
+
+
+.. note:: Note for Windows users
+
+    The ``./dev/breeze`` in command about is a PATH to sub-folder where breeze source packages are.
+    If you are on Windows, you should use Windows way to point to the ``dev/breeze`` sub-folder
+    of Airflow either as absolute or relative path. For example:
+
+    .. code-block:: bash
+
+        pipx install -e dev\breeze
 
 Once this is complete, you should have ``breeze`` binary on your PATH and available to run by ``breeze``
 command.
@@ -230,9 +272,9 @@ Those are all available commands for Breeze and details about the commands are d
   :width: 100%
   :alt: Breeze commands
 
-Breeze installed this way is linked to your checked out sources of Airflow so Breeze will
+Breeze installed this way is linked to your checked out sources of Airflow, so Breeze will
 automatically use latest version of sources from ``./dev/breeze``. Sometimes, when dependencies are
-updated ``breeze`` commands with offer you to run self-upgrade (you just need to answer ``y`` when asked).
+updated ``breeze`` commands with offer you to run self-upgrade.
 
 You can always run such self-upgrade at any time:
 
@@ -252,6 +294,26 @@ where it was installed.
 
 You can run ``breeze setup version`` command to see where breeze installed from and what are the current sources
 that Breeze works on
+
+.. warning:: Upgrading from earlier Python version
+
+    If you used Breeze with Python 3.7 and when running it, it will complain that it needs Python 3.8. In this
+    case you should force-reinstall Breeze with ``pipx``:
+
+        .. code-block:: bash
+
+            pipx install --force -e ./dev/breeze
+
+    .. note:: Note for Windows users
+
+        The ``./dev/breeze`` in command about is a PATH to sub-folder where breeze source packages are.
+        If you are on Windows, you should use Windows way to point to the ``dev/breeze`` sub-folder
+        of Airflow either as absolute or relative path. For example:
+
+        .. code-block:: bash
+
+            pipx install --force -e dev\breeze
+
 
 Running Breeze for the first time
 ---------------------------------
@@ -318,15 +380,6 @@ so you can change it at any place, and run
 
 inside container, to enable modified tmux configurations.
 
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=78">
-        <img src="images/breeze/overlayed_breeze_installation.png" width="640"
-             alt="Airflow Breeze - Installation">
-      </a>
-    </div>
-
 Regular development tasks
 =========================
 
@@ -344,12 +397,12 @@ You can use additional ``breeze`` flags to choose your environment. You can spec
 version to use, and backend (the meta-data database). Thanks to that, with Breeze, you can recreate the same
 environments as we have in matrix builds in the CI.
 
-For example, you can choose to run Python 3.7 tests with MySQL as backend and with mysql version 8
+For example, you can choose to run Python 3.8 tests with MySQL as backend and with mysql version 8
 as follows:
 
 .. code-block:: bash
 
-    breeze --python 3.7 --backend mysql --mysql-version 8
+    breeze --python 3.8 --backend mysql --mysql-version 8
 
 The choices you make are persisted in the ``./.build/`` cache directory so that next time when you use the
 ``breeze`` script, it could use the values that were used previously. This way you do not have to specify
@@ -358,15 +411,6 @@ default settings.
 
 You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
 in the help of the commands.
-
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=389">
-        <img src="images/breeze/overlayed_breeze_select_backend_python.png" width="640"
-             alt="Airflow Breeze - Selecting Python and Backend version">
-      </a>
-    </div>
 
 Building the documentation
 --------------------------
@@ -412,15 +456,6 @@ Those are all available flags of ``build-docs`` command:
   :alt: Breeze build documentation
 
 
-.. raw:: html
-
-    <div align="center">
-      <a href="https://youtu.be/4MCTXq-oF68?t=1760">
-        <img src="images/breeze/overlayed_breeze_build_docs.png" width="640"
-             alt="Airflow Breeze - Build docs">
-      </a>
-    </div>
-
 Running static checks
 ---------------------
 
@@ -428,43 +463,72 @@ You can run static checks via Breeze. You can also run them via pre-commit comma
 Breeze makes it easier to run selective static checks. If you press <TAB> after the static-check and if
 you have auto-complete setup you should see auto-completable list of all checks available.
 
-.. code-block:: bash
-
-     breeze static-checks -t run-mypy
-
-The above will run mypy check for currently staged files.
-
-You can also pass specific pre-commit flags for example ``--all-files`` :
+For example, this following command:
 
 .. code-block:: bash
 
-     breeze static-checks -t run-mypy --all-files
+     breeze static-checks -t mypy-core
+
+will run mypy check for currently staged files inside ``airflow/`` excluding providers.
+
+Selecting files to run static checks on
+........................................
+
+Pre-commits run by default on staged changes that you have locally changed. It will run it on all the
+files you run ``git add`` on and it will ignore any changes that you have modified but not staged.
+If you want to run it on all your modified files you should add them with ``git add`` command.
+
+With ``--all-files`` you can run static checks on all files in the repository. This is useful when you
+want to be sure they will not fail in CI, or when you just rebased your changes and want to
+re-run latest pre-commits on your changes, but it can take a long time (few minutes) to wait for the result.
+
+.. code-block:: bash
+
+     breeze static-checks -t mypy-core --all-files
 
 The above will run mypy check for all files.
 
-There is a convenience ``--last-commit`` flag that you can use to run static check on last commit only:
+You can limit that by selecting specific files you want to run static checks on. You can do that by
+specifying (can be multiple times) ``--file`` flag.
 
 .. code-block:: bash
 
-     breeze static-checks -t run-mypy --last-commit
+     breeze static-checks -t mypy-core --file airflow/utils/code_utils.py --file airflow/utils/timeout.py
 
-The above will run mypy check for all files in the last commit.
+The above will run mypy check for those to files (note: autocomplete should work for the file selection).
 
-There is another convenience ``--commit-ref`` flag that you can use to run static check on specific commit:
+However, often you do not remember files you modified and you want to run checks for files that belong
+to specific commits you already have in your branch. You can use ``breeze static check`` to run the checks
+only on changed files you have already committed to your branch - either for specific commit, for last
+commit, for all changes in your branch since you branched off from main or for specific range
+of commits you choose.
 
 .. code-block:: bash
 
-     breeze static-checks -t run-mypy --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
+     breeze static-checks -t mypy-core --last-commit
+
+The above will run mypy check for all files in the last commit in your branch.
+
+.. code-block:: bash
+
+     breeze static-checks -t mypy-core --only-my-changes
+
+The above will run mypy check for all commits in your branch which were added since you branched off from main.
+
+.. code-block:: bash
+
+     breeze static-checks -t mypy-core --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
 
 The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
 Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)
 
-If you ever need to get a list of the files that will be checked (for troubleshooting) use these commands:
-
 .. code-block:: bash
 
-     breeze static-checks -t identity --verbose # currently staged files
-     breeze static-checks -t identity --verbose --from-ref $(git merge-base main HEAD) --to-ref HEAD #  branch updates
+     breeze static-checks -t identity --verbose --from-ref HEAD^^^^ --to-ref HEAD
+
+The above will run the check for the last 4 commits in your branch. You can use any ``commit-ish`` references
+in ``--from-ref`` and ``--to-ref`` flags.
+
 
 Those are all available flags of ``static-checks`` command:
 
@@ -478,8 +542,15 @@ Those are all available flags of ``static-checks`` command:
 
     When you run static checks, some of the artifacts (mypy_cache) is stored in docker-compose volume
     so that it can speed up static checks execution significantly. However, sometimes, the cache might
-    get broken, in which case you should run ``breeze stop`` to clean up the cache.
+    get broken, in which case you should run ``breeze down`` to clean up the cache.
 
+
+.. note::
+
+    You cannot change Python version for static checks that are run within Breeze containers.
+    The ``--python`` flag has no effect for them. They are always run with lowest supported Python version.
+    The main reason is to keep consistency in the results of static checks and to make sure that
+    our code is fine when running the lowest supported version.
 
 Starting Airflow
 ----------------
@@ -492,7 +563,7 @@ When you are starting airflow from local sources, www asset compilation is autom
 
 .. code-block:: bash
 
-    breeze --python 3.7 --backend mysql start-airflow
+    breeze --python 3.8 --backend mysql start-airflow
 
 
 You can also use it to start any released version of Airflow from ``PyPI`` with the
@@ -500,7 +571,7 @@ You can also use it to start any released version of Airflow from ``PyPI`` with 
 
 .. code-block:: bash
 
-    breeze start-airflow --python 3.7 --backend mysql --use-airflow-version 2.2.5
+    breeze start-airflow --python 3.8 --backend mysql --use-airflow-version 2.2.5
 
 Those are all available flags of ``start-airflow`` command:
 
@@ -549,18 +620,28 @@ command takes care about it. This is needed when you want to run webserver insid
 Breeze cleanup
 --------------
 
-Breeze uses docker images heavily and those images are rebuild periodically. This might cause extra
-disk usage by the images. If you need to clean-up the images periodically you can run
-``breeze setup cleanup`` command (by default it will skip removing your images before cleaning up but you
-can also remove the images to clean-up everything by adding ``--all``).
+Sometimes you need to cleanup your docker environment (and it is recommended you do that regularly). There
+are several reasons why you might want to do that.
+
+Breeze uses docker images heavily and those images are rebuild periodically and might leave dangling, unused
+images in docker cache. This might cause extra disk usage. Also running various docker compose commands
+(for example running tests with ``breeze testing tests``) might create additional docker networks that might
+prevent new networks from being created. Those networks are not removed automatically by docker-compose.
+Also Breeze uses it's own cache to keep information about all images.
+
+All those unused images, networks and cache can be removed by running ``breeze cleanup`` command. By default
+it will not remove the most recent images that you might need to run breeze commands, but you
+can also remove those breeze images to clean-up everything by adding ``--all`` command (note that you will
+need to build the images again from scratch - pulling from the registry might take a while).
+
+Breeze will ask you to confirm each step, unless you specify ``--answer yes`` flag.
 
 Those are all available flags of ``cleanup`` command:
-
 
 .. image:: ./images/breeze/output_cleanup.svg
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_cleanup.svg
   :width: 100%
-  :alt: Breeze setup cleanup
+  :alt: Breeze cleanup
 
 Running arbitrary commands in container
 ---------------------------------------
@@ -579,6 +660,62 @@ Those are all available flags of ``shell`` command:
   :width: 100%
   :alt: Breeze shell
 
+Running Breeze with Metrics
+---------------------------
+
+Running Breeze with a StatsD Metrics Stack
+..........................................
+
+You can launch an instance of Breeze pre-configured to emit StatsD metrics using
+``breeze start-airflow --integration statsd``.  This will launch an Airflow webserver
+within the Breeze environment as well as containers running StatsD, Prometheus, and
+Grafana.  The integration configures the "Targets" in Prometheus, the "Datasources" in
+Grafana, and includes a default dashboard in Grafana.
+
+When you run Airflow Breeze with this integration, in addition to the standard ports
+(See "Port Forwarding" below), the following are also automatically forwarded:
+
+* 29102 -> forwarded to StatsD Exporter -> breeze-statsd-exporter:9102
+* 29090 -> forwarded to Prometheus -> breeze-prometheus:9090
+* 23000 -> forwarded to Grafana -> breeze-grafana:3000
+
+You can connect to these ports/databases using:
+
+* StatsD Metrics: http://127.0.0.1:29102/metrics
+* Prometheus Targets: http://127.0.0.1:29090/targets
+* Grafana Dashboards: http://127.0.0.1:23000/dashboards
+
+Running Breeze with an OpenTelemetry Metrics Stack
+..................................................
+
+----
+
+[Work in Progress]
+NOTE:  This will launch the stack as described below but Airflow integration is
+still a Work in Progress.  This should be considered experimental and likely to
+change by the time Airflow fully supports emitting metrics via OpenTelemetry.
+
+----
+
+You can launch an instance of Breeze pre-configured to emit OpenTelemetry metrics
+using ``breeze start-airflow --integration otel``.  This will launch Airflow within
+the Breeze environment as well as containers running OpenTelemetry-Collector,
+Prometheus, and Grafana.  The integration handles all configuration of the
+"Targets" in Prometheus and the "Datasources" in Grafana, so it is ready to use.
+
+When you run Airflow Breeze with this integration, in addition to the standard ports
+(See "Port Forwarding" below), the following are also automatically forwarded:
+
+* 28889 -> forwarded to OpenTelemetry Collector -> breeze-otel-collector:8889
+* 29090 -> forwarded to Prometheus -> breeze-prometheus:9090
+* 23000 -> forwarded to Grafana -> breeze-grafana:3000
+
+You can connect to these ports using:
+
+* OpenTelemetry Collector: http://127.0.0.1:28889/metrics
+* Prometheus Targets: http://127.0.0.1:29090/targets
+* Grafana Dashboards: http://127.0.0.1:23000/dashboards
+
 
 Stopping the environment
 ------------------------
@@ -590,14 +727,14 @@ You can always stop it via:
 
 .. code-block:: bash
 
-   breeze stop
+   breeze down
 
-Those are all available flags of ``stop`` command:
+Those are all available flags of ``down`` command:
 
-.. image:: ./images/breeze/output_stop.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_stop.svg
+.. image:: ./images/breeze/output_down.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_down.svg
   :width: 100%
-  :alt: Breeze stop
+  :alt: Breeze down
 
 Troubleshooting
 ===============
@@ -606,12 +743,20 @@ If you are having problems with the Breeze environment, try the steps below. Aft
 can check whether your problem is fixed.
 
 1. If you are on macOS, check if you have enough disk space for Docker (Breeze will warn you if not).
-2. Stop Breeze with ``breeze stop``.
-3. Delete the ``.build`` directory and run ``breeze ci-image build``.
-4. Clean up Docker images via ``breeze cleanup`` command.
-5. Restart your Docker Engine and try again.
-6. Restart your machine and try again.
-7. Re-install Docker Desktop and try again.
+2. Stop Breeze with ``breeze down``.
+3. Git fetch the origin and git rebase the current branch with main branch.
+4. Delete the ``.build`` directory and run ``breeze ci-image build``.
+5. Clean up Docker images via ``breeze cleanup`` command.
+6. Restart your Docker Engine and try again.
+7. Restart your machine and try again.
+8. Re-install Docker Desktop and try again.
+
+.. note::
+  If the pip is taking a significant amount of time and your internet connection is causing pip to be unable to download the libraries within the default timeout, it is advisable to modify the default timeout as follows and run the breeze again.
+
+  .. code-block::
+
+      export PIP_DEFAULT_TIMEOUT=1000
 
 In case the problems are not solved, you can set the VERBOSE_COMMANDS variable to "true":
 
@@ -623,6 +768,86 @@ In case the problems are not solved, you can set the VERBOSE_COMMANDS variable t
 Then run the failed command, copy-and-paste the output from your terminal to the
 `Airflow Slack <https://s.apache.org/airflow-slack>`_  #airflow-breeze channel and
 describe your problem.
+
+
+.. warning::
+
+    Some operating systems (Fedora, ArchLinux, RHEL, Rocky) have recently introduced Kernel changes that result in
+    Airflow in Breeze consuming 100% memory when run inside the community Docker implementation maintained
+    by the OS teams.
+
+    This is an issue with backwards-incompatible containerd configuration that some of Airflow dependencies
+    have problems with and is tracked in a few issues:
+
+    * `Moby issue <https://github.com/moby/moby/issues/43361>`_
+    * `Containerd issue <https://github.com/containerd/containerd/pull/7566>`_
+
+    There is no solution yet from the containerd team, but seems that installing
+    `Docker Desktop on Linux <https://docs.docker.com/desktop/install/linux-install/>`_ solves the problem as
+    stated in `This comment <https://github.com/moby/moby/issues/43361#issuecomment-1227617516>`_ and allows to
+    run Breeze with no problems.
+
+
+ETIMEOUT Error
+--------------
+
+When running ``breeze start-airflow``, the following output might be observed:
+
+.. code-block:: bash
+
+    Skip fixing ownership of generated files as Host OS is darwin
+
+
+    Waiting for asset compilation to complete in the background.
+
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+
+    The asset compilation is taking too long.
+
+    If it does not complete soon, you might want to stop it and remove file lock:
+      * press Ctrl-C
+      * run 'rm /opt/airflow/.build/www/.asset_compile.lock'
+
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+    Still waiting .....
+
+    The asset compilation failed. Exiting.
+
+    [INFO] Locking pre-commit directory
+
+    Error 1 returned
+
+This error is actually caused by the following error during the asset compilation which resulted in
+ETIMEOUT when ``npm`` command is trying to install required packages:
+
+.. code-block:: bash
+
+    npm ERR! code ETIMEDOUT
+    npm ERR! syscall connect
+    npm ERR! errno ETIMEDOUT
+    npm ERR! network request to https://registry.npmjs.org/yarn failed, reason: connect ETIMEDOUT 2606:4700::6810:1723:443
+    npm ERR! network This is a problem related to network connectivity.
+    npm ERR! network In most cases you are behind a proxy or have bad network settings.
+    npm ERR! network
+    npm ERR! network If you are behind a proxy, please make sure that the
+    npm ERR! network 'proxy' config is set properly.  See: 'npm help config'
+
+In this situation, notice that the IP address ``2606:4700::6810:1723:443`` is in IPv6 format, which was the
+reason why the connection did not go through the router, as the router did not support IPv6 addresses in its DNS lookup.
+In this case, disabling IPv6 in the host machine and using IPv4 instead resolved the issue.
+
+The similar issue could happen if you are behind an HTTP/HTTPS proxy and your access to required websites are
+blocked by it, or your proxy setting has not been done properly.
 
 Advanced commands
 =================
@@ -673,24 +898,58 @@ To run the whole test class:
 You can re-run the tests interactively, add extra parameters to pytest and modify the files before
 re-running the test to iterate over the tests. You can also add more flags when starting the
 ``breeze shell`` command when you run integration tests or system tests. Read more details about it
-in the ``TESTING.rst <TESTING.rst#>`` where all the test types of our are explained and more information
-on how to run them.
+in the `testing doc <TESTING.rst>`_ where all the test types and information on how to run them are explained.
 
 This applies to all kind of tests - all our tests can be run using pytest.
 
-Running unit/integration tests in groups
-........................................
+Running unit tests
+..................
 
-Another option you have is that you can also run tests via built-in ``breeze testing`` command.
+Another option you have is that you can also run tests via built-in ``breeze testing tests`` command.
 The iterative ``pytest`` command allows to run test individually, or by class or in any other way
-pytest allows to test them and run them interactively, but ``breeze testing`` command allows to
+pytest allows to test them and run them interactively, but ``breeze testing tests`` command allows to
 run the tests in the same test "types" that are used to run the tests in CI: for example Core, Always
 API, Providers. This how our CI runs them - running each group in parallel to other groups and you can
 replicate this behaviour.
 
 Another interesting use of the ``breeze testing tests`` command is that you can easily specify sub-set of the
-tests for Providers. ``breeze testing tests --test-type "Providers[airbyte,http]`` for example will only run
-tests for airbyte and http providers.
+tests for Providers.
+
+For example this will only run provider tests for airbyte and http providers:
+
+.. code-block:: bash
+
+   breeze testing tests --test-type "Providers[airbyte,http]"
+
+You can also exclude tests for some providers from being run when whole "Providers" test type is run.
+
+For example this will run tests for all providers except amazon and google provider tests:
+
+.. code-block:: bash
+
+   breeze testing tests --test-type "Providers[-amazon,google]"
+
+
+You can also run parallel tests with ``--run-in-parallel`` flag - by default it will run all tests types
+in parallel, but you can specify the test type that you want to run with space separated list of test
+types passed to ``--parallel-test-types`` flag.
+
+For example this will run API and WWW tests in parallel:
+
+.. code-block:: bash
+
+    breeze testing tests --parallel-test-types "API WWW" --run-in-parallel
+
+There are few special types of tests that you can run:
+
+* ``All`` - all tests are run in single pytest run.
+* ``PlainAsserts`` - some tests of ours fail when ``--assert=rewrite`` feature of pytest is used. This
+  is in order to get better output of ``assert`` statements This is a special test type that runs those
+  select tests tests with ``--assert=plain`` flag.
+* ``Postgres`` - runs all tests that require Postgres database
+* ``MySQL`` - runs all tests that require MySQL database
+* ``Quarantine`` - runs all tests that are in quarantine (marked with ``@pytest.mark.quarantined``
+  decorator)
 
 Here is the detailed set of options for the ``breeze testing tests`` command.
 
@@ -698,6 +957,28 @@ Here is the detailed set of options for the ``breeze testing tests`` command.
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_tests.svg
   :width: 100%
   :alt: Breeze testing tests
+
+Running integration tests
+.........................
+
+You can also run integration tests via built-in ``breeze testing integration-tests`` command. Some of our
+tests require additional integrations to be started in docker-compose. The integration tests command will
+run the expected integration and tests that need that integration.
+
+For example this will only run kerberos tests:
+
+.. code-block:: bash
+
+   breeze testing integration-tests --integration kerberos
+
+
+Here is the detailed set of options for the ``breeze testing integration-tests`` command.
+
+.. image:: ./images/breeze/output_testing_integration-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_testing_integration_tests.svg
+  :width: 100%
+  :alt: Breeze testing integration-tests
+
 
 Running Helm tests
 ..................
@@ -741,13 +1022,16 @@ automatically to run the tests.
 You can:
 
 * Setup environment for k8s tests with ``breeze k8s setup-env``
-* Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``breeze k8s create-cluster``,
-  ``breeze k8s deploy-airflow``, ``breeze k8s status``, ``breeze k8s delete-cluster`` commands
+* Build airflow k8S images with ``breeze k8s build-k8s-image``
+* Manage KinD Kubernetes cluster and upload image and deploy Airflow to KinD cluster via
+  ``breeze k8s create-cluster``, ``breeze k8s configure-cluster``, ``breeze k8s deploy-airflow``, ``breeze k8s status``,
+  ``breeze k8s upload-k8s-image``, ``breeze k8s delete-cluster`` commands
 * Run Kubernetes tests  specified with ``breeze k8s tests`` command
+* Run complete test run with ``breeze k8s run-complete-tests`` - performing the full cycle of creating
+  cluster, uploading the image, deploying airflow, running tests and deleting the cluster
 * Enter the interactive kubernetes test environment with ``breeze k8s shell`` and ``breeze k8s k9s`` command
 * Run multi-cluster-operations ``breeze k8s list-all-clusters`` and
   ``breeze k8s delete-all-clusters`` commands as well as running complete tests in parallel
-  via ``breeze k8s run-complete-tests`` and export logs from all clusters to a temp directory
   via ``breeze k8s dump-logs`` command
 
 This is described in detail in `Testing Kubernetes <TESTING.rst#running-tests-with-kubernetes>`_.
@@ -869,7 +1153,7 @@ Checking status of the K8S cluster
 ..................................
 
 You can delete kubernetes cluster and airflow deployed in the current cluster
-via ``breeze k8s status`` command. It can be also checked fora all clusters created so far by passing
+via ``breeze k8s status`` command. It can be also checked for all clusters created so far by passing
 ``--all`` flag.
 
 All parameters of the command are here:
@@ -882,7 +1166,7 @@ All parameters of the command are here:
 Running k8s tests
 .................
 
-You can run ``breeze k8s tests`` command to run ``pytest`` tests with your cluster. Those testa are placed
+You can run ``breeze k8s tests`` command to run ``pytest`` tests with your cluster. Those tests are placed
 in ``kubernetes_tests/`` and you can either specify the tests to run as parameter of the tests command or
 you can leave them empty to run all tests. By passing ``--run-in-parallel`` the tests can be run
 for all clusters in parallel.
@@ -897,7 +1181,7 @@ Run selected tests:
 
 .. code-block::bash
 
-    breeze k8s tests kubernetes_tests/test_kubernetes_executor.py
+    breeze k8s tests test_kubernetes_executor.py
 
 All parameters of the command are here:
 
@@ -922,7 +1206,52 @@ output during test execution.
 
 .. code-block::bash
 
-    breeze k8s tests -- kubernetes_tests/test_kubernetes_executor.py -s
+    breeze k8s tests -- test_kubernetes_executor.py -s
+
+Running k8s complete tests
+..........................
+
+You can run ``breeze k8s run-complete-tests`` command to combine all previous steps in one command. That
+command will create cluster, deploy airflow and run tests and finally delete cluster. It is used in CI
+to run the whole chains in parallel.
+
+Run all tests:
+
+.. code-block::bash
+
+    breeze k8s run-complete-tests
+
+Run selected tests:
+
+.. code-block::bash
+
+    breeze k8s run-complete-tests test_kubernetes_executor.py
+
+All parameters of the command are here:
+
+.. image:: ./images/breeze/output_k8s_run-complete-tests.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_k8s_run-complete-tests.svg
+  :width: 100%
+  :alt: Breeze k8s tests
+
+You can also specify any pytest flags as extra parameters - they will be passed to the
+shell command directly. In case the shell parameters are the same as the parameters of the command, you
+can pass them after ``--``. For example this is the way how you can see all available parameters of the shell
+you have:
+
+.. code-block::bash
+
+    breeze k8s run-complete-tests -- --help
+
+The options that are not overlapping with the ``tests`` command options can be passed directly and mixed
+with the specifications of tests you want to run. For example the command below will only run
+``test_kubernetes_executor.py`` and will suppress capturing output from Pytest so that you can see the
+output during test execution.
+
+.. code-block::bash
+
+    breeze k8s run-complete-tests -- test_kubernetes_executor.py -s
+
 
 Entering k8s shell
 ..................
@@ -945,7 +1274,7 @@ be created and airflow deployed to it before running the tests):
 
 .. code-block::bash
 
-    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)> pytest kubernetes_tests/test_kubernetes_executor.py
+    (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
     ================================================= test session starts =================================================
     platform linux -- Python 3.10.6, pytest-6.2.5, py-1.11.0, pluggy-1.0.0 -- /home/jarek/code/airflow/.build/.k8s-env/bin/python
     cachedir: .pytest_cache
@@ -953,8 +1282,8 @@ be created and airflow deployed to it before running the tests):
     plugins: anyio-3.6.1
     collected 2 items
 
-    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED           [ 50%]
-    kubernetes_tests/test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED [100%]
+    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag PASSED           [ 50%]
+    test_kubernetes_executor.py::TestKubernetesExecutor::test_integration_run_dag_with_scheduler_failure PASSED [100%]
 
     ================================================== warnings summary ===================================================
     .build/.k8s-env/lib/python3.10/site-packages/_pytest/config/__init__.py:1233
@@ -1010,7 +1339,7 @@ Dumping logs from all k8s clusters
 ..................................
 
 KinD allows to export logs from the running cluster so that you can troubleshoot your deployment.
-This can be done with ``breeze k8s logs`` command. Logs can be also dumped fora all clusters created
+This can be done with ``breeze k8s logs`` command. Logs can be also dumped for all clusters created
 so far by passing ``--all`` flag.
 
 All parameters of the command are here:
@@ -1137,10 +1466,10 @@ suffix and they need to also be paired with corresponding runtime dependency add
 
 .. code-block:: bash
 
-     breeze prod-image build --python 3.7 --additional-dev-deps "libasound2-dev" \
+     breeze prod-image build --python 3.8 --additional-dev-deps "libasound2-dev" \
         --additional-runtime-apt-deps "libasound2"
 
-Same as above but uses python 3.7.
+Same as above but uses python 3.8.
 
 Building PROD image
 ...................
@@ -1277,6 +1606,18 @@ check if there are any images that need regeneration.
   :width: 100%
   :alt: Breeze setup regenerate-command-images
 
+Breeze check-all-params-in-groups
+...................
+
+When you add a breeze command or modify a parameter, you are also supposed to make sure that "rich groups"
+for the command is present and that all parameters are assigned to the right group so they can be
+nicely presented in ``--help`` output. You can check that via ``check-all-params-in-groups`` command.
+
+.. image:: ./images/breeze/output_setup_check-all-params-in-groups.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_setup_check-all-params-in-groups.svg
+  :width: 100%
+  :alt: Breeze setup check-all-params-in-group
+
 
 CI tasks
 --------
@@ -1344,7 +1685,10 @@ should be run on multiple combinations of Python, Kubernetes, Backend versions. 
 needed to run the CI Builds. You can also use the tool to test what tests will be run when you provide
 a specific commit that Breeze should run the tests on.
 
-More details about the algorithm used to pick the right tests can be
+The selective-check command will produce the set of ``name=value`` pairs of outputs derived
+from the context of the commit/PR to be merged via stderr output.
+
+More details about the algorithm used to pick the right tests and the available outputs can be
 found in `Selective Checks <dev/breeze/SELECTIVE_CHECKS.md>`_.
 
 Those are all available flags of ``selective-check`` command:
@@ -1367,23 +1711,6 @@ Those are all available flags of ``get-workflow-info`` command:
   :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_get-workflow-info.svg
   :width: 100%
   :alt: Breeze ci get-workflow-info
-
-Tracking backtracking issues for CI builds
-..........................................
-
-When our CI runs a job, we automatically upgrade our dependencies in the ``main`` build. However, this might
-lead to conflicts and ``pip`` backtracking for a long time (possibly forever) for dependency resolution.
-Unfortunately those issues are difficult to diagnose so we had to invent our own tool to help us with
-diagnosing them. This tool is ``find-newer-dependencies`` and it works in the way that it helps to guess
-which new dependency might have caused the backtracking. The whole process is described in
-`tracking backtracking issues <dev/TRACKING_BACKTRACKING_ISSUES.md>`_.
-
-Those are all available flags of ``find-newer-dependencies`` command:
-
-.. image:: ./images/breeze/output_ci_find-newer-dependencies.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_ci_find-newer-dependencies.svg
-  :width: 100%
-  :alt: Breeze ci find-newer-dependencies
 
 Release management tasks
 ------------------------
@@ -1482,7 +1809,7 @@ You can also run the verification with an earlier airflow version to check for c
 
 .. code-block:: bash
 
-    breeze release-management verify-provider-packages --use-airflow-version 2.1.0
+    breeze release-management verify-provider-packages --use-airflow-version 2.4.0
 
 All the command parameters are here:
 
@@ -1491,6 +1818,41 @@ All the command parameters are here:
   :width: 100%
   :alt: Breeze verify-provider-packages
 
+
+Installing provider packages
+............................
+
+In some cases we want to just see if the provider packages generated can be installed with airflow without
+verifying them. This happens automatically on CI for sdist pcackages but you can also run it manually if you
+just prepared provider packages and they are present in ``dist`` folder.
+
+.. code-block:: bash
+
+     breeze release-management install-provider-packages
+
+You can also run the verification with an earlier airflow version to check for compatibility.
+
+.. code-block:: bash
+
+    breeze release-management install-provider-packages --use-airflow-version 2.4.0
+
+All the command parameters are here:
+
+.. image:: ./images/breeze/output_release-management_install-provider-packages.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_install-provider-packages.svg
+  :width: 100%
+  :alt: Breeze install-provider-packages
+
+
+Generating Provider Issue
+.........................
+
+You can use Breeze to generate a provider issue when you release new providers.
+
+.. image:: ./images/breeze/output_release-management_generate-issue-content-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-issue-content-providers.svg
+  :width: 100%
+  :alt: Breeze generate-issue-content-providers
 
 Preparing airflow packages
 ..........................
@@ -1569,6 +1931,21 @@ This bumps the constraint files to latest versions and stores hash of setup.py. 
 and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
 of changes vs the previous constraint files is printed.
 
+Generating Providers Metadata
+.............................
+
+The release manager can generate providers metadata per provider version - information about provider versions
+including the associated Airflow version for the provider version (i.e first airflow version released after the
+provider has been released) and date of the release of the provider version.
+
+These are all of the available flags for the ``generate-providers-metadata`` command:
+
+.. image:: ./images/breeze/output_release-management_generate-providers-metadata.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-providers-metadata.svg
+  :width: 100%
+  :alt: Breeze release management generate providers metadata
+
+
 Releasing Production images
 ...........................
 
@@ -1600,6 +1977,43 @@ These are all of the available flags for the ``release-prod-images`` command:
   :alt: Breeze release management release prod images
 
 
+SBOM generation tasks
+----------------------
+
+Maintainers also can use Breeze for SBOM generation:
+
+.. image:: ./images/breeze/output_sbom.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom.svg
+  :width: 100%
+  :alt: Breeze sbom
+
+Generating SBOM information
+...........................
+
+Thanks to our constraints captured for all versions of Airflow we can easily generate SBOM information for
+Apache Airflow. SBOM information contains information about Airflow dependencies that are possible to consume
+by our users and allow them to determine whether security issues in dependencies affect them. The SBOM
+information is written directly to ``docs-archive`` in airflow-site repository.
+
+These are all of the available flags for the ``update-sbom-information`` command:
+
+.. image:: ./images/breeze/output_sbom_update-sbom-information.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbomt_update-sbom-information.svg
+  :width: 100%
+  :alt: Breeze update sbom information
+
+Generating Provider requirements
+.................................
+
+In order to generate SBOM information for providers, we need to generate requirements for them. This is
+done by the ``generate-provider-requirements`` command. This command generates requirements for the
+selected provider and python version, using the airflow version specified.
+
+.. image:: ./images/breeze/output_sbom_generate-provider-requirements.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_generate-provider-requirements.svg
+  :width: 100%
+  :alt: Breeze generate SBOM provider requirements
+
 Details of Breeze usage
 =======================
 
@@ -1607,16 +2021,16 @@ Database volumes in Breeze
 --------------------------
 
 Breeze keeps data for all it's integration in named docker volumes. Each backend and integration
-keeps data in their own volume. Those volumes are persisted until ``breeze stop`` command.
+keeps data in their own volume. Those volumes are persisted until ``breeze down`` command.
 You can also preserve the volumes by adding flag ``--preserve-volumes`` when you run the command.
 Then, next time when you start Breeze, it will have the data pre-populated.
 
-Those are all available flags of ``stop`` command:
+Those are all available flags of ``down`` command:
 
-.. image:: ./images/breeze/output-stop.svg
-  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output-stop.svg
+.. image:: ./images/breeze/output-down.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output-down.svg
   :width: 100%
-  :alt: Breeze stop
+  :alt: Breeze down
 
 
 Additional tools
@@ -1660,10 +2074,11 @@ By default Breeze starts only airflow container without any integration enabled.
 that is selected). You can start the additional integrations by passing ``--integration`` flag
 with appropriate integration name when starting Breeze. You can specify several ``--integration`` flags
 to start more than one integration at a time.
-Finally you can specify ``--integration all`` to start all integrations.
+Finally you can specify ``--integration all-testable`` to start all testable integrations and
+``--integration all`` to enable all integrations.
 
 Once integration is started, it will continue to run until the environment is stopped with
-``breeze stop`` command. or restarted via ``breeze restart`` command
+``breeze down`` command.
 
 Note that running integrations uses significant resources - CPU and memory.
 

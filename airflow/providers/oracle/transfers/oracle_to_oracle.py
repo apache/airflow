@@ -30,7 +30,6 @@ class OracleToOracleOperator(BaseOperator):
     """
     Moves data from Oracle to Oracle.
 
-
     :param oracle_destination_conn_id: destination Oracle connection.
     :param destination_table: destination table to insert rows.
     :param oracle_source_conn_id: :ref:`Source Oracle connection <howto/connection:oracle>`.
@@ -40,9 +39,9 @@ class OracleToOracleOperator(BaseOperator):
     :param rows_chunk: number of rows per chunk to commit.
     """
 
-    template_fields: Sequence[str] = ('source_sql', 'source_sql_params')
+    template_fields: Sequence[str] = ("source_sql", "source_sql_params")
     template_fields_renderers = {"source_sql": "sql", "source_sql_params": "py"}
-    ui_color = '#e08c8c'
+    ui_color = "#e08c8c"
 
     def __init__(
         self,

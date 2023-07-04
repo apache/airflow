@@ -21,16 +21,19 @@ from unittest import mock
 from urllib.parse import quote_plus
 
 import pytest
+from markupsafe import escape
 
 from airflow.models import DAG, RenderedTaskInstanceFields, Variable
+from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
-from tests.test_utils.www import check_content_in_response
+from tests.test_utils.www import check_content_in_response, check_content_not_in_response
 
 DEFAULT_DATE = timezone.datetime(2020, 3, 1)
 
@@ -40,16 +43,16 @@ def dag():
     return DAG(
         "testdag",
         start_date=DEFAULT_DATE,
-        user_defined_filters={"hello": lambda name: f'Hello {name}'},
-        user_defined_macros={"fullname": lambda fname, lname: f'{fname} {lname}'},
+        user_defined_filters={"hello": lambda name: f"Hello {name}"},
+        user_defined_macros={"fullname": lambda fname, lname: f"{fname} {lname}"},
     )
 
 
 @pytest.fixture()
 def task1(dag):
     return BashOperator(
-        task_id='task1',
-        bash_command='{{ task_instance_key_str }}',
+        task_id="task1",
+        bash_command="{{ task_instance_key_str }}",
         dag=dag,
     )
 
@@ -57,8 +60,41 @@ def task1(dag):
 @pytest.fixture()
 def task2(dag):
     return BashOperator(
-        task_id='task2',
+        task_id="task2",
         bash_command='echo {{ fullname("Apache", "Airflow") | hello }}',
+        dag=dag,
+    )
+
+
+@pytest.fixture()
+def task3(dag):
+    class TestOperator(BaseOperator):
+        template_fields = ("sql",)
+
+        def __init__(self, *, sql, **kwargs):
+            super().__init__(**kwargs)
+            self.sql = sql
+
+        def execute(self, context):
+            pass
+
+    return TestOperator(
+        task_id="task3",
+        sql=["SELECT 1;", "SELECT 2;"],
+        dag=dag,
+    )
+
+
+@pytest.fixture()
+def task4(dag):
+    def func(*op_args):
+        pass
+
+    return PythonOperator(
+        task_id="task4",
+        python_callable=func,
+        op_args=["{{ task_instance_key_str }}_args"],
+        op_kwargs={"0": "{{ task_instance_key_str }}_kwargs"},
         dag=dag,
     )
 
@@ -66,8 +102,8 @@ def task2(dag):
 @pytest.fixture()
 def task_secret(dag):
     return BashOperator(
-        task_id='task_secret',
-        bash_command='echo {{ var.value.my_secret }} && echo {{ var.value.spam }}',
+        task_id="task_secret",
+        bash_command="echo {{ var.value.my_secret }} && echo {{ var.value.spam }}",
         dag=dag,
     )
 
@@ -84,7 +120,7 @@ def init_blank_db():
 
 
 @pytest.fixture(autouse=True)
-def reset_db(dag, task1, task2, task_secret):
+def reset_db(dag, task1, task2, task3, task4, task_secret):
     yield
     clear_db_dags()
     clear_db_runs()
@@ -92,7 +128,7 @@ def reset_db(dag, task1, task2, task_secret):
 
 
 @pytest.fixture()
-def create_dag_run(dag, task1, task2, task_secret):
+def create_dag_run(dag, task1, task2, task3, task4, task_secret):
     def _create_dag_run(*, execution_date, session):
         dag_run = dag.create_dagrun(
             state=DagRunState.RUNNING,
@@ -107,6 +143,10 @@ def create_dag_run(dag, task1, task2, task_secret):
         ti2.state = TaskInstanceState.SCHEDULED
         ti3 = dag_run.get_task_instance(task_secret.task_id, session=session)
         ti3.state = TaskInstanceState.QUEUED
+        ti4 = dag_run.get_task_instance(task3.task_id, session=session)
+        ti4.state = TaskInstanceState.SUCCESS
+        ti5 = dag_run.get_task_instance(task4.task_id, session=session)
+        ti5.state = TaskInstanceState.SUCCESS
         session.flush()
         return dag_run
 
@@ -125,7 +165,7 @@ def test_rendered_template_view(admin_client, create_dag_run, task1):
     """
     Test that the Rendered View contains the values from RenderedTaskInstanceFields
     """
-    assert task1.bash_command == '{{ task_instance_key_str }}'
+    assert task1.bash_command == "{{ task_instance_key_str }}"
 
     with create_session() as session:
         dag_run = create_dag_run(execution_date=DEFAULT_DATE, session=session)
@@ -134,7 +174,7 @@ def test_rendered_template_view(admin_client, create_dag_run, task1):
         ti.refresh_from_task(task1)
         session.add(RenderedTaskInstanceFields(ti))
 
-    url = f'rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+    url = f"rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("testdag__task1__20200301", resp)
@@ -146,12 +186,12 @@ def test_rendered_template_view_for_unexecuted_tis(admin_client, create_dag_run,
     Test that the Rendered View is able to show rendered values
     even for TIs that have not yet executed
     """
-    assert task1.bash_command == '{{ task_instance_key_str }}'
+    assert task1.bash_command == "{{ task_instance_key_str }}"
 
     with create_session() as session:
         create_dag_run(execution_date=DEFAULT_DATE, session=session)
 
-    url = f'rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+    url = f"rendered-templates?task_id=task1&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     check_content_in_response("testdag__task1__20200301", resp)
@@ -164,7 +204,7 @@ def test_user_defined_filter_and_macros_raise_error(admin_client, create_dag_run
     with create_session() as session:
         create_dag_run(execution_date=DEFAULT_DATE, session=session)
 
-    url = f'rendered-templates?task_id=task2&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}'
+    url = f"rendered-templates?task_id=task2&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
 
     resp = admin_client.get(url, follow_redirects=True)
     assert resp.status_code == 200
@@ -186,10 +226,10 @@ def test_user_defined_filter_and_macros_raise_error(admin_client, create_dag_run
 @pytest.mark.usefixtures("patch_app")
 def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
     """Test that the Rendered View masks values retrieved from secret variables."""
-    Variable.set("my_secret", "foo")
+    Variable.set("my_secret", "secret_unlikely_to_happen_accidentally")
     Variable.set("spam", "egg")
 
-    assert task_secret.bash_command == 'echo {{ var.value.my_secret }} && echo {{ var.value.spam }}'
+    assert task_secret.bash_command == "echo {{ var.value.my_secret }} && echo {{ var.value.spam }}"
 
     with create_session() as session:
         dag_run = create_dag_run(execution_date=DEFAULT_DATE, session=session)
@@ -199,11 +239,128 @@ def test_rendered_template_secret(admin_client, create_dag_run, task_secret):
         assert ti.state == TaskInstanceState.QUEUED
 
     date = quote_plus(str(DEFAULT_DATE))
-    url = f'rendered-templates?task_id=task_secret&dag_id=testdag&execution_date={date}'
+    url = f"rendered-templates?task_id=task_secret&dag_id=testdag&execution_date={date}"
 
     resp = admin_client.get(url, follow_redirects=True)
-    check_content_in_response(
-        'echo</span> *** <span class="o">&amp;&amp;</span> <span class="nb">echo</span> egg', resp
-    )
+    check_content_in_response("***", resp)
+    check_content_not_in_response("secret_unlikely_to_happen_accidentally", resp)
     ti.refresh_from_task(task_secret)
     assert ti.state == TaskInstanceState.QUEUED
+
+
+@pytest.mark.parametrize(
+    "env, expected",
+    [
+        pytest.param(
+            {"plain_key": "plain_value"},
+            "{'plain_key': 'plain_value'}",
+            id="env-plain-key-val",
+        ),
+        pytest.param(
+            {"plain_key": Variable.setdefault("plain_var", "banana")},
+            "{'plain_key': 'banana'}",
+            id="env-plain-key-plain-var",
+        ),
+        pytest.param(
+            {"plain_key": Variable.setdefault("secret_var", "monkey")},
+            "{'plain_key': '***'}",
+            id="env-plain-key-sensitive-var",
+        ),
+        pytest.param(
+            {"plain_key": "{{ var.value.plain_var }}"},
+            "{'plain_key': '{{ var.value.plain_var }}'}",
+            id="env-plain-key-plain-tpld-var",
+        ),
+        pytest.param(
+            {"plain_key": "{{ var.value.secret_var }}"},
+            "{'plain_key': '{{ var.value.secret_var }}'}",
+            id="env-plain-key-sensitive-tpld-var",
+        ),
+        pytest.param(
+            {"secret_key": "plain_value"},
+            "{'secret_key': '***'}",
+            id="env-sensitive-key-plain-val",
+        ),
+        pytest.param(
+            {"secret_key": Variable.setdefault("plain_var", "monkey")},
+            "{'secret_key': '***'}",
+            id="env-sensitive-key-plain-var",
+        ),
+        pytest.param(
+            {"secret_key": Variable.setdefault("secret_var", "monkey")},
+            "{'secret_key': '***'}",
+            id="env-sensitive-key-sensitive-var",
+        ),
+        pytest.param(
+            {"secret_key": "{{ var.value.plain_var }}"},
+            "{'secret_key': '***'}",
+            id="env-sensitive-key-plain-tpld-var",
+        ),
+        pytest.param(
+            {"secret_key": "{{ var.value.secret_var }}"},
+            "{'secret_key': '***'}",
+            id="env-sensitive-key-sensitive-tpld-var",
+        ),
+    ],
+)
+def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, expected):
+    if request.node.callspec.id.endswith("-tpld-var"):
+        Variable.set("plain_var", "banana")
+        Variable.set("secret_var", "monkey")
+
+    dag: DAG = patch_app.dag_bag.get_dag("testdag")
+    task_secret: BashOperator = dag.get_task(task_id="task1")
+    task_secret.env = env
+    date = quote_plus(str(DEFAULT_DATE))
+    url = f"task?task_id=task1&dag_id=testdag&execution_date={date}"
+
+    with create_session() as session:
+        dag.create_dagrun(
+            state=DagRunState.RUNNING,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            run_type=DagRunType.SCHEDULED,
+            session=session,
+        )
+
+    resp = admin_client.get(url, follow_redirects=True)
+    check_content_in_response(str(escape(expected)), resp)
+
+    if request.node.callspec.id.endswith("-tpld-var"):
+        Variable.delete("plain_var")
+        Variable.delete("secret_var")
+
+
+@pytest.mark.usefixtures("patch_app")
+def test_rendered_template_view_for_list_template_field_args(admin_client, create_dag_run, task3):
+    """
+    Test that the Rendered View can show a list of syntax-highlighted SQL statements
+    """
+    assert task3.sql == ["SELECT 1;", "SELECT 2;"]
+
+    with create_session() as session:
+        create_dag_run(execution_date=DEFAULT_DATE, session=session)
+
+    url = f"rendered-templates?task_id=task3&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
+
+    resp = admin_client.get(url, follow_redirects=True)
+    check_content_in_response("List item #0", resp)
+    check_content_in_response("List item #1", resp)
+
+
+@pytest.mark.usefixtures("patch_app")
+def test_rendered_template_view_for_op_args(admin_client, create_dag_run, task4):
+    """
+    Test that the Rendered View can show rendered values in op_args and op_kwargs
+    """
+    assert task4.op_args == ["{{ task_instance_key_str }}_args"]
+    assert list(task4.op_kwargs.values()) == ["{{ task_instance_key_str }}_kwargs"]
+
+    with create_session() as session:
+        create_dag_run(execution_date=DEFAULT_DATE, session=session)
+
+    url = f"rendered-templates?task_id=task4&dag_id=testdag&execution_date={quote_plus(str(DEFAULT_DATE))}"
+
+    resp = admin_client.get(url, follow_redirects=True)
+    check_content_in_response("testdag__task4__20200301_args", resp)
+    check_content_in_response("testdag__task4__20200301_kwargs", resp)

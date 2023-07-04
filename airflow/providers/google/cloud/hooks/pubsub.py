@@ -18,7 +18,7 @@
 """
 This module contains a Google Pub/Sub Hook.
 
-.. spelling::
+.. spelling:word-list::
 
     MessageStoragePolicy
     ReceivedMessage
@@ -27,7 +27,8 @@ from __future__ import annotations
 
 import warnings
 from base64 import b64decode
-from typing import Sequence
+from functools import cached_property
+from typing import Any, Sequence
 from uuid import uuid4
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
@@ -44,11 +45,16 @@ from google.cloud.pubsub_v1.types import (
     ReceivedMessage,
     RetryPolicy,
 )
+from google.pubsub_v1.services.subscriber.async_client import SubscriberAsyncClient
 from googleapiclient.errors import HttpError
 
-from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 from airflow.version import version
 
 
@@ -67,12 +73,16 @@ class PubSubHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._client = None
@@ -82,7 +92,6 @@ class PubSubHook(GoogleBaseHook):
         Retrieves connection to Google Cloud Pub/Sub.
 
         :return: Google Cloud Pub/Sub client object.
-        :rtype: google.cloud.pubsub_v1.PublisherClient
         """
         if not self._client:
             self._client = PublisherClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
@@ -94,7 +103,6 @@ class PubSubHook(GoogleBaseHook):
         Creates SubscriberClient.
 
         :return: Google Cloud Pub/Sub client object.
-        :rtype: google.cloud.pubsub_v1.SubscriberClient
         """
         return SubscriberClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
 
@@ -125,11 +133,11 @@ class PubSubHook(GoogleBaseHook):
         try:
             for message in messages:
                 future = publisher.publish(
-                    topic=topic_path, data=message.get("data", b''), **message.get('attributes', {})
+                    topic=topic_path, data=message.get("data", b""), **message.get("attributes", {})
                 )
                 future.result()
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error publishing to topic {topic_path}', e)
+            raise PubSubException(f"Error publishing to topic {topic_path}", e)
 
         self.log.info("Published %d messages to topic (path) %s", len(messages), topic_path)
 
@@ -144,7 +152,7 @@ class PubSubHook(GoogleBaseHook):
                     warnings.warn(
                         "The base 64 encoded string as 'data' field has been deprecated. "
                         "You should pass bytestring (utf-8 encoded).",
-                        DeprecationWarning,
+                        AirflowProviderDeprecationWarning,
                         stacklevel=4,
                     )
                 except ValueError:
@@ -191,7 +199,7 @@ class PubSubHook(GoogleBaseHook):
             of Google Cloud regions where messages published to
             the topic may be stored. If not present, then no constraints
             are in effect.
-            Union[Dict, google.cloud.pubsub_v1.types.MessageStoragePolicy]
+            Union[dict, google.cloud.pubsub_v1.types.MessageStoragePolicy]
         :param kms_key_name: The resource name of the Cloud KMS CryptoKey
             to be used to protect access to messages published on this topic.
             The expected format is
@@ -208,7 +216,7 @@ class PubSubHook(GoogleBaseHook):
 
         # Add airflow-version label to the topic
         labels = labels or {}
-        labels['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
+        labels["airflow-version"] = "v" + version.replace(".", "-").replace("+", "-")
 
         self.log.info("Creating topic (path) %s", topic_path)
         try:
@@ -225,11 +233,11 @@ class PubSubHook(GoogleBaseHook):
                 metadata=metadata,
             )
         except AlreadyExists:
-            self.log.warning('Topic already exists: %s', topic)
+            self.log.warning("Topic already exists: %s", topic)
             if fail_if_exists:
-                raise PubSubException(f'Topic already exists: {topic}')
+                raise PubSubException(f"Topic already exists: {topic}")
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error creating topic {topic}', e)
+            raise PubSubException(f"Error creating topic {topic}", e)
 
         self.log.info("Created topic (path) %s", topic_path)
 
@@ -269,11 +277,11 @@ class PubSubHook(GoogleBaseHook):
                 request={"topic": topic_path}, retry=retry, timeout=timeout, metadata=metadata or ()
             )
         except NotFound:
-            self.log.warning('Topic does not exist: %s', topic_path)
+            self.log.warning("Topic does not exist: %s", topic_path)
             if fail_if_not_exists:
-                raise PubSubException(f'Topic does not exist: {topic_path}')
+                raise PubSubException(f"Topic does not exist: {topic_path}")
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error deleting topic {topic}', e)
+            raise PubSubException(f"Error deleting topic {topic}", e)
         self.log.info("Deleted topic (path) %s", topic_path)
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -359,18 +367,17 @@ class PubSubHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         :return: subscription name which will be the system-generated value if
             the ``subscription`` parameter is not supplied
-        :rtype: str
         """
         subscriber = self.subscriber_client
 
         if not subscription:
-            subscription = f'sub-{uuid4()}'
+            subscription = f"sub-{uuid4()}"
         if not subscription_project_id:
             subscription_project_id = project_id
 
         # Add airflow-version label to the subscription
         labels = labels or {}
-        labels['airflow-version'] = 'v' + version.replace('.', '-').replace('+', '-')
+        labels["airflow-version"] = "v" + version.replace(".", "-").replace("+", "-")
 
         subscription_path = f"projects/{subscription_project_id}/subscriptions/{subscription}"
         topic_path = f"projects/{project_id}/topics/{topic}"
@@ -397,11 +404,11 @@ class PubSubHook(GoogleBaseHook):
                 metadata=metadata,
             )
         except AlreadyExists:
-            self.log.warning('Subscription already exists: %s', subscription_path)
+            self.log.warning("Subscription already exists: %s", subscription_path)
             if fail_if_exists:
-                raise PubSubException(f'Subscription already exists: {subscription_path}')
+                raise PubSubException(f"Subscription already exists: {subscription_path}")
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error creating subscription {subscription_path}', e)
+            raise PubSubException(f"Error creating subscription {subscription_path}", e)
 
         self.log.info("Created subscription (path) %s for topic (path) %s", subscription_path, topic_path)
         return subscription
@@ -446,11 +453,11 @@ class PubSubHook(GoogleBaseHook):
             )
 
         except NotFound:
-            self.log.warning('Subscription does not exist: %s', subscription_path)
+            self.log.warning("Subscription does not exist: %s", subscription_path)
             if fail_if_not_exists:
-                raise PubSubException(f'Subscription does not exist: {subscription_path}')
+                raise PubSubException(f"Subscription does not exist: {subscription_path}")
         except GoogleAPICallError as e:
-            raise PubSubException(f'Error deleting subscription {subscription_path}', e)
+            raise PubSubException(f"Error deleting subscription {subscription_path}", e)
 
         self.log.info("Deleted subscription (path) %s", subscription_path)
 
@@ -494,7 +501,6 @@ class PubSubHook(GoogleBaseHook):
 
         self.log.info("Pulling max %d messages from subscription (path) %s", max_messages, subscription_path)
         try:
-
             response = subscriber.pull(
                 request={
                     "subscription": subscription_path,
@@ -505,11 +511,11 @@ class PubSubHook(GoogleBaseHook):
                 timeout=timeout,
                 metadata=metadata,
             )
-            result = getattr(response, 'received_messages', [])
+            result = getattr(response, "received_messages", [])
             self.log.info("Pulled %d messages from subscription (path) %s", len(result), subscription_path)
             return result
         except (HttpError, GoogleAPICallError) as e:
-            raise PubSubException(f'Error pulling messages from subscription {subscription_path}', e)
+            raise PubSubException(f"Error pulling messages from subscription {subscription_path}", e)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def acknowledge(
@@ -541,9 +547,9 @@ class PubSubHook(GoogleBaseHook):
         :param metadata: (Optional) Additional metadata that is provided to the method.
         """
         if ack_ids is not None and messages is None:
-            pass
+            pass  # use ack_ids as is
         elif ack_ids is None and messages is not None:
-            ack_ids = [message.ack_id for message in messages]
+            ack_ids = [message.ack_id for message in messages]  # extract ack_ids from messages
         else:
             raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
 
@@ -562,8 +568,138 @@ class PubSubHook(GoogleBaseHook):
             )
         except (HttpError, GoogleAPICallError) as e:
             raise PubSubException(
-                f'Error acknowledging {len(ack_ids)} messages pulled from subscription {subscription_path}',
+                f"Error acknowledging {len(ack_ids)} messages pulled from subscription {subscription_path}",
                 e,
             )
 
         self.log.info("Acknowledged ack_ids from subscription (path) %s", subscription_path)
+
+
+class PubSubAsyncHook(GoogleBaseAsyncHook):
+    """Class to get asynchronous hook for Google Cloud PubSub."""
+
+    sync_hook_class = PubSubHook
+
+    def __init__(self, project_id: str | None = None, **kwargs: Any):
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self._client: SubscriberAsyncClient | None = None
+
+    async def _get_subscriber_client(self) -> SubscriberAsyncClient:
+        """
+        Returns async connection to the Google PubSub
+        :return: Google Pub/Sub asynchronous client.
+        """
+        if not self._client:
+            credentials = (await self.get_sync_hook()).get_credentials()
+            self._client = SubscriberAsyncClient(credentials=credentials, client_info=CLIENT_INFO)
+        return self._client
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    async def acknowledge(
+        self,
+        subscription: str,
+        project_id: str,
+        ack_ids: list[str] | None = None,
+        messages: list[ReceivedMessage] | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> None:
+        """
+        Acknowledges the messages associated with the ``ack_ids`` from Pub/Sub subscription.
+
+        :param subscription: the Pub/Sub subscription name to delete; do not
+            include the 'projects/{project}/topics/' prefix.
+        :param ack_ids: List of ReceivedMessage ackIds from a previous pull response.
+            Mutually exclusive with ``messages`` argument.
+        :param messages: List of ReceivedMessage objects to acknowledge.
+            Mutually exclusive with ``ack_ids`` argument.
+        :param project_id: Optional, the Google Cloud project name or ID in which to create the topic
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param retry: (Optional) A retry object used to retry requests.
+            If None is specified, requests will not be retried.
+        :param timeout: (Optional) The amount of time, in seconds, to wait for the request
+            to complete. Note that if retry is specified, the timeout applies to each
+            individual attempt.
+        :param metadata: (Optional) Additional metadata that is provided to the method.
+        """
+        subscriber = await self._get_subscriber_client()
+        if ack_ids is not None and messages is None:
+            pass  # use ack_ids as is
+        elif ack_ids is None and messages is not None:
+            ack_ids = [message.ack_id for message in messages]  # extract ack_ids from messages
+        else:
+            raise ValueError("One and only one of 'ack_ids' and 'messages' arguments have to be provided")
+
+        subscription_path = f"projects/{project_id}/subscriptions/{subscription}"
+        self.log.info("Acknowledging %d ack_ids from subscription (path) %s", len(ack_ids), subscription_path)
+
+        try:
+            await subscriber.acknowledge(
+                request={"subscription": subscription_path, "ack_ids": ack_ids},
+                retry=retry,
+                timeout=timeout,
+                metadata=metadata,
+            )
+        except (HttpError, GoogleAPICallError) as e:
+            raise PubSubException(
+                f"Error acknowledging {len(ack_ids)} messages pulled from subscription {subscription_path}",
+                e,
+            )
+        self.log.info("Acknowledged ack_ids from subscription (path) %s", subscription_path)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    async def pull(
+        self,
+        subscription: str,
+        max_messages: int,
+        project_id: str = PROVIDE_PROJECT_ID,
+        return_immediately: bool = False,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
+    ) -> list[ReceivedMessage]:
+        """
+        Pulls up to ``max_messages`` messages from Pub/Sub subscription.
+
+        :param subscription: the Pub/Sub subscription name to pull from; do not
+            include the 'projects/{project}/topics/' prefix.
+        :param max_messages: The maximum number of messages to return from
+            the Pub/Sub API.
+        :param project_id: Optional, the Google Cloud project ID where the subscription exists.
+            If set to None or missing, the default project_id from the Google Cloud connection is used.
+        :param return_immediately: If set, the Pub/Sub API will immediately
+            return if no messages are available. Otherwise, the request will
+            block for an undisclosed, but bounded period of time
+        :param retry: (Optional) A retry object used to retry requests.
+            If None is specified, requests will not be retried.
+        :param timeout: (Optional) The amount of time, in seconds, to wait for the request
+            to complete. Note that if retry is specified, the timeout applies to each
+            individual attempt.
+        :param metadata: (Optional) Additional metadata that is provided to the method.
+        :return: A list of Pub/Sub ReceivedMessage objects each containing
+            an ``ackId`` property and a ``message`` property, which includes
+            the base64-encoded message content. See
+            https://cloud.google.com/pubsub/docs/reference/rpc/google.pubsub.v1#google.pubsub.v1.ReceivedMessage
+        """
+        subscriber = await self._get_subscriber_client()
+        subscription_path = f"projects/{project_id}/subscriptions/{subscription}"
+        self.log.info("Pulling max %d messages from subscription (path) %s", max_messages, subscription_path)
+
+        try:
+            response = await subscriber.pull(
+                request={
+                    "subscription": subscription_path,
+                    "max_messages": max_messages,
+                    "return_immediately": return_immediately,
+                },
+                retry=retry,
+                timeout=timeout,
+                metadata=metadata,
+            )
+            result = getattr(response, "received_messages", [])
+            self.log.info("Pulled %d messages from subscription (path) %s", len(result), subscription_path)
+            return result
+        except (HttpError, GoogleAPICallError) as e:
+            raise PubSubException(f"Error pulling messages from subscription {subscription_path}", e)

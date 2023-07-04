@@ -40,14 +40,14 @@ class WasbDeleteBlobOperator(BaseOperator):
         blob does not exist.
     """
 
-    template_fields: Sequence[str] = ('container_name', 'blob_name')
+    template_fields: Sequence[str] = ("container_name", "blob_name")
 
     def __init__(
         self,
         *,
         container_name: str,
         blob_name: str,
-        wasb_conn_id: str = 'wasb_default',
+        wasb_conn_id: str = "wasb_default",
         check_options: Any = None,
         is_prefix: bool = False,
         ignore_if_missing: bool = False,
@@ -64,7 +64,7 @@ class WasbDeleteBlobOperator(BaseOperator):
         self.ignore_if_missing = ignore_if_missing
 
     def execute(self, context: Context) -> None:
-        self.log.info('Deleting blob: %s\n in wasb://%s', self.blob_name, self.container_name)
+        self.log.info("Deleting blob: %s\n in wasb://%s", self.blob_name, self.container_name)
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
 
         hook.delete_file(

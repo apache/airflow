@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
@@ -36,8 +36,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_AUDIT_LOG)])
 @provide_session
 def get_event_log(*, event_log_id: int, session: Session = NEW_SESSION) -> APIResponse:
-    """Get a log entry"""
-    event_log = session.query(Log).get(event_log_id)
+    """Get a log entry."""
+    event_log = session.get(Log, event_log_id)
     if event_log is None:
         raise NotFound("Event Log not found")
     return event_log_schema.dump(event_log)
@@ -53,10 +53,10 @@ def get_event_logs(
     order_by: str = "event_log_id",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get all log entries from event log"""
+    """Get all log entries from event log."""
     to_replace = {"event_log_id": "id", "when": "dttm"}
     allowed_filter_attrs = [
-        'event_log_id',
+        "event_log_id",
         "when",
         "dag_id",
         "task_id",
@@ -65,10 +65,10 @@ def get_event_logs(
         "owner",
         "extra",
     ]
-    total_entries = session.query(func.count(Log.id)).scalar()
-    query = session.query(Log)
+    total_entries = session.scalars(func.count(Log.id)).one()
+    query = select(Log)
     query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
-    event_logs = query.offset(offset).limit(limit).all()
+    event_logs = session.scalars(query.offset(offset).limit(limit)).all()
     return event_log_collection_schema.dump(
         EventLogCollection(event_logs=event_logs, total_entries=total_entries)
     )

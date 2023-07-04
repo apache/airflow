@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -35,12 +34,11 @@ BODY = {"body": "test"}
 DATAPLEX_TASK_ID = "testTask001"
 
 GCP_CONN_ID = "google_cloud_default"
-DELEGATE_TO = "test-delegate-to"
 API_VERSION = "v1"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
-class TestDataplexTaskStateSensor(unittest.TestCase):
+class TestDataplexTaskStateSensor:
     def create_task(self, state: int):
         task = mock.Mock()
         task.state = state
@@ -59,7 +57,6 @@ class TestDataplexTaskStateSensor(unittest.TestCase):
             dataplex_task_id=DATAPLEX_TASK_ID,
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         result = sensor.poke(context={})
@@ -88,7 +85,6 @@ class TestDataplexTaskStateSensor(unittest.TestCase):
             dataplex_task_id=DATAPLEX_TASK_ID,
             api_version=API_VERSION,
             gcp_conn_id=GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 

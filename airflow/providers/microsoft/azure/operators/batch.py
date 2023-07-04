@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class AzureBatchOperator(BaseOperator):
     """
-    Executes a job on Azure Batch Service
+    Executes a job on Azure Batch Service.
 
     :param batch_pool_id: A string that uniquely identifies the Pool within the Account.
     :param batch_pool_vm_size: The size of virtual machines in the Pool
@@ -83,7 +83,7 @@ class AzureBatchOperator(BaseOperator):
         use_latest_image_and_sku is set to True
     :param vm_sku: The name of the virtual machine sku to use
     :param vm_version: The version of the virtual machine
-    :param vm_version: Optional[str]
+    :param vm_version: str | None
     :param vm_node_agent_sku_id: The node agent sku id of the virtual machine
     :param os_family: The Azure Guest OS family to be installed on the virtual machines in the Pool.
     :param os_version: The OS family version
@@ -93,13 +93,13 @@ class AzureBatchOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'batch_pool_id',
-        'batch_pool_vm_size',
-        'batch_job_id',
-        'batch_task_id',
-        'batch_task_command_line',
+        "batch_pool_id",
+        "batch_pool_vm_size",
+        "batch_job_id",
+        "batch_task_id",
+        "batch_task_command_line",
     )
-    ui_color = '#f0f0e4'
+    ui_color = "#f0f0e4"
 
     def __init__(
         self,
@@ -109,12 +109,12 @@ class AzureBatchOperator(BaseOperator):
         batch_job_id: str,
         batch_task_command_line: str,
         batch_task_id: str,
+        vm_node_agent_sku_id: str,
         vm_publisher: str | None = None,
         vm_offer: str | None = None,
         sku_starts_with: str | None = None,
         vm_sku: str | None = None,
         vm_version: str | None = None,
-        vm_node_agent_sku_id: str | None = None,
         os_family: str | None = None,
         os_version: str | None = None,
         batch_pool_display_name: str | None = None,
@@ -133,7 +133,7 @@ class AzureBatchOperator(BaseOperator):
         target_dedicated_nodes: int | None = None,
         enable_auto_scale: bool = False,
         auto_scale_formula: str | None = None,
-        azure_batch_conn_id='azure_batch_default',
+        azure_batch_conn_id="azure_batch_default",
         use_latest_verified_vm_image_and_sku: bool = False,
         timeout: int = 25,
         should_delete_job: bool = False,
@@ -306,7 +306,7 @@ class AzureBatchOperator(BaseOperator):
 
     def on_kill(self) -> None:
         response = self.hook.connection.job.terminate(
-            job_id=self.batch_job_id, terminate_reason='Job killed by user'
+            job_id=self.batch_job_id, terminate_reason="Job killed by user"
         )
         self.log.info("Azure Batch job (%s) terminated: %s", self.batch_job_id, response)
 
@@ -316,7 +316,7 @@ class AzureBatchOperator(BaseOperator):
 
     def clean_up(self, pool_id: str | None = None, job_id: str | None = None) -> None:
         """
-        Delete the given pool and job in the batch account
+        Delete the given pool and job in the batch account.
 
         :param pool_id: The id of the pool to delete
         :param job_id: The id of the job to delete

@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 
 class StorageLink(BaseGoogleLink):
-    """Helper class for constructing GCS Storage link"""
+    """Helper class for constructing GCS Storage link."""
 
     name = "GCS Storage"
     key = "storage_conf"
@@ -47,7 +47,7 @@ class StorageLink(BaseGoogleLink):
 
 
 class FileDetailsLink(BaseGoogleLink):
-    """Helper class for constructing GCS file details link"""
+    """Helper class for constructing GCS file details link."""
 
     name = "GCS File Details"
     key = "file_details"

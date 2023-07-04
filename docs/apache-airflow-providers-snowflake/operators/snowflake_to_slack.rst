@@ -20,8 +20,14 @@
 SnowflakeToSlackOperator
 ========================
 
-Use the :class:`~airflow.providers.snowflake.transfers.snowflake_to_slack.snowflake_to_slack` to post messages to predefined Slack
-channels.
+.. warning::
+    This operator is deprecated.
+    Please use :class:`airflow.providers.slack.transfers.sql_to_slack.SqlToSlackOperator` or
+    :class:`airflow.providers.slack.transfers.sql_to_slack.SqlToSlackApiFileOperator`.
+
+
+Use the :class:`~airflow.providers.snowflake.transfers.snowflake_to_slack.SnowflakeToSlackOperator` to post messages
+to predefined Slack channels.
 
 .. list-table:: Slack Webhook Airflow Connection Metadata
    :widths: 25 25
@@ -46,7 +52,8 @@ and contain the resulting dataset (e.g. ASCII formatted dataframe).
 
 An example usage of the SnowflakeToSlackOperator is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/snowflake/example_snowflake.py
+.. exampleinclude:: /../../tests/system/providers/snowflake/example_snowflake_to_slack.py
     :language: python
     :start-after: [START howto_operator_snowflake_to_slack]
     :end-before: [END howto_operator_snowflake_to_slack]
+    :dedent: 4

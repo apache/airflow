@@ -17,22 +17,21 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
-
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.emr import EmrBaseSensor
+from airflow.utils.context import Context
 
-TARGET_STATE = 'TARGET_STATE'
-FAILED_STATE = 'FAILED_STATE'
-NON_TARGET_STATE = 'NON_TARGET_STATE'
+TARGET_STATE = "TARGET_STATE"
+FAILED_STATE = "FAILED_STATE"
+NON_TARGET_STATE = "NON_TARGET_STATE"
 
 GOOD_HTTP_STATUS = 200
 BAD_HTTP_STATUS = 400
 
-EXPECTED_CODE = 'EXPECTED_TEST_FAILURE'
-EMPTY_CODE = 'No code'
+EXPECTED_CODE = "EXPECTED_TEST_FAILURE"
+EMPTY_CODE = "No code"
 
 
 class EmrBaseSensorSubclass(EmrBaseSensor):
@@ -42,16 +41,16 @@ class EmrBaseSensorSubclass(EmrBaseSensor):
         self.failed_states = [FAILED_STATE]
         self.response = {}  # will be set in tests
 
-    def get_emr_response(self):
+    def get_emr_response(self, context: Context):
         return self.response
 
     @staticmethod
     def state_from_response(response):
-        return response['SomeKey']['State']
+        return response["SomeKey"]["State"]
 
     @staticmethod
     def failure_message_from_response(response):
-        change_reason = response['SomeKey'].get('StateChangeReason')
+        change_reason = response["SomeKey"].get("StateChangeReason")
         if change_reason:
             return (
                 f"for code: {change_reason.get('Code', EMPTY_CODE)} "
@@ -60,56 +59,56 @@ class EmrBaseSensorSubclass(EmrBaseSensor):
         return None
 
 
-class TestEmrBaseSensor(unittest.TestCase):
+class TestEmrBaseSensor:
     def test_poke_returns_true_when_state_is_in_target_states(self):
         operator = EmrBaseSensorSubclass(
-            task_id='test_task',
+            task_id="test_task",
             poke_interval=2,
         )
         operator.response = {
-            'SomeKey': {'State': TARGET_STATE},
-            'ResponseMetadata': {'HTTPStatusCode': GOOD_HTTP_STATUS},
+            "SomeKey": {"State": TARGET_STATE},
+            "ResponseMetadata": {"HTTPStatusCode": GOOD_HTTP_STATUS},
         }
 
         operator.execute(None)
 
     def test_poke_returns_false_when_state_is_not_in_target_states(self):
         operator = EmrBaseSensorSubclass(
-            task_id='test_task',
+            task_id="test_task",
             poke_interval=2,
         )
         operator.response = {
-            'SomeKey': {'State': NON_TARGET_STATE},
-            'ResponseMetadata': {'HTTPStatusCode': GOOD_HTTP_STATUS},
+            "SomeKey": {"State": NON_TARGET_STATE},
+            "ResponseMetadata": {"HTTPStatusCode": GOOD_HTTP_STATUS},
         }
 
         assert operator.poke(None) is False
 
     def test_poke_returns_false_when_http_response_is_bad(self):
         operator = EmrBaseSensorSubclass(
-            task_id='test_task',
+            task_id="test_task",
             poke_interval=2,
         )
         operator.response = {
-            'SomeKey': {'State': TARGET_STATE},
-            'ResponseMetadata': {'HTTPStatusCode': BAD_HTTP_STATUS},
+            "SomeKey": {"State": TARGET_STATE},
+            "ResponseMetadata": {"HTTPStatusCode": BAD_HTTP_STATUS},
         }
 
         assert operator.poke(None) is False
 
     def test_poke_raises_error_when_state_is_in_failed_states(self):
         operator = EmrBaseSensorSubclass(
-            task_id='test_task',
+            task_id="test_task",
             poke_interval=2,
         )
         operator.response = {
-            'SomeKey': {'State': FAILED_STATE, 'StateChangeReason': {'Code': EXPECTED_CODE}},
-            'ResponseMetadata': {'HTTPStatusCode': GOOD_HTTP_STATUS},
+            "SomeKey": {"State": FAILED_STATE, "StateChangeReason": {"Code": EXPECTED_CODE}},
+            "ResponseMetadata": {"HTTPStatusCode": GOOD_HTTP_STATUS},
         }
 
         with pytest.raises(AirflowException) as ctx:
             operator.poke(None)
 
-        assert 'EMR job failed' in str(ctx.value)
+        assert "EMR job failed" in str(ctx.value)
         assert EXPECTED_CODE in str(ctx.value)
         assert EMPTY_CODE not in str(ctx.value)

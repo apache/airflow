@@ -66,9 +66,6 @@ following CLI commands to create an account:
         --role Admin \
         --email spiderman@superhero.org
 
-It is however possible to switch on authentication by either using one of the supplied
-backends or creating your own.
-
 To deactivate the authentication and allow users to be identified as Anonymous, the following entry
 in ``$AIRFLOW_HOME/webserver_config.py`` needs to be set with the desired role that the Anonymous
 user will have by default:
@@ -183,7 +180,7 @@ webserver_config.py itself if you wish.
 
     from airflow.www.security import AirflowSecurityManager
     import logging
-    from typing import Dict, Any, List, Union
+    from typing import Any, List, Union
     import os
 
     log = logging.getLogger(__name__)
@@ -196,12 +193,12 @@ webserver_config.py itself if you wish.
     TEAM_ID_B_FROM_GITHUB = 456  # Replace these with real team IDs for your org
 
 
-    def team_parser(team_payload: Dict[str, Any]) -> List[int]:
+    def team_parser(team_payload: dict[str, Any]) -> list[int]:
         # Parse the team payload from GitHub however you want here.
         return [team["id"] for team in team_payload]
 
 
-    def map_roles(team_list: List[int]) -> List[str]:
+    def map_roles(team_list: list[int]) -> list[str]:
         # Associate the team IDs with Roles here.
         # The expected output is a list of roles that FAB will use to Authorize the user.
 
@@ -217,7 +214,7 @@ webserver_config.py itself if you wish.
         # In this example, the oauth provider == 'github'.
         # If you ever want to support other providers, see how it is done here:
         # https://github.com/dpgaspar/Flask-AppBuilder/blob/master/flask_appbuilder/security/manager.py#L550
-        def get_oauth_user_info(self, provider: str, resp: Any) -> Dict[str, Union[str, List[str]]]:
+        def get_oauth_user_info(self, provider: str, resp: Any) -> dict[str, Union[str, list[str]]]:
 
             # Creates the user info payload from Github.
             # The user previously allowed your app to act on their behalf,
@@ -266,3 +263,24 @@ certs and keys.
     ssl_key = <path to key>
     ssl_cert = <path to cert>
     ssl_cacert = <path to cacert>
+
+Rate limiting
+-------------
+
+Airflow can be configured to limit the number of authentication requests in a given time window. We are using
+`Flask-Limiter <https://flask-limiter.readthedocs.io/en/stable/>`_ to achieve that and by default Airflow
+uses per-webserver default limit of 5 requests per 40 second fixed window. By default no common storage for
+rate limits is used between the gunicorn processes you run so rate-limit is applied separately for each process,
+so assuming random distribution of the requests by gunicorn with single webserver instance and default 4
+gunicorn workers, the effective rate limit is 5 x 4 = 20 requests per 40 second window (more or less).
+However you can configure the rate limit to be shared between the processes by using rate limit storage via
+setting the ``RATELIMIT_*`` configuration settings in ``webserver_config.py``.
+For example, to use Redis as a rate limit storage you can use the following configuration (you need
+to set ``redis_host`` to your Redis instance)
+
+```
+RATELIMIT_STORAGE_URI = 'redis://redis_host:6379/0
+```
+
+You can also configure other rate limit settings in ``webserver_config.py`` - for more details, see the
+`Flask Limiter rate limit configuration <https://flask-limiter.readthedocs.io/en/stable/configuration.html>`_.

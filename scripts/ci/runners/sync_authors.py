@@ -33,10 +33,10 @@ import toml
 #
 # This script should replace the contents of the array with a new list of
 # identically formatted names, such that changes to the source of truth:
-AUTHORS = 'https://raw.githubusercontent.com/apache/airflow-ci-infra/main/authors.toml'
+AUTHORS = "https://raw.githubusercontent.com/apache/airflow-ci-infra/main/authors.toml"
 
 # ...end up being reflected in the ci.yml:
-WORKFLOW = '.github/workflows/ci.yml'
+WORKFLOW = ".github/workflows/ci.yml"
 
 
 req = requests.get(AUTHORS)
@@ -46,7 +46,7 @@ author_set = set()
 for membership in author_list:
     author_set.update([author for author in author_list[membership]])
 
-authors = ''
+authors = ""
 for author in sorted(author_set):
     authors += f'            "{author}",\n'
 
@@ -54,7 +54,7 @@ authors = authors[:-2]
 
 with open(WORKFLOW) as handle:
     new_ci = re.sub(
-        r'''
+        r"""
             ^
             # matches the entire file up to contains(fromJSON('[
             ( .*? contains.fromJSON \( ' \[ \n )
@@ -65,11 +65,11 @@ with open(WORKFLOW) as handle:
             # the remainder of the file, from the end of the list onwards
             ( \s+ \] ' \), . github\.event\.pull_request\.user\.login .*? )
             $
-        ''',
-        f'\\1{authors}\\2',
+        """,
+        f"\\1{authors}\\2",
         handle.read(),
         flags=re.DOTALL | re.VERBOSE,
     )
 
-with open(WORKFLOW, 'w') as handle:
+with open(WORKFLOW, "w") as handle:
     handle.write(new_ci)

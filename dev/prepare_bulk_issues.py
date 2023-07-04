@@ -46,7 +46,7 @@ SOURCE_DIR_PATH = os.path.abspath(os.path.join(MY_DIR_PATH, os.pardir))
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-@click.group(context_settings={'help_option_names': ['-h', '--help'], 'max_content_width': 500})
+@click.group(context_settings={"help_option_names": ["-h", "--help"], "max_content_width": 500})
 def cli():
     ...
 
@@ -116,13 +116,7 @@ option_github_token = click.option(
         Can be generated with:
         https://github.com/settings/tokens/new?description=Write%20issues&scopes=repo:status,public_repo"""
     ),
-    envvar='GITHUB_TOKEN',
-)
-
-option_verbose = click.option(
-    "--verbose",
-    is_flag=True,
-    help="Print verbose information about performed steps",
+    envvar="GITHUB_TOKEN",
 )
 
 option_dry_run = click.option(
@@ -188,11 +182,9 @@ option_start_from = click.option(
 @option_github_token
 @option_max_issues
 @option_start_from
-@option_verbose
 @cli.command()
 def prepare_bulk_issues(
     github_token: str,
-    verbose: bool,
     max_issues: int | None,
     dry_run: bool,
     template_file: str,

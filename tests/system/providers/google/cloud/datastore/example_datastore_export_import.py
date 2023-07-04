@@ -43,7 +43,7 @@ BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["datastore", "example"],
@@ -72,20 +72,20 @@ with models.DAG(
 
     # [START get_operation_state]
     get_operation = CloudDatastoreGetOperationOperator(
-        task_id='get_operation', name="{{ task_instance.xcom_pull('export_task')['name'] }}"
+        task_id="get_operation", name="{{ task_instance.xcom_pull('export_task')['name'] }}"
     )
     # [END get_operation_state]
 
     # [START delete_operation]
     delete_export_operation = CloudDatastoreDeleteOperationOperator(
-        task_id='delete_export_operation',
+        task_id="delete_export_operation",
         name="{{ task_instance.xcom_pull('export_task')['name'] }}",
     )
     # [END delete_operation]
     delete_export_operation.trigger_rule = TriggerRule.ALL_DONE
 
     delete_import_operation = CloudDatastoreDeleteOperationOperator(
-        task_id='delete_import_operation',
+        task_id="delete_import_operation",
         name="{{ task_instance.xcom_pull('export_task')['name'] }}",
     )
 

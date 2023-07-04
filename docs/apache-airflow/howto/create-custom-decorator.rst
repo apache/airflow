@@ -50,8 +50,8 @@ tasks. The steps to create and register ``@task.foo`` are:
 
 
         def foo_task(
-            python_callable: Optional[Callable] = None,
-            multiple_outputs: Optional[bool] = None,
+            python_callable: Callable | None = None,
+            multiple_outputs: bool | None = None,
             **kwargs,
         ) -> "TaskDecorator":
             return task_decorator_factory(
@@ -77,7 +77,7 @@ tasks. The steps to create and register ``@task.foo`` are:
                     {
                         "name": "foo",
                         # "Import path" and function name of the `foo_task`
-                        "class-name": ["name.of.python.package.foo_task"],
+                        "class-name": "name.of.python.package.foo_task",
                     }
                 ],
                 # ...

@@ -32,15 +32,15 @@ DAG_ID = "example_mysql"
 with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    default_args={'mysql_conn_id': 'mysql_conn_id'},
-    tags=['example'],
+    default_args={"mysql_conn_id": "mysql_conn_id"},
+    tags=["example"],
     catchup=False,
 ) as dag:
 
     # [START howto_operator_mysql]
 
     drop_table_mysql_task = MySqlOperator(
-        task_id='drop_table_mysql', sql=r"""DROP TABLE table_name;""", dag=dag
+        task_id="drop_table_mysql", sql=r"""DROP TABLE table_name;""", dag=dag
     )
 
     # [END howto_operator_mysql]
@@ -48,8 +48,8 @@ with DAG(
     # [START howto_operator_mysql_external_file]
 
     mysql_task = MySqlOperator(
-        task_id='drop_table_mysql_external_file',
-        sql='/scripts/drop_table.sql',
+        task_id="drop_table_mysql_external_file",
+        sql="/scripts/drop_table.sql",
         dag=dag,
     )
 

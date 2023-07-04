@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import time
+import warnings
+from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
+from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -26,8 +30,7 @@ if TYPE_CHECKING:
 
 
 class DbtCloudJobRunSensor(BaseSensorOperator):
-    """
-    Checks the status of a dbt Cloud job run.
+    """Checks the status of a dbt Cloud job run.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -36,6 +39,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
     :param dbt_cloud_conn_id: The connection identifier for connecting to dbt Cloud.
     :param run_id: The job run identifier.
     :param account_id: The dbt Cloud account identifier.
+    :param deferrable: Run sensor in the deferrable mode.
     """
 
     template_fields = ("dbt_cloud_conn_id", "run_id", "account_id")
@@ -46,12 +50,32 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
         run_id: int,
         account_id: int | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
+        if deferrable:
+            if "poke_interval" not in kwargs:
+                # TODO: Remove once deprecated
+                if "polling_interval" in kwargs:
+                    kwargs["poke_interval"] = kwargs["polling_interval"]
+                    warnings.warn(
+                        "Argument `poll_interval` is deprecated and will be removed "
+                        "in a future release.  Please use `poke_interval` instead.",
+                        AirflowProviderDeprecationWarning,
+                        stacklevel=2,
+                    )
+                else:
+                    kwargs["poke_interval"] = 5
+
+                if "timeout" not in kwargs:
+                    kwargs["timeout"] = 60 * 60 * 24 * 7
+
         super().__init__(**kwargs)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
         self.run_id = run_id
         self.account_id = account_id
+
+        self.deferrable = deferrable
 
     def poke(self, context: Context) -> bool:
         hook = DbtCloudHook(self.dbt_cloud_conn_id)
@@ -64,3 +88,55 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
             raise DbtCloudJobRunException(f"Job run {self.run_id} has been cancelled.")
 
         return job_run_status == DbtCloudJobRunStatus.SUCCESS.value
+
+    def execute(self, context: Context) -> None:
+        """Run the sensor.
+
+        Depending on whether ``deferrable`` is set, this would either defer to
+        the triggerer or poll for states of the job run, until the job reaches a
+        failure state or success state.
+        """
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            end_time = time.time() + self.timeout
+            if not self.poke(context=context):
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=DbtCloudRunJobTrigger(
+                        run_id=self.run_id,
+                        conn_id=self.dbt_cloud_conn_id,
+                        account_id=self.account_id,
+                        poll_interval=self.poke_interval,
+                        end_time=end_time,
+                    ),
+                    method_name="execute_complete",
+                )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
+        """Callback for when the trigger fires - returns immediately.
+
+        This relies on trigger to throw an exception, otherwise it assumes
+        execution was successful.
+        """
+        if event["status"] in ["error", "cancelled"]:
+            raise AirflowException("Error in dbt: " + event["message"])
+        self.log.info(event["message"])
+        return int(event["run_id"])
+
+
+class DbtCloudJobRunAsyncSensor(DbtCloudJobRunSensor):
+    """This class is deprecated.
+
+    Please use :class:`airflow.providers.dbt.cloud.sensor.dbt.DbtCloudJobRunSensor`
+    with ``deferrable=True``.
+    """
+
+    def __init__(self, **kwargs: Any) -> None:
+        warnings.warn(
+            "Class `DbtCloudJobRunAsyncSensor` is deprecated and will be removed in a future release. "
+            "Please use `DbtCloudJobRunSensor` and set `deferrable` attribute to `True` instead",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(deferrable=True, **kwargs)

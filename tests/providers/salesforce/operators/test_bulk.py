@@ -35,16 +35,16 @@ class TestSalesforceBulkOperator:
         """
         with pytest.raises(AirflowException):
             SalesforceBulkOperator(
-                task_id='no_missing_operation_arg',
-                object_name='Account',
+                task_id="no_missing_operation_arg",
+                object_name="Account",
                 payload=[],
             )
 
         with pytest.raises(ValueError):
             SalesforceBulkOperator(
-                task_id='missing_operation',
-                operation='operation',
-                object_name='Account',
+                task_id="missing_operation",
+                operation="operation",
+                object_name="Account",
                 payload=[],
             )
 
@@ -54,37 +54,37 @@ class TestSalesforceBulkOperator:
         """
         with pytest.raises(AirflowException):
             SalesforceBulkOperator(
-                task_id='no_object_name_arg',
-                operation='insert',
+                task_id="no_object_name_arg",
+                operation="insert",
                 payload=[],
             )
 
         with pytest.raises(ValueError):
             SalesforceBulkOperator(
-                task_id='missing_object_name',
-                operation='insert',
+                task_id="missing_object_name",
+                operation="insert",
                 object_name="",
                 payload=[],
             )
 
-    @patch('airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn')
+    @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
     def test_execute_salesforce_bulk_insert(self, mock_get_conn):
         """
         Test execute bulk insert
         """
 
-        operation = 'insert'
-        object_name = 'Account'
+        operation = "insert"
+        object_name = "Account"
         payload = [
-            {'Name': 'account1'},
-            {'Name': 'account2'},
+            {"Name": "account1"},
+            {"Name": "account2"},
         ]
         batch_size = 10000
         use_serial = True
 
         mock_get_conn.return_value.bulk.__getattr__(object_name).insert = Mock()
         operator = SalesforceBulkOperator(
-            task_id='bulk_insert',
+            task_id="bulk_insert",
             operation=operation,
             object_name=object_name,
             payload=payload,
@@ -100,24 +100,24 @@ class TestSalesforceBulkOperator:
             use_serial=use_serial,
         )
 
-    @patch('airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn')
+    @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
     def test_execute_salesforce_bulk_update(self, mock_get_conn):
         """
         Test execute bulk update
         """
 
-        operation = 'update'
-        object_name = 'Account'
+        operation = "update"
+        object_name = "Account"
         payload = [
-            {'Id': '000000000000000AAA', 'Name': 'account1'},
-            {'Id': '000000000000000BBB', 'Name': 'account2'},
+            {"Id": "000000000000000AAA", "Name": "account1"},
+            {"Id": "000000000000000BBB", "Name": "account2"},
         ]
         batch_size = 10000
         use_serial = True
 
         mock_get_conn.return_value.bulk.__getattr__(object_name).update = Mock()
         operator = SalesforceBulkOperator(
-            task_id='bulk_update',
+            task_id="bulk_update",
             operation=operation,
             object_name=object_name,
             payload=payload,
@@ -133,25 +133,25 @@ class TestSalesforceBulkOperator:
             use_serial=use_serial,
         )
 
-    @patch('airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn')
+    @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
     def test_execute_salesforce_bulk_upsert(self, mock_get_conn):
         """
         Test execute bulk upsert
         """
 
-        operation = 'upsert'
-        object_name = 'Account'
+        operation = "upsert"
+        object_name = "Account"
         payload = [
-            {'Id': '000000000000000AAA', 'Name': 'account1'},
-            {'Name': 'account2'},
+            {"Id": "000000000000000AAA", "Name": "account1"},
+            {"Name": "account2"},
         ]
-        external_id_field = 'Id'
+        external_id_field = "Id"
         batch_size = 10000
         use_serial = True
 
         mock_get_conn.return_value.bulk.__getattr__(object_name).upsert = Mock()
         operator = SalesforceBulkOperator(
-            task_id='bulk_upsert',
+            task_id="bulk_upsert",
             operation=operation,
             object_name=object_name,
             payload=payload,
@@ -169,24 +169,24 @@ class TestSalesforceBulkOperator:
             use_serial=use_serial,
         )
 
-    @patch('airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn')
+    @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
     def test_execute_salesforce_bulk_delete(self, mock_get_conn):
         """
         Test execute bulk delete
         """
 
-        operation = 'delete'
-        object_name = 'Account'
+        operation = "delete"
+        object_name = "Account"
         payload = [
-            {'Id': '000000000000000AAA'},
-            {'Id': '000000000000000BBB'},
+            {"Id": "000000000000000AAA"},
+            {"Id": "000000000000000BBB"},
         ]
         batch_size = 10000
         use_serial = True
 
         mock_get_conn.return_value.bulk.__getattr__(object_name).delete = Mock()
         operator = SalesforceBulkOperator(
-            task_id='bulk_delete',
+            task_id="bulk_delete",
             operation=operation,
             object_name=object_name,
             payload=payload,
@@ -202,24 +202,24 @@ class TestSalesforceBulkOperator:
             use_serial=use_serial,
         )
 
-    @patch('airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn')
+    @patch("airflow.providers.salesforce.operators.bulk.SalesforceHook.get_conn")
     def test_execute_salesforce_bulk_hard_delete(self, mock_get_conn):
         """
         Test execute bulk hard_delete
         """
 
-        operation = 'hard_delete'
-        object_name = 'Account'
+        operation = "hard_delete"
+        object_name = "Account"
         payload = [
-            {'Id': '000000000000000AAA'},
-            {'Id': '000000000000000BBB'},
+            {"Id": "000000000000000AAA"},
+            {"Id": "000000000000000BBB"},
         ]
         batch_size = 10000
         use_serial = True
 
         mock_get_conn.return_value.bulk.__getattr__(object_name).hard_delete = Mock()
         operator = SalesforceBulkOperator(
-            task_id='bulk_hard_delete',
+            task_id="bulk_hard_delete",
             operation=operation,
             object_name=object_name,
             payload=payload,

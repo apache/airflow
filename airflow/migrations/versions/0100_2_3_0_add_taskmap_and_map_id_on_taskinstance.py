@@ -35,7 +35,7 @@ revision = "e655c0453f75"
 down_revision = "f9da662e7089"
 branch_labels = None
 depends_on = None
-airflow_version = '2.3.0'
+airflow_version = "2.3.0"
 
 
 def upgrade():
@@ -45,7 +45,7 @@ def upgrade():
     """
     # We need to first remove constraints on task_reschedule since they depend on task_instance.
     with op.batch_alter_table("task_reschedule") as batch_op:
-        batch_op.drop_constraint("task_reschedule_ti_fkey", "foreignkey")
+        batch_op.drop_constraint("task_reschedule_ti_fkey", type_="foreignkey")
         batch_op.drop_index("idx_task_reschedule_dag_task_run")
 
     # Change task_instance's primary key.
@@ -100,7 +100,7 @@ def downgrade():
     op.drop_table("task_map")
 
     with op.batch_alter_table("task_reschedule") as batch_op:
-        batch_op.drop_constraint("task_reschedule_ti_fkey", "foreignkey")
+        batch_op.drop_constraint("task_reschedule_ti_fkey", type_="foreignkey")
         batch_op.drop_index("idx_task_reschedule_dag_task_run")
         batch_op.drop_column("map_index", mssql_drop_default=True)
 

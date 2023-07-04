@@ -88,8 +88,8 @@ Extending Airflow Image
 -----------------------
 
 The Apache Airflow community, releases Docker Images which are ``reference images`` for Apache Airflow.
-However when you try it out you want to add your own DAGs, custom dependencies,
-packages or even custom providers.
+However, when you try it out you want to add your own DAGs, custom dependencies,
+packages, or even custom providers.
 
 The best way to achieve it, is to build your own, custom image.
 

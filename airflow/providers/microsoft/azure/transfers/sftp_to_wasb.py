@@ -20,20 +20,20 @@ from __future__ import annotations
 
 import os
 from collections import namedtuple
+from functools import cached_property
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 
 WILDCARD = "*"
-SftpFile = namedtuple('SftpFile', 'sftp_file_path, blob_name')
+SftpFile = namedtuple("SftpFile", "sftp_file_path, blob_name")
 
 
 class SFTPToWasbOperator(BaseOperator):
@@ -76,7 +76,7 @@ class SFTPToWasbOperator(BaseOperator):
         container_name: str,
         blob_prefix: str = "",
         sftp_conn_id: str = "sftp_default",
-        wasb_conn_id: str = 'wasb_default',
+        wasb_conn_id: str = "wasb_default",
         load_options: dict | None = None,
         move_object: bool = False,
         wasb_overwrite_object: bool = False,
@@ -100,7 +100,7 @@ class SFTPToWasbOperator(BaseOperator):
         sftp_files: list[SftpFile] = self.get_sftp_files_map()
         for file in sftp_files:
             self.log.info(
-                'Process will upload file from (SFTP) %s to wasb://%s as %s',
+                "Process will upload file from (SFTP) %s to wasb://%s as %s",
                 file.sftp_file_path,
                 self.container_name,
                 file.blob_name,
@@ -134,7 +134,7 @@ class SFTPToWasbOperator(BaseOperator):
         return sftp_files
 
     def get_tree_behavior(self) -> tuple[str, str | None, str | None]:
-        """Extracts from source path the tree behavior to interact with the remote folder"""
+        """Extracts from source path the tree behavior to interact with the remote folder."""
         self.check_wildcards_limit()
 
         if self.source_path_contains_wildcard:
@@ -167,7 +167,7 @@ class SFTPToWasbOperator(BaseOperator):
         return SFTPHook(self.sftp_conn_id)
 
     def get_full_path_blob(self, file: str) -> str:
-        """Get a blob name based on the previous name and a blob_prefix variable"""
+        """Get a blob name based on the previous name and a blob_prefix variable."""
         return self.blob_prefix + os.path.basename(file)
 
     def copy_files_to_wasb(self, sftp_files: list[SftpFile]) -> list[str]:
@@ -178,7 +178,7 @@ class SFTPToWasbOperator(BaseOperator):
             with NamedTemporaryFile("w") as tmp:
                 self.sftp_hook.retrieve_file(file.sftp_file_path, tmp.name)
                 self.log.info(
-                    'Uploading %s to wasb://%s as %s',
+                    "Uploading %s to wasb://%s as %s",
                     file.sftp_file_path,
                     self.container_name,
                     file.blob_name,

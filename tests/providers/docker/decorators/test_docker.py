@@ -16,16 +16,21 @@
 # under the License.
 from __future__ import annotations
 
-from airflow.decorators import task
+import pytest
+
+from airflow.decorators import setup, task, teardown
+from airflow.exceptions import AirflowException
+from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.utils import timezone
+from airflow.utils.state import TaskInstanceState
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
 
 
 class TestDockerDecorator:
     def test_basic_docker_operator(self, dag_maker):
-        @task.docker(image="python:3.9-slim")
+        @task.docker(image="python:3.9-slim", auto_remove="force")
         def f():
             import random
 
@@ -40,7 +45,7 @@ class TestDockerDecorator:
         assert len(ti.xcom_pull()) == 100
 
     def test_basic_docker_operator_with_param(self, dag_maker):
-        @task.docker(image="python:3.9-slim")
+        @task.docker(image="python:3.9-slim", auto_remove="force")
         def f(num_results):
             import random
 
@@ -56,11 +61,21 @@ class TestDockerDecorator:
         assert isinstance(result, list)
         assert len(result) == 50
 
+    def test_basic_docker_operator_with_template_fields(self, dag_maker):
+        @task.docker(image="python:3.9-slim", container_name="python_{{dag_run.dag_id}}", auto_remove="force")
+        def f():
+            raise RuntimeError("Should not executed")
+
+        with dag_maker():
+            ret = f()
+
+        dr = dag_maker.create_dagrun()
+        ti = TaskInstance(task=ret.operator, run_id=dr.run_id)
+        rendered = ti.render_templates()
+        assert rendered.container_name == f"python_{dr.dag_id}"
+
     def test_basic_docker_operator_multiple_output(self, dag_maker):
-        @task.docker(
-            image="python:3.9-slim",
-            multiple_outputs=True,
-        )
+        @task.docker(image="python:3.9-slim", multiple_outputs=True, auto_remove="force")
         def return_dict(number: int):
             return {"number": number + 1, "43": 43}
 
@@ -77,7 +92,7 @@ class TestDockerDecorator:
         assert ti.xcom_pull() == {"number": test_number + 1, "43": 43}
 
     def test_no_return(self, dag_maker):
-        @task.docker(image="python:3.9-slim")
+        @task.docker(image="python:3.9-slim", auto_remove="force")
         def f():
             pass
 
@@ -92,11 +107,7 @@ class TestDockerDecorator:
     def test_call_decorated_multiple_times(self):
         """Test calling decorated function 21 times in a DAG"""
 
-        @task.docker(
-            image="python:3.9-slim",
-            network_mode="bridge",
-            api_version="auto",
-        )
+        @task.docker(image="python:3.9-slim", network_mode="bridge", api_version="auto", auto_remove="force")
         def do_run():
             return 4
 
@@ -106,4 +117,73 @@ class TestDockerDecorator:
                 do_run()
 
         assert len(dag.task_ids) == 21
-        assert dag.task_ids[-1] == 'do_run__20'
+        assert dag.task_ids[-1] == "do_run__20"
+
+    @pytest.mark.parametrize(
+        "extra_kwargs, actual_exit_code, expected_state",
+        [
+            (None, 99, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": 100}, 100, TaskInstanceState.SKIPPED),
+            ({"skip_on_exit_code": 100}, 101, TaskInstanceState.FAILED),
+            ({"skip_on_exit_code": None}, 0, TaskInstanceState.SUCCESS),
+        ],
+    )
+    def test_skip_docker_operator(self, extra_kwargs, actual_exit_code, expected_state, dag_maker):
+        @task.docker(image="python:3.9-slim", auto_remove="force", **(extra_kwargs if extra_kwargs else {}))
+        def f(exit_code):
+            raise SystemExit(exit_code)
+
+        with dag_maker():
+            ret = f(actual_exit_code)
+
+        dr = dag_maker.create_dagrun()
+        if expected_state == TaskInstanceState.FAILED:
+            with pytest.raises(AirflowException):
+                ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        else:
+            ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+            ti = dr.get_task_instances()[0]
+            assert ti.state == expected_state
+
+    def test_setup_decorator_with_decorated_docker_task(self, dag_maker):
+        @setup
+        @task.docker(image="python:3.9-slim", auto_remove="force")
+        def f():
+            pass
+
+        with dag_maker() as dag:
+            f()
+
+        assert len(dag.task_group.children) == 1
+        setup_task = dag.task_group.children["f"]
+        assert setup_task.is_setup
+
+    def test_teardown_decorator_with_decorated_docker_task(self, dag_maker):
+        @teardown
+        @task.docker(image="python:3.9-slim", auto_remove="force")
+        def f():
+            pass
+
+        with dag_maker() as dag:
+            f()
+
+        assert len(dag.task_group.children) == 1
+        teardown_task = dag.task_group.children["f"]
+        assert teardown_task.is_teardown
+
+    @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
+    def test_teardown_decorator_with_decorated_docker_task_and_on_failure_fail_arg(
+        self, dag_maker, on_failure_fail_dagrun
+    ):
+        @teardown(on_failure_fail_dagrun=on_failure_fail_dagrun)
+        @task.docker(image="python:3.9-slim", auto_remove="force")
+        def f():
+            pass
+
+        with dag_maker() as dag:
+            f()
+
+        assert len(dag.task_group.children) == 1
+        teardown_task = dag.task_group.children["f"]
+        assert teardown_task.is_teardown
+        assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun

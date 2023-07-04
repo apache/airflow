@@ -23,7 +23,7 @@ License
 .. image:: img/apache.jpg
     :width: 150
 
-::
+.. code-block:: text
 
                                   Apache License
                             Version 2.0, January 2004

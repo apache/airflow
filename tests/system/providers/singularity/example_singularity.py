@@ -29,23 +29,23 @@ DAG_ID = "singularity_sample"
 
 with DAG(
     DAG_ID,
-    default_args={'retries': 1},
+    default_args={"retries": 1},
     schedule=timedelta(minutes=10),
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
 
-    t1 = BashOperator(task_id='print_date', bash_command='date')
+    t1 = BashOperator(task_id="print_date", bash_command="date")
 
-    t2 = BashOperator(task_id='sleep', bash_command='sleep 5', retries=3)
+    t2 = BashOperator(task_id="sleep", bash_command="sleep 5", retries=3)
 
     t3 = SingularityOperator(
-        command='/bin/sleep 30',
-        image='docker://busybox:1.30.1',
-        task_id='singularity_op_tester',
+        command="/bin/sleep 30",
+        image="docker://busybox:1.30.1",
+        task_id="singularity_op_tester",
     )
 
-    t4 = BashOperator(task_id='print_hello', bash_command='echo "hello world!!!"')
+    t4 = BashOperator(task_id="print_hello", bash_command='echo "hello world!!!"')
 
     t1 >> [t2, t3]
     t3 >> t4

@@ -45,6 +45,6 @@ class MockMetadata:
 def test_entry_points_with_dist():
     entries = list(entry_points_with_dist("group_x"))
 
-    # The second "dist2" is ignored. Only "group_x" entries are loaded.
-    assert [dist.metadata["Name"] for _, dist in entries] == ["dist1", "Dist2"]
-    assert [ep.name for ep, _ in entries] == ["a", "e"]
+    # Only "group_x" entries are loaded. Distributions are not deduplicated.
+    assert [dist.metadata["Name"] for _, dist in entries] == ["dist1", "Dist2", "dist2"]
+    assert [ep.name for ep, _ in entries] == ["a", "e", "g"]

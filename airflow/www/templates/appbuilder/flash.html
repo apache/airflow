@@ -41,21 +41,21 @@
   {% endif %}
 
   {% if dag_import_errors %}
-    <div class="panel-group" id="accordion">
+    <div class="panel-group" id="accordion" role="tablist" aria-multiselectable="true" style="margin-top: 16px;">
       <div class="panel panel-default">
-        <div class="panel-heading" id="errorHeading">
+        <div class="panel-heading" role="tab" id="errorHeading">
           <h4 class="panel-title">
-            <a id="alerts-accordion-toggle" data-toggle="collapse" data-parent="#accordion" href="#alerts" aria-expanded="false" class="collapsed">
+            <a role="button" data-toggle="collapse" data-parent="#accordion" href="#errorCollapse" aria-expanded="true" aria-controls="errorCollapse" class="accordion-toggle collapsed">
               <span class="text-danger"><span class="material-icons" aria-hidden="true">error</span> DAG Import Errors ({{ dag_import_errors|length }})</span>
+              <span class="material-icons pull-right toggle-direction" aria-hidden="true">expand_less</span>
             </a>
           </h4>
         </div>
-
-        <div id="alerts" class="panel-collapse collapse">
+        <div id="errorCollapse" class="panel-collapse collapse" role="tabpanel" aria-labelledby="errorHeading">
           <div class="panel-body">
             {% for category, m in dag_import_errors %}
               <div class="alert alert-error">
-                <div class="dag-import-error" onclick="toggleErrorMessage.call(this)">{{ m }}</div>
+                <div class="dag-import-error" onclick="toggleErrorMessage.call(this)"><span class="material-icons pull-right toggle-direction" aria-hidden="true">expand_more</span>{{ m }}</div>
               </div>
             {% endfor %}
           </div>

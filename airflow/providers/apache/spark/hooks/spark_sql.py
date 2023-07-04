@@ -29,8 +29,7 @@ if TYPE_CHECKING:
 
 class SparkSqlHook(BaseHook):
     """
-    This hook is a wrapper around the spark-sql binary. It requires that the
-    "spark-sql" binary is in the PATH.
+    This hook is a wrapper around the spark-sql binary; requires the "spark-sql" binary to be in the PATH.
 
     :param sql: The SQL query to execute
     :param conf: arbitrary Spark configuration property
@@ -50,10 +49,10 @@ class SparkSqlHook(BaseHook):
         (Default: The ``queue`` value set in the Connection, or ``"default"``)
     """
 
-    conn_name_attr = 'conn_id'
-    default_conn_name = 'spark_sql_default'
-    conn_type = 'spark_sql'
-    hook_name = 'Spark SQL'
+    conn_name_attr = "conn_id"
+    default_conn_name = "spark_sql_default"
+    conn_type = "spark_sql"
+    hook_name = "Spark SQL"
 
     def __init__(
         self,
@@ -66,7 +65,7 @@ class SparkSqlHook(BaseHook):
         keytab: str | None = None,
         principal: str | None = None,
         master: str | None = None,
-        name: str = 'default-name',
+        name: str = "default-name",
         num_executors: int | None = None,
         verbose: bool = True,
         yarn_queue: str | None = None,
@@ -112,8 +111,7 @@ class SparkSqlHook(BaseHook):
 
     def _prepare_command(self, cmd: str | list[str]) -> list[str]:
         """
-        Construct the spark-sql command to execute. Verbose output is enabled
-        as default.
+        Construct the spark-sql command to execute. Verbose output is enabled as default.
 
         :param cmd: command to append to the spark-sql command
         :return: full command to be executed
@@ -162,7 +160,7 @@ class SparkSqlHook(BaseHook):
 
     def run_query(self, cmd: str = "", **kwargs: Any) -> None:
         """
-        Remote Popen (actually execute the Spark-sql query)
+        Remote Popen (actually execute the Spark-sql query).
 
         :param cmd: command to append to the spark-sql command
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
@@ -185,7 +183,7 @@ class SparkSqlHook(BaseHook):
             )
 
     def kill(self) -> None:
-        """Kill Spark job"""
+        """Kill Spark job."""
         if self._sp and self._sp.poll() is None:
             self.log.info("Killing the Spark-Sql job")
             self._sp.kill()

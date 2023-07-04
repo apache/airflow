@@ -19,8 +19,6 @@ from __future__ import annotations
 
 from enum import Enum
 
-from airflow.settings import STATE_COLORS
-
 
 class TaskInstanceState(str, Enum):
     """
@@ -97,6 +95,9 @@ class State:
     SKIPPED = TaskInstanceState.SKIPPED
     DEFERRED = TaskInstanceState.DEFERRED
 
+    finished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.SUCCESS, DagRunState.FAILED])
+    unfinished_dr_states: frozenset[DagRunState] = frozenset([DagRunState.QUEUED, DagRunState.RUNNING])
+
     task_states: tuple[TaskInstanceState | None, ...] = (None,) + tuple(TaskInstanceState)
 
     dag_states: tuple[DagRunState, ...] = (
@@ -107,40 +108,34 @@ class State:
     )
 
     state_color: dict[TaskInstanceState | None, str] = {
-        None: 'lightblue',
-        TaskInstanceState.QUEUED: 'gray',
-        TaskInstanceState.RUNNING: 'lime',
-        TaskInstanceState.SUCCESS: 'green',
-        TaskInstanceState.SHUTDOWN: 'blue',
-        TaskInstanceState.RESTARTING: 'violet',
-        TaskInstanceState.FAILED: 'red',
-        TaskInstanceState.UP_FOR_RETRY: 'gold',
-        TaskInstanceState.UP_FOR_RESCHEDULE: 'turquoise',
-        TaskInstanceState.UPSTREAM_FAILED: 'orange',
-        TaskInstanceState.SKIPPED: 'hotpink',
-        TaskInstanceState.REMOVED: 'lightgrey',
-        TaskInstanceState.SCHEDULED: 'tan',
-        TaskInstanceState.DEFERRED: 'mediumpurple',
+        None: "lightblue",
+        TaskInstanceState.QUEUED: "gray",
+        TaskInstanceState.RUNNING: "lime",
+        TaskInstanceState.SUCCESS: "green",
+        TaskInstanceState.SHUTDOWN: "blue",
+        TaskInstanceState.RESTARTING: "violet",
+        TaskInstanceState.FAILED: "red",
+        TaskInstanceState.UP_FOR_RETRY: "gold",
+        TaskInstanceState.UP_FOR_RESCHEDULE: "turquoise",
+        TaskInstanceState.UPSTREAM_FAILED: "orange",
+        TaskInstanceState.SKIPPED: "hotpink",
+        TaskInstanceState.REMOVED: "lightgrey",
+        TaskInstanceState.SCHEDULED: "tan",
+        TaskInstanceState.DEFERRED: "mediumpurple",
     }
-    state_color.update(STATE_COLORS)  # type: ignore
 
     @classmethod
     def color(cls, state):
         """Returns color for a state."""
-        return cls.state_color.get(state, 'white')
+        return cls.state_color.get(state, "white")
 
     @classmethod
     def color_fg(cls, state):
         """Black&white colors for a state."""
         color = cls.color(state)
-        if color in ['green', 'red']:
-            return 'white'
-        return 'black'
-
-    running: frozenset[TaskInstanceState] = frozenset([TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED])
-    """
-    A list of states indicating that a task is being executed.
-    """
+        if color in ["green", "red"]:
+            return "white"
+        return "black"
 
     finished: frozenset[TaskInstanceState] = frozenset(
         [

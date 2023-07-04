@@ -90,7 +90,7 @@
   <div class="legend-row">
     <div>
       {% for op in operators %}<span class="legend-item" style="color: {{ op.ui_fgcolor }};background: {{ op.ui_color }};">
-        {{ op.task_type }}</span>{% endfor %}
+        {{ op.operator_name }}</span>{% endfor %}
     </div>
     <div>
       {% for state, state_color in state_color_mapping.items() %}
@@ -121,7 +121,7 @@
   </div>
   <div class="svg-wrapper">
     <div class="graph-svg-wrap">
-      <svg id="graph-svg" width="{{ width }}" height="{{ height }}">
+      <svg id="graph-svg" viewBox="0 0 100 100">
         <g id="dig" transform="translate(20,20)"></g>
       </svg>
     </div>
@@ -136,6 +136,7 @@
     const tasks = {{ tasks|tojson }};
     let taskInstances = {{ task_instances|tojson }};
     const autoRefreshInterval = {{ auto_refresh_interval }};
+    const priority = {{ state_priority|tojson }};
   </script>
   <script src="{{ url_for_asset('d3.min.js') }}"></script>
   <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>

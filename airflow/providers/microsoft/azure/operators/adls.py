@@ -39,8 +39,8 @@ class ADLSDeleteOperator(BaseOperator):
     :param azure_data_lake_conn_id: Reference to the :ref:`Azure Data Lake connection<howto/connection:adl>`.
     """
 
-    template_fields: Sequence[str] = ('path',)
-    ui_color = '#901dd2'
+    template_fields: Sequence[str] = ("path",)
+    ui_color = "#901dd2"
 
     def __init__(
         self,
@@ -48,7 +48,7 @@ class ADLSDeleteOperator(BaseOperator):
         path: str,
         recursive: bool = False,
         ignore_not_found: bool = True,
-        azure_data_lake_conn_id: str = 'azure_data_lake_default',
+        azure_data_lake_conn_id: str = "azure_data_lake_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -64,7 +64,7 @@ class ADLSDeleteOperator(BaseOperator):
 
 class ADLSListOperator(BaseOperator):
     """
-    List all files from the specified path
+    List all files from the specified path.
 
     This operator returns a python list with the names of files which can be used by
      `xcom` in the downstream tasks.
@@ -84,11 +84,11 @@ class ADLSListOperator(BaseOperator):
             )
     """
 
-    template_fields: Sequence[str] = ('path',)
-    ui_color = '#901dd2'
+    template_fields: Sequence[str] = ("path",)
+    ui_color = "#901dd2"
 
     def __init__(
-        self, *, path: str, azure_data_lake_conn_id: str = 'azure_data_lake_default', **kwargs
+        self, *, path: str, azure_data_lake_conn_id: str = "azure_data_lake_default", **kwargs
     ) -> None:
         super().__init__(**kwargs)
         self.path = path
@@ -96,5 +96,5 @@ class ADLSListOperator(BaseOperator):
 
     def execute(self, context: Context) -> list:
         hook = AzureDataLakeHook(azure_data_lake_conn_id=self.azure_data_lake_conn_id)
-        self.log.info('Getting list of ADLS files in path: %s', self.path)
+        self.log.info("Getting list of ADLS files in path: %s", self.path)
         return hook.list(path=self.path)

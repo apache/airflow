@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 
 class SalesforceApexRestOperator(BaseOperator):
     """
-    Execute a APEX Rest API action
+    Execute a APEX Rest API action.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -43,9 +43,9 @@ class SalesforceApexRestOperator(BaseOperator):
         self,
         *,
         endpoint: str,
-        method: str = 'GET',
+        method: str = "GET",
         payload: dict,
-        salesforce_conn_id: str = 'salesforce_default',
+        salesforce_conn_id: str = "salesforce_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -57,9 +57,9 @@ class SalesforceApexRestOperator(BaseOperator):
     def execute(self, context: Context) -> dict:
         """
         Makes an HTTP request to an APEX REST endpoint and pushes results to xcom.
+
         :param context: The task context during execution.
         :return: Apex response
-        :rtype: dict
         """
         result: dict = {}
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)

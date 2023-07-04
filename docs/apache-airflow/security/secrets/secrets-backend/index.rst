@@ -31,7 +31,7 @@ can also enable alternative secrets backend to retrieve Airflow connections or A
     If you use an alternative secrets backend, check inside your backend to view the values of your variables and connections.
 
 You can also get Airflow configurations with sensitive data from the Secrets Backend.
-See :doc:`../../../howto/set-config` for more details.
+See :doc:`/howto/set-config` for more details.
 
 Search path
 ^^^^^^^^^^^
@@ -39,7 +39,9 @@ When looking up a connection/variable, by default Airflow will search environmen
 database second.
 
 If you enable an alternative secrets backend, it will be searched first, followed by environment variables,
-then metastore.  This search ordering is not configurable.
+then metastore.  This search ordering is not configurable. Though, in some alternative secrets backend you might have
+the option to filter which connection/variable/config is searched in the secret backend. Please look at the
+documentation of the secret backend you are using to see if such option is available.
 
 .. warning::
 
@@ -114,6 +116,6 @@ Adapt to non-Airflow compatible secret formats for connections
 The default implementation of Secret backend requires use of an Airflow-specific format of storing
 secrets for connections. Currently most community provided implementations require the connections to
 be stored as JSON or the Airflow Connection URI format (see
-:doc:`apache-airflow-providers:core-extensions/secrets-backends`). However some organizations may need to store the credentials (passwords/tokens etc) in some other way, for example if the same credentials store needs to be used for multiple data platforms, or if you are using a service with a built-in mechanism of rotating the credentials that does not work with the Airflow-specific format.
+:doc:`apache-airflow-providers:core-extensions/secrets-backends`). However, some organizations may need to store the credentials (passwords/tokens etc) in some other way. For example, if the same credentials store needs to be used for multiple data platforms, or if you are using a service with a built-in mechanism of rotating the credentials that does not work with the Airflow-specific format.
 In this case you will need to roll your own secret backend as described in the previous chapter,
 possibly extending an existing secrets backend and adapting it to the scheme used by your organization.

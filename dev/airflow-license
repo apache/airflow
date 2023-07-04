@@ -27,20 +27,20 @@ import slugify
 
 # order is important
 _licenses = {
-    'MIT': [
-        'Permission is hereby granted free of charge',
-        'The above copyright notice and this permission notice shall',
+    "MIT": [
+        "Permission is hereby granted free of charge",
+        "The above copyright notice and this permission notice shall",
     ],
-    'BSD-3': [
-        'Redistributions of source code must retain the above copyright',
-        'Redistributions in binary form must reproduce the above copyright',
-        'specific prior written permission',
+    "BSD-3": [
+        "Redistributions of source code must retain the above copyright",
+        "Redistributions in binary form must reproduce the above copyright",
+        "specific prior written permission",
     ],
-    'BSD-2': [
-        'Redistributions of source code must retain the above copyright',
-        'Redistributions in binary form must reproduce the above copyright',
+    "BSD-2": [
+        "Redistributions of source code must retain the above copyright",
+        "Redistributions in binary form must reproduce the above copyright",
     ],
-    'AL': ['http://www.apache.org/licenses/LICENSE-2.0'],
+    "AL": ["http://www.apache.org/licenses/LICENSE-2.0"],
 }
 
 

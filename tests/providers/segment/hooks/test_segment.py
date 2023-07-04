@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
@@ -25,18 +24,16 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.segment.hooks.segment import SegmentHook
 
-TEST_CONN_ID = 'test_segment'
-WRITE_KEY = 'foo'
+TEST_CONN_ID = "test_segment"
+WRITE_KEY = "foo"
 
 
-class TestSegmentHook(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-
+class TestSegmentHook:
+    def setup_method(self):
         self.conn = conn = mock.MagicMock()
         conn.write_key = WRITE_KEY
         self.expected_write_key = WRITE_KEY
-        self.conn.extra_dejson = {'write_key': self.expected_write_key}
+        self.conn.extra_dejson = {"write_key": self.expected_write_key}
 
         class UnitTestSegmentHook(SegmentHook):
             def get_conn(self):
@@ -55,4 +52,4 @@ class TestSegmentHook(unittest.TestCase):
 
     def test_on_error(self):
         with pytest.raises(AirflowException):
-            self.test_hook.on_error('error', ['items'])
+            self.test_hook.on_error("error", ["items"])

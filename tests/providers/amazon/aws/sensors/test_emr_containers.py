@@ -17,57 +17,70 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
+from airflow.providers.amazon.aws.triggers.emr import EmrContainerTrigger
 
 
-class TestEmrContainerSensor(unittest.TestCase):
-    def setUp(self):
+class TestEmrContainerSensor:
+    def setup_method(self):
         self.sensor = EmrContainerSensor(
-            task_id='test_emrcontainer_sensor',
-            virtual_cluster_id='vzwemreks',
-            job_id='job1234',
+            task_id="test_emrcontainer_sensor",
+            virtual_cluster_id="vzwemreks",
+            job_id="job1234",
             poll_interval=5,
             max_retries=1,
-            aws_conn_id='aws_default',
+            aws_conn_id="aws_default",
         )
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        self.sensor.hook.get_connection = lambda _: None
 
-    @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("PENDING",))
+    @mock.patch.object(EmrContainerHook, "check_query_status", side_effect=("PENDING",))
     def test_poke_pending(self, mock_check_query_status):
         assert not self.sensor.poke(None)
 
-    @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("SUBMITTED",))
+    @mock.patch.object(EmrContainerHook, "check_query_status", side_effect=("SUBMITTED",))
     def test_poke_submitted(self, mock_check_query_status):
         assert not self.sensor.poke(None)
 
-    @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("RUNNING",))
+    @mock.patch.object(EmrContainerHook, "check_query_status", side_effect=("RUNNING",))
     def test_poke_running(self, mock_check_query_status):
         assert not self.sensor.poke(None)
 
-    @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("COMPLETED",))
+    @mock.patch.object(EmrContainerHook, "check_query_status", side_effect=("COMPLETED",))
     def test_poke_completed(self, mock_check_query_status):
         assert self.sensor.poke(None)
 
-    @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("FAILED",))
+    @mock.patch.object(EmrContainerHook, "check_query_status", side_effect=("FAILED",))
     def test_poke_failed(self, mock_check_query_status):
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)
-        assert 'EMR Containers sensor failed' in str(ctx.value)
+        assert "EMR Containers sensor failed" in str(ctx.value)
 
-    @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("CANCELLED",))
+    @mock.patch.object(EmrContainerHook, "check_query_status", side_effect=("CANCELLED",))
     def test_poke_cancelled(self, mock_check_query_status):
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)
-        assert 'EMR Containers sensor failed' in str(ctx.value)
+        assert "EMR Containers sensor failed" in str(ctx.value)
 
-    @mock.patch.object(EmrContainerHook, 'check_query_status', side_effect=("CANCEL_PENDING",))
+    @mock.patch.object(EmrContainerHook, "check_query_status", side_effect=("CANCEL_PENDING",))
     def test_poke_cancel_pending(self, mock_check_query_status):
         with pytest.raises(AirflowException) as ctx:
             self.sensor.poke(None)
-        assert 'EMR Containers sensor failed' in str(ctx.value)
+        assert "EMR Containers sensor failed" in str(ctx.value)
+
+    @mock.patch("airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor.poke")
+    def test_sensor_defer(self, mock_poke):
+        self.sensor.deferrable = True
+        mock_poke.return_value = False
+        with pytest.raises(TaskDeferred) as e:
+            self.sensor.execute(context=None)
+        assert isinstance(
+            e.value.trigger, EmrContainerTrigger
+        ), f"{e.value.trigger} is not a EmrContainerTrigger"

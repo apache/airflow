@@ -41,4 +41,4 @@ class TaskNotRunningDep(BaseTIDep):
             yield self._passing_status(reason="Task is not in running state.")
             return
 
-        yield self._failing_status(reason='Task is in the running state')
+        yield self._failing_status(reason="Task is in the running state")

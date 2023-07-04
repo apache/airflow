@@ -17,6 +17,7 @@
  under the License.
 -#}
 
+import json
 import {{ pickling_library }}
 import sys
 
@@ -42,3 +43,8 @@ arg_dict = {"args": [], "kwargs": {}}
 # Script
 {{ python_callable_source }}
 res = {{ python_callable }}(*arg_dict["args"], **arg_dict["kwargs"])
+
+# Write output
+with open(sys.argv[2], "w") as file:
+    if res is not None:
+        file.write(json.dumps(res))

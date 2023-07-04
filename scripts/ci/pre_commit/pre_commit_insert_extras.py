@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 from textwrap import wrap
@@ -27,19 +28,21 @@ sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_pre
 sys.path.insert(0, str(AIRFLOW_SOURCES_DIR))  # make sure setup is imported from Airflow
 # flake8: noqa: F401
 
+os.environ["_SKIP_PYTHON_VERSION_CHECK"] = "true"
+
 from common_precommit_utils import insert_documentation  # isort: skip
 from setup import EXTRAS_DEPENDENCIES  # isort:skip
 
 sys.path.append(str(AIRFLOW_SOURCES_DIR))
 
-RST_HEADER = '  .. START EXTRAS HERE'
-RST_FOOTER = '  .. END EXTRAS HERE'
+RST_HEADER = "  .. START EXTRAS HERE"
+RST_FOOTER = "  .. END EXTRAS HERE"
 
-INSTALL_HEADER = '# START EXTRAS HERE'
-INSTALL_FOOTER = '# END EXTRAS HERE'
+INSTALL_HEADER = "# START EXTRAS HERE"
+INSTALL_FOOTER = "# END EXTRAS HERE"
 
-CONSTANTS_HEADER = '# START EXTRAS HERE'
-CONSTANTS_FOOTER = '# END EXTRAS HERE'
+CONSTANTS_HEADER = "# START EXTRAS HERE"
+CONSTANTS_FOOTER = "# END EXTRAS HERE"
 
 DEFAULT_EXTRAS = (
     "amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,"
@@ -48,9 +51,9 @@ DEFAULT_EXTRAS = (
 )
 
 
-if __name__ == '__main__':
-    install_file_path = AIRFLOW_SOURCES_DIR / 'INSTALL'
-    contributing_file_path = AIRFLOW_SOURCES_DIR / 'CONTRIBUTING.rst'
+if __name__ == "__main__":
+    install_file_path = AIRFLOW_SOURCES_DIR / "INSTALL"
+    contributing_file_path = AIRFLOW_SOURCES_DIR / "CONTRIBUTING.rst"
     global_constants_file_path = (
         AIRFLOW_SOURCES_DIR / "dev" / "breeze" / "src" / "airflow_breeze" / "global_constants.py"
     )

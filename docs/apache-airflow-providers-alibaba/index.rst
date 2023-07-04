@@ -18,10 +18,18 @@
 ``apache-airflow-providers-alibaba``
 ====================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -30,6 +38,7 @@ Content
     Logging for Tasks <logging/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -37,15 +46,17 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/alibaba/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-alibaba/2.0.0/tests/system/providers/alibaba>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-alibaba/|version|/tests/system/providers/alibaba>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-alibaba/>
     Installing from sources <installing-providers-from-sources>
 
@@ -53,6 +64,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -65,7 +77,7 @@ Package apache-airflow-providers-alibaba
 Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com//>`__).
 
 
-Release: 2.0.1
+Release: 2.4.1
 
 Provider package
 ----------------
@@ -83,11 +95,13 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.2.0``
-``oss2``            ``>=2.14.0``
-==================  ==================
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
 
-.. include:: ../../airflow/providers/alibaba/CHANGELOG.rst
+============================  ==================
+PIP package                   Version required
+============================  ==================
+``apache-airflow``            ``>=2.4.0``
+``oss2``                      ``>=2.14.0``
+``alibabacloud_adb20211201``  ``>=1.0.0``
+``alibabacloud_tea_openapi``  ``>=0.3.7``
+============================  ==================

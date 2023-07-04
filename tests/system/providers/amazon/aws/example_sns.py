@@ -29,38 +29,38 @@ from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
-DAG_ID = 'example_sns'
+DAG_ID = "example_sns"
 
 
 @task
 def create_topic(topic_name) -> str:
-    return boto3.client('sns').create_topic(Name=topic_name)['TopicArn']
+    return boto3.client("sns").create_topic(Name=topic_name)["TopicArn"]
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
 def delete_topic(topic_arn) -> None:
-    boto3.client('sns').delete_topic(TopicArn=topic_arn)
+    boto3.client("sns").delete_topic(TopicArn=topic_arn)
 
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
-    tags=['example'],
+    tags=["example"],
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
-    env_id = test_context['ENV_ID']
+    env_id = test_context["ENV_ID"]
 
-    sns_topic_name = f'{env_id}-test-topic'
+    sns_topic_name = f"{env_id}-test-topic"
 
     create_sns_topic = create_topic(sns_topic_name)
 
     # [START howto_operator_sns_publish_operator]
     publish_message = SnsPublishOperator(
-        task_id='publish_message',
+        task_id="publish_message",
         target_arn=create_sns_topic,
-        message='This is a sample message sent to SNS via an Apache Airflow DAG task.',
+        message="This is a sample message sent to SNS via an Apache Airflow DAG task.",
     )
     # [END howto_operator_sns_publish_operator]
 

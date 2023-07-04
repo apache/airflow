@@ -1,23 +1,23 @@
  .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
 
  ..   http://www.apache.org/licenses/LICENSE-2.0
 
  .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
 
 
 
-.. _howto/operator:KubernetesPodOperator:
+.. _howto/operator:kubernetespodoperator:
 
 KubernetesPodOperator
 =====================
@@ -32,7 +32,7 @@ you to create and run Pods on a Kubernetes cluster.
   simplifies the Kubernetes authorization process.
 
 .. note::
-  The :doc:`Kubernetes executor <apache-airflow:executor/kubernetes>` is **not** required to use this operator.
+  The :doc:`Kubernetes executor <apache-airflow:core-concepts/executor/kubernetes>` is **not** required to use this operator.
 
 How does this operator work?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -57,9 +57,7 @@ You can print out the Kubernetes manifest for the pod that would be created at r
 
 .. code-block:: python
 
-    from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import (
-        KubernetesPodOperator,
-    )
+    from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 
     k = KubernetesPodOperator(
         name="hello-dry-run",
@@ -73,6 +71,18 @@ You can print out the Kubernetes manifest for the pod that would be created at r
 
     k.dry_run()
 
+Argument precedence
+^^^^^^^^^^^^^^^^^^^
+
+When building the pod object, there may be overlap between KPO params, pod spec, template and airflow connection.
+In general, the order of precedence is KPO argument > full pod spec > pod template file > airflow connection.
+
+For ``namespace``, if namespace is not provided via any of these methods, then we'll first try to
+get the current namespace (if the task is already running in kubernetes) and failing that we'll use
+the ``default`` namespace.
+
+For pod name, if not provided explicitly, we'll use the task_id. A random suffix is added by default so the pod
+name is not generally of great consequence.
 
 How to use cluster ConfigMaps, Secrets, and Volumes with Pod?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -127,6 +137,13 @@ Then use it in your pod like so:
     :start-after: [START howto_operator_k8s_private_image]
     :end-before: [END howto_operator_k8s_private_image]
 
+Also for this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_async.py
+    :language: python
+    :start-after: [START howto_operator_k8s_private_image_async]
+    :end-before: [END howto_operator_k8s_private_image_async]
+
 How does XCom work?
 ^^^^^^^^^^^^^^^^^^^
 The :class:`~airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator` handles
@@ -142,6 +159,34 @@ See the following example on how this occurs:
     :end-before: [END howto_operator_k8s_write_xcom]
 .. note::
   XCOMs will be pushed only for tasks marked as ``State.SUCCESS``.
+
+Also for this action you can use operator in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_async.py
+    :language: python
+    :start-after: [START howto_operator_k8s_write_xcom_async]
+    :end-before: [END howto_operator_k8s_write_xcom_async]
+
+Include error message in email alert
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Any content written to ``/dev/termination-log`` will be retrieved by Kubernetes and
+included in the exception message if the task fails.
+
+.. code-block:: python
+
+    k = KubernetesPodOperator(
+        task_id="test_error_message",
+        image="alpine",
+        cmds=["/bin/sh"],
+        arguments=["-c", "echo hello world; echo Custom error > /dev/termination-log; exit 1;"],
+        name="test-error-message",
+        email="airflow@example.com",
+        email_on_failure=True,
+    )
+
+
+Read more on termination-log `here <https://kubernetes.io/docs/tasks/debug/debug-application/determine-reason-pod-failure/>`__.
 
 Reference
 ^^^^^^^^^

@@ -99,7 +99,7 @@ default_args = {
 
 with DAG(
     dag_id=DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2022, 1, 1),
     catchup=False,
     default_args=default_args,
@@ -134,6 +134,7 @@ with DAG(
             "query": {
                 "query": INSERT_ROWS_QUERY,
                 "useLegacySql": False,
+                "priority": "BATCH",
             }
         },
         location=LOCATION,
@@ -146,7 +147,7 @@ with DAG(
         task_id="select_query_job",
         configuration={
             "query": {
-                "query": "{% include 'example_bigquery_query.sql' %}",
+                "query": "{% include 'resources/example_bigquery_query.sql' %}",
                 "useLegacySql": False,
             }
         },

@@ -63,7 +63,7 @@ If you wish to have the experimental API work, and aware of the risks of enablin
 
     You can only disable authentication for experimental API, not the stable REST API.
 
-See :doc:`../modules_management` for details on how Python and Airflow manage modules.
+See :doc:`../administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
 
 Kerberos authentication
 '''''''''''''''''''''''
@@ -82,6 +82,9 @@ To enable Kerberos authentication, set the following in the configuration:
 
 The Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
 principal exists in the keytab file.
+
+You have to make sure to name your users with the kerberos full username/realm in order to make it
+works. This means that your user name should be ``user_name@KERBEROS-REALM``.
 
 Basic authentication
 ''''''''''''''''''''
@@ -129,7 +132,7 @@ Each auth backend is defined as a new Python module. It must have 2 defined meth
 and may have one of the following to support API client authorizations used by :ref:`remote mode for CLI <cli-remote>`:
 
 * function ``create_client_session() -> requests.Session``
-* attribute ``CLIENT_AUTH: Optional[Union[Tuple[str, str], requests.auth.AuthBase]]``
+* attribute ``CLIENT_AUTH: tuple[str, str] | requests.auth.AuthBase | None``
 
 After writing your backend module, provide the fully qualified module name in the ``auth_backends`` key in the ``[api]``
 section of ``airflow.cfg``.

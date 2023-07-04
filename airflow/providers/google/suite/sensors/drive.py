@@ -50,12 +50,12 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
     """
 
     template_fields: Sequence[str] = (
-        'folder_id',
-        'file_name',
-        'drive_id',
-        'impersonation_chain',
+        "folder_id",
+        "file_name",
+        "drive_id",
+        "impersonation_chain",
     )
-    ui_color = '#f0eee4'
+    ui_color = "#f0eee4"
 
     def __init__(
         self,
@@ -63,7 +63,7 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         folder_id: str,
         file_name: str,
         drive_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -78,7 +78,7 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         self.impersonation_chain = impersonation_chain
 
     def poke(self, context: Context) -> bool:
-        self.log.info('Sensor is checking for the file %s in the folder %s', self.file_name, self.folder_id)
+        self.log.info("Sensor is checking for the file %s in the folder %s", self.file_name, self.folder_id)
         hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

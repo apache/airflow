@@ -27,19 +27,16 @@ The most popular javascript framework for building user interfaces with reusable
 Written as javascript and html together in `.jsx` files.
 In-component state can be managed via `useState()`, application state that spans many components can be managed via a context provider (see `/context` for examples), API state can be managed by React Query (see below)
 
-
 ## [Chakra UI](https://chakra-ui.com/)
 
 A good component and helper function library. Tooltips, modals, toasts, switches, etc are all out of the box
 Styles are applied via global theme when initializing the app or inline with individual components like `<Box padding="5px" />`
-
 
 ## [React Query](https://react-query.tanstack.com/)
 
 A powerful async data handler that makes it easy to manage loading/error states as well as caching, refetching, background updates, etc.
 This is our state management for any data that comes from an API.
 Each API request is its own hook. Ie `useTasks` will get all the tasks for a DAG
-
 
 ## [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
 

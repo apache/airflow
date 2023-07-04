@@ -31,7 +31,7 @@ DATAFLOW_JOB_LINK = DATAFLOW_BASE_LINK + "/{region}/{job_id}?project={project_id
 
 
 class DataflowJobLink(BaseGoogleLink):
-    """Helper class for constructing Dataflow Job Link"""
+    """Helper class for constructing Dataflow Job Link."""
 
     name = "Dataflow Job"
     key = "dataflow_job_config"
@@ -48,5 +48,5 @@ class DataflowJobLink(BaseGoogleLink):
         operator_instance.xcom_push(
             context,
             key=DataflowJobLink.key,
-            value={"project_id": project_id, "location": region, "job_id": job_id},
+            value={"project_id": project_id, "region": region, "job_id": job_id},
         )

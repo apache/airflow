@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from unittest import mock
 from unittest.mock import call
 
@@ -31,7 +30,7 @@ CQL = "select * from keyspace1.table1"
 TASK_ID = "test-cas-to-gcs"
 
 
-class TestCassandraToGCS(unittest.TestCase):
+class TestCassandraToGCS:
     @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.NamedTemporaryFile")
     @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.GCSHook.upload")
     @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraHook")

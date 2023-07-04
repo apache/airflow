@@ -43,8 +43,9 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--run-in-parallel",
                 "--parallelism",
-                "--skip-cleanup",
                 "--python-versions",
+                "--skip-cleanup",
+                "--debug-resources",
                 "--include-success-outputs",
             ],
         },
@@ -53,6 +54,7 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--builder",
                 "--install-providers-from-sources",
+                "--airflow-constraints-location",
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
                 "--python-image",
@@ -69,13 +71,17 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Preparing cache and push (for maintainers and CI)",
             "options": [
-                "--github-token",
-                "--github-username",
                 "--platform",
-                "--login-to-github-registry",
                 "--push",
                 "--empty-image",
                 "--prepare-buildx-cache",
+            ],
+        },
+        {
+            "name": "Github authentication",
+            "options": [
+                "--github-repository",
+                "--github-token",
             ],
         },
     ],
@@ -85,7 +91,6 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--image-tag",
                 "--python",
-                "--github-token",
                 "--verify",
                 "--wait-for-image",
                 "--tag-as-latest",
@@ -96,9 +101,17 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--run-in-parallel",
                 "--parallelism",
-                "--skip-cleanup",
                 "--python-versions",
+                "--skip-cleanup",
+                "--debug-resources",
                 "--include-success-outputs",
+            ],
+        },
+        {
+            "name": "Github authentication",
+            "options": [
+                "--github-repository",
+                "--github-token",
             ],
         },
     ],
@@ -111,6 +124,13 @@ CI_IMAGE_TOOLS_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--pull",
             ],
-        }
+        },
+        {
+            "name": "Github authentication",
+            "options": [
+                "--github-repository",
+                "--github-token",
+            ],
+        },
     ],
 }

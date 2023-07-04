@@ -37,7 +37,7 @@ with DAG(
     # [START howto_task_group_section_1]
     with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:
         task_1 = EmptyOperator(task_id="task_1")
-        task_2 = BashOperator(task_id="task_2", bash_command='echo 1')
+        task_2 = BashOperator(task_id="task_2", bash_command="echo 1")
         task_3 = EmptyOperator(task_id="task_3")
 
         task_1 >> [task_2, task_3]
@@ -49,7 +49,7 @@ with DAG(
 
         # [START howto_task_group_inner_section_2]
         with TaskGroup("inner_section_2", tooltip="Tasks for inner_section2") as inner_section_2:
-            task_2 = BashOperator(task_id="task_2", bash_command='echo 1')
+            task_2 = BashOperator(task_id="task_2", bash_command="echo 1")
             task_3 = EmptyOperator(task_id="task_3")
             task_4 = EmptyOperator(task_id="task_4")
 
@@ -58,7 +58,7 @@ with DAG(
 
     # [END howto_task_group_section_2]
 
-    end = EmptyOperator(task_id='end')
+    end = EmptyOperator(task_id="end")
 
     start >> section_1 >> section_2 >> end
 # [END howto_task_group]

@@ -26,7 +26,7 @@ its own extra links that can redirect users to external systems. The extra link 
 will be available on the task page.
 
 The operator extra links are explained in
-:doc:`apache-airflow:howto/define_extra_link` and here you can also see the extra links
+:doc:`apache-airflow:howto/define-extra-link` and here you can also see the extra links
 provided by the community-managed providers:
 
 .. airflow-extra-links::

@@ -27,7 +27,7 @@ connection, when the connection is managed via Airflow UI. Those connections als
 that can be used to automatically create Airflow Hooks for specific connection types.
 
 The connection management is explained in
-:doc:`apache-airflow:concepts/connections` and you can also see those
+:doc:`apache-airflow:authoring-and-scheduling/connections` and you can also see those
 provided by the community-managed providers:
 
 .. airflow-connections::

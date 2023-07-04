@@ -17,33 +17,32 @@
 from __future__ import annotations
 
 import json
+import time
+import warnings
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
-from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook, DbtCloudJobRunException, DbtCloudJobRunStatus
+from airflow.providers.dbt.cloud.hooks.dbt import (
+    DbtCloudHook,
+    DbtCloudJobRunException,
+    DbtCloudJobRunStatus,
+    JobRunInfo,
+)
+from airflow.providers.dbt.cloud.triggers.dbt import DbtCloudRunJobTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
 class DbtCloudRunJobOperatorLink(BaseOperatorLink):
-    """
-    Operator link for DbtCloudRunJobOperator. This link allows users to monitor the triggered job run
-    directly in dbt Cloud.
-    """
+    """Allows users to monitor the triggered job run directly in dbt Cloud."""
 
     name = "Monitor Job Run"
 
-    def get_link(self, operator, dttm=None, *, ti_key=None):
-        if ti_key is not None:
-            job_run_url = XCom.get_value(key="job_run_url", ti_key=ti_key)
-        else:
-            assert dttm
-            job_run_url = XCom.get_one(
-                dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm, key="job_run_url"
-            )
-
-        return job_run_url
+    def get_link(self, operator: BaseOperator, *, ti_key=None):
+        return XCom.get_value(key="job_run_url", ti_key=ti_key)
 
 
 class DbtCloudRunJobOperator(BaseOperator):
@@ -58,6 +57,7 @@ class DbtCloudRunJobOperator(BaseOperator):
     :param job_id: The ID of a dbt Cloud job.
     :param account_id: Optional. The ID of a dbt Cloud account.
     :param trigger_reason: Optional. Description of the reason to trigger the job.
+        Defaults to "Triggered via Apache Airflow by task <task_id> in the <dag_id> DAG."
     :param steps_override: Optional. List of dbt commands to execute when triggering the job instead of those
         configured in dbt Cloud.
     :param schema_override: Optional. Override the destination schema in the configured target for this job.
@@ -70,6 +70,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         Used only if ``wait_for_termination`` is True. Defaults to 60 seconds.
     :param additional_run_config: Optional. Any additional parameters that should be included in the API
         request when triggering the job.
+    :param deferrable: Run operator in the deferrable mode
     :return: The ID of the triggered dbt Cloud job run.
     """
 
@@ -98,6 +99,7 @@ class DbtCloudRunJobOperator(BaseOperator):
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,
         additional_run_config: dict[str, Any] | None = None,
+        deferrable: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -113,8 +115,9 @@ class DbtCloudRunJobOperator(BaseOperator):
         self.additional_run_config = additional_run_config or {}
         self.hook: DbtCloudHook
         self.run_id: int
+        self.deferrable = deferrable
 
-    def execute(self, context: Context) -> int:
+    def execute(self, context: Context):
         if self.trigger_reason is None:
             self.trigger_reason = (
                 f"Triggered via Apache Airflow by task {self.task_id!r} in the {self.dag.dag_id} DAG."
@@ -136,20 +139,63 @@ class DbtCloudRunJobOperator(BaseOperator):
         context["ti"].xcom_push(key="job_run_url", value=job_run_url)
 
         if self.wait_for_termination:
-            self.log.info("Waiting for job run %s to terminate.", str(self.run_id))
+            if self.deferrable is False:
+                self.log.info("Waiting for job run %s to terminate.", str(self.run_id))
 
-            if self.hook.wait_for_job_run_status(
-                run_id=self.run_id,
-                account_id=self.account_id,
-                expected_statuses=DbtCloudJobRunStatus.SUCCESS.value,
-                check_interval=self.check_interval,
-                timeout=self.timeout,
-            ):
-                self.log.info("Job run %s has completed successfully.", str(self.run_id))
+                if self.hook.wait_for_job_run_status(
+                    run_id=self.run_id,
+                    account_id=self.account_id,
+                    expected_statuses=DbtCloudJobRunStatus.SUCCESS.value,
+                    check_interval=self.check_interval,
+                    timeout=self.timeout,
+                ):
+                    self.log.info("Job run %s has completed successfully.", str(self.run_id))
+                else:
+                    raise DbtCloudJobRunException(f"Job run {self.run_id} has failed or has been cancelled.")
+
+                return self.run_id
             else:
-                raise DbtCloudJobRunException(f"Job run {self.run_id} has failed or has been cancelled.")
+                end_time = time.time() + self.timeout
+                job_run_info = JobRunInfo(account_id=self.account_id, run_id=self.run_id)
+                job_run_status = self.hook.get_job_run_status(**job_run_info)
+                if not DbtCloudJobRunStatus.is_terminal(job_run_status):
+                    self.defer(
+                        timeout=self.execution_timeout,
+                        trigger=DbtCloudRunJobTrigger(
+                            conn_id=self.dbt_cloud_conn_id,
+                            run_id=self.run_id,
+                            end_time=end_time,
+                            account_id=self.account_id,
+                            poll_interval=self.check_interval,
+                        ),
+                        method_name="execute_complete",
+                    )
+                elif job_run_status == DbtCloudJobRunStatus.SUCCESS.value:
+                    self.log.info("Job run %s has completed successfully.", str(self.run_id))
+                    return self.run_id
+                elif job_run_status in (
+                    DbtCloudJobRunStatus.CANCELLED.value,
+                    DbtCloudJobRunStatus.ERROR.value,
+                ):
+                    raise DbtCloudJobRunException(f"Job run {self.run_id} has failed or has been cancelled.")
+        else:
+            if self.deferrable is True:
+                warnings.warn(
+                    "Argument `wait_for_termination` is False and `deferrable` is True , hence "
+                    "`deferrable` parameter doesn't have any effect",
+                )
+            return self.run_id
 
-        return self.run_id
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> int:
+        """
+        Callback for when the trigger fires - returns immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        self.log.info(event["message"])
+        return int(event["run_id"])
 
     def on_kill(self) -> None:
         if self.run_id:
@@ -207,14 +253,72 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         self.step = step
         self.output_file_name = output_file_name or f"{self.run_id}_{self.path}".replace("/", "-")
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context) -> str:
         hook = DbtCloudHook(self.dbt_cloud_conn_id)
         response = hook.get_job_run_artifact(
             run_id=self.run_id, path=self.path, account_id=self.account_id, step=self.step
         )
 
-        with open(self.output_file_name, "w") as file:
+        output_file_path = Path(self.output_file_name)
+        output_file_path.parent.mkdir(parents=True, exist_ok=True)
+        with output_file_path.open(mode="w") as file:
+            self.log.info(
+                "Writing %s artifact for job run %s to %s.", self.path, self.run_id, self.output_file_name
+            )
             if self.path.endswith(".json"):
                 json.dump(response.json(), file)
             else:
                 file.write(response.text)
+
+        return self.output_file_name
+
+
+class DbtCloudListJobsOperator(BaseOperator):
+    """
+    List jobs in a dbt Cloud project.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DbtCloudListJobsOperator`
+
+    Retrieves metadata for all jobs tied to a specified dbt Cloud account. If a ``project_id`` is
+    supplied, only jobs pertaining to this project id will be retrieved.
+
+    :param account_id: Optional. If an account ID is not provided explicitly,
+        the account ID from the dbt Cloud connection will be used.
+    :param order_by: Optional. Field to order the result by. Use '-' to indicate reverse order.
+        For example, to use reverse order by the run ID use ``order_by=-id``.
+    :param project_id: Optional. The ID of a dbt Cloud project.
+    """
+
+    template_fields = (
+        "account_id",
+        "project_id",
+    )
+
+    def __init__(
+        self,
+        *,
+        dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
+        account_id: int | None = None,
+        project_id: int | None = None,
+        order_by: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.dbt_cloud_conn_id = dbt_cloud_conn_id
+        self.account_id = account_id
+        self.project_id = project_id
+        self.order_by = order_by
+
+    def execute(self, context: Context) -> list:
+        hook = DbtCloudHook(self.dbt_cloud_conn_id)
+        list_jobs_response = hook.list_jobs(
+            account_id=self.account_id, order_by=self.order_by, project_id=self.project_id
+        )
+        buffer = []
+        for job_metadata in list_jobs_response:
+            for job in job_metadata.json()["data"]:
+                buffer.append(job["id"])
+        self.log.info("Jobs in the specified dbt Cloud account are: %s", ", ".join(map(str, buffer)))
+        return buffer

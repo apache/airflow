@@ -17,20 +17,20 @@
  * under the License.
  */
 
-import { extendTheme } from '@chakra-ui/react';
+import { extendTheme } from "@chakra-ui/react";
 
 const theme = extendTheme({
   styles: {
     global: {
-      '*, *::before, &::after': {
-        borderColor: 'gray.200',
+      "*, *::before, &::after": {
+        borderColor: "gray.200",
       },
     },
   },
   components: {
     Tooltip: {
       baseStyle: {
-        fontSize: 'md',
+        fontSize: "md",
       },
     },
   },

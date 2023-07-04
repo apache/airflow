@@ -26,16 +26,17 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import text
 from sqlalchemy.dialects import mysql
 
 from airflow.migrations.db_types import StringID
 
 # revision identifiers, used by Alembic.
-revision = 'd38e04c12aa2'
-down_revision = '6e96a59344a4'
+revision = "d38e04c12aa2"
+down_revision = "6e96a59344a4"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.7'
+airflow_version = "1.10.7"
 
 
 def upgrade():
@@ -47,24 +48,24 @@ def upgrade():
         # Mysql 5.7+/MariaDB 10.2.3 has JSON support. Rather than checking for
         # versions, check for the function existing.
         try:
-            conn.execute("SELECT JSON_VALID(1)").fetchone()
+            conn.execute(text("SELECT JSON_VALID(1)")).fetchone()
         except (sa.exc.OperationalError, sa.exc.ProgrammingError):
             json_type = sa.Text
 
     op.create_table(
-        'serialized_dag',
-        sa.Column('dag_id', StringID(), nullable=False),
-        sa.Column('fileloc', sa.String(length=2000), nullable=False),
-        sa.Column('fileloc_hash', sa.Integer(), nullable=False),
-        sa.Column('data', json_type(), nullable=False),
-        sa.Column('last_updated', sa.DateTime(), nullable=False),
-        sa.PrimaryKeyConstraint('dag_id'),
+        "serialized_dag",
+        sa.Column("dag_id", StringID(), nullable=False),
+        sa.Column("fileloc", sa.String(length=2000), nullable=False),
+        sa.Column("fileloc_hash", sa.Integer(), nullable=False),
+        sa.Column("data", json_type(), nullable=False),
+        sa.Column("last_updated", sa.DateTime(), nullable=False),
+        sa.PrimaryKeyConstraint("dag_id"),
     )
-    op.create_index('idx_fileloc_hash', 'serialized_dag', ['fileloc_hash'])
+    op.create_index("idx_fileloc_hash", "serialized_dag", ["fileloc_hash"])
 
     if conn.dialect.name == "mysql":
-        conn.execute("SET time_zone = '+00:00'")
-        cur = conn.execute("SELECT @@explicit_defaults_for_timestamp")
+        conn.execute(text("SET time_zone = '+00:00'"))
+        cur = conn.execute(text("SELECT @@explicit_defaults_for_timestamp"))
         res = cur.fetchall()
         if res[0][0] == 0:
             raise Exception("Global variable explicit_defaults_for_timestamp needs to be on (1) for mysql")
@@ -83,7 +84,7 @@ def upgrade():
         # we try to be database agnostic, but not every db (e.g. sqlserver)
         # supports per session time zones
         if conn.dialect.name == "postgresql":
-            conn.execute("set timezone=UTC")
+            conn.execute(text("set timezone=UTC"))
 
         op.alter_column(
             table_name="serialized_dag",
@@ -94,4 +95,4 @@ def upgrade():
 
 def downgrade():
     """Downgrade version."""
-    op.drop_table('serialized_dag')
+    op.drop_table("serialized_dag")

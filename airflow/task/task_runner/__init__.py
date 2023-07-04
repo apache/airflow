@@ -21,11 +21,13 @@ import logging
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
+from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
+from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
 
-_TASK_RUNNER_NAME = conf.get('core', 'TASK_RUNNER')
+_TASK_RUNNER_NAME = conf.get("core", "TASK_RUNNER")
 
 STANDARD_TASK_RUNNER = "StandardTaskRunner"
 
@@ -37,14 +39,13 @@ CORE_TASK_RUNNERS = {
 }
 
 
-def get_task_runner(local_task_job):
+def get_task_runner(local_task_job_runner: LocalTaskJobRunner) -> BaseTaskRunner:
     """
-    Get the task runner that can be used to run the given job.
+    Get the task runner that can be used to run with the given job runner.
 
-    :param local_task_job: The LocalTaskJob associated with the TaskInstance
+    :param local_task_job_runner: The LocalTaskJobRunner associated with the TaskInstance
         that needs to be executed.
     :return: The task runner to use to run the task.
-    :rtype: airflow.task.task_runner.base_task_runner.BaseTaskRunner
     """
     if _TASK_RUNNER_NAME in CORE_TASK_RUNNERS:
         log.debug("Loading core task runner: %s", _TASK_RUNNER_NAME)
@@ -58,6 +59,5 @@ def get_task_runner(local_task_job):
                 f'The task runner could not be loaded. Please check "task_runner" key in "core" section. '
                 f'Current value: "{_TASK_RUNNER_NAME}".'
             )
-
-    task_runner = task_runner_class(local_task_job)
+    task_runner = task_runner_class(local_task_job_runner)
     return task_runner

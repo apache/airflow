@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 class AzureBlobStorageToGCSOperator(BaseOperator):
     """
-    Operator transfers data from Azure Blob Storage to specified bucket in Google Cloud Storage
+    Operator transfers data from Azure Blob Storage to specified bucket in Google Cloud Storage.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -39,15 +39,11 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
     :param wasb_conn_id: Reference to the wasb connection.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param blob_name: Name of the blob
-    :param file_path: Path to the file to download
     :param container_name: Name of the container
     :param bucket_name: The bucket to upload to
     :param object_name: The object name to set when uploading the file
     :param filename: The local file path to the file to be uploaded
     :param gzip: Option to compress local file or file data for upload
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -61,16 +57,14 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
     def __init__(
         self,
         *,
-        wasb_conn_id='wasb_default',
+        wasb_conn_id="wasb_default",
         gcp_conn_id: str = "google_cloud_default",
         blob_name: str,
-        file_path: str,
         container_name: str,
         bucket_name: str,
         object_name: str,
         filename: str,
         gzip: bool,
-        delegate_to: str | None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -78,18 +72,15 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         self.wasb_conn_id = wasb_conn_id
         self.gcp_conn_id = gcp_conn_id
         self.blob_name = blob_name
-        self.file_path = file_path
         self.container_name = container_name
         self.bucket_name = bucket_name
         self.object_name = object_name
         self.filename = filename
         self.gzip = gzip
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     template_fields: Sequence[str] = (
         "blob_name",
-        "file_path",
         "container_name",
         "bucket_name",
         "object_name",
@@ -100,7 +91,6 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         azure_hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 

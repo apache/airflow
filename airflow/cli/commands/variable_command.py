@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Variable subcommands"""
+"""Variable subcommands."""
 from __future__ import annotations
 
 import json
@@ -31,7 +31,7 @@ from airflow.utils.session import create_session
 
 @suppress_logs_and_warning
 def variables_list(args):
-    """Displays all of the variables"""
+    """Displays all the variables."""
     with create_session() as session:
         variables = session.query(Variable)
     AirflowConsole().print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
@@ -39,7 +39,7 @@ def variables_list(args):
 
 @suppress_logs_and_warning
 def variables_get(args):
-    """Displays variable by a given name"""
+    """Displays variable by a given name."""
     try:
         if args.default is None:
             var = Variable.get(args.key, deserialize_json=args.json)
@@ -53,21 +53,21 @@ def variables_get(args):
 
 @cli_utils.action_cli
 def variables_set(args):
-    """Creates new variable with a given name and value"""
+    """Creates new variable with a given name and value."""
     Variable.set(args.key, args.value, serialize_json=args.json)
     print(f"Variable {args.key} created")
 
 
 @cli_utils.action_cli
 def variables_delete(args):
-    """Deletes variable by a given name"""
+    """Deletes variable by a given name."""
     Variable.delete(args.key)
     print(f"Variable {args.key} deleted")
 
 
 @cli_utils.action_cli
 def variables_import(args):
-    """Imports variables from a given file"""
+    """Imports variables from a given file."""
     if os.path.exists(args.file):
         _import_helper(args.file)
     else:
@@ -75,12 +75,12 @@ def variables_import(args):
 
 
 def variables_export(args):
-    """Exports all of the variables to the file"""
+    """Exports all the variables to the file."""
     _variable_export_helper(args.file)
 
 
 def _import_helper(filepath):
-    """Helps import variables from the file"""
+    """Helps import variables from the file."""
     with open(filepath) as varfile:
         data = varfile.read()
 
@@ -94,7 +94,7 @@ def _import_helper(filepath):
             try:
                 Variable.set(k, v, serialize_json=not isinstance(v, str))
             except Exception as e:
-                print(f'Variable import failed: {repr(e)}')
+                print(f"Variable import failed: {repr(e)}")
                 fail_count += 1
             else:
                 suc_count += 1
@@ -104,7 +104,7 @@ def _import_helper(filepath):
 
 
 def _variable_export_helper(filepath):
-    """Helps export all of the variables to the file"""
+    """Helps export all the variables to the file."""
     var_dict = {}
     with create_session() as session:
         qry = session.query(Variable).all()
@@ -117,6 +117,6 @@ def _variable_export_helper(filepath):
                 val = var.val
             var_dict[var.key] = val
 
-    with open(filepath, 'w') as varfile:
+    with open(filepath, "w") as varfile:
         varfile.write(json.dumps(var_dict, sort_keys=True, indent=4))
     print(f"{len(var_dict)} variables successfully exported to {filepath}")

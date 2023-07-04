@@ -20,15 +20,22 @@
 /* global localStorage, document */
 
 import React, {
-  useMemo, useContext, useState, useEffect, useCallback, PropsWithChildren,
-} from 'react';
+  useMemo,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  PropsWithChildren,
+} from "react";
 
-import { getMetaValue } from 'src/utils';
+import { getMetaValue } from "src/utils";
 
-const autoRefreshKey = 'disabledAutoRefresh';
+const autoRefreshKey = "disabledAutoRefresh";
 
-const initialIsPaused = getMetaValue('is_paused') === 'True';
-const isRefreshDisabled = JSON.parse(localStorage.getItem(autoRefreshKey) || 'false');
+const initialIsPaused = getMetaValue("is_paused") === "True";
+const isRefreshDisabled = JSON.parse(
+  localStorage.getItem(autoRefreshKey) || "false"
+);
 
 const AutoRefreshContext = React.createContext({
   isRefreshOn: false,
@@ -45,22 +52,19 @@ export const AutoRefreshProvider = ({ children }: PropsWithChildren) => {
 
   const [isRefreshOn, setRefresh] = useState(initialState);
 
-  const onToggle = useCallback(
-    () => setRefresh(!isRefreshOn),
-    [isRefreshOn],
-  );
+  const onToggle = useCallback(() => setRefresh(!isRefreshOn), [isRefreshOn]);
   const stopRefresh = () => setRefresh(false);
 
   const startRefresh = useCallback(
     () => isRefreshAllowed && setRefresh(true),
-    [isRefreshAllowed, setRefresh],
+    [isRefreshAllowed, setRefresh]
   );
 
   const toggleRefresh = useCallback(
     (updateStorage = false) => {
       if (updateStorage) {
         if (isRefreshOn) {
-          localStorage.setItem(autoRefreshKey, 'true');
+          localStorage.setItem(autoRefreshKey, "true");
         } else {
           localStorage.removeItem(autoRefreshKey);
         }
@@ -69,12 +73,12 @@ export const AutoRefreshProvider = ({ children }: PropsWithChildren) => {
         onToggle();
       }
     },
-    [isRefreshAllowed, isRefreshOn, onToggle],
+    [isRefreshAllowed, isRefreshOn, onToggle]
   );
 
   useEffect(() => {
     function isCustomEvent(event: Event): event is CustomEvent {
-      return 'detail' in event;
+      return "detail" in event;
     }
 
     const handleChange = (e: Event) => {
@@ -86,15 +90,22 @@ export const AutoRefreshProvider = ({ children }: PropsWithChildren) => {
       }
     };
 
-    document.addEventListener('paused', handleChange);
+    document.addEventListener("paused", handleChange);
     return () => {
-      document.removeEventListener('paused', handleChange);
+      document.removeEventListener("paused", handleChange);
     };
   });
 
-  const value = useMemo(() => ({
-    isRefreshOn, toggleRefresh, stopRefresh, startRefresh, isPaused,
-  }), [isPaused, isRefreshOn, startRefresh, toggleRefresh]);
+  const value = useMemo(
+    () => ({
+      isRefreshOn,
+      toggleRefresh,
+      stopRefresh,
+      startRefresh,
+      isPaused,
+    }),
+    [isPaused, isRefreshOn, startRefresh, toggleRefresh]
+  );
 
   return (
     <AutoRefreshContext.Provider value={value}>

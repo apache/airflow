@@ -18,12 +18,13 @@
  */
 
 class URLSearchParamsWrapper extends URLSearchParams {
-  constructor(init?: { [keys: string]: any }) {
+  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
+  constructor(init?: Record<string, any>) {
     if (init) {
       const stringValues: { [keys: string]: string } = {};
-      Object.keys(init).forEach(
-        (key) => { stringValues[key] = init[key].toString(); },
-      );
+      Object.keys(init).forEach((key) => {
+        stringValues[key] = init[key].toString();
+      });
       super(init);
       return;
     }

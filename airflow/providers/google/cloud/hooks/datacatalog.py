@@ -43,9 +43,6 @@ class CloudDataCatalogHook(GoogleBaseHook):
     Hook for Google Cloud Data Catalog Service.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -59,12 +56,16 @@ class CloudDataCatalogHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
         self._client: DataCatalogClient | None = None
@@ -108,14 +109,14 @@ class CloudDataCatalogHook(GoogleBaseHook):
         """
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}/entryGroups/{entry_group}"
-        self.log.info('Creating a new entry: parent=%s', parent)
+        self.log.info("Creating a new entry: parent=%s", parent)
         result = client.create_entry(
-            request={'parent': parent, 'entry_id': entry_id, 'entry': entry},
+            request={"parent": parent, "entry_id": entry_id, "entry": entry},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
         )
-        self.log.info('Created a entry: name=%s', result.name)
+        self.log.info("Created a entry: name=%s", result.name)
         return result
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -150,15 +151,15 @@ class CloudDataCatalogHook(GoogleBaseHook):
         """
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}"
-        self.log.info('Creating a new entry group: parent=%s', parent)
+        self.log.info("Creating a new entry group: parent=%s", parent)
 
         result = client.create_entry_group(
-            request={'parent': parent, 'entry_group_id': entry_group_id, 'entry_group': entry_group},
+            request={"parent": parent, "entry_group_id": entry_group_id, "entry_group": entry_group},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
         )
-        self.log.info('Created a entry group: name=%s', result.name)
+        self.log.info("Created a entry group: name=%s", result.name)
 
         return result
 
@@ -202,16 +203,16 @@ class CloudDataCatalogHook(GoogleBaseHook):
                 tag["template"] = template_path
         parent = f"projects/{project_id}/locations/{location}/entryGroups/{entry_group}/entries/{entry}"
 
-        self.log.info('Creating a new tag: parent=%s', parent)
+        self.log.info("Creating a new tag: parent=%s", parent)
         # HACK: google-cloud-datacatalog has problems with mapping messages where the value is not a
         # primitive type, so we need to convert it manually.
         # See: https://github.com/googleapis/python-datacatalog/issues/84
         if isinstance(tag, dict):
             tag = Tag(
-                name=tag.get('name'),
-                template=tag.get('template'),
-                template_display_name=tag.get('template_display_name'),
-                column=tag.get('column'),
+                name=tag.get("name"),
+                template=tag.get("template"),
+                template_display_name=tag.get("template_display_name"),
+                column=tag.get("column"),
                 fields={
                     k: datacatalog.TagField(**v) if isinstance(v, dict) else v
                     for k, v in tag.get("fields", {}).items()
@@ -223,7 +224,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         )
 
         result = client.create_tag(request=request, retry=retry, timeout=timeout, metadata=metadata or ())
-        self.log.info('Created a tag: name=%s', result.name)
+        self.log.info("Created a tag: name=%s", result.name)
 
         return result
 
@@ -258,7 +259,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}"
 
-        self.log.info('Creating a new tag template: parent=%s', parent)
+        self.log.info("Creating a new tag template: parent=%s", parent)
         # HACK: google-cloud-datacatalog has problems with mapping messages where the value is not a
         # primitive type, so we need to convert it manually.
         # See: https://github.com/googleapis/python-datacatalog/issues/84
@@ -281,7 +282,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
             timeout=timeout,
             metadata=metadata,
         )
-        self.log.info('Created a tag template: name=%s', result.name)
+        self.log.info("Created a tag template: name=%s", result.name)
 
         return result
 
@@ -321,20 +322,20 @@ class CloudDataCatalogHook(GoogleBaseHook):
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}/tagTemplates/{tag_template}"
 
-        self.log.info('Creating a new tag template field: parent=%s', parent)
+        self.log.info("Creating a new tag template field: parent=%s", parent)
 
         result = client.create_tag_template_field(
             request={
-                'parent': parent,
-                'tag_template_field_id': tag_template_field_id,
-                'tag_template_field': tag_template_field,
+                "parent": parent,
+                "tag_template_field_id": tag_template_field_id,
+                "tag_template_field": tag_template_field,
             },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
         )
 
-        self.log.info('Created a tag template field: name=%s', result.name)
+        self.log.info("Created a tag template field: name=%s", result.name)
 
         return result
 
@@ -365,9 +366,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         """
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/entryGroups/{entry_group}/entries/{entry}"
-        self.log.info('Deleting a entry: name=%s', name)
-        client.delete_entry(request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ())
-        self.log.info('Deleted a entry: name=%s', name)
+        self.log.info("Deleting a entry: name=%s", name)
+        client.delete_entry(request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ())
+        self.log.info("Deleted a entry: name=%s", name)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_entry_group(
@@ -397,11 +398,11 @@ class CloudDataCatalogHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/entryGroups/{entry_group}"
 
-        self.log.info('Deleting a entry group: name=%s', name)
+        self.log.info("Deleting a entry group: name=%s", name)
         client.delete_entry_group(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )
-        self.log.info('Deleted a entry group: name=%s', name)
+        self.log.info("Deleted a entry group: name=%s", name)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_tag(
@@ -435,9 +436,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
             f"projects/{project_id}/locations/{location}/entryGroups/{entry_group}/entries/{entry}/tags/{tag}"
         )
 
-        self.log.info('Deleting a tag: name=%s', name)
-        client.delete_tag(request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ())
-        self.log.info('Deleted a tag: name=%s', name)
+        self.log.info("Deleting a tag: name=%s", name)
+        client.delete_tag(request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ())
+        self.log.info("Deleted a tag: name=%s", name)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_tag_template(
@@ -469,11 +470,11 @@ class CloudDataCatalogHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/tagTemplates/{tag_template}"
 
-        self.log.info('Deleting a tag template: name=%s', name)
+        self.log.info("Deleting a tag template: name=%s", name)
         client.delete_tag_template(
-            request={'name': name, 'force': force}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name, "force": force}, retry=retry, timeout=timeout, metadata=metadata or ()
         )
-        self.log.info('Deleted a tag template: name=%s', name)
+        self.log.info("Deleted a tag template: name=%s", name)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_tag_template_field(
@@ -505,11 +506,11 @@ class CloudDataCatalogHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/tagTemplates/{tag_template}/fields/{field}"
 
-        self.log.info('Deleting a tag template field: name=%s', name)
+        self.log.info("Deleting a tag template field: name=%s", name)
         client.delete_tag_template_field(
-            request={'name': name, 'force': force}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name, "force": force}, retry=retry, timeout=timeout, metadata=metadata or ()
         )
-        self.log.info('Deleted a tag template field: name=%s', name)
+        self.log.info("Deleted a tag template field: name=%s", name)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_entry(
@@ -539,11 +540,11 @@ class CloudDataCatalogHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/entryGroups/{entry_group}/entries/{entry}"
 
-        self.log.info('Getting a entry: name=%s', name)
+        self.log.info("Getting a entry: name=%s", name)
         result = client.get_entry(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )
-        self.log.info('Received a entry: name=%s', result.name)
+        self.log.info("Received a entry: name=%s", result.name)
 
         return result
 
@@ -578,16 +579,16 @@ class CloudDataCatalogHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/entryGroups/{entry_group}"
 
-        self.log.info('Getting a entry group: name=%s', name)
+        self.log.info("Getting a entry group: name=%s", name)
 
         result = client.get_entry_group(
-            request={'name': name, 'read_mask': read_mask},
+            request={"name": name, "read_mask": read_mask},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
         )
 
-        self.log.info('Received a entry group: name=%s', result.name)
+        self.log.info("Received a entry group: name=%s", result.name)
 
         return result
 
@@ -617,13 +618,13 @@ class CloudDataCatalogHook(GoogleBaseHook):
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/tagTemplates/{tag_template}"
 
-        self.log.info('Getting a tag template: name=%s', name)
+        self.log.info("Getting a tag template: name=%s", name)
 
         result = client.get_tag_template(
-            request={'name': name}, retry=retry, timeout=timeout, metadata=metadata or ()
+            request={"name": name}, retry=retry, timeout=timeout, metadata=metadata or ()
         )
 
-        self.log.info('Received a tag template: name=%s', result.name)
+        self.log.info("Received a tag template: name=%s", result.name)
 
         return result
 
@@ -659,16 +660,16 @@ class CloudDataCatalogHook(GoogleBaseHook):
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}/entryGroups/{entry_group}/entries/{entry}"
 
-        self.log.info('Listing tag on entry: entry_name=%s', parent)
+        self.log.info("Listing tag on entry: entry_name=%s", parent)
 
         result = client.list_tags(
-            request={'parent': parent, 'page_size': page_size},
+            request={"parent": parent, "page_size": page_size},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
         )
 
-        self.log.info('Received tags.')
+        self.log.info("Received tags.")
 
         return result
 
@@ -744,22 +745,22 @@ class CloudDataCatalogHook(GoogleBaseHook):
             raise AirflowException("At least one of linked_resource, sql_resource should be set.")
 
         if linked_resource:
-            self.log.info('Getting entry: linked_resource=%s', linked_resource)
+            self.log.info("Getting entry: linked_resource=%s", linked_resource)
             result = client.lookup_entry(
-                request={'linked_resource': linked_resource},
+                request={"linked_resource": linked_resource},
                 retry=retry,
                 timeout=timeout,
                 metadata=metadata,
             )
         else:
-            self.log.info('Getting entry: sql_resource=%s', sql_resource)
+            self.log.info("Getting entry: sql_resource=%s", sql_resource)
             result = client.lookup_entry(
-                request={'sql_resource': sql_resource},
+                request={"sql_resource": sql_resource},
                 retry=retry,
                 timeout=timeout,
                 metadata=metadata,
             )
-        self.log.info('Received entry. name=%s', result.name)
+        self.log.info("Received entry. name=%s", result.name)
 
         return result
 
@@ -796,17 +797,17 @@ class CloudDataCatalogHook(GoogleBaseHook):
         name = f"projects/{project_id}/locations/{location}/tagTemplates/{tag_template}/fields/{field}"
 
         self.log.info(
-            'Renaming field: old_name=%s, new_tag_template_field_id=%s', name, new_tag_template_field_id
+            "Renaming field: old_name=%s, new_tag_template_field_id=%s", name, new_tag_template_field_id
         )
 
         result = client.rename_tag_template_field(
-            request={'name': name, 'new_tag_template_field_id': new_tag_template_field_id},
+            request={"name": name, "new_tag_template_field_id": new_tag_template_field_id},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
         )
 
-        self.log.info('Renamed tag template field.')
+        self.log.info("Renamed tag template field.")
 
         return result
 
@@ -871,13 +872,13 @@ class CloudDataCatalogHook(GoogleBaseHook):
             order_by,
         )
         result = client.search_catalog(
-            request={'scope': scope, 'query': query, 'page_size': page_size, 'order_by': order_by},
+            request={"scope": scope, "query": query, "page_size": page_size, "order_by": order_by},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
         )
 
-        self.log.info('Received items.')
+        self.log.info("Received items.")
 
         return result
 
@@ -940,13 +941,13 @@ class CloudDataCatalogHook(GoogleBaseHook):
         if isinstance(entry, dict):
             entry = Entry(**entry)
         result = client.update_entry(
-            request={'entry': entry, 'update_mask': update_mask},
+            request={"entry": entry, "update_mask": update_mask},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
         )
 
-        self.log.info('Updated entry.')
+        self.log.info("Updated entry.")
 
         return result
 
@@ -1013,12 +1014,12 @@ class CloudDataCatalogHook(GoogleBaseHook):
         if isinstance(tag, dict):
             tag = Tag(**tag)
         result = client.update_tag(
-            request={'tag': tag, 'update_mask': update_mask},
+            request={"tag": tag, "update_mask": update_mask},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
         )
-        self.log.info('Updated tag.')
+        self.log.info("Updated tag.")
 
         return result
 
@@ -1085,12 +1086,12 @@ class CloudDataCatalogHook(GoogleBaseHook):
         if isinstance(tag_template, dict):
             tag_template = TagTemplate(**tag_template)
         result = client.update_tag_template(
-            request={'tag_template': tag_template, 'update_mask': update_mask},
+            request={"tag_template": tag_template, "update_mask": update_mask},
             retry=retry,
             timeout=timeout,
             metadata=metadata,
         )
-        self.log.info('Updated tag template.')
+        self.log.info("Updated tag template.")
 
         return result
 
@@ -1150,14 +1151,14 @@ class CloudDataCatalogHook(GoogleBaseHook):
 
         result = client.update_tag_template_field(
             request={
-                'name': tag_template_field_name,
-                'tag_template_field': tag_template_field,
-                'update_mask': update_mask,
+                "name": tag_template_field_name,
+                "tag_template_field": tag_template_field,
+                "update_mask": update_mask,
             },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
         )
-        self.log.info('Updated tag template field.')
+        self.log.info("Updated tag template field.")
 
         return result

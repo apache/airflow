@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module defines dep for pool slots availability"""
+"""This module defines dep for pool slots availability."""
 from __future__ import annotations
 
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
@@ -32,7 +32,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context=None):
         """
-        Determines if the pool task instance is in has available slots
+        Determines if the pool task instance is in has available slots.
 
         :param ti: the task instance to get the dependency status for
         :param session: database session

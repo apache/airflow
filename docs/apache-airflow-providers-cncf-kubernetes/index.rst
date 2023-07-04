@@ -19,10 +19,18 @@
 ``apache-airflow-providers-cncf-kubernetes``
 ============================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -30,6 +38,7 @@ Content
     Operators <operators>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -37,15 +46,17 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/cncf/kubernetes/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-cncf-kubernetes/4.1.0/tests/system/providers/cncf/kubernetes>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-cncf-kubernetes/|version|/tests/system/providers/cncf/kubernetes>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-cncf-kubernetes/>
     Installing from sources <installing-providers-from-sources>
 
@@ -53,6 +64,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -65,7 +77,7 @@ Package apache-airflow-providers-cncf-kubernetes
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 4.4.0
+Release: 7.1.0
 
 Provider package
 ----------------
@@ -83,12 +95,14 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.3.0``
-``cryptography``    ``>=2.0.0``
-``kubernetes``      ``>=21.7.0,<24``
-==================  ==================
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
 
-.. include:: ../../airflow/providers/cncf/kubernetes/CHANGELOG.rst
+======================  ==================
+PIP package             Version required
+======================  ==================
+``apache-airflow``      ``>=2.4.0``
+``asgiref``             ``>=3.5.2``
+``cryptography``        ``>=2.0.0``
+``kubernetes``          ``>=21.7.0,<24``
+``kubernetes_asyncio``  ``>=18.20.1,<25``
+======================  ==================

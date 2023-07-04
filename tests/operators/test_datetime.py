@@ -18,10 +18,9 @@
 from __future__ import annotations
 
 import datetime
-import unittest
 
-import freezegun
 import pytest
+import time_machine
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
@@ -35,37 +34,35 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 INTERVAL = datetime.timedelta(hours=12)
 
 
-class TestBranchDateTimeOperator(unittest.TestCase):
+class TestBranchDateTimeOperator:
     @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
+    def setup_class(cls):
 
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
 
-        cls.targets = [
-            (datetime.datetime(2020, 7, 7, 10, 0, 0), datetime.datetime(2020, 7, 7, 11, 0, 0)),
-            (datetime.time(10, 0, 0), datetime.time(11, 0, 0)),
-            (datetime.datetime(2020, 7, 7, 10, 0, 0), datetime.time(11, 0, 0)),
-            (datetime.time(10, 0, 0), datetime.datetime(2020, 7, 7, 11, 0, 0)),
-            (datetime.time(11, 0, 0), datetime.time(10, 0, 0)),
-        ]
+    targets = [
+        (datetime.datetime(2020, 7, 7, 10, 0, 0), datetime.datetime(2020, 7, 7, 11, 0, 0)),
+        (datetime.time(10, 0, 0), datetime.time(11, 0, 0)),
+        (datetime.datetime(2020, 7, 7, 10, 0, 0), datetime.time(11, 0, 0)),
+        (datetime.time(10, 0, 0), datetime.datetime(2020, 7, 7, 11, 0, 0)),
+    ]
 
-    def setUp(self):
+    def setup_method(self):
         self.dag = DAG(
-            'branch_datetime_operator_test',
-            default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
+            "branch_datetime_operator_test",
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
             schedule=INTERVAL,
         )
 
-        self.branch_1 = EmptyOperator(task_id='branch_1', dag=self.dag)
-        self.branch_2 = EmptyOperator(task_id='branch_2', dag=self.dag)
+        self.branch_1 = EmptyOperator(task_id="branch_1", dag=self.dag)
+        self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
 
         self.branch_op = BranchDateTimeOperator(
-            task_id='datetime_branch',
-            follow_task_ids_if_true='branch_1',
-            follow_task_ids_if_false='branch_2',
+            task_id="datetime_branch",
+            follow_task_ids_if_true="branch_1",
+            follow_task_ids_if_false="branch_2",
             target_upper=datetime.datetime(2020, 7, 7, 11, 0, 0),
             target_lower=datetime.datetime(2020, 7, 7, 10, 0, 0),
             dag=self.dag,
@@ -76,11 +73,10 @@ class TestBranchDateTimeOperator(unittest.TestCase):
         self.dag.clear()
 
         self.dr = self.dag.create_dagrun(
-            run_id='manual__', start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.RUNNING
+            run_id="manual__", start_date=DEFAULT_DATE, execution_date=DEFAULT_DATE, state=State.RUNNING
         )
 
-    def tearDown(self):
-        super().tearDown()
+    def teardown_method(self):
 
         with create_session() as session:
             session.query(DagRun).delete()
@@ -93,164 +89,164 @@ class TestBranchDateTimeOperator(unittest.TestCase):
             try:
                 expected_state = task_ids_to_states[ti.task_id]
             except KeyError:
-                raise ValueError(f'Invalid task id {ti.task_id} found!')
+                raise ValueError(f"Invalid task id {ti.task_id} found!")
             else:
-                self.assertEqual(
-                    ti.state,
-                    expected_state,
-                    f"Task {ti.task_id} has state {ti.state} instead of expected {expected_state}",
-                )
+                assert (ti.state) == (
+                    expected_state
+                ), f"Task {ti.task_id} has state {ti.state} instead of expected {expected_state}"
 
     def test_no_target_time(self):
         """Check if BranchDateTimeOperator raises exception on missing target"""
-        with self.assertRaises(AirflowException):
+        with pytest.raises(AirflowException):
             BranchDateTimeOperator(
-                task_id='datetime_branch',
-                follow_task_ids_if_true='branch_1',
-                follow_task_ids_if_false='branch_2',
+                task_id="datetime_branch",
+                follow_task_ids_if_true="branch_1",
+                follow_task_ids_if_false="branch_2",
                 target_upper=None,
                 target_lower=None,
                 dag=self.dag,
             )
 
-    @freezegun.freeze_time("2020-07-07 10:54:05")
-    def test_branch_datetime_operator_falls_within_range(self):
+    @pytest.mark.parametrize(
+        "target_lower,target_upper",
+        targets,
+    )
+    @time_machine.travel("2020-07-07 10:54:05")
+    def test_branch_datetime_operator_falls_within_range(self, target_lower, target_upper):
         """Check BranchDateTimeOperator branch operation"""
-        for target_lower, target_upper in self.targets:
-            with self.subTest(target_lower=target_lower, target_upper=target_upper):
-                self.branch_op.target_lower = target_lower
-                self.branch_op.target_upper = target_upper
-                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.branch_op.target_lower = target_lower
+        self.branch_op.target_upper = target_upper
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-                self._assert_task_ids_match_states(
-                    {
-                        'datetime_branch': State.SUCCESS,
-                        'branch_1': State.NONE,
-                        'branch_2': State.SKIPPED,
-                    }
-                )
+        self._assert_task_ids_match_states(
+            {
+                "datetime_branch": State.SUCCESS,
+                "branch_1": State.NONE,
+                "branch_2": State.SKIPPED,
+            }
+        )
 
-    def test_branch_datetime_operator_falls_outside_range(self):
+    @pytest.mark.parametrize(
+        "target_lower,target_upper",
+        targets,
+    )
+    def test_branch_datetime_operator_falls_outside_range(self, target_lower, target_upper):
         """Check BranchDateTimeOperator branch operation"""
         dates = [
             datetime.datetime(2020, 7, 7, 12, 0, 0, tzinfo=datetime.timezone.utc),
             datetime.datetime(2020, 6, 7, 12, 0, 0, tzinfo=datetime.timezone.utc),
         ]
 
-        for target_lower, target_upper in self.targets:
-            with self.subTest(target_lower=target_lower, target_upper=target_upper):
-                self.branch_op.target_lower = target_lower
-                self.branch_op.target_upper = target_upper
+        self.branch_op.target_lower = target_lower
+        self.branch_op.target_upper = target_upper
 
-                for date in dates:
-                    with freezegun.freeze_time(date):
-                        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-
-                        self._assert_task_ids_match_states(
-                            {
-                                'datetime_branch': State.SUCCESS,
-                                'branch_1': State.SKIPPED,
-                                'branch_2': State.NONE,
-                            }
-                        )
-
-    @freezegun.freeze_time("2020-07-07 10:54:05")
-    def test_branch_datetime_operator_upper_comparison_within_range(self):
-        """Check BranchDateTimeOperator branch operation"""
-        for _, target_upper in self.targets:
-            with self.subTest(target_upper=target_upper):
-                self.branch_op.target_upper = target_upper
-                self.branch_op.target_lower = None
-
+        for date in dates:
+            with time_machine.travel(date):
                 self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
                 self._assert_task_ids_match_states(
                     {
-                        'datetime_branch': State.SUCCESS,
-                        'branch_1': State.NONE,
-                        'branch_2': State.SKIPPED,
+                        "datetime_branch": State.SUCCESS,
+                        "branch_1": State.SKIPPED,
+                        "branch_2": State.NONE,
                     }
                 )
 
-    @freezegun.freeze_time("2020-07-07 10:54:05")
-    def test_branch_datetime_operator_lower_comparison_within_range(self):
+    @pytest.mark.parametrize("target_upper", [target_upper for (_, target_upper) in targets])
+    @time_machine.travel("2020-07-07 10:54:05")
+    def test_branch_datetime_operator_upper_comparison_within_range(self, target_upper):
         """Check BranchDateTimeOperator branch operation"""
-        for target_lower, _ in self.targets:
-            with self.subTest(target_lower=target_lower):
-                self.branch_op.target_lower = target_lower
-                self.branch_op.target_upper = None
+        self.branch_op.target_upper = target_upper
+        self.branch_op.target_lower = None
 
-                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-                self._assert_task_ids_match_states(
-                    {
-                        'datetime_branch': State.SUCCESS,
-                        'branch_1': State.NONE,
-                        'branch_2': State.SKIPPED,
-                    }
-                )
+        self._assert_task_ids_match_states(
+            {
+                "datetime_branch": State.SUCCESS,
+                "branch_1": State.NONE,
+                "branch_2": State.SKIPPED,
+            }
+        )
 
-    @freezegun.freeze_time("2020-07-07 12:00:00")
-    def test_branch_datetime_operator_upper_comparison_outside_range(self):
+    @pytest.mark.parametrize("target_lower", [target_lower for (target_lower, _) in targets])
+    @time_machine.travel("2020-07-07 10:54:05")
+    def test_branch_datetime_operator_lower_comparison_within_range(self, target_lower):
         """Check BranchDateTimeOperator branch operation"""
-        for _, target_upper in self.targets:
-            with self.subTest(target_upper=target_upper):
-                self.branch_op.target_upper = target_upper
-                self.branch_op.target_lower = None
+        self.branch_op.target_lower = target_lower
+        self.branch_op.target_upper = None
 
-                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-                self._assert_task_ids_match_states(
-                    {
-                        'datetime_branch': State.SUCCESS,
-                        'branch_1': State.SKIPPED,
-                        'branch_2': State.NONE,
-                    }
-                )
+        self._assert_task_ids_match_states(
+            {
+                "datetime_branch": State.SUCCESS,
+                "branch_1": State.NONE,
+                "branch_2": State.SKIPPED,
+            }
+        )
 
-    @freezegun.freeze_time("2020-07-07 09:00:00")
-    def test_branch_datetime_operator_lower_comparison_outside_range(self):
+    @pytest.mark.parametrize("target_upper", [target_upper for (_, target_upper) in targets])
+    @time_machine.travel("2020-07-07 12:00:00")
+    def test_branch_datetime_operator_upper_comparison_outside_range(self, target_upper):
         """Check BranchDateTimeOperator branch operation"""
-        for target_lower, _ in self.targets:
-            with self.subTest(target_lower=target_lower):
-                self.branch_op.target_lower = target_lower
-                self.branch_op.target_upper = None
+        self.branch_op.target_upper = target_upper
+        self.branch_op.target_lower = None
 
-                self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
-                self._assert_task_ids_match_states(
-                    {
-                        'datetime_branch': State.SUCCESS,
-                        'branch_1': State.SKIPPED,
-                        'branch_2': State.NONE,
-                    }
-                )
+        self._assert_task_ids_match_states(
+            {
+                "datetime_branch": State.SUCCESS,
+                "branch_1": State.SKIPPED,
+                "branch_2": State.NONE,
+            }
+        )
 
-    @freezegun.freeze_time("2020-12-01 09:00:00")
-    def test_branch_datetime_operator_use_task_logical_date(self):
+    @pytest.mark.parametrize("target_lower", [target_lower for (target_lower, _) in targets])
+    @time_machine.travel("2020-07-07 09:00:00")
+    def test_branch_datetime_operator_lower_comparison_outside_range(self, target_lower):
+        """Check BranchDateTimeOperator branch operation"""
+        self.branch_op.target_lower = target_lower
+        self.branch_op.target_upper = None
+
+        self.branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        self._assert_task_ids_match_states(
+            {
+                "datetime_branch": State.SUCCESS,
+                "branch_1": State.SKIPPED,
+                "branch_2": State.NONE,
+            }
+        )
+
+    @pytest.mark.parametrize(
+        "target_lower,target_upper",
+        targets,
+    )
+    @time_machine.travel("2020-12-01 09:00:00")
+    def test_branch_datetime_operator_use_task_logical_date(self, target_lower, target_upper):
         """Check if BranchDateTimeOperator uses task execution date"""
         in_between_date = timezone.datetime(2020, 7, 7, 10, 30, 0)
         self.branch_op.use_task_logical_date = True
         self.dr = self.dag.create_dagrun(
-            run_id='manual_exec_date__',
+            run_id="manual_exec_date__",
             start_date=in_between_date,
             execution_date=in_between_date,
             state=State.RUNNING,
         )
 
-        for target_lower, target_upper in self.targets:
-            with self.subTest(target_lower=target_lower, target_upper=target_upper):
-                self.branch_op.target_lower = target_lower
-                self.branch_op.target_upper = target_upper
-                self.branch_op.run(start_date=in_between_date, end_date=in_between_date)
+        self.branch_op.target_lower = target_lower
+        self.branch_op.target_upper = target_upper
+        self.branch_op.run(start_date=in_between_date, end_date=in_between_date)
 
-                self._assert_task_ids_match_states(
-                    {
-                        'datetime_branch': State.SUCCESS,
-                        'branch_1': State.NONE,
-                        'branch_2': State.SKIPPED,
-                    }
-                )
+        self._assert_task_ids_match_states(
+            {
+                "datetime_branch": State.SUCCESS,
+                "branch_1": State.NONE,
+                "branch_2": State.SKIPPED,
+            }
+        )
 
     def test_deprecation_warning(self):
         warning_message = (
@@ -258,9 +254,9 @@ class TestBranchDateTimeOperator(unittest.TestCase):
         )
         with pytest.warns(DeprecationWarning) as warnings:
             BranchDateTimeOperator(
-                task_id='warning',
-                follow_task_ids_if_true='branch_1',
-                follow_task_ids_if_false='branch_2',
+                task_id="warning",
+                follow_task_ids_if_true="branch_1",
+                follow_task_ids_if_false="branch_2",
                 target_upper=timezone.datetime(2020, 7, 7, 10, 30, 0),
                 target_lower=timezone.datetime(2020, 7, 7, 10, 30, 0),
                 use_task_execution_date=True,

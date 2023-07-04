@@ -24,10 +24,13 @@ from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator, Connection
+from airflow.models import Connection
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
 from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatabaseLink, CloudSQLInstanceLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.cloud_sql import CloudSQLExportTrigger
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
+from airflow.providers.google.common.hooks.base_google import get_field
 from airflow.providers.google.common.links.storage import FileDetailsLink
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -36,8 +39,8 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-SETTINGS = 'settings'
-SETTINGS_VERSION = 'settingsVersion'
+SETTINGS = "settings"
+SETTINGS_VERSION = "settingsVersion"
 
 CLOUD_SQL_CREATE_VALIDATION: Sequence[dict] = [
     dict(name="name", allow_empty=False),
@@ -212,9 +215,8 @@ CLOUD_SQL_DATABASE_PATCH_VALIDATION = [
 ]
 
 
-class CloudSQLBaseOperator(BaseOperator):
-    """
-    Abstract base operator for Google Cloud SQL operators to inherit from.
+class CloudSQLBaseOperator(GoogleCloudBaseOperator):
+    """Abstract base operator for Google Cloud SQL operators.
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :param project_id: Optional, Google Cloud Project ID.  f set to None or missing,
@@ -236,8 +238,8 @@ class CloudSQLBaseOperator(BaseOperator):
         *,
         instance: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -250,7 +252,7 @@ class CloudSQLBaseOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def _validate_inputs(self) -> None:
-        if self.project_id == '':
+        if self.project_id == "":
             raise AirflowException("The required parameter 'project_id' is empty")
         if not self.instance:
             raise AirflowException("The required parameter 'instance' is empty or None")
@@ -282,8 +284,8 @@ class CloudSQLBaseOperator(BaseOperator):
 
 
 class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
-    """
-    Creates a new Cloud SQL instance.
+    """Create a new Cloud SQL instance.
+
     If an instance with the same name exists, no action will be taken and
     the operator will succeed.
 
@@ -312,15 +314,15 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_create_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'body',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "body",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_create_template_fields]
-    ui_color = '#FADBDA'
+    ui_color = "#FADBDA"
     operator_extra_links = (CloudSQLInstanceLink(),)
 
     def __init__(
@@ -329,8 +331,8 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         body: dict,
         instance: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -378,13 +380,12 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
 
         instance_resource = hook.get_instance(project_id=self.project_id, instance=self.instance)
         service_account_email = instance_resource["serviceAccountEmailAddress"]
-        task_instance = context['task_instance']
+        task_instance = context["task_instance"]
         task_instance.xcom_push(key="service_account_email", value=service_account_email)
 
 
 class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
-    """
-    Updates settings of a Cloud SQL instance.
+    """Update settings of a Cloud SQL instance.
 
     Caution: This is a partial update, so only included values for the settings will be
     updated.
@@ -416,15 +417,15 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_patch_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'body',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "body",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_patch_template_fields]
-    ui_color = '#FBDAC8'
+    ui_color = "#FBDAC8"
     operator_extra_links = (CloudSQLInstanceLink(),)
 
     def __init__(
@@ -433,8 +434,8 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
         body: dict,
         instance: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -461,8 +462,8 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
         )
         if not self._check_if_instance_exists(self.instance, hook):
             raise AirflowException(
-                f'Cloud SQL instance with ID {self.instance} does not exist. '
-                'Please specify another instance to patch.'
+                f"Cloud SQL instance with ID {self.instance} does not exist. "
+                "Please specify another instance to patch."
             )
         else:
             CloudSQLInstanceLink.persist(
@@ -476,8 +477,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
-    """
-    Deletes a Cloud SQL instance.
+    """Delete a Cloud SQL instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -500,14 +500,14 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_delete_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_delete_template_fields]
-    ui_color = '#FEECD2'
+    ui_color = "#FEECD2"
 
     def execute(self, context: Context) -> bool | None:
         hook = CloudSQLHook(
@@ -522,9 +522,99 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
             return hook.delete_instance(project_id=self.project_id, instance=self.instance)
 
 
-class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
+class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
+    """Clone an instance to a target instance.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudSQLCloneInstanceOperator`
+
+    :param instance: Database instance ID to be cloned. This does not include the
+            project ID.
+    :param destination_instance_name: Database instance ID to be created. This does not include the
+        project ID.
+    :param clone_context: additional clone_context parameters as described in
+        https://cloud.google.com/sql/docs/mysql/admin-api/rest/v1/instances/clone
+    :param project_id: Project ID of the project that contains the instance. If set
+        to None or missing, the default project_id from the Google Cloud connection is used.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param api_version: API version used (e.g. v1beta4).
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
     """
-    Creates a new database inside a Cloud SQL instance.
+
+    # [START gcp_sql_clone_template_fields]
+    template_fields: Sequence[str] = (
+        "project_id",
+        "instance",
+        "destination_instance_name",
+        "gcp_conn_id",
+        "api_version",
+    )
+    # [END gcp_sql_clone_template_fields]
+
+    def __init__(
+        self,
+        *,
+        instance: str,
+        destination_instance_name: str,
+        clone_context: dict | None = None,
+        project_id: str | None = None,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        self.destination_instance_name = destination_instance_name
+        self.clone_context = clone_context or {}
+        super().__init__(
+            project_id=project_id,
+            instance=instance,
+            gcp_conn_id=gcp_conn_id,
+            api_version=api_version,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
+
+    def _validate_inputs(self) -> None:
+        super()._validate_inputs()
+        if not self.destination_instance_name:
+            raise AirflowException("The required parameter 'destination_instance_name' is empty or None")
+
+    def execute(self, context: Context):
+        hook = CloudSQLHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
+        )
+        if not self._check_if_instance_exists(self.instance, hook):
+            raise AirflowException(
+                f"Cloud SQL instance with ID {self.instance} does not exist. "
+                "Please specify another instance to patch."
+            )
+        else:
+            body = {
+                "cloneContext": {
+                    "kind": "sql#cloneContext",
+                    "destinationInstanceName": self.destination_instance_name,
+                    **self.clone_context,
+                }
+            }
+            return hook.clone_instance(
+                project_id=self.project_id,
+                body=body,
+                instance=self.instance,
+            )
+
+
+class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
+    """Create a new database inside a Cloud SQL instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -550,15 +640,15 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_db_create_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'body',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "body",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_db_create_template_fields]
-    ui_color = '#FFFCDB'
+    ui_color = "#FFFCDB"
     operator_extra_links = (CloudSQLInstanceDatabaseLink(),)
 
     def __init__(
@@ -567,8 +657,8 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         instance: str,
         body: dict,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -628,9 +718,8 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
-    """
-    Updates a resource containing information about a database inside a Cloud SQL
-    instance using patch semantics.
+    """Update resource containing information about a database using patch semantics.
+
     See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
 
     .. seealso::
@@ -657,16 +746,16 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_db_patch_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'body',
-        'database',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "body",
+        "database",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_db_patch_template_fields]
-    ui_color = '#ECF4D9'
+    ui_color = "#ECF4D9"
     operator_extra_links = (CloudSQLInstanceDatabaseLink(),)
 
     def __init__(
@@ -676,8 +765,8 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
         database: str,
         body: dict,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -732,8 +821,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
-    """
-    Deletes a database from a Cloud SQL instance.
+    """Delete a database from a Cloud SQL instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -757,15 +845,15 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_db_delete_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'database',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "database",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_db_delete_template_fields]
-    ui_color = '#D5EAD8'
+    ui_color = "#D5EAD8"
 
     def __init__(
         self,
@@ -773,8 +861,8 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
         instance: str,
         database: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -812,9 +900,9 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
-    """
-    Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
-    or CSV file.
+    """Export data from a Cloud SQL instance to a Cloud Storage bucket.
+
+    The exported format can be a SQL dump or CSV file.
 
     Note: This operator is idempotent. If executed multiple times with the same
     export file URI, the export file in GCS will simply be overridden.
@@ -839,19 +927,22 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable: Run operator in the deferrable mode.
+    :param poke_interval: (Deferrable mode only) Time (seconds) to wait between calls
+        to check the run status.
     """
 
     # [START gcp_sql_export_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'body',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "body",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_export_template_fields]
-    ui_color = '#D4ECEA'
+    ui_color = "#D4ECEA"
     operator_extra_links = (CloudSQLInstanceLink(), FileDetailsLink())
 
     def __init__(
@@ -860,14 +951,18 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         instance: str,
         body: dict,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
+        deferrable: bool = False,
+        poke_interval: int = 10,
         **kwargs,
     ) -> None:
         self.body = body
         self.validate_body = validate_body
+        self.deferrable = deferrable
+        self.poke_interval = poke_interval
         super().__init__(
             project_id=project_id,
             instance=instance,
@@ -907,21 +1002,53 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
             uri=self.body["exportContext"]["uri"][5:],
             project_id=self.project_id or hook.project_id,
         )
-        return hook.export_instance(project_id=self.project_id, instance=self.instance, body=self.body)
+
+        operation_name = hook.export_instance(
+            project_id=self.project_id, instance=self.instance, body=self.body
+        )
+
+        if not self.deferrable:
+            return hook._wait_for_operation_to_complete(
+                project_id=self.project_id, operation_name=operation_name
+            )
+        else:
+            self.defer(
+                trigger=CloudSQLExportTrigger(
+                    operation_name=operation_name,
+                    project_id=self.project_id or hook.project_id,
+                    gcp_conn_id=self.gcp_conn_id,
+                    impersonation_chain=self.impersonation_chain,
+                    poke_interval=self.poke_interval,
+                ),
+                method_name="execute_complete",
+            )
+
+    def execute_complete(self, context, event=None) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "success":
+            self.log.info("Operation %s completed successfully", event["operation_name"])
+        else:
+            self.log.exception("Unexpected error in the operation.")
+            raise AirflowException(event["message"])
 
 
 class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
-    """
-    Imports data into a Cloud SQL instance from a SQL dump or CSV file in Cloud Storage.
+    """Import data into a Cloud SQL instance from Cloud Storage.
 
-    CSV IMPORT:
+    CSV IMPORT
+    ``````````
 
     This operator is NOT idempotent for a CSV import. If the same file is imported
     multiple times, the imported data will be duplicated in the database.
     Moreover, if there are any unique constraints the duplicate import may result in an
     error.
 
-    SQL IMPORT:
+    SQL IMPORT
+    ``````````
 
     This operator is idempotent for a SQL import if it was also exported by Cloud SQL.
     The exported SQL contains 'DROP TABLE IF EXISTS' statements for all tables
@@ -954,15 +1081,15 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
 
     # [START gcp_sql_import_template_fields]
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance',
-        'body',
-        'gcp_conn_id',
-        'api_version',
-        'impersonation_chain',
+        "project_id",
+        "instance",
+        "body",
+        "gcp_conn_id",
+        "api_version",
+        "impersonation_chain",
     )
     # [END gcp_sql_import_template_fields]
-    ui_color = '#D3EDFB'
+    ui_color = "#D3EDFB"
     operator_extra_links = (CloudSQLInstanceLink(), FileDetailsLink())
 
     def __init__(
@@ -971,8 +1098,8 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         instance: str,
         body: dict,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        api_version: str = 'v1beta4',
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1beta4",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -1021,10 +1148,11 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         return hook.import_instance(project_id=self.project_id, instance=self.instance, body=self.body)
 
 
-class CloudSQLExecuteQueryOperator(BaseOperator):
-    """
-    Performs DML or DDL query on an existing Cloud Sql instance. It optionally uses
-    cloud-sql-proxy to establish secure connection with the database.
+class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
+    """Perform DML or DDL query on an existing Cloud Sql instance.
+
+    It optionally uses cloud-sql-proxy to establish secure connection with the
+    database.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1044,14 +1172,16 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
        its schema should be gcpcloudsql://.
        See :class:`~airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook` for
        details on how to define ``gcpcloudsql://`` connection.
+    :param sql_proxy_binary_path: (optional) Path to the cloud-sql-proxy binary.
+          is not specified or the binary is not present, it is automatically downloaded.
     """
 
     # [START gcp_sql_query_template_fields]
-    template_fields: Sequence[str] = ('sql', 'gcp_cloudsql_conn_id', 'gcp_conn_id')
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
+    template_fields: Sequence[str] = ("sql", "gcp_cloudsql_conn_id", "gcp_conn_id")
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
     # [END gcp_sql_query_template_fields]
-    ui_color = '#D3DEF1'
+    ui_color = "#D3DEF1"
 
     def __init__(
         self,
@@ -1059,8 +1189,9 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
         sql: str | Iterable[str],
         autocommit: bool = False,
         parameters: Iterable | Mapping | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        gcp_cloudsql_conn_id: str = 'google_cloud_sql_default',
+        gcp_conn_id: str = "google_cloud_default",
+        gcp_cloudsql_conn_id: str = "google_cloud_sql_default",
+        sql_proxy_binary_path: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1070,6 +1201,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
         self.gcp_connection: Connection | None = None
+        self.sql_proxy_binary_path = sql_proxy_binary_path
 
     def _execute_query(self, hook: CloudSQLDatabaseHook, database_hook: PostgresHook | MySqlHook) -> None:
         cloud_sql_proxy_runner = None
@@ -1092,9 +1224,8 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
         hook = CloudSQLDatabaseHook(
             gcp_cloudsql_conn_id=self.gcp_cloudsql_conn_id,
             gcp_conn_id=self.gcp_conn_id,
-            default_gcp_project_id=self.gcp_connection.extra_dejson.get(
-                'extra__google_cloud_platform__project'
-            ),
+            default_gcp_project_id=get_field(self.gcp_connection.extra_dejson, "project"),
+            sql_proxy_binary_path=self.sql_proxy_binary_path,
         )
         hook.validate_ssl_certs()
         connection = hook.create_connection()

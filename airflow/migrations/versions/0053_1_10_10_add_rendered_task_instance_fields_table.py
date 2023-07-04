@@ -26,17 +26,18 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy import text
 
 from airflow.migrations.db_types import StringID
 
 # revision identifiers, used by Alembic.
-revision = '852ae6c715af'
-down_revision = 'a4c2fd67d16b'
+revision = "852ae6c715af"
+down_revision = "a4c2fd67d16b"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.10'
+airflow_version = "1.10.10"
 
-TABLE_NAME = 'rendered_task_instance_fields'
+TABLE_NAME = "rendered_task_instance_fields"
 
 
 def upgrade():
@@ -48,17 +49,17 @@ def upgrade():
         # Mysql 5.7+/MariaDB 10.2.3 has JSON support. Rather than checking for
         # versions, check for the function existing.
         try:
-            conn.execute("SELECT JSON_VALID(1)").fetchone()
+            conn.execute(text("SELECT JSON_VALID(1)")).fetchone()
         except (sa.exc.OperationalError, sa.exc.ProgrammingError):
             json_type = sa.Text
 
     op.create_table(
         TABLE_NAME,
-        sa.Column('dag_id', StringID(), nullable=False),
-        sa.Column('task_id', StringID(), nullable=False),
-        sa.Column('execution_date', sa.TIMESTAMP(timezone=True), nullable=False),
-        sa.Column('rendered_fields', json_type(), nullable=False),
-        sa.PrimaryKeyConstraint('dag_id', 'task_id', 'execution_date'),
+        sa.Column("dag_id", StringID(), nullable=False),
+        sa.Column("task_id", StringID(), nullable=False),
+        sa.Column("execution_date", sa.TIMESTAMP(timezone=True), nullable=False),
+        sa.Column("rendered_fields", json_type(), nullable=False),
+        sa.PrimaryKeyConstraint("dag_id", "task_id", "execution_date"),
     )
 
 

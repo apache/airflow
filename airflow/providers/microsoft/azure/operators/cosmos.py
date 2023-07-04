@@ -27,9 +27,10 @@ if TYPE_CHECKING:
 
 
 class AzureCosmosInsertDocumentOperator(BaseOperator):
-    """
-    Inserts a new document into the specified Cosmos database and collection
-    It will create both the database and collection if they do not already exist
+    """Insert a new document into the specified Cosmos database and collection.
+
+    Both the database and collection will be created automatically if they do
+    not already exist.
 
     :param database_name: The name of the database. (templated)
     :param collection_name: The name of the collection. (templated)
@@ -38,8 +39,8 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
         :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
     """
 
-    template_fields: Sequence[str] = ('database_name', 'collection_name')
-    ui_color = '#e4f0e8'
+    template_fields: Sequence[str] = ("database_name", "collection_name")
+    ui_color = "#e4f0e8"
 
     def __init__(
         self,
@@ -47,7 +48,7 @@ class AzureCosmosInsertDocumentOperator(BaseOperator):
         database_name: str,
         collection_name: str,
         document: dict,
-        azure_cosmos_conn_id: str = 'azure_cosmos_default',
+        azure_cosmos_conn_id: str = "azure_cosmos_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

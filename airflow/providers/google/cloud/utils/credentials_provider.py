@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os.path
 import tempfile
 from contextlib import ExitStack, contextmanager
 from typing import Collection, Generator, Sequence
@@ -42,7 +43,7 @@ from airflow.utils.process_utils import patch_environ
 log = logging.getLogger(__name__)
 
 AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT = "AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT"
-_DEFAULT_SCOPES: Sequence[str] = ('https://www.googleapis.com/auth/cloud-platform',)
+_DEFAULT_SCOPES: Sequence[str] = ("https://www.googleapis.com/auth/cloud-platform",)
 
 
 def build_gcp_conn(
@@ -60,16 +61,14 @@ def build_gcp_conn(
     :return: String representing Airflow connection.
     """
     conn = "google-cloud-platform://?{}"
-    extras = "extra__google_cloud_platform"
-
     query_params = {}
     if key_file_path:
-        query_params[f"{extras}__key_path"] = key_file_path
+        query_params["key_path"] = key_file_path
     if scopes:
         scopes_string = ",".join(scopes)
-        query_params[f"{extras}__scope"] = scopes_string
+        query_params["scope"] = scopes_string
     if project_id:
-        query_params[f"{extras}__projects"] = project_id
+        query_params["projects"] = project_id
 
     query = urlencode(query_params)
     return conn.format(query)
@@ -142,7 +141,9 @@ def provide_gcp_conn_and_credentials(
     project_id: str | None = None,
 ) -> Generator[None, None, None]:
     """
-    Context manager that provides both:
+    Context manager that provides GPC connection and credentials.
+
+     It provides both:
 
     - Google Cloud credentials for application supporting `Application Default Credentials (ADC)
       strategy`__.
@@ -168,7 +169,7 @@ def provide_gcp_conn_and_credentials(
 
 class _CredentialProvider(LoggingMixin):
     """
-    Prepare the Credentials object for Google API and the associated project_id
+    Prepare the Credentials object for Google API and the associated project_id.
 
     Only either `key_path` or `keyfile_dict` should be provided, or an exception will
     occur. If neither of them are provided, return default credentials for the current environment
@@ -198,6 +199,7 @@ class _CredentialProvider(LoggingMixin):
         self,
         key_path: str | None = None,
         keyfile_dict: dict[str, str] | None = None,
+        credential_config_file: dict[str, str] | str | None = None,
         key_secret_name: str | None = None,
         key_secret_project_id: str | None = None,
         scopes: Collection[str] | None = None,
@@ -215,6 +217,7 @@ class _CredentialProvider(LoggingMixin):
             )
         self.key_path = key_path
         self.keyfile_dict = keyfile_dict
+        self.credential_config_file = credential_config_file
         self.key_secret_name = key_secret_name
         self.key_secret_project_id = key_secret_project_id
         self.scopes = scopes
@@ -235,11 +238,13 @@ class _CredentialProvider(LoggingMixin):
             credentials, project_id = self._get_credentials_using_key_secret_name()
         elif self.keyfile_dict:
             credentials, project_id = self._get_credentials_using_keyfile_dict()
+        elif self.credential_config_file:
+            credentials, project_id = self._get_credentials_using_credential_config_file()
         else:
             credentials, project_id = self._get_credentials_using_adc()
 
         if self.delegate_to:
-            if hasattr(credentials, 'with_subject'):
+            if hasattr(credentials, "with_subject"):
                 credentials = credentials.with_subject(self.delegate_to)
             else:
                 raise AirflowException(
@@ -261,10 +266,10 @@ class _CredentialProvider(LoggingMixin):
         return credentials, project_id
 
     def _get_credentials_using_keyfile_dict(self):
-        self._log_debug('Getting connection using JSON Dict')
+        self._log_debug("Getting connection using JSON Dict")
         # Depending on how the JSON was formatted, it may contain
         # escaped newlines. Convert those to actual newlines.
-        self.keyfile_dict['private_key'] = self.keyfile_dict['private_key'].replace('\\n', '\n')
+        self.keyfile_dict["private_key"] = self.keyfile_dict["private_key"].replace("\\n", "\n")
         credentials = google.oauth2.service_account.Credentials.from_service_account_info(
             self.keyfile_dict, scopes=self.scopes
         )
@@ -272,13 +277,13 @@ class _CredentialProvider(LoggingMixin):
         return credentials, project_id
 
     def _get_credentials_using_key_path(self):
-        if self.key_path.endswith('.p12'):
-            raise AirflowException('Legacy P12 key file are not supported, use a JSON key file.')
+        if self.key_path.endswith(".p12"):
+            raise AirflowException("Legacy P12 key file are not supported, use a JSON key file.")
 
-        if not self.key_path.endswith('.json'):
-            raise AirflowException('Unrecognised extension for key file.')
+        if not self.key_path.endswith(".json"):
+            raise AirflowException("Unrecognised extension for key file.")
 
-        self._log_debug('Getting connection using JSON key file %s', self.key_path)
+        self._log_debug("Getting connection using JSON key file %s", self.key_path)
         credentials = google.oauth2.service_account.Credentials.from_service_account_file(
             self.key_path, scopes=self.scopes
         )
@@ -286,14 +291,14 @@ class _CredentialProvider(LoggingMixin):
         return credentials, project_id
 
     def _get_credentials_using_key_secret_name(self):
-        self._log_debug('Getting connection using JSON key data from GCP secret: %s', self.key_secret_name)
+        self._log_debug("Getting connection using JSON key data from GCP secret: %s", self.key_secret_name)
 
         # Use ADC to access GCP Secret Manager.
         adc_credentials, adc_project_id = google.auth.default(scopes=self.scopes)
         secret_manager_client = _SecretManagerClient(credentials=adc_credentials)
 
         if not secret_manager_client.is_valid_secret_name(self.key_secret_name):
-            raise AirflowException('Invalid secret name specified for fetching JSON key data.')
+            raise AirflowException("Invalid secret name specified for fetching JSON key data.")
 
         secret_value = secret_manager_client.get_secret(
             secret_id=self.key_secret_name,
@@ -305,7 +310,7 @@ class _CredentialProvider(LoggingMixin):
         try:
             keyfile_dict = json.loads(secret_value)
         except json.decoder.JSONDecodeError:
-            raise AirflowException('Key data read from GCP Secret Manager is not valid JSON.')
+            raise AirflowException("Key data read from GCP Secret Manager is not valid JSON.")
 
         credentials = google.oauth2.service_account.Credentials.from_service_account_info(
             keyfile_dict, scopes=self.scopes
@@ -313,9 +318,33 @@ class _CredentialProvider(LoggingMixin):
         project_id = credentials.project_id
         return credentials, project_id
 
+    def _get_credentials_using_credential_config_file(self):
+        if isinstance(self.credential_config_file, str) and os.path.exists(self.credential_config_file):
+            self._log_info(
+                f"Getting connection using credential configuration file: `{self.credential_config_file}`"
+            )
+            credentials, project_id = google.auth.load_credentials_from_file(
+                self.credential_config_file, scopes=self.scopes
+            )
+        else:
+            with tempfile.NamedTemporaryFile(mode="w+t") as temp_credentials_fd:
+                if isinstance(self.credential_config_file, dict):
+                    self._log_info("Getting connection using credential configuration dict.")
+                    temp_credentials_fd.write(json.dumps(self.credential_config_file))
+                elif isinstance(self.credential_config_file, str):
+                    self._log_info("Getting connection using credential configuration string.")
+                    temp_credentials_fd.write(self.credential_config_file)
+
+                temp_credentials_fd.flush()
+                credentials, project_id = google.auth.load_credentials_from_file(
+                    temp_credentials_fd.name, scopes=self.scopes
+                )
+
+        return credentials, project_id
+
     def _get_credentials_using_adc(self):
         self._log_info(
-            'Getting connection using `google.auth.default()` since no key file is defined for hook.'
+            "Getting connection using `google.auth.default()` since no explicit credentials are provided."
         )
         credentials, project_id = google.auth.default(scopes=self.scopes)
         return credentials, project_id
@@ -341,9 +370,8 @@ def _get_scopes(scopes: str | None = None) -> Sequence[str]:
 
     :param scopes: A comma-separated string containing OAuth2 scopes
     :return: Returns the scope defined in the connection configuration, or the default scope
-    :rtype: Sequence[str]
     """
-    return [s.strip() for s in scopes.split(',')] if scopes else _DEFAULT_SCOPES
+    return [s.strip() for s in scopes.split(",")] if scopes else _DEFAULT_SCOPES
 
 
 def _get_target_principal_and_delegates(
@@ -358,7 +386,6 @@ def _get_target_principal_and_delegates(
         account
 
     :return: Returns the tuple of target_principal and delegates
-    :rtype: Tuple[Optional[str], Optional[Sequence[str]]]
     """
     if not impersonation_chain:
         return None, None
@@ -376,10 +403,9 @@ def _get_project_id_from_service_account_email(service_account_email: str) -> st
     :param service_account_email: email of the service account.
 
     :return: Returns the project_id of the provided service account.
-    :rtype: str
     """
     try:
-        return service_account_email.split('@')[1].split('.')[0]
+        return service_account_email.split("@")[1].split(".")[0]
     except IndexError:
         raise AirflowException(
             f"Could not extract project_id from service account's email: {service_account_email}."

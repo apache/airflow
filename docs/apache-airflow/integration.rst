@@ -22,16 +22,17 @@ Airflow has a mechanism that allows you to expand its functionality and integrat
 
 * :doc:`API Authentication backends </security/api>`
 * :doc:`Email backends </howto/email-config>`
-* :doc:`Executor </executor/index>`
+* :doc:`Executor </core-concepts/executor/index>`
 * :doc:`Kerberos </security/kerberos>`
-* :doc:`Logging </logging-monitoring/logging-tasks>`
-* :doc:`Metrics (statsd) </logging-monitoring/metrics>`
+* :doc:`Logging </administration-and-deployment/logging-monitoring/logging-tasks>`
+* :doc:`Metrics (statsd) </administration-and-deployment/logging-monitoring/metrics>`
 * :doc:`Operators and hooks </operators-and-hooks-ref>`
-* :doc:`Plugins </plugins>`
-* :doc:`Listeners </listeners>`
+* :doc:`Plugins </authoring-and-scheduling/plugins>`
+* :doc:`Listeners </administration-and-deployment/listeners>`
 * :doc:`Secrets backends </security/secrets/secrets-backend/index>`
-* :doc:`Tracking systems </logging-monitoring/tracking-user-activity>`
+* :doc:`Tracking systems </administration-and-deployment/logging-monitoring/tracking-user-activity>`
 * :doc:`Web UI Authentication backends </security/api>`
+* :doc:`Serialization </authoring-and-scheduling/serializers>`
 
-It also has integration with :doc:`Sentry </logging-monitoring/errors>` service for error tracking. Other applications can also integrate using
+It also has integration with :doc:`Sentry </administration-and-deployment/logging-monitoring/errors>` service for error tracking. Other applications can also integrate using
 the :doc:`REST API <stable-rest-api-ref>`.

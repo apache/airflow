@@ -28,10 +28,9 @@ if TYPE_CHECKING:
 
 class AzureCosmosDocumentSensor(BaseSensorOperator):
     """
-    Checks for the existence of a document which
-    matches the given query in CosmosDB. Example:
+    Checks for the existence of a document which matches the given query in CosmosDB.
 
-    .. code-block::
+    .. code-block:: python
 
         azure_cosmos_sensor = AzureCosmosDocumentSensor(
             database_name="somedatabase_name",
@@ -48,7 +47,7 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
         :ref:`Azure CosmosDB connection<howto/connection:azure_cosmos>`.
     """
 
-    template_fields: Sequence[str] = ('database_name', 'collection_name', 'document_id')
+    template_fields: Sequence[str] = ("database_name", "collection_name", "document_id")
 
     def __init__(
         self,

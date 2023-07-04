@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, NamedTuple, Sequence
+from warnings import warn
 
 from pendulum import DateTime
 
@@ -122,17 +123,38 @@ class Timetable(Protocol):
     like ``schedule=None`` and ``"@once"`` set it to *False*.
     """
 
-    can_run: bool = True
-    """Whether this timetable can actually schedule runs.
+    _can_be_scheduled: bool = True
 
-    This defaults to and should generally be *True*, but ``NullTimetable`` sets
-    this to *False*.
+    @property
+    def can_be_scheduled(self):
+        if hasattr(self, "can_run"):
+            warn(
+                'can_run class variable is deprecated. Use "can_be_scheduled" instead.',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return self.can_run
+        return self._can_be_scheduled
+
+    """Whether this timetable can actually schedule runs in an automated manner.
+
+    This defaults to and should generally be *True* (including non periodic
+    execution types like *@once* and data triggered tables), but
+    ``NullTimetable`` sets this to *False*.
     """
 
     run_ordering: Sequence[str] = ("data_interval_end", "execution_date")
     """How runs triggered from this timetable should be ordered in UI.
 
     This should be a list of field names on the DAG run object.
+    """
+
+    active_runs_limit: int | None = None
+    """Override the max_active_runs parameter of any DAGs using this timetable.
+    This is called during DAG initializing, and will set the max_active_runs if
+    it returns a value. In most cases this should return None, but in some cases
+    (for example, the ContinuousTimetable) there are good reasons for limiting
+    the DAGRun parallelism.
     """
 
     @classmethod
@@ -163,6 +185,7 @@ class Timetable(Protocol):
 
         :raises: AirflowTimetableInvalid on validation failure.
         """
+        return
 
     @property
     def summary(self) -> str:

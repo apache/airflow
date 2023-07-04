@@ -32,13 +32,13 @@ from airflow.utils.weight_rule import WeightRule
 
 
 class CronExpression(typing.NamedTuple):
-    """Cron expression schema"""
+    """Cron expression schema."""
 
     value: str
 
 
 class TimeDeltaSchema(Schema):
-    """Time delta schema"""
+    """Time delta schema."""
 
     objectType = fields.Constant("TimeDelta", data_key="__type")
     days = fields.Integer()
@@ -47,14 +47,14 @@ class TimeDeltaSchema(Schema):
 
     @marshmallow.post_load
     def make_time_delta(self, data, **kwargs):
-        """Create time delta based on data"""
+        """Create time delta based on data."""
         if "objectType" in data:
             del data["objectType"]
         return datetime.timedelta(**data)
 
 
 class RelativeDeltaSchema(Schema):
-    """Relative delta schema"""
+    """Relative delta schema."""
 
     objectType = fields.Constant("RelativeDelta", data_key="__type")
     years = fields.Integer()
@@ -75,7 +75,7 @@ class RelativeDeltaSchema(Schema):
 
     @marshmallow.post_load
     def make_relative_delta(self, data, **kwargs):
-        """Create relative delta based on data"""
+        """Create relative delta based on data."""
         if "objectType" in data:
             del data["objectType"]
 
@@ -83,14 +83,14 @@ class RelativeDeltaSchema(Schema):
 
 
 class CronExpressionSchema(Schema):
-    """Cron expression schema"""
+    """Cron expression schema."""
 
     objectType = fields.Constant("CronExpression", data_key="__type")
     value = fields.String(required=True)
 
     @marshmallow.post_load
     def make_cron_expression(self, data, **kwargs):
-        """Create cron expression based on data"""
+        """Create cron expression based on data."""
         return CronExpression(data["value"])
 
 
@@ -119,7 +119,7 @@ class ScheduleIntervalSchema(OneOfSchema):
         return super()._dump(obj, update_fields=update_fields, **kwargs)
 
     def get_obj_type(self, obj):
-        """Select schema based on object type"""
+        """Select schema based on object type."""
         if isinstance(obj, datetime.timedelta):
             return "TimeDelta"
         elif isinstance(obj, relativedelta.relativedelta):
@@ -131,7 +131,7 @@ class ScheduleIntervalSchema(OneOfSchema):
 
 
 class ColorField(fields.String):
-    """Schema for color property"""
+    """Schema for color property."""
 
     def __init__(self, **metadata):
         super().__init__(**metadata)
@@ -139,7 +139,7 @@ class ColorField(fields.String):
 
 
 class WeightRuleField(fields.String):
-    """Schema for WeightRule"""
+    """Schema for WeightRule."""
 
     def __init__(self, **metadata):
         super().__init__(**metadata)
@@ -147,7 +147,7 @@ class WeightRuleField(fields.String):
 
 
 class TimezoneField(fields.String):
-    """Schema for timezone"""
+    """Schema for timezone."""
 
 
 class ClassReferenceSchema(Schema):

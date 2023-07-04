@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Save Rendered Template Fields"""
+"""Save Rendered Template Fields."""
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 import sqlalchemy_jsonfield
-from sqlalchemy import Column, ForeignKeyConstraint, Integer, PrimaryKeyConstraint, and_, not_, text, tuple_
+from sqlalchemy import Column, ForeignKeyConstraint, Integer, PrimaryKeyConstraint, delete, select, text
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Session, relationship
 
@@ -32,17 +33,21 @@ from airflow.serialization.helpers import serialize_template_field
 from airflow.settings import json
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.sqlalchemy import tuple_not_in_condition
+
+if TYPE_CHECKING:
+    from sqlalchemy.sql import FromClause
 
 
 class RenderedTaskInstanceFields(Base):
-    """Save Rendered Template Fields"""
+    """Save Rendered Template Fields."""
 
     __tablename__ = "rendered_task_instance_fields"
 
     dag_id = Column(StringID(), primary_key=True)
     task_id = Column(StringID(), primary_key=True)
     run_id = Column(StringID(), primary_key=True)
-    map_index = Column(Integer, primary_key=True, server_default=text('-1'))
+    map_index = Column(Integer, primary_key=True, server_default=text("-1"))
     rendered_fields = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False)
     k8s_pod_yaml = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
 
@@ -52,7 +57,7 @@ class RenderedTaskInstanceFields(Base):
             "task_id",
             "run_id",
             "map_index",
-            name='rendered_task_instance_fields_pkey',
+            name="rendered_task_instance_fields_pkey",
             mssql_clustered=True,
         ),
         ForeignKeyConstraint(
@@ -63,13 +68,13 @@ class RenderedTaskInstanceFields(Base):
                 "task_instance.run_id",
                 "task_instance.map_index",
             ],
-            name='rtif_ti_fkey',
+            name="rtif_ti_fkey",
             ondelete="CASCADE",
         ),
     )
     task_instance = relationship(
         "TaskInstance",
-        lazy='joined',
+        lazy="joined",
         back_populates="rendered_task_instance_fields",
     )
 
@@ -107,7 +112,7 @@ class RenderedTaskInstanceFields(Base):
         prefix = f"<{self.__class__.__name__}: {self.dag_id}.{self.task_id} {self.run_id}"
         if self.map_index != -1:
             prefix += f" map_index={self.map_index}"
-        return prefix + '>'
+        return prefix + ">"
 
     def _redact(self):
         from airflow.utils.log.secrets_masker import redact
@@ -171,7 +176,7 @@ class RenderedTaskInstanceFields(Base):
 
     @provide_session
     def write(self, session: Session = None):
-        """Write instance to database
+        """Write instance to database.
 
         :param session: SqlAlchemy Session
         """
@@ -183,9 +188,9 @@ class RenderedTaskInstanceFields(Base):
         cls,
         task_id: str,
         dag_id: str,
-        num_to_keep=conf.getint("core", "max_num_rendered_ti_fields_per_task", fallback=0),
-        session: Session = None,
-    ):
+        num_to_keep: int = conf.getint("core", "max_num_rendered_ti_fields_per_task", fallback=0),
+        session: Session = NEW_SESSION,
+    ) -> None:
         """
         Keep only Last X (num_to_keep) number of records for a task by deleting others.
 
@@ -203,57 +208,43 @@ class RenderedTaskInstanceFields(Base):
             return
 
         tis_to_keep_query = (
-            session.query(cls.dag_id, cls.task_id, cls.run_id)
-            .filter(cls.dag_id == dag_id, cls.task_id == task_id)
+            select(cls.dag_id, cls.task_id, cls.run_id, DagRun.execution_date)
+            .where(cls.dag_id == dag_id, cls.task_id == task_id)
             .join(cls.dag_run)
             .distinct()
             .order_by(DagRun.execution_date.desc())
             .limit(num_to_keep)
         )
 
-        if session.bind.dialect.name in ["postgresql", "sqlite"]:
-            # Fetch Top X records given dag_id & task_id ordered by Execution Date
-            subq1 = tis_to_keep_query.subquery()
-            excluded = session.query(subq1.c.dag_id, subq1.c.task_id, subq1.c.run_id)
-            session.query(cls).filter(
-                cls.dag_id == dag_id,
-                cls.task_id == task_id,
-                tuple_(cls.dag_id, cls.task_id, cls.run_id).notin_(excluded),
-            ).delete(synchronize_session=False)
-        elif session.bind.dialect.name in ["mysql"]:
-            cls._remove_old_rendered_ti_fields_mysql(dag_id, session, task_id, tis_to_keep_query)
-        else:
-            # Fetch Top X records given dag_id & task_id ordered by Execution Date
-            tis_to_keep = tis_to_keep_query.all()
-
-            filter_tis = [
-                not_(
-                    and_(
-                        cls.dag_id == ti.dag_id,
-                        cls.task_id == ti.task_id,
-                        cls.run_id == ti.run_id,
-                    )
-                )
-                for ti in tis_to_keep
-            ]
-
-            session.query(cls).filter(and_(*filter_tis)).delete(synchronize_session=False)
-
+        cls._do_delete_old_records(
+            dag_id=dag_id,
+            task_id=task_id,
+            ti_clause=tis_to_keep_query.subquery(),
+            session=session,
+        )
         session.flush()
 
     @classmethod
     @retry_db_transaction
-    def _remove_old_rendered_ti_fields_mysql(cls, dag_id, session, task_id, tis_to_keep_query):
-        # Fetch Top X records given dag_id & task_id ordered by Execution Date
-        subq1 = tis_to_keep_query.subquery('subq1')
-        # Second Subquery
-        # Workaround for MySQL Limitation (https://stackoverflow.com/a/19344141/5691525)
-        # Limitation: This version of MySQL does not yet support
-        # LIMIT & IN/ALL/ANY/SOME subquery
-        subq2 = session.query(subq1.c.dag_id, subq1.c.task_id, subq1.c.run_id).subquery('subq2')
+    def _do_delete_old_records(
+        cls,
+        *,
+        task_id: str,
+        dag_id: str,
+        ti_clause: FromClause,
+        session: Session,
+    ) -> None:
         # This query might deadlock occasionally and it should be retried if fails (see decorator)
-        session.query(cls).filter(
-            cls.dag_id == dag_id,
-            cls.task_id == task_id,
-            tuple_(cls.dag_id, cls.task_id, cls.run_id).notin_(subq2),
-        ).delete(synchronize_session=False)
+        stmt = (
+            delete(cls)
+            .where(
+                cls.dag_id == dag_id,
+                cls.task_id == task_id,
+                tuple_not_in_condition(
+                    (cls.dag_id, cls.task_id, cls.run_id),
+                    session.query(ti_clause.c.dag_id, ti_clause.c.task_id, ti_clause.c.run_id),
+                ),
+            )
+            .execution_options(synchronize_session=False)
+        )
+        session.execute(stmt)

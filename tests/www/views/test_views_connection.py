@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 from unittest import mock
 from unittest.mock import PropertyMock
 
@@ -26,19 +27,22 @@ from pytest import param
 
 from airflow.models import Connection
 from airflow.utils.session import create_session
-from airflow.www.extensions import init_views
 from airflow.www.views import ConnectionFormWidget, ConnectionModelView
-from tests.test_utils.www import check_content_in_response
+from tests.test_utils.www import _check_last_log, _check_last_log_masked_connection, check_content_in_response
 
-CONNECTION = {
-    'conn_id': 'test_conn',
-    'conn_type': 'http',
-    'description': 'description',
-    'host': 'localhost',
-    'port': 8080,
-    'username': 'root',
-    'password': 'admin',
+CONNECTION: dict[str, Any] = {
+    "conn_id": "test_conn",
+    "conn_type": "http",
+    "description": "description",
+    "host": "localhost",
+    "port": 8080,
+    "username": "root",
+    "password": "admin",
 }
+
+
+def conn_with_extra() -> dict[str, Any]:
+    return {**CONNECTION, "extra": '{"x_secret": "testsecret","y_secret": "test"}'}
 
 
 @pytest.fixture(autouse=True)
@@ -47,10 +51,27 @@ def clear_connections():
         session.query(Connection).delete()
 
 
-def test_create_connection(admin_client):
-    init_views.init_connection_form()
-    resp = admin_client.post('/connection/add', data=CONNECTION, follow_redirects=True)
-    check_content_in_response('Added Row', resp)
+@pytest.mark.execution_timeout(150)
+def test_create_connection(admin_client, session):
+    resp = admin_client.post("/connection/add", data=CONNECTION, follow_redirects=True)
+    check_content_in_response("Added Row", resp)
+    _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
+
+
+def test_invalid_connection_id_trailing_blanks(admin_client, session):
+    invalid_conn_id = "conn_id_with_trailing_blanks   "
+    invalid_connection = {**CONNECTION, "conn_id": invalid_conn_id}
+    resp = admin_client.post("/connection/add", data=invalid_connection, follow_redirects=True)
+    check_content_in_response(
+        f"The key '{invalid_conn_id}' has to be made of alphanumeric characters, "
+        + "dashes, dots and underscores exclusively",
+        resp,
+    )
+
+
+def test_action_logging_connection_masked_secrets(session, admin_client):
+    admin_client.post("/connection/add", data=conn_with_extra(), follow_redirects=True)
+    _check_last_log_masked_connection(session, dag_id=None, event="connection.create", execution_date=None)
 
 
 def test_prefill_form_null_extra():
@@ -58,18 +79,19 @@ def test_prefill_form_null_extra():
     mock_form.data = {"conn_id": "test", "extra": None, "conn_type": "test"}
 
     cmv = ConnectionModelView()
+    cmv._iter_extra_field_names = mock.Mock(return_value=())
     cmv.prefill_form(form=mock_form, pk=1)
 
 
 @pytest.mark.parametrize(
-    'extras, expected',
+    "extras, expected",
     [
-        param({"extra__test__my_param": "this_val"}, "this_val", id='conn_not_upgraded'),
-        param({"my_param": "my_val"}, "my_val", id='conn_upgraded'),
+        param({"extra__test__my_param": "this_val"}, "this_val", id="conn_not_upgraded"),
+        param({"my_param": "my_val"}, "my_val", id="conn_upgraded"),
         param(
             {"extra__test__my_param": "this_val", "my_param": "my_val"},
             "my_val",
-            id='conn_upgraded_old_val_present',
+            id="conn_upgraded_old_val_present",
         ),
     ],
 )
@@ -82,19 +104,16 @@ def test_prefill_form_backcompat(extras, expected):
     """
     mock_form = mock.Mock()
     mock_form.data = {"conn_id": "test", "extra": json.dumps(extras), "conn_type": "test"}
+
     cmv = ConnectionModelView()
-    cmv.extra_fields = ['extra__test__my_param']
-
-    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
-    cmv.extra_field_name_mapping['extra__test__my_param'] = 'my_param'
-
+    cmv._iter_extra_field_names = mock.Mock(return_value=[("extra__test__my_param", "my_param")])
     cmv.prefill_form(form=mock_form, pk=1)
     assert mock_form.extra__test__my_param.data == expected
 
 
-@pytest.mark.parametrize('field_name', ['extra__test__custom_field', 'custom_field'])
-@mock.patch('airflow.utils.module_loading.import_string')
-@mock.patch('airflow.providers_manager.ProvidersManager.hooks', new_callable=PropertyMock)
+@pytest.mark.parametrize("field_name", ["extra__test__custom_field", "custom_field"])
+@mock.patch("airflow.utils.module_loading.import_string")
+@mock.patch("airflow.providers_manager.ProvidersManager.hooks", new_callable=PropertyMock)
 def test_process_form_extras_both(mock_pm_hooks, mock_import_str, field_name):
     """
     Test the handling of connection parameters set with the classic `Extra` field as well as custom fields.
@@ -115,20 +134,16 @@ def test_process_form_extras_both(mock_pm_hooks, mock_import_str, field_name):
     }
 
     cmv = ConnectionModelView()
-
-    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
-    cmv.extra_field_name_mapping['extra__test__custom_field'] = field_name
-    cmv.extra_fields = ["extra__test__custom_field"]  # Custom field
+    cmv._iter_extra_field_names = mock.Mock(return_value=[("extra__test__custom_field", field_name)])
     cmv.process_form(form=mock_form, is_created=True)
-
     assert json.loads(mock_form.extra.data) == {
         field_name: "custom_field_val",
         "param1": "param1_val",
     }
 
 
-@mock.patch('airflow.utils.module_loading.import_string')
-@mock.patch('airflow.providers_manager.ProvidersManager.hooks', new_callable=PropertyMock)
+@mock.patch("airflow.utils.module_loading.import_string")
+@mock.patch("airflow.providers_manager.ProvidersManager.hooks", new_callable=PropertyMock)
 def test_process_form_extras_extra_only(mock_pm_hooks, mock_import_str):
     """
     Test the handling of connection parameters set with the classic `Extra` field as well as custom fields.
@@ -145,15 +160,14 @@ def test_process_form_extras_extra_only(mock_pm_hooks, mock_import_str):
     }
 
     cmv = ConnectionModelView()
-
+    cmv._iter_extra_field_names = mock.Mock(return_value=())
     cmv.process_form(form=mock_form, is_created=True)
-
     assert json.loads(mock_form.extra.data) == {"param2": "param2_val"}
 
 
-@pytest.mark.parametrize('field_name', ['extra__test3__custom_field', 'custom_field'])
-@mock.patch('airflow.utils.module_loading.import_string')
-@mock.patch('airflow.providers_manager.ProvidersManager.hooks', new_callable=PropertyMock)
+@pytest.mark.parametrize("field_name", ["extra__test3__custom_field", "custom_field"])
+@mock.patch("airflow.utils.module_loading.import_string")
+@mock.patch("airflow.providers_manager.ProvidersManager.hooks", new_callable=PropertyMock)
 def test_process_form_extras_custom_only(mock_pm_hooks, mock_import_str, field_name):
     """
     Test the handling of connection parameters set with the classic `Extra` field as well as custom fields.
@@ -172,18 +186,19 @@ def test_process_form_extras_custom_only(mock_pm_hooks, mock_import_str, field_n
     }
 
     cmv = ConnectionModelView()
-    cmv.extra_fields = ["extra__test3__custom_field", "extra__test3__custom_bool_field"]  # Custom fields
-
-    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
-    cmv.extra_field_name_mapping['extra__test3__custom_field'] = field_name
+    cmv._iter_extra_field_names = mock.Mock(
+        return_value=[
+            ("extra__test3__custom_field", field_name),
+            ("extra__test3__custom_bool_field", False),
+        ],
+    )
     cmv.process_form(form=mock_form, is_created=True)
-
     assert json.loads(mock_form.extra.data) == {field_name: False}
 
 
-@pytest.mark.parametrize('field_name', ['extra__test4__custom_field', 'custom_field'])
-@mock.patch('airflow.utils.module_loading.import_string')
-@mock.patch('airflow.providers_manager.ProvidersManager.hooks', new_callable=PropertyMock)
+@pytest.mark.parametrize("field_name", ["extra__test4__custom_field", "custom_field"])
+@mock.patch("airflow.utils.module_loading.import_string")
+@mock.patch("airflow.providers_manager.ProvidersManager.hooks", new_callable=PropertyMock)
 def test_process_form_extras_updates(mock_pm_hooks, mock_import_str, field_name):
     """
     Test the handling of connection parameters set with the classic `Extra` field as well as custom fields.
@@ -202,14 +217,10 @@ def test_process_form_extras_updates(mock_pm_hooks, mock_import_str, field_name)
     }
 
     cmv = ConnectionModelView()
-    cmv.extra_fields = ["extra__test4__custom_field"]  # Custom field
-
-    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
-    cmv.extra_field_name_mapping['extra__test4__custom_field'] = field_name
-
+    cmv._iter_extra_field_names = mock.Mock(return_value=[("extra__test4__custom_field", field_name)])
     cmv.process_form(form=mock_form, is_created=True)
 
-    if field_name == 'custom_field':
+    if field_name == "custom_field":
         assert json.loads(mock_form.extra.data) == {
             "custom_field": "custom_field_val4",
             "extra__test4__custom_field": "custom_field_val3",
@@ -221,24 +232,24 @@ def test_process_form_extras_updates(mock_pm_hooks, mock_import_str, field_name)
 def test_duplicate_connection(admin_client):
     """Test Duplicate multiple connection with suffix"""
     conn1 = Connection(
-        conn_id='test_duplicate_gcp_connection',
-        conn_type='Google Cloud',
-        description='Google Cloud Connection',
+        conn_id="test_duplicate_gcp_connection",
+        conn_type="Google Cloud",
+        description="Google Cloud Connection",
     )
     conn2 = Connection(
-        conn_id='test_duplicate_mysql_connection',
-        conn_type='FTP',
-        description='MongoDB2',
-        host='localhost',
-        schema='airflow',
+        conn_id="test_duplicate_mysql_connection",
+        conn_type="FTP",
+        description="MongoDB2",
+        host="localhost",
+        schema="airflow",
         port=3306,
     )
     conn3 = Connection(
-        conn_id='test_duplicate_postgres_connection_copy1',
-        conn_type='FTP',
-        description='Postgres',
-        host='localhost',
-        schema='airflow',
+        conn_id="test_duplicate_postgres_connection_copy1",
+        conn_type="FTP",
+        description="Postgres",
+        host="localhost",
+        schema="airflow",
         port=3306,
     )
     with create_session() as session:
@@ -247,13 +258,13 @@ def test_duplicate_connection(admin_client):
         session.commit()
 
     data = {"action": "mulduplicate", "rowid": [conn1.id, conn3.id]}
-    resp = admin_client.post('/connection/action_post', data=data, follow_redirects=True)
+    resp = admin_client.post("/connection/action_post", data=data, follow_redirects=True)
     expected_result = {
-        'test_duplicate_gcp_connection',
-        'test_duplicate_gcp_connection_copy1',
-        'test_duplicate_mysql_connection',
-        'test_duplicate_postgres_connection_copy1',
-        'test_duplicate_postgres_connection_copy2',
+        "test_duplicate_gcp_connection",
+        "test_duplicate_gcp_connection_copy1",
+        "test_duplicate_mysql_connection",
+        "test_duplicate_postgres_connection_copy1",
+        "test_duplicate_postgres_connection_copy2",
     }
     response = {conn[0] for conn in session.query(Connection.conn_id).all()}
     assert resp.status_code == 200
@@ -265,14 +276,14 @@ def test_duplicate_connection_error(admin_client):
     when there are already 10 copies, no new copy
     should be created"""
 
-    connection_ids = [f'test_duplicate_postgres_connection_copy{i}' for i in range(1, 11)]
+    connection_ids = [f"test_duplicate_postgres_connection_copy{i}" for i in range(1, 11)]
     connections = [
         Connection(
             conn_id=connection_id,
-            conn_type='FTP',
-            description='Postgres',
-            host='localhost',
-            schema='airflow',
+            conn_type="FTP",
+            description="Postgres",
+            host="localhost",
+            schema="airflow",
             port=3306,
         )
         for connection_id in connection_ids
@@ -283,9 +294,9 @@ def test_duplicate_connection_error(admin_client):
         session.add_all(connections)
 
     data = {"action": "mulduplicate", "rowid": [connections[0].id]}
-    resp = admin_client.post('/connection/action_post', data=data, follow_redirects=True)
+    resp = admin_client.post("/connection/action_post", data=data, follow_redirects=True)
 
-    expected_result = {f'test_duplicate_postgres_connection_copy{i}' for i in range(1, 11)}
+    expected_result = {f"test_duplicate_postgres_connection_copy{i}" for i in range(1, 11)}
 
     assert resp.status_code == 200
     response = {conn[0] for conn in session.query(Connection.conn_id).all()}
@@ -295,9 +306,9 @@ def test_duplicate_connection_error(admin_client):
 @pytest.fixture()
 def connection():
     connection = Connection(
-        conn_id='conn1',
-        conn_type='Conn 1',
-        description='Conn 1 description',
+        conn_id="conn1",
+        conn_type="Conn 1",
+        description="Conn 1 description",
     )
     with create_session() as session:
         session.add(connection)
@@ -309,13 +320,13 @@ def connection():
 def test_connection_muldelete(admin_client, connection):
     conn_id = connection.id
     data = {"action": "muldelete", "rowid": [conn_id]}
-    resp = admin_client.post('/connection/action_post', data=data, follow_redirects=True)
+    resp = admin_client.post("/connection/action_post", data=data, follow_redirects=True)
     assert resp.status_code == 200
     with create_session() as session:
         assert session.query(Connection).filter(Connection.id == conn_id).count() == 0
 
 
-@mock.patch('airflow.providers_manager.ProvidersManager.hooks', new_callable=PropertyMock)
+@mock.patch("airflow.providers_manager.ProvidersManager.hooks", new_callable=PropertyMock)
 def test_connection_form_widgets_testable_types(mock_pm_hooks, admin_client):
     mock_pm_hooks.return_value = {
         "first": mock.MagicMock(connection_testable=True),
@@ -324,3 +335,25 @@ def test_connection_form_widgets_testable_types(mock_pm_hooks, admin_client):
     }
 
     assert ["first"] == ConnectionFormWidget().testable_connection_types
+
+
+def test_process_form_invalid_extra_removed(admin_client):
+    """
+    Test that when an invalid json `extra` is passed in the form, it is removed and _not_
+    saved over the existing extras.
+    """
+    conn_details = {"conn_id": "test_conn", "conn_type": "http"}
+    conn = Connection(**conn_details, extra='{"foo": "bar"}')
+    conn.id = 1
+
+    with create_session() as session:
+        session.add(conn)
+
+    data = {**conn_details, "extra": "Invalid"}
+    resp = admin_client.post("/connection/edit/1", data=data, follow_redirects=True)
+
+    assert resp.status_code == 200
+    with create_session() as session:
+        conn = session.get(Connection, 1)
+
+    assert conn.extra == '{"foo": "bar"}'

@@ -19,21 +19,21 @@
 
 /* global describe, test, expect */
 
-import type { AxiosError } from 'axios';
-import { getErrorDescription } from './useErrorToast';
+import type { AxiosError } from "axios";
+import { getErrorDescription } from "./useErrorToast";
 
-describe('Test getErrorDescription()', () => {
-  test('Returns expected results', () => {
+describe("Test getErrorDescription()", () => {
+  test("Returns expected results", () => {
     let description;
 
     // @ts-ignore
-    const axiosError: AxiosError = new Error('Error message');
+    const axiosError: AxiosError = new Error("Error message");
 
     axiosError.toJSON = () => ({});
     axiosError.response = {
-      data: 'Not available for this Executor',
+      data: "Not available for this Executor",
       status: 400,
-      statusText: 'BadRequest',
+      statusText: "BadRequest",
       headers: {},
       config: {},
     };
@@ -41,28 +41,28 @@ describe('Test getErrorDescription()', () => {
 
     // if response.data is defined
     description = getErrorDescription(axiosError);
-    expect(description).toBe('Not available for this Executor');
+    expect(description).toBe("Not available for this Executor");
 
-    axiosError.response.data = '';
+    axiosError.response.data = "";
 
     // if it is not, use the error message
     description = getErrorDescription(axiosError);
-    expect(description).toBe('Error message');
+    expect(description).toBe("Error message");
 
     // if error object, return the message
-    description = getErrorDescription(new Error('no no'));
-    expect(description).toBe('no no');
+    description = getErrorDescription(new Error("no no"));
+    expect(description).toBe("no no");
 
     // if string, return the string
-    description = getErrorDescription('error!');
-    expect(description).toBe('error!');
+    description = getErrorDescription("error!");
+    expect(description).toBe("error!");
 
     // if it's undefined, use a fallback
-    description = getErrorDescription(null, 'fallback');
-    expect(description).toBe('fallback');
+    description = getErrorDescription(null, "fallback");
+    expect(description).toBe("fallback");
 
     // use default if nothing is defined
     description = getErrorDescription();
-    expect(description).toBe('Something went wrong.');
+    expect(description).toBe("Something went wrong.");
   });
 });

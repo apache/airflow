@@ -30,9 +30,9 @@ from google.api_core.retry import Retry
 from google.cloud.tasks_v2.types import Queue, Task
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
 from airflow.providers.google.cloud.links.cloud_tasks import CloudTasksLink, CloudTasksQueueLink
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 MetaData = Sequence[Tuple[str, str]]
 
 
-class CloudTasksQueueCreateOperator(BaseOperator):
+class CloudTasksQueueCreateOperator(GoogleCloudBaseOperator):
     """
     Creates a queue in Cloud Tasks.
 
@@ -73,7 +73,6 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.Queue
     """
 
     template_fields: Sequence[str] = (
@@ -145,7 +144,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         return Queue.to_dict(queue)
 
 
-class CloudTasksQueueUpdateOperator(BaseOperator):
+class CloudTasksQueueUpdateOperator(GoogleCloudBaseOperator):
     """
     Updates a queue in Cloud Tasks.
 
@@ -181,7 +180,6 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.Queue
     """
 
     template_fields: Sequence[str] = (
@@ -245,7 +243,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         return Queue.to_dict(queue)
 
 
-class CloudTasksQueueGetOperator(BaseOperator):
+class CloudTasksQueueGetOperator(GoogleCloudBaseOperator):
     """
     Gets a queue from Cloud Tasks.
 
@@ -273,7 +271,6 @@ class CloudTasksQueueGetOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.Queue
     """
 
     template_fields: Sequence[str] = (
@@ -329,7 +326,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
         return Queue.to_dict(queue)
 
 
-class CloudTasksQueuesListOperator(BaseOperator):
+class CloudTasksQueuesListOperator(GoogleCloudBaseOperator):
     """
     Lists queues from Cloud Tasks.
 
@@ -359,7 +356,6 @@ class CloudTasksQueuesListOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
     template_fields: Sequence[str] = (
@@ -417,7 +413,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
         return [Queue.to_dict(q) for q in queues]
 
 
-class CloudTasksQueueDeleteOperator(BaseOperator):
+class CloudTasksQueueDeleteOperator(GoogleCloudBaseOperator):
     """
     Deletes a queue from Cloud Tasks, even if it has tasks in it.
 
@@ -492,7 +488,7 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
         )
 
 
-class CloudTasksQueuePurgeOperator(BaseOperator):
+class CloudTasksQueuePurgeOperator(GoogleCloudBaseOperator):
     """
     Purges a queue by deleting all of its tasks from Cloud Tasks.
 
@@ -520,7 +516,6 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
     template_fields: Sequence[str] = (
@@ -576,7 +571,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         return Queue.to_dict(queue)
 
 
-class CloudTasksQueuePauseOperator(BaseOperator):
+class CloudTasksQueuePauseOperator(GoogleCloudBaseOperator):
     """
     Pauses a queue in Cloud Tasks.
 
@@ -604,7 +599,6 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
     template_fields: Sequence[str] = (
@@ -660,7 +654,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         return Queue.to_dict(queue)
 
 
-class CloudTasksQueueResumeOperator(BaseOperator):
+class CloudTasksQueueResumeOperator(GoogleCloudBaseOperator):
     """
     Resumes a queue in Cloud Tasks.
 
@@ -688,7 +682,6 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.tasks_v2.types.Queue]
     """
 
     template_fields: Sequence[str] = (
@@ -744,7 +737,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         return Queue.to_dict(queue)
 
 
-class CloudTasksTaskCreateOperator(BaseOperator):
+class CloudTasksTaskCreateOperator(GoogleCloudBaseOperator):
     """
     Creates a task in Cloud Tasks.
 
@@ -778,7 +771,6 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.Task
     """
 
     template_fields: Sequence[str] = (
@@ -845,7 +837,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         return Task.to_dict(task)
 
 
-class CloudTasksTaskGetOperator(BaseOperator):
+class CloudTasksTaskGetOperator(GoogleCloudBaseOperator):
     """
     Gets a task from Cloud Tasks.
 
@@ -876,7 +868,6 @@ class CloudTasksTaskGetOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.Task
     """
 
     template_fields: Sequence[str] = (
@@ -939,7 +930,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
         return Task.to_dict(task)
 
 
-class CloudTasksTasksListOperator(BaseOperator):
+class CloudTasksTasksListOperator(GoogleCloudBaseOperator):
     """
     Lists the tasks in Cloud Tasks.
 
@@ -971,7 +962,6 @@ class CloudTasksTasksListOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: list[google.cloud.tasks_v2.types.Task]
     """
 
     template_fields: Sequence[str] = (
@@ -1034,7 +1024,7 @@ class CloudTasksTasksListOperator(BaseOperator):
         return [Task.to_dict(t) for t in tasks]
 
 
-class CloudTasksTaskDeleteOperator(BaseOperator):
+class CloudTasksTaskDeleteOperator(GoogleCloudBaseOperator):
     """
     Deletes a task from Cloud Tasks.
 
@@ -1114,7 +1104,7 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
         )
 
 
-class CloudTasksTaskRunOperator(BaseOperator):
+class CloudTasksTaskRunOperator(GoogleCloudBaseOperator):
     """
     Forces to run a task in Cloud Tasks.
 
@@ -1145,7 +1135,6 @@ class CloudTasksTaskRunOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.tasks_v2.types.Task
     """
 
     template_fields: Sequence[str] = (

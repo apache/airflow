@@ -26,7 +26,8 @@ from airflow.providers.amazon.aws.links.batch import (
     BatchJobDetailsLink,
     BatchJobQueueLink,
 )
-from airflow.providers.amazon.aws.links.emr import EmrClusterLink
+from airflow.providers.amazon.aws.links.emr import EmrClusterLink, get_log_uri
+from airflow.providers.amazon.aws.links.glue import GlueJobRunDetailsLink
 from airflow.providers.amazon.aws.links.logs import CloudWatchEventsLink
 from airflow.serialization.serialized_objects import SerializedDAG
 
@@ -64,8 +65,7 @@ AWS_LINKS = [
     (
         EmrClusterLink,
         {"job_flow_id": "j-TEST-FLOW-ID"},
-        f"https://console.{AWS_DOMAIN}/elasticmapreduce/home?region={REGION_NAME}"
-        f"#cluster-details:j-TEST-FLOW-ID",
+        f"https://console.{AWS_DOMAIN}/emr/home?region={REGION_NAME}#/clusterDetails/j-TEST-FLOW-ID",
     ),
     (
         CloudWatchEventsLink,
@@ -77,6 +77,11 @@ AWS_LINKS = [
         f"https://console.{AWS_DOMAIN}/cloudwatch/home?region=ap-southeast-2"
         f"#logsV2:log-groups/log-group/%2Ftest%2Flogs%2Fgroup"
         f"/log-events/test%2Fstream%2Fd56a66bb98a14c4593defa1548686edf",
+    ),
+    (
+        GlueJobRunDetailsLink,
+        {"job_run_id": "11111", "job_name": "test_job_name"},
+        f"https://console.{AWS_DOMAIN}/gluestudio/home?region={REGION_NAME}#/job/test_job_name/run/11111",
     ),
 ]
 
@@ -149,3 +154,13 @@ class TestAwsLinks:
         assert (
             deserialized_task.get_extra_links(ti, extra_link_class.name) == extra_link_expected_url
         ), f"{_full_qualname(extra_link_class)} should be preserved in deserialized tasks after execution"
+
+
+@pytest.mark.parametrize(
+    "cluster_info, expected_uri",
+    (({"Cluster": {}}, None), ({"Cluster": {"LogUri": "s3://myLogUri/"}}, "myLogUri/")),
+)
+def test_get_log_uri(cluster_info, expected_uri):
+    emr_client = MagicMock()
+    emr_client.describe_cluster.return_value = cluster_info
+    assert get_log_uri(cluster=None, emr_client=emr_client, job_flow_id="test_job_flow_id") == expected_uri

@@ -127,7 +127,7 @@ The main decision is:
 **Vast majority of both Breeze and our CI scripts should be Python-based**
 
 There are likely a number of scripts that will remain in Bash, but they should contain no sophisticated
-logic, they should not haave common code in form of libraries and only used to execute simple tasks inside
+logic, they should not have common code in form of libraries and only used to execute simple tasks inside
 Docker containers. No Bash should ever be used in the host environment.
 
 There are a few properties of Breeze/CI scripts that should be maintained though
@@ -138,9 +138,9 @@ There are a few properties of Breeze/CI scripts that should be maintained though
   run a command and get everything done with the least number of prerequisites
 
 * The prerequisites for Breeze and CI are:
-   * Python 3.7+ (Python 3.7 end of life is Jun 2023)
-   * Docker (TBD which minimum version supported)
-   * Docker Compose (TBD which minimum version supported)
+   * Python 3.8+ (Python 3.8 end of life is October 2024)
+   * Docker (23.0+)
+   * Docker Compose (2.16.0+)
    * No other tools and CLI commands should be needed
    * The python requirements should be automatically installed when missing in a "Breeze" venv and updated
      automatically when needed. The number of Python dependencies needed to run Breeze and CI scripts

@@ -32,9 +32,9 @@ By default, Airflow uses **SQLite**, which is intended for development purposes 
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
-* PostgreSQL: 10, 11, 12, 13
+* PostgreSQL: 11, 12, 13, 14, 15
 * MySQL: 5.7, 8
-* MsSQL: 2017, 2019
+* MSSQL (Experimental): 2017, 2019
 * SQLite: 3.15.0+
 
 If you plan on running more than one scheduler, you have to meet additional requirements.
@@ -79,7 +79,7 @@ it only works with Sequential Executor) and it should NEVER be used for producti
 There is a minimum version of sqlite3 required to run Airflow 2.0+ - minimum version is 3.15.0. Some of the
 older systems have an earlier version of sqlite installed by default and for those system you need to manually
 upgrade SQLite to use version newer than 3.15.0. Note, that this is not a ``python library`` version, it's the
-SQLite system-level application that needs to be upgraded. There are different ways how SQLIte might be
+SQLite system-level application that needs to be upgraded. There are different ways how SQLite might be
 installed, you can find some information about that at the `official website of SQLite
 <https://www.sqlite.org/index.html>`_ and in the documentation specific to distribution of your Operating
 System.
@@ -118,7 +118,7 @@ An example URI for the sqlite database:
 AmazonLinux SQLite can only be upgraded to v3.7 using the source repos. Airflow requires v3.15 or higher. Use the
 following instructions to setup the base image (or AMI) with latest SQLite3
 
-Pre-requisite: You will need ``wget``, ``tar``, ``gzip``,`` gcc``, ``make``, and ``expect`` to get the upgrade process working.
+Pre-requisite: You will need ``wget``, ``tar``, ``gzip``, ``gcc``, ``make``, and ``expect`` to get the upgrade process working.
 
 .. code-block:: bash
 
@@ -167,6 +167,9 @@ In the example below, a database ``airflow_db`` and user  with username ``airflo
    CREATE DATABASE airflow_db;
    CREATE USER airflow_user WITH PASSWORD 'airflow_pass';
    GRANT ALL PRIVILEGES ON DATABASE airflow_db TO airflow_user;
+   -- PostgreSQL 15 requires additional privileges:
+   USE airflow_db;
+   GRANT ALL ON SCHEMA public TO airflow_user;
 
 .. note::
 
@@ -260,7 +263,7 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
 
 
 
-.. spelling::
+.. spelling:word-list::
 
      hba
 
@@ -295,14 +298,20 @@ We recommend using the ``mysqlclient`` driver and specifying it in your SqlAlche
 
     mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>
 
-But we also support the ``mysql-connector-python`` driver, which lets you connect through SSL
-without any cert options provided.
+We also support the ``mysql-connector-python`` driver, which lets you connect through SSL
+without any cert options provided. If you wish to use ``mysql-connector-python`` driver, please install it with extras.
+
+.. code-block:: text
+
+   $ pip install mysql-connector-python
+
+The connection string in this case should look like:
 
 .. code-block:: text
 
    mysql+mysqlconnector://<user>:<password>@<host>[:<port>]/<dbname>
 
-However if you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/13/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
+If you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/13/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
 and setup of the SqlAlchemy connection.
 
 In addition, you also should pay particular attention to MySQL's encoding. Although the ``utf8mb4`` character set is more and more popular for MySQL (actually, ``utf8mb4`` becomes default character set in MySQL8.0), using the ``utf8mb4`` encoding requires additional setting in Airflow 2+ (See more details in `#7570 <https://github.com/apache/airflow/pull/7570>`__.). If you use ``utf8mb4`` as character set, you should also set ``sql_engine_collation_for_ids=utf8mb3_bin``.
@@ -375,4 +384,4 @@ What's next?
 ------------
 
 By default, Airflow uses ``SequentialExecutor``, which does not provide parallelism. You should consider
-configuring a different :doc:`executor </executor/index>` for better performance.
+configuring a different :doc:`executor </core-concepts/executor/index>` for better performance.

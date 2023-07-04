@@ -38,23 +38,25 @@ class PigOperator(BaseOperator):
         you may want to use this along with the
         ``DAG(user_defined_macros=myargs)`` parameter. View the DAG
         object documentation for more details.
-    :param pig_opts: pig options, such as: -x tez, -useHCatalog, ...
+    :param pig_opts: pig options, such as: -x tez, -useHCatalog, ... - space separated list
+    :param pig_properties: pig properties, additional pig properties passed as list
     """
 
-    template_fields: Sequence[str] = ('pig',)
+    template_fields: Sequence[str] = ("pig", "pig_opts", "pig_properties")
     template_ext: Sequence[str] = (
-        '.pig',
-        '.piglatin',
+        ".pig",
+        ".piglatin",
     )
-    ui_color = '#f0e4ec'
+    ui_color = "#f0e4ec"
 
     def __init__(
         self,
         *,
         pig: str,
-        pig_cli_conn_id: str = 'pig_cli_default',
+        pig_cli_conn_id: str = "pig_cli_default",
         pigparams_jinja_translate: bool = False,
         pig_opts: str | None = None,
+        pig_properties: list[str] | None = None,
         **kwargs: Any,
     ) -> None:
 
@@ -63,6 +65,7 @@ class PigOperator(BaseOperator):
         self.pig = pig
         self.pig_cli_conn_id = pig_cli_conn_id
         self.pig_opts = pig_opts
+        self.pig_properties = pig_properties
         self.hook: PigCliHook | None = None
 
     def prepare_template(self):
@@ -70,8 +73,8 @@ class PigOperator(BaseOperator):
             self.pig = re.sub(r"(\$([a-zA-Z_][a-zA-Z0-9_]*))", r"{{ \g<2> }}", self.pig)
 
     def execute(self, context: Context):
-        self.log.info('Executing: %s', self.pig)
-        self.hook = PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id)
+        self.log.info("Executing: %s", self.pig)
+        self.hook = PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id, pig_properties=self.pig_properties)
         self.hook.run_cli(pig=self.pig, pig_opts=self.pig_opts)
 
     def on_kill(self):

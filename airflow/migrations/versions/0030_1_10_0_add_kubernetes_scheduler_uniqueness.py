@@ -27,11 +27,11 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '86770d1215c0'
-down_revision = '27c6a30d7c24'
+revision = "86770d1215c0"
+down_revision = "27c6a30d7c24"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.0'
+airflow_version = "1.10.0"
 
 RESOURCE_TABLE = "kube_worker_uuid"
 

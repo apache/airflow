@@ -38,7 +38,7 @@ def setup_event_handlers(engine):
 
     @event.listens_for(engine, "connect")
     def connect(dbapi_connection, connection_record):
-        connection_record.info['pid'] = os.getpid()
+        connection_record.info["pid"] = os.getpid()
 
     if engine.dialect.name == "sqlite":
 
@@ -60,30 +60,30 @@ def setup_event_handlers(engine):
     @event.listens_for(engine, "checkout")
     def checkout(dbapi_connection, connection_record, connection_proxy):
         pid = os.getpid()
-        if connection_record.info['pid'] != pid:
+        if connection_record.info["pid"] != pid:
             connection_record.connection = connection_proxy.connection = None
             raise exc.DisconnectionError(
                 f"Connection record belongs to pid {connection_record.info['pid']}, "
                 f"attempting to check out in pid {pid}"
             )
 
-    if conf.getboolean('debug', 'sqlalchemy_stats', fallback=False):
+    if conf.getboolean("debug", "sqlalchemy_stats", fallback=False):
 
         @event.listens_for(engine, "before_cursor_execute")
         def before_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-            conn.info.setdefault('query_start_time', []).append(time.perf_counter())
+            conn.info.setdefault("query_start_time", []).append(time.perf_counter())
 
         @event.listens_for(engine, "after_cursor_execute")
         def after_cursor_execute(conn, cursor, statement, parameters, context, executemany):
-            total = time.perf_counter() - conn.info['query_start_time'].pop()
+            total = time.perf_counter() - conn.info["query_start_time"].pop()
             file_name = [
                 f"'{f.name}':{f.filename}:{f.lineno}"
                 for f in traceback.extract_stack()
-                if 'sqlalchemy' not in f.filename
+                if "sqlalchemy" not in f.filename
             ][-1]
-            stack = [f for f in traceback.extract_stack() if 'sqlalchemy' not in f.filename]
+            stack = [f for f in traceback.extract_stack() if "sqlalchemy" not in f.filename]
             stack_info = ">".join([f"{f.filename.rpartition('/')[-1]}:{f.name}" for f in stack][-3:])
-            conn.info.setdefault('query_start_time', []).append(time.monotonic())
+            conn.info.setdefault("query_start_time", []).append(time.monotonic())
             log.info(
                 "@SQLALCHEMY %s |$ %s |$ %s |$  %s ",
                 total,

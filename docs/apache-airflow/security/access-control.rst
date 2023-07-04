@@ -22,7 +22,7 @@ Access Control of Airflow Webserver UI is handled by Flask AppBuilder (FAB).
 Please read its related `security document <http://flask-appbuilder.readthedocs.io/en/latest/security.html>`_
 regarding its security model.
 
-.. spelling::
+.. spelling:word-list::
     clearTaskInstances
     dagRuns
     dagSources
@@ -86,10 +86,10 @@ Custom Roles
 
 DAG Level Role
 ^^^^^^^^^^^^^^
-``Admin`` can create a set of roles which are only allowed to view a certain set of dags. This is called DAG level access. Each dag defined in the dag model table
+``Admin`` can create a set of roles which are only allowed to view a certain set of DAGs. This is called DAG level access. Each DAG defined in the DAG model table
 is treated as a ``View`` which has two permissions associated with it (``can_read`` and ``can_edit``. ``can_dag_read`` and ``can_dag_edit`` are deprecated since 2.0.0).
 There is a special view called ``DAGs`` (it was called ``all_dags`` in versions 1.10.*) which
-allows the role to access all the dags. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``DAGs`` view.
+allows the role to access all the DAGs. The default ``Admin``, ``Viewer``, ``User``, ``Op`` roles can all access ``DAGs`` view.
 
 .. image:: /img/add-role.png
 .. image:: /img/new-role.png
@@ -125,7 +125,7 @@ There are five default roles: Public, Viewer, User, Op, and Admin. Each one has 
 DAG-level permissions
 ^^^^^^^^^^^^^^^^^^^^^
 
-For DAG-level permissions exclusively, access can be controlled at the level of all DAGs or individual DAG objects. This includes ``DAGs.can_create``, ``DAGs.can_read``, ``DAGs.can_edit``, and ``DAGs.can_delete``. When these permissions are listed, access is granted to users who either have the listed permission or the same permission for the specific DAG being acted upon. For individual DAGs, the resource name is ``DAG:`` + the DAG ID.
+For DAG-level permissions exclusively, access can be controlled at the level of all DAGs or individual DAG objects. This includes ``DAGs.can_read``, ``DAGs.can_edit``, and ``DAGs.can_delete``. When these permissions are listed, access is granted to users who either have the listed permission or the same permission for the specific DAG being acted upon. For individual DAGs, the resource name is ``DAG:`` + the DAG ID.
 
 For example, if a user is trying to view DAG information for the ``example_dag_id``, and the endpoint requires ``DAGs.can_read`` access, access will be granted if the user has either ``DAGs.can_read`` or ``DAG:example_dag_id.can_read`` access.
 

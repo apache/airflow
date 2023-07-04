@@ -18,30 +18,28 @@
 from __future__ import annotations
 
 import datetime
-import unittest
 from unittest.mock import patch
 
 import pytest
 import pytz
-from parameterized import parameterized
 
 from airflow.providers.google.cloud.transfers.postgres_to_gcs import PostgresToGCSOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
-TABLES = {'postgres_to_gcs_operator', 'postgres_to_gcs_operator_empty'}
+TABLES = {"postgres_to_gcs_operator", "postgres_to_gcs_operator_empty"}
 
-TASK_ID = 'test-postgres-to-gcs'
-POSTGRES_CONN_ID = 'postgres_default'
-SQL = 'SELECT * FROM postgres_to_gcs_operator'
-BUCKET = 'gs://test'
-FILENAME = 'test_{}.ndjson'
+TASK_ID = "test-postgres-to-gcs"
+POSTGRES_CONN_ID = "postgres_default"
+SQL = "SELECT * FROM postgres_to_gcs_operator"
+BUCKET = "gs://test"
+FILENAME = "test_{}.ndjson"
 
 NDJSON_LINES = [
     b'{"some_json": {"firtname": "John", "lastname": "Smith", "nested_dict": {"a": null, "b": "something"}}, "some_num": 42, "some_str": "mock_row_content_1"}\n',  # noqa
     b'{"some_json": {}, "some_num": 43, "some_str": "mock_row_content_2"}\n',
     b'{"some_json": {}, "some_num": 44, "some_str": "mock_row_content_3"}\n',
 ]
-SCHEMA_FILENAME = 'schema_test.json'
+SCHEMA_FILENAME = "schema_test.json"
 SCHEMA_JSON = (
     b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, '
     b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}, '
@@ -50,9 +48,9 @@ SCHEMA_JSON = (
 
 
 @pytest.mark.backend("postgres")
-class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
+class TestPostgresToGoogleCloudStorageOperator:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         postgres = PostgresHook()
         with postgres.get_conn() as conn:
             with conn.cursor() as cur:
@@ -63,7 +61,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
                 cur.execute(
                     "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s, %s);",
                     (
-                        'mock_row_content_1',
+                        "mock_row_content_1",
                         42,
                         '{"lastname": "Smith", "firtname": "John", \
                           "nested_dict": {"a": null, "b": "something"}}',
@@ -71,15 +69,15 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
                 )
                 cur.execute(
                     "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s, %s);",
-                    ('mock_row_content_2', 43, '{}'),
+                    ("mock_row_content_2", 43, "{}"),
                 )
                 cur.execute(
                     "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s, %s);",
-                    ('mock_row_content_3', 44, '{}'),
+                    ("mock_row_content_3", 44, "{}"),
                 )
 
     @classmethod
-    def tearDownClass(cls):
+    def teardown_class(cls):
         postgres = PostgresHook()
         with postgres.get_conn() as conn:
             with conn.cursor() as cur:
@@ -97,12 +95,13 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
     def _assert_uploaded_file_content(self, bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
         assert BUCKET == bucket
         assert FILENAME.format(0) == obj
-        assert 'application/json' == mime_type
+        assert "application/json" == mime_type
         assert not gzip
-        with open(tmp_filename, 'rb') as file:
-            assert b''.join(NDJSON_LINES) == file.read()
+        with open(tmp_filename, "rb") as file:
+            assert b"".join(NDJSON_LINES) == file.read()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "value, expected",
         [
             ("string", "string"),
             (32.9, 32.9),
@@ -116,7 +115,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
             ),
             (datetime.time(hour=0, minute=0, second=0), "0:00:00"),
             (datetime.time(hour=23, minute=59, second=59), "23:59:59"),
-        ]
+        ],
     )
     def test_convert_type(self, value, expected):
         op = PostgresToGCSOperator(
@@ -124,7 +123,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         )
         assert op.convert_type(value, None) == expected
 
-    @patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
+    @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
     def test_exec_success(self, gcs_hook_mock_class):
         """Test the execute function in case where the run is successful."""
         op = PostgresToGCSOperator(
@@ -135,7 +134,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         gcs_hook_mock.upload.side_effect = self._assert_uploaded_file_content
         op.execute(None)
 
-    @patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
+    @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
     def test_exec_success_server_side_cursor(self, gcs_hook_mock_class):
         """Test the execute in case where the run is successful while using server side cursor."""
         op = PostgresToGCSOperator(
@@ -151,21 +150,21 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         gcs_hook_mock.upload.side_effect = self._assert_uploaded_file_content
         op.execute(None)
 
-    @patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
+    @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
     def test_file_splitting(self, gcs_hook_mock_class):
         """Test that ndjson is split by approx_max_file_size_bytes param."""
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
         expected_upload = {
-            FILENAME.format(0): b''.join(NDJSON_LINES[:2]),
+            FILENAME.format(0): b"".join(NDJSON_LINES[:2]),
             FILENAME.format(1): NDJSON_LINES[2],
         }
 
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             assert BUCKET == bucket
-            assert 'application/json' == mime_type
+            assert "application/json" == mime_type
             assert not gzip
-            with open(tmp_filename, 'rb') as file:
+            with open(tmp_filename, "rb") as file:
                 assert expected_upload[obj] == file.read()
 
         gcs_hook_mock.upload.side_effect = _assert_upload
@@ -179,7 +178,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         )
         op.execute(None)
 
-    @patch('airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook')
+    @patch("airflow.providers.google.cloud.transfers.sql_to_gcs.GCSHook")
     def test_schema_file(self, gcs_hook_mock_class):
         """Test writing schema files."""
 
@@ -187,7 +186,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
 
         def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             if obj == SCHEMA_FILENAME:
-                with open(tmp_filename, 'rb') as file:
+                with open(tmp_filename, "rb") as file:
                     assert SCHEMA_JSON == file.read()
 
         gcs_hook_mock.upload.side_effect = _assert_upload

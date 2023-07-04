@@ -34,7 +34,7 @@ cmd = [
     "-w",
     "/root",
     "--rm",
-    "hadolint/hadolint:2.10.0-beta-alpine",
+    "hadolint/hadolint:2.12.0-alpine",
     "/bin/hadolint",
     *docker_files,
 ]

@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 import time
+from functools import cached_property
 
 from botocore.exceptions import ClientError
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 
@@ -31,10 +31,13 @@ class QuickSightHook(AwsBaseHook):
     """
     Interact with Amazon QuickSight.
 
+    Provide thin wrapper around :external+boto3:py:class:`boto3.client("quicksight") <QuickSight.Client>`.
+
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
+
     .. seealso::
-    :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     NON_TERMINAL_STATES = {"INITIALIZED", "QUEUED", "RUNNING"}
@@ -54,9 +57,12 @@ class QuickSightHook(AwsBaseHook):
         ingestion_type: str,
         wait_for_completion: bool = True,
         check_interval: int = 30,
-    ):
+    ) -> dict:
         """
-        Creates and starts a new SPICE ingestion for a dataset. Refreshes the SPICE datasets
+        Creates and starts a new SPICE ingestion for a dataset. Refreshes the SPICE datasets.
+
+        .. seealso::
+            - :external+boto3:py:meth:`QuickSight.Client.create_ingestion`
 
         :param data_set_id:  ID of the dataset used in the ingestion.
         :param ingestion_id: ID for the ingestion.
@@ -66,7 +72,6 @@ class QuickSightHook(AwsBaseHook):
             will check the status of QuickSight Ingestion
         :return: Returns descriptive information about the created data ingestion
             having Ingestion ARN, HTTP status, ingestion ID and ingestion status.
-        :rtype: Dict
         """
         self.log.info("Creating QuickSight Ingestion for data set id %s.", data_set_id)
         quicksight_client = self.get_conn()
@@ -92,25 +97,43 @@ class QuickSightHook(AwsBaseHook):
             self.log.error("Failed to run Amazon QuickSight create_ingestion API, error: %s", general_error)
             raise
 
-    def get_status(self, aws_account_id: str, data_set_id: str, ingestion_id: str):
+    def get_status(self, aws_account_id: str, data_set_id: str, ingestion_id: str) -> str:
         """
         Get the current status of QuickSight Create Ingestion API.
+
+        .. seealso::
+            - :external+boto3:py:meth:`QuickSight.Client.describe_ingestion`
 
         :param aws_account_id: An AWS Account ID
         :param data_set_id: QuickSight Data Set ID
         :param ingestion_id: QuickSight Ingestion ID
         :return: An QuickSight Ingestion Status
-        :rtype: str
         """
         try:
             describe_ingestion_response = self.get_conn().describe_ingestion(
                 AwsAccountId=aws_account_id, DataSetId=data_set_id, IngestionId=ingestion_id
             )
             return describe_ingestion_response["Ingestion"]["IngestionStatus"]
-        except KeyError:
-            raise AirflowException("Could not get status of the Amazon QuickSight Ingestion")
-        except ClientError:
-            raise AirflowException("AWS request failed, check logs for more info")
+        except KeyError as e:
+            raise AirflowException(f"Could not get status of the Amazon QuickSight Ingestion: {e}")
+        except ClientError as e:
+            raise AirflowException(f"AWS request failed: {e}")
+
+    def get_error_info(self, aws_account_id: str, data_set_id: str, ingestion_id: str) -> dict | None:
+        """
+        Gets info about the error if any.
+
+        :param aws_account_id: An AWS Account ID
+        :param data_set_id: QuickSight Data Set ID
+        :param ingestion_id: QuickSight Ingestion ID
+        :return: Error info dict containing the error type (key 'Type') and message (key 'Message')
+            if available. Else, returns None.
+        """
+        describe_ingestion_response = self.get_conn().describe_ingestion(
+            AwsAccountId=aws_account_id, DataSetId=data_set_id, IngestionId=ingestion_id
+        )
+        # using .get() to get None if the key is not present, instead of an exception.
+        return describe_ingestion_response["Ingestion"].get("ErrorInfo")
 
     def wait_for_state(
         self,
@@ -121,7 +144,7 @@ class QuickSightHook(AwsBaseHook):
         check_interval: int,
     ):
         """
-        Check status of a QuickSight Create Ingestion API
+        Check status of a QuickSight Create Ingestion API.
 
         :param aws_account_id: An AWS Account ID
         :param data_set_id: QuickSight Data Set ID
@@ -131,17 +154,17 @@ class QuickSightHook(AwsBaseHook):
             will check the status of QuickSight Ingestion
         :return: response of describe_ingestion call after Ingestion is is done
         """
-        sec = 0
-        status = self.get_status(aws_account_id, data_set_id, ingestion_id)
-        while status in self.NON_TERMINAL_STATES and status != target_state:
+        while True:
+            status = self.get_status(aws_account_id, data_set_id, ingestion_id)
             self.log.info("Current status is %s", status)
-            time.sleep(check_interval)
-            sec += check_interval
             if status in self.FAILED_STATES:
-                raise AirflowException("The Amazon QuickSight Ingestion failed!")
+                info = self.get_error_info(aws_account_id, data_set_id, ingestion_id)
+                raise AirflowException(f"The Amazon QuickSight Ingestion failed. Error info: {info}")
             if status == "CANCELLED":
                 raise AirflowException("The Amazon QuickSight SPICE ingestion cancelled!")
-            status = self.get_status(aws_account_id, data_set_id, ingestion_id)
+            if status not in self.NON_TERMINAL_STATES or status == target_state:
+                break
+            time.sleep(check_interval)
 
         self.log.info("QuickSight Ingestion completed")
         return status

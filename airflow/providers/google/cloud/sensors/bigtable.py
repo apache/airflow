@@ -21,8 +21,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 import google.api_core.exceptions
+from google.cloud.bigtable import enums
 from google.cloud.bigtable.table import ClusterState
-from google.cloud.bigtable_admin_v2 import enums
 
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
 from airflow.providers.google.cloud.links.bigtable import BigtableTablesLink
@@ -58,12 +58,12 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         account from the list granting this role to the originating account (templated).
     """
 
-    REQUIRED_ATTRIBUTES = ('instance_id', 'table_id')
+    REQUIRED_ATTRIBUTES = ("instance_id", "table_id")
     template_fields: Sequence[str] = (
-        'project_id',
-        'instance_id',
-        'table_id',
-        'impersonation_chain',
+        "project_id",
+        "instance_id",
+        "table_id",
+        "impersonation_chain",
     )
     operator_extra_links = (BigtableTablesLink(),)
 
@@ -73,7 +73,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         instance_id: str,
         table_id: str,
         project_id: str | None = None,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -103,7 +103,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
             )
             return False
 
-        ready_state = ClusterState(enums.Table.ClusterState.ReplicationState.READY)
+        ready_state = ClusterState(enums.Table.ReplicationState.READY)
 
         is_table_replicated = True
         for cluster_id in cluster_states.keys():

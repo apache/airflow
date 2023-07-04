@@ -37,10 +37,10 @@ class FTPHook(BaseHook):
         reference.
     """
 
-    conn_name_attr = 'ftp_conn_id'
-    default_conn_name = 'ftp_default'
-    conn_type = 'ftp'
-    hook_name = 'FTP'
+    conn_name_attr = "ftp_conn_id"
+    default_conn_name = "ftp_default"
+    conn_type = "ftp"
+    hook_name = "FTP"
 
     def __init__(self, ftp_conn_id: str = default_conn_name) -> None:
         super().__init__()
@@ -55,7 +55,7 @@ class FTPHook(BaseHook):
             self.close_conn()
 
     def get_conn(self) -> ftplib.FTP:
-        """Returns a FTP connection object"""
+        """Returns a FTP connection object."""
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
             pasv = params.extra_dejson.get("passive", True)
@@ -65,18 +65,14 @@ class FTPHook(BaseHook):
         return self.conn
 
     def close_conn(self):
-        """
-        Closes the connection. An error will occur if the
-        connection wasn't ever opened.
-        """
+        """Closes the connection; an error will occur if the connection was never opened."""
         conn = self.conn
         conn.quit()
         self.conn = None
 
     def describe_directory(self, path: str) -> dict:
         """
-        Returns a dictionary of {filename: {attributes}} for all files
-        on the remote system (where the MLSD command is supported).
+        Return a dictionary of {filename: {attributes}} for all files on a remote system which supports MLSD.
 
         :param path: full path to the remote directory
         """
@@ -178,7 +174,7 @@ class FTPHook(BaseHook):
         # file-like buffer
         if not callback:
             if is_path:
-                output_handle = open(local_full_path_or_buffer, 'wb')
+                output_handle = open(local_full_path_or_buffer, "wb")
             else:
                 output_handle = local_full_path_or_buffer
 
@@ -186,9 +182,9 @@ class FTPHook(BaseHook):
 
         remote_path, remote_file_name = os.path.split(remote_full_path)
         conn.cwd(remote_path)
-        self.log.info('Retrieving file from FTP: %s', remote_full_path)
-        conn.retrbinary(f'RETR {remote_file_name}', callback, block_size)
-        self.log.info('Finished retrieving file from FTP: %s', remote_full_path)
+        self.log.info("Retrieving file from FTP: %s", remote_full_path)
+        conn.retrbinary(f"RETR {remote_file_name}", callback, block_size)
+        self.log.info("Finished retrieving file from FTP: %s", remote_full_path)
 
         if is_path and output_handle:
             output_handle.close()
@@ -213,12 +209,12 @@ class FTPHook(BaseHook):
         is_path = isinstance(local_full_path_or_buffer, str)
 
         if is_path:
-            input_handle = open(local_full_path_or_buffer, 'rb')
+            input_handle = open(local_full_path_or_buffer, "rb")
         else:
             input_handle = local_full_path_or_buffer
         remote_path, remote_file_name = os.path.split(remote_full_path)
         conn.cwd(remote_path)
-        conn.storbinary(f'STOR {remote_file_name}', input_handle, block_size)
+        conn.storbinary(f"STOR {remote_file_name}", input_handle, block_size)
 
         if is_path:
             input_handle.close()
@@ -244,22 +240,22 @@ class FTPHook(BaseHook):
 
     def get_mod_time(self, path: str) -> datetime.datetime:
         """
-        Returns a datetime object representing the last time the file was modified
+        Returns a datetime object representing the last time the file was modified.
 
         :param path: remote file path
         """
         conn = self.get_conn()
-        ftp_mdtm = conn.sendcmd('MDTM ' + path)
+        ftp_mdtm = conn.sendcmd("MDTM " + path)
         time_val = ftp_mdtm[4:]
         # time_val optionally has microseconds
         try:
             return datetime.datetime.strptime(time_val, "%Y%m%d%H%M%S.%f")
         except ValueError:
-            return datetime.datetime.strptime(time_val, '%Y%m%d%H%M%S')
+            return datetime.datetime.strptime(time_val, "%Y%m%d%H%M%S")
 
     def get_size(self, path: str) -> int | None:
         """
-        Returns the size of a file (in bytes)
+        Returns the size of a file (in bytes).
 
         :param path: remote file path
         """
@@ -268,7 +264,7 @@ class FTPHook(BaseHook):
         return int(size) if size else None
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test the FTP connection by calling path with directory"""
+        """Test the FTP connection by calling path with directory."""
         try:
             conn = self.get_conn()
             conn.pwd

@@ -19,25 +19,32 @@ from __future__ import annotations
 import json
 import time
 from enum import Enum
-from functools import wraps
+from functools import cached_property, wraps
 from inspect import signature
-from typing import Any, Callable, Sequence, Set
+from typing import TYPE_CHECKING, Any, Callable, Sequence, Set, TypeVar, cast
 
-from requests import PreparedRequest, Session
+import aiohttp
+from aiohttp import ClientResponseError
+from asgiref.sync import sync_to_async
 from requests.auth import AuthBase
-from requests.models import Response
+from requests.sessions import Session
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
-from airflow.models import Connection
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.typing_compat import TypedDict
+
+if TYPE_CHECKING:
+    from requests.models import PreparedRequest, Response
+
+    from airflow.models import Connection
 
 
 def fallback_to_default_account(func: Callable) -> Callable:
     """
-    Decorator which provides a fallback value for ``account_id``. If the ``account_id`` is None or not passed
-    to the decorated function, the value will be taken from the configured dbt Cloud Airflow Connection.
+    Decorator which provides a fallback value for ``account_id``.
+
+    If the ``account_id`` is None or not passed to the decorated function,
+    the value will be taken from the configured dbt Cloud Airflow Connection.
     """
     sig = signature(func)
 
@@ -124,6 +131,36 @@ class DbtCloudJobRunException(AirflowException):
     """An exception that indicates a job run failed to complete."""
 
 
+T = TypeVar("T", bound=Any)
+
+
+def provide_account_id(func: T) -> T:
+    """
+    Decorator which provides a fallback value for ``account_id``.
+
+    If the ``account_id`` is None or not passed to the decorated function,
+    the value will be taken from the configured dbt Cloud Airflow Connection.
+    """
+    function_signature = signature(func)
+
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        bound_args = function_signature.bind(*args, **kwargs)
+
+        if bound_args.arguments.get("account_id") is None:
+            self = args[0]
+            if self.dbt_cloud_conn_id:
+                connection = await sync_to_async(self.get_connection)(self.dbt_cloud_conn_id)
+                default_account_id = connection.login
+                if not default_account_id:
+                    raise AirflowException("Could not determine the dbt Cloud account.")
+                bound_args.arguments["account_id"] = int(default_account_id)
+
+        return await func(*bound_args.args, **bound_args.kwargs)
+
+    return cast(T, wrapper)
+
+
 class DbtCloudHook(HttpHook):
     """
     Interact with dbt Cloud using the V2 API.
@@ -140,17 +177,91 @@ class DbtCloudHook(HttpHook):
     def get_ui_field_behaviour() -> dict[str, Any]:
         """Builds custom field behavior for the dbt Cloud connection form in the Airflow UI."""
         return {
-            "hidden_fields": ["host", "port", "extra"],
-            "relabeling": {"login": "Account ID", "password": "API Token", "schema": "Tenant"},
-            "placeholders": {"schema": "Defaults to 'cloud'."},
+            "hidden_fields": ["schema", "port", "extra"],
+            "relabeling": {"login": "Account ID", "password": "API Token", "host": "Tenant"},
+            "placeholders": {"host": "Defaults to 'cloud.getdbt.com'."},
         }
 
     def __init__(self, dbt_cloud_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(auth_type=TokenAuth)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
-        tenant = self.connection.schema if self.connection.schema else 'cloud'
 
-        self.base_url = f"https://{tenant}.getdbt.com/api/v2/accounts/"
+    @staticmethod
+    def _get_tenant_domain(conn: Connection) -> str:
+        return conn.host or "cloud.getdbt.com"
+
+    @staticmethod
+    def get_request_url_params(
+        tenant: str, endpoint: str, include_related: list[str] | None = None
+    ) -> tuple[str, dict[str, Any]]:
+        """
+        Form URL from base url and endpoint url.
+
+        :param tenant: The tenant domain name which is need to be replaced in base url.
+        :param endpoint: Endpoint url to be requested.
+        :param include_related: Optional. List of related fields to pull with the run.
+            Valid values are "trigger", "job", "repository", and "environment".
+        """
+        data: dict[str, Any] = {}
+        if include_related:
+            data = {"include_related": include_related}
+        url = f"https://{tenant}/api/v2/accounts/{endpoint or ''}"
+        return url, data
+
+    async def get_headers_tenants_from_connection(self) -> tuple[dict[str, Any], str]:
+        """Get Headers, tenants from the connection details."""
+        headers: dict[str, Any] = {}
+        connection: Connection = await sync_to_async(self.get_connection)(self.dbt_cloud_conn_id)
+        tenant = self._get_tenant_domain(connection)
+        package_name, provider_version = _get_provider_info()
+        headers["User-Agent"] = f"{package_name}-v{provider_version}"
+        headers["Content-Type"] = "application/json"
+        headers["Authorization"] = f"Token {connection.password}"
+        return headers, tenant
+
+    @provide_account_id
+    async def get_job_details(
+        self, run_id: int, account_id: int | None = None, include_related: list[str] | None = None
+    ) -> Any:
+        """
+        Uses Http async call to retrieve metadata for a specific run of a dbt Cloud job.
+
+        :param run_id: The ID of a dbt Cloud job run.
+        :param account_id: Optional. The ID of a dbt Cloud account.
+        :param include_related: Optional. List of related fields to pull with the run.
+            Valid values are "trigger", "job", "repository", and "environment".
+        """
+        endpoint = f"{account_id}/runs/{run_id}/"
+        headers, tenant = await self.get_headers_tenants_from_connection()
+        url, params = self.get_request_url_params(tenant, endpoint, include_related)
+        async with aiohttp.ClientSession(headers=headers) as session:
+            async with session.get(url, params=params) as response:
+                try:
+                    response.raise_for_status()
+                    return await response.json()
+                except ClientResponseError as e:
+                    raise AirflowException(str(e.status) + ":" + e.message)
+
+    async def get_job_status(
+        self, run_id: int, account_id: int | None = None, include_related: list[str] | None = None
+    ) -> int:
+        """
+        Retrieves the status for a specific run of a dbt Cloud job.
+
+        :param run_id: The ID of a dbt Cloud job run.
+        :param account_id: Optional. The ID of a dbt Cloud account.
+        :param include_related: Optional. List of related fields to pull with the run.
+            Valid values are "trigger", "job", "repository", and "environment".
+        """
+        try:
+            self.log.info("Getting the status of job run %s.", str(run_id))
+            response = await self.get_job_details(
+                run_id, account_id=account_id, include_related=include_related
+            )
+            job_run_status: int = response["data"]["status"]
+            return job_run_status
+        except Exception as e:
+            raise e
 
     @cached_property
     def connection(self) -> Connection:
@@ -161,6 +272,9 @@ class DbtCloudHook(HttpHook):
         return _connection
 
     def get_conn(self, *args, **kwargs) -> Session:
+        tenant = self._get_tenant_domain(self.connection)
+        self.base_url = f"https://{tenant}/api/v2/accounts/"
+
         session = Session()
         session.auth = self.auth_type(self.connection.password)
 
@@ -252,8 +366,9 @@ class DbtCloudHook(HttpHook):
         project_id: int | None = None,
     ) -> list[Response]:
         """
-        Retrieves metadata for all jobs tied to a specified dbt Cloud account. If a ``project_id`` is
-        supplied, only jobs pertaining to this job will be retrieved.
+        Retrieves metadata for all jobs tied to a specified dbt Cloud account.
+
+        If a ``project_id`` is supplied, only jobs pertaining to this project will be retrieved.
 
         :param account_id: Optional. The ID of a dbt Cloud account.
         :param order_by: Optional. Field to order the result by. Use '-' to indicate reverse order.
@@ -327,8 +442,9 @@ class DbtCloudHook(HttpHook):
         order_by: str | None = None,
     ) -> list[Response]:
         """
-        Retrieves metadata for all of the dbt Cloud job runs for an account. If a ``job_definition_id`` is
-        supplied, only metadata for runs of that specific job are pulled.
+        Retrieves metadata for all dbt Cloud job runs for an account.
+
+        If a ``job_definition_id`` is supplied, only metadata for runs of that specific job are pulled.
 
         :param account_id: Optional. The ID of a dbt Cloud account.
         :param include_related: Optional. List of related fields to pull with the run.
@@ -445,9 +561,10 @@ class DbtCloudHook(HttpHook):
         self, run_id: int, account_id: int | None = None, step: int | None = None
     ) -> list[Response]:
         """
-        Retrieves a list of the available artifact files generated for a completed run of a dbt Cloud job. By
-        default, this returns artifacts from the last step in the run. To list artifacts from other steps in
-        the run, use the ``step`` parameter.
+        Retrieves a list of the available artifact files generated for a completed run of a dbt Cloud job.
+
+        By default, this returns artifacts from the last step in the run. To
+        list artifacts from other steps in the run, use the ``step`` parameter.
 
         :param run_id: The ID of a dbt Cloud job run.
         :param account_id: Optional. The ID of a dbt Cloud account.
@@ -465,9 +582,10 @@ class DbtCloudHook(HttpHook):
         self, run_id: int, path: str, account_id: int | None = None, step: int | None = None
     ) -> Response:
         """
-        Retrieves a list of the available artifact files generated for a completed run of a dbt Cloud job. By
-        default, this returns artifacts from the last step in the run. To list artifacts from other steps in
-        the run, use the ``step`` parameter.
+        Retrieves a list of the available artifact files generated for a completed run of a dbt Cloud job.
+
+        By default, this returns artifacts from the last step in the run. To
+        list artifacts from other steps in the run, use the ``step`` parameter.
 
         :param run_id: The ID of a dbt Cloud job run.
         :param path: The file path related to the artifact file. Paths are rooted at the target/ directory.

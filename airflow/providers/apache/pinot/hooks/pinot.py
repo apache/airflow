@@ -32,6 +32,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 class PinotAdminHook(BaseHook):
     """
     This hook is a wrapper around the pinot-admin.sh script.
+
     For now, only small subset of its subcommands are implemented,
     which are required to ingest offline data into Apache Pinot
     (i.e., AddSchema, AddTable, CreateSegment, and UploadSegment).
@@ -46,7 +47,10 @@ class PinotAdminHook(BaseHook):
     following PR: https://github.com/apache/incubator-pinot/pull/4110
 
     :param conn_id: The name of the connection to use.
-    :param cmd_path: The filepath to the pinot-admin.sh executable
+    :param cmd_path: Do not modify the parameter. It used to be the filepath to the pinot-admin.sh
+           executable but in version 4.0.0 of apache-pinot provider, value of this parameter must
+           remain the default value: `pinot-admin.sh`. It is left here to not accidentally override
+           the `pinot_admin_system_exit` in case positional parameters were used to initialize the hook.
     :param pinot_admin_system_exit: If true, the result is evaluated based on the status code.
                                     Otherwise, the result is evaluated as a failure if "Error" or
                                     "Exception" is in the output message.
@@ -62,7 +66,15 @@ class PinotAdminHook(BaseHook):
         conn = self.get_connection(conn_id)
         self.host = conn.host
         self.port = str(conn.port)
-        self.cmd_path = conn.extra_dejson.get("cmd_path", cmd_path)
+        if cmd_path != "pinot-admin.sh":
+            raise RuntimeError(
+                "In version 4.0.0 of the PinotAdminHook the cmd_path has been hard-coded to"
+                " pinot-admin.sh. In order to avoid accidental using of this parameter as"
+                " positional `pinot_admin_system_exit` the `cmd_parameter`"
+                " parameter is left here but you should not modify it. Make sure that "
+                " `pinot-admin.sh` is on your PATH and do not change cmd_path value."
+            )
+        self.cmd_path = "pinot-admin.sh"
         self.pinot_admin_system_exit = conn.extra_dejson.get(
             "pinot_admin_system_exit", pinot_admin_system_exit
         )
@@ -73,7 +85,7 @@ class PinotAdminHook(BaseHook):
 
     def add_schema(self, schema_file: str, with_exec: bool = True) -> Any:
         """
-        Add Pinot schema by run AddSchema command
+        Add Pinot schema by run AddSchema command.
 
         :param schema_file: Pinot schema file
         :param with_exec: bool
@@ -88,7 +100,7 @@ class PinotAdminHook(BaseHook):
 
     def add_table(self, file_path: str, with_exec: bool = True) -> Any:
         """
-        Add Pinot table with run AddTable command
+        Add Pinot table with run AddTable command.
 
         :param file_path: Pinot table configure file
         :param with_exec: bool
@@ -122,7 +134,7 @@ class PinotAdminHook(BaseHook):
         post_creation_verification: str | None = None,
         retry: str | None = None,
     ) -> Any:
-        """Create Pinot segment by run CreateSegment command"""
+        """Create Pinot segment by run CreateSegment command."""
         cmd = ["CreateSegment"]
 
         if generator_config_file:
@@ -183,7 +195,7 @@ class PinotAdminHook(BaseHook):
 
     def upload_segment(self, segment_dir: str, table_name: str | None = None) -> Any:
         """
-        Upload Segment with run UploadSegment command
+        Upload Segment with run UploadSegment command.
 
         :param segment_dir:
         :param table_name:
@@ -199,7 +211,7 @@ class PinotAdminHook(BaseHook):
 
     def run_cli(self, cmd: list[str], verbose: bool = True) -> str:
         """
-        Run command with pinot-admin.sh
+        Run command with pinot-admin.sh.
 
         :param cmd: List of command going to be run by pinot-admin.sh script
         :param verbose:
@@ -213,13 +225,12 @@ class PinotAdminHook(BaseHook):
 
         if verbose:
             self.log.info(" ".join(command))
-
         with subprocess.Popen(
             command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True, env=env
         ) as sub_process:
             stdout = ""
             if sub_process.stdout:
-                for line in iter(sub_process.stdout.readline, b''):
+                for line in iter(sub_process.stdout.readline, b""):
                     stdout += line.decode("utf-8")
                     if verbose:
                         self.log.info(line.decode("utf-8").strip())
@@ -239,14 +250,14 @@ class PinotAdminHook(BaseHook):
 
 class PinotDbApiHook(DbApiHook):
     """
-    Interact with Pinot Broker Query API
+    Interact with Pinot Broker Query API.
 
     This hook uses standard-SQL endpoint since PQL endpoint is soon to be deprecated.
     https://docs.pinot.apache.org/users/api/querying-pinot-using-standard-sql
     """
 
-    conn_name_attr = 'pinot_broker_conn_id'
-    default_conn_name = 'pinot_broker_default'
+    conn_name_attr = "pinot_broker_conn_id"
+    default_conn_name = "pinot_broker_default"
     supports_autocommit = False
 
     def get_conn(self) -> Any:
@@ -256,10 +267,10 @@ class PinotDbApiHook(DbApiHook):
         pinot_broker_conn = connect(
             host=conn.host,
             port=conn.port,
-            path=conn.extra_dejson.get('endpoint', '/query/sql'),
-            scheme=conn.extra_dejson.get('schema', 'http'),
+            path=conn.extra_dejson.get("endpoint", "/query/sql"),
+            scheme=conn.extra_dejson.get("schema", "http"),
         )
-        self.log.info('Get the connection to pinot broker on %s', conn.host)
+        self.log.info("Get the connection to pinot broker on %s", conn.host)
         return pinot_broker_conn
 
     def get_uri(self) -> str:
@@ -271,10 +282,10 @@ class PinotDbApiHook(DbApiHook):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         host = conn.host
         if conn.port is not None:
-            host += f':{conn.port}'
-        conn_type = conn.conn_type or 'http'
-        endpoint = conn.extra_dejson.get('endpoint', 'query/sql')
-        return f'{conn_type}://{host}/{endpoint}'
+            host += f":{conn.port}"
+        conn_type = conn.conn_type or "http"
+        endpoint = conn.extra_dejson.get("endpoint", "query/sql")
+        return f"{conn_type}://{host}/{endpoint}"
 
     def get_records(
         self, sql: str | list[str], parameters: Iterable | Mapping | None = None, **kwargs

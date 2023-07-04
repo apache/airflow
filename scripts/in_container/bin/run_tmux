@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 if [ ! -e /usr/local/bin/stop_airflow ]; then
     ln -s "/opt/airflow/scripts/in_container/stop_tmux_airflow.sh" /usr/local/bin/stop_airflow || true
 fi
@@ -68,6 +67,17 @@ if python -c 'import sys; sys.exit(sys.version_info < (3, 7))'; then
     tmux select-pane -t 0
     tmux split-window -h
     tmux send-keys 'airflow triggerer' C-m
+fi
+if [[ ${INTEGRATION_CELERY} == "true" ]]; then
+    tmux select-pane -t 0
+    tmux split-window -h
+    tmux send-keys 'airflow celery worker' C-m
+fi
+
+if [[ ${INTEGRATION_CELERY} == "true" && ${CELERY_FLOWER} == "true" ]]; then
+    tmux select-pane -t 3
+    tmux split-window -h
+    tmux send-keys 'airflow celery flower' C-m
 fi
 
 # Attach Session, on the Main window

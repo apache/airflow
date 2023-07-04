@@ -20,16 +20,22 @@
 /* global moment, document */
 
 import React, {
-  useContext, useEffect, useState, useMemo, PropsWithChildren,
-} from 'react';
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+  PropsWithChildren,
+} from "react";
 
-import { TimezoneEvent } from '../datetime_utils';
+import { TimezoneEvent } from "../datetime_utils";
 
-const TimezoneContext = React.createContext({ timezone: 'UTC' });
+const TimezoneContext = React.createContext({ timezone: "UTC" });
 
 export const TimezoneProvider = ({ children }: PropsWithChildren) => {
-  // @ts-ignores: defaultZone not recognize in moment.
-  const [timezone, setTimezone] = useState((moment.defaultZone && moment.defaultZone.name) || 'UTC');
+  const [timezone, setTimezone] = useState(
+    // @ts-ignores: defaultZone not recognize in moment.
+    (moment.defaultZone && moment.defaultZone.name) || "UTC"
+  );
 
   const handleChange = (e: CustomEvent<string>) => {
     if (e.detail && e.detail !== timezone) setTimezone(e.detail);
@@ -38,7 +44,10 @@ export const TimezoneProvider = ({ children }: PropsWithChildren) => {
   useEffect(() => {
     document.addEventListener(TimezoneEvent, handleChange as EventListener);
     return () => {
-      document.removeEventListener(TimezoneEvent, handleChange as EventListener);
+      document.removeEventListener(
+        TimezoneEvent,
+        handleChange as EventListener
+      );
     };
   });
 

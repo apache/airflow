@@ -28,25 +28,56 @@ You can set up your code to automatically trigger from other AWS services or cal
 Prerequisite Tasks
 ------------------
 
-.. include:: _partials/prerequisite_tasks.rst
+.. include:: ../_partials/prerequisite_tasks.rst
 
 Operators
 ---------
 
-.. _howto/operator:AwsLambdaInvokeFunctionOperator:
+.. _howto/operator:LambdaCreateFunctionOperator:
+
+Create an AWS Lambda function
+=============================
+
+To create an AWS lambda function you can use
+:class:`~airflow.providers.amazon.aws.operators.lambda_function.LambdaCreateFunctionOperator`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_lambda.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_create_lambda_function]
+    :end-before: [END howto_operator_create_lambda_function]
+
+.. _howto/operator:LambdaInvokeFunctionOperator:
 
 Invoke an AWS Lambda function
 =============================
 
 To invoke an AWS lambda function you can use
-:class:`~airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator`.
-
+:class:`~airflow.providers.amazon.aws.operators.lambda_function.LambdaInvokeFunctionOperator`.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_lambda.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_lambda]
-    :end-before: [END howto_operator_lambda]
+    :start-after: [START howto_operator_invoke_lambda_function]
+    :end-before: [END howto_operator_invoke_lambda_function]
+
+Sensors
+---------
+
+.. _howto/sensor:LambdaFunctionStateSensor:
+
+Wait on an Amazon Lambda function state
+=======================================
+
+To check the state of an Amazon Lambda function until it reaches the target state or another terminal
+state you can use :class:`~airflow.providers.amazon.aws.sensors.lambda_function.LambdaFunctionStateSensor`.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_lambda.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_lambda_function_state]
+    :end-before: [END howto_sensor_lambda_function_state]
+
 
 Reference
 ---------

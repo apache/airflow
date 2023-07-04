@@ -1,61 +1,87 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "array",
-  "items": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
-    "properties": {
-      "name": {
-        "type": "string"
-      },
-      "description": {
-        "type": ["string", "null"]
-      },
-      "options": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "properties": {
-            "name": {
-              "type": "string"
-            },
+    "additionalProperties": {
+        "type": "object",
+        "properties": {
             "description": {
-              "type": ["string", "null"]
+                "type": [
+                    "string",
+                    "null"
+                ]
             },
-            "version_added": {
-              "type": ["string", "null"]
+            "options": {
+                "type": "object",
+                "additionalProperties": {
+                    "$ref": "#/definitions/option"
+                }
             },
-            "type": {
-              "type": "string",
-              "enum": ["string", "boolean", "integer", "float"]
-            },
-            "example": {
-              "type": ["string", "null", "number"]
-            },
-            "default": {
-              "type": ["string", "null", "number"]
-            },
-            "sensitive": {
-              "type": "boolean",
-              "description": "When true, this option is sensitive and can be specified using AIRFLOW__{section}___{name}__SECRET or AIRFLOW__{section}___{name}_CMD environment variables. See: airflow.configuration.AirflowConfigParser.sensitive_config_values"
+            "renamed": {
+                "type": "object",
+                "properties": {
+                    "previous_name": {"type": "string"},
+                    "version": {"type": "string"}
+                }
             }
-          },
-          "required": [
-            "name",
+        },
+        "required": [
             "description",
-            "version_added",
-            "type",
-            "example",
-            "default"
-          ],
-          "additional_properties": false
-        }
-      }
+            "options"
+        ],
+        "additionalProperties": false
     },
-    "required": [
-      "name",
-      "description",
-      "options"
-    ],
-    "additional_properties": false
-  }
+    "definitions": {
+        "option": {
+            "type": "object",
+            "properties": {
+                "description": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "version_added": {
+                    "type": [
+                        "string",
+                        "null"
+                    ]
+                },
+                "type": {
+                    "type": "string",
+                    "enum": [
+                        "string",
+                        "boolean",
+                        "integer",
+                        "float"
+                    ]
+                },
+                "example": {
+                    "type": [
+                        "string",
+                        "null",
+                        "number"
+                    ]
+                },
+                "default": {
+                    "type": [
+                        "string",
+                        "null",
+                        "number"
+                    ]
+                },
+                "sensitive": {
+                    "type": "boolean",
+                    "description": "When true, this option is sensitive and can be specified using AIRFLOW__{section}___{name}__SECRET or AIRFLOW__{section}___{name}_CMD environment variables. See: airflow.configuration.AirflowConfigParser.sensitive_config_values"
+                }
+            },
+            "required": [
+                "description",
+                "version_added",
+                "type",
+                "example",
+                "default"
+            ],
+            "additional_properties": false
+        }
+    }
 }

@@ -28,16 +28,16 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = 'a4c2fd67d16b'
-down_revision = '7939bcff74ba'
+revision = "a4c2fd67d16b"
+down_revision = "7939bcff74ba"
 branch_labels = None
 depends_on = None
-airflow_version = '1.10.10'
+airflow_version = "1.10.10"
 
 
 def upgrade():
-    op.add_column('task_instance', sa.Column('pool_slots', sa.Integer, default=1))
+    op.add_column("task_instance", sa.Column("pool_slots", sa.Integer, default=1))
 
 
 def downgrade():
-    op.drop_column('task_instance', 'pool_slots')
+    op.drop_column("task_instance", "pool_slots")

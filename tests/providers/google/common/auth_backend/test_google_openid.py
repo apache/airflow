@@ -21,7 +21,6 @@ from unittest import mock
 import pytest
 from flask_login import current_user
 from google.auth.exceptions import GoogleAuthError
-from parameterized import parameterized
 
 from airflow.www.app import create_app
 from tests.test_utils.config import conf_vars
@@ -32,7 +31,7 @@ from tests.test_utils.db import clear_db_pools
 def google_openid_app():
     confs = {
         ("api", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid",
-        ('api', 'enable_experimental_api'): 'true',
+        ("api", "enable_experimental_api"): "true",
     }
     with conf_vars(confs):
         return create_app(testing=True)
@@ -79,9 +78,9 @@ class TestGoogleOpenID:
         assert 200 == response.status_code
         assert "Default pool" in str(response.json)
 
-    @parameterized.expand([("bearer",), ("JWT_TOKEN",), ("bearer ",)])
+    @pytest.mark.parametrize("auth_header", ["bearer", "JWT_TOKEN", "bearer "])
     @mock.patch("google.oauth2.id_token.verify_token")
-    def test_malformed_headers(self, auth_header, mock_verify_token):
+    def test_malformed_headers(self, mock_verify_token, auth_header):
         mock_verify_token.return_value = {
             "iss": "accounts.google.com",
             "email_verified": True,

@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING, ClassVar
 
 from airflow.models import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -32,7 +31,7 @@ BASE_AWS_CONSOLE_LINK = "https://console.{aws_domain}"
 
 
 class BaseAwsLink(BaseOperatorLink):
-    """Base Helper class for constructing AWS Console Link"""
+    """Base Helper class for constructing AWS Console Link."""
 
     name: ClassVar[str]
     key: ClassVar[str]
@@ -51,7 +50,7 @@ class BaseAwsLink(BaseOperatorLink):
 
     def format_link(self, **kwargs) -> str:
         """
-        Format AWS Service Link
+        Format AWS Service Link.
 
         Some AWS Service Link should require additional escaping
         in this case this method should be overridden.
@@ -63,37 +62,25 @@ class BaseAwsLink(BaseOperatorLink):
 
     def get_link(
         self,
-        operator,
-        dttm: datetime | None = None,
-        ti_key: TaskInstanceKey | None = None,
+        operator: BaseOperator,
+        *,
+        ti_key: TaskInstanceKey,
     ) -> str:
         """
         Link to Amazon Web Services Console.
 
         :param operator: airflow operator
         :param ti_key: TaskInstance ID to return link for
-        :param dttm: execution date. Uses for compatibility with Airflow 2.2
         :return: link to external system
         """
-        if ti_key is not None:
-            conf = XCom.get_value(key=self.key, ti_key=ti_key)
-        elif not dttm:
-            conf = {}
-        else:
-            conf = XCom.get_one(
-                key=self.key,
-                dag_id=operator.dag.dag_id,
-                task_id=operator.task_id,
-                execution_date=dttm,
-            )
-
+        conf = XCom.get_value(key=self.key, ti_key=ti_key)
         return self.format_link(**conf) if conf else ""
 
     @classmethod
     def persist(
         cls, context: Context, operator: BaseOperator, region_name: str, aws_partition: str, **kwargs
     ) -> None:
-        """Store link information into XCom"""
+        """Store link information into XCom."""
         if not operator.do_xcom_push:
             return
 

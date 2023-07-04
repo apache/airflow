@@ -22,14 +22,15 @@ from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
 from unittest import mock
-from urllib.parse import ParseResult, urlparse
+from urllib.parse import ParseResult, urlsplit
 
 import pytest
+import time_machine
 import yaml
 from _pytest._code import ExceptionInfo
 from botocore.exceptions import ClientError
-from freezegun import freeze_time
-from moto.core import ACCOUNT_ID
+from moto import mock_eks
+from moto.core import DEFAULT_ACCOUNT_ID
 from moto.core.exceptions import AWSError
 from moto.eks.exceptions import (
     InvalidParameterException,
@@ -68,7 +69,6 @@ from ..utils.eks_test_constants import (
     NON_EXISTING_CLUSTER_NAME,
     NON_EXISTING_FARGATE_PROFILE_NAME,
     NON_EXISTING_NODEGROUP_NAME,
-    PACKAGE_NOT_PRESENT_MSG,
     PARTITION,
     POD_EXECUTION_ROLE_ARN,
     REGION,
@@ -94,11 +94,6 @@ from ..utils.eks_test_utils import (
     iso_date,
     region_matches_partition,
 )
-
-try:
-    from moto import mock_eks
-except ImportError:
-    mock_eks = None
 
 
 @pytest.fixture(scope="function")
@@ -223,7 +218,6 @@ def nodegroup_builder(cluster_builder):
     return _execute
 
 
-@pytest.mark.skipif(mock_eks is None, reason=PACKAGE_NOT_PRESENT_MSG)
 class TestEksHooks:
     def test_hook(self, cluster_builder) -> None:
         eks_hook, _ = cluster_builder()
@@ -294,7 +288,7 @@ class TestEksHooks:
         expected_arn_values: list = [
             PARTITION,
             REGION,
-            ACCOUNT_ID,
+            DEFAULT_ACCOUNT_ID,
             generated_test_data.cluster_names,
         ]
 
@@ -304,7 +298,7 @@ class TestEksHooks:
             arn_under_test=generated_test_data.cluster_describe_output[ClusterAttributes.ARN],
         )
 
-    @freeze_time(FROZEN_TIME)
+    @time_machine.travel(FROZEN_TIME, tick=False)
     def test_create_cluster_generates_valid_cluster_created_timestamp(self, cluster_builder) -> None:
         _, generated_test_data = cluster_builder()
 
@@ -509,7 +503,7 @@ class TestEksHooks:
         expected_arn_values: list = [
             PARTITION,
             REGION,
-            ACCOUNT_ID,
+            DEFAULT_ACCOUNT_ID,
             generated_test_data.cluster_name,
             generated_test_data.nodegroup_names,
             None,
@@ -521,7 +515,7 @@ class TestEksHooks:
             arn_under_test=generated_test_data.nodegroup_describe_output[NodegroupAttributes.ARN],
         )
 
-    @freeze_time(FROZEN_TIME)
+    @time_machine.travel(FROZEN_TIME, tick=False)
     def test_create_nodegroup_generates_valid_nodegroup_created_timestamp(self, nodegroup_builder) -> None:
         _, generated_test_data = nodegroup_builder()
 
@@ -529,7 +523,7 @@ class TestEksHooks:
 
         assert iso_date(result_time) == FROZEN_TIME
 
-    @freeze_time(FROZEN_TIME)
+    @time_machine.travel(FROZEN_TIME, tick=False)
     def test_create_nodegroup_generates_valid_nodegroup_modified_timestamp(self, nodegroup_builder) -> None:
         _, generated_test_data = nodegroup_builder()
 
@@ -777,8 +771,8 @@ class TestEksHooks:
             expected_output = deepcopy(test_inputs)
             # The Create Nodegroup hook magically adds the required
             # cluster/owned tag, so add that to the expected outputs.
-            expected_output['tags'] = {
-                f'kubernetes.io/cluster/{generated_test_data.existing_cluster_name}': 'owned'
+            expected_output["tags"] = {
+                f"kubernetes.io/cluster/{generated_test_data.existing_cluster_name}": "owned"
             }
 
             for key, expected_value in expected_output.items():
@@ -911,7 +905,7 @@ class TestEksHooks:
         expected_arn_values: list = [
             PARTITION,
             REGION,
-            ACCOUNT_ID,
+            DEFAULT_ACCOUNT_ID,
             generated_test_data.cluster_name,
             generated_test_data.fargate_profile_names,
             None,
@@ -923,7 +917,7 @@ class TestEksHooks:
             arn_under_test=generated_test_data.fargate_describe_output[FargateProfileAttributes.ARN],
         )
 
-    @freeze_time(FROZEN_TIME)
+    @time_machine.travel(FROZEN_TIME, tick=False)
     def test_create_fargate_profile_generates_valid_created_timestamp(self, fargate_profile_builder) -> None:
         _, generated_test_data = fargate_profile_builder()
 
@@ -1104,7 +1098,7 @@ class TestEksHooks:
         (
             [
                 {FargateProfileAttributes.NAMESPACE: DEFAULT_NAMESPACE},
-                {FargateProfileAttributes.NAMESPACE: f'{DEFAULT_NAMESPACE}_2'},
+                {FargateProfileAttributes.NAMESPACE: f"{DEFAULT_NAMESPACE}_2"},
             ],
             None,
             PossibleTestResults.SUCCESS,
@@ -1200,114 +1194,117 @@ class TestEksHooks:
 
 
 class TestEksHook:
-    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn')
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
     @pytest.mark.parametrize(
         "aws_conn_id, region_name, expected_args",
         [
             [
-                'test-id',
-                'test-region',
+                "test-id",
+                "test-region",
                 [
-                    '-m',
-                    'airflow.providers.amazon.aws.utils.eks_get_token',
-                    '--region-name',
-                    'test-region',
-                    '--aws-conn-id',
-                    'test-id',
-                    '--cluster-name',
-                    'test-cluster',
+                    "-m",
+                    "airflow.providers.amazon.aws.utils.eks_get_token",
+                    "--region-name",
+                    "test-region",
+                    "--aws-conn-id",
+                    "test-id",
+                    "--cluster-name",
+                    "test-cluster",
                 ],
             ],
             [
                 None,
-                'test-region',
+                "test-region",
                 [
-                    '-m',
-                    'airflow.providers.amazon.aws.utils.eks_get_token',
-                    '--region-name',
-                    'test-region',
-                    '--cluster-name',
-                    'test-cluster',
+                    "-m",
+                    "airflow.providers.amazon.aws.utils.eks_get_token",
+                    "--region-name",
+                    "test-region",
+                    "--cluster-name",
+                    "test-cluster",
                 ],
             ],
             [
                 None,
                 None,
-                ['-m', 'airflow.providers.amazon.aws.utils.eks_get_token', '--cluster-name', 'test-cluster'],
+                ["-m", "airflow.providers.amazon.aws.utils.eks_get_token", "--cluster-name", "test-cluster"],
             ],
         ],
     )
     def test_generate_config_file(self, mock_conn, aws_conn_id, region_name, expected_args):
         mock_conn.describe_cluster.return_value = {
-            'cluster': {'certificateAuthority': {'data': 'test-cert'}, 'endpoint': 'test-endpoint'}
+            "cluster": {"certificateAuthority": {"data": "test-cert"}, "endpoint": "test-endpoint"}
         }
         hook = EksHook(aws_conn_id=aws_conn_id, region_name=region_name)
+        # We're mocking all actual AWS calls and don't need a connection. This
+        # avoids an Airflow warning about connection cannot be found.
+        hook.get_connection = lambda _: None
         with hook.generate_config_file(
-            eks_cluster_name='test-cluster', pod_namespace='k8s-namespace'
+            eks_cluster_name="test-cluster", pod_namespace="k8s-namespace"
         ) as config_file:
             config = yaml.safe_load(Path(config_file).read_text())
             assert config == {
-                'apiVersion': 'v1',
-                'kind': 'Config',
-                'clusters': [
+                "apiVersion": "v1",
+                "kind": "Config",
+                "clusters": [
                     {
-                        'cluster': {'server': 'test-endpoint', 'certificate-authority-data': 'test-cert'},
-                        'name': 'test-cluster',
+                        "cluster": {"server": "test-endpoint", "certificate-authority-data": "test-cert"},
+                        "name": "test-cluster",
                     }
                 ],
-                'contexts': [
+                "contexts": [
                     {
-                        'context': {'cluster': 'test-cluster', 'namespace': 'k8s-namespace', 'user': 'aws'},
-                        'name': 'aws',
+                        "context": {"cluster": "test-cluster", "namespace": "k8s-namespace", "user": "aws"},
+                        "name": "aws",
                     }
                 ],
-                'current-context': 'aws',
-                'preferences': {},
-                'users': [
+                "current-context": "aws",
+                "preferences": {},
+                "users": [
                     {
-                        'name': 'aws',
-                        'user': {
-                            'exec': {
-                                'apiVersion': 'client.authentication.k8s.io/v1alpha1',
-                                'args': expected_args,
-                                'command': sys.executable,
-                                'env': [{'name': 'AIRFLOW__LOGGING__LOGGING_LEVEL', 'value': 'FATAL'}],
-                                'interactiveMode': 'Never',
+                        "name": "aws",
+                        "user": {
+                            "exec": {
+                                "apiVersion": "client.authentication.k8s.io/v1alpha1",
+                                "args": expected_args,
+                                "command": sys.executable,
+                                "env": [{"name": "AIRFLOW__LOGGING__LOGGING_LEVEL", "value": "FATAL"}],
+                                "interactiveMode": "Never",
                             }
                         },
                     }
                 ],
             }
 
-    @mock.patch('airflow.providers.amazon.aws.hooks.eks.RequestSigner')
-    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn')
-    @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_session')
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.RequestSigner")
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.conn")
+    @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_session")
     def test_fetch_access_token_for_cluster(self, mock_get_session, mock_conn, mock_signer):
-        mock_signer.return_value.generate_presigned_url.return_value = 'http://example.com'
-        mock_get_session.return_value.region_name = 'us-east-1'
+        mock_signer.return_value.generate_presigned_url.return_value = "http://example.com"
+        mock_get_session.return_value.region_name = "us-east-1"
         hook = EksHook()
-        token = hook.fetch_access_token_for_cluster(eks_cluster_name='test-cluster')
+        token = hook.fetch_access_token_for_cluster(eks_cluster_name="test-cluster")
         mock_signer.assert_called_once_with(
             service_id=mock_conn.meta.service_model.service_id,
-            region_name='us-east-1',
-            signing_name='sts',
-            signature_version='v4',
+            region_name="us-east-1",
+            signing_name="sts",
+            signature_version="v4",
             credentials=mock_get_session.return_value.get_credentials.return_value,
             event_emitter=mock_get_session.return_value.events,
         )
         mock_signer.return_value.generate_presigned_url.assert_called_once_with(
             request_dict={
-                'method': 'GET',
-                'url': 'https://sts.us-east-1.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15',
-                'body': {},
-                'headers': {'x-k8s-aws-id': 'test-cluster'},
-                'context': {},
+                "method": "GET",
+                "url": "https://sts.us-east-1.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15",
+                "body": {},
+                "headers": {"x-k8s-aws-id": "test-cluster"},
+                "context": {},
             },
-            region_name='us-east-1',
+            region_name="us-east-1",
             expires_in=60,
-            operation_name='',
+            operation_name="",
         )
-        assert token == 'k8s-aws-v1.aHR0cDovL2V4YW1wbGUuY29t'
+        assert token == "k8s-aws-v1.aHR0cDovL2V4YW1wbGUuY29t"
 
 
 # Helper methods for repeated assert combinations.
@@ -1350,7 +1347,7 @@ def assert_result_matches_expected_list(
 
 
 def assert_is_valid_uri(value: str) -> None:
-    result: ParseResult = urlparse(value)
+    result: ParseResult = urlsplit(value)
 
     assert all([result.scheme, result.netloc, result.path])
     assert REGION in value

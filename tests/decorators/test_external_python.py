@@ -27,7 +27,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from airflow.decorators import task
+from airflow.decorators import setup, task, teardown
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -36,10 +36,10 @@ INTERVAL = timedelta(hours=12)
 FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 
 TI_CONTEXT_ENV_VARS = [
-    'AIRFLOW_CTX_DAG_ID',
-    'AIRFLOW_CTX_TASK_ID',
-    'AIRFLOW_CTX_EXECUTION_DATE',
-    'AIRFLOW_CTX_DAG_RUN_ID',
+    "AIRFLOW_CTX_DAG_ID",
+    "AIRFLOW_CTX_TASK_ID",
+    "AIRFLOW_CTX_EXECUTION_DATE",
+    "AIRFLOW_CTX_DAG_RUN_ID",
 ]
 
 
@@ -124,4 +124,50 @@ class TestExternalPythonDecorator:
         with dag_maker():
             ret = f(datetime.datetime.utcnow())
 
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_marking_external_python_task_as_setup(self, dag_maker, venv_python):
+        @setup
+        @task.external_python(python=venv_python)
+        def f():
+            return 1
+
+        with dag_maker() as dag:
+            ret = f()
+
+        assert len(dag.task_group.children) == 1
+        setup_task = dag.task_group.children["f"]
+        assert setup_task.is_setup
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    def test_marking_external_python_task_as_teardown(self, dag_maker, venv_python):
+        @teardown
+        @task.external_python(python=venv_python)
+        def f():
+            return 1
+
+        with dag_maker() as dag:
+            ret = f()
+
+        assert len(dag.task_group.children) == 1
+        teardown_task = dag.task_group.children["f"]
+        assert teardown_task.is_teardown
+        ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+    @pytest.mark.parametrize("on_failure_fail_dagrun", [True, False])
+    def test_marking_external_python_task_as_teardown_with_on_failure_fail(
+        self, dag_maker, on_failure_fail_dagrun, venv_python
+    ):
+        @teardown(on_failure_fail_dagrun=on_failure_fail_dagrun)
+        @task.external_python(python=venv_python)
+        def f():
+            return 1
+
+        with dag_maker() as dag:
+            ret = f()
+
+        assert len(dag.task_group.children) == 1
+        teardown_task = dag.task_group.children["f"]
+        assert teardown_task.is_teardown
+        assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

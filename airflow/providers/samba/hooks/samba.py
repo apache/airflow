@@ -39,10 +39,10 @@ class SambaHook(BaseHook):
         the connection is used in its place.
     """
 
-    conn_name_attr = 'samba_conn_id'
-    default_conn_name = 'samba_default'
-    conn_type = 'samba'
-    hook_name = 'Samba'
+    conn_name_attr = "samba_conn_id"
+    default_conn_name = "samba_default"
+    conn_type = "samba"
+    hook_name = "Samba"
 
     def __init__(self, samba_conn_id: str = default_conn_name, share: str | None = None) -> None:
         super().__init__()
@@ -243,6 +243,6 @@ class SambaHook(BaseHook):
         )
 
     def push_from_local(self, destination_filepath: str, local_filepath: str):
-        """Push local file to samba server"""
+        """Push local file to samba server."""
         with open(local_filepath, "rb") as f, self.open_file(destination_filepath, mode="wb") as g:
             copyfileobj(f, g)

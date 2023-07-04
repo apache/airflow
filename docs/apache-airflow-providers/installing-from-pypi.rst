@@ -26,17 +26,25 @@ Installation tools
 
 Only ``pip`` installation is currently officially supported.
 
-While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
-`pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
-``pip`` - especially when it comes to constraint vs. requirements management.
-Installing via ``Poetry`` or ``pip-tools`` is not currently supported. If you wish to install airflow
-using those tools you should use the constraints and convert them to appropriate
-format and workflow that your tool requires.
+.. note::
+
+  While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
+  `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as
+  ``pip`` - especially when it comes to constraint vs. requirements management.
+  Installing via ``Poetry`` or ``pip-tools`` is not currently supported. If you wish to install airflow
+  using those tools you should use the constraints and convert them to appropriate
+  format and workflow that your tool requires.
+
+  There are known issues with ``bazel`` that might lead to circular dependencies when using it to install
+  Airflow. Please switch to ``pip`` if you encounter such problems. ``Bazel`` community works on fixing
+  the problem in `this PR <https://github.com/bazelbuild/rules_python/pull/1166>`_ so it might be that
+  newer versions of ``bazel`` will handle it.
+
 
 Typical command to install airflow from PyPI looks like below (you need to use the right Airflow version and Python version):
 
 .. code-block::
 
-    pip install "apache-airflow-providers-celery" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.3.0/constraints-3.7.txt"
+    pip install "apache-airflow-providers-celery" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.3.0/constraints-3.8.txt"
 
 This is an example, see :doc:`apache-airflow:installation/installing-from-pypi` for more examples, including how to upgrade the providers.

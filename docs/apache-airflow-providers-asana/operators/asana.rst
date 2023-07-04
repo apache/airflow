@@ -16,7 +16,6 @@
     under the License.
 
 
-
 .. _howto/operator:AsanaCreateTaskOperator:
 
 AsanaCreateTaskOperator
@@ -27,7 +26,7 @@ create an Asana task.
 
 
 Using the Operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 The AsanaCreateTaskOperator minimally requires the new task's name and
 the Asana connection to use to connect to your account (``conn_id``). There are many other
@@ -46,7 +45,7 @@ delete an existing Asana task.
 
 
 Using the Operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 The AsanaDeleteTaskOperator requires the task id to delete. Use the ``conn_id``
 parameter to specify the Asana connection to use to connect to your account.
@@ -55,14 +54,14 @@ parameter to specify the Asana connection to use to connect to your account.
 .. _howto/operator:AsanaFindTaskOperator:
 
 AsanaFindTaskOperator
-=======================
+=====================
 
 Use the :class:`~airflow.providers.asana.operators.AsanaFindTaskOperator` to
 search for Asana tasks that fit some criteria.
 
 
 Using the Operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 The AsanaFindTaskOperator requires a dict of search parameters following the description
 `here <https://developers.asana.com/docs/get-multiple-tasks>`_.
@@ -80,7 +79,7 @@ update an existing Asana task.
 
 
 Using the Operator
-^^^^^^^^^^^^^^^^^^
+------------------
 
 The AsanaUpdateTaskOperator minimally requires the task id to update and
 the Asana connection to use to connect to your account (``conn_id``). There are many other

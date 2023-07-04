@@ -19,73 +19,229 @@
 
 /* global localStorage */
 
-import React, { useState } from 'react';
-import {
-  Box,
-  Flex,
-  useDisclosure,
-  Divider,
-  Spinner,
-} from '@chakra-ui/react';
-import { isEmpty, debounce } from 'lodash';
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { Box, Flex, Divider, Spinner, useDisclosure } from "@chakra-ui/react";
+import { isEmpty, debounce } from "lodash";
 
-import useSelection from 'src/dag/useSelection';
-import { useGridData } from 'src/api';
-import { hoverDelay } from 'src/utils';
+import { useGridData } from "src/api";
+import { hoverDelay } from "src/utils";
 
-import Details from './details';
-import Grid from './grid';
-import FilterBar from './nav/FilterBar';
-import LegendRow from './nav/LegendRow';
+import ShortcutCheatSheet from "src/components/ShortcutCheatSheet";
+import { useKeysPress } from "src/utils/useKeysPress";
+import Details from "./details";
+import Grid from "./grid";
+import FilterBar from "./nav/FilterBar";
+import LegendRow from "./nav/LegendRow";
+import useToggleGroups from "./useToggleGroups";
+import keyboardShortcutIdentifier from "./keyboardShortcutIdentifier";
 
-const detailsPanelKey = 'hideDetailsPanel';
+const detailsPanelKey = "hideDetailsPanel";
+const minPanelWidth = 300;
+const collapsedWidth = "28px";
+
+const gridWidthKey = "grid-width";
+const saveWidth = debounce(
+  (w) => localStorage.setItem(gridWidthKey, w),
+  hoverDelay
+);
+
+const footerHeight =
+  parseInt(
+    getComputedStyle(
+      document.getElementsByTagName("body")[0]
+    ).paddingBottom.replace("px", ""),
+    10
+  ) || 0;
+const headerHeight =
+  parseInt(
+    getComputedStyle(
+      document.getElementsByTagName("body")[0]
+    ).paddingTop.replace("px", ""),
+    10
+  ) || 0;
 
 const Main = () => {
-  const { data: { groups }, isLoading } = useGridData();
-  const isPanelOpen = localStorage.getItem(detailsPanelKey) !== 'true';
+  const {
+    data: { groups },
+    isLoading,
+  } = useGridData();
+  const [isGridCollapsed, setIsGridCollapsed] = useState(false);
+  const resizeRef = useRef<HTMLDivElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const isPanelOpen = localStorage.getItem(detailsPanelKey) !== "true";
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
-  const { clearSelection } = useSelection();
-  const [hoveredTaskState, setHoveredTaskState] = useState<string | null | undefined>();
+  const [hoveredTaskState, setHoveredTaskState] = useState<
+    string | null | undefined
+  >();
+  const { openGroupIds, onToggleGroups } = useToggleGroups();
+  const oldGridElX = useRef(0);
+
+  const {
+    onClose: onCloseShortcut,
+    isOpen: isOpenShortcut,
+    onToggle: onToggleShortcut,
+  } = useDisclosure();
 
   // Add a debounced delay to not constantly trigger highlighting certain task states
-  const onStatusHover = debounce((state) => setHoveredTaskState(state), hoverDelay);
+  const onStatusHover = debounce(
+    (state) => setHoveredTaskState(state),
+    hoverDelay
+  );
 
   const onStatusLeave = () => {
     setHoveredTaskState(undefined);
     onStatusHover.cancel();
   };
 
+  const gridWidth = localStorage.getItem(gridWidthKey) || undefined;
+
   const onPanelToggle = () => {
     if (!isOpen) {
-      localStorage.setItem(detailsPanelKey, 'false');
+      localStorage.setItem(detailsPanelKey, "false");
     } else {
-      clearSelection();
-      localStorage.setItem(detailsPanelKey, 'true');
+      localStorage.setItem(detailsPanelKey, "true");
+      if (isGridCollapsed) {
+        setIsGridCollapsed(!isGridCollapsed);
+      }
     }
     onToggle();
   };
 
+  const onToggleGridCollapse = useCallback(() => {
+    const gridElement = gridRef.current;
+    if (gridElement) {
+      if (isGridCollapsed) {
+        gridElement.style.width = localStorage.getItem(gridWidthKey) || "";
+      } else {
+        gridElement.style.width = collapsedWidth;
+      }
+      setIsGridCollapsed(!isGridCollapsed);
+    }
+  }, [isGridCollapsed]);
+
+  const resize = useCallback(
+    (e: MouseEvent) => {
+      const gridEl = gridRef.current;
+      if (gridEl) {
+        if (e.x > minPanelWidth && e.x < window.innerWidth - minPanelWidth) {
+          const width = `${e.x}px`;
+          gridEl.style.width = width;
+          saveWidth(width);
+        } else if (
+          // expand grid if cursor moves right
+          e.x < minPanelWidth &&
+          oldGridElX &&
+          oldGridElX.current &&
+          oldGridElX.current < e.x
+        ) {
+          setIsGridCollapsed(false);
+        } else if (
+          // collapse grid if cursor moves left
+          e.x < minPanelWidth / 2 &&
+          oldGridElX &&
+          oldGridElX.current &&
+          oldGridElX.current > e.x
+        ) {
+          onToggleGridCollapse();
+        }
+      }
+      oldGridElX.current = e.x;
+    },
+    [gridRef, onToggleGridCollapse]
+  );
+
+  useEffect(() => {
+    const resizeEl = resizeRef.current;
+    if (resizeEl) {
+      resizeEl.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        document.addEventListener("mousemove", resize);
+      });
+
+      document.addEventListener("mouseup", () => {
+        document.removeEventListener("mousemove", resize);
+      });
+
+      return () => {
+        resizeEl?.removeEventListener("mousedown", resize);
+        document.removeEventListener("mouseup", resize);
+      };
+    }
+    return () => {};
+  }, [resize, isLoading, isOpen]);
+
+  useKeysPress(
+    keyboardShortcutIdentifier.toggleShortcutCheatSheet,
+    onToggleShortcut
+  );
+
   return (
-    <Box>
+    <Box
+      flex={1}
+      height={`calc(100vh - ${footerHeight + headerHeight}px)`}
+      maxHeight={`calc(100vh - ${footerHeight + headerHeight}px)`}
+      minHeight="750px"
+      overflow="hidden"
+      position="relative"
+    >
       <FilterBar />
       <LegendRow onStatusHover={onStatusHover} onStatusLeave={onStatusLeave} />
       <Divider mb={5} borderBottomWidth={2} />
-      <Flex justifyContent="space-between">
-        {isLoading || isEmpty(groups)
-          ? (<Spinner />)
-          : (
-            <>
+      <Flex height="100%">
+        {isLoading || isEmpty(groups) ? (
+          <Spinner />
+        ) : (
+          <>
+            <Box
+              flex={isOpen ? undefined : 1}
+              minWidth={isGridCollapsed ? collapsedWidth : minPanelWidth}
+              ref={gridRef}
+              height="100%"
+              width={isGridCollapsed ? collapsedWidth : gridWidth}
+            >
               <Grid
                 isPanelOpen={isOpen}
                 onPanelToggle={onPanelToggle}
                 hoveredTaskState={hoveredTaskState}
+                openGroupIds={openGroupIds}
+                onToggleGroups={onToggleGroups}
+                isGridCollapsed={isGridCollapsed}
+                setIsGridCollapsed={onToggleGridCollapse}
               />
-              <Box borderLeftWidth={isOpen ? 1 : 0} position="relative">
-                {isOpen && (<Details />)}
-              </Box>
-            </>
-          )}
+            </Box>
+            {isOpen && (
+              <>
+                <Box
+                  width={2}
+                  cursor="ew-resize"
+                  bg="gray.200"
+                  ref={resizeRef}
+                  zIndex={1}
+                />
+                <Box
+                  flex={1}
+                  minWidth={minPanelWidth}
+                  zIndex={1}
+                  bg="white"
+                  height="100%"
+                >
+                  <Details
+                    openGroupIds={openGroupIds}
+                    onToggleGroups={onToggleGroups}
+                    hoveredTaskState={hoveredTaskState}
+                  />
+                </Box>
+              </>
+            )}
+          </>
+        )}
       </Flex>
+      <ShortcutCheatSheet
+        isOpen={isOpenShortcut}
+        onClose={onCloseShortcut}
+        header="Shortcuts to interact with DAGs and Tasks"
+        keyboardShortcutIdentifier={keyboardShortcutIdentifier}
+      />
     </Box>
   );
 };

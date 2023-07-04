@@ -43,15 +43,19 @@ class SpannerHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
     ) -> None:
+        if kwargs.get("delegate_to") is not None:
+            raise RuntimeError(
+                "The `delegate_to` parameter has been deprecated before and finally removed in this version"
+                " of Google Provider. You MUST convert it to `impersonate_chain`"
+            )
         super().__init__(
             gcp_conn_id=gcp_conn_id,
-            delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client = None
+        self._client: Client | None = None
 
     def _get_client(self, project_id: str) -> Client:
         """
@@ -59,7 +63,6 @@ class SpannerHook(GoogleBaseHook):
 
         :param project_id: The ID of the Google Cloud project.
         :return: Client
-        :rtype: google.cloud.spanner_v1.client.Client
         """
         if not self._client:
             self._client = Client(
@@ -72,7 +75,7 @@ class SpannerHook(GoogleBaseHook):
         self,
         instance_id: str,
         project_id: str,
-    ) -> Instance:
+    ) -> Instance | None:
         """
         Gets information about a particular instance.
 
@@ -81,7 +84,6 @@ class SpannerHook(GoogleBaseHook):
             is used.
         :param instance_id: The ID of the Cloud Spanner instance.
         :return: Spanner instance
-        :rtype: google.cloud.spanner_v1.instance.Instance
         """
         instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():
@@ -117,9 +119,9 @@ class SpannerHook(GoogleBaseHook):
             display_name=display_name,
         )
         try:
-            operation = func(instance)  # type: Operation
+            operation: Operation = func(instance)
         except GoogleAPICallError as e:
-            self.log.error('An error occurred: %s. Exiting.', e.message)
+            self.log.error("An error occurred: %s. Exiting.", e.message)
             raise e
 
         if operation:
@@ -202,7 +204,7 @@ class SpannerHook(GoogleBaseHook):
             instance.delete()
             return
         except GoogleAPICallError as e:
-            self.log.error('An error occurred: %s. Exiting.', e.message)
+            self.log.error("An error occurred: %s. Exiting.", e.message)
             raise e
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -222,7 +224,6 @@ class SpannerHook(GoogleBaseHook):
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
         :return: Database object or None if database does not exist
-        :rtype: google.cloud.spanner_v1.database.Database or None
         """
         instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():
@@ -257,9 +258,9 @@ class SpannerHook(GoogleBaseHook):
             raise AirflowException(f"The instance {instance_id} does not exist in project {project_id} !")
         database = instance.database(database_id=database_id, ddl_statements=ddl_statements)
         try:
-            operation = database.create()  # type: Operation
+            operation: Operation = database.create()
         except GoogleAPICallError as e:
-            self.log.error('An error occurred: %s. Exiting.', e.message)
+            self.log.error("An error occurred: %s. Exiting.", e.message)
             raise e
 
         if operation:
@@ -306,7 +307,7 @@ class SpannerHook(GoogleBaseHook):
                 )
                 return
         except GoogleAPICallError as e:
-            self.log.error('An error occurred: %s. Exiting.', e.message)
+            self.log.error("An error occurred: %s. Exiting.", e.message)
             raise e
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -320,7 +321,6 @@ class SpannerHook(GoogleBaseHook):
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
         :return: True if everything succeeded
-        :rtype: bool
         """
         instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
         if not instance.exists():
@@ -334,7 +334,7 @@ class SpannerHook(GoogleBaseHook):
         try:
             database.drop()
         except GoogleAPICallError as e:
-            self.log.error('An error occurred: %s. Exiting.', e.message)
+            self.log.error("An error occurred: %s. Exiting.", e.message)
             raise e
 
         return True

@@ -43,12 +43,12 @@ DAG_ID = "gcs_to_gcs"
 
 BUCKET_NAME_SRC = f"bucket_{DAG_ID}_{ENV_ID}"
 BUCKET_NAME_DST = f"bucket_dst_{DAG_ID}_{ENV_ID}"
-RANDOM_FILE_NAME = OBJECT_1 = OBJECT_2 = "random.bin"
+RANDOM_FILE_NAME = OBJECT_1 = OBJECT_2 = "/tmp/random.bin"
 
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["gcs", "example"],
@@ -169,9 +169,20 @@ with models.DAG(
         source_object="data/",
         destination_bucket=BUCKET_NAME_DST,
         destination_object="backup/",
-        delimiter='.txt',
+        delimiter=".txt",
     )
     # [END howto_operator_gcs_to_gcs_delimiter]
+
+    # [START howto_operator_gcs_to_gcs_match_glob]
+    copy_files_with_match_glob = GCSToGCSOperator(
+        task_id="copy_files_with_match_glob",
+        source_bucket=BUCKET_NAME_SRC,
+        source_object="data/",
+        destination_bucket=BUCKET_NAME_DST,
+        destination_object="backup/",
+        match_glob="**/*.txt",
+    )
+    # [END howto_operator_gcs_to_gcs_match_glob]
 
     # [START howto_operator_gcs_to_gcs_list]
     copy_files_with_list = GCSToGCSOperator(
@@ -213,6 +224,7 @@ with models.DAG(
 
     chain(
         # TEST SETUP
+        generate_random_file,
         [create_bucket_src, create_bucket_dst],
         [upload_file_src, upload_file_src_sub],
         [upload_file_dst, upload_file_dst_sub],
@@ -225,6 +237,7 @@ with models.DAG(
         copy_files_with_wildcard,
         copy_files_without_wildcard,
         copy_files_with_delimiter,
+        copy_files_with_match_glob,
         copy_files_with_list,
         move_single_file,
         move_files_with_list,

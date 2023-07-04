@@ -21,5 +21,5 @@ from airflow.www.security import AirflowSecurityManager
 
 class MockSecurityManager(AirflowSecurityManager):
     VIEWER_VMS = {
-        'Airflow',
+        "Airflow",
     }

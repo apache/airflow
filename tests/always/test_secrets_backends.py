@@ -18,10 +18,9 @@
 from __future__ import annotations
 
 import os
-import unittest
 from unittest import mock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.models.connection import Connection
 from airflow.models.variable import Variable
@@ -41,21 +40,23 @@ class SampleConn:
         self.conn = Connection(conn_id=self.conn_id, uri=self.conn_uri)
 
 
-class TestBaseSecretsBackend(unittest.TestCase):
-    def setUp(self) -> None:
+class TestBaseSecretsBackend:
+    def setup_method(self) -> None:
         clear_db_variables()
 
-    def tearDown(self) -> None:
+    def teardown_method(self) -> None:
         clear_db_connections()
         clear_db_variables()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "kwargs, output",
         [
-            ('default', {"path_prefix": "PREFIX", "secret_id": "ID"}, "PREFIX/ID"),
-            ('with_sep', {"path_prefix": "PREFIX", "secret_id": "ID", "sep": "-"}, "PREFIX-ID"),
-        ]
+            ({"path_prefix": "PREFIX", "secret_id": "ID"}, "PREFIX/ID"),
+            ({"path_prefix": "PREFIX", "secret_id": "ID", "sep": "-"}, "PREFIX-ID"),
+        ],
+        ids=["default", "with_sep"],
     )
-    def test_build_path(self, _, kwargs, output):
+    def test_build_path(self, kwargs, output):
         build_path = BaseSecretsBackend.build_path
         assert build_path(**kwargs) == output
 
@@ -78,18 +79,18 @@ class TestBaseSecretsBackend(unittest.TestCase):
         assert sample_conn_2.host.lower() == conn.host
 
     @mock.patch.dict(
-        'os.environ',
+        "os.environ",
         {
-            'AIRFLOW_VAR_HELLO': 'World',
-            'AIRFLOW_VAR_EMPTY_STR': '',
+            "AIRFLOW_VAR_HELLO": "World",
+            "AIRFLOW_VAR_EMPTY_STR": "",
         },
     )
     def test_variable_env_secrets_backend(self):
         env_secrets_backend = EnvironmentVariablesBackend()
         variable_value = env_secrets_backend.get_variable(key="hello")
-        assert 'World' == variable_value
+        assert "World" == variable_value
         assert env_secrets_backend.get_variable(key="non_existent_key") is None
-        assert '' == env_secrets_backend.get_variable(key="empty_str")
+        assert "" == env_secrets_backend.get_variable(key="empty_str")
 
     def test_variable_metastore_secrets_backend(self):
         Variable.set(key="hello", value="World")
@@ -98,4 +99,4 @@ class TestBaseSecretsBackend(unittest.TestCase):
         variable_value = metastore_backend.get_variable(key="hello")
         assert "World" == variable_value
         assert metastore_backend.get_variable(key="non_existent_key") is None
-        assert '' == metastore_backend.get_variable(key="empty_str")
+        assert "" == metastore_backend.get_variable(key="empty_str")

@@ -33,6 +33,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryTableExistenceAsyncSensor,
+    BigQueryTableExistencePartitionAsyncSensor,
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
 )
@@ -88,6 +89,16 @@ with models.DAG(
     )
     # [END howto_sensor_bigquery_table]
 
+    # [START howto_sensor_bigquery_table_defered]
+    check_table_exists: BaseOperator = BigQueryTableExistenceSensor(
+        task_id="check_table_exists_defered",
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+        deferrable=True,
+    )
+    # [END howto_sensor_bigquery_table_defered]
+
     # [START howto_sensor_async_bigquery_table]
     check_table_exists_async = BigQueryTableExistenceAsyncSensor(
         task_id="check_table_exists_async",
@@ -116,6 +127,27 @@ with models.DAG(
         partition_id=PARTITION_NAME,
     )
     # [END howto_sensor_bigquery_table_partition]
+
+    # [START howto_sensor_bigquery_table_partition_defered]
+    check_table_partition_exists: BaseSensorOperator = BigQueryTablePartitionExistenceSensor(
+        task_id="check_table_partition_exists_defered",
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+        partition_id=PARTITION_NAME,
+        deferrable=True,
+    )
+    # [END howto_sensor_bigquery_table_partition_defered]
+
+    # [START howto_sensor_bigquery_table_partition_async]
+    check_table_partition_exists_async: BaseSensorOperator = BigQueryTableExistencePartitionAsyncSensor(
+        task_id="check_table_partition_exists_async",
+        partition_id=PARTITION_NAME,
+        project_id=PROJECT_ID,
+        dataset_id=DATASET_NAME,
+        table_id=TABLE_NAME,
+    )
+    # [END howto_sensor_bigquery_table_partition_async]
 
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",

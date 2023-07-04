@@ -17,32 +17,41 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from 'axios';
-import { useQuery } from 'react-query';
+import axios, { AxiosResponse } from "axios";
+import { useQuery } from "react-query";
 
-import { getMetaValue } from 'src/utils';
-import { useAutoRefresh } from 'src/context/autorefresh';
-import type { API } from 'src/types';
+import { getMetaValue } from "src/utils";
+import { useAutoRefresh } from "src/context/autorefresh";
+import type { API } from "src/types";
 
-const mappedInstancesUrl = getMetaValue('mapped_instances_api');
+const mappedInstancesUrl = getMetaValue("mapped_instances_api");
 
 export default function useMappedInstances({
-  dagId, dagRunId, taskId, limit, offset, orderBy,
+  dagId,
+  dagRunId,
+  taskId,
+  limit,
+  offset,
+  orderBy,
 }: API.GetMappedTaskInstancesVariables) {
-  const url = mappedInstancesUrl.replace('_DAG_RUN_ID_', dagRunId).replace('_TASK_ID_', taskId);
-  const orderParam = orderBy && orderBy !== 'map_index' ? { order_by: orderBy } : {};
+  const url = mappedInstancesUrl
+    .replace("_DAG_RUN_ID_", dagRunId)
+    .replace("_TASK_ID_", taskId);
+  const orderParam =
+    orderBy && orderBy !== "map_index" ? { order_by: orderBy } : {};
   const { isRefreshOn } = useAutoRefresh();
   return useQuery(
-    ['mappedInstances', dagId, dagRunId, taskId, offset, orderBy],
-    () => axios.get<AxiosResponse, API.TaskInstanceCollection>(url, {
-      params: { offset, limit, ...orderParam },
-    }),
+    ["mappedInstances", dagId, dagRunId, taskId, offset, orderBy],
+    () =>
+      axios.get<AxiosResponse, API.TaskInstanceCollection>(url, {
+        params: { offset, limit, ...orderParam },
+      }),
     {
       keepPreviousData: true,
       initialData: { taskInstances: [], totalEntries: 0 },
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
       // staleTime should be similar to the refresh interval
       staleTime: (autoRefreshInterval || 1) * 1000,
-    },
+    }
   );
 }

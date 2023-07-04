@@ -44,28 +44,28 @@ class S3ToMySqlOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        's3_source_key',
-        'mysql_table',
+        "s3_source_key",
+        "mysql_table",
     )
     template_ext: Sequence[str] = ()
-    ui_color = '#f4a460'
+    ui_color = "#f4a460"
 
     def __init__(
         self,
         *,
         s3_source_key: str,
         mysql_table: str,
-        mysql_duplicate_key_handling: str = 'IGNORE',
+        mysql_duplicate_key_handling: str = "IGNORE",
         mysql_extra_options: str | None = None,
-        aws_conn_id: str = 'aws_default',
-        mysql_conn_id: str = 'mysql_default',
+        aws_conn_id: str = "aws_default",
+        mysql_conn_id: str = "mysql_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.s3_source_key = s3_source_key
         self.mysql_table = mysql_table
         self.mysql_duplicate_key_handling = mysql_duplicate_key_handling
-        self.mysql_extra_options = mysql_extra_options or ''
+        self.mysql_extra_options = mysql_extra_options or ""
         self.aws_conn_id = aws_conn_id
         self.mysql_conn_id = mysql_conn_id
 
@@ -75,7 +75,7 @@ class S3ToMySqlOperator(BaseOperator):
 
         :param context: The context that is being provided when executing.
         """
-        self.log.info('Loading %s to MySql table %s...', self.s3_source_key, self.mysql_table)
+        self.log.info("Loading %s to MySql table %s...", self.s3_source_key, self.mysql_table)
 
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         file = s3_hook.download_file(key=self.s3_source_key)

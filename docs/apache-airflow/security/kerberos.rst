@@ -19,7 +19,7 @@ Kerberos
 --------
 
 Airflow has initial support for Kerberos. This means that Airflow can renew Kerberos
-tickets for itself and store it in the ticket cache. The hooks and dags can make use of ticket
+tickets for itself and store it in the ticket cache. The hooks and DAGs can make use of ticket
 to authenticate against kerberized services.
 
 Limitations
@@ -60,6 +60,16 @@ your ``airflow.cfg``
     keytab = /etc/airflow/airflow.keytab
     reinit_frequency = 3600
     principal = airflow
+
+In case you are using Airflow in a docker container based environment,
+you can set the below environment variables in the ``Dockerfile`` instead of modifying ``airflow.cfg``
+
+.. code-block:: dockerfile
+
+    ENV AIRFLOW__CORE__SECURITY kerberos
+    ENV AIRFLOW__KERBEROS__KEYTAB /etc/airflow/airflow.keytab
+    ENV AIRFLOW__KERBEROS__INCLUDE_IP False
+
 
 If you need more granular options for your Kerberos ticket the following options are available with the following default values:
 
@@ -127,7 +137,7 @@ use it, simply update the connection details with, for example:
 Adjust the principal to your settings. The ``_HOST`` part will be replaced by the fully qualified domain name of
 the server.
 
-You can specify if you would like to use the dag owner as the user for the connection or the user specified in the login
+You can specify if you would like to use the DAG owner as the user for the connection or the user specified in the login
 section of the connection. For the login user, specify the following as extra:
 
 .. code-block:: json

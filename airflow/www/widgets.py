@@ -24,13 +24,13 @@ from wtforms.widgets import html_params
 
 
 class AirflowModelListWidget(RenderTemplateWidget):
-    """Airflow model list"""
+    """Airflow model list."""
 
-    template = 'airflow/model_list.html'
+    template = "airflow/model_list.html"
 
 
 class AirflowDateTimePickerWidget:
-    """Airflow date time picker widget"""
+    """Airflow date time picker widget."""
 
     data_template = (
         '<div class="input-group datetime datetimepicker">'
@@ -44,7 +44,7 @@ class AirflowDateTimePickerWidget:
         kwargs.setdefault("id", field.id)
         kwargs.setdefault("name", field.name)
         if not field.data:
-            field.data = ''
+            field.data = ""
         template = self.data_template
 
         return Markup(
@@ -53,30 +53,30 @@ class AirflowDateTimePickerWidget:
 
 
 class AirflowDateTimePickerROWidget(AirflowDateTimePickerWidget):
-    """Airflow Read-only date time picker widget"""
+    """Airflow Read-only date time picker widget."""
 
     def __call__(self, field, **kwargs):
-        kwargs['readonly'] = 'true'
+        kwargs["readonly"] = "true"
         return super().__call__(field, **kwargs)
 
 
 class BS3TextFieldROWidget(BS3TextFieldWidget):
-    """Read-only single-line text input Widget (BS3TextFieldWidget)"""
+    """Read-only single-line text input Widget (BS3TextFieldWidget)."""
 
     def __call__(self, field, **kwargs):
-        kwargs['readonly'] = 'true'
+        kwargs["readonly"] = "true"
         return super().__call__(field, **kwargs)
 
 
 class BS3TextAreaROWidget(BS3TextAreaFieldWidget):
-    """Read-only multi-line text area Widget (BS3TextAreaROWidget)"""
+    """Read-only multi-line text area Widget (BS3TextAreaROWidget)."""
 
     def __call__(self, field, **kwargs):
-        kwargs['readonly'] = 'true'
+        kwargs["readonly"] = "true"
         return super().__call__(field, **kwargs)
 
 
 class AirflowVariableShowWidget(RenderTemplateWidget):
-    """Airflow variable show widget"""
+    """Airflow variable show widget."""
 
-    template = 'airflow/variable_show_widget.html'
+    template = "airflow/variable_show_widget.html"

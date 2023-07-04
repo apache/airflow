@@ -81,7 +81,7 @@ mechanism for records that arrive on these streams using a job status
 polling mechanism. The success stream (i.e., stdout or shell output)
 is handled differently, as explained in the following:
 
-When :doc:`XComs <apache-airflow:concepts/xcoms>` are enabled and when
+When :doc:`XComs <apache-airflow:core-concepts/xcoms>` are enabled and when
 the operator is used with a native PowerShell cmdlet or script, the
 shell output is converted to JSON using the ``ConvertTo-Json`` cmdlet
 and then decoded on the client-side by the operator such that the

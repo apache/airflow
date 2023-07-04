@@ -105,6 +105,7 @@ for index, location in enumerate(locations, 1):
                 "query": {
                     "query": INSERT_ROWS_QUERY,
                     "useLegacySql": False,
+                    "priority": "BATCH",
                 }
             },
             location=location,
@@ -142,9 +143,9 @@ for index, location in enumerate(locations, 1):
                     "query": f"SELECT * FROM {DATASET}.{TABLE_1}",
                     "useLegacySql": False,
                     "destinationTable": {
-                        'projectId': PROJECT_ID,
-                        'datasetId': DATASET,
-                        'tableId': TABLE_2,
+                        "projectId": PROJECT_ID,
+                        "datasetId": DATASET,
+                        "tableId": TABLE_2,
                     },
                 }
             },
@@ -223,7 +224,7 @@ for index, location in enumerate(locations, 1):
         table_check = BigQueryTableCheckOperator(
             task_id="table_check",
             table=f"{DATASET}.{TABLE_1}",
-            checks={"row_count_check": {"check_statement": {"COUNT(*) = 4"}}},
+            checks={"row_count_check": {"check_statement": "COUNT(*) = 4"}},
         )
         # [END howto_operator_bigquery_table_check]
 
@@ -241,6 +242,7 @@ for index, location in enumerate(locations, 1):
         execute_insert_query >> get_data >> get_data_result >> delete_dataset
         execute_insert_query >> execute_query_save >> bigquery_execute_multi_query >> delete_dataset
         execute_insert_query >> [check_count, check_value, check_interval] >> delete_dataset
+        execute_insert_query >> [column_check, table_check] >> delete_dataset
 
         from tests.system.utils.watcher import watcher
 

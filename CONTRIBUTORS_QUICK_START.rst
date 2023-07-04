@@ -35,11 +35,11 @@ There are three ways you can run the Airflow dev env:
 2. With a local virtual environment (on your local machine).
 3. With a remote, managed environment (via remote development environment)
 
-Before deciding which method to choose, there are a couple factors to consider:
+Before deciding which method to choose, there are a couple of factors to consider:
 
 * Running Airflow in a container is the most reliable way: it provides a more consistent environment
   and allows integration tests with a number of integrations (cassandra, mongo, mysql, etc.).
-  However it also requires **4GB RAM, 40GB disk space and at least 2 cores**.
+  However, it also requires **4GB RAM, 40GB disk space and at least 2 cores**.
 * If you are working on a basic feature, installing Airflow on a local environment might be sufficient.
   For a comprehensive venv tutorial - visit
   `Virtual Env guide <https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst>`_
@@ -48,13 +48,13 @@ Before deciding which method to choose, there are a couple factors to consider:
 Local machine development
 #########################
 
-If you do not work with remote development environment, you need those prerequisites.
+If you do not work in remote development environment, you need those prerequisites.
 
-1. Docker Community Edition
+1. Docker Community Edition (you can also use Colima, see instructions below)
 2. Docker Compose
 3. pyenv (you can also use pyenv-virtualenv or virtualenvwrapper)
 
-The below setup describe Ubuntu installation. It might be slightly different on different machines.
+The below setup describes `Ubuntu installation <https://docs.docker.com/engine/install/ubuntu/>`_. It might be slightly different on different machines.
 
 Docker Community Edition
 ------------------------
@@ -66,25 +66,24 @@ Docker Community Edition
   $ sudo apt-get update
 
   $ sudo apt-get install \
-      apt-transport-https \
       ca-certificates \
       curl \
-      gnupg-agent \
-      software-properties-common
+      gnupg \
+      lsb-release
 
-  $ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+  $ sudo mkdir -p /etc/apt/keyrings
+  $ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 
-  $ sudo add-apt-repository \
-     "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-     $(lsb_release -cs) \
-     stable"
+  $ echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+    $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-2. Install Docker
+2. Install Docker Engine, containerd, and Docker Compose Plugin.
 
 .. code-block:: bash
 
   $ sudo apt-get update
-  $ sudo apt-get install docker-ce docker-ce-cli containerd.io
+  $ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 3. Creating group for docker and adding current user to it.
 
@@ -100,6 +99,24 @@ Note : After adding user to docker group Logout and Login again for group member
 .. code-block:: bash
 
   $ docker run hello-world
+
+Colima
+------
+If you use Colima as your container runtimes engine, please follow the next steps:
+
+1. `Install buildx manually <https://github.com/docker/buildx#manual-download>`_ and follow it's instructions
+
+2. Link the Colima socket to the default socket path. Note that this may break other Docker servers.
+
+.. code-block:: bash
+
+  $ sudo ln -sf $HOME/.colima/default/docker.sock /var/run/docker.sock
+
+3. Change docker context to use default:
+
+.. code-block:: bash
+
+  $ docker context use default
 
 Docker Compose
 --------------
@@ -130,11 +147,26 @@ Pyenv and setting up virtual-env
 
 1. Install pyenv and configure your shell's environment for Pyenv as suggested in Pyenv `README <https://github.com/pyenv/pyenv/blob/master/README.md#installation>`_
 
-2. After installing pyenv, you need to install a few more required packages for Airflow
+2. After installing pyenv, you need to install a few more required packages for Airflow. The below command adds
+   basic system-level dependencies on Debian/Ubuntu-like system. You will have to adapt it to install similar packages
+   if your operating system is MacOS or another flavour of Linux
+
 
 .. code-block:: bash
 
-  $ sudo apt-get install openssl sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
+  $ sudo apt install openssl sqlite default-libmysqlclient-dev libmysqlclient-dev postgresql
+
+If you want to install all airflow providers, more system dependencies might be needed. For example on Debian/Ubuntu
+like system, this command will install all necessary dependencies that should be installed when you use ``devel_all``
+extra while installing airflow.
+
+.. code-block:: bash
+
+  $ sudo apt install apt-transport-https apt-utils build-essential ca-certificates dirmngr \
+  freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev \
+  libkrb5-dev libldap2-dev libpq-dev libsasl2-2 libsasl2-dev libsasl2-modules \
+  libssl-dev locales lsb-release openssh-client sasl2-bin \
+  software-properties-common sqlite3 sudo unixodbc unixodbc-dev
 
 3. Restart your shell so the path changes take effect and verifying installation
 
@@ -261,11 +293,11 @@ Setting up Breeze
   root@b76fcb399bb6:/opt/airflow# exit
 
 6. You can stop the environment (which means deleting the databases and database servers running in the
-   background) via ``breeze stop`` command.
+   background) via ``breeze down`` command.
 
 .. code-block:: bash
 
-  $ breeze stop
+  $ breeze down
 
 
 Using Breeze
@@ -301,7 +333,7 @@ Using Breeze
      * 26379 -> forwarded to Redis broker -> redis:6379
 
    Here are links to those services that you can use on host:
-     * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 pw: airflow
+     * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 (password: airflow)
      * Webserver: http://127.0.0.1:28080
      * Flower:    http://127.0.0.1:25555
      * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
@@ -360,15 +392,15 @@ Using Breeze
              alt="Accessing local airflow">
       </div>
 
-3. Setup mysql database in
-   MySQL Workbench with Host ``127.0.0.1``, port ``23306``, user ``root`` and password
-   blank(leave empty), default schema ``airflow``.
+3. Setup a PostgreSQL database in your database management tool of choice
+   (e.g. DBeaver, DataGrip) with host ``127.0.0.1``, port ``25433``,
+   user ``postgres``,  password ``airflow``, and default schema ``airflow``.
 
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/mysql_connection.png"
-             alt="Connecting to mysql">
+        <img src="images/quick_start/postgresql_connection.png"
+             alt="Connecting to postgresql">
       </div>
 
 4. Stopping breeze
@@ -377,7 +409,7 @@ Using Breeze
 
   root@f3619b74c59a:/opt/airflow# stop_airflow
   root@f3619b74c59a:/opt/airflow# exit
-  $ breeze stop
+  $ breeze down
 
 5. Knowing more about Breeze
 
@@ -505,7 +537,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
 .. code-block:: bash
 
-  $ pre-commit run  --files airflow/decorators.py tests/utils/test_task_group.py
+  $ pre-commit run  --files airflow/utils/decorators.py tests/utils/test_task_group.py
 
 
 
@@ -515,8 +547,8 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
   $ pre-commit run black --files airflow/decorators.py tests/utils/test_task_group.py
     black...............................................................Passed
-  $ pre-commit run run-flake8 --files airflow/decorators.py tests/utils/test_task_group.py
-    Run flake8..........................................................Passed
+  $ pre-commit run ruff --files airflow/decorators.py tests/utils/test_task_group.py
+    Run ruff............................................................Passed
 
 
 
@@ -592,21 +624,30 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   root@63528318c8b1:/opt/airflow# pytest tests/utils/test_decorators.py
-   ======================================= test session starts =======================================
-   platform linux -- Python 3.8.6, pytest-6.0.1, py-1.9.0, pluggy-0.13.1 -- /usr/local/bin/python
+   root@63528318c8b1:/opt/airflow# pytest tests/utils/test_dates.py
+   ============================================================= test session starts ==============================================================
+   platform linux -- Python 3.8.16, pytest-7.2.1, pluggy-1.0.0 -- /usr/local/bin/python
    cachedir: .pytest_cache
    rootdir: /opt/airflow, configfile: pytest.ini
-   plugins: celery-4.4.7, requests-mock-1.8.0, xdist-1.34.0, flaky-3.7.0, rerunfailures-9.0, instafail
-   -0.4.2, forked-1.3.0, timeouts-1.2.1, cov-2.10.0
+   plugins: timeouts-1.2.1, capture-warnings-0.0.4, cov-4.0.0, requests-mock-1.10.0, rerunfailures-11.1.1, anyio-3.6.2, instafail-0.4.2, time-machine-2.9.0, asyncio-0.20.3, httpx-0.21.3, xdist-3.2.0
+   asyncio: mode=strict
    setup timeout: 0.0s, execution timeout: 0.0s, teardown timeout: 0.0s
-   collected 3 items
+   collected 12 items
 
-   tests/utils/test_decorators.py::TestApplyDefault::test_apply PASSED                         [ 33%]
-   tests/utils/test_decorators.py::TestApplyDefault::test_default_args PASSED                  [ 66%]
-   tests/utils/test_decorators.py::TestApplyDefault::test_incorrect_default_args PASSED        [100%]
+   tests/utils/test_dates.py::TestDates::test_days_ago PASSED                                                                               [  8%]
+   tests/utils/test_dates.py::TestDates::test_parse_execution_date PASSED                                                                   [ 16%]
+   tests/utils/test_dates.py::TestDates::test_round_time PASSED                                                                             [ 25%]
+   tests/utils/test_dates.py::TestDates::test_infer_time_unit PASSED                                                                        [ 33%]
+   tests/utils/test_dates.py::TestDates::test_scale_time_units PASSED                                                                       [ 41%]
+   tests/utils/test_dates.py::TestUtilsDatesDateRange::test_no_delta PASSED                                                                 [ 50%]
+   tests/utils/test_dates.py::TestUtilsDatesDateRange::test_end_date_before_start_date PASSED                                               [ 58%]
+   tests/utils/test_dates.py::TestUtilsDatesDateRange::test_both_end_date_and_num_given PASSED                                              [ 66%]
+   tests/utils/test_dates.py::TestUtilsDatesDateRange::test_invalid_delta PASSED                                                            [ 75%]
+   tests/utils/test_dates.py::TestUtilsDatesDateRange::test_positive_num_given PASSED                                                       [ 83%]
+   tests/utils/test_dates.py::TestUtilsDatesDateRange::test_negative_num_given PASSED                                                       [ 91%]
+   tests/utils/test_dates.py::TestUtilsDatesDateRange::test_delta_cron_presets PASSED                                                       [100%]
 
-   ======================================== 3 passed in 1.49s ========================================
+   ============================================================== 12 passed in 0.24s ==============================================================
 
 - Running All the test with Breeze by specifying required python version, backend, backend version
 

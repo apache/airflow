@@ -23,8 +23,8 @@ This guide provides ways to protect this data.
 
 The following are particularly protected:
 
-* Variables. See the :doc:`Variables Concepts </concepts/variables>` documentation for more information.
-* Connections. See the :doc:`Connections Concepts </concepts/connections>` documentation for more information.
+* Variables. See the :doc:`Variables Concepts </core-concepts/variables>` documentation for more information.
+* Connections. See the :doc:`Connections Concepts </authoring-and-scheduling/connections>` documentation for more information.
 
 
 .. toctree::

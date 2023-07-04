@@ -51,13 +51,13 @@ ENTRY_GROUP_ID = f"id_{DAG_ID}_{ENV_ID}"
 ENTRY_GROUP_NAME = f"name {DAG_ID} {ENV_ID}"
 ENTRY_ID = "python_files"
 ENTRY_NAME = "Wizard"
-TEMPLATE_ID = "template_id"
+TEMPLATE_ID = f"template_id_search_{ENV_ID}"
 TAG_TEMPLATE_DISPLAY_NAME = f"Data Catalog {DAG_ID} {ENV_ID}"
 FIELD_NAME_1 = "first"
 
 with models.DAG(
     DAG_ID,
-    schedule='@once',
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
@@ -112,7 +112,7 @@ with models.DAG(
     )
     # [END howto_operator_gcp_datacatalog_create_tag]
 
-    tag_id = cast(str, XComArg(create_tag, key='tag_id'))
+    tag_id = cast(str, XComArg(create_tag, key="tag_id"))
 
     # [START howto_operator_gcp_datacatalog_create_tag_result]
     create_tag_result = BashOperator(

@@ -17,20 +17,14 @@
  * under the License.
  */
 
-import React, { useCallback } from 'react';
-import {
-  Tr,
-  Td,
-  Box,
-  Flex,
-  useTheme,
-} from '@chakra-ui/react';
+import React, { useCallback } from "react";
+import { Tr, Td, Box, Flex, useTheme } from "@chakra-ui/react";
 
-import useSelection, { SelectionProps } from 'src/dag/useSelection';
-import type { Task, DagRun } from 'src/types';
+import useSelection, { SelectionProps } from "src/dag/useSelection";
+import type { Task, DagRun } from "src/types";
 
-import StatusBox, { boxSize, boxSizePx } from '../StatusBox';
-import TaskName from './TaskName';
+import StatusBox, { boxSize, boxSizePx } from "../StatusBox";
+import TaskName from "./TaskName";
 
 const boxPadding = 3;
 const boxPaddingPx = `${boxPadding}px`;
@@ -38,26 +32,21 @@ const columnWidth = boxSize + 2 * boxPadding;
 
 interface RowProps {
   task: Task;
-  dagRunIds: DagRun['runId'][];
+  dagRunIds: DagRun["runId"][];
   level?: number;
   openParentCount?: number;
   openGroupIds?: string[];
   onToggleGroups?: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
+  isParentMapped?: boolean;
+  isGridCollapsed?: boolean;
 }
 
-const renderTaskRows = ({
-  task, level = 0, ...rest
-}: RowProps) => (
+const renderTaskRows = ({ task, level = 0, ...rest }: RowProps) => (
   <>
     {(task?.children || []).map((t) => (
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      <Row
-        {...rest}
-        key={t.id}
-        task={t}
-        level={level}
-      />
+      <Row {...rest} key={t.id} task={t} level={level} />
     ))}
   </>
 );
@@ -68,16 +57,22 @@ interface TaskInstancesProps {
   selectedRunId?: string | null;
   onSelect: (selection: SelectionProps) => void;
   hoveredTaskState?: string | null;
+  isGridCollapsed?: boolean;
 }
 
 const TaskInstances = ({
-  task, dagRunIds, selectedRunId, onSelect, hoveredTaskState,
+  task,
+  dagRunIds,
+  selectedRunId,
+  onSelect,
+  hoveredTaskState,
+  isGridCollapsed,
 }: TaskInstancesProps) => (
   <Flex justifyContent="flex-end">
     {dagRunIds.map((runId: string) => {
       // Check if an instance exists for the run, or return an empty box
       const instance = task.instances.find((ti) => ti && ti.runId === runId);
-      const isSelected = selectedRunId === runId;
+      const isSelected = selectedRunId === runId && !isGridCollapsed;
       return (
         <Box
           py="4px"
@@ -85,19 +80,23 @@ const TaskInstances = ({
           className={`js-${runId}`}
           data-selected={isSelected}
           transition="background-color 0.2s"
-          key={`${runId}-${task.id}`}
-          bg={isSelected ? 'blue.100' : undefined}
+          key={`${runId}-${task.id}-${instance ? instance.note : ""}`}
+          bg={isSelected ? "blue.100" : undefined}
         >
-          {instance
-            ? (
-              <StatusBox
-                instance={instance}
-                group={task}
-                onSelect={onSelect}
-                isActive={hoveredTaskState === undefined || hoveredTaskState === instance.state}
-              />
-            )
-            : <Box width={boxSizePx} data-testid="blank-task" />}
+          {instance ? (
+            <StatusBox
+              instance={instance}
+              group={task}
+              onSelect={onSelect}
+              isActive={
+                hoveredTaskState === undefined ||
+                hoveredTaskState === instance.state
+              }
+              containsNotes={!!instance.note}
+            />
+          ) : (
+            <Box width={boxSizePx} data-testid="blank-task" />
+          )}
         </Box>
       );
     })}
@@ -113,6 +112,8 @@ const Row = (props: RowProps) => {
     openGroupIds = [],
     onToggleGroups = () => {},
     hoveredTaskState,
+    isParentMapped,
+    isGridCollapsed,
   } = props;
   const { colors } = useTheme();
   const { selected, onSelect } = useSelection();
@@ -124,20 +125,17 @@ const Row = (props: RowProps) => {
   const isOpen = openGroupIds.some((g) => g === task.label);
 
   // assure the function is the same across renders
-  const memoizedToggle = useCallback(
-    () => {
-      if (isGroup && task.label) {
-        let newGroupIds = [];
-        if (!isOpen) {
-          newGroupIds = [...openGroupIds, task.label];
-        } else {
-          newGroupIds = openGroupIds.filter((g) => g !== task.label);
-        }
-        onToggleGroups(newGroupIds);
+  const memoizedToggle = useCallback(() => {
+    if (isGroup && task.label) {
+      let newGroupIds = [];
+      if (!isOpen) {
+        newGroupIds = [...openGroupIds, task.label];
+      } else {
+        newGroupIds = openGroupIds.filter((g) => g !== task.label);
       }
-    },
-    [isGroup, isOpen, task.label, openGroupIds, onToggleGroups],
-  );
+      onToggleGroups(newGroupIds);
+    }
+  }, [isGroup, isOpen, task.label, openGroupIds, onToggleGroups]);
 
   // check if the group's parents are all open, if not, return null
   if (level !== openParentCount) return null;
@@ -145,34 +143,36 @@ const Row = (props: RowProps) => {
   return (
     <>
       <Tr
-        bg={isSelected ? 'blue.100' : 'inherit'}
+        bg={isSelected ? "blue.100" : "inherit"}
         borderBottomWidth={1}
-        borderBottomColor={isGroup && isOpen ? 'gray.400' : 'gray.200'}
+        borderBottomColor={isGroup && isOpen ? "gray.400" : "gray.200"}
         role="group"
         _hover={!isSelected ? { bg: hoverBlue } : undefined}
         transition="background-color 0.2s"
       >
-        <Td
-          bg={isSelected ? 'blue.100' : 'white'}
-          _groupHover={!isSelected ? { bg: 'blue.50' } : undefined}
-          p={0}
-          transition="background-color 0.2s"
-          lineHeight="18px"
-          position="sticky"
-          left={0}
-          borderBottom={0}
-          width="100%"
-          zIndex={1}
-        >
-          <TaskName
-            onToggle={memoizedToggle}
-            isGroup={isGroup}
-            isMapped={task.isMapped}
-            label={task.label || task.id || ''}
-            isOpen={isOpen}
-            level={level}
-          />
-        </Td>
+        {!isGridCollapsed && (
+          <Td
+            bg={isSelected ? "blue.100" : "white"}
+            _groupHover={!isSelected ? { bg: "blue.50" } : undefined}
+            p={0}
+            transition="background-color 0.2s"
+            lineHeight="18px"
+            position="sticky"
+            left={0}
+            borderBottom={0}
+            width="100%"
+            zIndex={1}
+          >
+            <TaskName
+              onToggle={memoizedToggle}
+              isGroup={isGroup}
+              isMapped={task.isMapped && !isParentMapped}
+              label={task.label || task.id || ""}
+              isOpen={isOpen}
+              level={level}
+            />
+          </Td>
+        )}
         <Td
           p={0}
           align="right"
@@ -185,14 +185,18 @@ const Row = (props: RowProps) => {
             selectedRunId={selected.runId}
             onSelect={onSelect}
             hoveredTaskState={hoveredTaskState}
+            isGridCollapsed={isGridCollapsed}
           />
         </Td>
       </Tr>
-      {isGroup && isOpen && (
+      {isGroup &&
+        isOpen &&
         renderTaskRows({
-          ...props, level: level + 1, openParentCount: openParentCount + 1,
-        })
-      )}
+          ...props,
+          level: level + 1,
+          openParentCount: openParentCount + 1,
+          isParentMapped: task.isMapped,
+        })}
     </>
   );
 };

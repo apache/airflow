@@ -36,8 +36,8 @@ AZURE_DAG_FOLDER = os.path.join(
 )
 WASB_CONNECTION_ID = os.environ.get("WASB_CONNECTION_ID", "wasb_default")
 
-DATA_LAKE_CONNECTION_ID = os.environ.get("AZURE_DATA_LAKE_CONNECTION_ID", 'azure_data_lake_default')
-DATA_LAKE_CONNECTION_TYPE = os.environ.get("AZURE_DATA_LAKE_CONNECTION_TYPE", 'azure_data_lake')
+DATA_LAKE_CONNECTION_ID = os.environ.get("AZURE_DATA_LAKE_CONNECTION_ID", "azure_data_lake_default")
+DATA_LAKE_CONNECTION_TYPE = os.environ.get("AZURE_DATA_LAKE_CONNECTION_TYPE", "azure_data_lake")
 
 
 @contextmanager
@@ -57,7 +57,7 @@ def provide_wasb_default_connection(key_file_path: str):
         host=creds.get("host", None),
         login=creds.get("login", None),
         password=creds.get("password", None),
-        extra=json.dumps(creds.get('extra', None)),
+        extra=json.dumps(creds.get("extra", None)),
     )
     with patch_environ({f"AIRFLOW_CONN_{conn.conn_id.upper()}": conn.get_uri()}):
         yield
@@ -69,7 +69,7 @@ def provide_azure_data_lake_default_connection(key_file_path: str):
     Context manager to provide a temporary value for azure_data_lake_default connection
     :param key_file_path: Path to file with azure_data_lake_default credentials .json file.
     """
-    required_fields = {'login', 'password', 'extra'}
+    required_fields = {"login", "password", "extra"}
 
     if not key_file_path.endswith(".json"):
         raise AirflowException("Use a JSON key file.")
@@ -85,7 +85,7 @@ def provide_azure_data_lake_default_connection(key_file_path: str):
         host=creds.get("host", None),
         login=creds.get("login", None),
         password=creds.get("password", None),
-        extra=json.dumps(creds.get('extra', None)),
+        extra=json.dumps(creds.get("extra", None)),
     )
     with patch_environ({f"AIRFLOW_CONN_{conn.conn_id.upper()}": conn.get_uri()}):
         yield

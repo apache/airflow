@@ -27,9 +27,10 @@ except ModuleNotFoundError:
 
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
+    DbtCloudListJobsOperator,
     DbtCloudRunJobOperator,
 )
-from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
+from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunAsyncSensor, DbtCloudJobRunSensor
 from airflow.utils.edgemodifier import Label
 from tests.system.utils import get_test_env_id
 
@@ -76,9 +77,25 @@ with DAG(
     )
     # [END howto_operator_dbt_cloud_run_job_sensor]
 
+    # [START howto_operator_dbt_cloud_run_job_sensor_defered]
+    job_run_sensor_defered = DbtCloudJobRunSensor(
+        task_id="job_run_sensor_defered", run_id=trigger_job_run2.output, timeout=20, deferrable=True
+    )
+    # [END howto_operator_dbt_cloud_run_job_sensor_defered]
+
+    # [START howto_operator_dbt_cloud_run_job_async_sensor]
+    job_run_async_sensor = DbtCloudJobRunAsyncSensor(
+        task_id="job_run_async_sensor", run_id=trigger_job_run2.output, timeout=20
+    )
+    # [END howto_operator_dbt_cloud_run_job_async_sensor]
+
+    # [START howto_operator_dbt_cloud_list_jobs]
+    list_dbt_jobs = DbtCloudListJobsOperator(task_id="list_dbt_jobs", account_id=106277, project_id=160645)
+    # [END howto_operator_dbt_cloud_list_jobs]
+
     begin >> Label("No async wait") >> trigger_job_run1
     begin >> Label("Do async wait with sensor") >> trigger_job_run2
-    [get_run_results_artifact, job_run_sensor] >> end
+    [get_run_results_artifact, job_run_sensor, list_dbt_jobs] >> end
 
     # Task dependency created via `XComArgs`:
     # trigger_job_run1 >> get_run_results_artifact
@@ -89,7 +106,6 @@ with DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests.system.utils import get_test_run  # noqa: E402
 

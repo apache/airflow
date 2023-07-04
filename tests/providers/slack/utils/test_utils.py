@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.slack.utils import ConnectionExtraConfig
+from airflow.providers.slack.utils import ConnectionExtraConfig, parse_filename
 
 
 class TestConnectionExtra:
@@ -57,7 +57,30 @@ class TestConnectionExtra:
             conn_id="test-conn-id",
             extra={"arg1": "foo", f"extra__{conn_type}__arg1": "bar"},
         )
-        assert extra_config.get("arg1") == "bar"
+        assert extra_config.get("arg1") == "foo"
+
+    @pytest.mark.parametrize("conn_type", ["slack", "slack_incoming_webhook"])
+    @pytest.mark.parametrize("empty_value", [None, ""])
+    def test_prefixed_extra_created_in_ui_connections(self, conn_type, empty_value):
+        """Test that empty strings or None values in UI ignored."""
+        extra_config = ConnectionExtraConfig(
+            conn_type=conn_type,
+            conn_id="test-conn-id",
+            extra={
+                f"extra__{conn_type}__arg_missing": empty_value,
+                "arg_extra": "bar",
+                f"extra__{conn_type}__arg_extra": empty_value,
+            },
+        )
+        error_message = (
+            r"Couldn't find '.*' or '.*' in Connection \('.*'\) Extra and no default value specified\."
+        )
+        with pytest.raises(KeyError, match=error_message):
+            # No fallback should raise an error
+            extra_config.get("arg_missing")
+
+        assert extra_config.get("arg_missing", default="foo") == "foo"
+        assert extra_config.get("arg_extra") == "bar"
 
     def test_get_parse_int(self):
         extra_config = ConnectionExtraConfig(
@@ -69,3 +92,55 @@ class TestConnectionExtra:
         )
         assert extra_config.getint("int_arg_1") == 42
         assert extra_config.getint("int_arg_2") == 9000
+
+
+class TestParseFilename:
+    SUPPORTED_FORMAT = ("so", "dll", "exe", "sh")
+
+    def test_error_parse_without_extension(self):
+        with pytest.raises(ValueError, match="No file extension specified in filename"):
+            assert parse_filename("Untitled File", self.SUPPORTED_FORMAT)
+
+    @pytest.mark.parametrize(
+        "filename,expected_format",
+        [
+            ("libc.so", "so"),
+            ("kernel32.dll", "dll"),
+            ("xxx.mp4.exe", "exe"),
+            ("init.sh", "sh"),
+        ],
+    )
+    def test_parse_first_level(self, filename, expected_format):
+        assert parse_filename(filename, self.SUPPORTED_FORMAT) == (expected_format, None)
+
+    @pytest.mark.parametrize("filename", ["New File.txt", "cats-memes.mp4"])
+    def test_error_parse_first_level(self, filename):
+        with pytest.raises(ValueError, match="Unsupported file format"):
+            assert parse_filename(filename, self.SUPPORTED_FORMAT)
+
+    @pytest.mark.parametrize(
+        "filename,expected",
+        [
+            ("libc.so.6", ("so", "6")),
+            ("kernel32.dll.zip", ("dll", "zip")),
+            ("explorer.exe.7z", ("exe", "7z")),
+            ("init.sh.gz", ("sh", "gz")),
+        ],
+    )
+    def test_parse_second_level(self, filename, expected):
+        assert parse_filename(filename, self.SUPPORTED_FORMAT) == expected
+
+    @pytest.mark.parametrize("filename", ["example.so.tar.gz", "w.i.e.r.d"])
+    def test_error_parse_second_level(self, filename):
+        with pytest.raises(ValueError, match="Unsupported file format.*with compression extension."):
+            assert parse_filename(filename, self.SUPPORTED_FORMAT)
+
+    @pytest.mark.parametrize("filename", ["Untitled File", "New File.txt", "example.so.tar.gz"])
+    @pytest.mark.parametrize("fallback", SUPPORTED_FORMAT)
+    def test_fallback(self, filename, fallback):
+        assert parse_filename(filename, self.SUPPORTED_FORMAT, fallback) == (fallback, None)
+
+    @pytest.mark.parametrize("filename", ["Untitled File", "New File.txt", "example.so.tar.gz"])
+    def test_wrong_fallback(self, filename):
+        with pytest.raises(ValueError, match="Invalid fallback value"):
+            assert parse_filename(filename, self.SUPPORTED_FORMAT, "mp4")

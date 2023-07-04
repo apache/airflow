@@ -15,14 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Airflow models"""
+"""Airflow models."""
 from __future__ import annotations
 
 # Do not add new models to this -- this is for compat only
 __all__ = [
     "DAG",
     "ID_LEN",
-    "XCOM_RETURN_KEY",
     "Base",
     "BaseOperator",
     "BaseOperatorLink",
@@ -60,15 +59,12 @@ def import_all_models():
     for name in __lazy_imports:
         __getattr__(name)
 
-    import airflow.jobs.backfill_job
-    import airflow.jobs.base_job
-    import airflow.jobs.local_task_job
-    import airflow.jobs.scheduler_job
-    import airflow.jobs.triggerer_job
+    import airflow.jobs.job
     import airflow.models.dagwarning
     import airflow.models.dataset
     import airflow.models.serialized_dag
     import airflow.models.tasklog
+    import airflow.www.fab_security.sqla.models
 
 
 def __getattr__(name):
@@ -79,42 +75,41 @@ def __getattr__(name):
 
     from airflow.utils.module_loading import import_string
 
-    val = import_string(f'{path}.{name}')
+    val = import_string(f"{path}.{name}")
     # Store for next time
     globals()[name] = val
     return val
 
 
 __lazy_imports = {
-    'DAG': 'airflow.models.dag',
-    'ID_LEN': 'airflow.models.base',
-    'XCOM_RETURN_KEY': 'airflow.models.xcom',
-    'Base': 'airflow.models.base',
-    'BaseOperator': 'airflow.models.baseoperator',
-    'BaseOperatorLink': 'airflow.models.baseoperator',
-    'Connection': 'airflow.models.connection',
-    'DagBag': 'airflow.models.dagbag',
-    'DagModel': 'airflow.models.dag',
-    'DagPickle': 'airflow.models.dagpickle',
-    'DagRun': 'airflow.models.dagrun',
-    'DagTag': 'airflow.models.dag',
-    'DbCallbackRequest': 'airflow.models.db_callback_request',
-    'ImportError': 'airflow.models.errors',
-    'Log': 'airflow.models.log',
-    'MappedOperator': 'airflow.models.mappedoperator',
-    'Operator': 'airflow.models.operator',
-    'Param': 'airflow.models.param',
-    'Pool': 'airflow.models.pool',
-    'RenderedTaskInstanceFields': 'airflow.models.renderedtifields',
-    'SkipMixin': 'airflow.models.skipmixin',
-    'SlaMiss': 'airflow.models.slamiss',
-    'TaskFail': 'airflow.models.taskfail',
-    'TaskInstance': 'airflow.models.taskinstance',
-    'TaskReschedule': 'airflow.models.taskreschedule',
-    'Trigger': 'airflow.models.trigger',
-    'Variable': 'airflow.models.variable',
-    'XCom': 'airflow.models.xcom',
-    'clear_task_instances': 'airflow.models.taskinstance',
+    "DAG": "airflow.models.dag",
+    "ID_LEN": "airflow.models.base",
+    "Base": "airflow.models.base",
+    "BaseOperator": "airflow.models.baseoperator",
+    "BaseOperatorLink": "airflow.models.baseoperator",
+    "Connection": "airflow.models.connection",
+    "DagBag": "airflow.models.dagbag",
+    "DagModel": "airflow.models.dag",
+    "DagPickle": "airflow.models.dagpickle",
+    "DagRun": "airflow.models.dagrun",
+    "DagTag": "airflow.models.dag",
+    "DbCallbackRequest": "airflow.models.db_callback_request",
+    "ImportError": "airflow.models.errors",
+    "Log": "airflow.models.log",
+    "MappedOperator": "airflow.models.mappedoperator",
+    "Operator": "airflow.models.operator",
+    "Param": "airflow.models.param",
+    "Pool": "airflow.models.pool",
+    "RenderedTaskInstanceFields": "airflow.models.renderedtifields",
+    "SkipMixin": "airflow.models.skipmixin",
+    "SlaMiss": "airflow.models.slamiss",
+    "TaskFail": "airflow.models.taskfail",
+    "TaskInstance": "airflow.models.taskinstance",
+    "TaskReschedule": "airflow.models.taskreschedule",
+    "Trigger": "airflow.models.trigger",
+    "Variable": "airflow.models.variable",
+    "XCom": "airflow.models.xcom",
+    "clear_task_instances": "airflow.models.taskinstance",
 }
 
 if TYPE_CHECKING:
@@ -142,4 +137,4 @@ if TYPE_CHECKING:
     from airflow.models.taskreschedule import TaskReschedule
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable
-    from airflow.models.xcom import XCOM_RETURN_KEY, XCom
+    from airflow.models.xcom import XCom

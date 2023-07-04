@@ -17,18 +17,18 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import copy
 import datetime
 import json
 import logging
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Generator, Iterable
 
 import pendulum
 from dateutil import relativedelta
-from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, tuple_
+from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, true, tuple_
 from sqlalchemy.dialects import mssql, mysql
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import ColumnElement
 from sqlalchemy.sql.expression import ColumnOperators
 from sqlalchemy.types import JSON, Text, TypeDecorator, TypeEngine, UnicodeText
@@ -37,18 +37,21 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.serialization.enums import Encoding
 
+if TYPE_CHECKING:
+    from kubernetes.client.models.v1_pod import V1Pod
+    from sqlalchemy.orm import Query, Session
+
 log = logging.getLogger(__name__)
 
-utc = pendulum.tz.timezone('UTC')
+utc = pendulum.tz.timezone("UTC")
 
-using_mysql = conf.get_mandatory_value('database', 'sql_alchemy_conn').lower().startswith('mysql')
+using_mysql = conf.get_mandatory_value("database", "sql_alchemy_conn").lower().startswith("mysql")
 
 
 class UtcDateTime(TypeDecorator):
     """
     Almost equivalent to :class:`~sqlalchemy.types.TIMESTAMP` with
     ``timezone=True`` option, but it differs from that by:
-
     - Never silently take naive :class:`~datetime.datetime`, instead it
       always raise :exc:`ValueError` unless time zone aware value.
     - :class:`~datetime.datetime` value's :attr:`~datetime.datetime.tzinfo`
@@ -56,8 +59,7 @@ class UtcDateTime(TypeDecorator):
     - Unlike SQLAlchemy's built-in :class:`~sqlalchemy.types.TIMESTAMP`,
       it never return naive :class:`~datetime.datetime`, but time zone
       aware value, even with SQLite or MySQL.
-    - Always returns TIMESTAMP in UTC
-
+    - Always returns TIMESTAMP in UTC.
     """
 
     impl = TIMESTAMP(timezone=True)
@@ -67,9 +69,9 @@ class UtcDateTime(TypeDecorator):
     def process_bind_param(self, value, dialect):
         if value is not None:
             if not isinstance(value, datetime.datetime):
-                raise TypeError('expected datetime.datetime, not ' + repr(value))
+                raise TypeError("expected datetime.datetime, not " + repr(value))
             elif value.tzinfo is None:
-                raise ValueError('naive datetime is disallowed')
+                raise ValueError("naive datetime is disallowed")
             # For mysql we should store timestamps as naive values
             # Timestamp in MYSQL is not timezone aware. In MySQL 5.6
             # timezone added at the end is ignored but in MySQL 5.7
@@ -99,9 +101,9 @@ class UtcDateTime(TypeDecorator):
         return value
 
     def load_dialect_impl(self, dialect):
-        if dialect.name == 'mssql':
+        if dialect.name == "mssql":
             return mssql.DATETIME2(precision=6)
-        elif dialect.name == 'mysql':
+        elif dialect.name == "mysql":
             return mysql.TIMESTAMP(fsp=6)
         return super().load_dialect_impl(dialect)
 
@@ -117,7 +119,7 @@ class ExtendedJSON(TypeDecorator):
     cache_ok = True
 
     def db_supports_json(self):
-        """Checks if the database supports JSON (i.e. is NOT MSSQL)"""
+        """Checks if the database supports JSON (i.e. is NOT MSSQL)."""
         return not conf.get("database", "sql_alchemy_conn").startswith("mssql")
 
     def load_dialect_impl(self, dialect) -> TypeEngine:
@@ -153,6 +155,93 @@ class ExtendedJSON(TypeDecorator):
         return BaseSerialization.deserialize(value)
 
 
+def sanitize_for_serialization(obj: V1Pod):
+    """
+    Convert pod to dict.... but *safely*.
+
+    When pod objects created with one k8s version are unpickled in a python
+    env with a more recent k8s version (in which the object attrs may have
+    changed) the unpickled obj may throw an error because the attr
+    expected on new obj may not be there on the unpickled obj.
+
+    This function still converts the pod to a dict; the only difference is
+    it populates missing attrs with None. You may compare with
+    https://github.com/kubernetes-client/python/blob/5a96bbcbe21a552cc1f9cda13e0522fafb0dbac8/kubernetes/client/api_client.py#L202
+
+    If obj is None, return None.
+    If obj is str, int, long, float, bool, return directly.
+    If obj is datetime.datetime, datetime.date
+        convert to string in iso8601 format.
+    If obj is list, sanitize each element in the list.
+    If obj is dict, return the dict.
+    If obj is OpenAPI model, return the properties dict.
+
+    :param obj: The data to serialize.
+    :return: The serialized form of data.
+
+    :meta private:
+    """
+    if obj is None:
+        return None
+    elif isinstance(obj, (float, bool, bytes, str, int)):
+        return obj
+    elif isinstance(obj, list):
+        return [sanitize_for_serialization(sub_obj) for sub_obj in obj]
+    elif isinstance(obj, tuple):
+        return tuple(sanitize_for_serialization(sub_obj) for sub_obj in obj)
+    elif isinstance(obj, (datetime.datetime, datetime.date)):
+        return obj.isoformat()
+
+    if isinstance(obj, dict):
+        obj_dict = obj
+    else:
+        obj_dict = {
+            obj.attribute_map[attr]: getattr(obj, attr)
+            for attr, _ in obj.openapi_types.items()
+            # below is the only line we change, and we just add default=None for getattr
+            if getattr(obj, attr, None) is not None
+        }
+
+    return {key: sanitize_for_serialization(val) for key, val in obj_dict.items()}
+
+
+def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
+    """
+    Convert pod to json and back so that pod is safe.
+
+    The pod_override in executor_config is a V1Pod object.
+    Such objects created with one k8s version, when unpickled in
+    an env with upgraded k8s version, may blow up when
+    `to_dict` is called, because openapi client code gen calls
+    getattr on all attrs in openapi_types for each object, and when
+    new attrs are added to that list, getattr will fail.
+
+    Here we re-serialize it to ensure it is not going to blow up.
+
+    :meta private:
+    """
+    try:
+        # if to_dict works, the pod is fine
+        pod.to_dict()
+        return pod
+    except AttributeError:
+        pass
+    try:
+        from kubernetes.client.models.v1_pod import V1Pod
+    except ImportError:
+        return None
+    if not isinstance(pod, V1Pod):
+        return None
+    try:
+        from airflow.kubernetes.pod_generator import PodGenerator
+
+        # now we actually reserialize / deserialize the pod
+        pod_dict = sanitize_for_serialization(pod)
+        return PodGenerator.deserialize_model_dict(pod_dict)
+    except Exception:
+        return None
+
+
 class ExecutorConfigType(PickleType):
     """
     Adds special handling for K8s executor config. If we unpickle a k8s object that was
@@ -171,8 +260,8 @@ class ExecutorConfigType(PickleType):
 
         def process(value):
             val_copy = copy.copy(value)
-            if isinstance(val_copy, dict) and 'pod_override' in val_copy:
-                val_copy['pod_override'] = BaseSerialization.serialize(val_copy['pod_override'])
+            if isinstance(val_copy, dict) and "pod_override" in val_copy:
+                val_copy["pod_override"] = BaseSerialization.serialize(val_copy["pod_override"])
             return super_process(val_copy)
 
         return process
@@ -185,12 +274,19 @@ class ExecutorConfigType(PickleType):
         def process(value):
             value = super_process(value)  # unpickle
 
-            if isinstance(value, dict) and 'pod_override' in value:
-                pod_override = value['pod_override']
+            if isinstance(value, dict) and "pod_override" in value:
+                pod_override = value["pod_override"]
 
-                # If pod_override was serialized with Airflow's BaseSerialization, deserialize it
                 if isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
-                    value['pod_override'] = BaseSerialization.deserialize(pod_override)
+                    # If pod_override was serialized with Airflow's BaseSerialization, deserialize it
+                    value["pod_override"] = BaseSerialization.deserialize(pod_override)
+                else:
+                    # backcompat path
+                    # we no longer pickle raw pods but this code may be reached
+                    # when accessing executor configs created in a prior version
+                    new_pod = ensure_pod_is_valid_after_unpickling(pod_override)
+                    if new_pod:
+                        value["pod_override"] = new_pod
             return value
 
         return process
@@ -224,30 +320,30 @@ class Interval(TypeDecorator):
     cache_ok = True
 
     attr_keys = {
-        datetime.timedelta: ('days', 'seconds', 'microseconds'),
+        datetime.timedelta: ("days", "seconds", "microseconds"),
         relativedelta.relativedelta: (
-            'years',
-            'months',
-            'days',
-            'leapdays',
-            'hours',
-            'minutes',
-            'seconds',
-            'microseconds',
-            'year',
-            'month',
-            'day',
-            'hour',
-            'minute',
-            'second',
-            'microsecond',
+            "years",
+            "months",
+            "days",
+            "leapdays",
+            "hours",
+            "minutes",
+            "seconds",
+            "microseconds",
+            "year",
+            "month",
+            "day",
+            "hour",
+            "minute",
+            "second",
+            "microsecond",
         ),
     }
 
     def process_bind_param(self, value, dialect):
         if isinstance(value, tuple(self.attr_keys)):
             attrs = {key: getattr(value, key) for key in self.attr_keys[type(value)]}
-            return json.dumps({'type': type(value).__name__, 'attrs': attrs})
+            return json.dumps({"type": type(value).__name__, "attrs": attrs})
         return json.dumps(value)
 
     def process_result_value(self, value, dialect):
@@ -256,7 +352,7 @@ class Interval(TypeDecorator):
         data = json.loads(value)
         if isinstance(data, dict):
             type_map = {key.__name__: key for key in self.attr_keys}
-            return type_map[data['type']](**data['attrs'])
+            return type_map[data["type"]](**data["attrs"])
         return data
 
 
@@ -275,7 +371,7 @@ def skip_locked(session: Session) -> dict[str, Any]:
     dialect = session.bind.dialect
 
     if dialect.name != "mysql" or dialect.supports_for_update_of:
-        return {'skip_locked': True}
+        return {"skip_locked": True}
     else:
         return {}
 
@@ -295,16 +391,17 @@ def nowait(session: Session) -> dict[str, Any]:
     dialect = session.bind.dialect
 
     if dialect.name != "mysql" or dialect.supports_for_update_of:
-        return {'nowait': True}
+        return {"nowait": True}
     else:
         return {}
 
 
 def nulls_first(col, session: Session) -> dict[str, Any]:
-    """
-    Adds a nullsfirst construct to the column ordering. Currently only Postgres supports it.
-    In MySQL & Sqlite NULL values are considered lower than any non-NULL value, therefore, NULL values
-    appear first when the order is ASC (ascending)
+    """Specify *NULLS FIRST* to the column ordering.
+
+    This is only done to Postgres, currently the only backend that supports it.
+    Other databases do not need it since NULL values are considered lower than
+    any other values, and appear first when the order is ASC (ascending).
     """
     if session.bind.dialect.name == "postgresql":
         return nullsfirst(col)
@@ -312,10 +409,10 @@ def nulls_first(col, session: Session) -> dict[str, Any]:
         return col
 
 
-USE_ROW_LEVEL_LOCKING: bool = conf.getboolean('scheduler', 'use_row_level_locking', fallback=True)
+USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_locking", fallback=True)
 
 
-def with_row_locks(query, session: Session, **kwargs):
+def with_row_locks(query: Query, session: Session, **kwargs) -> Query:
     """
     Apply with_for_update to an SQLAlchemy query, if row level locking is in use.
 
@@ -333,8 +430,22 @@ def with_row_locks(query, session: Session, **kwargs):
         return query
 
 
+@contextlib.contextmanager
+def lock_rows(query: Query, session: Session) -> Generator[None, None, None]:
+    """Lock database rows during the context manager block.
+
+    This is a convenient method for ``with_row_locks`` when we don't need the
+    locked rows.
+
+    :meta private:
+    """
+    locked_rows = with_row_locks(query, session).all()
+    yield
+    del locked_rows
+
+
 class CommitProhibitorGuard:
-    """Context manager class that powers prohibit_commit"""
+    """Context manager class that powers prohibit_commit."""
 
     expected_commit = False
 
@@ -348,11 +459,11 @@ class CommitProhibitorGuard:
         raise RuntimeError("UNEXPECTED COMMIT - THIS WILL BREAK HA LOCKS!")
 
     def __enter__(self):
-        event.listen(self.session, 'before_commit', self._validate_commit)
+        event.listen(self.session, "before_commit", self._validate_commit)
         return self
 
     def __exit__(self, *exc_info):
-        event.remove(self.session, 'before_commit', self._validate_commit)
+        event.remove(self.session, "before_commit", self._validate_commit)
 
     def commit(self):
         """
@@ -387,19 +498,19 @@ def prohibit_commit(session):
 
 
 def is_lock_not_available_error(error: OperationalError):
-    """Check if the Error is about not being able to acquire lock"""
+    """Check if the Error is about not being able to acquire lock."""
     # DB specific error codes:
     # Postgres: 55P03
     # MySQL: 3572, 'Statement aborted because lock(s) could not be acquired immediately and NOWAIT
     #               is set.'
     # MySQL: 1205, 'Lock wait timeout exceeded; try restarting transaction
     #              (when NOWAIT isn't available)
-    db_err_code = getattr(error.orig, 'pgcode', None) or error.orig.args[0]
+    db_err_code = getattr(error.orig, "pgcode", None) or error.orig.args[0]
 
     # We could test if error.orig is an instance of
     # psycopg2.errors.LockNotAvailable/_mysql_exceptions.OperationalError, but that involves
     # importing it. This doesn't
-    if db_err_code in ('55P03', 1205, 3572):
+    if db_err_code in ("55P03", 1205, 3572):
         return True
     return False
 
@@ -422,3 +533,21 @@ def tuple_in_condition(
     if not clauses:
         return false()
     return or_(*clauses)
+
+
+def tuple_not_in_condition(
+    columns: tuple[ColumnElement, ...],
+    collection: Iterable[Any],
+) -> ColumnOperators:
+    """Generates a tuple-not-in-collection operator to use in ``.filter()``.
+
+    This is similar to ``tuple_in_condition`` except generating ``NOT IN``.
+
+    :meta private:
+    """
+    if settings.engine.dialect.name != "mssql":
+        return tuple_(*columns).not_in(collection)
+    clauses = [or_(*(c != v for c, v in zip(columns, values))) for values in collection]
+    if not clauses:
+        return true()
+    return and_(*clauses)

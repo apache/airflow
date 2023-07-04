@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains abstract operator that child classes implements
-COPY INTO <TABLE> SQL in Snowflake
+"""
+This module contains abstract operator that child classes
+implement "COPY INTO <TABLE> SQL in Snowflake".
 """
 from __future__ import annotations
 
@@ -29,7 +30,7 @@ from airflow.providers.snowflake.utils.common import enclose_param
 
 class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
     """
-    Executes a COPY INTO command to load files from an external stage from clouds to Snowflake
+    Executes a COPY INTO command to load files from an external stage from clouds to Snowflake.
 
     This operator requires the snowflake_conn_id connection. The snowflake host, login,
     and, password field must be setup in the connection. Other inputs can be defined
@@ -83,7 +84,7 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         warehouse: str | None = None,
         database: str | None = None,
         autocommit: bool = True,
-        snowflake_conn_id: str = 'snowflake_default',
+        snowflake_conn_id: str = "snowflake_default",
         role: str | None = None,
         authenticator: str | None = None,
         session_parameters: dict | None = None,
@@ -132,12 +133,12 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         sql = f"""
         COPY INTO {into}
              FROM  @{self.stage}/{self.prefix or ""}
-        {"FILES=" + ",".join(map(enclose_param ,self.files)) if self.files else ""}
+        {"FILES=(" + ",".join(map(enclose_param, self.files)) + ")" if self.files else ""}
         {"PATTERN=" + enclose_param(self.pattern) if self.pattern else ""}
         FILE_FORMAT={self.file_format}
         {self.copy_options or ""}
         {self.validation_mode or ""}
         """
-        self.log.info('Executing COPY command...')
+        self.log.info("Executing COPY command...")
         snowflake_hook.run(sql=sql, autocommit=self.autocommit)
         self.log.info("COPY command completed")

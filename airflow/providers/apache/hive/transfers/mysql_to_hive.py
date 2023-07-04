@@ -18,12 +18,13 @@
 """This module contains an operator to move data from MySQL to Hive."""
 from __future__ import annotations
 
+import csv
 from collections import OrderedDict
+from contextlib import closing
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
 import MySQLdb
-import unicodecsv as csv
 
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
@@ -35,8 +36,11 @@ if TYPE_CHECKING:
 
 class MySqlToHiveOperator(BaseOperator):
     """
-    Moves data from MySql to Hive. The operator runs your query against
-    MySQL, stores the file locally before loading it into a Hive table.
+    Moves data from MySql to Hive.
+
+    The operator runs your query against MySQL, stores the file locally
+    before loading it into a Hive table.
+
     If the ``create`` or ``recreate`` arguments are set to ``True``,
     a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.
     Hive data types are inferred from the cursor's metadata. Note that the
@@ -65,13 +69,14 @@ class MySqlToHiveOperator(BaseOperator):
     :param mysql_conn_id: source mysql connection
     :param hive_cli_conn_id: Reference to the
         :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
+    :param hive_auth: optional authentication option passed for the Hive connection
     :param tblproperties: TBLPROPERTIES of the hive table being created
     """
 
-    template_fields: Sequence[str] = ('sql', 'partition', 'hive_table')
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'mysql'}
-    ui_color = '#a0e08c'
+    template_fields: Sequence[str] = ("sql", "partition", "hive_table")
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "mysql"}
+    ui_color = "#a0e08c"
 
     def __init__(
         self,
@@ -82,11 +87,12 @@ class MySqlToHiveOperator(BaseOperator):
         recreate: bool = False,
         partition: dict | None = None,
         delimiter: str = chr(1),
-        quoting: str | None = None,
+        quoting: int | None = None,
         quotechar: str = '"',
         escapechar: str | None = None,
-        mysql_conn_id: str = 'mysql_default',
-        hive_cli_conn_id: str = 'hive_cli_default',
+        mysql_conn_id: str = "mysql_default",
+        hive_cli_conn_id: str = "hive_cli_default",
+        hive_auth: str | None = None,
         tblproperties: dict | None = None,
         **kwargs,
     ) -> None:
@@ -104,51 +110,49 @@ class MySqlToHiveOperator(BaseOperator):
         self.hive_cli_conn_id = hive_cli_conn_id
         self.partition = partition or {}
         self.tblproperties = tblproperties
+        self.hive_auth = hive_auth
 
     @classmethod
     def type_map(cls, mysql_type: int) -> str:
         """Maps MySQL type to Hive type."""
         types = MySQLdb.constants.FIELD_TYPE
         type_map = {
-            types.BIT: 'INT',
-            types.DECIMAL: 'DOUBLE',
-            types.NEWDECIMAL: 'DOUBLE',
-            types.DOUBLE: 'DOUBLE',
-            types.FLOAT: 'DOUBLE',
-            types.INT24: 'INT',
-            types.LONG: 'BIGINT',
-            types.LONGLONG: 'DECIMAL(38,0)',
-            types.SHORT: 'INT',
-            types.TINY: 'SMALLINT',
-            types.YEAR: 'INT',
-            types.TIMESTAMP: 'TIMESTAMP',
+            types.BIT: "INT",
+            types.DECIMAL: "DOUBLE",
+            types.NEWDECIMAL: "DOUBLE",
+            types.DOUBLE: "DOUBLE",
+            types.FLOAT: "DOUBLE",
+            types.INT24: "INT",
+            types.LONG: "BIGINT",
+            types.LONGLONG: "DECIMAL(38,0)",
+            types.SHORT: "INT",
+            types.TINY: "SMALLINT",
+            types.YEAR: "INT",
+            types.TIMESTAMP: "TIMESTAMP",
         }
-        return type_map.get(mysql_type, 'STRING')
+        return type_map.get(mysql_type, "STRING")
 
     def execute(self, context: Context):
-        hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
+        hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id, auth=self.hive_auth)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
-
         self.log.info("Dumping MySQL query results to local file")
-        conn = mysql.get_conn()
-        cursor = conn.cursor()
-        cursor.execute(self.sql)
-        with NamedTemporaryFile("wb") as f:
-            csv_writer = csv.writer(
-                f,
-                delimiter=self.delimiter,
-                quoting=self.quoting,
-                quotechar=self.quotechar,
-                escapechar=self.escapechar,
-                encoding="utf-8",
-            )
-            field_dict = OrderedDict()
-            for field in cursor.description:
-                field_dict[field[0]] = self.type_map(field[1])
-            csv_writer.writerows(cursor)
+        with NamedTemporaryFile(mode="w", encoding="utf-8") as f:
+            with closing(mysql.get_conn()) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(self.sql)
+                    csv_writer = csv.writer(
+                        f,
+                        delimiter=self.delimiter,
+                        quoting=self.quoting,
+                        quotechar=self.quotechar if self.quoting != csv.QUOTE_NONE else None,
+                        escapechar=self.escapechar,
+                    )
+                    field_dict = OrderedDict()
+                    if cursor.description is not None:
+                        for field in cursor.description:
+                            field_dict[field[0]] = self.type_map(field[1])
+                    csv_writer.writerows(cursor)
             f.flush()
-            cursor.close()
-            conn.close()
             self.log.info("Loading file into Hive")
             hive.load_file(
                 f.name,

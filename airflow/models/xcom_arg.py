@@ -14,29 +14,42 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
+import contextlib
 import inspect
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Mapping, Sequence, overload
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, Mapping, Sequence, Union, overload
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from airflow.exceptions import XComNotFound
+from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models.abstractoperator import AbstractOperator
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
-from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import EdgeModifier
+from airflow.utils.mixins import ResolveMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.types import NOTSET
+from airflow.utils.setup_teardown import SetupTeardownContext
+from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.types import NOTSET, ArgNotSet
+from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
 
+# Callable objects contained by MapXComArg. We only accept callables from
+# the user, but deserialize them into strings in a serialized XComArg for
+# safety (those callables are arbitrary user code).
+MapCallables = Sequence[Union[Callable[[Any], Any], str]]
 
-class XComArg(DependencyMixin):
+
+class XComArg(ResolveMixin, DependencyMixin):
     """Reference to an XCom value pushed from another operator.
 
     The implementation supports::
@@ -83,23 +96,23 @@ class XComArg(DependencyMixin):
         return super().__new__(cls)
 
     @staticmethod
-    def iter_xcom_args(arg: Any) -> Iterator[XComArg]:
-        """Return XComArg instances in an arbitrary value.
+    def iter_xcom_references(arg: Any) -> Iterator[tuple[Operator, str]]:
+        """Return XCom references in an arbitrary value.
 
         Recursively traverse ``arg`` and look for XComArg instances in any
         collection objects, and instances with ``template_fields`` set.
         """
-        if isinstance(arg, XComArg):
-            yield arg
+        if isinstance(arg, ResolveMixin):
+            yield from arg.iter_references()
         elif isinstance(arg, (tuple, set, list)):
             for elem in arg:
-                yield from XComArg.iter_xcom_args(elem)
+                yield from XComArg.iter_xcom_references(elem)
         elif isinstance(arg, dict):
             for elem in arg.values():
-                yield from XComArg.iter_xcom_args(elem)
+                yield from XComArg.iter_xcom_references(elem)
         elif isinstance(arg, AbstractOperator):
-            for elem in arg.template_fields:
-                yield from XComArg.iter_xcom_args(elem)
+            for attr in arg.template_fields:
+                yield from XComArg.iter_xcom_references(getattr(arg, attr))
 
     @staticmethod
     def apply_upstream_relationship(op: Operator, arg: Any):
@@ -109,18 +122,17 @@ class XComArg(DependencyMixin):
         collections objects and classes decorated with ``template_fields``), and
         sets the relationship to ``op`` on any found.
         """
-        for ref in XComArg.iter_xcom_args(arg):
-            for operator, _ in ref.iter_references():
-                op.set_upstream(operator)
+        for operator, _ in XComArg.iter_xcom_references(arg):
+            op.set_upstream(operator)
 
     @property
     def roots(self) -> list[DAGNode]:
-        """Required by TaskMixin"""
+        """Required by TaskMixin."""
         return [op for op, _ in self.iter_references()]
 
     @property
     def leaves(self) -> list[DAGNode]:
-        """Required by TaskMixin"""
+        """Required by TaskMixin."""
         return [op for op, _ in self.iter_references()]
 
     def set_upstream(
@@ -165,10 +177,6 @@ class XComArg(DependencyMixin):
         """
         raise NotImplementedError()
 
-    def iter_references(self) -> Iterator[tuple[Operator, str]]:
-        """Iterate through (operator, key) references."""
-        raise NotImplementedError()
-
     def map(self, f: Callable[[Any], Any]) -> MapXComArg:
         return MapXComArg(self, [f])
 
@@ -185,14 +193,28 @@ class XComArg(DependencyMixin):
         """
         raise NotImplementedError()
 
+    @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
         """Pull XCom value.
 
-        This should only be called during ``op.execute()`` in respectable context.
+        This should only be called during ``op.execute()`` with an appropriate
+        context (e.g. generated from ``TaskInstance.get_template_context()``).
+        Although the ``ResolveMixin`` parent mixin also has a ``resolve``
+        protocol, this adds the optional ``session`` argument that some of the
+        subclasses need.
 
         :meta private:
         """
         raise NotImplementedError()
+
+    def __enter__(self):
+        if not self.operator.is_setup and not self.operator.is_teardown:
+            raise AirflowException("Only setup/teardown tasks can be used as context managers.")
+        SetupTeardownContext.push_setup_teardown_task(self.operator)
+        return SetupTeardownContext
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        SetupTeardownContext.set_work_task_roots_and_leaves()
 
 
 class PlainXComArg(XComArg):
@@ -223,7 +245,7 @@ class PlainXComArg(XComArg):
         return self.operator == other.operator and self.key == other.key
 
     def __getitem__(self, item: str) -> XComArg:
-        """Implements xcomresult['some_result_key']"""
+        """Implements xcomresult['some_result_key']."""
         if not isinstance(item, str):
             raise ValueError(f"XComArg only supports str lookup, received {type(item).__name__}")
         return PlainXComArg(operator=self.operator, key=item)
@@ -249,7 +271,7 @@ class PlainXComArg(XComArg):
 
     def __str__(self) -> str:
         """
-        Backward compatibility for old-style jinja used in Airflow Operators
+        Backward compatibility for old-style jinja used in Airflow Operators.
 
         **Example**: to use XComArg at BashOperator::
 
@@ -276,6 +298,55 @@ class PlainXComArg(XComArg):
     def _deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
         return cls(dag.get_task(data["task_id"]), data["key"])
 
+    @property
+    def is_setup(self) -> bool:
+        return self.operator.is_setup
+
+    @is_setup.setter
+    def is_setup(self, val: bool):
+        self.operator.is_setup = val
+
+    @property
+    def is_teardown(self) -> bool:
+        return self.operator.is_teardown
+
+    @is_teardown.setter
+    def is_teardown(self, val: bool):
+        self.operator.is_teardown = val
+
+    @property
+    def on_failure_fail_dagrun(self) -> bool:
+        return self.operator.on_failure_fail_dagrun
+
+    @on_failure_fail_dagrun.setter
+    def on_failure_fail_dagrun(self, val: bool):
+        self.operator.on_failure_fail_dagrun = val
+
+    def as_setup(self) -> DependencyMixin:
+        for operator, _ in self.iter_references():
+            operator.is_setup = True
+        return self
+
+    def as_teardown(
+        self,
+        *,
+        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
+        on_failure_fail_dagrun=NOTSET,
+    ):
+        for operator, _ in self.iter_references():
+            operator.is_teardown = True
+            if TYPE_CHECKING:
+                assert isinstance(operator, BaseOperator)  # Can't set MappedOperator as teardown
+            operator.trigger_rule = TriggerRule.ALL_DONE_SETUP_SUCCESS
+            if on_failure_fail_dagrun is not NOTSET:
+                operator.on_failure_fail_dagrun = on_failure_fail_dagrun
+            if not isinstance(setups, ArgNotSet):
+                setups = [setups] if isinstance(setups, DependencyMixin) else setups
+                for s in setups:
+                    s.is_setup = True
+                    s >> operator
+        return self
+
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
         yield self.operator, self.key
 
@@ -290,11 +361,26 @@ class PlainXComArg(XComArg):
         return super().zip(*others, fillvalue=fillvalue)
 
     def get_task_map_length(self, run_id: str, *, session: Session) -> int | None:
+        from airflow.models.taskinstance import TaskInstance
         from airflow.models.taskmap import TaskMap
         from airflow.models.xcom import XCom
 
         task = self.operator
-        if task.is_mapped:
+        if isinstance(task, MappedOperator):
+            unfinished_ti_count_query = session.query(func.count(TaskInstance.map_index)).filter(
+                TaskInstance.dag_id == task.dag_id,
+                TaskInstance.run_id == run_id,
+                TaskInstance.task_id == task.task_id,
+                # Special NULL treatment is needed because 'state' can be NULL.
+                # The "IN" part would produce "NULL NOT IN ..." and eventually
+                # "NULl = NULL", which is a big no-no in SQL.
+                or_(
+                    TaskInstance.state.is_(None),
+                    TaskInstance.state.in_(s.value for s in State.unfinished if s is not None),
+                ),
+            )
+            if unfinished_ti_count_query.scalar():
+                return None  # Not all of the expanded tis are done yet.
             query = session.query(func.count(XCom.map_index)).filter(
                 XCom.dag_id == task.dag_id,
                 XCom.run_id == run_id,
@@ -313,24 +399,71 @@ class PlainXComArg(XComArg):
 
     @provide_session
     def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
+        from airflow.models.taskinstance import TaskInstance
+
+        ti = context["ti"]
+        assert isinstance(ti, TaskInstance), "Wait for AIP-44 implementation to complete"
+
         task_id = self.operator.task_id
-        result = context["ti"].xcom_pull(task_ids=task_id, key=str(self.key), default=NOTSET, session=session)
-        if result is not NOTSET:
+        map_indexes = ti.get_relevant_upstream_map_indexes(
+            self.operator,
+            context["expanded_ti_count"],
+            session=session,
+        )
+        result = ti.xcom_pull(
+            task_ids=task_id,
+            map_indexes=map_indexes,
+            key=self.key,
+            default=NOTSET,
+            session=session,
+        )
+        if not isinstance(result, ArgNotSet):
             return result
         if self.key == XCOM_RETURN_KEY:
             return None
-        raise XComNotFound(context["ti"].dag_id, task_id, self.key)
+        if getattr(self.operator, "multiple_outputs", False):
+            # If the operator is set to have multiple outputs and it was not executed,
+            # we should return "None" instead of showing an error. This is because when
+            # multiple outputs XComs are created, the XCom keys associated with them will have
+            # different names than the predefined "XCOM_RETURN_KEY" and won't be found.
+            # Therefore, it's better to return "None" like we did above where self.key==XCOM_RETURN_KEY.
+            return None
+        raise XComNotFound(ti.dag_id, task_id, self.key)
+
+
+def _get_callable_name(f: Callable | str) -> str:
+    """Try to "describe" a callable by getting its name."""
+    if callable(f):
+        return f.__name__
+    # Parse the source to find whatever is behind "def". For safety, we don't
+    # want to evaluate the code in any meaningful way!
+    with contextlib.suppress(Exception):
+        kw, name, _ = f.lstrip().split(None, 2)
+        if kw == "def":
+            return name
+    return "<function>"
 
 
 class _MapResult(Sequence):
-    def __init__(self, value: Sequence | dict, callables: Sequence[Callable[[Any], Any]]) -> None:
+    def __init__(self, value: Sequence | dict, callables: MapCallables) -> None:
         self.value = value
         self.callables = callables
 
     def __getitem__(self, index: Any) -> Any:
         value = self.value[index]
-        for f in self.callables:
-            value = f(value)
+
+        # In the worker, we can access all actual callables. Call them.
+        callables = [f for f in self.callables if callable(f)]
+        if len(callables) == len(self.callables):
+            for f in callables:
+                value = f(value)
+            return value
+
+        # In the scheduler, we don't have access to the actual callables, nor do
+        # we want to run it since it's arbitrary code. This builds a string to
+        # represent the call chain in the UI or logs instead.
+        for v in self.callables:
+            value = f"{_get_callable_name(v)}({value})"
         return value
 
     def __len__(self) -> int:
@@ -342,9 +475,11 @@ class MapXComArg(XComArg):
 
     This is based on an XComArg, but also applies a series of "transforms" that
     convert the pulled XCom value.
+
+    :meta private:
     """
 
-    def __init__(self, arg: XComArg, callables: Sequence[Callable[[Any], Any]]) -> None:
+    def __init__(self, arg: XComArg, callables: MapCallables) -> None:
         for c in callables:
             if getattr(c, "_airflow_is_task_decorator", False):
                 raise ValueError("map() argument must be a plain function, not a @task operator")
@@ -352,12 +487,13 @@ class MapXComArg(XComArg):
         self.callables = callables
 
     def __repr__(self) -> str:
-        return f"{self.arg!r}.map([{len(self.callables)} functions])"
+        map_calls = "".join(f".map({_get_callable_name(f)})" for f in self.callables)
+        return f"{self.arg!r}{map_calls}"
 
     def _serialize(self) -> dict[str, Any]:
         return {
             "arg": serialize_xcom_arg(self.arg),
-            "callables": [inspect.getsource(c) for c in self.callables],
+            "callables": [inspect.getsource(c) if callable(c) else c for c in self.callables],
         }
 
     @classmethod
@@ -403,7 +539,7 @@ class _ZipResult(Sequence):
 
     def __len__(self) -> int:
         lengths = (len(v) for v in self.values)
-        if self.fillvalue is NOTSET:
+        if isinstance(self.fillvalue, ArgNotSet):
             return min(lengths)
         return max(lengths)
 
@@ -426,13 +562,13 @@ class ZipXComArg(XComArg):
         args_iter = iter(self.args)
         first = repr(next(args_iter))
         rest = ", ".join(repr(arg) for arg in args_iter)
-        if self.fillvalue is NOTSET:
+        if isinstance(self.fillvalue, ArgNotSet):
             return f"{first}.zip({rest})"
         return f"{first}.zip({rest}, fillvalue={self.fillvalue!r})"
 
     def _serialize(self) -> dict[str, Any]:
         args = [serialize_xcom_arg(arg) for arg in self.args]
-        if self.fillvalue is NOTSET:
+        if isinstance(self.fillvalue, ArgNotSet):
             return {"args": args}
         return {"args": args, "fillvalue": self.fillvalue}
 
@@ -452,7 +588,7 @@ class ZipXComArg(XComArg):
         ready_lengths = [length for length in all_lengths if length is not None]
         if len(ready_lengths) != len(self.args):
             return None  # If any of the referenced XComs is not ready, we are not ready either.
-        if self.fillvalue is NOTSET:
+        if isinstance(self.fillvalue, ArgNotSet):
             return min(ready_lengths)
         return max(ready_lengths)
 

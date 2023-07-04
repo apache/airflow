@@ -33,9 +33,9 @@ class TestGithubHook:
         db.merge_conn(
             Connection(
                 conn_id="github_default",
-                conn_type='github',
-                password='my-access-token',
-                host='https://mygithub.com/api/v3',
+                conn_type="github",
+                password="my-access-token",
+                host="https://mygithub.com/api/v3",
             )
         )
 

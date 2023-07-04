@@ -35,47 +35,53 @@ AWS_CONN_ID = "aws_default"
 
 @pytest.fixture
 def hook():
-    with mock.patch("airflow.providers.amazon.aws.hooks.appflow.AppflowHook.__init__", return_value=None):
-        with mock.patch("airflow.providers.amazon.aws.hooks.appflow.AppflowHook.conn") as mock_conn:
-            mock_conn.describe_flow.return_value = {
-                'sourceFlowConfig': {'connectorType': CONNECTION_TYPE},
-                'tasks': [],
-                'triggerConfig': {'triggerProperties': None},
-                'flowName': FLOW_NAME,
-                'destinationFlowConfigList': {},
-                'lastRunExecutionDetails': {
-                    'mostRecentExecutionStatus': 'Successful',
-                    'mostRecentExecutionTime': datetime(3000, 1, 1, tzinfo=timezone.utc),
-                },
-            }
-            mock_conn.update_flow.return_value = {}
-            mock_conn.start_flow.return_value = {"executionId": EXECUTION_ID}
-            mock_conn.describe_flow_execution_records.return_value = {
-                "flowExecutions": [{"executionId": EXECUTION_ID, "executionResult": {"recordsProcessed": 1}}]
-            }
-            yield AppflowHook(aws_conn_id=AWS_CONN_ID, region_name=REGION_NAME)
+    with mock.patch("airflow.providers.amazon.aws.hooks.appflow.AppflowHook.conn") as mock_conn:
+        mock_conn.describe_flow.return_value = {
+            "sourceFlowConfig": {"connectorType": CONNECTION_TYPE},
+            "tasks": [],
+            "triggerConfig": {"triggerProperties": None},
+            "flowName": FLOW_NAME,
+            "destinationFlowConfigList": {},
+            "lastRunExecutionDetails": {
+                "mostRecentExecutionStatus": "Successful",
+                "mostRecentExecutionTime": datetime(3000, 1, 1, tzinfo=timezone.utc),
+            },
+        }
+        mock_conn.update_flow.return_value = {}
+        mock_conn.start_flow.return_value = {"executionId": EXECUTION_ID}
+        mock_conn.describe_flow_execution_records.return_value = {
+            "flowExecutions": [
+                {
+                    "executionId": EXECUTION_ID,
+                    "executionResult": {"recordsProcessed": 1},
+                    "executionStatus": "Successful",
+                }
+            ]
+        }
+        yield AppflowHook(aws_conn_id=AWS_CONN_ID, region_name=REGION_NAME)
 
 
 def test_conn_attributes(hook):
-    assert hasattr(hook, 'conn')
+    assert hasattr(hook, "conn")
     conn = hook.conn
     assert conn is hook.conn, "AppflowHook conn property non-cached"
 
 
 def test_run_flow(hook):
-    hook.run_flow(flow_name=FLOW_NAME)
-    hook.conn.describe_flow.assert_called_with(flowName=FLOW_NAME)
-    assert hook.conn.describe_flow.call_count == 1
+    with mock.patch("airflow.providers.amazon.aws.waiters.base_waiter.BaseBotoWaiter.waiter"):
+        hook.run_flow(flow_name=FLOW_NAME, poll_interval=0)
+    hook.conn.describe_flow_execution_records.assert_called_with(flowName=FLOW_NAME)
+    assert hook.conn.describe_flow_execution_records.call_count == 1
     hook.conn.start_flow.assert_called_once_with(flowName=FLOW_NAME)
 
 
 def test_update_flow_filter(hook):
     tasks = [
         {
-            'taskType': 'Filter',
-            'connectorOperator': {'Salesforce': 'GREATER_THAN'},
-            'sourceFields': ['col0'],
-            'taskProperties': {'DATA_TYPE': 'datetime', 'VALUE': '1653523200000'},
+            "taskType": "Filter",
+            "connectorOperator": {"Salesforce": "GREATER_THAN"},
+            "sourceFields": ["col0"],
+            "taskProperties": {"DATA_TYPE": "datetime", "VALUE": "1653523200000"},
         }
     ]
     hook.update_flow_filter(flow_name=FLOW_NAME, filter_tasks=tasks, set_trigger_ondemand=True)

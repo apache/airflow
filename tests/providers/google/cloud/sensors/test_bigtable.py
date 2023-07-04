@@ -27,10 +27,10 @@ from google.cloud.bigtable.table import ClusterState
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
 
-PROJECT_ID = 'test_project_id'
-INSTANCE_ID = 'test-instance-id'
-GCP_CONN_ID = 'test-gcp-conn-id'
-TABLE_ID = 'test-table-id'
+PROJECT_ID = "test_project_id"
+INSTANCE_ID = "test-instance-id"
+GCP_CONN_ID = "test-gcp-conn-id"
+TABLE_ID = "test-table-id"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 
@@ -38,11 +38,11 @@ class BigtableWaitForTableReplicationTest:
     @pytest.mark.parametrize(
         "missing_attribute, project_id, instance_id, table_id",
         [
-            ('instance_id', PROJECT_ID, '', TABLE_ID),
-            ('table_id', PROJECT_ID, INSTANCE_ID, ''),
+            ("instance_id", PROJECT_ID, "", TABLE_ID),
+            ("table_id", PROJECT_ID, INSTANCE_ID, ""),
         ],
     )
-    @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
+    @mock.patch("airflow.providers.google.cloud.sensors.bigtable.BigtableHook")
     def test_empty_attribute(self, missing_attribute, project_id, instance_id, table_id, mock_hook):
         with pytest.raises(AirflowException) as ctx:
             BigtableTableReplicationCompletedSensor(
@@ -54,10 +54,10 @@ class BigtableWaitForTableReplicationTest:
                 impersonation_chain=IMPERSONATION_CHAIN,
             )
         err = ctx.value
-        assert str(err) == f'Empty parameter: {missing_attribute}'
+        assert str(err) == f"Empty parameter: {missing_attribute}"
         mock_hook.assert_not_called()
 
-    @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
+    @mock.patch("airflow.providers.google.cloud.sensors.bigtable.BigtableHook")
     def test_wait_no_instance(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = None
 
@@ -75,7 +75,7 @@ class BigtableWaitForTableReplicationTest:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-    @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
+    @mock.patch("airflow.providers.google.cloud.sensors.bigtable.BigtableHook")
     def test_wait_no_table(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
         mock_hook.return_value.get_cluster_states_for_table.side_effect = mock.Mock(
@@ -96,7 +96,7 @@ class BigtableWaitForTableReplicationTest:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-    @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
+    @mock.patch("airflow.providers.google.cloud.sensors.bigtable.BigtableHook")
     def test_wait_not_ready(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
         mock_hook.return_value.get_cluster_states_for_table.return_value = {"cl-id": ClusterState(0)}
@@ -114,7 +114,7 @@ class BigtableWaitForTableReplicationTest:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
 
-    @mock.patch('airflow.providers.google.cloud.sensors.bigtable.BigtableHook')
+    @mock.patch("airflow.providers.google.cloud.sensors.bigtable.BigtableHook")
     def test_wait_ready(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
         mock_hook.return_value.get_cluster_states_for_table.return_value = {"cl-id": ClusterState(4)}

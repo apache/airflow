@@ -93,7 +93,7 @@ def provide_gcp_context(
     with provide_gcp_conn_and_credentials(
         key_file_path, scopes, project_id
     ), tempfile.TemporaryDirectory() as gcloud_config_tmp, mock.patch.dict(
-        'os.environ', {CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}
+        "os.environ", {CLOUD_SDK_CONFIG_DIR: gcloud_config_tmp}
     ):
         executor = CommandExecutor()
 
@@ -181,7 +181,7 @@ class GoogleSystemTest(SystemTest):
 
     @classmethod
     def get_project_number(cls, project_id: str) -> str:
-        cmd = ['gcloud', 'projects', 'describe', project_id, '--format', 'value(projectNumber)']
+        cmd = ["gcloud", "projects", "describe", project_id, "--format", "value(projectNumber)"]
         return cls.check_output(cmd).decode("utf-8").strip()
 
     @classmethod

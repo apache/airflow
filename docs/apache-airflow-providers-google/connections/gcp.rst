@@ -36,6 +36,11 @@ There are two ways to connect to Google Cloud using Airflow.
    Key can be specified as a path to the key file (``Keyfile Path``), as a key payload (``Keyfile JSON``)
    or as secret in Secret Manager (``Keyfile secret name``). Only one way of defining the key can be used at a time.
    If you need to manage multiple keys then you should configure multiple connections.
+3. Using a `credential configuration file <https://googleapis.dev/python/google-auth/2.9.0/user-guide.html#external-credentials-workload-identity-federation>`_,
+   by specifying the path to or the content of a valid credential configuration file.
+   A credential configuration file is a configuration file that typically contains non-sensitive metadata to instruct
+   the ``google-auth`` library on how to retrieve external subject tokens and exchange them for service account access
+   tokens.
 
    .. warning:: Additional permissions might be needed
 
@@ -98,6 +103,11 @@ Keyfile JSON
 
     Not required if using application default credentials.
 
+Credential Configuration File
+    Credential configuration file JSON or path to a credential configuration file on the filesystem.
+
+    Not required if using application default credentials.
+
 Secret name which holds Keyfile JSON
     Name of the secret in Secret Manager which contains a `service account
     <https://cloud.google.com/docs/authentication/#service_accounts>`_ key.
@@ -124,21 +134,27 @@ Number of Retries
       * query parameters contains information specific to this type of
         connection. The following keys are accepted:
 
-        * ``extra__google_cloud_platform__project`` - Project Id
-        * ``extra__google_cloud_platform__key_path`` - Keyfile Path
-        * ``extra__google_cloud_platform__keyfile_dict`` - Keyfile JSON
-        * ``extra__google_cloud_platform__key_secret_name`` - Secret name which holds Keyfile JSON
-        * ``extra__google_cloud_platform__key_secret_project_id`` - Project Id which holds Keyfile JSON
-        * ``extra__google_cloud_platform__scope`` - Scopes
-        * ``extra__google_cloud_platform__num_retries`` - Number of Retries
+        * ``project`` - Project Id
+        * ``key_path`` - Keyfile Path
+        * ``keyfile_dict`` - Keyfile JSON
+        * ``key_secret_name`` - Secret name which holds Keyfile JSON
+        * ``key_secret_project_id`` - Project Id which holds Keyfile JSON
+        * ``scope`` - Scopes
+        * ``num_retries`` - Number of Retries
 
     Note that all components of the URI should be URL-encoded.
 
-    For example:
+    For example, with URI format:
 
     .. code-block:: bash
 
-       export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='google-cloud-platform://?extra__google_cloud_platform__key_path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra__google_cloud_platform__project=airflow&extra__google_cloud_platform__num_retries=5'
+       export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='google-cloud-platform://?key_path=%2Fkeys%2Fkey.json&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&project=airflow&num_retries=5'
+
+    And using JSON format:
+
+    .. code-block:: bash
+
+       export AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT='{"conn_type": "google_cloud_platform", "extra": {"key_path": "/keys/key.json", "scope": "https://www.googleapis.com/auth/cloud-platform", "project": "airflow", "num_retries": 5}}'
 
 .. _howto/connection:gcp:impersonation:
 
@@ -248,3 +264,38 @@ following value for ``impersonation_chain`` argument...
         ]
 
 ...then requests will be executed using ``impersonation-chain-4`` account's privileges.
+
+
+Domain-wide delegation
+-----------------------------------------
+Some Google operators, hooks and sensors support `domain-wide delegation <https://developers.google.com/cloud-search/docs/guides/delegation>`_, in addition to direct impersonation of a service account.
+Delegation allows a user or service account to grant another service account the ability to act on their behalf.
+This means that the user or service account that is delegating their permissions can continue to access and manage their own resources, while the delegated service account can also access and manage those resources.
+
+For example:
+
+.. code-block:: python
+
+        PROJECT_ID = os.environ.get("TF_VAR_project_id", "your_project_id")
+
+        SPREADSHEET = {
+            "properties": {"title": "Test1"},
+            "sheets": [{"properties": {"title": "Sheet1"}}],
+        }
+
+        from airflow.providers.google.suite.operators.sheets import (
+            GoogleSheetsCreateSpreadsheetOperator,
+        )
+
+        create_spreadsheet_operator = GoogleSheetsCreateSpreadsheetOperator(
+            task_id="create-spreadsheet",
+            gcp_conn_id="google_cloud_default",
+            spreadsheet=SPREADSHEET,
+            delegate_to=f"projects/-/serviceAccounts/SA@{PROJECT_ID}.iam.gserviceaccount.com",
+        )
+
+Note that as domain-wide delegation is currently supported by most of the Google operators and hooks, its usage should be limited only to Google Workspace (gsuite) and marketing platform operators and hooks. It is deprecated in the following usages:
+
+* All of Google Cloud operators and hooks.
+* Firebase hooks.
+* All transfer operators that involve Google cloud in different providers, for example: :class:`airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs`.

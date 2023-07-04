@@ -1,0 +1,91 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+---
+openapi: 3.0.2
+info:
+  title: Airflow Internal API
+  version: 1.0.0
+  description: |
+    This is Airflow Internal API - which is a proxy for components running
+    customer code for connecting to Airflow Database.
+
+    It is not intended to be used by any external code.
+
+    You can find more information in AIP-44
+    https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-44+Airflow+Internal+API
+
+
+servers:
+  - url: /internal_api/v1
+    description: Airflow Internal API
+paths:
+  "/rpcapi":
+    post:
+      operationId: rpcapi
+      deprecated: false
+      x-openapi-router-controller: airflow.api_internal.endpoints.rpc_api_endpoint
+      operationId: internal_airflow_api
+      tags:
+      - JSONRPC
+      parameters: []
+      responses:
+        '200':
+          description: Successful response
+      requestBody:
+        x-body-name: body
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - method
+              - jsonrpc
+              - params
+              properties:
+                jsonrpc:
+                  type: string
+                  default: '2.0'
+                  description: JSON-RPC Version (2.0)
+                method:
+                  type: string
+                  description: Method name
+                params:
+                  title: Parameters
+                  type: string
+x-headers: []
+x-explorer-enabled: true
+x-proxy-enabled: true
+components:
+  schemas:
+    JsonRpcRequired:
+      type: object
+      required:
+      - method
+      - jsonrpc
+      properties:
+        method:
+          type: string
+          description: Method name
+        jsonrpc:
+          type: string
+          default: '2.0'
+          description: JSON-RPC Version (2.0)
+      discriminator:
+        propertyName: method_name
+tags: []

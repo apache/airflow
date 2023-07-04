@@ -29,21 +29,21 @@ from alembic import op
 from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
-revision = '092435bf5d12'
-down_revision = '97cdd93827b8'
+revision = "092435bf5d12"
+down_revision = "97cdd93827b8"
 branch_labels = None
 depends_on = None
-airflow_version = '2.1.4'
+airflow_version = "2.1.4"
 
 
 def upgrade():
     """Apply Add ``max_active_runs`` column to ``dag_model`` table"""
-    op.add_column('dag', sa.Column('max_active_runs', sa.Integer(), nullable=True))
-    with op.batch_alter_table('dag_run', schema=None) as batch_op:
+    op.add_column("dag", sa.Column("max_active_runs", sa.Integer(), nullable=True))
+    with op.batch_alter_table("dag_run", schema=None) as batch_op:
         # Add index to dag_run.dag_id and also add index to dag_run.state where state==running
-        batch_op.create_index('idx_dag_run_dag_id', ['dag_id'])
+        batch_op.create_index("idx_dag_run_dag_id", ["dag_id"])
         batch_op.create_index(
-            'idx_dag_run_running_dags',
+            "idx_dag_run_running_dags",
             ["state", "dag_id"],
             postgresql_where=text("state='running'"),
             mssql_where=text("state='running'"),
@@ -53,9 +53,9 @@ def upgrade():
 
 def downgrade():
     """Unapply Add ``max_active_runs`` column to ``dag_model`` table"""
-    with op.batch_alter_table('dag') as batch_op:
-        batch_op.drop_column('max_active_runs')
-    with op.batch_alter_table('dag_run', schema=None) as batch_op:
+    with op.batch_alter_table("dag") as batch_op:
+        batch_op.drop_column("max_active_runs")
+    with op.batch_alter_table("dag_run", schema=None) as batch_op:
         # Drop index to dag_run.dag_id and also drop index to dag_run.state where state==running
-        batch_op.drop_index('idx_dag_run_dag_id')
-        batch_op.drop_index('idx_dag_run_running_dags')
+        batch_op.drop_index("idx_dag_run_dag_id")
+        batch_op.drop_index("idx_dag_run_running_dags")

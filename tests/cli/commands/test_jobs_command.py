@@ -18,130 +18,145 @@ from __future__ import annotations
 
 import contextlib
 import io
-import unittest
 
 import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import jobs_command
-from airflow.jobs.scheduler_job import SchedulerJob
+from airflow.jobs.job import Job
+from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.test_utils.db import clear_db_jobs
 
 
-class TestCliConfigList(unittest.TestCase):
+class TestCliConfigList:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    def setUp(self) -> None:
+    def setup_method(self) -> None:
         clear_db_jobs()
         self.scheduler_job = None
+        self.job_runner = None
 
-    def tearDown(self) -> None:
-        if self.scheduler_job and self.scheduler_job.processor_agent:
-            self.scheduler_job.processor_agent.end()
+    def teardown_method(self) -> None:
+        if self.job_runner and self.job_runner.processor_agent:
+            self.job_runner.processor_agent.end()
         clear_db_jobs()
 
     def test_should_report_success_for_one_working_scheduler(self):
         with create_session() as session:
-            self.scheduler_job = SchedulerJob()
+            self.scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=self.scheduler_job)
             self.scheduler_job.state = State.RUNNING
             session.add(self.scheduler_job)
             session.commit()
-            self.scheduler_job.heartbeat()
+            self.scheduler_job.heartbeat(heartbeat_callback=self.job_runner.heartbeat_callback)
 
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
-            jobs_command.check(self.parser.parse_args(['jobs', 'check', '--job-type', 'SchedulerJob']))
-        self.assertIn("Found one alive job.", temp_stdout.getvalue())
+            jobs_command.check(self.parser.parse_args(["jobs", "check", "--job-type", "SchedulerJob"]))
+        assert "Found one alive job." in temp_stdout.getvalue()
 
     def test_should_report_success_for_one_working_scheduler_with_hostname(self):
         with create_session() as session:
-            self.scheduler_job = SchedulerJob()
+            self.scheduler_job = Job()
+            self.job_runner = SchedulerJobRunner(job=self.scheduler_job)
             self.scheduler_job.state = State.RUNNING
-            self.scheduler_job.hostname = 'HOSTNAME'
+            self.scheduler_job.hostname = "HOSTNAME"
             session.add(self.scheduler_job)
             session.commit()
-            self.scheduler_job.heartbeat()
+            self.scheduler_job.heartbeat(heartbeat_callback=self.job_runner.heartbeat_callback)
 
         with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
             jobs_command.check(
                 self.parser.parse_args(
-                    ['jobs', 'check', '--job-type', 'SchedulerJob', '--hostname', 'HOSTNAME']
+                    ["jobs", "check", "--job-type", "SchedulerJob", "--hostname", "HOSTNAME"]
                 )
             )
-        self.assertIn("Found one alive job.", temp_stdout.getvalue())
+        assert "Found one alive job." in temp_stdout.getvalue()
 
     def test_should_report_success_for_ha_schedulers(self):
         scheduler_jobs = []
+        job_runners = []
         with create_session() as session:
             for _ in range(3):
-                scheduler_job = SchedulerJob()
+                scheduler_job = Job()
+                job_runner = SchedulerJobRunner(job=scheduler_job)
                 scheduler_job.state = State.RUNNING
                 session.add(scheduler_job)
                 scheduler_jobs.append(scheduler_job)
+                job_runners.append(job_runner)
             session.commit()
-            scheduler_job.heartbeat()
-
-        with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
-            jobs_command.check(
-                self.parser.parse_args(
-                    ['jobs', 'check', '--job-type', 'SchedulerJob', '--limit', '100', '--allow-multiple']
+            scheduler_job.heartbeat(heartbeat_callback=job_runner.heartbeat_callback)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()) as temp_stdout:
+                jobs_command.check(
+                    self.parser.parse_args(
+                        ["jobs", "check", "--job-type", "SchedulerJob", "--limit", "100", "--allow-multiple"]
+                    )
                 )
-            )
-        self.assertIn("Found 3 alive jobs.", temp_stdout.getvalue())
-        for scheduler_job in scheduler_jobs:
-            if scheduler_job.processor_agent:
-                scheduler_job.processor_agent.end()
+            assert "Found 3 alive jobs." in temp_stdout.getvalue()
+        finally:
+            for job_runner in job_runners:
+                if job_runner.processor_agent:
+                    job_runner.processor_agent.end()
 
     def test_should_ignore_not_running_jobs(self):
         scheduler_jobs = []
+        job_runners = []
         with create_session() as session:
             for _ in range(3):
-                scheduler_job = SchedulerJob()
+                scheduler_job = Job()
+                job_runner = SchedulerJobRunner(job=scheduler_job)
                 scheduler_job.state = State.SHUTDOWN
                 session.add(scheduler_job)
                 scheduler_jobs.append(scheduler_job)
+                job_runners.append(job_runner)
             session.commit()
         # No alive jobs found.
         with pytest.raises(SystemExit, match=r"No alive jobs found."):
-            jobs_command.check(self.parser.parse_args(['jobs', 'check']))
-        for scheduler_job in scheduler_jobs:
-            if scheduler_job.processor_agent:
-                scheduler_job.processor_agent.end()
+            jobs_command.check(self.parser.parse_args(["jobs", "check"]))
+        for job_runner in job_runners:
+            if job_runner.processor_agent:
+                job_runner.processor_agent.end()
 
     def test_should_raise_exception_for_multiple_scheduler_on_one_host(self):
         scheduler_jobs = []
+        job_runners = []
         with create_session() as session:
             for _ in range(3):
-                scheduler_job = SchedulerJob()
+                scheduler_job = Job()
+                job_runner = SchedulerJobRunner(job=scheduler_job)
+                job_runner.job = scheduler_job
                 scheduler_job.state = State.RUNNING
-                scheduler_job.hostname = 'HOSTNAME'
+                scheduler_job.hostname = "HOSTNAME"
                 session.add(scheduler_job)
+                scheduler_jobs.append(scheduler_job)
+                job_runners.append(job_runner)
             session.commit()
-            scheduler_job.heartbeat()
+            scheduler_job.heartbeat(heartbeat_callback=job_runner.heartbeat_callback)
 
         with pytest.raises(SystemExit, match=r"Found 3 alive jobs. Expected only one."):
             jobs_command.check(
                 self.parser.parse_args(
                     [
-                        'jobs',
-                        'check',
-                        '--job-type',
-                        'SchedulerJob',
-                        '--limit',
-                        '100',
+                        "jobs",
+                        "check",
+                        "--job-type",
+                        "SchedulerJob",
+                        "--limit",
+                        "100",
                     ]
                 )
             )
-        for scheduler_job in scheduler_jobs:
-            if scheduler_job.processor_agent:
-                scheduler_job.processor_agent.end()
+        for job_runner in job_runners:
+            if job_runner.processor_agent:
+                job_runner.processor_agent.end()
 
     def test_should_raise_exception_for_allow_multiple_and_limit_1(self):
         with pytest.raises(
             SystemExit,
             match=r"To use option --allow-multiple, you must set the limit to a value greater than 1.",
         ):
-            jobs_command.check(self.parser.parse_args(['jobs', 'check', '--allow-multiple']))
+            jobs_command.check(self.parser.parse_args(["jobs", "check", "--allow-multiple"]))

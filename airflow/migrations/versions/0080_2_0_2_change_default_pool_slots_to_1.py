@@ -28,28 +28,28 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '8646922c8a04'
-down_revision = '449b4072c2da'
+revision = "8646922c8a04"
+down_revision = "449b4072c2da"
 branch_labels = None
 depends_on = None
-airflow_version = '2.0.2'
+airflow_version = "2.0.2"
 
 
 def upgrade():
     """Change default ``pool_slots`` to ``1`` and make pool_slots not nullable"""
     op.execute("UPDATE task_instance SET pool_slots = 1 WHERE pool_slots IS NULL")
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.alter_column("pool_slots", existing_type=sa.Integer, nullable=False, server_default='1')
+        batch_op.alter_column("pool_slots", existing_type=sa.Integer, nullable=False, server_default="1")
 
 
 def downgrade():
     """Unapply Change default ``pool_slots`` to ``1``"""
     conn = op.get_bind()
-    if conn.dialect.name == 'mssql':
+    if conn.dialect.name == "mssql":
         inspector = sa.inspect(conn.engine)
-        columns = inspector.get_columns('task_instance')
+        columns = inspector.get_columns("task_instance")
         for col in columns:
-            if col['name'] == 'pool_slots' and col['default'] == "('1')":
+            if col["name"] == "pool_slots" and col["default"] == "('1')":
                 with op.batch_alter_table("task_instance", schema=None) as batch_op:
                     batch_op.alter_column(
                         "pool_slots", existing_type=sa.Integer, nullable=True, server_default=None

@@ -28,10 +28,9 @@ if TYPE_CHECKING:
 
 class SparkJDBCOperator(SparkSubmitOperator):
     """
-    This operator extends the SparkSubmitOperator specifically for performing data
-    transfers to/from JDBC-based databases with Apache Spark. As with the
-    SparkSubmitOperator, it assumes that the "spark-submit" binary is available on the
-    PATH.
+    Extend the SparkSubmitOperator to perform data transfers to/from JDBC-based databases with Apache Spark.
+
+     As with the SparkSubmitOperator, it assumes that the "spark-submit" binary is available on the PATH.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -97,8 +96,8 @@ class SparkJDBCOperator(SparkSubmitOperator):
     def __init__(
         self,
         *,
-        spark_app_name: str = 'airflow-spark-jdbc',
-        spark_conn_id: str = 'spark-default',
+        spark_app_name: str = "airflow-spark-jdbc",
+        spark_conn_id: str = "spark-default",
         spark_conf: dict[str, Any] | None = None,
         spark_py_files: str | None = None,
         spark_files: str | None = None,
@@ -110,9 +109,9 @@ class SparkJDBCOperator(SparkSubmitOperator):
         verbose: bool = False,
         principal: str | None = None,
         keytab: str | None = None,
-        cmd_type: str = 'spark_to_jdbc',
+        cmd_type: str = "spark_to_jdbc",
         jdbc_table: str | None = None,
-        jdbc_conn_id: str = 'jdbc-default',
+        jdbc_conn_id: str = "jdbc-default",
         jdbc_driver: str | None = None,
         metastore_table: str | None = None,
         jdbc_truncate: bool = False,
@@ -159,7 +158,7 @@ class SparkJDBCOperator(SparkSubmitOperator):
         self._hook: SparkJDBCHook | None = None
 
     def execute(self, context: Context) -> None:
-        """Call the SparkSubmitHook to run the provided spark job"""
+        """Call the SparkSubmitHook to run the provided spark job."""
         if self._hook is None:
             self._hook = self._get_hook()
         self._hook.submit_jdbc_job()

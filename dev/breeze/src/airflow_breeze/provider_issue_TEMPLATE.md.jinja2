@@ -1,0 +1,30 @@
+I have a kind request for all the contributors to the latest provider packages release.
+Could you please help us to test the RC versions of the providers?
+
+Let us know in the comment, whether the issue is addressed.
+
+Those are providers that require testing as there were some substantial changes introduced:
+
+{% for provider_id, provider_info in providers.items()  %}
+## Provider [{{ provider_id }}: {{ provider_info.version }}{{ suffix }}](https://pypi.org/project/{{ provider_info.pypi_package_name }}/{{ provider_info.version }}{{ suffix }})
+{%- for pr in provider_info.pr_list %}
+   - [ ] [{{ pr.title }} (#{{ pr.number }})]({{ pr.html_url }}): @{{ pr.user.login }}
+{%- endfor %}
+{%- endfor %}
+
+The guidelines on how to test providers can be found in
+
+[Verify providers by contributors](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PROVIDER_PACKAGES.md#verify-by-contributors)
+
+<!--
+
+NOTE TO RELEASE MANAGER:
+
+Please move here the providers that have doc-only changes or for which changes are trivial, and
+you could assess that they are OK. In case
+
+The providers are automatically installed on Airflow 2.3 and latest `main` during the CI, so we know they
+are installable. Also, all classes within the providers are imported during the CI run so we know all
+providers can be imported.
+
+-->

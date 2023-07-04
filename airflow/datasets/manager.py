@@ -25,6 +25,7 @@ from sqlalchemy.orm.session import Session
 from airflow.configuration import conf
 from airflow.datasets import Dataset
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
@@ -46,12 +47,14 @@ class DatasetManager(LoggingMixin):
         self, *, task_instance: TaskInstance, dataset: Dataset, extra=None, session: Session, **kwargs
     ) -> None:
         """
+        Register dataset related changes.
+
         For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
         the dataset event
         """
         dataset_model = session.query(DatasetModel).filter(DatasetModel.uri == dataset.uri).one_or_none()
         if not dataset_model:
-            self.log.warning("DatasetModel %s not found", dataset_model)
+            self.log.warning("DatasetModel %s not found", dataset)
             return
         session.add(
             DatasetEvent(
@@ -64,6 +67,7 @@ class DatasetManager(LoggingMixin):
             )
         )
         session.flush()
+        Stats.incr("dataset.updates")
         if dataset_model.consuming_dags:
             self._queue_dagruns(dataset_model, session)
         session.flush()
@@ -102,19 +106,20 @@ class DatasetManager(LoggingMixin):
         stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset.id).on_conflict_do_nothing()
         session.execute(
             stmt,
-            [{'target_dag_id': target_dag.dag_id} for target_dag in dataset.consuming_dags],
+            [{"target_dag_id": target_dag.dag_id} for target_dag in dataset.consuming_dags],
         )
 
 
 def resolve_dataset_manager() -> DatasetManager:
+    """Retrieve the dataset manager."""
     _dataset_manager_class = conf.getimport(
-        section='core',
-        key='dataset_manager_class',
-        fallback='airflow.datasets.manager.DatasetManager',
+        section="core",
+        key="dataset_manager_class",
+        fallback="airflow.datasets.manager.DatasetManager",
     )
     _dataset_manager_kwargs = conf.getjson(
-        section='core',
-        key='dataset_manager_kwargs',
+        section="core",
+        key="dataset_manager_kwargs",
         fallback={},
     )
     return _dataset_manager_class(**_dataset_manager_kwargs)

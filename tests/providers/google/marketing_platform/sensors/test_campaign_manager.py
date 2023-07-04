@@ -17,17 +17,17 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 from airflow.providers.google.marketing_platform.sensors.campaign_manager import (
     GoogleCampaignManagerReportSensor,
 )
 
-API_VERSION = "api_version"
+API_VERSION = "v4"
 GCP_CONN_ID = "google_cloud_default"
 
 
-class TestGoogleCampaignManagerDeleteReportOperator(TestCase):
+class TestGoogleCampaignManagerDeleteReportOperator:
     @mock.patch(
         "airflow.providers.google.marketing_platform.sensors.campaign_manager.GoogleCampaignManagerHook"
     )

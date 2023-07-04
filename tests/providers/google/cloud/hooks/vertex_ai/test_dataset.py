@@ -17,8 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.hooks.vertex_ai.dataset import DatasetHook
@@ -46,8 +47,12 @@ BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 DATASET_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.dataset.{}"
 
 
-class TestVertexAIWithDefaultProjectIdHook(TestCase):
-    def setUp(self):
+class TestVertexAIWithDefaultProjectIdHook:
+    def test_delegate_to_runtime_error(self):
+        with pytest.raises(RuntimeError):
+            DatasetHook(gcp_conn_id=TEST_GCP_CONN_ID, delegate_to="delegate_to")
+
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
@@ -276,8 +281,8 @@ class TestVertexAIWithDefaultProjectIdHook(TestCase):
         )
 
 
-class TestVertexAIWithoutDefaultProjectIdHook(TestCase):
-    def setUp(self):
+class TestVertexAIWithoutDefaultProjectIdHook:
+    def setup_method(self):
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_no_default_project_id
         ):

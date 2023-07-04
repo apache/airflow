@@ -35,18 +35,17 @@ class CloudFormationCreateStackOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudFormationCreateStackOperator`
 
-
     :param stack_name: stack name (templated)
     :param cloudformation_parameters: parameters to be passed to CloudFormation.
     :param aws_conn_id: aws connection to uses
     """
 
-    template_fields: Sequence[str] = ('stack_name', 'cloudformation_parameters')
+    template_fields: Sequence[str] = ("stack_name", "cloudformation_parameters")
     template_ext: Sequence[str] = ()
-    ui_color = '#6b9659'
+    ui_color = "#6b9659"
 
     def __init__(
-        self, *, stack_name: str, cloudformation_parameters: dict, aws_conn_id: str = 'aws_default', **kwargs
+        self, *, stack_name: str, cloudformation_parameters: dict, aws_conn_id: str = "aws_default", **kwargs
     ):
         super().__init__(**kwargs)
         self.stack_name = stack_name
@@ -54,7 +53,7 @@ class CloudFormationCreateStackOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context):
-        self.log.info('CloudFormation parameters: %s', self.cloudformation_parameters)
+        self.log.info("CloudFormation parameters: %s", self.cloudformation_parameters)
 
         cloudformation_hook = CloudFormationHook(aws_conn_id=self.aws_conn_id)
         cloudformation_hook.create_stack(self.stack_name, self.cloudformation_parameters)
@@ -74,17 +73,17 @@ class CloudFormationDeleteStackOperator(BaseOperator):
     :param aws_conn_id: aws connection to uses
     """
 
-    template_fields: Sequence[str] = ('stack_name',)
+    template_fields: Sequence[str] = ("stack_name",)
     template_ext: Sequence[str] = ()
-    ui_color = '#1d472b'
-    ui_fgcolor = '#FFF'
+    ui_color = "#1d472b"
+    ui_fgcolor = "#FFF"
 
     def __init__(
         self,
         *,
         stack_name: str,
         cloudformation_parameters: dict | None = None,
-        aws_conn_id: str = 'aws_default',
+        aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -93,7 +92,7 @@ class CloudFormationDeleteStackOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context):
-        self.log.info('CloudFormation Parameters: %s', self.cloudformation_parameters)
+        self.log.info("CloudFormation Parameters: %s", self.cloudformation_parameters)
 
         cloudformation_hook = CloudFormationHook(aws_conn_id=self.aws_conn_id)
         cloudformation_hook.delete_stack(self.stack_name, self.cloudformation_parameters)

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""RedisHook module"""
+"""RedisHook module."""
 from __future__ import annotations
 
 from redis import Redis
@@ -25,17 +25,17 @@ from airflow.hooks.base import BaseHook
 
 class RedisHook(BaseHook):
     """
-    Wrapper for connection to interact with Redis in-memory data structure store
+    Wrapper for connection to interact with Redis in-memory data structure store.
 
     You can set your db in the extra field of your connection as ``{"db": 3}``.
     Also you can set ssl parameters as:
     ``{"ssl": true, "ssl_cert_reqs": "require", "ssl_cert_file": "/path/to/cert.pem", etc}``.
     """
 
-    conn_name_attr = 'redis_conn_id'
-    default_conn_name = 'redis_default'
-    conn_type = 'redis'
-    hook_name = 'Redis'
+    conn_name_attr = "redis_conn_id"
+    default_conn_name = "redis_default"
+    conn_type = "redis"
+    hook_name = "Redis"
 
     def __init__(self, redis_conn_id: str = default_conn_name) -> None:
         """
@@ -57,8 +57,8 @@ class RedisHook(BaseHook):
         conn = self.get_connection(self.redis_conn_id)
         self.host = conn.host
         self.port = conn.port
-        self.password = None if str(conn.password).lower() in ['none', 'false', ''] else conn.password
-        self.db = conn.extra_dejson.get('db')
+        self.password = None if str(conn.password).lower() in ["none", "false", ""] else conn.password
+        self.db = conn.extra_dejson.get("db")
 
         # check for ssl parameters in conn.extra
         ssl_arg_names = [

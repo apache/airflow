@@ -29,19 +29,18 @@ DOCS_DIR = os.path.join(ROOT_PROJECT_DIR, "docs")
 AIRFLOW_DIR = os.path.join(ROOT_PROJECT_DIR, "airflow")
 
 ALL_PROVIDER_YAMLS = load_package_data()
-AIRFLOW_SITE_DIR: str = os.environ.get('AIRFLOW_SITE_DIRECTORY') or ''
-PROCESS_TIMEOUT = 8 * 60  # 400 seconds
+AIRFLOW_SITE_DIR: str = os.environ.get("AIRFLOW_SITE_DIRECTORY") or ""
+PROCESS_TIMEOUT = 15 * 60
 
 CONSOLE_WIDTH = 180
 
 
 def prepare_code_snippet(file_path: str, line_no: int, context_lines_count: int = 5) -> str:
-    """
-    Prepares code snippet.
+    """Prepares code snippet.
+
     :param file_path: file path
     :param line_no: line number
     :param context_lines_count: number of lines of context.
-    :return:
     """
 
     def guess_lexer_for_filename(filename):

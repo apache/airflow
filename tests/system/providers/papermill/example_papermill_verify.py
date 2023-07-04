@@ -33,7 +33,7 @@ from airflow.lineage import AUTO
 from airflow.providers.papermill.operators.papermill import PapermillOperator
 
 START_DATE = datetime(2021, 1, 1)
-SCHEDULE_INTERVAL = '0 0 * * *'
+SCHEDULE_INTERVAL = "0 0 * * *"
 DAGRUN_TIMEOUT = timedelta(minutes=60)
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_papermill_operator_verify"
@@ -46,7 +46,7 @@ def check_notebook(inlets, execution_date):
     Verify the message in the notebook
     """
     notebook = sb.read_notebook(inlets[0].url)
-    message = notebook.scraps['message']
+    message = notebook.scraps["message"]
     print(f"Message in notebook {message} for {execution_date}")
 
     if message.data != f"Ran from Airflow at {execution_date}!":
@@ -56,7 +56,7 @@ def check_notebook(inlets, execution_date):
 
 
 with DAG(
-    dag_id='example_papermill_operator_verify',
+    dag_id="example_papermill_operator_verify",
     schedule=SCHEDULE_INTERVAL,
     start_date=START_DATE,
     dagrun_timeout=DAGRUN_TIMEOUT,

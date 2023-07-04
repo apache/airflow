@@ -34,14 +34,14 @@ services:
         source: ../../../.bash_history
         target: /root/.bash_history
       - type: bind
+        source: ../../../.build
+        target: /opt/airflow/.build
+      - type: bind
         source: ../../../.coveragerc
         target: /opt/airflow/.coveragerc
       - type: bind
         source: ../../../.dockerignore
         target: /opt/airflow/.dockerignore
-      - type: bind
-        source: ../../../.flake8
-        target: /opt/airflow/.flake8
       - type: bind
         source: ../../../.github
         target: /opt/airflow/.github
@@ -70,6 +70,9 @@ services:
         source: ../../../airflow
         target: /opt/airflow/airflow
       - type: bind
+        source: ../../../constraints
+        target: /opt/airflow/constraints
+      - type: bind
         source: ../../../provider_packages
         target: /opt/airflow/provider_packages
       - type: bind
@@ -97,9 +100,6 @@ services:
         source: ../../../pyproject.toml
         target: /opt/airflow/pyproject.toml
       - type: bind
-        source: ../../../pytest.ini
-        target: /opt/airflow/pytest.ini
-      - type: bind
         source: ../../../scripts
         target: /opt/airflow/scripts
       - type: bind
@@ -123,7 +123,4 @@ services:
       - type: bind
         source: ../../../chart
         target: /opt/airflow/chart
-      - type: bind
-        source: ../../../metastore_browser
-        target: /opt/airflow/metastore_browser
         # END automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py

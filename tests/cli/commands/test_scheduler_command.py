@@ -17,12 +17,11 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from http.server import BaseHTTPRequestHandler
 from unittest import mock
 from unittest.mock import MagicMock
 
-from parameterized import parameterized
+import pytest
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import scheduler_command
@@ -31,71 +30,90 @@ from airflow.utils.serve_logs import serve_logs
 from tests.test_utils.config import conf_vars
 
 
-class TestSchedulerCommand(unittest.TestCase):
+class TestSchedulerCommand:
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.parser = cli_parser.get_parser()
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "executor, expect_serve_logs",
         [
             ("CeleryExecutor", False),
             ("LocalExecutor", True),
             ("SequentialExecutor", True),
             ("KubernetesExecutor", False),
-        ]
+            ("LocalKubernetesExecutor", True),
+        ],
     )
-    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
     def test_serve_logs_on_scheduler(
         self,
-        executor,
-        expect_serve_logs,
         mock_process,
         mock_scheduler_job,
+        executor,
+        expect_serve_logs,
     ):
-        args = self.parser.parse_args(['scheduler'])
+        mock_scheduler_job.return_value.job_type = "SchedulerJob"
+        args = self.parser.parse_args(["scheduler"])
 
         with conf_vars({("core", "executor"): executor}):
             scheduler_command.scheduler(args)
             if expect_serve_logs:
                 mock_process.assert_has_calls([mock.call(target=serve_logs)])
             else:
-                with self.assertRaises(AssertionError):
+                with pytest.raises(AssertionError):
                     mock_process.assert_has_calls([mock.call(target=serve_logs)])
 
-    @parameterized.expand(
-        [
-            ("LocalExecutor",),
-            ("SequentialExecutor",),
-        ]
-    )
-    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
-    def test_skip_serve_logs(self, executor, mock_process, mock_scheduler_job):
-        args = self.parser.parse_args(['scheduler', '--skip-serve-logs'])
+    @pytest.mark.parametrize("executor", ["LocalExecutor", "SequentialExecutor"])
+    def test_skip_serve_logs(self, mock_process, mock_scheduler_job, executor):
+        mock_scheduler_job.return_value.job_type = "SchedulerJob"
+        args = self.parser.parse_args(["scheduler", "--skip-serve-logs"])
         with conf_vars({("core", "executor"): executor}):
             scheduler_command.scheduler(args)
-            with self.assertRaises(AssertionError):
+            with pytest.raises(AssertionError):
                 mock_process.assert_has_calls([mock.call(target=serve_logs)])
 
-    @parameterized.expand(
-        [
-            ("LocalExecutor",),
-            ("SequentialExecutor",),
-        ]
-    )
-    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")
+    @mock.patch("airflow.utils.db.check_and_run_migrations")
+    @mock.patch("airflow.utils.db.synchronize_log_template")
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
-    def test_graceful_shutdown(self, executor, mock_process, mock_scheduler_job):
-        args = self.parser.parse_args(['scheduler'])
+    def test_check_migrations_is_false(self, mock_process, mock_scheduler_job, mock_log, mock_run_migration):
+        mock_scheduler_job.return_value.job_type = "SchedulerJob"
+        args = self.parser.parse_args(["scheduler"])
+        with conf_vars({("database", "check_migrations"): "False"}):
+            scheduler_command.scheduler(args)
+            mock_run_migration.assert_not_called()
+            mock_log.assert_called_once()
+
+    @mock.patch("airflow.utils.db.check_and_run_migrations")
+    @mock.patch("airflow.utils.db.synchronize_log_template")
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
+    @mock.patch("airflow.cli.commands.scheduler_command.Process")
+    def test_check_migrations_is_true(self, mock_process, mock_scheduler_job, mock_log, mock_run_migration):
+        mock_scheduler_job.return_value.job_type = "SchedulerJob"
+        args = self.parser.parse_args(["scheduler"])
+        with conf_vars({("database", "check_migrations"): "True"}):
+            scheduler_command.scheduler(args)
+            mock_run_migration.assert_called_once()
+            mock_log.assert_called_once()
+
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
+    @mock.patch("airflow.cli.commands.scheduler_command.Process")
+    @pytest.mark.parametrize("executor", ["LocalExecutor", "SequentialExecutor"])
+    def test_graceful_shutdown(self, mock_process, mock_scheduler_job, executor):
+        mock_scheduler_job.return_value.job_type = "SchedulerJob"
+        args = self.parser.parse_args(["scheduler"])
         with conf_vars({("core", "executor"): executor}):
-            mock_scheduler_job.run.side_effect = Exception('Mock exception to trigger runtime error')
+            mock_scheduler_job.run.side_effect = Exception("Mock exception to trigger runtime error")
             try:
                 scheduler_command.scheduler(args)
             finally:
                 mock_process().terminate.assert_called()
 
-    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
     def test_enable_scheduler_health(
         self,
@@ -103,20 +121,22 @@ class TestSchedulerCommand(unittest.TestCase):
         mock_scheduler_job,
     ):
         with conf_vars({("scheduler", "enable_health_check"): "True"}):
-            args = self.parser.parse_args(['scheduler'])
+            mock_scheduler_job.return_value.job_type = "SchedulerJob"
+            args = self.parser.parse_args(["scheduler"])
             scheduler_command.scheduler(args)
             mock_process.assert_has_calls([mock.call(target=serve_health_check)])
 
-    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJob")
+    @mock.patch("airflow.cli.commands.scheduler_command.SchedulerJobRunner")
     @mock.patch("airflow.cli.commands.scheduler_command.Process")
     def test_disable_scheduler_health(
         self,
         mock_process,
         mock_scheduler_job,
     ):
-        args = self.parser.parse_args(['scheduler'])
+        mock_scheduler_job.return_value.job_type = "SchedulerJob"
+        args = self.parser.parse_args(["scheduler"])
         scheduler_command.scheduler(args)
-        with self.assertRaises(AssertionError):
+        with pytest.raises(AssertionError):
             mock_process.assert_has_calls([mock.call(target=serve_health_check)])
 
 
@@ -131,8 +151,8 @@ class MockServer(HealthServer):
         super().do_GET()
 
 
-class TestSchedulerHealthServer(unittest.TestCase):
-    def setUp(self) -> None:
+class TestSchedulerHealthServer:
+    def setup_method(self) -> None:
         self.mock_server = MockServer()
 
     @mock.patch.object(BaseHTTPRequestHandler, "send_error")
@@ -142,7 +162,7 @@ class TestSchedulerHealthServer(unittest.TestCase):
 
     @mock.patch.object(BaseHTTPRequestHandler, "end_headers")
     @mock.patch.object(BaseHTTPRequestHandler, "send_response")
-    @mock.patch('airflow.utils.scheduler_health.create_session')
+    @mock.patch("airflow.utils.scheduler_health.create_session")
     def test_healthy_scheduler(self, mock_session, mock_send_response, mock_end_headers):
         mock_scheduler_job = MagicMock()
         mock_scheduler_job.is_alive.return_value = True
@@ -152,7 +172,7 @@ class TestSchedulerHealthServer(unittest.TestCase):
         mock_end_headers.assert_called_once()
 
     @mock.patch.object(BaseHTTPRequestHandler, "send_error")
-    @mock.patch('airflow.utils.scheduler_health.create_session')
+    @mock.patch("airflow.utils.scheduler_health.create_session")
     def test_unhealthy_scheduler(self, mock_session, mock_send_error):
         mock_scheduler_job = MagicMock()
         mock_scheduler_job.is_alive.return_value = False
@@ -161,7 +181,7 @@ class TestSchedulerHealthServer(unittest.TestCase):
         mock_send_error.assert_called_with(503)
 
     @mock.patch.object(BaseHTTPRequestHandler, "send_error")
-    @mock.patch('airflow.utils.scheduler_health.create_session')
+    @mock.patch("airflow.utils.scheduler_health.create_session")
     def test_missing_scheduler(self, mock_session, mock_send_error):
         mock_session.return_value.__enter__.return_value.query.return_value = None
         self.mock_server.do_GET("/health")

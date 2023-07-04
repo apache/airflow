@@ -21,6 +21,7 @@ from contextlib import contextmanager
 from copy import copy
 from logging import DEBUG, ERROR, INFO, WARNING
 from typing import Any, Callable, Generator
+from warnings import warn
 from weakref import WeakKeyDictionary
 
 from pypsrp.host import PSHost
@@ -28,7 +29,7 @@ from pypsrp.messages import MessageType
 from pypsrp.powershell import PowerShell, PSInvocationState, RunspacePool
 from pypsrp.wsman import WSMan
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 INFORMATIONAL_RECORD_LEVEL_MAP = {
@@ -74,8 +75,7 @@ class PsrpHook(BaseHook):
     or by setting this key as the extra fields of your connection.
     """
 
-    _conn = None
-    _configuration_name = None
+    _conn: RunspacePool | None = None
     _wsman_ref: WeakKeyDictionary[RunspacePool, WSMan] = WeakKeyDictionary()
 
     def __init__(
@@ -215,11 +215,33 @@ class PsrpHook(BaseHook):
             if local_context:
                 self.__exit__(None, None, None)
 
-    def invoke_cmdlet(self, name: str, use_local_scope=None, **parameters: dict[str, str]) -> PowerShell:
+    def invoke_cmdlet(
+        self,
+        name: str,
+        use_local_scope: bool | None = None,
+        arguments: list[str] | None = None,
+        parameters: dict[str, str] | None = None,
+        **kwargs: str,
+    ) -> PowerShell:
         """Invoke a PowerShell cmdlet and return session."""
+        if kwargs:
+            if parameters:
+                raise ValueError("**kwargs not allowed when 'parameters' is used at the same time.")
+            warn(
+                "Passing **kwargs to 'invoke_cmdlet' is deprecated "
+                "and will be removed in a future release. Please use 'parameters' "
+                "instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            parameters = kwargs
+
         with self.invoke() as ps:
             ps.add_cmdlet(name, use_local_scope=use_local_scope)
-            ps.add_parameters(parameters)
+            for argument in arguments or ():
+                ps.add_argument(argument)
+            if parameters:
+                ps.add_parameters(parameters)
         return ps
 
     def invoke_powershell(self, script: str) -> PowerShell:
@@ -233,7 +255,7 @@ class PsrpHook(BaseHook):
         if message_type == MessageType.ERROR_RECORD:
             log(INFO, "%s: %s", record.reason, record)
             if record.script_stacktrace:
-                for trace in record.script_stacktrace.split('\r\n'):
+                for trace in record.script_stacktrace.split("\r\n"):
                     log(INFO, trace)
 
         level = INFORMATIONAL_RECORD_LEVEL_MAP.get(message_type)

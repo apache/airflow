@@ -14,45 +14,36 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for Level DB"""
+"""Hook for Level DB."""
 from __future__ import annotations
+
+from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
+from airflow.hooks.base import BaseHook
 
 try:
     import plyvel
     from plyvel import DB
-
-    from airflow.exceptions import AirflowException
-    from airflow.hooks.base import BaseHook
-
 except ImportError as e:
-    # Plyvel is an optional feature and if imports are missing, it should be silently ignored
-    # As of Airflow 2.3  and above the operator can throw OptionalProviderFeatureException
-    try:
-        from airflow.exceptions import AirflowOptionalProviderFeatureException
-    except ImportError:
-        # However, in order to keep backwards-compatibility with Airflow 2.1 and 2.2, if the
-        # 2.3 exception cannot be imported, the original ImportError should be raised.
-        # This try/except can be removed when the provider depends on Airflow >= 2.3.0
-        raise e from None
     raise AirflowOptionalProviderFeatureException(e)
 
 DB_NOT_INITIALIZED_BEFORE = "The `get_conn` method should be called before!"
 
 
 class LevelDBHookException(AirflowException):
-    """Exception specific for LevelDB"""
+    """Exception specific for LevelDB."""
 
 
 class LevelDBHook(BaseHook):
     """
-    Plyvel Wrapper to Interact With LevelDB Database
+    Plyvel Wrapper to Interact With LevelDB Database.
+
     `LevelDB Connection Documentation <https://plyvel.readthedocs.io/en/latest/>`__
     """
 
-    conn_name_attr = 'leveldb_conn_id'
-    default_conn_name = 'leveldb_default'
-    conn_type = 'leveldb'
-    hook_name = 'LevelDB'
+    conn_name_attr = "leveldb_conn_id"
+    default_conn_name = "leveldb_default"
+    conn_type = "leveldb"
+    hook_name = "LevelDB"
 
     def __init__(self, leveldb_conn_id: str = default_conn_name):
         super().__init__()
@@ -60,15 +51,14 @@ class LevelDBHook(BaseHook):
         self.connection = self.get_connection(leveldb_conn_id)
         self.db: plyvel.DB | None = None
 
-    def get_conn(self, name: str = '/tmp/testdb/', create_if_missing: bool = False, **kwargs) -> DB:
+    def get_conn(self, name: str = "/tmp/testdb/", create_if_missing: bool = False, **kwargs) -> DB:
         """
-        Creates `Plyvel DB <https://plyvel.readthedocs.io/en/latest/api.html#DB>`__
+        Creates `Plyvel DB <https://plyvel.readthedocs.io/en/latest/api.html#DB>`__.
 
         :param name: path to create database e.g. `/tmp/testdb/`)
         :param create_if_missing: whether a new database should be created if needed
         :param kwargs: other options of creation plyvel.DB. See more in the link above.
         :returns: DB
-        :rtype: plyvel.DB
         """
         if self.db is not None:
             return self.db
@@ -76,7 +66,7 @@ class LevelDBHook(BaseHook):
         return self.db
 
     def close_conn(self) -> None:
-        """Closes connection"""
+        """Closes connection."""
         db = self.db
         if db is not None:
             db.close()
@@ -91,26 +81,25 @@ class LevelDBHook(BaseHook):
         values: list[bytes] | None = None,
     ) -> bytes | None:
         """
-        Execute operation with leveldb
+        Execute operation with leveldb.
 
         :param command: command of plyvel(python wrap for leveldb) for DB object e.g.
             ``"put"``, ``"get"``, ``"delete"``, ``"write_batch"``.
         :param key: key for command(put,get,delete) execution(, e.g. ``b'key'``, ``b'another-key'``)
         :param value: value for command(put) execution(bytes, e.g. ``b'value'``, ``b'another-value'``)
-        :param keys: keys for command(write_batch) execution(List[bytes], e.g. ``[b'key', b'another-key'])``
+        :param keys: keys for command(write_batch) execution(list[bytes], e.g. ``[b'key', b'another-key'])``
         :param values: values for command(write_batch) execution e.g. ``[b'value'``, ``b'another-value']``
         :returns: value from get or None
-        :rtype: Optional[bytes]
         """
-        if command == 'put':
+        if command == "put":
             if not value:
                 raise Exception("Please provide `value`!")
             return self.put(key, value)
-        elif command == 'get':
+        elif command == "get":
             return self.get(key)
-        elif command == 'delete':
+        elif command == "delete":
             return self.delete(key)
-        elif command == 'write_batch':
+        elif command == "write_batch":
             if not keys:
                 raise Exception("Please provide `keys`!")
             if not values:
@@ -121,7 +110,7 @@ class LevelDBHook(BaseHook):
 
     def put(self, key: bytes, value: bytes):
         """
-        Put a single value into a leveldb db by key
+        Put a single value into a leveldb db by key.
 
         :param key: key for put execution, e.g. ``b'key'``, ``b'another-key'``
         :param value: value for put execution e.g. ``b'value'``, ``b'another-value'``
@@ -132,11 +121,10 @@ class LevelDBHook(BaseHook):
 
     def get(self, key: bytes) -> bytes:
         """
-        Get a single value into a leveldb db by key
+        Get a single value into a leveldb db by key.
 
         :param key: key for get execution, e.g. ``b'key'``, ``b'another-key'``
         :returns: value of key from db.get
-        :rtype: bytes
         """
         if not self.db:
             raise Exception(DB_NOT_INITIALIZED_BEFORE)
@@ -154,7 +142,7 @@ class LevelDBHook(BaseHook):
 
     def write_batch(self, keys: list[bytes], values: list[bytes]):
         """
-        Write batch of values in a leveldb db by keys
+        Write batch of values in a leveldb db by keys.
 
         :param keys: keys for write_batch execution e.g. ``[b'key', b'another-key']``
         :param values: values for write_batch execution e.g. ``[b'value', b'another-value']``

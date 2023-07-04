@@ -27,7 +27,7 @@ def init_dagbag(app):
     Create global DagBag for webserver and API. To access it use
     ``flask.current_app.dag_bag``.
     """
-    if os.environ.get('SKIP_DAGS_PARSING') == 'True':
+    if os.environ.get("SKIP_DAGS_PARSING") == "True":
         app.dag_bag = DagBag(os.devnull, include_examples=False)
     else:
         app.dag_bag = DagBag(DAGS_FOLDER, read_dags_from_db=True)

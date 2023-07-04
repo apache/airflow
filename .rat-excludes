@@ -13,9 +13,10 @@
 .coveragerc
 .codecov.yml
 .codespellignorelines
-.eslintrc
 .eslintignore
-.flake8
+.eslintrc
+.prettierignore
+.prettierrc
 .rat-excludes
 .stylelintignore
 .stylelintrc
@@ -101,7 +102,7 @@ input_notebook.ipynb
 tmp
 
 # Vendored-in code
-_vendor
+.*_vendor
 
 # generated doc-only-changes.txt
 .latest-doc-only-change.txt
@@ -120,6 +121,9 @@ chart/values_schema.schema.json
 
 # Newsfragments are snippets that will be, eventually, consumed into RELEASE_NOTES
 newsfragments/*
+
+# Warning file generated
+warnings.txt
 
 # Dev stuff
 tests/*

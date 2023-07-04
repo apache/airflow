@@ -27,7 +27,7 @@ from airflow.decorators import task
 
 # [END import_module]
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = 'docker_taskflow'
+DAG_ID = "docker_taskflow"
 
 
 def tutorial_taskflow_api_docker_virtualenv():
@@ -44,7 +44,7 @@ def tutorial_taskflow_api_docker_virtualenv():
     @task.virtualenv(
         use_dill=True,
         system_site_packages=False,
-        requirements=['funcsigs'],
+        requirements=["funcsigs"],
     )
     def extract():
         """
@@ -63,7 +63,7 @@ def tutorial_taskflow_api_docker_virtualenv():
     # [END extract_virtualenv]
 
     # [START transform_docker]
-    @task.docker(image='python:3.9-slim-bullseye', multiple_outputs=True)
+    @task.docker(image="python:3.9-slim-bullseye", multiple_outputs=True)
     def transform(order_data_dict: dict):
         """
         #### Transform task

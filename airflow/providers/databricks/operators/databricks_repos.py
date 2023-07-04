@@ -19,10 +19,10 @@
 from __future__ import annotations
 
 import re
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
@@ -33,10 +33,9 @@ if TYPE_CHECKING:
 
 class DatabricksReposCreateOperator(BaseOperator):
     """
-    Creates a Databricks Repo
-    using
-    `POST api/2.0/repos <https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/create-repo>`_
-    API endpoint and optionally checking it out to a specific branch or tag.
+    Creates, and optionally checks out, a Databricks Repo using the POST api/2.0/repos API endpoint.
+
+     See: https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/create-repo
 
     :param git_url: Required HTTPS URL of a Git repository
     :param git_provider: Optional name of Git provider. Must be provided if we can't guess its name from URL.
@@ -56,7 +55,7 @@ class DatabricksReposCreateOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('repo_path', 'tag', 'branch', 'databricks_conn_id')
+    template_fields: Sequence[str] = ("repo_path", "tag", "branch", "databricks_conn_id")
 
     __git_providers__ = {
         "github.com": "gitHub",
@@ -76,7 +75,7 @@ class DatabricksReposCreateOperator(BaseOperator):
         tag: str | None = None,
         repo_path: str | None = None,
         ignore_existing_repo: bool = False,
-        databricks_conn_id: str = 'databricks_default',
+        databricks_conn_id: str = "databricks_default",
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         **kwargs,
@@ -106,7 +105,7 @@ class DatabricksReposCreateOperator(BaseOperator):
     def __detect_repo_provider__(url):
         provider = None
         try:
-            netloc = urlparse(url).netloc
+            netloc = urlsplit(url).netloc
             idx = netloc.rfind("@")
             if idx != -1:
                 netloc = netloc[(idx + 1) :]
@@ -129,7 +128,7 @@ class DatabricksReposCreateOperator(BaseOperator):
 
     def execute(self, context: Context):
         """
-        Creates a Databricks Repo
+        Creates a Databricks Repo.
 
         :param context: context
         :return: Repo ID
@@ -156,18 +155,18 @@ class DatabricksReposCreateOperator(BaseOperator):
             repo_id = existing_repo_id
         # update repo if necessary
         if self.branch is not None:
-            self._hook.update_repo(str(repo_id), {'branch': str(self.branch)})
+            self._hook.update_repo(str(repo_id), {"branch": str(self.branch)})
         elif self.tag is not None:
-            self._hook.update_repo(str(repo_id), {'tag': str(self.tag)})
+            self._hook.update_repo(str(repo_id), {"tag": str(self.tag)})
 
         return repo_id
 
 
 class DatabricksReposUpdateOperator(BaseOperator):
     """
-    Updates specified repository to a given branch or tag
-    using `PATCH api/2.0/repos
-    <https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/update-repo>`_ API endpoint.
+    Updates specified repository to a given branch or tag using the PATCH api/2.0/repos API endpoint.
+
+    See: https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/update-repo
 
     :param branch: optional name of branch to update to. Should be specified if ``tag`` is omitted
     :param tag: optional name of tag to update to. Should be specified if ``branch`` is omitted
@@ -184,7 +183,7 @@ class DatabricksReposUpdateOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('repo_path', 'tag', 'branch', 'databricks_conn_id')
+    template_fields: Sequence[str] = ("repo_path", "tag", "branch", "databricks_conn_id")
 
     def __init__(
         self,
@@ -193,7 +192,7 @@ class DatabricksReposUpdateOperator(BaseOperator):
         tag: str | None = None,
         repo_id: str | None = None,
         repo_path: str | None = None,
-        databricks_conn_id: str = 'databricks_default',
+        databricks_conn_id: str = "databricks_default",
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         **kwargs,
@@ -231,19 +230,19 @@ class DatabricksReposUpdateOperator(BaseOperator):
             if self.repo_id is None:
                 raise AirflowException(f"Can't find Repo ID for path '{self.repo_path}'")
         if self.branch is not None:
-            payload = {'branch': str(self.branch)}
+            payload = {"branch": str(self.branch)}
         else:
-            payload = {'tag': str(self.tag)}
+            payload = {"tag": str(self.tag)}
 
         result = self._hook.update_repo(str(self.repo_id), payload)
-        return result['head_commit_id']
+        return result["head_commit_id"]
 
 
 class DatabricksReposDeleteOperator(BaseOperator):
     """
-    Deletes specified repository
-    using `DELETE api/2.0/repos
-    <https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/delete-repo>`_ API endpoint.
+    Deletes specified repository using the DELETE api/2.0/repos API endpoint.
+
+    See: https://docs.databricks.com/dev-tools/api/latest/repos.html#operation/delete-repo
 
     :param repo_id: optional ID of existing repository. Should be specified if ``repo_path`` is omitted
     :param repo_path: optional path of existing repository. Should be specified if ``repo_id`` is omitted
@@ -258,14 +257,14 @@ class DatabricksReposDeleteOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('repo_path', 'databricks_conn_id')
+    template_fields: Sequence[str] = ("repo_path", "databricks_conn_id")
 
     def __init__(
         self,
         *,
         repo_id: str | None = None,
         repo_path: str | None = None,
-        databricks_conn_id: str = 'databricks_default',
+        databricks_conn_id: str = "databricks_default",
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
         **kwargs,

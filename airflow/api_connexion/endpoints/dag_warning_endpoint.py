@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
@@ -31,7 +32,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING)])
-@format_parameters({'limit': check_limit})
+@format_parameters({"limit": check_limit})
 @provide_session
 def get_dag_warnings(
     *,
@@ -48,14 +49,14 @@ def get_dag_warnings(
     :param warning_type: the warning type to optionally filter by
     """
     allowed_filter_attrs = ["dag_id", "warning_type", "message", "timestamp"]
-    query = session.query(DagWarningModel)
+    query = select(DagWarningModel)
     if dag_id:
-        query = query.filter(DagWarningModel.dag_id == dag_id)
+        query = query.where(DagWarningModel.dag_id == dag_id)
     if warning_type:
-        query = query.filter(DagWarningModel.warning_type == warning_type)
-    total_entries = query.count()
+        query = query.where(DagWarningModel.warning_type == warning_type)
+    total_entries = session.scalar(select(func.count()).select_from(query))
     query = apply_sorting(query=query, order_by=order_by, allowed_attrs=allowed_filter_attrs)
-    dag_warnings = query.offset(offset).limit(limit).all()
+    dag_warnings = session.scalars(query.offset(offset).limit(limit)).all()
     return dag_warning_collection_schema.dump(
         DagWarningCollection(dag_warnings=dag_warnings, total_entries=total_entries)
     )

@@ -26,9 +26,9 @@ def dag_edges(dag: DAG):
     Create the list of edges needed to construct the Graph view.
 
     A special case is made if a TaskGroup is immediately upstream/downstream of another
-    TaskGroup or task. Two dummy nodes named upstream_join_id and downstream_join_id are
+    TaskGroup or task. Two proxy nodes named upstream_join_id and downstream_join_id are
     created for the TaskGroup. Instead of drawing an edge onto every task in the TaskGroup,
-    all edges are directed onto the dummy nodes. This is to cut down the number of edges on
+    all edges are directed onto the proxy nodes. This is to cut down the number of edges on
     the graph.
 
     For example: A DAG with TaskGroups group1 and group2:

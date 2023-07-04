@@ -29,7 +29,15 @@ Here is a sample configuration:
 
     [secrets]
     backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
-    backend_kwargs = {"connections_prefix": "/airflow/connections", "variables_prefix": "/airflow/variables", "profile_name": "default"}
+    backend_kwargs = {
+      "connections_prefix": "airflow/connections",
+      "connections_lookup_pattern": null,
+      "variables_prefix": "airflow/variables",
+      "variables_lookup_pattern": null,
+      "config_prefix": "airflow/config",
+      "config_lookup_pattern": null,
+      "profile_name": "default"
+    }
 
 To authenticate you can either supply arguments listed in
 :ref:`Amazon Webservices Connection Extra config <howto/connection:aws:configuring-the-connection>` or set
@@ -39,7 +47,12 @@ To authenticate you can either supply arguments listed in
 
     [secrets]
     backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
-    backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "role_arn": "arn:aws:iam::123456789098:role/role-name"}
+    backend_kwargs = {
+      "connections_prefix": "airflow/connections",
+      "variables_prefix": "airflow/variables",
+      "config_prefix": "airflow/config",
+      "role_arn": "arn:aws:iam::123456789098:role/role-name"
+    }
 
 
 Optional lookup
@@ -50,13 +63,33 @@ This will prevent requests being sent to AWS SSM Parameter Store for the exclude
 
 If you want to look up some and not others in AWS SSM Parameter Store you may do so by setting the relevant ``*_prefix`` parameter of the ones to be excluded as ``null``.
 
-For example, if you want to set parameter ``connections_prefix`` to ``"/airflow/connections"`` and not look up variables, your configuration file should look like this:
+For example, if you want to set parameter ``connections_prefix`` to ``"airflow/connections"`` and not look up variables and config, your configuration file should look like this:
 
 .. code-block:: ini
 
     [secrets]
     backend = airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend
-    backend_kwargs = {"connections_prefix": "/airflow/connections", "variables_prefix": null, "profile_name": "default"}
+    backend_kwargs = {
+      "connections_prefix": "airflow/connections",
+      "variables_prefix": null,
+      "config_prefix": null,
+      "profile_name": "default"
+    }
+
+If you want to only lookup a specific subset of connections, variables or config in AWS Secrets Manager, you may do so by setting the relevant ``*_lookup_pattern`` parameter.
+This parameter takes a Regex as a string as value.
+
+For example, if you want to only lookup connections starting by "m" in AWS Secrets Manager, your configuration file should look like this:
+
+.. code-block:: ini
+
+    [secrets]
+    backend = airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend
+    backend_kwargs = {
+      "connections_prefix": "airflow/connections",
+      "connections_lookup_pattern": "^m",
+      "profile_name": "default"
+    }
 
 Storing and Retrieving Connections
 """"""""""""""""""""""""""""""""""
@@ -67,9 +100,10 @@ you would want to store your connection at ``/airflow/connections/smtp_default``
 Optionally you can supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config``.
 
 The value of the SSM parameter must be the :ref:`connection URI representation <generating_connection_uri>`
-of the connection object.
+or in the :ref:`JSON Format <connection-serialization-json-example>` of the connection object.
 
-In some cases, URI's you will need stored in Secrets Manager may not be intuitive, for example when using HTTP / HTTPS or SPARK, you may need URI's that will look like this:
+In some cases, URI's that you will need to store in AWS SSM Parameter Store may not be intuitive,
+for example when using HTTP / HTTPS or SPARK, you may need URI's that will look like this:
 
 .. code-block:: ini
 
@@ -79,7 +113,19 @@ In some cases, URI's you will need stored in Secrets Manager may not be intuitiv
 
 This is a known situation, where schema and protocol parts of the URI are independent and in some cases, need to be specified explicitly.
 
-See GitHub issue `#10256 <https://github.com/apache/airflow/pull/10256>`__ and `#10913 <https://github.com/apache/airflow/issues/10913>`__ for more detailed discussion that led to this documentation update. This may get resolved in the future.
+See GitHub issue `#10256 <https://github.com/apache/airflow/pull/10256>`__
+and `#10913 <https://github.com/apache/airflow/issues/10913>`__ for more detailed discussion that led to this documentation update.
+This may get resolved in the future.
+
+
+The same connections could be represented in AWS SSM Parameter Store as a JSON Object
+
+.. code-block:: json
+
+    {"conn_type": "http", "host": "https://example.com"}
+
+    {"conn_type": "spark", "host": "spark://spark-master-0.spark-master.spark", "port": 7077}
+
 
 Storing and Retrieving Variables
 """"""""""""""""""""""""""""""""

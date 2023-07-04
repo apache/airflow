@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import unittest
 from datetime import datetime
 from unittest.mock import Mock
 
@@ -25,7 +24,7 @@ from airflow.ti_deps.deps.task_not_running_dep import TaskNotRunningDep
 from airflow.utils.state import State
 
 
-class TestTaskNotRunningDep(unittest.TestCase):
+class TestTaskNotRunningDep:
     def test_not_running_state(self):
         ti = Mock(state=State.QUEUED, end_date=datetime(2016, 1, 1))
         assert TaskNotRunningDep().is_met(ti=ti)

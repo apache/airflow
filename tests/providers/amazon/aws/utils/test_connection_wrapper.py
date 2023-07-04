@@ -20,10 +20,12 @@ from dataclasses import fields
 from unittest import mock
 
 import pytest
+from botocore import UNSIGNED
 from botocore.config import Config
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
-from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper
+from airflow.providers.amazon.aws.utils.connection_wrapper import AwsConnectionWrapper, _ConnectionMetadata
 
 MOCK_AWS_CONN_ID = "mock-conn-id"
 MOCK_CONN_TYPE = "aws"
@@ -36,6 +38,35 @@ def mock_connection_factory(
     return Connection(conn_id=conn_id, conn_type=conn_type, **kwargs)
 
 
+class TestsConnectionMetadata:
+    @pytest.mark.parametrize("extra", [{"foo": "bar", "spam": "egg"}, '{"foo": "bar", "spam": "egg"}', None])
+    def test_compat_with_connection(self, extra):
+        """Simple compatibility test with `airflow.models.connection.Connection`."""
+        conn_kwargs = {
+            "conn_id": MOCK_AWS_CONN_ID,
+            "conn_type": "aws",
+            "login": "mock-login",
+            "password": "mock-password",
+            "extra": extra,
+            # AwsBaseHook never use this attributes from airflow.models.Connection
+            "host": "mock-host",
+            "schema": "mock-schema",
+            "port": 42,
+        }
+        conn = Connection(**conn_kwargs)
+        conn_meta = _ConnectionMetadata(**conn_kwargs)
+
+        assert conn.conn_id == conn_meta.conn_id
+        assert conn.conn_type == conn_meta.conn_type
+        assert conn.login == conn_meta.login
+        assert conn.password == conn_meta.password
+        assert conn.host == conn_meta.host
+        assert conn.schema == conn_meta.schema
+        assert conn.port == conn_meta.port
+
+        assert conn.extra_dejson == conn_meta.extra_dejson
+
+
 class TestAwsConnectionWrapper:
     @pytest.mark.parametrize("extra", [{"foo": "bar", "spam": "egg"}, '{"foo": "bar", "spam": "egg"}', None])
     def test_values_from_connection(self, extra):
@@ -44,7 +75,7 @@ class TestAwsConnectionWrapper:
             password="mock-password",
             extra=extra,
             # AwsBaseHook never use this attributes from airflow.models.Connection
-            host="mock-host",
+            host=None,
             schema="mock-schema",
             port=42,
         )
@@ -60,10 +91,10 @@ class TestAwsConnectionWrapper:
         assert wrap_conn.extra_config is not mock_conn.extra_dejson
         # `extra_config` is a same object that return by `extra_dejson`
         assert wrap_conn.extra_config is wrap_conn.extra_dejson
+        assert wrap_conn.schema == "mock-schema"
 
         # Check that not assigned other attributes from airflow.models.Connection to wrapper
         assert not hasattr(wrap_conn, "host")
-        assert not hasattr(wrap_conn, "schema")
         assert not hasattr(wrap_conn, "port")
 
         # Check that Wrapper is True if assign connection
@@ -90,7 +121,7 @@ class TestAwsConnectionWrapper:
             r".* has connection type 's3', which has been replaced by connection type 'aws'\. "
             r"Please update your connection to have `conn_type='aws'`."
         )
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             wrap_conn = AwsConnectionWrapper(conn=mock_connection_factory(conn_type=conn_type))
             assert wrap_conn.conn_type == conn_type
 
@@ -141,7 +172,10 @@ class TestAwsConnectionWrapper:
         }
         mock_conn = mock_connection_factory(login=None, password=None, extra=mock_conn_extra)
 
-        wrap_conn = AwsConnectionWrapper(conn=mock_conn)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning, match=r"'session_kwargs' in extra config is deprecated"
+        ):
+            wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         assert wrap_conn.aws_access_key_id == aws_access_key_id
         assert wrap_conn.aws_secret_access_key == aws_secret_access_key
         assert wrap_conn.aws_session_token == aws_session_token
@@ -165,7 +199,7 @@ class TestAwsConnectionWrapper:
         mock_conn = mock_connection_factory(login=None, password=None, extra=mock_conn_extra)
 
         wrap_conn = AwsConnectionWrapper(conn=mock_conn)
-        mock_parse_s3_config.assert_called_once_with('aws-credentials', 'aws', 'test')
+        mock_parse_s3_config.assert_called_once_with("aws-credentials", "aws", "test")
         assert wrap_conn.aws_access_key_id == aws_access_key_id
         assert wrap_conn.aws_secret_access_key == aws_secret_access_key
         assert wrap_conn.aws_session_token == aws_session_token
@@ -238,7 +272,7 @@ class TestAwsConnectionWrapper:
             r"'session_kwargs' in extra config is deprecated and will be removed in a future releases. "
             r"Please specify arguments passed to boto3 Session directly in .* extra."
         )
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         session_kwargs = wrap_conn.session_kwargs
         assert session_kwargs == expected
@@ -276,6 +310,7 @@ class TestAwsConnectionWrapper:
             (Config(s3={"us_east_1_regional_endpoint": "regional"}), None),
             (Config(region_name="ap-southeast-1"), {"user_agent": "Airflow Amazon Provider"}),
             (None, {"user_agent": "Airflow Amazon Provider"}),
+            (None, {"signature_version": "unsigned"}),
             (None, None),
         ],
     )
@@ -293,6 +328,8 @@ class TestAwsConnectionWrapper:
             assert mock_botocore_config.assert_not_called
         else:
             assert mock_botocore_config.assert_called_once
+            if botocore_config_kwargs.get("signature_version") == "unsigned":
+                botocore_config_kwargs["signature_version"] = UNSIGNED
             assert mock.call(**botocore_config_kwargs) in mock_botocore_config.mock_calls
 
     @pytest.mark.parametrize(
@@ -346,7 +383,7 @@ class TestAwsConnectionWrapper:
                 "aws_iam_role": aws_iam_role,
             }
         )
-        with pytest.warns(DeprecationWarning, match="Please set 'role_arn' in .* extra"):
+        with pytest.warns(AirflowProviderDeprecationWarning, match="Please set 'role_arn' in .* extra"):
             wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         assert wrap_conn.role_arn == expected
 
@@ -357,7 +394,7 @@ class TestAwsConnectionWrapper:
         assert wrap_conn.assume_role_kwargs == {}
 
     @pytest.mark.parametrize(
-        "assume_role_method", ['assume_role', 'assume_role_with_saml', 'assume_role_with_web_identity']
+        "assume_role_method", ["assume_role", "assume_role_with_saml", "assume_role_with_web_identity"]
     )
     def test_get_assume_role_method(self, assume_role_method):
         mock_conn = mock_connection_factory(
@@ -415,7 +452,7 @@ class TestAwsConnectionWrapper:
         mock_conn = mock_connection_factory(extra=mock_conn_extra)
 
         warning_message = "Please set 'ExternalId' in 'assume_role_kwargs' in .* extra."
-        with pytest.warns(DeprecationWarning, match=warning_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
             wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         assert "ExternalId" in wrap_conn.assume_role_kwargs
         assert wrap_conn.assume_role_kwargs["ExternalId"] == mock_external_id_in_extra
@@ -471,7 +508,7 @@ class TestAwsConnectionWrapper:
             f"Host {mock_conn.host} specified in the connection is not used."
             " Please, set it on extra['endpoint_url'] instead"
         )
-        with pytest.warns(DeprecationWarning) as record:
+        with pytest.warns(AirflowProviderDeprecationWarning) as record:
             AwsConnectionWrapper(conn=mock_conn)
 
             assert str(record[0].message) == expected_deprecation_message

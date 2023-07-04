@@ -34,6 +34,7 @@ if TYPE_CHECKING:
 class GCSToTrinoOperator(BaseOperator):
     """
     Loads a csv file from Google Cloud Storage into a Trino table.
+
     Assumptions:
     1. CSV file should not have headers
     2. Trino table with requisite columns is already created
@@ -48,9 +49,6 @@ class GCSToTrinoOperator(BaseOperator):
     :param schema_fields: The names of the columns to fill in the table. If schema_fields is
         provided, any path provided in the schema object will be
     :param schema_object: JSON file with schema fields
-    :param delegate_to: The account to impersonate using domain-wide delegation of authority,
-        if any. For this to work, the service account making the request must have
-        domain-wide delegation enabled.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -62,9 +60,9 @@ class GCSToTrinoOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'source_bucket',
-        'source_object',
-        'trino_table',
+        "source_bucket",
+        "source_object",
+        "trino_table",
     )
 
     def __init__(
@@ -77,7 +75,6 @@ class GCSToTrinoOperator(BaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         schema_fields: Iterable[str] | None = None,
         schema_object: str | None = None,
-        delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -89,13 +86,11 @@ class GCSToTrinoOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.schema_fields = schema_fields
         self.schema_object = schema_object
-        self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
         gcs_hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
 

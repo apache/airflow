@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from 'react';
+import React from "react";
 import {
   Flex,
   Link,
@@ -31,19 +31,23 @@ import {
   Portal,
   Text,
   useTheme,
-} from '@chakra-ui/react';
-import { MdOutlineAccountTree } from 'react-icons/md';
-import { useContainerRef } from 'src/context/containerRef';
-import { getMetaValue } from 'src/utils';
+} from "@chakra-ui/react";
+import { MdOutlineAccountTree } from "react-icons/md";
+
+import { useContainerRef } from "src/context/containerRef";
+import { getMetaValue } from "src/utils";
 
 const DagNode = ({
   dagId,
   isHighlighted,
-}: { dagId: string, isHighlighted: boolean }) => {
+}: {
+  dagId: string;
+  isHighlighted?: boolean;
+}) => {
   const { colors } = useTheme();
   const containerRef = useContainerRef();
 
-  const gridUrl = getMetaValue('grid_url').replace('__DAG_ID__', dagId);
+  const gridUrl = getMetaValue("grid_url").replace("__DAG_ID__", dagId);
   return (
     <Popover>
       <PopoverTrigger>
@@ -60,7 +64,7 @@ const DagNode = ({
           alignItems="center"
         >
           <MdOutlineAccountTree size="16px" />
-          <Text>{dagId}</Text>
+          <Text ml={2}>{dagId}</Text>
         </Flex>
       </PopoverTrigger>
       <Portal containerRef={containerRef}>
@@ -69,7 +73,9 @@ const DagNode = ({
           <PopoverCloseButton />
           <PopoverHeader>{dagId}</PopoverHeader>
           <PopoverBody>
-            <Link color="blue" href={gridUrl}>View DAG</Link>
+            <Link color="blue" href={gridUrl}>
+              View DAG
+            </Link>
           </PopoverBody>
         </PopoverContent>
       </Portal>

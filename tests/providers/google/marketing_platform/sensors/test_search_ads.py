@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 from airflow.providers.google.marketing_platform.sensors.search_ads import GoogleSearchAdsReportSensor
 
@@ -25,7 +25,7 @@ API_VERSION = "api_version"
 GCP_CONN_ID = "google_cloud_default"
 
 
-class TestSearchAdsReportSensor(TestCase):
+class TestSearchAdsReportSensor:
     @mock.patch("airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsHook")
     @mock.patch("airflow.providers.google.marketing_platform.sensors.search_ads.BaseSensorOperator")
     def test_poke(self, mock_base_op, hook_mock):

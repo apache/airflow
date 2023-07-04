@@ -19,20 +19,19 @@ from __future__ import annotations
 
 import json
 import warnings
+from functools import cached_property
 from typing import Any, Sequence
 
-from airflow.compat.functools import cached_property
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.utils.log.secrets_masker import mask_secret
 
 
 class SlackAPIOperator(BaseOperator):
-    """
-    Base Slack Operator
-    The SlackAPIPostOperator is derived from this operator.
-    In the future additional Slack API Operators will be derived from this class as well.
-    Only one of `slack_conn_id` and `token` is required.
+    """Base Slack Operator class.
+
+    Only one of ``slack_conn_id`` or ``token`` is required.
 
     :param slack_conn_id: :ref:`Slack API Connection <howto/connection:slack>`
         which its password is Slack API token. Optional
@@ -66,15 +65,14 @@ class SlackAPIOperator(BaseOperator):
         return SlackHook(token=self.token, slack_conn_id=self.slack_conn_id)
 
     def construct_api_call_params(self) -> Any:
-        """
-        Used by the execute function. Allows templating on the source fields
-        of the api_call_params dict before construction
+        """API call parameters used by the execute function.
 
-        Override in child classes.
-        Each SlackAPIOperator child class is responsible for
-        having a construct_api_call_params function
-        which sets self.api_call_params with a dict of
-        API call parameters (https://api.slack.com/methods)
+        Allows templating on the source fields of the ``api_call_params`` dict
+        before construction.
+
+        Child classes should override this. Each SlackAPIOperator child class is
+        responsible for having function set ``self.api_call_params`` with a dict
+        of API call parameters (https://api.slack.com/methods)
         """
         raise NotImplementedError(
             "SlackAPIOperator should not be used directly. Chose one of the subclasses instead"
@@ -87,16 +85,14 @@ class SlackAPIOperator(BaseOperator):
 
 
 class SlackAPIPostOperator(SlackAPIOperator):
-    """
-    Posts messages to a slack channel
-    Examples:
+    """Post messages to a Slack channel.
 
     .. code-block:: python
 
         slack = SlackAPIPostOperator(
             task_id="post_hello",
             dag=dag,
-            token="XXX",
+            token="...",
             text="hello there!",
             channel="#random",
         )
@@ -105,30 +101,33 @@ class SlackAPIPostOperator(SlackAPIOperator):
         ID (C12318391). (templated)
     :param username: Username that airflow will be posting to Slack as. (templated)
     :param text: message to send to slack. (templated)
-    :param icon_url: url to icon used for this message
+    :param icon_url: URL to icon used for this message
     :param attachments: extra formatting details. (templated)
-        - see https://api.slack.com/docs/attachments.
+        See https://api.slack.com/docs/attachments
     :param blocks: extra block layouts. (templated)
-        - see https://api.slack.com/reference/block-kit/blocks.
+        See https://api.slack.com/reference/block-kit/blocks
     """
 
-    template_fields: Sequence[str] = ('username', 'text', 'attachments', 'blocks', 'channel')
-    ui_color = '#FFBA40'
+    template_fields: Sequence[str] = ("username", "text", "attachments", "blocks", "channel")
+    ui_color = "#FFBA40"
 
     def __init__(
         self,
-        channel: str = '#general',
-        username: str = 'Airflow',
-        text: str = 'No message has been set.\n'
-        'Here is a cat video instead\n'
-        'https://www.youtube.com/watch?v=J---aiyznGQ',
-        icon_url: str = 'https://raw.githubusercontent.com/apache/'
-        'airflow/main/airflow/www/static/pin_100.png',
+        channel: str = "#general",
+        username: str = "Airflow",
+        text: str = (
+            "No message has been set.\n"
+            "Here is a cat video instead\n"
+            "https://www.youtube.com/watch?v=J---aiyznGQ"
+        ),
+        icon_url: str = (
+            "https://raw.githubusercontent.com/apache/airflow/main/airflow/www/static/pin_100.png"
+        ),
         attachments: list | None = None,
         blocks: list | None = None,
         **kwargs,
     ) -> None:
-        self.method = 'chat.postMessage'
+        self.method = "chat.postMessage"
         self.channel = channel
         self.username = username
         self.text = text
@@ -139,19 +138,17 @@ class SlackAPIPostOperator(SlackAPIOperator):
 
     def construct_api_call_params(self) -> Any:
         self.api_params = {
-            'channel': self.channel,
-            'username': self.username,
-            'text': self.text,
-            'icon_url': self.icon_url,
-            'attachments': json.dumps(self.attachments),
-            'blocks': json.dumps(self.blocks),
+            "channel": self.channel,
+            "username": self.username,
+            "text": self.text,
+            "icon_url": self.icon_url,
+            "attachments": json.dumps(self.attachments),
+            "blocks": json.dumps(self.blocks),
         }
 
 
 class SlackAPIFileOperator(SlackAPIOperator):
-    """
-    Send a file to a slack channels
-    Examples:
+    """Send a file to a Slack channel.
 
     .. code-block:: python
 
@@ -187,14 +184,14 @@ class SlackAPIFileOperator(SlackAPIOperator):
     """
 
     template_fields: Sequence[str] = (
-        'channels',
-        'initial_comment',
-        'filename',
-        'filetype',
-        'content',
-        'title',
+        "channels",
+        "initial_comment",
+        "filename",
+        "filetype",
+        "content",
+        "title",
     )
-    ui_color = '#44BEDF'
+    ui_color = "#44BEDF"
 
     def __init__(
         self,
@@ -211,7 +208,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
             warnings.warn(
                 "Argument `channel` is deprecated and will removed in a future releases. "
                 "Please use `channels` instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             if channels:

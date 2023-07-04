@@ -34,70 +34,70 @@ from airflow.providers.apache.spark.hooks.spark_jdbc_script import (
 
 @pytest.fixture()
 def mock_spark_session():
-    with mock.patch('airflow.providers.apache.spark.hooks.spark_jdbc_script.SparkSession') as mok:
+    with mock.patch("airflow.providers.apache.spark.hooks.spark_jdbc_script.SparkSession") as mok:
         yield mok
 
 
 class TestSparkJDBCScrip:
     jdbc_arguments = [
-        '-cmdType',
-        'spark_to_jdbc',
-        '-url',
-        'jdbc:postgresql://localhost:5432/default',
-        '-user',
-        'user',
-        '-password',
-        'supersecret',
-        '-metastoreTable',
-        'hiveMcHiveFace',
-        '-jdbcTable',
-        'tableMcTableFace',
-        '-jdbcDriver',
-        'org.postgresql.Driver',
-        '-jdbcTruncate',
-        'false',
-        '-saveMode',
-        'append',
-        '-saveFormat',
-        'parquet',
-        '-batchsize',
-        '100',
-        '-fetchsize',
-        '200',
-        '-name',
-        'airflow-spark-jdbc-script-test',
-        '-numPartitions',
-        '10',
-        '-partitionColumn',
-        'columnMcColumnFace',
-        '-lowerBound',
-        '10',
-        '-upperBound',
-        '20',
-        '-createTableColumnTypes',
-        'columnMcColumnFace INTEGER(100), name CHAR(64),comments VARCHAR(1024)',
+        "-cmdType",
+        "spark_to_jdbc",
+        "-url",
+        "jdbc:postgresql://localhost:5432/default",
+        "-user",
+        "user",
+        "-password",
+        "supersecret",
+        "-metastoreTable",
+        "hiveMcHiveFace",
+        "-jdbcTable",
+        "tableMcTableFace",
+        "-jdbcDriver",
+        "org.postgresql.Driver",
+        "-jdbcTruncate",
+        "false",
+        "-saveMode",
+        "append",
+        "-saveFormat",
+        "parquet",
+        "-batchsize",
+        "100",
+        "-fetchsize",
+        "200",
+        "-name",
+        "airflow-spark-jdbc-script-test",
+        "-numPartitions",
+        "10",
+        "-partitionColumn",
+        "columnMcColumnFace",
+        "-lowerBound",
+        "10",
+        "-upperBound",
+        "20",
+        "-createTableColumnTypes",
+        "columnMcColumnFace INTEGER(100), name CHAR(64),comments VARCHAR(1024)",
     ]
 
     default_arguments = {
-        'cmd_type': 'spark_to_jdbc',
-        'url': 'jdbc:postgresql://localhost:5432/default',
-        'user': 'user',
-        'password': 'supersecret',
-        'metastore_table': 'hiveMcHiveFace',
-        'jdbc_table': 'tableMcTableFace',
-        'jdbc_driver': 'org.postgresql.Driver',
-        'truncate': 'false',
-        'save_mode': 'append',
-        'save_format': 'parquet',
-        'batch_size': '100',
-        'fetch_size': '200',
-        'name': 'airflow-spark-jdbc-script-test',
-        'num_partitions': '10',
-        'partition_column': 'columnMcColumnFace',
-        'lower_bound': '10',
-        'upper_bound': '20',
-        'create_table_column_types': 'columnMcColumnFace INTEGER(100), name CHAR(64),'
-        'comments VARCHAR(1024)',
+        "cmd_type": "spark_to_jdbc",
+        "url": "jdbc:postgresql://localhost:5432/default",
+        "user": "user",
+        "password": "supersecret",
+        "metastore_table": "hiveMcHiveFace",
+        "jdbc_table": "tableMcTableFace",
+        "jdbc_driver": "org.postgresql.Driver",
+        "truncate": "false",
+        "save_mode": "append",
+        "save_format": "parquet",
+        "batch_size": "100",
+        "fetch_size": "200",
+        "name": "airflow-spark-jdbc-script-test",
+        "num_partitions": "10",
+        "partition_column": "columnMcColumnFace",
+        "lower_bound": "10",
+        "upper_bound": "20",
+        "create_table_column_types": "columnMcColumnFace INTEGER(100), name CHAR(64),"
+        "comments VARCHAR(1024)",
     }
 
     def test_parse_arguments(self):
@@ -108,10 +108,10 @@ class TestSparkJDBCScrip:
         for argument_name, argument_value in self.default_arguments.items():
             assert getattr(parsed_arguments, argument_name) == argument_value
 
-    @mock.patch('airflow.providers.apache.spark.hooks.spark_jdbc_script.spark_write_to_jdbc')
+    @mock.patch("airflow.providers.apache.spark.hooks.spark_jdbc_script.spark_write_to_jdbc")
     def test_run_spark_write_to_jdbc(self, mock_spark_write_to_jdbc, mock_spark_session):
         # Given
-        arguments = _parse_arguments(['-cmdType', SPARK_WRITE_TO_JDBC] + self.jdbc_arguments[2:])
+        arguments = _parse_arguments(["-cmdType", SPARK_WRITE_TO_JDBC] + self.jdbc_arguments[2:])
         spark_session = mock_spark_session.builder.appName(arguments.name).enableHiveSupport().getOrCreate()
 
         # When
@@ -133,10 +133,10 @@ class TestSparkJDBCScrip:
             arguments.create_table_column_types,
         )
 
-    @mock.patch('airflow.providers.apache.spark.hooks.spark_jdbc_script.spark_read_from_jdbc')
+    @mock.patch("airflow.providers.apache.spark.hooks.spark_jdbc_script.spark_read_from_jdbc")
     def test_run_spark_read_from_jdbc(self, mock_spark_read_from_jdbc, mock_spark_session):
         # Given
-        arguments = _parse_arguments(['-cmdType', SPARK_READ_FROM_JDBC] + self.jdbc_arguments[2:])
+        arguments = _parse_arguments(["-cmdType", SPARK_READ_FROM_JDBC] + self.jdbc_arguments[2:])
         spark_session = mock_spark_session.builder.appName(arguments.name).enableHiveSupport().getOrCreate()
 
         # When
@@ -161,7 +161,7 @@ class TestSparkJDBCScrip:
         )
 
     @pytest.mark.system("spark")
-    @mock.patch.object(DataFrameWriter, 'save')
+    @mock.patch.object(DataFrameWriter, "save")
     def test_spark_write_to_jdbc(self, mock_writer_save):
         # Given
         arguments = _parse_arguments(self.jdbc_arguments)
@@ -189,7 +189,7 @@ class TestSparkJDBCScrip:
         mock_writer_save.assert_called_once_with(mode=arguments.save_mode)
 
     @pytest.mark.system("spark")
-    @mock.patch.object(DataFrameReader, 'load')
+    @mock.patch.object(DataFrameReader, "load")
     def test_spark_read_from_jdbc(self, mock_reader_load):
         # Given
         arguments = _parse_arguments(self.jdbc_arguments)

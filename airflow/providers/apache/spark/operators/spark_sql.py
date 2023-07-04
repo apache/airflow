@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class SparkSqlOperator(BaseOperator):
     """
-    Execute Spark SQL query
+    Execute Spark SQL query.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -52,23 +52,23 @@ class SparkSqlOperator(BaseOperator):
         (Default: The ``queue`` value set in the Connection, or ``"default"``)
     """
 
-    template_fields: Sequence[str] = ('_sql',)
+    template_fields: Sequence[str] = ("_sql",)
     template_ext: Sequence[str] = (".sql", ".hql")
-    template_fields_renderers = {'_sql': 'sql'}
+    template_fields_renderers = {"_sql": "sql"}
 
     def __init__(
         self,
         *,
         sql: str,
         conf: str | None = None,
-        conn_id: str = 'spark_sql_default',
+        conn_id: str = "spark_sql_default",
         total_executor_cores: int | None = None,
         executor_cores: int | None = None,
         executor_memory: str | None = None,
         keytab: str | None = None,
         principal: str | None = None,
         master: str | None = None,
-        name: str = 'default-name',
+        name: str = "default-name",
         num_executors: int | None = None,
         verbose: bool = True,
         yarn_queue: str | None = None,
@@ -91,7 +91,7 @@ class SparkSqlOperator(BaseOperator):
         self._hook: SparkSqlHook | None = None
 
     def execute(self, context: Context) -> None:
-        """Call the SparkSqlHook to run the provided sql query"""
+        """Call the SparkSqlHook to run the provided sql query."""
         if self._hook is None:
             self._hook = self._get_hook()
         self._hook.run_query()
@@ -102,7 +102,7 @@ class SparkSqlOperator(BaseOperator):
         self._hook.kill()
 
     def _get_hook(self) -> SparkSqlHook:
-        """Get SparkSqlHook"""
+        """Get SparkSqlHook."""
         return SparkSqlHook(
             sql=self._sql,
             conf=self._conf,

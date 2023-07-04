@@ -59,11 +59,11 @@ def print_env_vars(test_mode=None):
 
 with DAG(
     "example_passing_params_via_test_command",
-    schedule='*/1 * * * *',
+    schedule="*/1 * * * *",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     dagrun_timeout=datetime.timedelta(minutes=4),
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     run_this = my_py_command(params={"miff": "agg"})
 
@@ -75,7 +75,7 @@ with DAG(
     )
 
     also_run_this = BashOperator(
-        task_id='also_run_this',
+        task_id="also_run_this",
         bash_command=my_command,
         params={"miff": "agg"},
         env={"FOO": "{{ params.foo }}", "MIFF": "{{ params.miff }}"},

@@ -30,16 +30,17 @@ def only_client_type(func):
         if self._api_type == "client_type":
             return func(self, *args, **kwargs)
 
+        ec2_doc_link = "https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html"
         raise AirflowException(
-            """
+            f"""
             This method is only callable when using client_type API for interacting with EC2.
             Create the EC2Hook object as follows to use this method
 
             ec2 = EC2Hook(api_type="client_type")
 
             Read following for details on client_type and resource_type APIs:
-            1. https://boto3.amazonaws.com/v1/documentation/api/1.9.42/reference/services/ec2.html#client
-            2. https://boto3.amazonaws.com/v1/documentation/api/1.9.42/reference/services/ec2.html#service-resource # noqa
+            1. {ec2_doc_link}#client
+            2. {ec2_doc_link}#service-resource
             """
         )
 
@@ -48,13 +49,19 @@ def only_client_type(func):
 
 class EC2Hook(AwsBaseHook):
     """
-    Interact with AWS EC2 Service.
+    Interact with Amazon Elastic Compute Cloud (EC2).
+
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("ec2") <EC2.Client>`
+    or :external+boto3:py:class:`boto3.resource("ec2") <EC2.ServiceResource>`.
+
+    :param api_type: If set to ``client_type`` then hook use ``boto3.client("ec2")`` capabilities,
+        If set to ``resource_type`` then hook use ``boto3.resource("ec2")`` capabilities.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
     API_TYPES = frozenset({"resource_type", "client_type"})
@@ -76,7 +83,6 @@ class EC2Hook(AwsBaseHook):
         :param instance_id: id of the AWS EC2 instance
         :param filters: List of filters to specify instances to get
         :return: Instance object
-        :rtype: ec2.Instance
         """
         if self._api_type == "client_type":
             return self.get_instances(filters=filters, instance_ids=[instance_id])
@@ -86,7 +92,7 @@ class EC2Hook(AwsBaseHook):
     @only_client_type
     def stop_instances(self, instance_ids: list) -> dict:
         """
-        Stop instances with given ids
+        Stop instances with given ids.
 
         :param instance_ids: List of instance ids to stop
         :return: Dict with key `StoppingInstances` and value as list of instances being stopped
@@ -98,7 +104,7 @@ class EC2Hook(AwsBaseHook):
     @only_client_type
     def start_instances(self, instance_ids: list) -> dict:
         """
-        Start instances with given ids
+        Start instances with given ids.
 
         :param instance_ids: List of instance ids to start
         :return: Dict with key `StartingInstances` and value as list of instances being started
@@ -110,7 +116,7 @@ class EC2Hook(AwsBaseHook):
     @only_client_type
     def terminate_instances(self, instance_ids: list) -> dict:
         """
-        Terminate instances with given ids
+        Terminate instances with given ids.
 
         :param instance_ids: List of instance ids to terminate
         :return: Dict with key `TerminatingInstances` and value as list of instances being terminated
@@ -122,7 +128,7 @@ class EC2Hook(AwsBaseHook):
     @only_client_type
     def describe_instances(self, filters: list | None = None, instance_ids: list | None = None):
         """
-        Describe EC2 instances, optionally applying filters and selective instance ids
+        Describe EC2 instances, optionally applying filters and selective instance ids.
 
         :param filters: List of filters to specify instances to describe
         :param instance_ids: List of instance IDs to describe
@@ -139,7 +145,7 @@ class EC2Hook(AwsBaseHook):
     @only_client_type
     def get_instances(self, filters: list | None = None, instance_ids: list | None = None) -> list:
         """
-        Get list of instance details, optionally applying filters and selective instance ids
+        Get list of instance details, optionally applying filters and selective instance ids.
 
         :param instance_ids: List of ids to get instances for
         :param filters: List of filters to specify instances to get
@@ -154,12 +160,17 @@ class EC2Hook(AwsBaseHook):
     @only_client_type
     def get_instance_ids(self, filters: list | None = None) -> list:
         """
-        Get list of instance ids, optionally applying filters to fetch selective instances
+        Get list of instance ids, optionally applying filters to fetch selective instances.
 
         :param filters: List of filters to specify instances to get
         :return: List of instance ids
         """
         return [instance["InstanceId"] for instance in self.get_instances(filters=filters)]
+
+    async def get_instance_state_async(self, instance_id: str) -> str:
+        async with self.async_conn as client:
+            response = await client.describe_instances(InstanceIds=[instance_id])
+            return response["Reservations"][0]["Instances"][0]["State"]["Name"]
 
     def get_instance_state(self, instance_id: str) -> str:
         """
@@ -167,7 +178,6 @@ class EC2Hook(AwsBaseHook):
 
         :param instance_id: id of the AWS EC2 instance
         :return: current state of the instance
-        :rtype: str
         """
         if self._api_type == "client_type":
             return self.get_instances(instance_ids=[instance_id])[0]["State"]["Name"]
@@ -183,7 +193,6 @@ class EC2Hook(AwsBaseHook):
         :param check_interval: time in seconds that the job should wait in
             between each instance state checks until operation is completed
         :return: None
-        :rtype: None
         """
         instance_state = self.get_instance_state(instance_id=instance_id)
 

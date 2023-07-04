@@ -85,8 +85,7 @@ function install_airflow_and_providers_from_docker_context_files(){
         ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
     set +x
 
-    # make sure correct PIP version is left installed
-    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
+    common::install_pip_version
     pip check
 }
 
@@ -107,9 +106,8 @@ function install_all_other_packages_from_docker_context_files() {
         set -x
         pip install ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             --root-user-action ignore --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
-        # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
-        set -x
+        common::install_pip_version
+        set +x
     fi
 }
 

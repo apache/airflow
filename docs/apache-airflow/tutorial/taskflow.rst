@@ -125,7 +125,7 @@ how this DAG had to be written before Airflow 2.0 below:
     :start-after: [START tutorial]
     :end-before: [END tutorial]
 
-All of the processing shown above is being done in the new Airflow 2.0 dag as well, but
+All of the processing shown above is being done in the new Airflow 2.0 DAG as well, but
 it is all abstracted from the DAG developer.
 
 Let's examine this in detail by looking at the Transform task in isolation since it is
@@ -234,8 +234,7 @@ Using the TaskFlow API with complex/conflicting Python dependencies
 -------------------------------------------------------------------
 
 If you have tasks that require complex or conflicting requirements then you will have the ability to use the
-TaskFlow API with either Python virtual environment (since 2.0.2), Docker container (since version 2.2.0) or
-or ExternalPythonOperator or KubernetesPodOperator (since 2.4.0).
+TaskFlow API with either Python virtual environment (since 2.0.2), Docker container (since 2.2.0), ExternalPythonOperator (since 2.4.0) or KubernetesPodOperator (since 2.4.0).
 
 This functionality allows a much more comprehensive range of use-cases for the TaskFlow API,
 as you are not limited to the packages and system libraries of the Airflow worker. For all cases of
@@ -359,6 +358,26 @@ Notes on using the operator:
     You should upgrade to Airflow 2.4 or above in order to use it.
 
 
+Using the TaskFlow API with Sensor operators
+--------------------------------------------
+You can apply the ``@task.sensor`` decorator to convert a regular Python function to an instance of the
+BaseSensorOperator class. The Python function implements the poke logic and returns an instance of
+the ``PokeReturnValue`` class as the ``poke()`` method in the BaseSensorOperator does. The ``PokeReturnValue`` is
+a new feature in Airflow 2.3 that allows a sensor operator to push an XCom value as described in
+section "Having sensors return XCOM values" of :doc:`apache-airflow-providers:howto/create-update-providers`.
+
+Alternatively in cases where the sensor doesn't need to push XCOM values:  both ``poke()`` and the wrapped
+function can return a boolean-like value where ``True`` designates the sensor's operation as complete and
+``False`` designates the sensor's operation as incomplete.
+
+.. _taskflow/task_sensor_example:
+
+.. exampleinclude:: /../../airflow/example_dags/example_sensor_decorator.py
+    :language: python
+    :start-after: [START tutorial]
+    :end-before: [END tutorial]
+
+
 Multiple outputs inference
 --------------------------
 Tasks can also infer multiple outputs by using dict Python typing.
@@ -366,7 +385,7 @@ Tasks can also infer multiple outputs by using dict Python typing.
 .. code-block:: python
 
    @task
-   def identity_dict(x: int, y: int) -> Dict[str, int]:
+   def identity_dict(x: int, y: int) -> dict[str, int]:
        return {"x": x, "y": y}
 
 By using the typing ``Dict`` for the function return type, the ``multiple_outputs`` parameter
@@ -439,7 +458,7 @@ To retrieve an XCom result for a key other than ``return_value``, you can use:
     listed as a ``template_field``.
 
 In the code example below, a :class:`~airflow.providers.http.operators.http.SimpleHttpOperator` result
-is captured via :doc:`XComs </concepts/xcoms>`. This XCom result, which is the task output, is then passed
+is captured via :doc:`XComs </core-concepts/xcoms>`. This XCom result, which is the task output, is then passed
 to a TaskFlow function which parses the response as JSON.
 
 .. code-block:: python
@@ -568,5 +587,5 @@ You have seen how simple it is to write DAGs using the TaskFlow API paradigm wit
 
 .. seealso::
     - Continue to the next step of the tutorial: :doc:`/tutorial/pipeline`
-    - Read the :doc:`Concepts section </concepts/index>` for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
-    - View the section on the :doc:`TaskFlow API </concepts/taskflow>` and the ``@task`` decorator.
+    - Read the :doc:`Concepts section </core-concepts/index>` for detailed explanation of Airflow concepts such as DAGs, Tasks, Operators, and more
+    - View the section on the :doc:`TaskFlow API </core-concepts/taskflow>` and the ``@task`` decorator.

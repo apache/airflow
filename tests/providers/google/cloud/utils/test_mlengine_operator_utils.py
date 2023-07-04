@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import base64
 import json
-import unittest
 from datetime import datetime
 from unittest import mock
 
@@ -68,31 +67,30 @@ def get_metric_fn_and_keys():
     import math
 
     def error_and_squared_error(inst):
-        label = float(inst['input_label'])
-        classes = float(inst['classes'])
+        label = float(inst["input_label"])
+        classes = float(inst["classes"])
         err = abs(classes - label)
         squared_err = math.pow(classes - label, 2)
         return err, squared_err
 
-    return error_and_squared_error, ['err', 'mse']
+    return error_and_squared_error, ["err", "mse"]
 
 
 METRIC_FN, METRIC_KEYS = get_metric_fn_and_keys()
-METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
-METRIC_KEYS_EXPECTED = ','.join(METRIC_KEYS)
+METRIC_KEYS_EXPECTED = ",".join(METRIC_KEYS)
 
 
 def validate_err_and_count(summary):
-    if summary['err'] > 0.2:
-        raise ValueError(f'Too high err>0.2; summary={summary}')
-    if summary['mse'] > 0.05:
-        raise ValueError(f'Too high mse>0.05; summary={summary}')
-    if summary['count'] < 1000:
-        raise ValueError(f'Too few instances<1000; summary={summary}')
+    if summary["err"] > 0.2:
+        raise ValueError(f"Too high err>0.2; summary={summary}")
+    if summary["mse"] > 0.05:
+        raise ValueError(f"Too high mse>0.05; summary={summary}")
+    if summary["count"] < 1000:
+        raise ValueError(f"Too few instances<1000; summary={summary}")
     return summary
 
 
-class TestMlengineOperatorUtils(unittest.TestCase):
+class TestMlengineOperatorUtils:
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
     def test_create_evaluate_ops(self, mock_beam_pipeline, mock_python):
@@ -114,6 +112,11 @@ class TestMlengineOperatorUtils(unittest.TestCase):
 
         mock_beam_pipeline.assert_called_once_with(evaluate_prediction)
         mock_python.assert_called_once_with(evaluate_summary)
+
+        # importing apache_beam elsewhere modifies the metrics. In order to avoid metrics being modified
+        # by apache_beam import happening after importing this test, we retrieve the metrics here rather than
+        # at the top of the file.
+        METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
 
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
         assert PROJECT_ID == evaluate_prediction._project_id
@@ -156,6 +159,11 @@ class TestMlengineOperatorUtils(unittest.TestCase):
         mock_beam_pipeline.assert_called_once_with(evaluate_prediction)
         mock_python.assert_called_once_with(evaluate_summary)
 
+        # importing apache_beam elsewhere modifies the metrics. In order to avoid metrics being modified
+        # by apache_beam import happening after importing this test, we retrieve the metrics here rather than
+        # at the top of the file.
+        METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
+
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
         assert PROJECT_ID == evaluate_prediction._project_id
         assert BATCH_PREDICTION_JOB_ID == evaluate_prediction._job_id
@@ -193,6 +201,11 @@ class TestMlengineOperatorUtils(unittest.TestCase):
 
         mock_dataflow.assert_called_once_with(evaluate_prediction)
         mock_python.assert_called_once_with(evaluate_summary)
+
+        # importing apache_beam elsewhere modifies the metrics. In order to avoid metrics being modified
+        # by apache_beam import happening after importing this test, we retrieve the metrics here rather than
+        # at the top of the file.
+        METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
 
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
         assert PROJECT_ID == evaluate_prediction._project_id
@@ -270,7 +283,7 @@ class TestMlengineOperatorUtils(unittest.TestCase):
                 data_format=DATA_FORMAT,
                 input_paths=INPUT_PATHS,
                 prediction_path=PREDICTION_PATH,
-                metric_fn_and_keys=("error_and_squared_error", ['err', 'mse']),
+                metric_fn_and_keys=("error_and_squared_error", ["err", "mse"]),
                 validate_fn=validate_err_and_count,
             )
 

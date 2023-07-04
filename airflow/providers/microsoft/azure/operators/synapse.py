@@ -58,7 +58,7 @@ class AzureSynapseRunSparkBatchOperator(BaseOperator):
         *,
         azure_synapse_conn_id: str = AzureSynapseHook.default_conn_name,
         wait_for_termination: bool = True,
-        spark_pool: str = '',
+        spark_pool: str = "",
         payload: SparkBatchJobOptions,
         timeout: int = 60 * 60 * 24 * 7,
         check_interval: int = 60,

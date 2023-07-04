@@ -23,8 +23,16 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+import pytest
+
 from airflow import models
-from airflow.providers.google.leveldb.operators.leveldb import LevelDBOperator
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+try:
+    from airflow.providers.google.leveldb.operators.leveldb import LevelDBOperator
+except AirflowOptionalProviderFeatureException:
+    pytest.skip("LevelDB not available", allow_module_level=True)
+
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -33,19 +41,19 @@ DAG_ID = "example_leveldb"
 with models.DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule='@once',
+    schedule="@once",
     catchup=False,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
     # [START howto_operator_leveldb_get_key]
-    get_key_leveldb_task = LevelDBOperator(task_id='get_key_leveldb', command='get', key=b'key')
+    get_key_leveldb_task = LevelDBOperator(task_id="get_key_leveldb", command="get", key=b"key")
     # [END howto_operator_leveldb_get_key]
     # [START howto_operator_leveldb_put_key]
     put_key_leveldb_task = LevelDBOperator(
-        task_id='put_key_leveldb',
-        command='put',
-        key=b'another_key',
-        value=b'another_value',
+        task_id="put_key_leveldb",
+        command="put",
+        key=b"another_key",
+        value=b"another_value",
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_leveldb_put_key]

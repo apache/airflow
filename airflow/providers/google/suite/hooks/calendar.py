@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains a Google Calendar API hook"""
+"""This module contains a Google Calendar API hook."""
 from __future__ import annotations
 
 from datetime import datetime
@@ -29,9 +29,9 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 class GoogleCalendarHook(GoogleBaseHook):
     """
-    Interact with Google Calendar via Google Cloud connection
-    Reading and writing cells in Google Sheet:
-    https://developers.google.com/calendar/api/v3/reference
+    Interact with Google Calendar via Google Cloud connection.
+
+    Reading and writing cells in Google Sheet: https://developers.google.com/calendar/api/v3/reference
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param api_version: API Version. For example v3
@@ -51,7 +51,7 @@ class GoogleCalendarHook(GoogleBaseHook):
     def __init__(
         self,
         api_version: str,
-        gcp_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = "google_cloud_default",
         delegate_to: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
@@ -70,17 +70,16 @@ class GoogleCalendarHook(GoogleBaseHook):
         Retrieves connection to Google Calendar.
 
         :return: Google Calendar services object.
-        :rtype: Any
         """
         if not self._conn:
             http_authorized = self._authorize()
-            self._conn = build('calendar', self.api_version, http=http_authorized, cache_discovery=False)
+            self._conn = build("calendar", self.api_version, http=http_authorized, cache_discovery=False)
 
         return self._conn
 
     def get_events(
         self,
-        calendar_id: str = 'primary',
+        calendar_id: str = "primary",
         i_cal_uid: str | None = None,
         max_attendees: int | None = None,
         max_results: int | None = None,
@@ -98,7 +97,8 @@ class GoogleCalendarHook(GoogleBaseHook):
         updated_min: datetime | None = None,
     ) -> list:
         """
-        Gets events from Google Calendar from a single calendar_id
+        Gets events from Google Calendar from a single calendar_id.
+
         https://developers.google.com/calendar/api/v3/reference/events/list
 
         :param calendar_id: The Google Calendar ID to interact with
@@ -126,7 +126,6 @@ class GoogleCalendarHook(GoogleBaseHook):
             Default is no filter
         :param time_zone: Optional. Time zone used in response. Default is calendars time zone.
         :param updated_min: Optional. Lower bound for an event's last modification time
-        :rtype: List
         """
         service = self.get_conn()
         page_token = None
@@ -164,16 +163,17 @@ class GoogleCalendarHook(GoogleBaseHook):
     def create_event(
         self,
         event: dict[str, Any],
-        calendar_id: str = 'primary',
+        calendar_id: str = "primary",
         conference_data_version: int | None = 0,
         max_attendees: int | None = None,
         send_notifications: bool | None = False,
-        send_updates: str | None = 'false',
+        send_updates: str | None = "false",
         supports_attachments: bool | None = False,
     ) -> dict:
         """
-        Create event on the specified calendar
-        https://developers.google.com/calendar/api/v3/reference/events/insert
+        Create event on the specified calendar.
+
+        https://developers.google.com/calendar/api/v3/reference/events/insert.
 
         :param calendar_id: The Google Calendar ID to interact with
         :param conference_data_version: Optional. Version number of conference data
@@ -184,7 +184,6 @@ class GoogleCalendarHook(GoogleBaseHook):
         :param send_updates: Optional. Default is "false". Acceptable values as "all", "none",
             ``"externalOnly"``
             https://developers.google.com/calendar/api/v3/reference/events#resource
-        :rtype: Dict
         """
         if "start" not in event or "end" not in event:
             raise AirflowException(

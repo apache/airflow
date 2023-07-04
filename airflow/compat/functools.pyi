@@ -18,10 +18,10 @@
 
 # This stub exists to work around false linter errors due to python/mypy#10408.
 # TODO: Remove this file after the upstream fix is available in our toolchain.
+from __future__ import annotations
 
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 T = TypeVar("T")
 
-def cached_property(f: Callable[..., T]) -> T: ...
 def cache(f: T) -> T: ...

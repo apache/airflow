@@ -42,10 +42,10 @@ class TestDotRenderer:
 
     def test_should_render_dag_dependencies(self):
         dag_dep_1 = DagDependency(
-            source='dag_one', target='dag_two', dependency_type='Sensor', dependency_id='task_1'
+            source="dag_one", target="dag_two", dependency_type="Sensor", dependency_id="task_1"
         )
         dag_dep_2 = DagDependency(
-            source='dag_two', target='dag_three', dependency_type='Sensor', dependency_id='task_2'
+            source="dag_two", target="dag_three", dependency_type="Sensor", dependency_id="task_2"
         )
 
         dag_dependency_list = []
@@ -53,7 +53,7 @@ class TestDotRenderer:
         dag_dependency_list.append(dag_dep_2)
 
         dag_dependency_dict = {}
-        dag_dependency_dict['dag_one'] = dag_dependency_list
+        dag_dependency_dict["dag_one"] = dag_dependency_list
         dot = dot_renderer.render_dag_dependencies(dag_dependency_dict)
 
         assert "dag_one -> task_1" in dot.source
@@ -140,7 +140,7 @@ class TestDotRenderer:
         source = dot.source
         # Should render DAG title with orientation
         assert "label=DAG_ID" in source
-        assert f'label=DAG_ID labelloc=t rankdir={orientation}' in source
+        assert f"label=DAG_ID labelloc=t rankdir={orientation}" in source
 
         # Change orientation
         orientation = "LR"
@@ -149,7 +149,7 @@ class TestDotRenderer:
         source = dot.source
         # Should render DAG title with orientation
         assert "label=DAG_ID" in source
-        assert f'label=DAG_ID labelloc=t rankdir={orientation}' in source
+        assert f"label=DAG_ID labelloc=t rankdir={orientation}" in source
 
     def test_render_task_group(self):
         with DAG(dag_id="example_task_group", start_date=START_DATE) as dag:
@@ -157,7 +157,7 @@ class TestDotRenderer:
 
             with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:
                 task_1 = EmptyOperator(task_id="task_1")
-                task_2 = BashOperator(task_id="task_2", bash_command='echo 1')
+                task_2 = BashOperator(task_id="task_2", bash_command="echo 1")
                 task_3 = EmptyOperator(task_id="task_3")
 
                 task_1 >> [task_2, task_3]
@@ -166,25 +166,25 @@ class TestDotRenderer:
                 task_1 = EmptyOperator(task_id="task_1")
 
                 with TaskGroup("inner_section_2", tooltip="Tasks for inner_section2"):
-                    task_2 = BashOperator(task_id="task_2", bash_command='echo 1')
+                    task_2 = BashOperator(task_id="task_2", bash_command="echo 1")
                     task_3 = EmptyOperator(task_id="task_3")
                     task_4 = EmptyOperator(task_id="task_4")
 
                     [task_2, task_3] >> task_4
 
-            end = EmptyOperator(task_id='end')
+            end = EmptyOperator(task_id="end")
 
             start >> section_1 >> section_2 >> end
 
         dot = dot_renderer.render_dag(dag)
 
-        assert dot.source.strip() == '\n'.join(
+        assert dot.source.strip() == "\n".join(
             [
-                'digraph example_task_group {',
-                '\tgraph [label=example_task_group labelloc=t rankdir=LR]',
+                "digraph example_task_group {",
+                "\tgraph [label=example_task_group labelloc=t rankdir=LR]",
                 '\tend [color="#000000" fillcolor="#e8f7e4" label=end shape=rectangle '
                 'style="filled,rounded"]',
-                '\tsubgraph cluster_section_1 {',
+                "\tsubgraph cluster_section_1 {",
                 '\t\tcolor="#000000" fillcolor="#6495ed7f" label=section_1 shape=rectangle style=filled',
                 '\t\t"section_1.upstream_join_id" [color="#000000" fillcolor=CornflowerBlue height=0.2 '
                 'label="" shape=circle style="filled,rounded" width=0.2]',
@@ -196,8 +196,8 @@ class TestDotRenderer:
                 'style="filled,rounded"]',
                 '\t\t"section_1.task_3" [color="#000000" fillcolor="#e8f7e4" label=task_3 shape=rectangle '
                 'style="filled,rounded"]',
-                '\t}',
-                '\tsubgraph cluster_section_2 {',
+                "\t}",
+                "\tsubgraph cluster_section_2 {",
                 '\t\tcolor="#000000" fillcolor="#6495ed7f" label=section_2 shape=rectangle style=filled',
                 '\t\t"section_2.upstream_join_id" [color="#000000" fillcolor=CornflowerBlue height=0.2 '
                 'label="" shape=circle style="filled,rounded" width=0.2]',
@@ -205,17 +205,17 @@ class TestDotRenderer:
                 'label="" shape=circle style="filled,rounded" width=0.2]',
                 '\t\tsubgraph "cluster_section_2.inner_section_2" {',
                 '\t\t\tcolor="#000000" fillcolor="#6495ed7f" label=inner_section_2 shape=rectangle '
-                'style=filled',
+                "style=filled",
                 '\t\t\t"section_2.inner_section_2.task_2" [color="#000000" fillcolor="#f0ede4" label=task_2 '
                 'shape=rectangle style="filled,rounded"]',
                 '\t\t\t"section_2.inner_section_2.task_3" [color="#000000" fillcolor="#e8f7e4" label=task_3 '
                 'shape=rectangle style="filled,rounded"]',
                 '\t\t\t"section_2.inner_section_2.task_4" [color="#000000" fillcolor="#e8f7e4" label=task_4 '
                 'shape=rectangle style="filled,rounded"]',
-                '\t\t}',
+                "\t\t}",
                 '\t\t"section_2.task_1" [color="#000000" fillcolor="#e8f7e4" label=task_1 shape=rectangle '
                 'style="filled,rounded"]',
-                '\t}',
+                "\t}",
                 '\tstart [color="#000000" fillcolor="#e8f7e4" label=start shape=rectangle '
                 'style="filled,rounded"]',
                 '\t"section_1.downstream_join_id" -> "section_2.upstream_join_id"',
@@ -233,6 +233,6 @@ class TestDotRenderer:
                 '\t"section_2.upstream_join_id" -> "section_2.inner_section_2.task_3"',
                 '\t"section_2.upstream_join_id" -> "section_2.task_1"',
                 '\tstart -> "section_1.upstream_join_id"',
-                '}',
+                "}",
             ]
         )

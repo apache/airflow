@@ -31,11 +31,9 @@ if TYPE_CHECKING:
 
 class DatadogSensor(BaseSensorOperator):
     """
-    A sensor to listen, with a filter, to datadog event streams and determine
-    if some event was emitted.
+    A sensor to listen, with a filter, to datadog event streams and determine if some event was emitted.
 
-    Depends on the datadog API, which has to be deployed on the same server where
-    Airflow runs.
+    Depends on the datadog API, which has to be deployed on the same server where Airflow runs.
 
     :param datadog_conn_id: The connection to datadog, containing metadata for api keys.
     :param from_seconds_ago: POSIX timestamp start (default 3600).
@@ -48,15 +46,15 @@ class DatadogSensor(BaseSensorOperator):
         the response object as the first positional argument and optionally any number of
         keyword arguments available in the context dictionary. It should return True for
         'pass' and False otherwise.
-    :param response_check: Optional[Callable[[Dict[str, Any]], bool]]
+    :param response_check: Callable[[dict[str, Any]], bool] | None
     """
 
-    ui_color = '#66c3dd'
+    ui_color = "#66c3dd"
 
     def __init__(
         self,
         *,
-        datadog_conn_id: str = 'datadog_default',
+        datadog_conn_id: str = "datadog_default",
         from_seconds_ago: int = 3600,
         up_to_seconds_from_now: int = 0,
         priority: str | None = None,
@@ -89,7 +87,7 @@ class DatadogSensor(BaseSensorOperator):
             tags=self.tags,
         )
 
-        if isinstance(response, dict) and response.get('status', 'ok') != 'ok':
+        if isinstance(response, dict) and response.get("status", "ok") != "ok":
             self.log.error("Unexpected Datadog result: %s", response)
             raise AirflowException("Datadog returned unexpected result")
 

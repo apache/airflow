@@ -35,10 +35,10 @@ class GithubHook(BaseHook):
     :param github_conn_id: Reference to :ref:`GitHub connection id <howto/connection:github>`.
     """
 
-    conn_name_attr = 'github_conn_id'
-    default_conn_name = 'github_default'
-    conn_type = 'github'
-    hook_name = 'GitHub'
+    conn_name_attr = "github_conn_id"
+    default_conn_name = "github_default"
+    conn_type = "github"
+    hook_name = "GitHub"
 
     def __init__(self, github_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -70,11 +70,11 @@ class GithubHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
-            "hidden_fields": ['schema', 'port', 'login', 'extra'],
-            "relabeling": {'host': 'GitHub Enterprise URL (Optional)', 'password': 'GitHub Access Token'},
-            "placeholders": {'host': 'https://{hostname}/api/v3 (for GitHub Enterprise)'},
+            "hidden_fields": ["schema", "port", "login", "extra"],
+            "relabeling": {"host": "GitHub Enterprise URL (Optional)", "password": "GitHub Access Token"},
+            "placeholders": {"host": "https://{hostname}/api/v3 (for GitHub Enterprise)"},
         }
 
     def test_connection(self) -> tuple[bool, str]:

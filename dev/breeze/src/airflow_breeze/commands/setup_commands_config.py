@@ -29,12 +29,19 @@ SETUP_COMMANDS: dict[str, str | list[str]] = {
     ],
 }
 SETUP_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
+    "breeze setup check-all-params-in-groups": [
+        {
+            "name": "Check all params in groups flags",
+            "options": [
+                "--command",
+            ],
+        }
+    ],
     "breeze setup self-upgrade": [
         {
             "name": "Self-upgrade flags",
             "options": [
                 "--use-current-airflow-sources",
-                "--force",
             ],
         }
     ],
@@ -67,7 +74,9 @@ SETUP_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--force",
                 "--command",
+                "--check-only",
             ],
         },
     ],
+    "breeze setup version": [],
 }

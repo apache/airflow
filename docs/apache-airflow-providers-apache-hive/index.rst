@@ -19,10 +19,18 @@
 ========================================
 
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -30,6 +38,7 @@ Content
     Operators <operators>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -37,22 +46,26 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/apache/hive/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-hive/3.0.0/tests/system/providers/apache/hive>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-hive/|version|/tests/system/providers/apache/hive>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-hive/>
     Installing from sources <installing-providers-from-sources>
+    Macros <macros>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -65,7 +78,7 @@ Package apache-airflow-providers-apache-hive
 `Apache Hive <https://hive.apache.org/>`__
 
 
-Release: 4.0.0
+Release: 6.1.1
 
 Provider package
 ----------------
@@ -83,11 +96,13 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 =======================================  ==================================
 PIP package                              Version required
 =======================================  ==================================
-``apache-airflow``                       ``>=2.2.0``
-``apache-airflow-providers-common-sql``
+``apache-airflow``                       ``>=2.4.0``
+``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``hmsclient``                            ``>=0.1.0``
 ``pandas``                               ``>=0.17.1``
 ``pyhive[hive]``                         ``>=0.6.0``
@@ -126,7 +141,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-apache-hive 4.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-4.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-4.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-4.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-apache-hive 4.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-4.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-4.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-4.0.0-py3-none-any.whl.sha512>`__)
-
-.. include:: ../../airflow/providers/apache/hive/CHANGELOG.rst
+* `The apache-airflow-providers-apache-hive 6.1.1 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-6.1.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-6.1.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-apache-hive-6.1.1.tar.gz.sha512>`__)
+* `The apache-airflow-providers-apache-hive 6.1.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-6.1.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-6.1.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_apache_hive-6.1.1-py3-none-any.whl.sha512>`__)

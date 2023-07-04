@@ -79,7 +79,7 @@ If you have set ``connections_path`` as ``connections`` and ``mount_point`` as `
 
     vault kv put airflow/connections/smtp_default conn_uri=smtps://user:host@relay.example.com:465
 
-Note that the ``Key`` is ``conn_uri``, ``Value`` is ``postgresql://airflow:airflow@host:5432/airflow`` and
+Note that the ``Key`` is ``conn_uri``, ``Value`` is ``smtps://user:host@relay.example.com:465`` and
 ``mount_point`` is ``airflow``.
 
 Verify that you can get the secret from ``vault``:

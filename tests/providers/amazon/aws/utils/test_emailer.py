@@ -17,14 +17,14 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import TestCase, mock
+from unittest import mock
 
 import pytest
 
 from airflow.providers.amazon.aws.utils.emailer import send_email
 
 
-class TestSendEmailSes(TestCase):
+class TestSendEmailSes:
     @mock.patch("airflow.providers.amazon.aws.utils.emailer.SesHook")
     def test_send_ses_email(self, mock_hook):
         send_email(

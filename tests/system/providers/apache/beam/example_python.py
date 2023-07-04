@@ -39,16 +39,16 @@ with models.DAG(
     schedule=None,  # Override to match your needs
     catchup=False,
     default_args=DEFAULT_ARGS,
-    tags=['example'],
+    tags=["example"],
 ) as dag:
 
     # [START howto_operator_start_python_direct_runner_pipeline_local_file]
     start_python_pipeline_local_direct_runner = BeamRunPythonPipelineOperator(
         task_id="start_python_pipeline_local_direct_runner",
-        py_file='apache_beam.examples.wordcount',
-        py_options=['-m'],
-        py_requirements=['apache-beam[gcp]==2.26.0'],
-        py_interpreter='python3',
+        py_file="apache_beam.examples.wordcount",
+        py_options=["-m"],
+        py_requirements=["apache-beam[gcp]==2.26.0"],
+        py_interpreter="python3",
         py_system_site_packages=False,
     )
     # [END howto_operator_start_python_direct_runner_pipeline_local_file]
@@ -59,8 +59,8 @@ with models.DAG(
         py_file=GCS_PYTHON,
         py_options=[],
         pipeline_options={"output": GCS_OUTPUT},
-        py_requirements=['apache-beam[gcp]==2.26.0'],
-        py_interpreter='python3',
+        py_requirements=["apache-beam[gcp]==2.26.0"],
+        py_interpreter="python3",
         py_system_site_packages=False,
     )
     # [END howto_operator_start_python_direct_runner_pipeline_gcs_file]
@@ -71,40 +71,40 @@ with models.DAG(
         runner="DataflowRunner",
         py_file=GCS_PYTHON,
         pipeline_options={
-            'tempLocation': GCS_TMP,
-            'stagingLocation': GCS_STAGING,
-            'output': GCS_OUTPUT,
+            "tempLocation": GCS_TMP,
+            "stagingLocation": GCS_STAGING,
+            "output": GCS_OUTPUT,
         },
         py_options=[],
-        py_requirements=['apache-beam[gcp]==2.26.0'],
-        py_interpreter='python3',
+        py_requirements=["apache-beam[gcp]==2.26.0"],
+        py_interpreter="python3",
         py_system_site_packages=False,
         dataflow_config=DataflowConfiguration(
-            job_name='{{task.task_id}}', project_id=GCP_PROJECT_ID, location="us-central1"
+            job_name="{{task.task_id}}", project_id=GCP_PROJECT_ID, location="us-central1"
         ),
     )
     # [END howto_operator_start_python_dataflow_runner_pipeline_gcs_file]
 
     start_python_pipeline_local_spark_runner = BeamRunPythonPipelineOperator(
         task_id="start_python_pipeline_local_spark_runner",
-        py_file='apache_beam.examples.wordcount',
+        py_file="apache_beam.examples.wordcount",
         runner="SparkRunner",
-        py_options=['-m'],
-        py_requirements=['apache-beam[gcp]==2.26.0'],
-        py_interpreter='python3',
+        py_options=["-m"],
+        py_requirements=["apache-beam[gcp]==2.26.0"],
+        py_interpreter="python3",
         py_system_site_packages=False,
     )
 
     start_python_pipeline_local_flink_runner = BeamRunPythonPipelineOperator(
         task_id="start_python_pipeline_local_flink_runner",
-        py_file='apache_beam.examples.wordcount',
+        py_file="apache_beam.examples.wordcount",
         runner="FlinkRunner",
-        py_options=['-m'],
+        py_options=["-m"],
         pipeline_options={
-            'output': '/tmp/start_python_pipeline_local_flink_runner',
+            "output": "/tmp/start_python_pipeline_local_flink_runner",
         },
-        py_requirements=['apache-beam[gcp]==2.26.0'],
-        py_interpreter='python3',
+        py_requirements=["apache-beam[gcp]==2.26.0"],
+        py_interpreter="python3",
         py_system_site_packages=False,
     )
 

@@ -32,7 +32,7 @@ CLOUD_TASKS_LINK = CLOUD_TASKS_BASE_LINK + "?project={project_id}"
 
 
 class CloudTasksQueueLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Task Queue Link"""
+    """Helper class for constructing Cloud Task Queue Link."""
 
     name = "Cloud Tasks Queue"
     key = "cloud_task_queue"
@@ -41,8 +41,9 @@ class CloudTasksQueueLink(BaseGoogleLink):
     @staticmethod
     def extract_parts(queue_name: str | None):
         """
-        Extract project_id, location and queue id from queue name:
-        projects/PROJECT_ID/locations/LOCATION_ID/queues/QUEUE_ID
+        Extract project_id, location and queue id from queue name.
+
+        projects/PROJECT_ID/locations/LOCATION_ID/queues/QUEUE_ID.
         """
         if not queue_name:
             return "", "", ""
@@ -64,7 +65,7 @@ class CloudTasksQueueLink(BaseGoogleLink):
 
 
 class CloudTasksLink(BaseGoogleLink):
-    """Helper class for constructing Cloud Task Link"""
+    """Helper class for constructing Cloud Task Link."""
 
     name = "Cloud Tasks"
     key = "cloud_task"

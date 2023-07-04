@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 import warnings
 from collections import deque
 from functools import wraps
@@ -24,7 +25,7 @@ from typing import Callable, TypeVar, cast
 
 from airflow.exceptions import RemovedInAirflow3Warning
 
-T = TypeVar('T', bound=Callable)
+T = TypeVar("T", bound=Callable)
 
 
 def apply_defaults(func: T) -> T:
@@ -57,19 +58,27 @@ def apply_defaults(func: T) -> T:
 
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
     """
-    Removed @task.
+    Removes @task or similar decorators as well as @setup and @teardown.
 
-    :param python_source:
+    :param python_source: The python source code
+    :param task_decorator_name: the decorator name
     """
-    if task_decorator_name not in python_source:
-        return python_source
-    split = python_source.split(task_decorator_name)
-    before_decorator, after_decorator = split[0], split[1]
-    if after_decorator[0] == "(":
-        after_decorator = _balance_parens(after_decorator)
-    if after_decorator[0] == "\n":
-        after_decorator = after_decorator[1:]
-    return before_decorator + after_decorator
+
+    def _remove_task_decorator(py_source, decorator_name):
+        if decorator_name not in py_source:
+            return python_source
+        split = python_source.split(decorator_name)
+        before_decorator, after_decorator = split[0], split[1]
+        if after_decorator[0] == "(":
+            after_decorator = _balance_parens(after_decorator)
+        if after_decorator[0] == "\n":
+            after_decorator = after_decorator[1:]
+        return before_decorator + after_decorator
+
+    decorators = ["@setup", "@teardown", task_decorator_name]
+    for decorator in decorators:
+        python_source = _remove_task_decorator(python_source, decorator)
+    return python_source
 
 
 def _balance_parens(after_decorator):
@@ -82,4 +91,25 @@ def _balance_parens(after_decorator):
             num_paren = num_paren + 1
         elif current == ")":
             num_paren = num_paren - 1
-    return ''.join(after_decorator)
+    return "".join(after_decorator)
+
+
+class _autostacklevel_warn:
+    def __init__(self):
+        self.warnings = __import__("warnings")
+
+    def __getattr__(self, name):
+        return getattr(self.warnings, name)
+
+    def __dir__(self):
+        return dir(self.warnings)
+
+    def warn(self, message, category=None, stacklevel=1, source=None):
+        self.warnings.warn(message, category, stacklevel + 2, source)
+
+
+def fixup_decorator_warning_stack(func):
+    if func.__globals__.get("warnings") is sys.modules["warnings"]:
+        # Yes, this is more than slightly hacky, but it _automatically_ sets the right stacklevel parameter to
+        # `warnings.warn` to ignore the decorator.
+        func.__globals__["warnings"] = _autostacklevel_warn()

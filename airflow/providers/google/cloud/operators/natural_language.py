@@ -22,12 +22,11 @@ from typing import TYPE_CHECKING, Sequence, Tuple
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
-from google.cloud.language_v1 import enums
-from google.cloud.language_v1.types import Document
+from google.cloud.language_v1.types import Document, EncodingType
 from google.protobuf.json_format import MessageToDict
 
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.natural_language import CloudNaturalLanguageHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -36,7 +35,7 @@ if TYPE_CHECKING:
 MetaData = Sequence[Tuple[str, str]]
 
 
-class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
+class CloudNaturalLanguageAnalyzeEntitiesOperator(GoogleCloudBaseOperator):
     """
     Finds named entities in the text along with entity types,
     salience, mentions for each entity, and other properties.
@@ -76,7 +75,7 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
         self,
         *,
         document: dict | Document,
-        encoding_type: enums.EncodingType | None = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -105,10 +104,10 @@ class CloudNaturalLanguageAnalyzeEntitiesOperator(BaseOperator):
         )
         self.log.info("Finished analyzing entities")
 
-        return MessageToDict(response)
+        return MessageToDict(response._pb)
 
 
-class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
+class CloudNaturalLanguageAnalyzeEntitySentimentOperator(GoogleCloudBaseOperator):
     """
     Finds entities, similar to AnalyzeEntities in the text and analyzes sentiment associated with each
     entity and its mentions.
@@ -135,7 +134,6 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
     """
 
     # [START natural_language_analyze_entity_sentiment_template_fields]
@@ -150,7 +148,7 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         self,
         *,
         document: dict | Document,
-        encoding_type: enums.EncodingType | None = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -183,10 +181,10 @@ class CloudNaturalLanguageAnalyzeEntitySentimentOperator(BaseOperator):
         )
         self.log.info("Finished entity sentiment analyze")
 
-        return MessageToDict(response)
+        return MessageToDict(response._pb)
 
 
-class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
+class CloudNaturalLanguageAnalyzeSentimentOperator(GoogleCloudBaseOperator):
     """
     Analyzes the sentiment of the provided text.
 
@@ -212,7 +210,6 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
 
-    :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
     """
 
     # [START natural_language_analyze_sentiment_template_fields]
@@ -227,7 +224,7 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
         self,
         *,
         document: dict | Document,
-        encoding_type: enums.EncodingType | None = None,
+        encoding_type: EncodingType | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: MetaData = (),
@@ -256,10 +253,10 @@ class CloudNaturalLanguageAnalyzeSentimentOperator(BaseOperator):
         )
         self.log.info("Finished sentiment analyze")
 
-        return MessageToDict(response)
+        return MessageToDict(response._pb)
 
 
-class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
+class CloudNaturalLanguageClassifyTextOperator(GoogleCloudBaseOperator):
     """
     Classifies a document into categories.
 
@@ -324,4 +321,4 @@ class CloudNaturalLanguageClassifyTextOperator(BaseOperator):
         )
         self.log.info("Finished text classify")
 
-        return MessageToDict(response)
+        return MessageToDict(response._pb)

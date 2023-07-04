@@ -28,11 +28,11 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = '30867afad44a'
-down_revision = 'e9304a3141f0'
+revision = "30867afad44a"
+down_revision = "e9304a3141f0"
 branch_labels = None
 depends_on = None
-airflow_version = '2.2.0'
+airflow_version = "2.2.0"
 
 
 def upgrade():
@@ -42,10 +42,10 @@ def upgrade():
 
     if is_sqlite:
         op.execute("PRAGMA foreign_keys=off")
-    with op.batch_alter_table('dag') as batch_op:
+    with op.batch_alter_table("dag") as batch_op:
         batch_op.alter_column(
-            'concurrency',
-            new_column_name='max_active_tasks',
+            "concurrency",
+            new_column_name="max_active_tasks",
             type_=sa.Integer(),
             nullable=False,
         )
@@ -55,10 +55,10 @@ def upgrade():
 
 def downgrade():
     """Unapply Rename ``concurrency`` column in ``dag`` table to`` max_active_tasks``"""
-    with op.batch_alter_table('dag') as batch_op:
+    with op.batch_alter_table("dag") as batch_op:
         batch_op.alter_column(
-            'max_active_tasks',
-            new_column_name='concurrency',
+            "max_active_tasks",
+            new_column_name="concurrency",
             type_=sa.Integer(),
             nullable=False,
         )

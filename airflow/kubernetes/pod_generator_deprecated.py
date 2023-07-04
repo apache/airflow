@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
+Backwards compatibility for Pod generation.
+
 This module provides an interface between the previous Pod
 API and outputs a kubernetes.client.models.V1Pod.
 The advantage being that the full Kubernetes API
@@ -23,11 +25,12 @@ is supported and no serialization need be written.
 from __future__ import annotations
 
 import copy
-import hashlib
 import re
 import uuid
 
 from kubernetes.client import models as k8s
+
+from airflow.utils.hashlib_wrapper import md5
 
 MAX_POD_ID_LEN = 253
 
@@ -35,17 +38,17 @@ MAX_LABEL_LEN = 63
 
 
 class PodDefaults:
-    """Static defaults for Pods"""
+    """Static defaults for Pods."""
 
-    XCOM_MOUNT_PATH = '/airflow/xcom'
-    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
+    XCOM_MOUNT_PATH = "/airflow/xcom"
+    SIDECAR_CONTAINER_NAME = "airflow-xcom-sidecar"
     XCOM_CMD = 'trap "exit 0" INT; while true; do sleep 30; done;'
-    VOLUME_MOUNT = k8s.V1VolumeMount(name='xcom', mount_path=XCOM_MOUNT_PATH)
-    VOLUME = k8s.V1Volume(name='xcom', empty_dir=k8s.V1EmptyDirVolumeSource())
+    VOLUME_MOUNT = k8s.V1VolumeMount(name="xcom", mount_path=XCOM_MOUNT_PATH)
+    VOLUME = k8s.V1Volume(name="xcom", empty_dir=k8s.V1EmptyDirVolumeSource())
     SIDECAR_CONTAINER = k8s.V1Container(
         name=SIDECAR_CONTAINER_NAME,
-        command=['sh', '-c', XCOM_CMD],
-        image='alpine',
+        command=["sh", "-c", XCOM_CMD],
+        image="alpine",
         volume_mounts=[VOLUME_MOUNT],
         resources=k8s.V1ResourceRequirements(
             requests={
@@ -57,6 +60,8 @@ class PodDefaults:
 
 def make_safe_label_value(string):
     """
+    Normalize a provided label to be of valid length and characters.
+
     Valid label values must be 63 characters or less and must be empty or begin and
     end with an alphanumeric character ([a-z0-9A-Z]) with dashes (-), underscores (_),
     dots (.), and alphanumerics between.
@@ -68,7 +73,7 @@ def make_safe_label_value(string):
     safe_label = re.sub(r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$", "", string)
 
     if len(safe_label) > MAX_LABEL_LEN or string != safe_label:
-        safe_hash = hashlib.md5(string.encode()).hexdigest()[:9]
+        safe_hash = md5(string.encode()).hexdigest()[:9]
         safe_label = safe_label[: MAX_LABEL_LEN - len(safe_hash) - 1] + "-" + safe_hash
 
     return safe_label
@@ -76,7 +81,7 @@ def make_safe_label_value(string):
 
 class PodGenerator:
     """
-    Contains Kubernetes Airflow Worker configuration logic
+    Contains Kubernetes Airflow Worker configuration logic.
 
     Represents a kubernetes pod and manages execution of a single pod.
     Any configuration that is container specific gets applied to
@@ -148,8 +153,8 @@ class PodGenerator:
     ):
 
         self.pod = k8s.V1Pod()
-        self.pod.api_version = 'v1'
-        self.pod.kind = 'Pod'
+        self.pod.api_version = "v1"
+        self.pod.kind = "Pod"
 
         # Pod Metadata
         self.metadata = k8s.V1ObjectMeta()
@@ -159,7 +164,7 @@ class PodGenerator:
         self.metadata.annotations = annotations
 
         # Pod Container
-        self.container = k8s.V1Container(name='base')
+        self.container = k8s.V1Container(name="base")
         self.container.image = image
         self.container.env = []
 
@@ -205,14 +210,14 @@ class PodGenerator:
         self.spec.image_pull_secrets = []
 
         if image_pull_secrets:
-            for image_pull_secret in image_pull_secrets.split(','):
+            for image_pull_secret in image_pull_secrets.split(","):
                 self.spec.image_pull_secrets.append(k8s.V1LocalObjectReference(name=image_pull_secret))
 
         # Attach sidecar
         self.extract_xcom = extract_xcom
 
     def gen_pod(self) -> k8s.V1Pod:
-        """Generates pod"""
+        """Generates pod."""
         result = None
 
         if result is None:
@@ -230,7 +235,7 @@ class PodGenerator:
 
     @staticmethod
     def add_sidecar(pod: k8s.V1Pod) -> k8s.V1Pod:
-        """Adds sidecar"""
+        """Adds sidecar."""
         pod_cp = copy.deepcopy(pod)
         pod_cp.spec.volumes = pod.spec.volumes or []
         pod_cp.spec.volumes.insert(0, PodDefaults.VOLUME)
@@ -242,7 +247,7 @@ class PodGenerator:
 
     @staticmethod
     def from_obj(obj) -> k8s.V1Pod | None:
-        """Converts to pod from obj"""
+        """Converts to pod from obj."""
         if obj is None:
             return None
 
@@ -251,8 +256,8 @@ class PodGenerator:
 
         if not isinstance(obj, dict):
             raise TypeError(
-                'Cannot convert a non-dictionary or non-PodGenerator '
-                'object into a KubernetesExecutorConfig'
+                "Cannot convert a non-dictionary or non-PodGenerator "
+                "object into a KubernetesExecutorConfig"
             )
 
         # We do not want to extract constant here from ExecutorLoader because it is just
@@ -262,30 +267,32 @@ class PodGenerator:
         if not namespaced:
             return None
 
-        resources = namespaced.get('resources')
+        resources = namespaced.get("resources")
 
         if resources is None:
             requests = {
-                'cpu': namespaced.get('request_cpu'),
-                'memory': namespaced.get('request_memory'),
-                'ephemeral-storage': namespaced.get('ephemeral-storage'),
+                "cpu": namespaced.get("request_cpu"),
+                "memory": namespaced.get("request_memory"),
+                "ephemeral-storage": namespaced.get("ephemeral-storage"),
             }
             limits = {
-                'cpu': namespaced.get('limit_cpu'),
-                'memory': namespaced.get('limit_memory'),
-                'ephemeral-storage': namespaced.get('ephemeral-storage'),
+                "cpu": namespaced.get("limit_cpu"),
+                "memory": namespaced.get("limit_memory"),
+                "ephemeral-storage": namespaced.get("ephemeral-storage"),
             }
             all_resources = list(requests.values()) + list(limits.values())
             if all(r is None for r in all_resources):
                 resources = None
             else:
                 resources = k8s.V1ResourceRequirements(requests=requests, limits=limits)
-        namespaced['resources'] = resources
+        namespaced["resources"] = resources
         return PodGenerator(**namespaced).gen_pod()
 
     @staticmethod
     def make_unique_pod_id(dag_id):
         r"""
+        Generate a unique Pod name.
+
         Kubernetes pod names must be <= 253 chars and must pass the following regex for
         validation
         ``^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$``

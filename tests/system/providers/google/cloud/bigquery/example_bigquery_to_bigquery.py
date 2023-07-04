@@ -38,6 +38,7 @@ DAG_ID = "bigquery_to_bigquery"
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
 ORIGIN = "origin"
 TARGET = "target"
+LOCATION = "US"
 
 
 with models.DAG(
@@ -47,7 +48,11 @@ with models.DAG(
     catchup=False,
     tags=["example", "bigquery"],
 ) as dag:
-    create_dataset = BigQueryCreateEmptyDatasetOperator(task_id="create_dataset", dataset_id=DATASET_NAME)
+    create_dataset = BigQueryCreateEmptyDatasetOperator(
+        task_id="create_dataset",
+        dataset_id=DATASET_NAME,
+        location=LOCATION,
+    )
 
     create_origin_table = BigQueryCreateEmptyTableOperator(
         task_id="create_origin_table",
@@ -69,11 +74,13 @@ with models.DAG(
         ],
     )
 
+    # [START howto_operator_bigquery_to_bigquery]
     copy_selected_data = BigQueryToBigQueryOperator(
         task_id="copy_selected_data",
         source_project_dataset_tables=f"{DATASET_NAME}.{ORIGIN}",
         destination_project_dataset_table=f"{DATASET_NAME}.{TARGET}",
     )
+    # [END howto_operator_bigquery_to_bigquery]
 
     delete_dataset = BigQueryDeleteDatasetOperator(
         task_id="delete_dataset",

@@ -38,7 +38,7 @@ NO_ACCOUNT_ID_CONN = "no_account_id_conn"
 SINGLE_TENANT_CONN = "single_tenant_conn"
 DEFAULT_ACCOUNT_ID = 11111
 ACCOUNT_ID = 22222
-SINGLE_TENANT_SCHEMA = "single.tenant"
+SINGLE_TENANT_DOMAIN = "single.tenant.getdbt.com"
 TOKEN = "token"
 PROJECT_ID = 33333
 JOB_ID = 4444
@@ -123,18 +123,18 @@ class TestDbtCloudHook:
             password=TOKEN,
         )
 
-        # Connection with `schema` parameter set
-        schema_conn = Connection(
+        # Connection with `host` parameter set
+        host_conn = Connection(
             conn_id=SINGLE_TENANT_CONN,
             conn_type=DbtCloudHook.conn_type,
             login=DEFAULT_ACCOUNT_ID,
             password=TOKEN,
-            schema=SINGLE_TENANT_SCHEMA,
+            host=SINGLE_TENANT_DOMAIN,
         )
 
         db.merge_conn(account_id_conn)
         db.merge_conn(no_account_id_conn)
-        db.merge_conn(schema_conn)
+        db.merge_conn(host_conn)
 
     @pytest.mark.parametrize(
         argnames="conn_id, url",
@@ -146,6 +146,15 @@ class TestDbtCloudHook:
         assert hook.auth_type == TokenAuth
         assert hook.method == "POST"
         assert hook.dbt_cloud_conn_id == conn_id
+
+    @pytest.mark.parametrize(
+        argnames="conn_id, url",
+        argvalues=[(ACCOUNT_ID_CONN, BASE_URL), (SINGLE_TENANT_CONN, SINGLE_TENANT_URL)],
+        ids=["multi-tenant", "single-tenant"],
+    )
+    def test_tenant_base_url(self, conn_id, url):
+        hook = DbtCloudHook(conn_id)
+        hook.get_conn()
         assert hook.base_url == url
 
     @pytest.mark.parametrize(

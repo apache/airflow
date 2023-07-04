@@ -32,10 +32,10 @@ class ZendeskHook(BaseHook):
     :param zendesk_conn_id: The Airflow connection used for Zendesk credentials.
     """
 
-    conn_name_attr = 'zendesk_conn_id'
-    default_conn_name = 'zendesk_default'
-    conn_type = 'zendesk'
-    hook_name = 'Zendesk'
+    conn_name_attr = "zendesk_conn_id"
+    default_conn_name = "zendesk_default"
+    conn_type = "zendesk"
+    hook_name = "Zendesk"
 
     def __init__(self, zendesk_conn_id: str = default_conn_name) -> None:
         super().__init__()
@@ -85,7 +85,7 @@ class ZendeskHook(BaseHook):
         :param kwargs: (optional) Search fields given to the zenpy search method.
         :return: SearchResultGenerator of Ticket objects.
         """
-        return self.zenpy_client.search(type='ticket', **kwargs)
+        return self.zenpy_client.search(type="ticket", **kwargs)
 
     def create_tickets(self, tickets: Ticket | list[Ticket], **kwargs) -> TicketAudit | JobStatus:
         """

@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 class SalesforceToGcsOperator(BaseOperator):
     """
-    Submits Salesforce query and uploads results to Google Cloud Storage
+    Submits Salesforce query and uploads results to Google Cloud Storage.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -54,12 +54,12 @@ class SalesforceToGcsOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        'query',
-        'bucket_name',
-        'object_name',
+        "query",
+        "bucket_name",
+        "object_name",
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'sql': 'sql'}
+    template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
 
     def __init__(
         self,

@@ -22,13 +22,14 @@ from typing import Collection
 from connexion import NoContent
 from flask import g, request
 from marshmallow import ValidationError
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import or_
 
 from airflow import DAG
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
-from airflow.api_connexion.parameters import check_limit, format_parameters
+from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_schema import (
     DAGCollection,
     dag_detail_schema,
@@ -47,7 +48,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @provide_session
 def get_dag(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get basic information about a DAG."""
-    dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
+    dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
 
     if dag is None:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
@@ -65,7 +66,7 @@ def get_dag_details(*, dag_id: str) -> APIResponse:
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
-@format_parameters({'limit': check_limit})
+@format_parameters({"limit": check_limit})
 @provide_session
 def get_dags(
     *,
@@ -74,27 +75,33 @@ def get_dags(
     tags: Collection[str] | None = None,
     dag_id_pattern: str | None = None,
     only_active: bool = True,
+    paused: bool | None = None,
+    order_by: str = "dag_id",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get all DAGs."""
+    allowed_attrs = ["dag_id"]
+    dags_query = select(DagModel).where(~DagModel.is_subdag)
     if only_active:
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
-    else:
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
-
+        dags_query = dags_query.where(DagModel.is_active)
+    if paused is not None:
+        if paused:
+            dags_query = dags_query.where(DagModel.is_paused)
+        else:
+            dags_query = dags_query.where(~DagModel.is_paused)
     if dag_id_pattern:
-        dags_query = dags_query.filter(DagModel.dag_id.ilike(f'%{dag_id_pattern}%'))
+        dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
 
     readable_dags = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
 
-    dags_query = dags_query.filter(DagModel.dag_id.in_(readable_dags))
+    dags_query = dags_query.where(DagModel.dag_id.in_(readable_dags))
     if tags:
         cond = [DagModel.tags.any(DagTag.name == tag) for tag in tags]
-        dags_query = dags_query.filter(or_(*cond))
+        dags_query = dags_query.where(or_(*cond))
 
-    total_entries = dags_query.count()
-
-    dags = dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
+    total_entries = session.scalar(select(func.count()).select_from(dags_query))
+    dags_query = apply_sorting(dags_query, order_by, {}, allowed_attrs)
+    dags = session.scalars(dags_query.offset(offset).limit(limit)).all()
 
     return dags_collection_schema.dump(DAGCollection(dags=dags, total_entries=total_entries))
 
@@ -102,27 +109,27 @@ def get_dags(
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
 @provide_session
 def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session = NEW_SESSION) -> APIResponse:
-    """Update the specific DAG"""
+    """Update the specific DAG."""
     try:
         patch_body = dag_schema.load(request.json, session=session)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
     if update_mask:
         patch_body_ = {}
-        if update_mask != ['is_paused']:
+        if update_mask != ["is_paused"]:
             raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
         patch_body_[update_mask[0]] = patch_body[update_mask[0]]
         patch_body = patch_body_
-    dag = session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
+    dag = session.scalar(select(DagModel).where(DagModel.dag_id == dag_id))
     if not dag:
         raise NotFound(f"Dag with id: '{dag_id}' not found")
-    dag.is_paused = patch_body['is_paused']
+    dag.is_paused = patch_body["is_paused"]
     session.flush()
     return dag_schema.dump(dag)
 
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG)])
-@format_parameters({'limit': check_limit})
+@format_parameters({"limit": check_limit})
 @provide_session
 def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pattern=None, update_mask=None):
     """Patch multiple DAGs."""
@@ -132,33 +139,36 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
         raise BadRequest(detail=str(err.messages))
     if update_mask:
         patch_body_ = {}
-        if update_mask != ['is_paused']:
+        if update_mask != ["is_paused"]:
             raise BadRequest(detail="Only `is_paused` field can be updated through the REST API")
         update_mask = update_mask[0]
         patch_body_[update_mask] = patch_body[update_mask]
         patch_body = patch_body_
     if only_active:
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag, DagModel.is_active)
+        dags_query = select(DagModel).where(~DagModel.is_subdag, DagModel.is_active)
     else:
-        dags_query = session.query(DagModel).filter(~DagModel.is_subdag)
+        dags_query = select(DagModel).where(~DagModel.is_subdag)
 
-    if dag_id_pattern == '~':
-        dag_id_pattern = '%'
-    dags_query = dags_query.filter(DagModel.dag_id.ilike(f'%{dag_id_pattern}%'))
+    if dag_id_pattern == "~":
+        dag_id_pattern = "%"
+    dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
     editable_dags = get_airflow_app().appbuilder.sm.get_editable_dag_ids(g.user)
 
-    dags_query = dags_query.filter(DagModel.dag_id.in_(editable_dags))
+    dags_query = dags_query.where(DagModel.dag_id.in_(editable_dags))
     if tags:
         cond = [DagModel.tags.any(DagTag.name == tag) for tag in tags]
-        dags_query = dags_query.filter(or_(*cond))
+        dags_query = dags_query.where(or_(*cond))
 
-    total_entries = dags_query.count()
+    total_entries = session.scalar(select(func.count()).select_from(dags_query))
 
-    dags = dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit).all()
+    dags = session.scalars(dags_query.order_by(DagModel.dag_id).offset(offset).limit(limit)).all()
 
     dags_to_update = {dag.dag_id for dag in dags}
-    session.query(DagModel).filter(DagModel.dag_id.in_(dags_to_update)).update(
-        {DagModel.is_paused: patch_body['is_paused']}, synchronize_session='fetch'
+    session.execute(
+        update(DagModel)
+        .where(DagModel.dag_id.in_(dags_to_update))
+        .values(is_paused=patch_body["is_paused"])
+        .execution_options(synchronize_session="fetch")
     )
 
     session.flush()

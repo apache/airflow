@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import os
-import unittest
 from unittest import mock
 
 from moto import mock_s3
@@ -30,8 +29,8 @@ BUCKET_NAME = os.environ.get("BUCKET_NAME", "test-airflow-bucket")
 TASK_ID = os.environ.get("TASK_ID", "test-s3-operator")
 
 
-class TestS3CreateBucketOperator(unittest.TestCase):
-    def setUp(self):
+class TestS3CreateBucketOperator:
+    def setup_method(self):
         self.create_bucket_operator = S3CreateBucketOperator(
             task_id=TASK_ID,
             bucket_name=BUCKET_NAME,
@@ -58,8 +57,8 @@ class TestS3CreateBucketOperator(unittest.TestCase):
         mock_create_bucket.assert_called_once_with(bucket_name=BUCKET_NAME, region_name=None)
 
 
-class TestS3DeleteBucketOperator(unittest.TestCase):
-    def setUp(self):
+class TestS3DeleteBucketOperator:
+    def setup_method(self):
         self.delete_bucket_operator = S3DeleteBucketOperator(
             task_id=TASK_ID,
             bucket_name=BUCKET_NAME,

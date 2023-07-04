@@ -21,14 +21,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.looker import LookerHook
+from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class LookerStartPdtBuildOperator(BaseOperator):
+class LookerStartPdtBuildOperator(GoogleCloudBaseOperator):
     """
     Submits a PDT materialization job to Looker.
 
@@ -86,7 +86,7 @@ class LookerStartPdtBuildOperator(BaseOperator):
 
         if not self.materialization_id:
             raise AirflowException(
-                f'No `materialization_id` was returned for model: {self.model}, view: {self.view}.'
+                f"No `materialization_id` was returned for model: {self.model}, view: {self.view}."
             )
 
         self.log.info("PDT materialization job submitted successfully. Job id: %s.", self.materialization_id)
