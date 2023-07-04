@@ -475,7 +475,9 @@ class GCSToBigQueryOperator(BaseOperator):
                 }
             }
             try:
-                job_id = hook.insert_job(configuration=self.configuration, project_id=self.project_id or hook.project_id)
+                job_id = hook.insert_job(
+                    configuration=self.configuration, project_id=self.project_id or hook.project_id
+                )
                 rows = list(hook.get_job(job_id=job_id, location=self.location).result())
             except BadRequest as e:
                 if "Unrecognized name:" in e.message:
