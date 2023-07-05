@@ -79,8 +79,27 @@ def test_prefill_form_null_extra():
     mock_form.data = {"conn_id": "test", "extra": None, "conn_type": "test"}
 
     cmv = ConnectionModelView()
-    cmv._iter_extra_field_names = mock.Mock(return_value=())
+    cmv._iter_extra_field_names_and_sensitivity = mock.Mock(return_value=())
     cmv.prefill_form(form=mock_form, pk=1)
+
+
+def test_prefill_form_sensitive_fields_extra():
+    mock_form = mock.Mock()
+    mock_form.data = {
+        "conn_id": "test",
+        "extra": json.dumps({"sensitive_extra": "TEST1", "non_sensitive_extra": "TEST2"}),
+        "conn_type": "test",
+    }
+
+    cmv = ConnectionModelView()
+    cmv._iter_extra_field_names_and_sensitivity = mock.Mock(
+        return_value=[("sensitive_extra_key", "sensitive_extra", True)]
+    )
+    cmv.prefill_form(form=mock_form, pk=1)
+    assert json.loads(mock_form.extra.data) == {
+        "sensitive_extra": "RATHER_LONG_SENSITIVE_FIELD_PLACEHOLDER",
+        "non_sensitive_extra": "TEST2",
+    }
 
 
 @pytest.mark.parametrize(
@@ -106,7 +125,9 @@ def test_prefill_form_backcompat(extras, expected):
     mock_form.data = {"conn_id": "test", "extra": json.dumps(extras), "conn_type": "test"}
 
     cmv = ConnectionModelView()
-    cmv._iter_extra_field_names = mock.Mock(return_value=[("extra__test__my_param", "my_param")])
+    cmv._iter_extra_field_names_and_sensitivity = mock.Mock(
+        return_value=[("extra__test__my_param", "my_param", False)]
+    )
     cmv.prefill_form(form=mock_form, pk=1)
     assert mock_form.extra__test__my_param.data == expected
 
@@ -134,7 +155,9 @@ def test_process_form_extras_both(mock_pm_hooks, mock_import_str, field_name):
     }
 
     cmv = ConnectionModelView()
-    cmv._iter_extra_field_names = mock.Mock(return_value=[("extra__test__custom_field", field_name)])
+    cmv._iter_extra_field_names_and_sensitivity = mock.Mock(
+        return_value=[("extra__test__custom_field", field_name, False)]
+    )
     cmv.process_form(form=mock_form, is_created=True)
     assert json.loads(mock_form.extra.data) == {
         field_name: "custom_field_val",
@@ -160,7 +183,7 @@ def test_process_form_extras_extra_only(mock_pm_hooks, mock_import_str):
     }
 
     cmv = ConnectionModelView()
-    cmv._iter_extra_field_names = mock.Mock(return_value=())
+    cmv._iter_extra_field_names_and_sensitivity = mock.Mock(return_value=())
     cmv.process_form(form=mock_form, is_created=True)
     assert json.loads(mock_form.extra.data) == {"param2": "param2_val"}
 
@@ -186,10 +209,10 @@ def test_process_form_extras_custom_only(mock_pm_hooks, mock_import_str, field_n
     }
 
     cmv = ConnectionModelView()
-    cmv._iter_extra_field_names = mock.Mock(
+    cmv._iter_extra_field_names_and_sensitivity = mock.Mock(
         return_value=[
-            ("extra__test3__custom_field", field_name),
-            ("extra__test3__custom_bool_field", False),
+            ("extra__test3__custom_field", field_name, False),
+            ("extra__test3__custom_bool_field", False, False),
         ],
     )
     cmv.process_form(form=mock_form, is_created=True)
@@ -217,7 +240,9 @@ def test_process_form_extras_updates(mock_pm_hooks, mock_import_str, field_name)
     }
 
     cmv = ConnectionModelView()
-    cmv._iter_extra_field_names = mock.Mock(return_value=[("extra__test4__custom_field", field_name)])
+    cmv._iter_extra_field_names_and_sensitivity = mock.Mock(
+        return_value=[("extra__test4__custom_field", field_name, False)]
+    )
     cmv.process_form(form=mock_form, is_created=True)
 
     if field_name == "custom_field":
@@ -227,6 +252,36 @@ def test_process_form_extras_updates(mock_pm_hooks, mock_import_str, field_name)
         }
     else:
         assert json.loads(mock_form.extra.data) == {"extra__test4__custom_field": "custom_field_val4"}
+
+
+@mock.patch("airflow.utils.module_loading.import_string")
+@mock.patch("airflow.providers_manager.ProvidersManager.hooks", new_callable=PropertyMock)
+@mock.patch("airflow.www.views.BaseHook")
+def test_process_form_extras_updates_sensitive_placeholder_unchanged(
+    mock_base_hook, mock_pm_hooks, mock_import_str
+):
+    """
+    Test the handling of sensitive unchanged field (where placeholder has not been modified).
+    """
+
+    # Testing parameters set in both extra and custom fields (connection updates).
+    mock_form = mock.Mock()
+    mock_form.data = {
+        "conn_type": "test4",
+        "conn_id": "extras_test4",
+        "extra": '{"sensitive_extra": "RATHER_LONG_SENSITIVE_FIELD_PLACEHOLDER", "extra__custom": "value"}',
+    }
+    mock_base_hook.get_connection.return_value = Connection(extra='{"sensitive_extra": "old_value"}')
+    cmv = ConnectionModelView()
+    cmv._iter_extra_field_names_and_sensitivity = mock.Mock(
+        return_value=[("sensitive_extra_key", "sensitive_extra", True)]
+    )
+    cmv.process_form(form=mock_form, is_created=True)
+
+    assert json.loads(mock_form.extra.data) == {
+        "extra__custom": "value",
+        "sensitive_extra": "old_value",
+    }
 
 
 def test_duplicate_connection(admin_client):

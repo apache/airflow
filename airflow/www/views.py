@@ -88,10 +88,12 @@ from airflow.datasets import Dataset
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
+    AirflowNotFoundException,
     ParamValidationError,
     RemovedInAirflow3Warning,
 )
 from airflow.executors.executor_loader import ExecutorLoader
+from airflow.hooks.base import BaseHook
 from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
@@ -146,6 +148,8 @@ LINECHART_X_AXIS_TICKFORMAT = (
     "if (i === undefined) {xLabel = d3.time.format('%H:%M, %d %b %Y')(new Date(parseInt(d)));"
     "} else {xLabel = d3.time.format('%H:%M, %d %b')(new Date(parseInt(d)));} return xLabel;}"
 )
+
+SENSITIVE_FIELD_PLACEHOLDER = "RATHER_LONG_SENSITIVE_FIELD_PLACEHOLDER"
 
 
 def sanitize_args(args: dict[str, str]) -> dict[str, str]:
@@ -4657,14 +4661,22 @@ class ConnectionModelView(AirflowModelView):
 
     base_order = ("conn_id", "asc")
 
-    def _iter_extra_field_names(self) -> Iterator[tuple[str, str]]:
+    def _iter_extra_field_names_and_sensitivity(self) -> Iterator[tuple[str, str, bool]]:
         """Iterate through provider-backed connection fields.
 
         Note that this cannot be a property (including a cached property)
         because Flask-Appbuilder attempts to access all members on startup, and
         using a property would initialize the providers manager too eagerly.
+
+        Returns tuple of:
+
+        * key
+        * field_name
+        * whether the field is sensitive
         """
-        return ((k, v.field_name) for k, v in ProvidersManager().connection_form_widgets.items())
+        return (
+            (k, v.field_name, v.is_sensitive) for k, v in ProvidersManager().connection_form_widgets.items()
+        )
 
     @property
     def add_columns(self) -> list[str]:
@@ -4677,7 +4689,10 @@ class ConnectionModelView(AirflowModelView):
         superfuluous checks done by Flask-Appbuilder on startup).
         """
         if self._add_columns is type(self)._add_columns and has_request_context():
-            self._add_columns = [*self._add_columns, *(k for k, _ in self._iter_extra_field_names())]
+            self._add_columns = [
+                *self._add_columns,
+                *(k for k, _, _ in self._iter_extra_field_names_and_sensitivity()),
+            ]
         return self._add_columns
 
     @property
@@ -4691,7 +4706,10 @@ class ConnectionModelView(AirflowModelView):
         superfuluous checks done by Flask-Appbuilder on startup).
         """
         if self._edit_columns is type(self)._edit_columns and has_request_context():
-            self._edit_columns = [*self._edit_columns, *(k for k, _ in self._iter_extra_field_names())]
+            self._edit_columns = [
+                *self._edit_columns,
+                *(k for k, _, _ in self._iter_extra_field_names_and_sensitivity()),
+            ]
         return self._edit_columns
 
     @action("muldelete", "Delete", "Are you sure you want to delete selected records?", single=False)
@@ -4782,7 +4800,6 @@ class ConnectionModelView(AirflowModelView):
         """Process form data."""
         conn_id = form.data["conn_id"]
         conn_type = form.data["conn_type"]
-
         # The extra value is the combination of custom fields for this conn_type and the Extra field.
         # The extra form field with all extra values (including custom fields) is in the form being processed
         # so we start with those values, and override them with anything in the custom fields.
@@ -4807,8 +4824,7 @@ class ConnectionModelView(AirflowModelView):
                 )
                 del form.extra
         del extra_json
-
-        for key, field_name in self._iter_extra_field_names():
+        for key, field_name, is_sensitive in self._iter_extra_field_names_and_sensitivity():
             if key in form.data and key.startswith("extra__"):
                 conn_type_from_extra_field = key.split("__")[1]
                 if conn_type_from_extra_field == conn_type:
@@ -4817,8 +4833,21 @@ class ConnectionModelView(AirflowModelView):
                     # value isn't an empty string.
                     if value != "":
                         extra[field_name] = value
-
         if extra.keys():
+            sensitive_unchanged_keys = set()
+            for key, value in extra.items():
+                if value == SENSITIVE_FIELD_PLACEHOLDER:
+                    sensitive_unchanged_keys.add(key)
+            if sensitive_unchanged_keys:
+                try:
+                    conn = BaseHook.get_connection(conn_id)
+                except AirflowNotFoundException:
+                    conn = None
+                for key in sensitive_unchanged_keys:
+                    if conn and conn.extra_dejson.get(key):
+                        extra[key] = conn.extra_dejson.get(key)
+                    else:
+                        del extra[key]
             form.extra.data = json.dumps(extra)
 
     def prefill_form(self, form, pk):
@@ -4836,7 +4865,7 @@ class ConnectionModelView(AirflowModelView):
             logging.warning("extra field for %s is not a dictionary", form.data.get("conn_id", "<unknown>"))
             return
 
-        for field_key, field_name in self._iter_extra_field_names():
+        for field_key, field_name, is_sensitive in self._iter_extra_field_names_and_sensitivity():
             value = extra_dictionary.get(field_name, "")
 
             if not value:
@@ -4846,6 +4875,10 @@ class ConnectionModelView(AirflowModelView):
             if value:
                 field = getattr(form, field_key)
                 field.data = value
+            if is_sensitive and field_name in extra_dictionary:
+                extra_dictionary[field_name] = SENSITIVE_FIELD_PLACEHOLDER
+        # form.data is a property that builds the dictionary from fields so we have to modify the fields
+        form.extra.data = json.dumps(extra_dictionary)
 
 
 class PluginView(AirflowBaseView):
