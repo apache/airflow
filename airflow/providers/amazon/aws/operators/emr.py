@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import ast
+from airflow.configuration import conf
 import warnings
 from datetime import timedelta
 from functools import cached_property
@@ -1072,6 +1073,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
                 method_name="start_application_deferred",
             )
 
+            
         waiter = self.hook.get_waiter("serverless_app_created")
         wait(
             waiter=waiter,
@@ -1097,7 +1099,6 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
                 status_args=["application.state", "application.stateDetails"],
             )
         return application_id
-
     def start_application_deferred(self, context, event=None):
         if event["status"] == "success":
             self.log.info("Starting application %s", event["application_id"])
@@ -1113,14 +1114,12 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 method_name="execute_complete",
             )
-
     def execute_complete(self, context, event=None):
         if event["status"] == "success":
             self.log.info("Application %s started", event["application_id"])
             return event["application_id"]
         else:
             raise AirflowException(f"Application {event['application_id']} failed to start")
-
 
 class EmrServerlessStartJobOperator(BaseOperator):
     """
