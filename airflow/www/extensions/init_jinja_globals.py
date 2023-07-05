@@ -68,6 +68,7 @@ def init_jinja_globals(app):
             "git_version": git_version,
             "k8s_or_k8scelery_executor": IS_K8S_OR_K8SCELERY_EXECUTOR,
             "rest_api_enabled": False,
+            "config_test_connection": conf.get("core", "test_connection", fallback="Disabled"),
         }
 
         backends = conf.get("api", "auth_backends")

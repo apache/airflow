@@ -17,6 +17,7 @@
 """Launches PODs."""
 from __future__ import annotations
 
+import enum
 import json
 import logging
 import math
@@ -63,7 +64,8 @@ def should_retry_start_pod(exception: BaseException) -> bool:
 
 class PodPhase:
     """
-    Possible pod phases
+    Possible pod phases.
+
     See https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase.
     """
 
@@ -114,6 +116,7 @@ def get_container_status(pod: V1Pod, container_name: str) -> V1ContainerStatus |
 def container_is_running(pod: V1Pod, container_name: str) -> bool:
     """
     Examines V1Pod ``pod`` to determine whether ``container_name`` is running.
+
     If that container is present and running, returns True.  Returns False otherwise.
     """
     container_status = get_container_status(pod, container_name)
@@ -125,6 +128,7 @@ def container_is_running(pod: V1Pod, container_name: str) -> bool:
 def container_is_terminated(pod: V1Pod, container_name: str) -> bool:
     """
     Examines V1Pod ``pod`` to determine whether ``container_name`` is terminated.
+
     If that container is present and terminated, returns True.  Returns False otherwise.
     """
     container_statuses = pod.status.container_statuses if pod and pod.status else None
@@ -145,8 +149,7 @@ def get_container_termination_message(pod: V1Pod, container_name: str):
 
 class PodLogsConsumer:
     """
-    PodLogsConsumer is responsible for pulling pod logs from a stream with checking a container status before
-    reading data.
+    Responsible for pulling pod logs from a stream with checking a container status before reading data.
 
     This class is a workaround for the issue https://github.com/apache/airflow/issues/23497.
 
@@ -239,10 +242,7 @@ class PodLoggingStatus:
 
 
 class PodManager(LoggingMixin):
-    """
-    Helper class for creating, monitoring, and otherwise interacting with Kubernetes pods
-    for use with the KubernetesPodOperator.
-    """
+    """Create, monitor, and otherwise interact with Kubernetes pods for use with the KubernetesPodOperator."""
 
     def __init__(
         self,
@@ -358,6 +358,7 @@ class PodManager(LoggingMixin):
         ) -> DateTime | None:
             """
             Tries to follow container logs until container completes.
+
             For a long-running container, sometimes the log read may be interrupted
             Such errors of this kind are suppressed.
 
@@ -544,6 +545,19 @@ class PodManager(LoggingMixin):
 
     def extract_xcom(self, pod: V1Pod) -> str:
         """Retrieves XCom value and kills xcom sidecar container."""
+        try:
+            result = self.extract_xcom_json(pod)
+            return result
+        finally:
+            self.extract_xcom_kill(pod)
+
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(5),
+        wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
+        reraise=True,
+    )
+    def extract_xcom_json(self, pod: V1Pod) -> str:
+        """Retrieves XCom value and also checks if xcom json is valid."""
         with closing(
             kubernetes_stream(
                 self._client.connect_get_namespaced_pod_exec,
@@ -562,10 +576,37 @@ class PodManager(LoggingMixin):
                 resp,
                 f"if [ -s {PodDefaults.XCOM_MOUNT_PATH}/return.json ]; then cat {PodDefaults.XCOM_MOUNT_PATH}/return.json; else echo __airflow_xcom_result_empty__; fi",  # noqa
             )
-            self._exec_pod_command(resp, "kill -s SIGINT 1")
+            if result and result.rstrip() != "__airflow_xcom_result_empty__":
+                # Note: result string is parsed to check if its valid json.
+                # This function still returns a string which is converted into json in the calling method.
+                json.loads(result)
+
         if result is None:
             raise AirflowException(f"Failed to extract xcom from pod: {pod.metadata.name}")
         return result
+
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(5),
+        wait=tenacity.wait_exponential(multiplier=1, min=4, max=10),
+        reraise=True,
+    )
+    def extract_xcom_kill(self, pod: V1Pod):
+        """Kills xcom sidecar container."""
+        with closing(
+            kubernetes_stream(
+                self._client.connect_get_namespaced_pod_exec,
+                pod.metadata.name,
+                pod.metadata.namespace,
+                container=PodDefaults.SIDECAR_CONTAINER_NAME,
+                command=["/bin/sh"],
+                stdin=True,
+                stdout=True,
+                stderr=True,
+                tty=False,
+                _preload_content=False,
+            )
+        ) as resp:
+            self._exec_pod_command(resp, "kill -s SIGINT 1")
 
     def _exec_pod_command(self, resp, command: str) -> str | None:
         res = None
@@ -585,3 +626,11 @@ class PodManager(LoggingMixin):
                 if res:
                     return res
         return res
+
+
+class OnFinishAction(enum.Enum):
+    """Action to take when the pod finishes."""
+
+    KEEP_POD = "keep_pod"
+    DELETE_POD = "delete_pod"
+    DELETE_SUCCEEDED_POD = "delete_succeeded_pod"

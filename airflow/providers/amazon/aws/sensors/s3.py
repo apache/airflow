@@ -26,18 +26,21 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
 
 from deprecated import deprecated
 
+from airflow.configuration import conf
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.triggers.s3 import S3KeyTrigger
+from airflow.providers.amazon.aws.triggers.s3 import S3KeysUnchangedTrigger, S3KeyTrigger
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 
 class S3KeySensor(BaseSensorOperator):
     """
     Waits for one or multiple keys (a file-like instance on S3) to be present in a S3 bucket.
+
     The path is just a key/value pointer to a resource for the given S3 path.
     Note: S3 does not support folders directly, and only provides key/value pairs.
 
@@ -86,7 +89,7 @@ class S3KeySensor(BaseSensorOperator):
         check_fn: Callable[..., bool] | None = None,
         aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -162,8 +165,8 @@ class S3KeySensor(BaseSensorOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]) -> bool | None:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "running":
             found_keys = self.check_fn(event["files"])  # type: ignore[misc]
@@ -189,11 +192,10 @@ class S3KeySensor(BaseSensorOperator):
 @poke_mode_only
 class S3KeysUnchangedSensor(BaseSensorOperator):
     """
-    Checks for changes in the number of objects at prefix in AWS S3
-    bucket and returns True if the inactivity period has passed with no
-    increase in the number of objects. Note, this sensor will not behave correctly
-    in reschedule mode, as the state of the listed objects in the S3 bucket will
-    be lost between rescheduled invocations.
+    Return True if inactivity_period has passed with no increase in the number of objects matching prefix.
+
+    Note, this sensor will not behave correctly in reschedule mode, as the state of the listed
+    objects in the S3 bucket will be lost between rescheduled invocations.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -222,6 +224,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
     :param allow_delete: Should this sensor consider objects being deleted
         between pokes valid behavior. If true a warning message will be logged
         when this happens. If false an error will be raised.
+    :param deferrable: Run sensor in the deferrable mode
     """
 
     template_fields: Sequence[str] = ("bucket_name", "prefix")
@@ -237,9 +240,9 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         min_objects: int = 1,
         previous_objects: set[str] | None = None,
         allow_delete: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
 
         self.bucket_name = bucket_name
@@ -251,6 +254,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         self.previous_objects = previous_objects or set()
         self.inactivity_seconds = 0
         self.allow_delete = allow_delete
+        self.deferrable = deferrable
         self.aws_conn_id = aws_conn_id
         self.verify = verify
         self.last_activity_time: datetime | None = None
@@ -262,8 +266,7 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
     def is_keys_unchanged(self, current_objects: set[str]) -> bool:
         """
-        Checks whether new objects have been uploaded and the inactivity_period
-        has passed and updates the state of the sensor accordingly.
+        Check for new objects after the inactivity_period and update the sensor state accordingly.
 
         :param current_objects: set of object ids in bucket during last poke.
         """
@@ -326,3 +329,36 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
 
     def poke(self, context: Context):
         return self.is_keys_unchanged(set(self.hook.list_keys(self.bucket_name, prefix=self.prefix)))
+
+    def execute(self, context: Context) -> None:
+        """Airflow runs this method on the worker and defers using the trigger if deferrable is True."""
+        if not self.deferrable:
+            super().execute(context)
+        else:
+            if not self.poke(context):
+                self.defer(
+                    timeout=timedelta(seconds=self.timeout),
+                    trigger=S3KeysUnchangedTrigger(
+                        bucket_name=self.bucket_name,
+                        prefix=self.prefix,
+                        inactivity_period=self.inactivity_period,
+                        min_objects=self.min_objects,
+                        previous_objects=self.previous_objects,
+                        inactivity_seconds=self.inactivity_seconds,
+                        allow_delete=self.allow_delete,
+                        aws_conn_id=self.aws_conn_id,
+                        verify=self.verify,
+                        last_activity_time=self.last_activity_time,
+                    ),
+                    method_name="execute_complete",
+                )
+
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event and event["status"] == "error":
+            raise AirflowException(event["message"])
+        return None

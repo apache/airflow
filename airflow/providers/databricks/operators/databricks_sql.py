@@ -70,14 +70,11 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
     :param csv_params: parameters that will be passed to the ``csv.DictWriter`` class used to write CSV data.
     """
 
-    template_fields: Sequence[str] = (
-        "sql",
-        "_output_path",
-        "schema",
-        "catalog",
-        "http_headers",
-        "databricks_conn_id",
+    template_fields: Sequence[str] = tuple(
+        {"_output_path", "schema", "catalog", "http_headers", "databricks_conn_id"}
+        | set(SQLExecuteQueryOperator.template_fields)
     )
+
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
 
@@ -172,6 +169,7 @@ COPY_INTO_APPROVED_FORMATS = ["CSV", "JSON", "AVRO", "ORC", "PARQUET", "TEXT", "
 class DatabricksCopyIntoOperator(BaseOperator):
     """
     Executes COPY INTO command in a Databricks SQL endpoint or a Databricks cluster.
+
     COPY INTO command is constructed from individual pieces, that are described in
     `documentation <https://docs.databricks.com/sql/language-manual/delta-copy-into.html>`_.
 

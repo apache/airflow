@@ -54,6 +54,8 @@ MOD_TIME_1 = datetime(2016, 1, 1)
 MOD_TIME_2 = datetime(2019, 1, 1)
 
 
+# TODO: After deprecating delimiter and wildcards in source objects,
+#       implement reverted changes from the first commit of PR #31261
 class TestGoogleCloudStorageToCloudStorageOperator:
     """
     Tests the three use-cases for the wildcard operator. These are
@@ -100,7 +102,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         operator.execute(None)
         mock_calls = [
             mock.call(TEST_BUCKET, prefix="test_object", delimiter=""),
-            mock.call(DESTINATION_BUCKET, prefix="test_object", delimiter=""),
+            mock.call(DESTINATION_BUCKET, prefix="test_object", delimiter="", match_glob=None),
         ]
         mock_hook.return_value.list.assert_has_calls(mock_calls)
 
@@ -117,8 +119,8 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls = [
-            mock.call(TEST_BUCKET, prefix=SOURCE_OBJECT_NO_WILDCARD, delimiter=None),
-            mock.call(DESTINATION_BUCKET, prefix=SOURCE_OBJECT_NO_WILDCARD, delimiter=None),
+            mock.call(TEST_BUCKET, prefix=SOURCE_OBJECT_NO_WILDCARD, delimiter=None, match_glob=None),
+            mock.call(DESTINATION_BUCKET, prefix=SOURCE_OBJECT_NO_WILDCARD, delimiter=None, match_glob=None),
         ]
         mock_hook.return_value.list.assert_has_calls(mock_calls)
 
@@ -140,7 +142,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
 
         operator.execute(None)
         mock_calls = [
-            mock.call(TEST_BUCKET, prefix="test_object.txt", delimiter=None),
+            mock.call(TEST_BUCKET, prefix="test_object.txt", delimiter=None, match_glob=None),
         ]
         mock_hook.return_value.list.assert_has_calls(mock_calls)
 
@@ -450,7 +452,9 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         )
 
         operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix="", delimiter=None)
+        mock_hook.return_value.list.assert_called_once_with(
+            TEST_BUCKET, prefix="", delimiter=None, match_glob=None
+        )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_raises_exception_with_two_empty_list_inside_source_objects(self, mock_hook):
@@ -469,7 +473,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         )
         operator.execute(None)
         mock_hook.return_value.list.assert_called_once_with(
-            TEST_BUCKET, prefix=SOURCE_OBJECTS_SINGLE_FILE[0], delimiter=None
+            TEST_BUCKET, prefix=SOURCE_OBJECTS_SINGLE_FILE[0], delimiter=None, match_glob=None
         )
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
@@ -480,8 +484,8 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         operator.execute(None)
         mock_hook.return_value.list.assert_has_calls(
             [
-                mock.call(TEST_BUCKET, prefix="test_object/file1.txt", delimiter=None),
-                mock.call(TEST_BUCKET, prefix="test_object/file2.txt", delimiter=None),
+                mock.call(TEST_BUCKET, prefix="test_object/file1.txt", delimiter=None, match_glob=None),
+                mock.call(TEST_BUCKET, prefix="test_object/file2.txt", delimiter=None, match_glob=None),
             ],
             any_order=True,
         )
@@ -495,7 +499,9 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             delimiter=DELIMITER,
         )
         operator.execute(None)
-        mock_hook.return_value.list.assert_called_once_with(TEST_BUCKET, prefix="", delimiter=DELIMITER)
+        mock_hook.return_value.list.assert_called_once_with(
+            TEST_BUCKET, prefix="", delimiter=DELIMITER, match_glob=None
+        )
 
     # COPY
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
@@ -593,7 +599,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
         operator.execute(None)
         mock_calls = [
             mock.call(TEST_BUCKET, prefix="test_object", delimiter=""),
-            mock.call(DESTINATION_BUCKET, prefix="foo/bar", delimiter=""),
+            mock.call(DESTINATION_BUCKET, prefix="foo/bar", delimiter="", match_glob=None),
         ]
         mock_hook.return_value.list.assert_has_calls(mock_calls)
 

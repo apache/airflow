@@ -21,6 +21,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.providers.amazon.aws.triggers.glue_crawler import GlueCrawlerCompleteTrigger
 
 if TYPE_CHECKING:
@@ -32,9 +33,11 @@ from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 
 class GlueCrawlerOperator(BaseOperator):
     """
-    Creates, updates and triggers an AWS Glue Crawler. AWS Glue Crawler is a serverless
-    service that manages a catalog of metadata tables that contain the inferred
-    schema, format and data types of data stores within the AWS cloud.
+    Creates, updates and triggers an AWS Glue Crawler.
+
+    AWS Glue Crawler is a serverless service that manages a catalog of
+    metadata tables that contain the inferred schema, format and data
+    types of data stores within the AWS cloud.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -59,7 +62,7 @@ class GlueCrawlerOperator(BaseOperator):
         region_name: str | None = None,
         poll_interval: int = 5,
         wait_for_completion: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)

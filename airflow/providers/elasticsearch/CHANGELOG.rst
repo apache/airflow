@@ -27,9 +27,17 @@ Changelog for ``apache-airflow-providers-elasticsearch``
 5.0.0
 .....
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
 .. note::
   Deprecate non-official elasticsearch libraries. Only the official elasticsearch library was used
 
+* ``Deprecate the 2 non-official elasticsearch libraries (#31920)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
+   * ``Improve provider documentation and README structure (#32125)``
 
 4.5.1
 .....

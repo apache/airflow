@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import re
 import shlex
 import warnings
@@ -938,6 +939,7 @@ class TestCliTestConnections:
     def setup_class(self):
         clear_db_connections()
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
     def test_cli_connections_test_success(self, mock_test_conn):
         """Check that successful connection test result is displayed properly."""
@@ -948,6 +950,7 @@ class TestCliTestConnections:
 
             assert "Connection success!" in stdout.getvalue()
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     @mock.patch("airflow.providers.http.hooks.http.HttpHook.test_connection")
     def test_cli_connections_test_fail(self, mock_test_conn):
         """Check that failed connection test result is displayed properly."""
@@ -958,9 +961,18 @@ class TestCliTestConnections:
 
             assert "Connection failed!\nFailed.\n\n" in stdout.getvalue()
 
+    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
     def test_cli_connections_test_missing_conn(self):
         """Check a connection test on a non-existent connection raises a "Connection not found" message."""
         with redirect_stdout(io.StringIO()) as stdout, pytest.raises(SystemExit):
             connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
+        assert "Connection not found.\n\n" in stdout.getvalue()
 
-            assert "Connection not found.\n\n" in stdout.getvalue()
+    def test_cli_connections_test_disabled_by_default(self):
+        """Check that test connection functionality is disabled by default."""
+        with redirect_stdout(io.StringIO()) as stdout, pytest.raises(SystemExit):
+            connection_command.connections_test(self.parser.parse_args(["connections", "test", "missing"]))
+        assert (
+            "Testing connections is disabled in Airflow configuration. Contact your deployment admin to "
+            "enable it.\n\n"
+        ) in stdout.getvalue()

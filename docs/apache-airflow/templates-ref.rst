@@ -47,16 +47,16 @@ Variable                                    Type                  Description
                                                                   | Example: ``20180101T000000+0000``.
 ``{{ ts_nodash }}``                         str                   | Same as ``{{ dag_run.logical_date | ts_nodash }}``.
                                                                   | Example: ``20180101T000000``.
-``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_  | Start of the data interval of the prior successful DAG run.
+``{{ prev_data_interval_start_success }}``  `pendulum.DateTime`_  | Start of the data interval of the prior successful `DAG Run`_.
                                             | ``None``            | Added in version 2.2.
-``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful DAG run.
+``{{ prev_data_interval_end_success }}``    `pendulum.DateTime`_  | End of the data interval of the prior successful `DAG Run`_.
                                             | ``None``            | Added in version 2.2.
-``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful DAG run (if available).
+``{{ prev_start_date_success }}``           `pendulum.DateTime`_  Start date from prior successful `DAG Run`_ (if available).
                                             | ``None``
-``{{ dag }}``                               DAG                   The currently running DAG.
-``{{ task }}``                              BaseOperator          | The currently running task.
+``{{ dag }}``                               DAG                   The currently running `DAG`_. You can read more about DAGs in :doc:`DAGs <core-concepts/dags>`.
+``{{ task }}``                              BaseOperator          | The currently running `Task`_. You can read more about Tasks in :doc:`core-concepts/operators`
 ``{{ macros }}``                                                  | A reference to the macros package. See Macros_ below.
-``{{ task_instance }}``                     TaskInstance          The currently running task instance.
+``{{ task_instance }}``                     TaskInstance          The currently running `Task Instance`_.
 ``{{ ti }}``                                TaskInstance          Same as ``{{ task_instance }}``.
 ``{{ params }}``                            dict[str, Any]        | The user-defined params. This can be overridden by the mapping
                                                                   | passed to ``trigger_dag -c`` if ``dag_run_conf_overrides_params``
@@ -68,8 +68,8 @@ Variable                                    Type                  Description
                                                                   | ``{dag_id}__{task_id}__{ds_nodash}``.
 ``{{ conf }}``                              AirflowConfigParser   | The full configuration object representing the content of your
                                                                   | ``airflow.cfg``. See :mod:`airflow.configuration.conf`.
-``{{ run_id }}``                            str                   The currently running DAG run's run ID.
-``{{ dag_run }}``                           DagRun                The currently running DAG run.
+``{{ run_id }}``                            str                   The currently running `DAG Run`_'s run ID.
+``{{ dag_run }}``                           DagRun                The currently running `DAG Run`_.
 ``{{ test_mode }}``                         bool                  Whether the task instance was run by the ``airflow test`` CLI.
 ``{{ expanded_ti_count }}``                 int | ``None``        | Number of task instances that a mapped task was expanded into. If
                                                                   | the current task is not mapped, this should be ``None``.
@@ -179,3 +179,11 @@ Some airflow specific macros are also defined:
     :members:
 
 .. _pendulum.DateTime: https://pendulum.eustace.io/docs/#introduction
+
+.. _DAG Run: :class:`~airflow.models.dagrun.DagRun`
+
+.. _DAG:  :class:`~airflow.models.dag.DAG`
+
+.. _Task: :class:`~airflow.models.baseoperator.BaseOperator`
+
+.. _Task Instance: :class:`~airflow.models.taskinstance.TaskInstance`

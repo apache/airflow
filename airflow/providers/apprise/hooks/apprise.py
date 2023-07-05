@@ -28,6 +28,7 @@ from apprise import AppriseConfig, NotifyFormat, NotifyType
 class AppriseHook(BaseHook):
     """
     Use Apprise(https://github.com/caronc/apprise) to interact with notification services.
+
     The complete list of notification services supported by Apprise can be found at:
     https://github.com/caronc/apprise/wiki#notification-services.
 

@@ -36,6 +36,7 @@ from functools import wraps
 from typing import Any, Callable, TypeVar, Union, cast
 
 from asgiref.sync import sync_to_async
+from azure.core.exceptions import ServiceRequestError
 from azure.core.polling import LROPoller
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.identity.aio import (
@@ -213,6 +214,10 @@ class AzureDataFactoryHook(BaseHook):
         self._conn = self._create_client(credential, subscription_id)
 
         return self._conn
+
+    def refresh_conn(self) -> DataFactoryManagementClient:
+        self._conn = None
+        return self.get_conn()
 
     @provide_targeted_factory
     def get_factory(
@@ -812,6 +817,7 @@ class AzureDataFactoryHook(BaseHook):
             resource_group_name=resource_group_name,
         )
         pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
+        executed_after_token_refresh = True
 
         start_time = time.monotonic()
 
@@ -828,7 +834,14 @@ class AzureDataFactoryHook(BaseHook):
             # Wait to check the status of the pipeline run based on the ``check_interval`` configured.
             time.sleep(check_interval)
 
-            pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
+            try:
+                pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
+                executed_after_token_refresh = True
+            except ServiceRequestError:
+                if executed_after_token_refresh:
+                    self.refresh_conn()
+                    continue
+                raise
 
         return pipeline_run_status in expected_statuses
 
@@ -1132,6 +1145,10 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
 
         return self._async_conn
 
+    async def refresh_conn(self) -> AsyncDataFactoryManagementClient:
+        self._conn = None
+        return await self.get_async_conn()
+
     @provide_targeted_factory_async
     async def get_pipeline_run(
         self,
@@ -1149,11 +1166,8 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         :param config: Extra parameters for the ADF client.
         """
         client = await self.get_async_conn()
-        try:
-            pipeline_run = await client.pipeline_runs.get(resource_group_name, factory_name, run_id)
-            return pipeline_run
-        except Exception as e:
-            raise AirflowException(e)
+        pipeline_run = await client.pipeline_runs.get(resource_group_name, factory_name, run_id)
+        return pipeline_run
 
     async def get_adf_pipeline_run_status(
         self, run_id: str, resource_group_name: str | None = None, factory_name: str | None = None
@@ -1165,13 +1179,32 @@ class AzureDataFactoryAsyncHook(AzureDataFactoryHook):
         :param resource_group_name: The resource group name.
         :param factory_name: The factory name.
         """
+        pipeline_run = await self.get_pipeline_run(
+            run_id=run_id,
+            factory_name=factory_name,
+            resource_group_name=resource_group_name,
+        )
+        status: str = pipeline_run.status
+        return status
+
+    @provide_targeted_factory_async
+    async def cancel_pipeline_run(
+        self,
+        run_id: str,
+        resource_group_name: str | None = None,
+        factory_name: str | None = None,
+        **config: Any,
+    ) -> None:
+        """
+        Cancel the pipeline run.
+
+        :param run_id: The pipeline run identifier.
+        :param resource_group_name: The resource group name.
+        :param factory_name: The factory name.
+        :param config: Extra parameters for the ADF client.
+        """
+        client = await self.get_async_conn()
         try:
-            pipeline_run = await self.get_pipeline_run(
-                run_id=run_id,
-                factory_name=factory_name,
-                resource_group_name=resource_group_name,
-            )
-            status: str = pipeline_run.status
-            return status
+            await client.pipeline_runs.cancel(resource_group_name, factory_name, run_id)
         except Exception as e:
             raise AirflowException(e)

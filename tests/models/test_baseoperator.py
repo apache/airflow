@@ -919,7 +919,6 @@ def test_render_template_fields_logging(
     caplog, monkeypatch, task, context, expected_exception, expected_rendering, expected_log, not_expected_log
 ):
     """Verify if operator attributes are correctly templated."""
-
     # Trigger templating and verify results
     def _do_render():
         task.render_template_fields(context=context)

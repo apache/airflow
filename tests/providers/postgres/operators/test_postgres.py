@@ -112,3 +112,4 @@ class TestPostgres:
             runtime_parameters={"statement_timeout": "3000ms"},
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        assert op.get_db_hook().get_first("SHOW statement_timeout;")[0] == "3s"

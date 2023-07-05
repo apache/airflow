@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from deprecated import deprecated
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
@@ -116,8 +117,7 @@ class EmrBaseSensor(BaseSensorOperator):
 
 class EmrServerlessJobSensor(BaseSensorOperator):
     """
-    Asks for the state of the job run until it reaches a failure state or success state.
-    If the job run fails, the task will fail.
+    Poll the state of the job run until it reaches a terminal state; fails if the job run fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -178,8 +178,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
 
 class EmrServerlessApplicationSensor(BaseSensorOperator):
     """
-    Asks for the state of the application until it reaches a failure state or success state.
-    If the application fails, the task will fail.
+    Poll the state of the application until it reaches a terminal state; fails if the application fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -234,8 +233,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
 
 class EmrContainerSensor(BaseSensorOperator):
     """
-    Asks for the state of the job run until it reaches a failure state or success state.
-    If the job run fails, the task will fail.
+    Poll the state of the job run until it reaches a terminal state; fail if the job run fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -274,7 +272,7 @@ class EmrContainerSensor(BaseSensorOperator):
         max_retries: int | None = None,
         aws_conn_id: str = "aws_default",
         poll_interval: int = 10,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -332,9 +330,7 @@ class EmrContainerSensor(BaseSensorOperator):
 
 class EmrNotebookExecutionSensor(EmrBaseSensor):
     """
-    Polls the state of the EMR notebook execution until it reaches
-    any of the target states.
-    If a failure state is reached, the sensor throws an error, and fails the task.
+    Poll the EMR notebook until it reaches any of the target states; raise AirflowException on failure.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -396,9 +392,7 @@ class EmrNotebookExecutionSensor(EmrBaseSensor):
 
 class EmrJobFlowSensor(EmrBaseSensor):
     """
-    Asks for the state of the EMR JobFlow (Cluster) until it reaches
-    any of the target states.
-    If it fails the sensor errors, failing the task.
+    Poll the EMR JobFlow Cluster until it reaches any of the target states; raise AirflowException on failure.
 
     With the default target states, sensor waits cluster to be terminated.
     When target_states is set to ['RUNNING', 'WAITING'] sensor waits
@@ -432,7 +426,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
         target_states: Iterable[str] | None = None,
         failed_states: Iterable[str] | None = None,
         max_attempts: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -522,8 +516,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
 
 class EmrStepSensor(EmrBaseSensor):
     """
-    Asks for the state of the step until it reaches any of the target states.
-    If it fails the sensor errors, failing the task.
+    Poll the state of the step until it reaches any of the target states; raise AirflowException on failure.
 
     With the default target states, sensor waits step to be completed.
 
@@ -557,7 +550,7 @@ class EmrStepSensor(EmrBaseSensor):
         target_states: Iterable[str] | None = None,
         failed_states: Iterable[str] | None = None,
         max_attempts: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)

@@ -93,8 +93,7 @@ class ArangoDBHook(BaseHook):
 
     def query(self, query, **kwargs) -> Cursor:
         """
-        Function to create an ArangoDB session
-        and execute the AQL query in the session.
+        Function to create an ArangoDB session and execute the AQL query in the session.
 
         :param query: AQL query
         """

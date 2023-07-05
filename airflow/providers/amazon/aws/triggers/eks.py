@@ -29,8 +29,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class EksCreateFargateProfileTrigger(BaseTrigger):
     """
-    Trigger for EksCreateFargateProfileOperator.
-    The trigger will asynchronously wait for the fargate profile to be created.
+    Asynchronously wait for the fargate profile to be created.
 
     :param cluster_name: The name of the EKS cluster
     :param fargate_profile_name: The name of the fargate profile
@@ -99,8 +98,7 @@ class EksCreateFargateProfileTrigger(BaseTrigger):
 
 class EksDeleteFargateProfileTrigger(BaseTrigger):
     """
-    Trigger for EksDeleteFargateProfileOperator.
-    The trigger will asynchronously wait for the fargate profile to be deleted.
+    Asynchronously wait for the fargate profile to be deleted.
 
     :param cluster_name: The name of the EKS cluster
     :param fargate_profile_name: The name of the fargate profile

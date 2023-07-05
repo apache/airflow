@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 from deprecated import deprecated
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.triggers.batch import BatchSensorTrigger
@@ -33,8 +34,7 @@ if TYPE_CHECKING:
 
 class BatchSensor(BaseSensorOperator):
     """
-    Asks for the state of the Batch Job execution until it reaches a failure state or success state.
-    If the job fails, the task will fail.
+    Poll the state of the Batch Job until it reaches a terminal state; fails if the job fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -59,7 +59,7 @@ class BatchSensor(BaseSensorOperator):
         job_id: str,
         aws_conn_id: str = "aws_default",
         region_name: str | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poke_interval: float = 5,
         max_retries: int = 5,
         **kwargs,
@@ -110,8 +110,8 @@ class BatchSensor(BaseSensorOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]) -> None:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if "status" in event and event["status"] == "failure":
             raise AirflowException(event["message"])
@@ -132,8 +132,7 @@ class BatchSensor(BaseSensorOperator):
 
 class BatchComputeEnvironmentSensor(BaseSensorOperator):
     """
-    Asks for the state of the Batch compute environment until it reaches a failure state or success state.
-    If the environment fails, the task will fail.
+    Poll the state of the Batch environment until it reaches a terminal state; fails if the environment fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -193,8 +192,7 @@ class BatchComputeEnvironmentSensor(BaseSensorOperator):
 
 class BatchJobQueueSensor(BaseSensorOperator):
     """
-    Asks for the state of the Batch job queue until it reaches a failure state or success state.
-    If the queue fails, the task will fail.
+    Poll the state of the Batch job queue until it reaches a terminal state; fails if the queue fails.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
