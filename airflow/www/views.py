@@ -3611,11 +3611,12 @@ class Airflow(AirflowBaseView):
                 TaskInstance.state.is_not(None),
             )
             .order_by(TaskInstance.start_date)
-        )
+        ).all()
 
         ti_fails = select(TaskFail).filter_by(run_id=dag_run_id, dag_id=dag_id)
         if dag.partial:
             ti_fails = ti_fails.where(TaskFail.task_id.in_([t.task_id for t in dag.tasks]))
+
         ti_fails = session.scalars(ti_fails)
         tasks = []
         for ti in tis:
