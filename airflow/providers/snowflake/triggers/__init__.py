@@ -14,38 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
----
-package-name: apache-airflow-providers-apache-impala
-name: Apache Impala
-description: |
-    `Apache Impala <https://impala.apache.org/>`__.
-
-suspended: false
-versions:
-  - 1.1.1
-  - 1.1.0
-  - 1.0.0
-
-dependencies:
-  - impyla>=0.18.0,<1.0
-  - apache-airflow>=2.4.0
-
-integrations:
-  - integration-name: Apache Impala
-    external-doc-url: https://impala.apache.org
-    tags: [apache]
-
-hooks:
-  - integration-name: Apache Impala
-    python-modules:
-      - airflow.providers.apache.impala.hooks.impala
-
-connection-types:
-  - hook-class-name: airflow.providers.apache.impala.hooks.impala.ImpalaHook
-    connection-type: impala
-
-additional-extras:
-  - name: kerberos
-    dependencies:
-      - kerberos>=1.3.0

@@ -99,6 +99,9 @@ spec:
           {{- toYaml .Values.workers.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
+      {{- if .Values.workers.runtimeClassName }}
+      runtimeClassName: {{ .Values.workers.runtimeClassName }}
+      {{- end }}
       {{- if .Values.workers.priorityClassName }}
       priorityClassName: {{ .Values.workers.priorityClassName }}
       {{- end }}

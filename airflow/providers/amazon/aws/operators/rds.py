@@ -18,12 +18,13 @@
 from __future__ import annotations
 
 import json
+import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Sequence
 
 from mypy_boto3_rds.type_defs import TagTypeDef
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.triggers.rds import RdsDbInstanceTrigger
@@ -42,6 +43,15 @@ class RdsBaseOperator(BaseOperator):
     ui_fgcolor = "#ffffff"
 
     def __init__(self, *args, aws_conn_id: str = "aws_conn_id", hook_params: dict | None = None, **kwargs):
+        if hook_params is not None:
+            warnings.warn(
+                "The parameter hook_params is deprecated and will be removed. "
+                "If you were using it, please get in touch either on airflow slack, "
+                "or by opening a github issue on the project. "
+                "You can mention https://github.com/apache/airflow/pull/32352",
+                AirflowProviderDeprecationWarning,
+                stacklevel=3,  # 2 is in the operator's init, 3 is in the user code creating the operator
+            )
         self.hook_params = hook_params or {}
         self.hook = RdsHook(aws_conn_id=aws_conn_id, **self.hook_params)
         super().__init__(*args, **kwargs)

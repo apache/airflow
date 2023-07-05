@@ -510,7 +510,6 @@ workers:
     annotations: {}
 
   # Allow KEDA autoscaling.
-  # Persistence.enabled must be set to false to use KEDA.
   keda:
     enabled: false
     namespaceLabels: {}
@@ -538,6 +537,15 @@ workers:
     #         - type: Percent
     #           value: 100
     #           periodSeconds: 15
+
+    # Query to use for KEDA autoscaling. Must return a single integer.
+    query: >-
+      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
+      FROM task_instance
+      WHERE (state='running' OR state='queued')
+      {{- if eq .Values.executor "CeleryKubernetesExecutor" }}
+      AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
+      {{- end }}
 
   persistence:
     # Enable persistent volumes
@@ -609,6 +617,7 @@ workers:
 
   # Select certain nodes for airflow worker pods.
   nodeSelector: {}
+  runtimeClassName: ~
   priorityClassName: ~
   affinity: {}
   # default worker affinity is:
