@@ -208,7 +208,7 @@ class BatchJobTrigger(AwsBaseWaiterTrigger):
 
     def __init__(
         self,
-        job_id: str,
+        job_id: str | None,
         region_name: str | None,
         aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 5,
@@ -247,10 +247,10 @@ class BatchCreateComputeEnvironmentTrigger(AwsBaseWaiterTrigger):
     def __init__(
         self,
         compute_env_arn: str,
-        waiter_delay: int,
-        waiter_max_attempts: int,
-        aws_conn_id: str,
-        region_name: str,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 10,
+        aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
     ):
         super().__init__(
             serialized_fields={"compute_env_arn": compute_env_arn},

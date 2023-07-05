@@ -118,8 +118,8 @@ class EmrCreateJobFlowTrigger(AwsBaseWaiterTrigger):
         poll_interval: int | None = None,  # deprecated
         max_attempts: int | None = None,  # deprecated
         aws_conn_id: str | None = None,
-        waiter_delay: int | None = None,
-        waiter_max_attempts: int | None = None,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
     ):
         if poll_interval is not None or max_attempts is not None:
             warnings.warn(
@@ -168,8 +168,8 @@ class EmrTerminateJobFlowTrigger(AwsBaseWaiterTrigger):
         poll_interval: int | None = None,  # deprecated
         max_attempts: int | None = None,  # deprecated
         aws_conn_id: str | None = None,
-        waiter_delay: int | None = None,
-        waiter_max_attempts: int | None = None,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
     ):
         if poll_interval is not None or max_attempts is not None:
             warnings.warn(

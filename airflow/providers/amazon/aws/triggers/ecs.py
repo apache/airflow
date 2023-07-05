@@ -45,8 +45,8 @@ class ClusterActiveTrigger(AwsBaseWaiterTrigger):
     def __init__(
         self,
         cluster_arn: str,
-        waiter_delay: int | None,
-        waiter_max_attempts: int | None,
+        waiter_delay: int,
+        waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None,
     ):
@@ -84,8 +84,8 @@ class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
     def __init__(
         self,
         cluster_arn: str,
-        waiter_delay: int | None,
-        waiter_max_attempts: int | None,
+        waiter_delay: int,
+        waiter_max_attempts: int,
         aws_conn_id: str | None,
         region_name: str | None,
     ):
