@@ -86,12 +86,12 @@ class BaseSetupTeardownContext:
         if setup_task := cls.get_context_managed_setup_task():
             if isinstance(setup_task, list):
                 _get_or_set_item(tuple(setup_task))
-            elif not isinstance(setup_task, list):
+            else:
                 _get_or_set_item(setup_task)
         if teardown_task := cls.get_context_managed_teardown_task():
             if isinstance(teardown_task, list):
                 _get_or_set_item(tuple(teardown_task))
-            elif not isinstance(teardown_task, list):
+            else:
                 _get_or_set_item(teardown_task)
 
     @classmethod
