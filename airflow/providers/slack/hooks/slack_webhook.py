@@ -56,6 +56,8 @@ def check_webhook_response(func: Callable) -> Callable:
 
 def _ensure_prefixes(conn_type):
     """
+    Deprecated.
+
     Remove when provider min airflow version >= 2.5.0 since this is handled by
     provider manager from that version.
     """
@@ -85,6 +87,7 @@ def _ensure_prefixes(conn_type):
 class SlackWebhookHook(BaseHook):
     """
     This class provide a thin wrapper around the ``slack_sdk.WebhookClient``.
+
     This hook allows you to post messages to Slack by using Incoming Webhooks.
 
     .. seealso::
