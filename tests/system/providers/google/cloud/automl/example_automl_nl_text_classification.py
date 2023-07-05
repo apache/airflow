@@ -35,46 +35,43 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLTrainModelOperator,
 )
 
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
-GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
-GCP_AUTOML_DETECTION_BUCKET = os.environ.get(
-    "GCP_AUTOML_DETECTION_BUCKET", "gs://INVALID BUCKET NAME/img/openimage/csv/salads_ml_use.csv"
-)
-
-# Example values
-DATASET_ID = ""
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_automl_classification"
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+GCP_AUTOML_LOCATION = "us-central1"
 
 # Example model
 MODEL = {
-    "display_name": "auto_model",
-    "dataset_id": DATASET_ID,
-    "image_object_detection_model_metadata": {},
+    "display_name": "auto_model_1",
+    "text_classification_model_metadata": {},
 }
 
 # Example dataset
 DATASET = {
-    "display_name": "test_detection_dataset",
-    "image_object_detection_dataset_metadata": {},
+    "display_name": "test_text_cls_dataset",
+    "text_classification_dataset_metadata": {"classification_type": "MULTICLASS"},
 }
 
-IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_DETECTION_BUCKET]}}
+
+DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl-text/dataset.csv"
+IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
 
 extract_object_id = CloudAutoMLHook.extract_object_id
 
-
-# Example DAG for AutoML Vision Object Detection
+# Example DAG for AutoML Natural Language Text Classification
 with models.DAG(
-    "example_automl_vision_detection",
+    "example_automl_text_cls",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    user_defined_macros={"extract_object_id": extract_object_id},
     tags=["example"],
-) as example_dag:
+) as dag:
     create_dataset_task = AutoMLCreateDatasetOperator(
         task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION
     )
 
     dataset_id = cast(str, XComArg(create_dataset_task, key="dataset_id"))
+    MODEL["dataset_id"] = dataset_id
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",
@@ -82,11 +79,9 @@ with models.DAG(
         location=GCP_AUTOML_LOCATION,
         input_config=IMPORT_INPUT_CONFIG,
     )
-
     MODEL["dataset_id"] = dataset_id
 
     create_model = AutoMLTrainModelOperator(task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION)
-
     model_id = cast(str, XComArg(create_model, key="model_id"))
 
     delete_model_task = AutoMLDeleteModelOperator(
@@ -103,11 +98,17 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
+    # TEST BODY
     import_dataset_task >> create_model
+    # TEST TEARDOWN
     delete_model_task >> delete_datasets_task
 
     # Task dependencies created via `XComArgs`:
     #   create_dataset_task >> import_dataset_task
     #   create_dataset_task >> create_model
-    #   create_model >> delete_model_task
     #   create_dataset_task >> delete_datasets_task
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

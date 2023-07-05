@@ -35,43 +35,45 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLTrainModelOperator,
 )
 
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
-GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
-GCP_AUTOML_SENTIMENT_BUCKET = os.environ.get("GCP_AUTOML_SENTIMENT_BUCKET", "gs://INVALID BUCKET NAME")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_automl_video_tracking"
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+GCP_AUTOML_LOCATION = "us-central1"
 
-# Example values
-DATASET_ID = ""
 
 # Example model
 MODEL = {
     "display_name": "auto_model_1",
-    "dataset_id": DATASET_ID,
-    "text_sentiment_model_metadata": {},
+    "video_object_tracking_model_metadata": {},
 }
 
 # Example dataset
 DATASET = {
-    "display_name": "test_text_sentiment_dataset",
-    "text_sentiment_dataset_metadata": {"sentiment_max": 10},
+    "display_name": "test_video_tracking_dataset",
+    "video_object_tracking_dataset_metadata": {},
 }
 
-IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_SENTIMENT_BUCKET]}}
+DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl-text/youtube_8m_videos_animal_tiny.csv"
+IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
 
 extract_object_id = CloudAutoMLHook.extract_object_id
 
-# Example DAG for AutoML Natural Language Text Sentiment
+
+# Example DAG for AutoML Video Intelligence Object Tracking
 with models.DAG(
-    "example_automl_text_sentiment",
+    DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},
     tags=["example"],
-) as example_dag:
+) as dag:
     create_dataset_task = AutoMLCreateDatasetOperator(
         task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION
     )
 
     dataset_id = cast(str, XComArg(create_dataset_task, key="dataset_id"))
+    MODEL["dataset_id"] = dataset_id
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",
@@ -100,7 +102,9 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
+    # TEST BODY
     import_dataset_task >> create_model
+    # TEST TEARDOWN
     delete_model_task >> delete_datasets_task
 
     # Task dependencies created via `XComArgs`:
@@ -108,3 +112,8 @@ with models.DAG(
     #   create_dataset_task >> create_model
     #   create_model >> delete_model_task
     #   create_dataset_task >> delete_datasets_task
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
