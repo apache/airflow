@@ -215,6 +215,7 @@ class ConnectionFormWidgetInfo(NamedTuple):
     package_name: str
     field: Any
     field_name: str
+    is_sensitive: bool
 
 
 T = TypeVar("T", bound=Callable)
@@ -873,7 +874,12 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 # In case of inherited hooks this might be happening several times
                 continue
             self._connection_form_widgets[prefixed_field_name] = ConnectionFormWidgetInfo(
-                hook_class.__name__, package_name, field, field_identifier
+                hook_class.__name__,
+                package_name,
+                field,
+                field_identifier,
+                hasattr(field.field_class.widget, "input_type")
+                and field.field_class.widget.input_type == "password",
             )
 
     def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: dict):
