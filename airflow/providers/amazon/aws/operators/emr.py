@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrContainerTrigger,
     EmrCreateJobFlowTrigger,
     EmrServerlessAppicationTrigger,
+    EmrServerlessCancelJobsTrigger,
     EmrTerminateJobFlowTrigger,
 )
 from airflow.providers.amazon.aws.utils.waiter import waiter
@@ -1310,14 +1311,17 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
     :param application_id: ID of the EMR Serverless application to stop.
     :param wait_for_completion: If true, wait for the Application to stop before returning. Default to True
     :param aws_conn_id: AWS connection to use
-    :param waiter_countdown: Total amount of time, in seconds, the operator will wait for
+    :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for
         the application be stopped. Defaults to 5 minutes.
-    :param waiter_check_interval_seconds: Number of seconds between polling the state of the application.
-        Defaults to 30 seconds.
+    :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state of the application.
+        Defaults to 60 seconds.
     :param force_stop: If set to True, any job for that app that is not in a terminal state will be cancelled.
         Otherwise, trying to stop an app with running jobs will return an error.
         If you want to wait for the jobs to finish gracefully, use
         :class:`airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`
+    :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
+        Default is 25.
+    :param waiter_delay: Number of seconds between polling the state of the application. Default is 60 seconds.
     :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
@@ -1377,13 +1381,34 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         self.log.info("Stopping application: %s", self.application_id)
 
         if self.force_stop:
-            self.hook.cancel_running_jobs(
+            count = self.hook.cancel_running_jobs(
                 self.application_id,
-                waiter_config={
-                    "Delay": self.waiter_delay,
-                    "MaxAttempts": self.waiter_max_attempts,
-                },
             )
+            if count > 0:
+                self.log.info("now waiting for the %s cancelled job(s) to terminate", count)
+                if self.deferrable:
+                    self.defer(
+                        trigger=EmrServerlessCancelJobsTrigger(
+                            application_id=self.application_id,
+                            states=list(self.hook.JOB_INTERMEDIATE_STATES.union({"CANCELLING"})),
+                            aws_conn_id=self.aws_conn_id,
+                            waiter_delay=self.waiter_delay,
+                            waiter_max_attempts=self.waiter_max_attempts,
+                        ),
+                        timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                        method_name="stop_application",
+                    )
+                    
+                self.hook.get_waiter("no_job_running").wait(
+                    applicationId=self.application_id,
+                    states=list(self.hook.JOB_INTERMEDIATE_STATES.union({"CANCELLING"})),
+                    WaiterConfig={
+                        "Delay": self.waiter_delay,
+                        "MaxAttempts": self.waiter_max_attempts,
+                    },
+                )
+            else:
+                self.log.info("no running jobs found with application ID %s", self.application_id)
 
         self.hook.conn.stop_application(applicationId=self.application_id)
         if self.deferrable:
@@ -1410,7 +1435,20 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
                 status_args=["application.state", "application.stateDetails"],
             )
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)
-    
+    def stop_application(self, context, event=None) -> None:
+        if event["status"] == "success":
+            self.hook.conn.stop_application(applicationId=self.application_id)
+            self.defer(
+                trigger=EmrServerlessAppicationTrigger(
+                    application_id=self.application_id,
+                    waiter_name="serverless_app_stopped",
+                    aws_conn_id=self.aws_conn_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                method_name="execute_complete",
+            )
     def execute_complete(self, context, event=None) -> None:
         if event["status"] == "success":
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)
@@ -1427,10 +1465,16 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
     :param wait_for_completion: If true, wait for the Application to be deleted before returning.
         Defaults to True. Note that this operator will always wait for the application to be STOPPED first.
     :param aws_conn_id: AWS connection to use
-    :param waiter_countdown: Total amount of time, in seconds, the operator will wait for each step of first,
+    :param waiter_countdown: (deprecated) Total amount of time, in seconds, the operator will wait for each step of first,
         the application to be stopped, and then deleted. Defaults to 25 minutes.
-    :param waiter_check_interval_seconds: Number of seconds between polling the state of the application.
+    :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state of the application.
         Defaults to 60 seconds.
+    :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
+        Default is 25.
+    :param waiter_delay: Number of seconds between polling the state of the application. Default is 60 seconds.
+    :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     :param force_stop: If set to True, any job for that app that is not in a terminal state will be cancelled.
         Otherwise, trying to delete an app with running jobs will return an error.
         If you want to wait for the jobs to finish gracefully, use
@@ -1495,6 +1539,19 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise AirflowException(f"Application deletion failed: {response}")
 
+        if self.deferrable:
+            self.defer(
+                trigger=EmrServerlessAppicationTrigger(
+                    application_id=self.application_id,
+                    waiter_name="serverless_app_terminated",
+                    aws_conn_id=self.aws_conn_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                method_name="execute_complete",
+            )
+
         if self.wait_for_delete_completion:
             waiter = self.hook.get_waiter("serverless_app_terminated")
 
@@ -1509,3 +1566,6 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
             )
 
         self.log.info("EMR serverless application deleted")
+    def execute_complete(self, context, event=None) -> None:
+        if event["status"] == "success":
+            self.log.info("EMR serverless application %s deleted successfully", self.application_id)

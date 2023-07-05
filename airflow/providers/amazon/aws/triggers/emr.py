@@ -416,3 +416,51 @@ class EmrServerlessAppicationTrigger(BaseTrigger):
                 status_args=["application.state", "application.stateDetails"],
             )
         yield TriggerEvent({"status": "success", "application_id": self.application_id})
+
+class EmrServerlessCancelJobsTrigger(BaseTrigger):
+    """
+    Trigger for cancelling a list of jobs in an EMR Serverless application.
+    """
+
+    def __init__(
+        self,
+        application_id: str,
+        states: list[str],
+        aws_conn_id: str,
+        waiter_delay: int,
+        waiter_max_attempts: int,
+    ):
+        self.application_id = application_id
+        self.states = states
+        self.aws_conn_id = aws_conn_id
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+    
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.amazon.aws.triggers.emr.EmrServerlessCancelJobsTrigger",
+            {
+                "application_id": self.application_id,
+                "states": self.states,
+                "aws_conn_id": self.aws_conn_id,
+                "waiter_delay": str(self.waiter_delay),
+                "waiter_max_attempts": str(self.waiter_max_attempts),
+            }
+        )
+    
+    async def run(self):
+        self.hook = EmrServerlessHook(aws_conn_id=self.aws_conn_id)
+        self.log.info("Waiting for jobs to cancel")
+        async with self.hook.async_conn as client:
+            waiter = self.hook.get_waiter("no_job_running", deferrable=True, client=client)
+            await async_wait(
+                waiter=waiter,
+                waiter_delay=self.waiter_delay,
+                waiter_max_attempts=self.waiter_max_attempts,
+                args={"applicationId": self.application_id, "states": self.states},
+                failure_message="Error while waiting for jobs to cancel",
+                status_message="Currently running jobs",
+                status_args=["jobRuns[*].applicationId", "jobRuns[*].state"],
+
+            )
+        yield TriggerEvent({"status": "success", "application_id": self.application_id})
