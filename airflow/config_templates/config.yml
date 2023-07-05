@@ -2275,7 +2275,7 @@ scheduler:
         scheduler's `scheduler_zombie_task_threshold` config.
       version_added: ~
       type: int
-      example: ~
+      example: 2.7.0
       default: "5"
     num_runs:
       description: |
