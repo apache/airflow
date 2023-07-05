@@ -1398,7 +1398,6 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
                         timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                         method_name="stop_application",
                     )
-
                 self.hook.get_waiter("no_job_running").wait(
                     applicationId=self.application_id,
                     states=list(self.hook.JOB_INTERMEDIATE_STATES.union({"CANCELLING"})),
@@ -1435,7 +1434,6 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
                 status_args=["application.state", "application.stateDetails"],
             )
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)
-
     def stop_application(self, context, event=None) -> None:
         if event["status"] == "success":
             self.hook.conn.stop_application(applicationId=self.application_id)
@@ -1450,7 +1448,6 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 method_name="execute_complete",
             )
-
     def execute_complete(self, context, event=None) -> None:
         if event["status"] == "success":
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)

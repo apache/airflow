@@ -331,7 +331,6 @@ class EmrServerlessAppicationTrigger(BaseTrigger):
         self.aws_conn_id = aws_conn_id
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
-
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             "airflow.providers.amazon.aws.triggers.emr.EmrServerlessAppicationTrigger",
