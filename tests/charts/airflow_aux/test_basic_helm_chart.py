@@ -564,7 +564,7 @@ class TestBaseChartTest:
             show_only=["templates/priorityclasses/priority-classes.yaml"],
             values={
                 "priorityClasses": [
-                    {"name": "class1", "preemptionPolicy": "PreemptLowerPriority"},
+                    {"name": "class1", "value": 10000},
                 ]
             },
         )[0]
