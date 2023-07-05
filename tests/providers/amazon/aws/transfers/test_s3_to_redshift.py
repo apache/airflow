@@ -481,7 +481,6 @@ class TestS3ToRedshiftTransfer:
         mock_run.assert_not_called()
 
         mock_rs.execute_statement.assert_called_once()
-        # test with all args besides sql
         _call = deepcopy(mock_rs.execute_statement.call_args.kwargs)
         _call.pop("Sql")
         assert _call == dict(
@@ -508,5 +507,4 @@ class TestS3ToRedshiftTransfer:
 
         assert access_key in actual_copy_query
         assert secret_key in actual_copy_query
-        # test sql arg
         assert_equal_ignore_multiple_spaces(actual_copy_query, expected_copy_query)
