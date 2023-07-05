@@ -903,24 +903,3 @@ def clear_lru_cache():
 
     ExecutorLoader.validate_database_executor_compatibility.cache_clear()
     _get_grouped_entry_points.cache_clear()
-
-
-@pytest.fixture()
-def register_example_timetables():
-    from airflow import plugins_manager
-    from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
-    from airflow.utils.module_loading import qualname
-
-    # Add more classes here as needed.
-    example_timetables = [AfterWorkdayTimetable]
-
-    old_timetables = plugins_manager.timetable_classes
-    if old_timetables is None:
-        new_timetables = {}
-    else:
-        new_timetables = old_timetables.copy()
-
-    new_timetables.update((qualname(t), t) for t in example_timetables)
-    plugins_manager.timetable_classes = new_timetables
-    yield
-    plugins_manager.timetable_classes = old_timetables

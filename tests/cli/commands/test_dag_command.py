@@ -384,7 +384,6 @@ class TestCliDags:
             disable_retry=False,
         )
 
-    @pytest.mark.usefixtures("register_example_timetables")
     @mock.patch("airflow.example_dags.plugins.workday.AfterWorkdayTimetable")
     @mock.patch("airflow.models.taskinstance.TaskInstance.dry_run")
     @mock.patch("airflow.cli.commands.dag_command.DagRun")
@@ -805,7 +804,6 @@ class TestCliDags:
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
 
-    @pytest.mark.usefixtures("register_example_timetables")
     @mock.patch("airflow.example_dags.plugins.workday.AfterWorkdayTimetable")
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
     def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun, _):
