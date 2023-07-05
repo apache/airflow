@@ -76,7 +76,7 @@ class TestAwsBaseWaiterTrigger:
         assert args["foz"] == "baz"
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.amazon.aws.triggers.base_trigger.async_wait")
+    @mock.patch("airflow.providers.amazon.aws.triggers.base.async_wait")
     async def test_run(self, wait_mock: MagicMock):
         self.trigger.return_key = "hello"
         self.trigger.return_value = "world"
