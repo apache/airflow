@@ -80,13 +80,14 @@ INITIAL_CHANGELOG_CONTENT = """
     under the License.
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there
+   Please, only add notes to the Changelog just below the "Changelog" header when there
    are some breaking changes and you want to add an explanation to the users on how they are supposed
    to deal with them. The changelog is updated and maintained semi-automatically by release manager.
 
+``{{ package_name }}``
 
-Changelog for ``{{ package_name }}``
-{{ '-' * (18 + package_name | length) }}
+Changelog
+---------
 
 1.0.0
 .....

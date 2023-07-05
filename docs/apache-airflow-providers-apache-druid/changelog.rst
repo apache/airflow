@@ -16,7 +16,6 @@
     specific language governing permissions and limitations
     under the License.
 
-Package ``apache-airflow-providers-apache-druid``
--------------------------------------------------
+
 
 .. include:: ../../airflow/providers/apache/druid/CHANGELOG.rst
