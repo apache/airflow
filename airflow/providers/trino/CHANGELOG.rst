@@ -24,6 +24,18 @@
 Changelog for ``apache-airflow-providers-trino``
 ------------------------------------------------
 
+5.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Trino Hook: Add ability to read JWT from file (#31950)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve provider documentation and README structure (#32125)``
+
 5.1.1
 .....
 

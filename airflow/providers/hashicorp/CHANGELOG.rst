@@ -24,6 +24,18 @@
 Changelog for ``apache-airflow-providers-hashicorp``
 ----------------------------------------------------
 
+3.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add default retry to hvac client requests (#31073)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve provider documentation and README structure (#32125)``
+
 3.4.1
 .....
 

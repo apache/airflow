@@ -24,6 +24,19 @@
 Changelog for ``apache-airflow-providers-alibaba``
 --------------------------------------------------
 
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Alibaba Cloud AnalyticDB Spark Support (#31787)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Airbyte and Alibaba (#32214)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 2.4.1
 .....
 
