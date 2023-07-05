@@ -44,12 +44,14 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         the waiter response. See https://jmespath.org/tutorial.html
 
     :param return_key: The key to use for the return_value in the TriggerEvent this emits on success.
+        Defaults to "value".
     :param return_value: A value that'll be returned in the return_key field of the TriggerEvent.
+        Set to None if there is nothing to return.
 
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param region_name: The AWS region where the resources to watch are.
+    :param aws_conn_id: The Airflow connection used for AWS credentials. To be used to build the hook.
+    :param region_name: The AWS region where the resources to watch are. To be used to build the hook.
     """
 
     def __init__(
@@ -62,7 +64,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
         status_message: str,
         status_queries: list[str],
         return_key: str = "value",
-        return_value: Any | None,
+        return_value: Any,
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str | None,
