@@ -47,14 +47,14 @@ class RdsBaseOperator(BaseOperator):
         if hook_params is not None:
             warnings.warn(
                 "The parameter hook_params is deprecated and will be removed. "
+                "Note that it is also incompatible with deferrable mode. "
                 "If you were using it, please get in touch either on airflow slack, "
                 "or by opening a github issue on the project. "
                 "You can mention https://github.com/apache/airflow/pull/32352",
                 AirflowProviderDeprecationWarning,
                 stacklevel=3,  # 2 is in the operator's init, 3 is in the user code creating the operator
             )
-        self.hook_params = hook_params or {}
-        self.hook = RdsHook(aws_conn_id=aws_conn_id, **self.hook_params)
+        self.hook = RdsHook(aws_conn_id=aws_conn_id, **(hook_params or {}))
         super().__init__(*args, **kwargs)
 
         self._await_interval = 60  # seconds
@@ -588,7 +588,6 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    hook_params=self.hook_params,
                     waiter_name="db_instance_available",
                     # ignoring type because create_db_instance is a dict
                     response=create_db_instance,  # type: ignore[arg-type]
@@ -674,7 +673,6 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    hook_params=self.hook_params,
                     waiter_name="db_instance_deleted",
                     # ignoring type because delete_db_instance is a dict
                     response=delete_db_instance,  # type: ignore[arg-type]
