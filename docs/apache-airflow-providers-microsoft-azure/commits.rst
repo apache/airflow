@@ -31,11 +31,16 @@ For high-level changelog, see :doc:`package information including changelog <ind
 6.2.0
 .....
 
-Latest change: 2023-07-04
+Latest change: 2023-07-05
 
 =================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
+`1240dcc167 <https://github.com/apache/airflow/commit/1240dcc167c4b47331db81deff61fc688df118c2>`_  2023-07-05   ``D205 Support - Providers: GRPC to Oracle (inclusive) (#32357)``
+`f8593503cb <https://github.com/apache/airflow/commit/f8593503cbe252c2f4dc5ff48a3f292c9e13baad>`_  2023-07-05   ``Add default_deferrable config (#31712)``
+`1d6f6131df <https://github.com/apache/airflow/commit/1d6f6131df7e420b9e9dd1535ea7cd1a29e3c548>`_  2023-07-04   ``refresh connection if an exception is caught in "AzureDataFactory" (#32323)``
 `17132ef4c6 <https://github.com/apache/airflow/commit/17132ef4c65b842dab4ff311fd2b0e6d08969e1b>`_  2023-07-04   ``Added 'AzureBlobStorageToS3Operator' transfer operator (#32270)``
 `985a6cd2a8 <https://github.com/apache/airflow/commit/985a6cd2a84daa4511649dfdc9e94b704de5c6d1>`_  2023-07-03   ``invalid args fix (#32326)``
 `c03d7b7c33 <https://github.com/apache/airflow/commit/c03d7b7c337df7eee4cc7722a1c8da56abd7027a>`_  2023-07-03   ``Adds Sensor section in the Azure providers docs  (#32299)``

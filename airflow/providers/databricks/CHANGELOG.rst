@@ -35,10 +35,17 @@ Bug Fixes
 
 * ``Modify 'template_fields' of 'DatabricksSqlOperator' to support parent class fields (#32253)``
 
+Misc
+~~~~
+
+* ``Add default_deferrable config (#31712)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
    * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
 
 4.3.0
 .....

@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+6.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add proxy_user template check (#32334)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
 
 6.1.1
 .....
