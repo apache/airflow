@@ -27,7 +27,9 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class BigQueryDataTransferRunTrigger(BaseTrigger):
-    """Triggers class to watch the Transfer Run state to define when the job is done.
+    """
+    Triggers class to watch the Transfer Run state to define when the job is done.
+
     :param project_id: The BigQuery project id where the transfer configuration should be
     :param config_id: ID of the config of the Transfer Run which should be watched.
     :param run_id: ID of the Transfer Run which should be watched.
@@ -79,10 +81,7 @@ class BigQueryDataTransferRunTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """
-        Get Transfer Run status and if it one of the statuses which mean end of the job
-        then yield TriggerEvent object.
-        """
+        """If the Transfer Run is in a terminal state, then yield TriggerEvent object."""
         hook = self._get_async_hook()
         while True:
             try:

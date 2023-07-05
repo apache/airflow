@@ -15,11 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module contains various Google Cloud DLP operators
-which allow you to perform basic operations using
-Cloud DLP.
-"""
+"""Various Google Cloud DLP operators which allow you to perform basic operations using Cloud DLP."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -152,8 +149,7 @@ class CloudDLPCancelDLPJobOperator(GoogleCloudBaseOperator):
 
 class CloudDLPCreateDeidentifyTemplateOperator(GoogleCloudBaseOperator):
     """
-    Creates a DeidentifyTemplate for re-using frequently used configuration for
-    de-identifying content, images, and storage.
+    Create a deidentify template to reuse frequently-used configurations for content, images, and storage.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -374,8 +370,7 @@ class CloudDLPCreateDLPJobOperator(GoogleCloudBaseOperator):
 
 class CloudDLPCreateInspectTemplateOperator(GoogleCloudBaseOperator):
     """
-    Creates an InspectTemplate for re-using frequently used configuration for
-    inspecting content, images, and storage.
+    Create an InspectTemplate to reuse frequently-used configurations for content, images, and storage.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -485,8 +480,7 @@ class CloudDLPCreateInspectTemplateOperator(GoogleCloudBaseOperator):
 
 class CloudDLPCreateJobTriggerOperator(GoogleCloudBaseOperator):
     """
-    Creates a job trigger to run DLP actions such as scanning storage for sensitive
-    information on a set schedule.
+    Create a job trigger to run DLP actions such as scanning storage for sensitive info on a set schedule.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -705,8 +699,7 @@ class CloudDLPCreateStoredInfoTypeOperator(GoogleCloudBaseOperator):
 
 class CloudDLPDeidentifyContentOperator(GoogleCloudBaseOperator):
     """
-    De-identifies potentially sensitive info from a ContentItem. This method has limits
-    on input size and output size.
+    De-identifies potentially sensitive info from a content item; limits input size and output size.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -893,8 +886,10 @@ class CloudDLPDeleteDeidentifyTemplateOperator(GoogleCloudBaseOperator):
 
 class CloudDLPDeleteDLPJobOperator(GoogleCloudBaseOperator):
     """
-    Deletes a long-running DlpJob. This method indicates that the client is no longer
-    interested in the DlpJob result. The job will be cancelled if possible.
+    Deletes a long-running DlpJob.
+
+    This method indicates that the client is no longer interested
+    in the DlpJob result. The job will be cancelled if possible.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1676,8 +1671,7 @@ class CloudDLPGetStoredInfoTypeOperator(GoogleCloudBaseOperator):
 
 class CloudDLPInspectContentOperator(GoogleCloudBaseOperator):
     """
-    Finds potentially sensitive info in content. This method has limits on
-    input size, processing time, and output size.
+    Finds potentially sensitive info in content; limits input size, processing time, and output size.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -2317,8 +2311,7 @@ class CloudDLPListStoredInfoTypesOperator(GoogleCloudBaseOperator):
 
 class CloudDLPRedactImageOperator(GoogleCloudBaseOperator):
     """
-    Redacts potentially sensitive info from an image. This method has limits on
-    input size, processing time, and output size.
+    Redacts potentially sensitive info from an image; limits input size, processing time, and output size.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
