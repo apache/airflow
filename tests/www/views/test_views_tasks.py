@@ -323,7 +323,7 @@ def test_views_get(admin_client, url, contents):
         check_content_in_response(content, resp)
 
 
-def test_views_task(admin_client):
+def test_rendered_task_view(admin_client):
     url = f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
     resp = admin_client.get(url, follow_redirects=True)
     resp_html = resp.data.decode("utf-8")
