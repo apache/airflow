@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-05T14:37:30Z
+# This constraints file was automatically generated on 2023-07-05T15:44:13Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -282,24 +282,24 @@ google-auth==2.21.0
 google-cloud-aiplatform==1.27.0
 google-cloud-appengine-logging==1.3.0
 google-cloud-audit-log==0.2.5
-google-cloud-automl==2.11.1
-google-cloud-bigquery-datatransfer==3.11.1
+google-cloud-automl==2.11.2
+google-cloud-bigquery-datatransfer==3.11.2
 google-cloud-bigquery-storage==2.20.0
 google-cloud-bigquery==3.11.3
 google-cloud-bigtable==2.19.0
-google-cloud-build==3.17.0
-google-cloud-compute==1.11.0
-google-cloud-container==2.25.0
+google-cloud-build==3.17.1
+google-cloud-compute==1.12.0
+google-cloud-container==2.26.0
 google-cloud-core==2.3.2
 google-cloud-datacatalog==3.13.0
-google-cloud-dataflow-client==0.8.3
+google-cloud-dataflow-client==0.8.4
 google-cloud-dataform==0.5.1
 google-cloud-dataplex==1.5.0
 google-cloud-dataproc-metastore==1.11.0
-google-cloud-dataproc==5.4.1
-google-cloud-dlp==3.12.1
+google-cloud-dataproc==5.4.2
+google-cloud-dlp==3.12.2
 google-cloud-kms==2.17.0
-google-cloud-language==2.10.0
+google-cloud-language==2.10.1
 google-cloud-logging==3.5.0
 google-cloud-memcache==1.7.1
 google-cloud-monitoring==2.15.0
@@ -310,14 +310,14 @@ google-cloud-redis==2.13.0
 google-cloud-resource-manager==1.10.1
 google-cloud-secret-manager==2.16.1
 google-cloud-spanner==3.36.0
-google-cloud-speech==2.20.0
+google-cloud-speech==2.20.1
 google-cloud-storage==2.10.0
-google-cloud-tasks==2.13.1
+google-cloud-tasks==2.13.2
 google-cloud-texttospeech==2.14.1
-google-cloud-translate==3.11.1
-google-cloud-videointelligence==2.11.2
-google-cloud-vision==3.4.3
-google-cloud-workflows==1.10.1
+google-cloud-translate==3.11.2
+google-cloud-videointelligence==2.11.3
+google-cloud-vision==3.4.4
+google-cloud-workflows==1.10.2
 google-crc32c==1.5.0
 google-re2==1.0
 google-resumable-media==2.5.0
