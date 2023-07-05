@@ -50,7 +50,7 @@ locally, into just one :class:`~airflow.executors.local_executor.LocalExecutor` 
 
 .. note::
 
-   When multiple Schedulers are configured with ``executor = LocalExecutor`` in the ``[core]`` section of your ``airflow.cfg``, each scheduler will run a LocalExecutor. This means tasks would be processed in a distributed fashion across the machines running the Schedulers.
+   When multiple Schedulers are configured with ``executor = LocalExecutor`` in the ``[core]`` section of your ``airflow.cfg``, each Scheduler will run a LocalExecutor. This means tasks would be processed in a distributed fashion across the machines running the Schedulers.
 
    Some considerations should be taken into account:
 
