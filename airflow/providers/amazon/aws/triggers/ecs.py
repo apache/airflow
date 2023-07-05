@@ -32,7 +32,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 class ClusterActiveTrigger(AwsBaseWaiterTrigger):
     """
-    Polls the status of a cluster until it's ready.
+    Polls the status of a cluster until it's active.
 
     :param cluster_arn: ARN of the cluster to watch.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
@@ -71,7 +71,7 @@ class ClusterActiveTrigger(AwsBaseWaiterTrigger):
 
 class ClusterInactiveTrigger(AwsBaseWaiterTrigger):
     """
-    Polls the status of a cluster until it's ready.
+    Polls the status of a cluster until it's inactive.
 
     :param cluster_arn: ARN of the cluster to watch.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
