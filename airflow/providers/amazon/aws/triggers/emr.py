@@ -25,7 +25,7 @@ from botocore.exceptions import WaiterError
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook
-from airflow.providers.amazon.aws.triggers.base_trigger import AwsBaseWaiterTrigger
+from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 

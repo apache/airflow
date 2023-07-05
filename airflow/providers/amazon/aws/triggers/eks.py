@@ -21,7 +21,7 @@ import warnings
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.eks import EksHook
-from airflow.providers.amazon.aws.triggers.base_trigger import AwsBaseWaiterTrigger
+from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 
 
 class EksCreateFargateProfileTrigger(AwsBaseWaiterTrigger):

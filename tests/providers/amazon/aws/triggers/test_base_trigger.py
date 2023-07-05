@@ -22,7 +22,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
-from airflow.providers.amazon.aws.triggers.base_trigger import AwsBaseWaiterTrigger
+from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.triggers.base import TriggerEvent
 
 
