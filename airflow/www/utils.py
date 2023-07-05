@@ -476,12 +476,12 @@ def datetime_html(dttm: DateTime | None) -> str:
     return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, as_iso_short)
 
 
-def json_f(attr_name):
+def json_f(attr_name, json_encoder: type[json.JSONEncoder] = json.JSONEncoder):
     """Returns a formatted string with HTML for given JSON serializable."""
 
     def json_(attr):
         f = attr.get(attr_name)
-        serialized = json.dumps(f)
+        serialized = json.dumps(f, cls=json_encoder)
         return Markup("<nobr>{}</nobr>").format(serialized)
 
     return json_
