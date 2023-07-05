@@ -27,7 +27,7 @@ from airflow.triggers.base import TriggerEvent
 
 
 class TestImplem(AwsBaseWaiterTrigger):
-    """A dumb implementation that allows instantiation for tests."""
+    """An empty implementation that allows instantiation for tests."""
 
     __test__ = False
 
