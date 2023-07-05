@@ -25,11 +25,11 @@ from typing import TYPE_CHECKING, Any, Collection
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String
 
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
-from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.utils.sqlalchemy import ExtendedJSON
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 
 class TaskMapVariant(enum.Enum):

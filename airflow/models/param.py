@@ -27,7 +27,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, ItemsView, Iterable, MutableMap
 from pendulum.parsing import parse_iso8601
 
 from airflow.exceptions import AirflowException, ParamValidationError, RemovedInAirflow3Warning
-from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils import timezone
 from airflow.utils.context import Context
 from airflow.utils.mixins import ResolveMixin
@@ -37,6 +36,7 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
 
 logger = logging.getLogger(__name__)
 

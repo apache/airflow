@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Iterable, Sequence
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models.taskinstance import TaskInstance
-from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
@@ -35,6 +34,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.operator import Operator
     from airflow.models.taskmixin import DAGNode
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 # The key used by SkipMixin to store XCom data.

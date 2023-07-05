@@ -59,7 +59,6 @@ from airflow.models.base import Base, StringID
 from airflow.models.expandinput import NotFullyPopulated
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
-from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.stats import Stats
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_states import SCHEDULEABLE_STATES
@@ -75,6 +74,7 @@ from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
 
     CreatedTasks = TypeVar("CreatedTasks", Iterator["dict[str, Any]"], Iterator[TI])
     TaskCreator = Callable[[Operator, Iterable[int]], CreatedTasks]

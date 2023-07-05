@@ -102,7 +102,6 @@ from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import Context, TaskInstance, TaskInstanceKey, clear_task_instances
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
-from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
@@ -138,6 +137,7 @@ if TYPE_CHECKING:
     from airflow.decorators import TaskDecoratorCollection
     from airflow.models.dagbag import DagBag
     from airflow.models.slamiss import SlaMiss
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.utils.task_group import TaskGroup
 
 log = logging.getLogger(__name__)

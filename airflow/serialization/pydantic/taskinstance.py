@@ -24,28 +24,7 @@ import pendulum
 from pydantic import BaseModel as BaseModelPydantic
 from sqlalchemy.orm import Session
 
-from airflow.models import DagRun, Operator
-from airflow.models.taskinstance import (
-    TaskInstance,
-    _clear_next_method_args,
-    _email_alert,
-    _execute_task,
-    _get_email_subject_content,
-    _get_previous_dagrun,
-    _get_previous_execution_date,
-    _get_previous_ti,
-    _get_template_context,
-    _get_try_number,
-    _handle_failure,
-    _is_eligible_to_retry,
-    _refresh_from_db,
-    _refresh_from_task,
-    _set_duration,
-    _set_try_number,
-    _stats_tags,
-    hybrid_property,
-)
-from airflow.serialization.pydantic.dag_run import DagRunPydantic
+from airflow.models.taskinstance import hybrid_property
 from airflow.utils.context import Context
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import ExecutorConfigType
@@ -53,7 +32,10 @@ from airflow.utils.state import DagRunState
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
+    from airflow.models import DagRun, Operator
     from airflow.models.baseoperator import BaseOperator
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
 
 
 class TaskInstancePydantic(BaseModelPydantic):
@@ -96,6 +78,7 @@ class TaskInstancePydantic(BaseModelPydantic):
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         orm_mode = True
+        arbitrary_types_allowed = True
 
     def xcom_pull(
         self,
@@ -160,6 +143,8 @@ class TaskInstancePydantic(BaseModelPydantic):
         :param context: Jinja2 context
         :param task_orig: origin task
         """
+        from airflow.models.taskinstance import _execute_task
+
         return _execute_task(self, context, task_orig)
 
     @provide_session
@@ -172,19 +157,27 @@ class TaskInstancePydantic(BaseModelPydantic):
             lock the TaskInstance (issuing a FOR UPDATE clause) until the
             session is committed.
         """
+        from airflow.models.taskinstance import _refresh_from_db
+
         _refresh_from_db(self, session, lock_for_update)
 
     def set_duration(self) -> None:
         """Set task instance duration."""
+        from airflow.models.taskinstance import _set_duration
+
         _set_duration(self)
 
     @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
+        from airflow.models.taskinstance import _stats_tags
+
         return _stats_tags(self)
 
     def clear_next_method_args(self) -> None:
         """Ensure we unset next_method and next_kwargs to ensure that any retries don't re-use them."""
+        from airflow.models.taskinstance import _clear_next_method_args
+
         _clear_next_method_args(self)
 
     def get_template_context(
@@ -198,6 +191,8 @@ class TaskInstancePydantic(BaseModelPydantic):
         :param session: SQLAlchemy ORM Session
         :param ignore_param_exceptions: flag to suppress value exceptions while initializing the ParamsDict
         """
+        from airflow.models.taskinstance import _get_template_context
+
         return _get_template_context(
             task_instance=self,
             session=session,
@@ -206,6 +201,8 @@ class TaskInstancePydantic(BaseModelPydantic):
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry."""
+        from airflow.models.taskinstance import _is_eligible_to_retry
+
         return _is_eligible_to_retry(self)
 
     @provide_session
@@ -226,6 +223,8 @@ class TaskInstancePydantic(BaseModelPydantic):
         :param context: Jinja2 context
         :param force_fail: if True, task does not retry
         """
+        from airflow.models.taskinstance import _handle_failure
+
         _handle_failure(
             task_instance=self,
             error=error,
@@ -245,6 +244,8 @@ class TaskInstancePydantic(BaseModelPydantic):
 
         This is designed so that task logs end up in the right file.
         """
+        from airflow.models.taskinstance import _get_try_number
+
         return _get_try_number(self)
 
     @try_number.setter
@@ -254,6 +255,8 @@ class TaskInstancePydantic(BaseModelPydantic):
 
         :param value: the try number
         """
+        from airflow.models.taskinstance import _set_try_number
+
         _set_try_number(self, value)
 
     def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:
@@ -263,6 +266,8 @@ class TaskInstancePydantic(BaseModelPydantic):
         :param task: The task object to copy from
         :param pool_override: Use the pool_override instead of task's pool
         """
+        from airflow.models.taskinstance import _refresh_from_task
+
         _refresh_from_task(self, task, pool_override)
 
     @provide_session
@@ -277,6 +282,8 @@ class TaskInstancePydantic(BaseModelPydantic):
         :param state: If passed, it only take into account instances of a specific state.
         :param session: SQLAlchemy ORM Session.
         """
+        from airflow.models.taskinstance import _get_previous_dagrun
+
         return _get_previous_dagrun(self, state, session)
 
     @provide_session
@@ -291,6 +298,8 @@ class TaskInstancePydantic(BaseModelPydantic):
         :param state: If passed, it only take into account instances of a specific state.
         :param session: SQLAlchemy ORM Session
         """
+        from airflow.models.taskinstance import _get_previous_execution_date
+
         return _get_previous_execution_date(self, state, session)
 
     def email_alert(self, exception, task: BaseOperator) -> None:
@@ -300,6 +309,8 @@ class TaskInstancePydantic(BaseModelPydantic):
         :param exception: the exception
         :param task: task related to the exception
         """
+        from airflow.models.taskinstance import _email_alert
+
         _email_alert(self, exception, task)
 
     def get_email_subject_content(
@@ -311,6 +322,8 @@ class TaskInstancePydantic(BaseModelPydantic):
         :param exception: the exception sent in the email
         :param task:
         """
+        from airflow.models.taskinstance import _get_email_subject_content
+
         return _get_email_subject_content(self, exception, task)
 
     @provide_session
@@ -325,4 +338,6 @@ class TaskInstancePydantic(BaseModelPydantic):
         :param session: SQLAlchemy ORM Session
         :param state: If passed, it only take into account instances of a specific state.
         """
+        from airflow.models.taskinstance import _get_previous_ti
+
         return _get_previous_ti(self, state, session)

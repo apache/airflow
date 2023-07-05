@@ -26,7 +26,7 @@
 # declare "these are defined, but don't error if others are accessed" someday.
 from __future__ import annotations
 
-from typing import Any, Collection, Container, Iterable, Mapping, overload
+from typing import TYPE_CHECKING, Any, Collection, Container, Iterable, Mapping, overload
 
 from pendulum import DateTime
 
@@ -37,10 +37,12 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dataset import DatasetEvent
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
-from airflow.serialization.pydantic.dag_run import DagRunPydantic
-from airflow.serialization.pydantic.dataset import DatasetEventPydantic
-from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.typing_compat import TypedDict
+
+if TYPE_CHECKING:
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
+    from airflow.serialization.pydantic.dataset import DatasetEventPydantic
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 KNOWN_CONTEXT_KEYS: set[str]
 

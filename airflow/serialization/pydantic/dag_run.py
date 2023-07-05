@@ -17,18 +17,19 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Iterable
+from typing import TYPE_CHECKING, Iterable
 
 from pendulum import DateTime
 from pydantic import BaseModel as BaseModelPydantic
 from sqlalchemy import PickleType
 from sqlalchemy.orm import Session
 
-from airflow import DAG
-from airflow.jobs.scheduler_job_runner import TI
-from airflow.models.dagrun import _get_task_instance
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from airflow import DAG
+    from airflow.jobs.scheduler_job_runner import TI
 
 
 class DagRunPydantic(BaseModelPydantic):
@@ -59,6 +60,7 @@ class DagRunPydantic(BaseModelPydantic):
         """Make sure it deals automatically with SQLAlchemy ORM classes."""
 
         orm_mode = True
+        arbitrary_types_allowed = True
 
     @provide_session
     def get_task_instances(
@@ -87,4 +89,6 @@ class DagRunPydantic(BaseModelPydantic):
         :param task_id: the task id
         :param session: Sqlalchemy ORM Session
         """
+        from airflow.models.dagrun import _get_task_instance
+
         return _get_task_instance(self, task_id, session, map_index)

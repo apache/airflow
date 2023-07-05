@@ -100,7 +100,6 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import LazyXComAccess, XCom
 from airflow.plugins_manager import integrate_macros_plugins
 from airflow.sentry import Sentry
-from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.stats import Stats
 from airflow.templates import SandboxedEnvironment
 from airflow.ti_deps.dep_context import DepContext
@@ -143,6 +142,7 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.utils.task_group import TaskGroup
 
     # This is a workaround because mypy doesn't work with hybrid_property
@@ -908,6 +908,8 @@ def _get_previous_dagrun(
 
     dr = task_instance.get_dagrun(session=session)
     dr.dag = dag
+
+    from airflow.models.dagrun import DagRun  # Avoid circular import
 
     # We always ignore schedule in dagrun lookup when `state` is given
     # or the DAG is never scheduled. For legacy reasons, when
