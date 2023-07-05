@@ -145,10 +145,22 @@
             "examples": [
                 {
                     "postStart": {
-                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                        "exec": {
+                            "command": [
+                                "/bin/sh",
+                                "-c",
+                                "echo postStart handler > /usr/share/message"
+                            ]
+                        }
                     },
                     "preStop": {
-                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                        "exec": {
+                            "command": [
+                                "/bin/sh",
+                                "-c",
+                                "echo preStop handler > /usr/share/message"
+                            ]
+                        }
                     }
                 }
             ]
@@ -1549,10 +1561,22 @@
                             "examples": [
                                 {
                                     "postStart": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
                                     },
                                     "preStop": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
                                     }
                                 }
                             ]
@@ -1620,10 +1644,22 @@
                             "examples": [
                                 {
                                     "postStart": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
                                     },
                                     "preStop": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
                                     }
                                 }
                             ]
@@ -1834,10 +1870,22 @@
                     "examples": [
                         {
                             "postStart": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
                             },
                             "preStop": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
                             }
                         }
 
@@ -1921,10 +1969,22 @@
                             "examples": [
                                 {
                                     "postStart": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
                                     },
                                     "preStop": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
                                     }
                                 }
 
@@ -2350,10 +2410,22 @@
                     "examples": [
                         {
                             "postStart": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
                             },
                             "preStop": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
                             }
                         }
 
@@ -2437,10 +2509,22 @@
                             "examples": [
                                 {
                                     "postStart": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
                                     },
                                     "preStop": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
                                     }
                                 }
                             ]
@@ -2823,10 +2907,22 @@
                     "examples": [
                         {
                             "postStart": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
                             },
                             "preStop": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -2913,10 +3009,22 @@
                             "examples": [
                                 {
                                     "postStart": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
                                     },
                                     "preStop": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
                                     }
                                 }
                             ]
@@ -3245,10 +3353,22 @@
                     "examples": [
                         {
                             "postStart": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
                             },
                             "preStop": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -3335,10 +3455,22 @@
                             "examples": [
                                 {
                                     "postStart": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
                                     },
                                     "preStop": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
                                     }
                                 }
                             ]
@@ -3572,10 +3704,22 @@
                     "examples": [
                         {
                             "postStart": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
                             },
                             "preStop": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -3858,10 +4002,22 @@
                     "examples": [
                         {
                             "postStart": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
                             },
                             "preStop": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -4233,10 +4389,22 @@
                     "examples": [
                         {
                             "postStart": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
                             },
                             "preStop": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -4592,10 +4760,22 @@
                             "examples": [
                                 {
                                     "postStart": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
                                     },
                                     "preStop": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
                                     }
                                 }
 
@@ -5008,10 +5188,22 @@
                     "examples": [
                         {
                             "postStart": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
                             },
                             "preStop": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -5248,10 +5440,22 @@
                     "examples": [
                         {
                             "postStart": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
                             },
                             "preStop": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -5509,10 +5713,22 @@
                     "examples": [
                         {
                             "postStart": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
                             },
                             "preStop": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -5804,10 +6020,22 @@
                             "examples": [
                                 {
                                     "postStart": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
                                     },
                                     "preStop": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
                                     }
                                 }
                             ]
@@ -6058,10 +6286,22 @@
                     "examples": [
                         {
                             "postStart": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
                             },
                             "preStop": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
                             }
                         }
                     ]
@@ -6482,10 +6722,22 @@
                     "examples": [
                         {
                             "postStart": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
                             },
                             "preStop": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
                             }
                         }
 
@@ -6801,10 +7053,22 @@
                             "examples": [
                                 {
                                     "postStart": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo postStart handler > /usr/share/message"
+                                            ]
+                                        }
                                     },
                                     "preStop": {
-                                        "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                        "exec": {
+                                            "command": [
+                                                "/bin/sh",
+                                                "-c",
+                                                "echo preStop handler > /usr/share/message"
+                                            ]
+                                        }
                                     }
                                 }
                             ]
@@ -9765,10 +10029,22 @@
                     "examples": [
                         {
                             "postStart": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the postStart handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo postStart handler > /usr/share/message"
+                                    ]
+                                }
                             },
                             "preStop": {
-                                "exec": { "command": ["/bin/sh", "-c", "echo Hello from the preStop handler > /usr/share/message"]}
+                                "exec": {
+                                    "command": [
+                                        "/bin/sh",
+                                        "-c",
+                                        "echo preStop handler > /usr/share/message"
+                                    ]
+                                }
                             }
                         }
                     ]
