@@ -31,8 +31,11 @@ def _is_disabled() -> bool:
 
 
 class OpenLineageProviderPlugin(AirflowPlugin):
-    """OpenLineage Plugin provides listener that emits OL events on DAG start, complete and failure
-    and TaskInstances start, complete and failure.
+    """
+    Listener that emits numerous Events.
+
+    OpenLineage Plugin provides listener that emits OL events on DAG start,
+    complete and failure and TaskInstances start, complete and failure.
     """
 
     name = "OpenLineageProviderPlugin"

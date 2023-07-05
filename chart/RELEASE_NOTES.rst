@@ -23,6 +23,48 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
+
+Airflow Helm Chart 1.10.0 (2023-06-26)
+--------------------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+Default Airflow image is updated to ``2.6.2`` (#31979)
+""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+The default Airflow image that is used with the Chart is now ``2.6.2``, previously it was ``2.5.3``.
+
+New Features
+^^^^^^^^^^^^
+
+- Add support for container security context (#31043)
+
+Improvements
+^^^^^^^^^^^^
+
+- Validate ``executor`` and ``config.core.executor`` match (#30693)
+- Support ``minAvailable`` property for PodDisruptionBudget (#30603)
+- Add ``volumeMounts`` to dag processor ``waitForMigrations`` (#30990)
+- Template extra volumes (#30773)
+
+Bug Fixes
+^^^^^^^^^
+
+- Fix webserver probes timeout and period (#30609)
+- Add missing ``waitForMigrations`` for workers (#31625)
+- Add missing ``priorityClassName`` to K8S worker pod template (#31328)
+- Adding log groomer sidecar to dag processor (#30726)
+- Do not propagate global security context to statsd and redis (#31865)
+
+Misc
+^^^^
+
+- Default Airflow version to 2.6.2 (#31979)
+- Use template comments for the chart license header (#30569)
+- Align ``apiVersion`` and ``kind`` order in chart templates (#31850)
+- Cleanup Kubernetes < 1.23 support (#31847)
+
 Airflow Helm Chart 1.9.0 (2023-04-14)
 -------------------------------------
 

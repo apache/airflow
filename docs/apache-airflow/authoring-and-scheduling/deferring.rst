@@ -55,6 +55,37 @@ Writing a deferrable operator takes a bit more work. There are some main points 
 * Your Operator will be stopped and removed from its worker while deferred, and no state will persist automatically. You can persist state by asking Airflow to resume you at a certain method or pass certain kwargs, but that's it.
 * You can defer multiple times, and you can defer before/after your Operator does significant work, or only defer if certain conditions are met (e.g. a system does not have an immediate answer). Deferral is entirely under your control.
 * Any Operator can defer; no special marking on its class is needed, and it's not limited to Sensors.
+* In order for any changes to a Trigger to be reflected, the *triggerer* needs to be restarted whenever the Trigger is modified.
+* If you want add an operator or sensor that supports both deferrable and non-deferrable modes. It's suggested to add ``deferable: bool = conf.getboolean("operators", "default_deferrable", fallback=False)`` to the ``__init__`` method of the operator and use it to decide whether to run the operator in deferrable mode. You'll be able to configure the default value of ``deferrable`` of all the operators and sensors that supports switch between deferrable and non-deferrable mode through ``default_deferrable`` in the ``operator`` section. Here's an example of a sensor that supports both modes.::
+
+    import time
+    from datetime import timedelta
+
+    from airflow.sensors.base import BaseSensorOperator
+    from airflow.triggers.temporal import TimeDeltaTrigger
+
+
+    class WaitOneHourSensor(BaseSensorOperator):
+        def __init__(
+            self,
+            deferable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+            **kwargs
+        ):
+            super().__init__(**kwargs)
+            self.deferrable = deferable
+
+        def execute(self, context):
+            if deferrable:
+                self.defer(
+                    trigger=TimeDeltaTrigger(timedelta(hours=1)),
+                    method_name="execute_complete"
+                )
+            else:
+                time.sleep(3600)
+
+        def execute_complete(self, context, event=None):
+            # We have no more work to do here. Mark as complete.
+            return
 
 
 Triggering Deferral
@@ -166,3 +197,25 @@ Airflow tries to only run triggers in one place at once, and maintains a heartbe
 This means it's possible, but unlikely, for triggers to run in multiple places at once; this is designed into the Trigger contract, however, and entirely expected. Airflow will de-duplicate events fired when a trigger is running in multiple places simultaneously, so this process should be transparent to your Operators.
 
 Note that every extra ``triggerer`` you run will result in an extra persistent connection to your database.
+
+
+Difference between Mode='reschedule' and Deferrable=True in Sensors
+-------------------------------------------------------------------
+
+In Airflow, Sensors wait for specific conditions to be met before proceeding with downstream tasks. Sensors have two options for managing idle periods: mode='reschedule' and deferrable=True. As mode='reschedule' is a parameter specific to the BaseSensorOperator in Airflow, which allows the sensor to reschedule itself if the condition is not met, whereas, 'deferrable=True' is a convention used by some operators to indicate that the task can be retried (or deferred) later, but it is not a built-in parameter or mode in the Airflow. The actual behavior of retrying the task may vary depending on the specific operator implementation.
+
++--------------------------------------------------------+--------------------------------------------------------+
+|           mode='reschedule'                            |          deferrable=True                               |
++========================================================+========================================================+
+| Continuously reschedules itself until condition is met |  Pauses execution when idle, resumes when condition    |
+|                                                        |  changes                                               |
++--------------------------------------------------------+--------------------------------------------------------+
+| Resource Usage is Higher (repeated execution)          |  Resource Usage is Lower (pauses when idle, frees      |
+|                                                        |  up worker slots)                                      |
++--------------------------------------------------------+--------------------------------------------------------+
+| Conditions expected to change over time                |  Waiting for external events or resources              |
+| (e.g. file creation)                                   |  (e.g. API response)                                   |
++--------------------------------------------------------+--------------------------------------------------------+
+| Built-in functionality for rescheduling                |  Requires custom logic to defer task and handle        |
+|                                                        |  external changes                                      |
++--------------------------------------------------------+--------------------------------------------------------+

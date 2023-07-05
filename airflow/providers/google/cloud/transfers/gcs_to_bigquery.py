@@ -36,6 +36,7 @@ from google.cloud.bigquery import (
 from google.cloud.bigquery.table import EncryptionConfiguration, Table, TableReference
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -148,10 +149,11 @@ class GCSToBigQueryOperator(BaseOperator):
         If autodetect is None and no schema is provided (neither via schema_fields
         nor a schema_object), assume the table already exists.
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-        **Example**: ::
+
+        .. code-block:: python
 
             encryption_configuration = {
-                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
             }
     :param location: [Optional] The geographic location of the job. Required except for US and EU.
         See details at https://cloud.google.com/bigquery/docs/locations#specifying_your_location
@@ -177,6 +179,7 @@ class GCSToBigQueryOperator(BaseOperator):
         "schema_object_bucket",
         "destination_project_dataset_table",
         "impersonation_chain",
+        "src_fmt_configs",
     )
     template_ext: Sequence[str] = (".sql",)
     ui_color = "#f0eee4"
@@ -216,7 +219,7 @@ class GCSToBigQueryOperator(BaseOperator):
         impersonation_chain: str | Sequence[str] | None = None,
         labels=None,
         description=None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         result_retry: Retry = DEFAULT_RETRY,
         result_timeout: float | None = None,
         cancel_on_kill: bool = True,
@@ -226,7 +229,6 @@ class GCSToBigQueryOperator(BaseOperator):
         project_id: str | None = None,
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.hook: BigQueryHook | None = None
         self.configuration: dict[str, Any] = {}
@@ -716,7 +718,6 @@ class GCSToBigQueryOperator(BaseOperator):
     def _cleanse_time_partitioning(
         self, destination_dataset_table: str | None, time_partitioning_in: dict | None
     ) -> dict:  # if it is a partitioned table ($ is in the table name) add partition load option
-
         if time_partitioning_in is None:
             time_partitioning_in = {}
 

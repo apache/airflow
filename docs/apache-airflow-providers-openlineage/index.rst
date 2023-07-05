@@ -19,40 +19,53 @@
 ``apache-airflow-providers-openlineage``
 ========================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: User guide
 
     Guides <guides/user>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Developer guide
 
     Guides <guides/developer>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Structure of provider
 
     Guides <guides/structure>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Macros
 
     Macros <macros>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/openlineage/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -63,6 +76,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 

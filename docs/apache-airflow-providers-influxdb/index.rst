@@ -19,10 +19,18 @@
 ``apache-airflow-providers-influxdb``
 =======================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -30,6 +38,7 @@ Content
     Operators <operators/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -37,11 +46,13 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/influxdb/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -50,6 +61,7 @@ Content
     Installing from sources <installing-providers-from-sources>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -59,6 +71,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -71,7 +84,7 @@ Package apache-airflow-providers-influxdb
 `InfluxDB <https://www.influxdata.com/>`__
 
 
-Release: 2.2.0
+Release: 2.2.1
 
 Provider package
 ----------------
@@ -98,5 +111,3 @@ PIP package          Version required
 ``influxdb-client``  ``>=1.19.0``
 ``requests``         ``>=2.26.0``
 ===================  ==================
-
-.. include:: ../../airflow/providers/influxdb/CHANGELOG.rst

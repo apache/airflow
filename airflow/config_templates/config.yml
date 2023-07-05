@@ -70,6 +70,13 @@ core:
       type: string
       example: ~
       default: "SequentialExecutor"
+    auth_manager:
+      description: |
+        The auth manager class that airflow should use. Full import path to the auth manager class.
+      version_added: ~
+      type: string
+      example: ~
+      default: "airflow.auth.managers.fab.fab_auth_manager.FabAuthManager"
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
@@ -450,6 +457,21 @@ core:
       type: string
       default: ~
       example: 'http://localhost:8080'
+    test_connection:
+      description: |
+        The ability to allow testing connections across Airflow UI, API and CLI.
+        Supported options: Disabled, Enabled, Hidden. Default: Disabled
+        Disabled - Disables the test connection functionality and disables the Test Connection button in UI.
+        Enabled - Enables the test connection functionality and shows the Test Connection button in UI.
+        Hidden - Disables the test connection functionality and hides the Test Connection button in UI.
+        Before setting this to Enabled, make sure that you review the users who are able to add/edit
+        connections and ensure they are trusted. Connection testing can be done maliciously leading to
+        undesired and insecure outcomes. For more information on capabilities of users, see the documentation:
+        https://airflow.apache.org/docs/apache-airflow/stable/security/index.html#capabilities-of-authenticated-ui-users
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "Disabled"
 database:
   description: ~
   options:
@@ -891,8 +913,6 @@ logging:
       type: boolean
       example: ~
       default: "False"
-
-
 metrics:
   description: |
     StatsD (https://github.com/etsy/statsd) integration settings.
@@ -1292,6 +1312,13 @@ operators:
       type: string
       example: ~
       default: "airflow"
+    default_deferrable:
+      description: |
+        The default value of attribute "deferrable" in operators and sensors.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "false"
     default_cpus:
       description: ~
       version_added: ~
@@ -1545,6 +1572,13 @@ webserver:
       type: string
       example: ~
       default: "LR"
+    grid_view_sorting_order:
+      description: |
+        Sorting order in grid view. Valid values are: ``topological``, ``hierarchical_alphabetical``
+      version_added: 2.7.0
+      type: string
+      example: ~
+      default: "topological"
     log_fetch_timeout_sec:
       description: |
         The amount of time (in secs) webserver will wait for initial handshake
@@ -1794,7 +1828,6 @@ webserver:
       type: string
       example: "sha256"
       default: "md5"
-
 email:
   description: |
     Configuration email backend and whether to
@@ -1852,7 +1885,6 @@ email:
       type: string
       example: "Airflow <airflow@example.com>"
       default: ~
-
 smtp:
   description: |
     If you want airflow to send emails on retries, failure, and you want to use
@@ -2249,7 +2281,7 @@ scheduler:
         from the CLI or the UI), this defines the frequency at which they should
         listen (in seconds).
       version_added: ~
-      type: string
+      type: float
       example: ~
       default: "5"
     scheduler_heartbeat_sec:
@@ -2258,7 +2290,7 @@ scheduler:
         scheduler section in the docs for more information). This defines
         how often the scheduler should run (in seconds).
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "5"
     num_runs:
@@ -2266,7 +2298,7 @@ scheduler:
         The number of times to try to schedule each DAG file
         -1 indicates unlimited number
       version_added: 1.10.6
-      type: string
+      type: integer
       example: ~
       default: "-1"
     scheduler_idle_sleep_time:
@@ -2275,7 +2307,7 @@ scheduler:
         in the loop. i.e. if it scheduled something then it will start the next loop
         iteration straight away.
       version_added: 2.2.0
-      type: string
+      type: float
       example: ~
       default: "1"
     min_file_process_interval:
@@ -2284,7 +2316,7 @@ scheduler:
         ``min_file_process_interval`` number of seconds. Updates to DAGs are reflected after
         this interval. Keeping this number low will increase CPU usage.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "30"
     parsing_cleanup_interval:
@@ -2312,14 +2344,14 @@ scheduler:
       description: |
         How often (in seconds) to scan the DAGs directory for new files. Default to 5 minutes.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "300"
     print_stats_interval:
       description: |
         How often should stats be printed to the logs. Setting to 0 will disable printing stats
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "30"
     pool_metrics_interval:
@@ -2336,7 +2368,7 @@ scheduler:
         This is used by the health check in the "/health" endpoint and in `airflow jobs check` CLI
         for SchedulerJob.
       version_added: 1.10.2
-      type: string
+      type: integer
       example: ~
       default: "30"
     enable_health_check:
@@ -2352,7 +2384,7 @@ scheduler:
         When you start a scheduler, airflow starts a tiny web server
         subprocess to serve a health check on this port
       version_added: 2.4.0
-      type: string
+      type: integer
       example: ~
       default: "8974"
     orphaned_tasks_check_interval:
@@ -2374,7 +2406,7 @@ scheduler:
         not heartbeat in this many seconds, the scheduler will mark the
         associated task instance as failed and will re-schedule the task.
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "300"
     zombie_detection_interval:
@@ -2393,7 +2425,7 @@ scheduler:
         however it can be set on a per DAG basis in the
         DAG definition (catchup)
       version_added: ~
-      type: string
+      type: boolean
       example: ~
       default: "True"
     ignore_first_depends_on_past_by_default:
@@ -2404,7 +2436,7 @@ scheduler:
         in the DB with an execution_date earlier than it., i.e. no manual marking
         success will be needed for a newly added task to be scheduled.
       version_added: 2.3.0
-      type: string
+      type: boolean
       example: ~
       default: "True"
     max_tis_per_query:
@@ -2415,7 +2447,7 @@ scheduler:
         Additionally, you may hit the maximum allowable query length for your db.
         Set this to 0 for no limit (not advised)
       version_added: ~
-      type: string
+      type: integer
       example: ~
       default: "512"
     use_row_level_locking:
@@ -2432,7 +2464,7 @@ scheduler:
         Max number of DAGs to create DagRuns for per scheduler loop.
       example: ~
       version_added: 2.0.0
-      type: string
+      type: integer
       default: "10"
       see_also: ":ref:`scheduler:ha:tunables`"
     max_dagruns_per_loop_to_schedule:
@@ -2441,7 +2473,7 @@ scheduler:
         and queuing tasks.
       example: ~
       version_added: 2.0.0
-      type: string
+      type: integer
       default: "20"
       see_also: ":ref:`scheduler:ha:tunables`"
     schedule_after_task_execution:
@@ -2468,7 +2500,7 @@ scheduler:
         The scheduler can run multiple processes in parallel to parse dags.
         This defines how many processes will run.
       version_added: 1.10.14
-      type: string
+      type: integer
       example: ~
       default: "2"
     file_parsing_sort_mode:
@@ -2515,7 +2547,7 @@ scheduler:
         Turn off scheduler use of cron intervals by setting this to False.
         DAGs submitted manually in the web UI or with trigger_dag will still run.
       version_added: 1.10.2
-      type: string
+      type: boolean
       example: ~
       default: "True"
     allow_trigger_in_future:
@@ -2523,14 +2555,14 @@ scheduler:
         Allow externally triggered DagRuns for Execution Dates in the future
         Only has effect if schedule_interval is set to None in DAG
       version_added: 1.10.8
-      type: string
+      type: boolean
       example: ~
       default: "False"
     trigger_timeout_check_interval:
       description: |
         How often to check for expired trigger requests that have not run yet.
       version_added: 2.2.0
-      type: string
+      type: float
       example: ~
       default: "15"
     task_queued_timeout:
@@ -2548,6 +2580,15 @@ scheduler:
       type: float
       example: ~
       default: "120.0"
+    allowed_run_id_pattern:
+      description: |
+        The run_id pattern used to verify the validity of user input to the run_id parameter when
+        triggering a DAG. This pattern cannot change the pattern used by scheduler to generate run_id
+        for scheduled DAG runs or DAG runs triggered without changing the run_id parameter.
+      version_added: 2.6.3
+      type: string
+      example: ~
+      default: "^[A-Za-z0-9_.~:+-]+$"
 triggerer:
   description: ~
   options:
@@ -2558,6 +2599,13 @@ triggerer:
       type: string
       example: ~
       default: "1000"
+    job_heartbeat_sec:
+      description: |
+        How often to heartbeat the Triggerer job to ensure it hasn't been killed.
+      version_added: 2.6.3
+      type: float
+      example: ~
+      default: "5"
 kerberos:
   description: ~
   options:

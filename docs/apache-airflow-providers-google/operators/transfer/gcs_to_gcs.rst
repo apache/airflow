@@ -83,6 +83,10 @@ When you use this operator, you can specify whether objects should be deleted fr
 they are transferred to the sink. Source objects can be specified using a single wildcard, as
 well as based on the file modification date.
 
+Filtering objects according to their path could be done by using the `match_glob field <https://cloud.google.com/storage/docs/json_api/v1/objects/list#list-object-glob>`__.
+You should avoid using the ``delimiter`` field nor a wildcard in the path of the source object(s), as both practices are deprecated.
+Additionally, filtering could be achieved based on the file's creation date (``is_older_than``) or modification date (``last_modified_time`` and ``maximum_modified_time``).
+
 The way this operator works by default can be compared to the ``cp`` command. When the file move option is active, this
 operator functions like the ``mv`` command.
 
@@ -124,6 +128,15 @@ folder in ``BUCKET_1_DST``, with file names unchanged.
 For source_objects with no wildcard, all files in source_objects would be listed, using provided delimiter if any.
 Then copy files from source_objects to destination_object and rename each source file.
 
+As previously stated, the ``delimiter`` field, as well as utilizing a wildcard (``*``) in the source object(s),
+are both deprecated. Thus, it is not recommended to use them - but to utilize ``match_glob`` instead, as follows:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gcs.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_to_gcs_match_glob]
+    :end-before: [END howto_operator_gcs_to_gcs_match_glob]
+
 The following example would copy all the files in ``subdir/`` folder (i.e subdir/a.csv, subdir/b.csv, subdir/c.csv) from
 the ``BUCKET_1_SRC`` GCS bucket to the ``backup/`` folder in ``BUCKET_1_DST`` bucket. (i.e backup/a.csv, backup/b.csv, backup/c.csv)
 
@@ -133,7 +146,7 @@ the ``BUCKET_1_SRC`` GCS bucket to the ``backup/`` folder in ``BUCKET_1_DST`` bu
     :start-after: [START howto_operator_gcs_to_gcs_without_wildcard]
     :end-before: [END howto_operator_gcs_to_gcs_without_wildcard]
 
-The delimiter filed may be specified to select any source files starting with ``source_object`` and ending with the
+The delimiter field may be specified to select any source files starting with ``source_object`` and ending with the
 value supplied to ``delimiter``. This example uses the ``delimiter`` value to implement the same functionality as the
 prior example.
 

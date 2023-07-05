@@ -48,6 +48,7 @@ CLUSTER_URL = "https://test-host"
 SSL_CA_CERT = "TEST_SSL_CA_CERT_CONTENT"
 FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."
 BASE_CONTAINER_NAME = "base"
+ON_FINISH_ACTION = "delete_pod"
 
 OPERATION_NAME = "test-operation-name"
 PROJECT_ID = "test-project-id"
@@ -93,13 +94,14 @@ class TestGKEStartPodTrigger:
             "poll_interval": POLL_INTERVAL,
             "cluster_context": CLUSTER_CONTEXT,
             "in_cluster": IN_CLUSTER,
-            "should_delete_pod": SHOULD_DELETE_POD,
             "get_logs": GET_LOGS,
             "startup_timeout": STARTUP_TIMEOUT_SECS,
             "trigger_start_time": TRIGGER_START_TIME,
             "cluster_url": CLUSTER_URL,
             "ssl_ca_cert": SSL_CA_CERT,
             "base_container_name": BASE_CONTAINER_NAME,
+            "on_finish_action": ON_FINISH_ACTION,
+            "should_delete_pod": SHOULD_DELETE_POD,
         }
 
     @pytest.mark.asyncio
@@ -108,7 +110,13 @@ class TestGKEStartPodTrigger:
     async def test_run_loop_return_success_event_should_execute_successfully(
         self, mock_hook, mock_method, trigger
     ):
-        mock_hook.return_value.get_pod.return_value = self._mock_pod_result(mock.MagicMock())
+        running_state = mock.MagicMock(**{"status.phase": "Running"})
+        succeeded_state = mock.MagicMock(**{"status.phase": "Succeeded"})
+        mock_hook.return_value.get_pod.side_effect = [
+            self._mock_pod_result(running_state),
+            self._mock_pod_result(running_state),
+            self._mock_pod_result(succeeded_state),
+        ]
         mock_method.return_value = ContainerState.TERMINATED
 
         expected_event = TriggerEvent(
@@ -119,9 +127,11 @@ class TestGKEStartPodTrigger:
                 "message": "All containers inside pod have started successfully.",
             }
         )
-        actual_event = await (trigger.run()).asend(None)
+        with mock.patch.object(asyncio, "sleep") as mock_sleep:
+            actual_event = await (trigger.run()).asend(None)
 
         assert actual_event == expected_event
+        assert mock_sleep.call_count == 2
 
     @pytest.mark.asyncio
     @mock.patch(f"{TRIGGER_KUB_PATH}.define_container_state")

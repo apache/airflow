@@ -21,8 +21,33 @@
     The changelog is updated and maintained semi-automatically by release manager.
 
 
-Changelog
----------
+------
+
+1.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, common.sql:  provide OL SQL parser as internal OpenLineage provider API (#31398)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
+
+1.5.2
+.....
+
+Misc
+~~~~
+
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
 
 1.5.1
 .....

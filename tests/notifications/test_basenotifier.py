@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import jinja2
 import pytest
 
@@ -64,3 +66,31 @@ class TestBaseNotifier:
         context: Context = {"dag": dag}
         notifier.render_template_fields(context)
         assert notifier.message == "Hello test_render_message_with_template_works"
+
+    def test_notifier_call_with_passed_context(self, dag_maker, caplog):
+        with dag_maker("test_render_message_with_template_works") as dag:
+            EmptyOperator(task_id="test_id")
+        notifier = MockNotifier(message="Hello {{ dag.dag_id }}")
+        notifier.notify = MagicMock()
+        context: Context = {"dag": dag}
+        notifier(context)
+        notifier.notify.assert_called_once_with({"dag": dag, "message": "Hello {{ dag.dag_id }}"})
+        assert notifier.message == "Hello test_render_message_with_template_works"
+
+    def test_notifier_call_with_prepared_context(self, dag_maker, caplog):
+        with dag_maker("test_render_message_with_template_works"):
+            EmptyOperator(task_id="test_id")
+        notifier = MockNotifier(message="task: {{ task_list[0] }}")
+        notifier.notify = MagicMock()
+        notifier(None, ["some_task"], None, None, None)
+        notifier.notify.assert_called_once_with(
+            {
+                "dag": None,
+                "task_list": ["some_task"],
+                "blocking_task_list": None,
+                "slas": None,
+                "blocking_tis": None,
+                "message": "task: {{ task_list[0] }}",
+            }
+        )
+        assert notifier.message == "task: some_task"

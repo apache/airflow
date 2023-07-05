@@ -17,18 +17,18 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import copy
 import datetime
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Generator, Iterable
 
 import pendulum
 from dateutil import relativedelta
 from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, true, tuple_
 from sqlalchemy.dialects import mssql, mysql
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import ColumnElement
 from sqlalchemy.sql.expression import ColumnOperators
 from sqlalchemy.types import JSON, Text, TypeDecorator, TypeEngine, UnicodeText
@@ -39,6 +39,7 @@ from airflow.serialization.enums import Encoding
 
 if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
+    from sqlalchemy.orm import Query, Session
 
 log = logging.getLogger(__name__)
 
@@ -411,7 +412,7 @@ def nulls_first(col, session: Session) -> dict[str, Any]:
 USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_locking", fallback=True)
 
 
-def with_row_locks(query, session: Session, **kwargs):
+def with_row_locks(query: Query, session: Session, **kwargs) -> Query:
     """
     Apply with_for_update to an SQLAlchemy query, if row level locking is in use.
 
@@ -427,6 +428,20 @@ def with_row_locks(query, session: Session, **kwargs):
         return query.with_for_update(**kwargs)
     else:
         return query
+
+
+@contextlib.contextmanager
+def lock_rows(query: Query, session: Session) -> Generator[None, None, None]:
+    """Lock database rows during the context manager block.
+
+    This is a convenient method for ``with_row_locks`` when we don't need the
+    locked rows.
+
+    :meta private:
+    """
+    locked_rows = with_row_locks(query, session).all()
+    yield
+    del locked_rows
 
 
 class CommitProhibitorGuard:

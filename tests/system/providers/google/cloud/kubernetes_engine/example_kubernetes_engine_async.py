@@ -66,7 +66,7 @@ with models.DAG(
         image="perl",
         name="test-pod-async",
         in_cluster=False,
-        is_delete_operator_pod=True,
+        on_finish_action="delete_pod",
         get_logs=True,
         deferrable=True,
     )
@@ -82,7 +82,7 @@ with models.DAG(
         cmds=["sh", "-c", "mkdir -p /airflow/xcom/;echo '[1,2,3,4]' > /airflow/xcom/return.json"],
         name="test-pod-xcom-async",
         in_cluster=False,
-        is_delete_operator_pod=True,
+        on_finish_action="delete_pod",
         do_xcom_push=True,
         deferrable=True,
         get_logs=True,

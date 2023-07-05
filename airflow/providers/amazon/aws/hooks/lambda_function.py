@@ -27,6 +27,7 @@ from airflow.providers.amazon.aws.utils import trim_none_values
 class LambdaHook(AwsBaseHook):
     """
     Interact with AWS Lambda.
+
     Provide thin wrapper around :external+boto3:py:class:`boto3.client("lambda") <Lambda.Client>`.
 
     Additional arguments (such as ``aws_conn_id``) may be specified and
@@ -47,7 +48,7 @@ class LambdaHook(AwsBaseHook):
         invocation_type: str | None = None,
         log_type: str | None = None,
         client_context: str | None = None,
-        payload: str | None = None,
+        payload: bytes | str | None = None,
         qualifier: str | None = None,
     ):
         """
@@ -64,6 +65,9 @@ class LambdaHook(AwsBaseHook):
         :param payload: The JSON that you want to provide to your Lambda function as input.
         :param qualifier: AWS Lambda Function Version or Alias Name
         """
+        if isinstance(payload, str):
+            payload = payload.encode()
+
         invoke_args = {
             "FunctionName": function_name,
             "InvocationType": invocation_type,
