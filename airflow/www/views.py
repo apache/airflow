@@ -1721,7 +1721,8 @@ class Airflow(AirflowBaseView):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", RemovedInAirflow3Warning)
                 all_ti_attrs = (
-                    (name, getattr(ti, name))
+                    # fetching the value of _try_number to be shown under name try_number in UI
+                    (name, getattr(ti, "_try_number" if name == "try_number" else name))
                     for name in dir(ti)
                     if not name.startswith("_") and name not in ti_attrs_to_skip
                 )
