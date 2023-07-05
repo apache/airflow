@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, Iterable, Optional
 
 from pendulum import DateTime
 from pydantic import BaseModel as BaseModelPydantic
@@ -37,23 +37,23 @@ class DagRunPydantic(BaseModelPydantic):
 
     id: int
     dag_id: str
-    queued_at: datetime | None
+    queued_at: Optional[datetime]
     execution_date: DateTime
     logical_date: DateTime
-    start_date: datetime | None
-    end_date: datetime | None
+    start_date: Optional[datetime]
+    end_date: Optional[datetime]
     state: str
     run_id: str
-    creating_job_id: int | None
+    creating_job_id: Optional[int]
     external_trigger: bool
     run_type: str
     conf: PickleType
-    data_interval_start: datetime | None
-    data_interval_end: datetime | None
-    last_scheduling_decision: datetime | None
-    dag_hash: str | None
+    data_interval_start: Optional[datetime]
+    data_interval_end: Optional[datetime]
+    last_scheduling_decision: Optional[datetime]
+    dag_hash: Optional[str]
     updated_at: datetime
-    dag: DAG | None
+    dag: Optional[DAG]
     consumed_dataset_events: list
 
     class Config:

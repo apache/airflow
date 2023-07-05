@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable, Optional
 
 import dill
 import pendulum
@@ -46,31 +46,31 @@ class TaskInstancePydantic(BaseModelPydantic):
     run_id: str
     map_index: int
     start_date: datetime
-    end_date: datetime | None
+    end_date: Optional[datetime]
     execution_date: datetime
-    duration: float | None
-    state: str | None
+    duration: Optional[float]
+    state: Optional[str]
     _try_number: int
     max_tries: int
     hostname: str
     unixname: str
-    job_id: int | None
+    job_id: Optional[int]
     pool: str
     pool_slots: int
     queue: str
-    priority_weight: int | None
+    priority_weight: Optional[int]
     operator: str
-    queued_dttm: str | None
-    queued_by_job_id: int | None
-    pid: int | None
+    queued_dttm: Optional[str]
+    queued_by_job_id: Optional[int]
+    pid: Optional[int]
     executor_config = ExecutorConfigType(pickler=dill)
-    updated_at: datetime | None
-    external_executor_id: str | None
-    trigger_id: int | None
-    trigger_timeout: datetime | None
-    next_method: str | None
-    next_kwargs: dict | None
-    run_as_user: str | None
+    updated_at: Optional[datetime]
+    external_executor_id: Optional[str]
+    trigger_id: Optional[int]
+    trigger_timeout: Optional[datetime]
+    next_method: Optional[str]
+    next_kwargs: Optional[dict]
+    run_as_user: Optional[str]
     task: Operator
     test_mode: bool
 
