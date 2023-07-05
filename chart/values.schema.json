@@ -1381,7 +1381,7 @@
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Allow KEDA autoscaling. `Persistence.enabled` must be set to false to use KEDA.",
+                            "description": "Allow KEDA autoscaling.",
                             "type": "boolean",
                             "default": false
                         },
@@ -1433,6 +1433,11 @@
                                     }
                                 }
                             }
+                        },
+                        "query": {
+                            "description": "Query to use for KEDA autoscaling. Must return a single integer.",
+                            "type": "string",
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if eq .Values.executor \"CeleryKubernetesExecutor\" }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}"
                         }
                     }
                 },
@@ -1619,6 +1624,14 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "runtimeClassName": {
+                    "description": "Specify runtime for worker pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "priorityClassName": {
                     "description": "Specify priority for worker pods.",

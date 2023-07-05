@@ -272,6 +272,7 @@ released and tested together when the version of Airflow you are installing was 
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
+.. _installing-from-pypi-managing-providers-separately-from-airflow-core:
 
 Managing providers separately from Airflow core
 ===============================================

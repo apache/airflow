@@ -378,6 +378,16 @@ class TestWorker:
             docs[0],
         )
 
+    def test_runtime_class_name_values_are_configurable(self):
+        docs = render_chart(
+            values={
+                "workers": {"runtimeClassName": "nvidia"},
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert jmespath.search("spec.template.spec.runtimeClassName", docs[0]) == "nvidia"
+
     def test_livenessprobe_values_are_configurable(self):
         docs = render_chart(
             values={
@@ -639,6 +649,51 @@ class TestWorkerKedaAutoScaler:
         )
 
         assert "replicas" not in jmespath.search("spec", docs[0])
+
+    @pytest.mark.parametrize(
+        "query, executor, expected_query",
+        [
+            # default query with CeleryExecutor
+            (
+                None,
+                "CeleryExecutor",
+                "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance"
+                " WHERE (state='running' OR state='queued')",
+            ),
+            # default query with CeleryKubernetesExecutor
+            (
+                None,
+                "CeleryKubernetesExecutor",
+                "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance"
+                " WHERE (state='running' OR state='queued') AND queue != 'kubernetes'",
+            ),
+            # test custom static query
+            (
+                "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance",
+                "CeleryKubernetesExecutor",
+                "SELECT ceil(COUNT(*)::decimal / 16) FROM task_instance",
+            ),
+            # test custom template query
+            (
+                "SELECT ceil(COUNT(*)::decimal / {{ mul .Values.config.celery.worker_concurrency 2 }})"
+                " FROM task_instance",
+                "CeleryKubernetesExecutor",
+                "SELECT ceil(COUNT(*)::decimal / 32) FROM task_instance",
+            ),
+        ],
+    )
+    def test_should_use_keda_query(self, query, executor, expected_query):
+
+        docs = render_chart(
+            values={
+                "executor": executor,
+                "workers": {
+                    "keda": {"enabled": True, **({"query": query} if query else {})},
+                },
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
 
 
 class TestWorkerNetworkPolicy:

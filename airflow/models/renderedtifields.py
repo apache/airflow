@@ -175,6 +175,7 @@ class RenderedTaskInstanceFields(Base):
         return result.k8s_pod_yaml if result else None
 
     @provide_session
+    @retry_db_transaction
     def write(self, session: Session = None):
         """Write instance to database.
 

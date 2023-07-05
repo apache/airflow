@@ -28,6 +28,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.3.1
+.....
+
+Latest change: 2023-06-29
+
+=================================================================================================  ===========  ===============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================================
+`6b4350e89c <https://github.com/apache/airflow/commit/6b4350e89cd1b3cc66347b31b10337105ccb9907>`_  2023-06-29   ``Modify 'template_fields' of 'DatabricksSqlOperator' to support parent class fields (#32253)``
+`d1aa509bbd <https://github.com/apache/airflow/commit/d1aa509bbd1941ceb3fe31789efeebbddd58d32f>`_  2023-06-28   ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
+`09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
+=================================================================================================  ===========  ===============================================================================================
+
 4.3.0
 .....
 
@@ -36,6 +49,7 @@ Latest change: 2023-06-20
 =================================================================================================  ===========  ===========================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================================
+`79bcc2e668 <https://github.com/apache/airflow/commit/79bcc2e668e648098aad6eaa87fe8823c76bc69a>`_  2023-06-20   ``Prepare RC1 docs for June 2023 wave of Providers (#32001)``
 `8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `69bc90b824 <https://github.com/apache/airflow/commit/69bc90b82403b705b3c30176cc3d64b767f2252e>`_  2023-06-19   ``Fix type annotation (#31888)``
 `66299338eb <https://github.com/apache/airflow/commit/66299338eb24aa71eb2e27ebd8b76079b39fd305>`_  2023-06-18   ``add a return when the event is yielded in a loop to stop the execution (#31985)``

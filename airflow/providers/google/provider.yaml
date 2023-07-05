@@ -30,6 +30,7 @@ description: |
 
 suspended: false
 versions:
+  - 10.3.0
   - 10.2.0
   - 10.1.1
   - 10.1.0
@@ -847,6 +848,9 @@ triggers:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_composer
+  - integration-name: Google Cloud SQL
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_sql
   - integration-name: Google Dataflow
     python-modules:
       - airflow.providers.google.cloud.triggers.dataflow
@@ -1127,7 +1131,7 @@ additional-extras:
       - apache-beam[gcp]
   - name: cncf.kubernetes
     dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=6.2.0
+      - apache-airflow-providers-cncf-kubernetes>=7.2.0
   - name: leveldb
     dependencies:
       - plyvel

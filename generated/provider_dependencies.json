@@ -45,6 +45,7 @@
       "google",
       "http",
       "imap",
+      "microsoft.azure",
       "mongo",
       "salesforce",
       "ssh"
