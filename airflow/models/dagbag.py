@@ -38,6 +38,7 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowClusterPolicyError,
+    AirflowClusterPolicySkipDag,
     AirflowClusterPolicyViolation,
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
@@ -442,6 +443,8 @@ class DagBag(LoggingMixin):
             try:
                 dag.validate()
                 self.bag_dag(dag=dag, root_dag=dag)
+            except AirflowClusterPolicySkipDag:
+                pass
             except Exception as e:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
                 self.import_errors[dag.fileloc] = f"{type(e).__name__}: {e}"
@@ -477,7 +480,7 @@ class DagBag(LoggingMixin):
 
             for task in dag.tasks:
                 settings.task_policy(task)
-        except AirflowClusterPolicyViolation:
+        except (AirflowClusterPolicyViolation, AirflowClusterPolicySkipDag):
             raise
         except Exception as e:
             self.log.exception(e)

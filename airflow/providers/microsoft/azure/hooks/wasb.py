@@ -53,6 +53,8 @@ AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredentia
 
 def _ensure_prefixes(conn_type):
     """
+    Deprecated.
+
     Remove when provider min airflow version >= 2.5.0 since this is handled by
     provider manager from that version.
     """
@@ -290,6 +292,33 @@ class WasbHook(BaseHook):
         blobs = container.walk_blobs(name_starts_with=prefix, include=include, delimiter=delimiter, **kwargs)
         for blob in blobs:
             blob_list.append(blob.name)
+        return blob_list
+
+    def get_blobs_list_recursive(
+        self,
+        container_name: str,
+        prefix: str | None = None,
+        include: list[str] | None = None,
+        endswith: str = "",
+        **kwargs,
+    ) -> list:
+        """
+        List blobs in a given container.
+
+        :param container_name: The name of the container
+        :param prefix: Filters the results to return only blobs whose names
+            begin with the specified prefix.
+        :param include: Specifies one or more additional datasets to include in the
+            response. Options include: ``snapshots``, ``metadata``, ``uncommittedblobs``,
+            ``copy`, ``deleted``.
+        :param delimiter: filters objects based on the delimiter (for e.g '.csv')
+        """
+        container = self._get_container_client(container_name)
+        blob_list = []
+        blobs = container.list_blobs(name_starts_with=prefix, include=include, **kwargs)
+        for blob in blobs:
+            if blob.name.endswith(endswith):
+                blob_list.append(blob.name)
         return blob_list
 
     def load_file(

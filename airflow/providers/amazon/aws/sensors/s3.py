@@ -26,6 +26,8 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
 
 from deprecated import deprecated
 
+from airflow.configuration import conf
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -87,7 +89,7 @@ class S3KeySensor(BaseSensorOperator):
         check_fn: Callable[..., bool] | None = None,
         aws_conn_id: str = "aws_default",
         verify: str | bool | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -238,10 +240,9 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         min_objects: int = 1,
         previous_objects: set[str] | None = None,
         allow_delete: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
 
         self.bucket_name = bucket_name

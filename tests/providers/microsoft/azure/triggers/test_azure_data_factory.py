@@ -163,10 +163,14 @@ class TestADFPipelineRunStatusSensorTrigger:
         assert TriggerEvent({"status": "error", "message": mock_message}) == actual
 
     @pytest.mark.asyncio
+    @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.refresh_conn")
     @mock.patch(f"{MODULE}.hooks.data_factory.AzureDataFactoryAsyncHook.get_adf_pipeline_run_status")
-    async def test_adf_pipeline_run_status_sensors_trigger_exception(self, mock_data_factory):
+    async def test_adf_pipeline_run_status_sensors_trigger_exception(
+        self, mock_data_factory, mock_refresh_token
+    ):
         """Test EMR container sensors with raise exception"""
         mock_data_factory.side_effect = Exception("Test exception")
+        mock_refresh_token.side_effect = Exception("Test exception")
 
         task = [i async for i in self.TRIGGER.run()]
         assert len(task) == 1
