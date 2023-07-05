@@ -58,10 +58,10 @@ def test_create_connection(admin_client, session):
     _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
 
 
-def test_invalid_connection_id_trailing_blanks(admin_client, session):
-    invalid_conn_id = "conn_id_with_trailing_blanks   "
-    invalid_connection = {**CONNECTION, "conn_id": invalid_conn_id}
-    resp = admin_client.post("/connection/add", data=invalid_connection, follow_redirects=True)
+def test_connection_id_with_trailing_blanks(admin_client, session):
+    conn_id_with_blanks = "conn_id_with_trailing_blanks   "
+    conn = {**CONNECTION, "conn_id": conn_id_with_blanks}
+    resp = admin_client.post("/connection/add", data=conn, follow_redirects=True)
     # all the whitespaces get stripped off
     check_content_in_response("Added Row", resp)
 
