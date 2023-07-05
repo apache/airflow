@@ -52,7 +52,6 @@ locally, into just one :class:`~airflow.executors.local_executor.LocalExecutor` 
 
    When multiple Schedulers are configured with ``executor = LocalExecutor`` in the ``[core]`` section of your ``airflow.cfg``, each Scheduler will run a LocalExecutor. This means tasks would be processed in a distributed fashion across the machines running the Schedulers.
 
-   Some considerations should be taken into account:
+   One consideration should be taken into account:
 
    - Restarting a Scheduler: If a Scheduler is restarted, it may take some time for other Schedulers to recognize the orphaned tasks and restart or fail them.
-   - Sharing of instances: While a single LocalExecutor allows tasks to share the same Python process and exchange information via variables, this is not possible when using multiple Schedulers, as each Scheduler will run in its own separate Python process.
