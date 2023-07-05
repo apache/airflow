@@ -2273,9 +2273,9 @@ scheduler:
         The frequency (in seconds) at which the LocalTaskJob should send heartbeat signals to the
         scheduler to notify it's still alive. The value of this parameter should be less than the 
         scheduler's `scheduler_zombie_task_threshold` config.
-      version_added: ~
+      version_added: 2.7.0
       type: int
-      example: 2.7.0
+      example: ~
       default: "5"
     num_runs:
       description: |
