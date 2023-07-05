@@ -207,7 +207,8 @@ class SQLParser:
     @classmethod
     def split_sql_string(cls, sql: list[str] | str) -> list[str]:
         """
-        Split SQL string into list of statements
+        Split SQL string into list of statements.
+
         Tries to use `DbApiHook.split_sql_string` if available.
         Otherwise, uses the same logic.
         """
