@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import ast
+from airflow.configuration import conf
 import warnings
 from datetime import timedelta
 from functools import cached_property
@@ -33,6 +34,7 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
     EmrContainerTrigger,
     EmrCreateJobFlowTrigger,
+    EmrServerlessAppicationTrigger,
     EmrTerminateJobFlowTrigger,
 )
 from airflow.providers.amazon.aws.utils.waiter import waiter
@@ -985,6 +987,9 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
     :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
         If not set, the waiter will use its default value.
     :param waiter_delay: Number of seconds between polling the state of the application.
+    :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     def __init__(
@@ -999,6 +1004,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
         waiter_max_attempts: int | ArgNotSet = NOTSET,
         waiter_delay: int | ArgNotSet = NOTSET,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         if waiter_check_interval_seconds is NOTSET:
@@ -1025,11 +1031,12 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.release_label = release_label
         self.job_type = job_type
-        self.wait_for_completion = wait_for_completion
+        self.wait_for_completion = False if deferrable else wait_for_completion
         self.kwargs = kwargs
         self.config = config or {}
         self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
         self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
+        self.deferrable = deferrable
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -1052,8 +1059,20 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             raise AirflowException(f"Application Creation failed: {response}")
 
         self.log.info("EMR serverless application created: %s", application_id)
+        if self.deferrable:
+            self.defer(
+                trigger=EmrServerlessAppicationTrigger(
+                    application_id=application_id,
+                    waiter_name="serverless_app_created",
+                    aws_conn_id=self.aws_conn_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                method_name="start_application_deferred",
+            )
+            
         waiter = self.hook.get_waiter("serverless_app_created")
-
         wait(
             waiter=waiter,
             waiter_delay=self.waiter_delay,
@@ -1078,7 +1097,28 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
                 status_args=["application.state", "application.stateDetails"],
             )
         return application_id
-
+    def start_application_deferred(self, context, event=None):
+        if event["status"] == "success":
+            self.log.info("Starting application %s", event["application_id"])
+            self.hook.conn.start_application(applicationId=event["application_id"])
+            self.defer(
+                trigger=EmrServerlessAppicationTrigger(
+                    application_id=event["application_id"],
+                    waiter_name="serverless_app_started",
+                    aws_conn_id=self.aws_conn_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                method_name="execute_complete",
+            )
+    
+    def execute_complete(self, context, event=None):
+        if event["status"] == "success":
+            self.log.info("Application %s started", event["application_id"])
+            return event["application_id"]
+        else:
+            raise AirflowException(f"Application {event['application_id']} failed to start")
 
 class EmrServerlessStartJobOperator(BaseOperator):
     """
@@ -1278,6 +1318,9 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         Otherwise, trying to stop an app with running jobs will return an error.
         If you want to wait for the jobs to finish gracefully, use
         :class:`airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`
+    :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     template_fields: Sequence[str] = ("application_id",)
@@ -1292,6 +1335,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         waiter_max_attempts: int | ArgNotSet = NOTSET,
         waiter_delay: int | ArgNotSet = NOTSET,
         force_stop: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         if waiter_check_interval_seconds is NOTSET:
@@ -1317,10 +1361,11 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             )
         self.aws_conn_id = aws_conn_id
         self.application_id = application_id
-        self.wait_for_completion = wait_for_completion
+        self.wait_for_completion = False if deferrable else wait_for_completion
         self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
         self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
         self.force_stop = force_stop
+        self.deferrable = deferrable
         super().__init__(**kwargs)
 
     @cached_property
@@ -1341,7 +1386,18 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
             )
 
         self.hook.conn.stop_application(applicationId=self.application_id)
-
+        if self.deferrable:
+            self.defer(
+                trigger=EmrServerlessAppicationTrigger(
+                    application_id=self.application_id,
+                    waiter_name="serverless_app_stopped",
+                    aws_conn_id=self.aws_conn_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                ),
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                method_name="execute_complete",
+            )
         if self.wait_for_completion:
             waiter = self.hook.get_waiter("serverless_app_stopped")
             wait(
@@ -1354,7 +1410,10 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
                 status_args=["application.state", "application.stateDetails"],
             )
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)
-
+    
+    def execute_complete(self, context, event=None) -> None:
+        if event["status"] == "success":
+            self.log.info("EMR serverless application %s stopped successfully", self.application_id)
 
 class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperator):
     """

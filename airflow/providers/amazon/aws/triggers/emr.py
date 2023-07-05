@@ -23,7 +23,7 @@ from typing import Any, AsyncIterator
 from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook
+from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.helpers import prune_dict
@@ -373,3 +373,46 @@ class EmrStepSensorTrigger(BaseTrigger):
             )
 
         yield TriggerEvent({"status": "success"})
+
+
+class EmrServerlessAppicationTrigger(BaseTrigger):
+    def __init__(
+        self,
+        application_id: str,
+        waiter_name: str,
+        aws_conn_id: str,
+        waiter_delay: int,
+        waiter_max_attempts: int,
+
+    ):
+        self.application_id = application_id
+        self.waiter_name = waiter_name
+        self.aws_conn_id = aws_conn_id
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+    
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        return (
+            "airflow.providers.amazon.aws.triggers.emr.EmrServerlessAppicationTrigger",
+            {
+                "application_id": self.application_id,
+                "waiter_name": self.waiter_name,
+                "aws_conn_id": self.aws_conn_id,
+                "waiter_delay": str(self.waiter_delay),
+                "waiter_max_attempts": str(self.waiter_max_attempts),
+            }
+        )
+    async def run(self):
+        self.hook = EmrServerlessHook(aws_conn_id=self.aws_conn_id)
+        async with self.hook.async_conn as client:
+            waiter = self.hook.get_waiter(self.waiter_name, deferrable=True, client=client)
+            await async_wait(
+                waiter=waiter,
+                waiter_delay=self.waiter_delay,
+                waiter_max_attempts=self.waiter_max_attempts,
+                args={"applicationId": self.application_id},
+                failure_message=f"Error while waiting for application {self.application_id} to complete",
+                status_message="Status of EMR Serverless Application is",
+                status_args=["application.state", "application.stateDetails"],
+            )
+        yield TriggerEvent({"status": "success", "application_id": self.application_id})
