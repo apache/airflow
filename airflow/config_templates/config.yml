@@ -1305,6 +1305,13 @@ operators:
       type: string
       example: ~
       default: "airflow"
+    default_deferrable:
+      description: |
+        The default value of attribute "deferrable" in operators and sensors.
+      version_added: ~
+      type: boolean
+      example: ~
+      default: "false"
     default_cpus:
       description: ~
       version_added: ~
