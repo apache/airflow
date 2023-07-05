@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import textwrap
 import time
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 from urllib.parse import urlencode
 
 from flask import request, url_for
@@ -36,8 +36,10 @@ from markupsafe import Markup
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
+from pygments.lexer import Lexer
 from sqlalchemy import delete, func, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
+from sqlalchemy.sql import Select
 
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import errors
@@ -52,7 +54,6 @@ from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm.query import Query
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql.operators import ColumnOperators
 
@@ -517,18 +518,21 @@ def _get_run_ordering_expr(name: str) -> ColumnOperators:
     return expr.desc()
 
 
-def sorted_dag_runs(query: Query, *, ordering: Sequence[str], limit: int) -> Sequence[DagRun]:
+def sorted_dag_runs(
+    query: Select, *, ordering: Sequence[str], limit: int, session: Session
+) -> Sequence[DagRun]:
     """Produce DAG runs sorted by specified columns.
 
-    :param query: An ORM query object against *DagRun*.
+    :param query: An ORM select object against *DagRun*.
     :param ordering: Column names to sort the runs. should generally come from a
         timetable's ``run_ordering``.
     :param limit: Number of runs to limit to.
+    :param session: SQLAlchemy ORM session object
     :return: A list of DagRun objects ordered by the specified columns. The list
         contains only the *last* objects, but in *ascending* order.
     """
     ordering_exprs = (_get_run_ordering_expr(name) for name in ordering)
-    runs = query.order_by(*ordering_exprs, DagRun.id.desc()).limit(limit).all()
+    runs = session.scalars(query.order_by(*ordering_exprs, DagRun.id.desc()).limit(limit)).all()
     runs.reverse()
     return runs
 
@@ -546,20 +550,35 @@ def pygment_html_render(s, lexer=lexers.TextLexer):
     return highlight(s, lexer(), HtmlFormatter(linenos=True))
 
 
-def render(obj, lexer):
+def render(obj: Any, lexer: Lexer, handler: Callable[[Any], str] | None = None):
     """Render a given Python object with a given Pygments lexer."""
-    out = ""
     if isinstance(obj, str):
-        out = Markup(pygment_html_render(obj, lexer))
+        return Markup(pygment_html_render(obj, lexer))
+
     elif isinstance(obj, (tuple, list)):
+        out = ""
         for i, text_to_render in enumerate(obj):
+            if lexer is lexers.PythonLexer:
+                text_to_render = repr(text_to_render)
             out += Markup("<div>List item #{}</div>").format(i)
             out += Markup("<div>" + pygment_html_render(text_to_render, lexer) + "</div>")
+        return out
+
     elif isinstance(obj, dict):
+        out = ""
         for k, v in obj.items():
+            if lexer is lexers.PythonLexer:
+                v = repr(v)
             out += Markup('<div>Dict item "{}"</div>').format(k)
             out += Markup("<div>" + pygment_html_render(v, lexer) + "</div>")
-    return out
+        return out
+
+    elif handler is not None and obj is not None:
+        return Markup(pygment_html_render(handler(obj), lexer))
+
+    else:
+        # Return empty string otherwise
+        return ""
 
 
 def json_render(obj, lexer):
@@ -600,8 +619,8 @@ def get_attr_renderer():
         "mysql": lambda x: render(x, lexers.MySqlLexer),
         "postgresql": lambda x: render(x, lexers.PostgresLexer),
         "powershell": lambda x: render(x, lexers.PowerShellLexer),
-        "py": lambda x: render(get_python_source(x), lexers.PythonLexer),
-        "python_callable": lambda x: render(get_python_source(x), lexers.PythonLexer),
+        "py": lambda x: render(x, lexers.PythonLexer, get_python_source),
+        "python_callable": lambda x: render(x, lexers.PythonLexer, get_python_source),
         "rst": lambda x: render(x, lexers.RstLexer),
         "sql": lambda x: render(x, lexers.SqlLexer),
         "tsql": lambda x: render(x, lexers.TransactSqlLexer),

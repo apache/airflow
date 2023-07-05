@@ -28,6 +28,19 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.5.2
+.....
+
+Latest change: 2023-06-28
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`8c37b74a20 <https://github.com/apache/airflow/commit/8c37b74a208a808d905c1b86d081d69d7a1aa900>`_  2023-06-28   ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+`09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
+`58784ade88 <https://github.com/apache/airflow/commit/58784ade889b44c286f7b9f4bd466b1030d89eda>`_  2023-06-27   ``Fix 'LivyHook' TypeError exception on 'session_id' log format (#32051)``
+=================================================================================================  ===========  ==========================================================================
+
 3.5.1
 .....
 
@@ -36,6 +49,7 @@ Latest change: 2023-06-20
 =================================================================================================  ===========  ===========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
+`79bcc2e668 <https://github.com/apache/airflow/commit/79bcc2e668e648098aad6eaa87fe8823c76bc69a>`_  2023-06-20   ``Prepare RC1 docs for June 2023 wave of Providers (#32001)``
 `8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
 `13890788ae <https://github.com/apache/airflow/commit/13890788ae939328d451daeaea54f493f4aaaa69>`_  2023-06-07   ``Apache provider docstring improvements (#31730)``
 `361aa77d5d <https://github.com/apache/airflow/commit/361aa77d5df47dfece9617147724e9657f14492f>`_  2023-06-05   ``Optimize deferred mode execution (#31685)``

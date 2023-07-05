@@ -220,8 +220,7 @@ class PrestoHook(DbApiHook):
     @staticmethod
     def _serialize_cell(cell: Any, conn: Connection | None = None) -> Any:
         """
-        Presto will adapt all arguments to the execute() method internally,
-        hence we return cell without any conversion.
+        Presto will adapt all execute() args internally, hence we return cell without any conversion.
 
         :param cell: The cell to insert into the table
         :param conn: The database connection

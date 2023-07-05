@@ -74,7 +74,7 @@ user will have by default:
 
     AUTH_ROLE_PUBLIC = 'Admin'
 
-Be sure to checkout :doc:`/administration-and-deployment/security/api` for securing the API.
+Be sure to checkout :doc:`/security/api` for securing the API.
 
 .. note::
 

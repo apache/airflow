@@ -87,7 +87,7 @@ declare module "react-table" {
       // this matches the spirit of the underlying js library,
       // but might be cleaner if it's replaced by a more specific type that matches your
       // feature set, this is a safe default.
-      Record<string, any> {}
+      Record<string, unknown> {}
 
   export interface Hooks<
     D extends Record<string, unknown> = Record<string, unknown>
@@ -139,7 +139,7 @@ declare module "react-table" {
   export interface Cell<
     D extends Record<string, unknown> = Record<string, unknown>,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    V = any
+    V = unknown
   > extends UseGroupByCellProps<D>,
       UseRowStateCellProps<D> {}
 

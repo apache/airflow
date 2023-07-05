@@ -16,13 +16,25 @@
     under the License.
 
 .. NOTE TO CONTRIBUTORS:
-    Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+    Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
     and you want to add an explanation to the users on how they are supposed to deal with them.
     The changelog is updated and maintained semi-automatically by release manager.
 
 
-Changelog for ``apache-airflow-providers-common-sql``
------------------------------------------------------
+------
+
+1.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, common.sql:  provide OL SQL parser as internal OpenLineage provider API (#31398)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
 
 1.5.2
 .....

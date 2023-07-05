@@ -29,8 +29,7 @@ if TYPE_CHECKING:
 
 class HttpSensor(BaseSensorOperator):
     """
-    Executes a HTTP GET statement and returns False on failure caused by
-    404 Not Found or `response_check` returning False.
+    Execute HTTP GET statement; return False on failure 404 Not Found or `response_check` returning False.
 
     HTTP Error codes other than 404 (like 403) or Connection Refused Error
     would raise an exception and fail the sensor itself directly (no more poking).

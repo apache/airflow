@@ -30,6 +30,7 @@ description: |
 
 suspended: false
 versions:
+  - 10.3.0
   - 10.2.0
   - 10.1.1
   - 10.1.0
@@ -1130,7 +1131,7 @@ additional-extras:
       - apache-beam[gcp]
   - name: cncf.kubernetes
     dependencies:
-      - apache-airflow-providers-cncf-kubernetes>=6.2.0
+      - apache-airflow-providers-cncf-kubernetes>=7.2.0
   - name: leveldb
     dependencies:
       - plyvel

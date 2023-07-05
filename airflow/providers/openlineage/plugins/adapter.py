@@ -58,10 +58,7 @@ set_producer(_PRODUCER)
 
 
 class OpenLineageAdapter(LoggingMixin):
-    """
-    Adapter for translating Airflow metadata to OpenLineage events,
-    instead of directly creating them from Airflow code.
-    """
+    """Translate Airflow metadata to OpenLineage events instead of creating them from Airflow code."""
 
     def __init__(self, client: OpenLineageClient | None = None, secrets_masker: SecretsMasker | None = None):
         super().__init__()

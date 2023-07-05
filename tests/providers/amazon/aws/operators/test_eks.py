@@ -39,6 +39,7 @@ from airflow.providers.amazon.aws.triggers.eks import (
     EksDeleteFargateProfileTrigger,
     EksNodegroupTrigger,
 )
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
 from airflow.typing_compat import TypedDict
 from tests.providers.amazon.aws.utils.eks_test_constants import (
     NODEROLE_ARN,
@@ -641,7 +642,7 @@ class TestEksPodOperator:
             labels={"demo": "hello_world"},
             get_logs=True,
             # Delete the pod when it reaches its final state, or the execution is interrupted.
-            is_delete_operator_pod=True,
+            on_finish_action="delete_pod",
         )
         op_return_value = op.execute(ti_context)
         mock_k8s_pod_operator_execute.assert_called_once_with(ti_context)
@@ -651,3 +652,58 @@ class TestEksPodOperator:
         )
         assert mock_k8s_pod_operator_execute.return_value == op_return_value
         assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file
+
+    @pytest.mark.parametrize(
+        "compatible_kpo, kwargs, expected_attributes",
+        [
+            (
+                True,
+                {"on_finish_action": "delete_succeeded_pod"},
+                {"on_finish_action": OnFinishAction.DELETE_SUCCEEDED_POD},
+            ),
+            (
+                # test that priority for deprecated param
+                True,
+                {"on_finish_action": "keep_pod", "is_delete_operator_pod": True},
+                {"on_finish_action": OnFinishAction.DELETE_POD, "is_delete_operator_pod": True},
+            ),
+            (
+                # test default
+                True,
+                {},
+                {"on_finish_action": OnFinishAction.KEEP_POD, "is_delete_operator_pod": False},
+            ),
+            (
+                False,
+                {"is_delete_operator_pod": True},
+                {"is_delete_operator_pod": True},
+            ),
+            (
+                False,
+                {"is_delete_operator_pod": False},
+                {"is_delete_operator_pod": False},
+            ),
+            (
+                # test default
+                False,
+                {},
+                {"is_delete_operator_pod": False},
+            ),
+        ],
+    )
+    def test_on_finish_action_handler(self, compatible_kpo, kwargs, expected_attributes):
+        kpo_init_args_mock = mock.MagicMock(**{"parameters": ["on_finish_action"] if compatible_kpo else []})
+
+        with mock.patch("inspect.signature", return_value=kpo_init_args_mock):
+            op = EksPodOperator(
+                task_id="run_pod",
+                pod_name="run_pod",
+                cluster_name=CLUSTER_NAME,
+                image="amazon/aws-cli:latest",
+                cmds=["sh", "-c", "ls"],
+                labels={"demo": "hello_world"},
+                get_logs=True,
+                **kwargs,
+            )
+            for expected_attr in expected_attributes:
+                assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]

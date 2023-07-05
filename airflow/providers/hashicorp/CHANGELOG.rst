@@ -17,12 +17,27 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog for ``apache-airflow-providers-hashicorp``
-----------------------------------------------------
+``apache-airflow-providers-hashicorp``
+
+
+Changelog
+---------
+
+3.4.2
+.....
+
+Misc
+~~~~
+
+* ``Add default retry to hvac client requests (#31073)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve provider documentation and README structure (#32125)``
 
 3.4.1
 .....

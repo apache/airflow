@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 from googleapiclient.errors import HttpError
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
@@ -955,7 +956,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         api_version: str = "v1beta4",
         validate_body: bool = True,
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poke_interval: int = 10,
         **kwargs,
     ) -> None:

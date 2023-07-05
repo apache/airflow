@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Sequence, cast
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.dag import DagModel
@@ -113,7 +114,7 @@ class TriggerDagRunOperator(BaseOperator):
         poke_interval: int = 60,
         allowed_states: list | None = None,
         failed_states: list | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -135,7 +136,6 @@ class TriggerDagRunOperator(BaseOperator):
         self.execution_date = execution_date
 
     def execute(self, context: Context):
-
         if isinstance(self.execution_date, datetime.datetime):
             parsed_execution_date = self.execution_date
         elif isinstance(self.execution_date, str):
@@ -187,7 +187,6 @@ class TriggerDagRunOperator(BaseOperator):
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
         if self.wait_for_completion:
-
             # Kick off the deferral process
             if self._defer:
                 self.defer(
@@ -219,7 +218,6 @@ class TriggerDagRunOperator(BaseOperator):
 
     @provide_session
     def execute_complete(self, context: Context, session: Session, event: tuple[str, dict[str, Any]]):
-
         # This execution date is parsed from the return trigger event
         provided_execution_date = event[1]["execution_dates"][0]
         try:

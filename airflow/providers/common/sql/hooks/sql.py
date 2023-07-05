@@ -538,7 +538,7 @@ class DbApiHook(BaseForDbApiHook):
         """
         return "generic"
 
-    def get_openlineage_default_schema(self) -> str:
+    def get_openlineage_default_schema(self) -> str | None:
         """
         Returns default schema specific to database.
 

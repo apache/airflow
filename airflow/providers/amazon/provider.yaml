@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 8.3.0
   - 8.2.0
   - 8.1.0
   - 8.0.0
@@ -625,6 +626,10 @@ transfers:
   - source-integration-name: Amazon Web Services
     target-integration-name: Amazon Web Services
     python-module: airflow.providers.amazon.aws.transfers.base
+  - source-integration-name: Microsoft Azure Blob Storage
+    target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/transfer/azure_blob_to_s3.rst
+    python-module: airflow.providers.amazon.aws.transfers.azure_blob_to_s3
 
 extra-links:
   - airflow.providers.amazon.aws.links.batch.BatchJobDefinitionLink
@@ -667,3 +672,6 @@ additional-extras:
   - name: aiobotocore
     dependencies:
       - aiobotocore[boto3]>=2.2.0
+  - name: cncf.kubernetes
+    dependencies:
+      - apache-airflow-providers-cncf-kubernetes>=7.2.0

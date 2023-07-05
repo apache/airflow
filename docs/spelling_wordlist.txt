@@ -599,6 +599,7 @@ fn
 fo
 followsa
 formatter
+formatters
 Formaturas
 forwardability
 forwardable
@@ -1055,6 +1056,7 @@ ot
 otel
 overridable
 oversubscription
+PaaS
 Pagerduty
 pagerduty
 pageviews
@@ -1426,7 +1428,7 @@ Subdirectory
 subdirectory
 subfolder
 subfolders
-Submodules
+submodule
 submodules
 subnet
 subnets

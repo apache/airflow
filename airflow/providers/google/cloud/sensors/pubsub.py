@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
@@ -103,10 +104,9 @@ class PubSubPullSensor(BaseSensorOperator):
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         poke_interval: float = 10.0,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
-
         super().__init__(**kwargs)
         self.gcp_conn_id = gcp_conn_id
         self.project_id = project_id
