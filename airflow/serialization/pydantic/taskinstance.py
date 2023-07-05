@@ -24,6 +24,7 @@ import pendulum
 from pydantic import BaseModel as BaseModelPydantic
 from sqlalchemy.orm import Session
 
+from airflow.models import Operator
 from airflow.models.taskinstance import hybrid_property
 from airflow.utils.context import Context
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -32,7 +33,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
-    from airflow.models import DagRun, Operator
+    from airflow.models import DagRun
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.taskinstance import TaskInstance
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
