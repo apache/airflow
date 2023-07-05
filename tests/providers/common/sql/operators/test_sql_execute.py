@@ -316,7 +316,7 @@ FORGOT TO COMMENT"""
         (DB_SCHEMA_NAME, "popular_orders_day_of_week", "orders_placed", 3, "int4"),
     ]
     dbapi_hook.get_connection.return_value = Connection(
-        conn_id="sql_default", conn_type="postgres", host="host", port=1234
+        conn_id="sql_default", conn_type="postgresql", host="host", port=1234
     )
     dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [rows, []]
 

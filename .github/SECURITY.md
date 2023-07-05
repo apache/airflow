@@ -1,37 +1,28 @@
- .. Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
 
- ..   http://www.apache.org/licenses/LICENSE-2.0
+   http://www.apache.org/licenses/LICENSE-2.0
 
- .. Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+-->
 
-Security Model
---------------
+This document contains information on how to report security vulnerabilities in Apache Airflow and
+how the security issues reported to Apache Airflow security team are handled. If you would like
+to learn about the security model of Airflow head to
+[Airflow Security](https://airflow.apache.org/docs/apache-airflow/stable/security/)
 
-In the Airflow security model, the system administrators are fully trusted.
-They are the only ones who can upload new DAGs, which gives them the ability
-to execute any code on the server.
-
-Authenticated web interface and API users with Admin/Op permissions are trusted,
-but to a lesser extent: they can configure the DAGs which gives them some control,
-but not arbitrary code execution.
-
-Authenticated Web interface and API users with 'regular' permissions are trusted
-to the point where they can impact resource consumption and pause/unpause configured DAGs,
-but not otherwise influence their functionality.
-
-Reporting Vulnerabilities
--------------------------
+## Reporting Vulnerabilities
 
 **⚠️ Please do not file GitHub issues for security vulnerabilities as they are public! ⚠️**
 
@@ -39,9 +30,9 @@ The Apache Software Foundation takes security issues very seriously. Apache
 Airflow specifically offers security features and is responsive to issues
 around its features. If you have any concern around Airflow Security or believe
 you have uncovered a vulnerability, we suggest that you get in touch via the
-e-mail address security@airflow.apache.org. In the message, try to provide a
-description of the issue and ideally a way of reproducing it. The security team
-will get back to you after assessing the description.
+e-mail address [security@airflow.apache.org](mailto:security@airflow.apache.org).
+In the message, try to provide a description of the issue and ideally a way of
+reproducing it. The security team will get back to you after assessing the report.
 
 Note that this security address should be used only for undisclosed
 vulnerabilities. Dealing with fixed issues or general questions on how to use
@@ -49,13 +40,30 @@ the security features should be handled regularly via the user and the dev
 lists. Please report any security problems to the project security address
 before disclosing it publicly.
 
-The `ASF Security team's page <https://www.apache.org/security/>`_ describes
-how vulnerability reports are handled, and includes PGP keys if you wish to use
-that.
+Before reporting vulnerabilities, please make sure to read and understand the
+[security model](https://airflow.apache.org/docs/apache-airflow/stable/security/) of Airflow, because
+some of the potential security vulnerabilities that are valid for projects that are publicly accessible
+from the Internet, are not valid for Airflow. Airflow is not designed to be used by untrusted users, and some
+trusted users are trusted enough to do a variety of operations that could be considered as vulnerabilities
+in other products/circumstances. Therefore, some potential security vulnerabilities do not
+apply to Airflow, or have a different severity than some generic scoring systems (for example `CVSS`)
+calculation suggests.
 
+The [ASF Security team's page](https://www.apache.org/security/) describes
+how vulnerability reports are handled in general by all ASF projects, and includes PGP keys if
+you wish to use them when you report the issues.
 
-Handling security issues in Airflow
------------------------------------
+## Security vulnerabilities in Airflow and Airflow community managed providers
+
+Airflow core package is released separately from provider packages. While Airflow comes with ``constraints``
+which describe which version of providers have been tested when the version of Airflow was released, the
+users of Airflow are advised to install providers independently from Airflow core when they want to apply
+security fixes found and released in providers. Therefore, the issues found and fixed in providers do
+not apply to the Airflow core package. There are also Airflow providers released by 3rd-parties, but the
+Airflow community is not responsible for releasing and announcing security vulnerabilities in them, this
+is handled entirely by the 3rd-parties that release their own providers.
+
+## Handling security issues in Airflow
 
 The security issues in Airflow are handled by the Airflow Security Team. The team consists
 of selected PMC members that are interested in looking at, discussing about and fixing the
@@ -80,7 +88,7 @@ There are certain expectations from the members of the security team:
   experts that are available through Airflow stakeholders. The intent about involving 3rd parties has
   to be discussed and agreed up at security@airflow.apache.org.
 
-* They have to have an `ICLA <https://www.apache.org/licenses/contributor-agreements.html>`_ signed with
+* They have to have an [ICLA](https://www.apache.org/licenses/contributor-agreements.html) signed with
   Apache Software Foundation.
 
 * The security team members might inform 3rd parties about fixes, for example in order to assess if the fix
@@ -92,7 +100,7 @@ There are certain expectations from the members of the security team:
   with the intent of minimizing the time between the fix being available and the fix being released. In this
   case the PR might be sent to review and comment to the PMC members on private list, in order to request
   an expedited voting on the release. The voting for such release might be done on the
-  ``private@airflow.apache.org`` mailing list and should be made public at the ``dev@apache.airflow.org``
+  `private@airflow.apache.org` mailing list and should be made public at the `dev@apache.airflow.org`
   mailing list as soon as the release is ready to be announced.
 
 * The security team members working on the fix might be mentioned as remediation developers in the CVE
@@ -104,22 +112,5 @@ There are certain expectations from the members of the security team:
   release process. This is facilitated by the security tool provided by the Apache Software Foundation.
 
 * Severity of the issue is determined based on the criteria described in the
-  `Severity Rating blog post <https://security.apache.org/blog/severityrating/>`_  by the Apache Software
+  [Severity Rating blog post](https://security.apache.org/blog/severityrating/)  by the Apache Software
   Foundation Security team
-
-Releasing Airflow with security patches
----------------------------------------
-
-Apache Airflow uses strict `SemVer <https://semver.org>`_ versioning policy, which means that we strive for
-any release of a given ``MAJOR`` Version (version "2" currently) to be backwards compatible. When we
-release ``MINOR`` version, the development continues in the ``main`` branch where we prepare the next
-``MINOR`` version, but we release ``PATCHLEVEL`` releases with selected bugfixes (including security
-bugfixes) cherry-picked to the latest released ``MINOR`` line of Apache Airflow. At the moment, when we
-release a new ``MINOR`` version, we stop releasing ``PATCHLEVEL`` releases for the previous ``MINOR`` version.
-
-For example, when we released  ``2.6.0`` version on April 30, 2023, until we release ``2.7.0`` version,
-all the security patches will be cherry-picked and released in ``2.6.*`` versions only. There will be no
-``2.5.*`` versions  released after ``2.6.0`` has been released.
-
-This means that in order to apply security fixes with Apache Airflow software released by us, you
-MUST upgrade to the latest ``MINOR`` version of Airflow.

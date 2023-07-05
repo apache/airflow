@@ -45,9 +45,9 @@ def get_default_delete_local_copy():
 
 class WasbTaskHandler(FileTaskHandler, LoggingMixin):
     """
-    WasbTaskHandler is a python log handler that handles and reads
-    task instance logs. It extends airflow FileTaskHandler and
-    uploads to and reads from Wasb remote storage.
+    WasbTaskHandler is a python log handler that handles and reads task instance logs.
+
+    It extends airflow FileTaskHandler and uploads to and reads from Wasb remote storage.
     """
 
     trigger_should_wrap = True
@@ -171,6 +171,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
     ) -> tuple[str, dict[str, bool]]:
         """
         Read logs of given task instance and try_number from Wasb remote storage.
+
         If failed, read the log from task instance host machine.
 
         todo: when min airflow version >= 2.6, remove this method
@@ -207,8 +208,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     def wasb_read(self, remote_log_location: str, return_error: bool = False):
         """
-        Returns the log found at the remote_log_location. Returns '' if no
-        logs are found or there is an error.
+        Return the log found at the remote_log_location. Returns '' if no logs are found or there is an error.
 
         :param remote_log_location: the log's location in remote storage
         :param return_error: if True, returns a string error message if an
@@ -226,8 +226,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     def wasb_write(self, log: str, remote_log_location: str, append: bool = True) -> bool:
         """
-        Writes the log to the remote_log_location. Fails silently if no hook
-        was created.
+        Writes the log to the remote_log_location. Fails silently if no hook was created.
 
         :param log: the log to write to the remote_log_location
         :param remote_log_location: the log's location in remote storage

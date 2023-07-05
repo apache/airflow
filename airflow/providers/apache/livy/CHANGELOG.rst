@@ -17,12 +17,29 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog for ``apache-airflow-providers-apache-livy``
-------------------------------------------------------
+
+``apache-airflow-providers-apache-livy``
+
+
+Changelog
+---------
+
+3.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'LivyHook' TypeError exception on 'session_id' log format (#32051)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
 
 3.5.1
 .....
