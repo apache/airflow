@@ -538,6 +538,39 @@ class TestBaseChartTest:
             == base64.b64decode(doc["data"]["connection"]).decode("utf-8")
         )
 
+    def test_priority_classes(self):
+        pc = [
+            {"name": "class1", "preemptionPolicy": "PreemptLowerPriority", "value": 1000},
+            {"name": "class2", "preemptionPolicy": "Never", "value": 10000},
+        ]
+        objs = render_chart(
+            "my-release",
+            show_only=["templates/priorityclasses/priority-classes.yaml"],
+            values={"priorityClasses": pc},
+        )
+
+        assert len(objs) == 2
+
+        for i in range(len(objs)):
+            assert objs[i]["kind"] == "PriorityClass"
+            assert objs[i]["apiVersion"] == "scheduling.k8s.io/v1"
+            assert objs[i]["metadata"]["name"] == ("my-release" + "-" + pc[i]["name"])
+            assert objs[i]["preemptionPolicy"] == pc[i]["preemptionPolicy"]
+            assert objs[i]["value"] == pc[i]["value"]
+
+    def test_priority_classes_default_preemption(self):
+        obj = render_chart(
+            "my-release",
+            show_only=["templates/priorityclasses/priority-classes.yaml"],
+            values={
+                "priorityClasses": [
+                    {"name": "class1", "value": 10000},
+                ]
+            },
+        )[0]
+
+        assert obj["preemptionPolicy"] == "PreemptLowerPriority"
+
     @staticmethod
     def default_trigger_obj(version):
         if version == "default":
