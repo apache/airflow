@@ -1,4 +1,4 @@
-from airflow.providers.google.cloud.operators.cloud_batch import CloudBatchSubmitJobOperator, CloudBatchDeleteJobOperator
+from airflow.providers.google.cloud.operators.cloud_batch import CloudBatchSubmitJobOperator, CloudBatchDeleteJobOperator, CloudBatchListJobsOperator, CloudBatchListTasksOperator
 from airflow.exceptions import TaskDeferred, AirflowException
 from google.cloud import batch_v1
 from unittest import mock
@@ -12,7 +12,6 @@ JOB_NAME = 'test'
 JOB = batch_v1.Job()
 JOB.name = JOB_NAME
 
-
 class TestCloudBatchSubmitJobOperator:
 
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
@@ -24,14 +23,13 @@ class TestCloudBatchSubmitJobOperator:
             region=REGION,
             job_name=JOB_NAME,
             job=JOB)
-        
+
         completed_job = operator.execute(context=mock.MagicMock())
 
-        assert isinstance(completed_job, batch_v1.Job)
-        assert completed_job.name == JOB_NAME
+        assert completed_job['name'] == JOB_NAME
 
         mock.return_value.submit_build_job.assert_called_with(
-            JOB_NAME, JOB, REGION, PROJECT_ID)
+            job_name=JOB_NAME, job=JOB, region=REGION)
         mock.return_value.wait_for_job.assert_called()
 
     @mock.patch(CLOUD_BUILD_HOOK_PATH)
@@ -60,10 +58,10 @@ class TestCloudBatchSubmitJobOperator:
 
         event = {"status": "success",
                  "job_name": JOB_NAME, "message": "test error"}
-        completed_job = operator.execute_complete(context=mock.MagicMock(), event=event)
+        completed_job = operator.execute_complete(
+            context=mock.MagicMock(), event=event)
 
-        assert isinstance(completed_job, batch_v1.Job)
-        assert completed_job.name == JOB_NAME
+        assert completed_job['name'] == JOB_NAME
 
         mock.return_value.get_job.assert_called_once_with(job_name=JOB_NAME)
 
@@ -100,10 +98,87 @@ class TestCloudBatchDeleteJobOperator:
         operator.execute(context=mock.MagicMock())
 
         hook_mock.return_value.delete_job.assert_called_once_with(
-            JOB_NAME, REGION, PROJECT_ID)
+            job_name=JOB_NAME, region=REGION, project_id=PROJECT_ID)
         delete_operation_mock.result.assert_called_once()
 
     def _delete_operation_mock(self):
         operation = mock.MagicMock()
         operation.result.return_value = mock.MagicMock()
         return operation
+
+
+class TestCloudBatchListJobsOperator:
+
+    @mock.patch(CLOUD_BUILD_HOOK_PATH)
+    def test_execute(self, hook_mock):
+
+        filter = 'filter_description'
+        limit = 2
+        operator = CloudBatchListJobsOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            filter=filter,
+            limit=limit
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        hook_mock.return_value.list_jobs.assert_called_once_with(
+            region=REGION, project_id=PROJECT_ID, filter=filter, limit=limit)
+
+    @mock.patch(CLOUD_BUILD_HOOK_PATH)
+    def test_execute_with_invalid_limit(self, hook_mock):
+
+        filter = 'filter_description'
+        limit = -1
+
+        with pytest.raises(expected_exception=AirflowException):
+            CloudBatchListJobsOperator(
+                task_id=TASK_ID,
+                project_id=PROJECT_ID,
+                region=REGION,
+                filter=filter,
+                limit=limit
+            )
+
+
+class TestCloudBatchListTasksOperator:
+
+    @mock.patch(CLOUD_BUILD_HOOK_PATH)
+    def test_execute(self, hook_mock):
+
+        filter = 'filter_description'
+        limit = 2
+        job_name = 'test_job'
+
+        operator = CloudBatchListTasksOperator(
+            task_id=TASK_ID,
+            project_id=PROJECT_ID,
+            region=REGION,
+            job_name=job_name,
+            filter=filter,
+            limit=limit
+        )
+
+        operator.execute(context=mock.MagicMock())
+
+        hook_mock.return_value.list_tasks.assert_called_once_with(
+            region=REGION, project_id=PROJECT_ID, filter=filter, job_name=job_name, limit=limit, group_name='group0')
+
+    @mock.patch(CLOUD_BUILD_HOOK_PATH)
+    def test_execute_with_invalid_limit(self, hook_mock):
+
+        filter = 'filter_description'
+        limit = -1
+        job_name = 'test_job'
+
+        with pytest.raises(expected_exception=AirflowException):
+            CloudBatchListTasksOperator(
+                task_id=TASK_ID,
+                project_id=PROJECT_ID,
+                region=REGION,
+                job_name=job_name,
+                filter=filter,
+                limit=limit
+            )

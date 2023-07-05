@@ -1,18 +1,24 @@
 from airflow.models.baseoperator import BaseOperator
 from google.cloud import batch_v1
-from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchHook, CloudBatchAsyncHook
+from airflow.providers.google.cloud.hooks.cloud_batch import CloudBatchHook
 from airflow.providers.google.cloud.triggers.cloud_batch import CloudBatchJobFinishedTrigger
 from typing import Sequence
 from typing import Optional
 from typing import Union
-from google.protobuf.json_format import MessageToJson
-import json
 from airflow.utils.context import Context
 from airflow.exceptions import AirflowException
 from google.api_core import operation  # type: ignore
 
 
 class CloudBatchSubmitJobOperator(BaseOperator):
+    template_fields = (
+        'project_id',
+        'region',
+        'gcp_conn_id',
+        'impersonation_chain',
+        'job_name'
+    )
+
     def __init__(
         self,
         project_id: str,
@@ -20,7 +26,7 @@ class CloudBatchSubmitJobOperator(BaseOperator):
         job_name: str,
         job: batch_v1.Job,
         polling_period_seconds: float = 10,
-        timeout: Union[float, None] = None,
+        timeout_seconds: Union[float, None] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         deferrable: bool = False,
@@ -31,10 +37,12 @@ class CloudBatchSubmitJobOperator(BaseOperator):
 
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
-        :param sleep_time: Optional: Control the rate of the poll for the result of deferrable run.
+        :param job_name: Required. The name of the job to create.
+        :param job: Required. The job descriptor containing the configuration of the job to submit.
+        :param polling_period_seconds: Optional: Control the rate of the poll for the result of deferrable run.
             By default, the trigger will poll every 10 seconds.
         :param timeout: The timeout for this request.
-        :param gcp_conn_id:
+        :param gcp_conn_id: The connection ID used to connect to Google Cloud.
         :param impersonation_chain: Optional service account to impersonate using short-term
             credentials, or chained list of accounts required to get the access_token
             of the last account in the list, which will be impersonated in the request.
@@ -52,7 +60,7 @@ class CloudBatchSubmitJobOperator(BaseOperator):
         self.job_name = job_name
         self.job = job
         self.polling_period_seconds = polling_period_seconds
-        self.timeout = timeout
+        self.timeout_seconds = timeout_seconds
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
@@ -62,12 +70,13 @@ class CloudBatchSubmitJobOperator(BaseOperator):
         hook: CloudBatchHook = CloudBatchHook(
             self.gcp_conn_id, self.impersonation_chain)
         job = hook.submit_build_job(
-            self.job_name, self.job, self.region, self.project_id)
+            job_name=self.job_name, job=self.job, region=self.region)
 
         if not self.deferrable:
             completed_job = hook.wait_for_job(
-                job_name=job.name, polling_period_seconds=self.polling_period_seconds, timeout=self.timeout)
-            return self._convert_job_to_json_serializable(completed_job)
+                job_name=job.name, polling_period_seconds=self.polling_period_seconds, timeout=self.timeout_seconds)
+
+            return batch_v1.Job.to_dict(completed_job)
 
         else:
             self.defer(
@@ -89,18 +98,21 @@ class CloudBatchSubmitJobOperator(BaseOperator):
             hook: CloudBatchHook = CloudBatchHook(
                 self.gcp_conn_id, self.impersonation_chain)
             job = hook.get_job(job_name=event["job_name"])
-            return self._convert_job_to_json_serializable(job)
+            return batch_v1.Job.to_dict(job)
         else:
             raise AirflowException(
                 f"Unexpected error in the operation: {event['message']}")
 
-    def _convert_job_to_json_serializable(self, job: batch_v1.Job):
-        json_representation = MessageToJson(job._pb)
-        convertable_object = json.loads(json_representation, object_hook=batch_v1.Job)
-        return convertable_object
-
 
 class CloudBatchDeleteJobOperator(BaseOperator):
+    template_fields = (
+        'project_id',
+        'region',
+        'gcp_conn_id',
+        'impersonation_chain',
+        'job_name'
+    )
+
     def __init__(
         self,
         project_id: str,
@@ -111,6 +123,25 @@ class CloudBatchDeleteJobOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs
     ) -> None:
+        """
+        Deletes a job and wait for the operation to be completed.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param region: Required. The ID of the Google Cloud region that the service belongs to.
+        :param job_name: Required. The name of the job to be deleted.
+        :param timeout: The timeout for this request.
+        :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+        :param impersonation_chain: Optional service account to impersonate using short-term
+            credentials, or chained list of accounts required to get the access_token
+            of the last account in the list, which will be impersonated in the request.
+            If set as a string, the account must grant the originating account
+            the Service Account Token Creator IAM role.
+            If set as a sequence, the identities from the list must grant
+            Service Account Token Creator IAM role to the directly preceding identity, with first
+            account from the list granting this role to the originating account (templated).
+
+        """
+
         super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region
@@ -124,7 +155,7 @@ class CloudBatchDeleteJobOperator(BaseOperator):
             self.gcp_conn_id, self.impersonation_chain)
 
         operation = hook.delete_job(
-            self.job_name, self.region, self.project_id)
+            job_name=self.job_name, region=self.region, project_id=self.project_id)
 
         self._wait_for_operation(operation)
 
@@ -134,3 +165,133 @@ class CloudBatchDeleteJobOperator(BaseOperator):
         except Exception:
             error = operation.exception(timeout=self.timeout)
             raise AirflowException(error)
+
+
+class CloudBatchListJobsOperator(BaseOperator):
+    template_fields = (
+        'project_id',
+        'region',
+        'gcp_conn_id',
+        'impersonation_chain',
+    )
+
+    def __init__(
+        self,
+        project_id: str,
+        region: str,
+        gcp_conn_id: str = "google_cloud_default",
+        filter: Optional[str] = None,
+        limit: Optional[int] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs
+    ) -> None:
+        """
+        List Cloud Batch jobs.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param region: Required. The ID of the Google Cloud region that the service belongs to.
+        :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+        :param filter: The filter based on which to list the jobs. If left empty, all the jobs are listed.
+        :param limit: The number of jobs to list. If left empty, all the jobs matching the filter will be returned.
+        :param impersonation_chain: Optional service account to impersonate using short-term
+            credentials, or chained list of accounts required to get the access_token
+            of the last account in the list, which will be impersonated in the request.
+            If set as a string, the account must grant the originating account
+            the Service Account Token Creator IAM role.
+            If set as a sequence, the identities from the list must grant
+            Service Account Token Creator IAM role to the directly preceding identity, with first
+            account from the list granting this role to the originating account (templated).
+
+        """
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.region = region
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.filter = filter
+        self.limit = limit
+        if limit is not None and limit < 0:
+            raise AirflowException(
+                "The limit for the list jobs request should be greater or equal to zero")
+
+    def execute(self, context):
+        hook: CloudBatchHook = CloudBatchHook(
+            self.gcp_conn_id, self.impersonation_chain)
+
+        jobs_list = hook.list_jobs(
+            region=self.region,
+            project_id=self.project_id,
+            filter=self.filter,
+            limit=self.limit)
+
+        return [batch_v1.Job.to_dict(job) for job in jobs_list]
+
+
+class CloudBatchListTasksOperator(BaseOperator):
+    template_fields = (
+        'project_id',
+        'region',
+        'gcp_conn_id',
+        'impersonation_chain',
+        'job_name'
+    )
+
+    def __init__(
+        self,
+        project_id: str,
+        region: str,
+        job_name: str,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        group_name: str = 'group0',
+        filter: Optional[str] = None,
+        limit: Optional[int] = None,
+        **kwargs
+    ) -> None:
+        """
+        List Cloud Batch tasks for a given job.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param region: Required. The ID of the Google Cloud region that the service belongs to.
+        :param job_name: Required. The name of the job for which to list tasks.
+        :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+        :param filter: The filter based on which to list the jobs. If left empty, all the jobs are listed.
+        :param group_name: The name of the group that owns the task. By default it's `group0`.
+        :param limit: The number of tasks to list. If left empty, all the tasks matching the filter will be returned.
+        :param impersonation_chain: Optional service account to impersonate using short-term
+            credentials, or chained list of accounts required to get the access_token
+            of the last account in the list, which will be impersonated in the request.
+            If set as a string, the account must grant the originating account
+            the Service Account Token Creator IAM role.
+            If set as a sequence, the identities from the list must grant
+            Service Account Token Creator IAM role to the directly preceding identity, with first
+            account from the list granting this role to the originating account (templated).
+
+        """
+
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.region = region
+        self.job_name = job_name
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.group_name = group_name
+        self.filter = filter
+        self.limit = limit
+        if limit is not None and limit < 0:
+            raise AirflowException(
+                "The limit for the list jobs request should be greater or equal to zero")
+
+    def execute(self, context):
+        hook: CloudBatchHook = CloudBatchHook(
+            self.gcp_conn_id, self.impersonation_chain)
+
+        tasks_list = hook.list_tasks(
+            region=self.region,
+            project_id=self.project_id,
+            job_name=self.job_name,
+            group_name=self.group_name,
+            filter=self.filter,
+            limit=self.limit)
+
+        return [batch_v1.Task.to_dict(task) for task in tasks_list]

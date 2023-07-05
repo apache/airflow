@@ -134,7 +134,8 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
                     self.log.info("Current job status is: %s", status)
                     self.log.info("Sleeping for %s seconds.",
                                   self.polling_period_seconds)
-                    timeout -= self.polling_period_seconds
+                    if timeout != None:
+                        timeout -= self.polling_period_seconds
                     await asyncio.sleep(self.polling_period_seconds)
                    
                     

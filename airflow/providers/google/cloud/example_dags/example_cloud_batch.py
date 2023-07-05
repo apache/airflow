@@ -33,6 +33,7 @@ clean2_task_name = 'clean_job_2'
 
 def _get_jobs_names(ti):
     pulled = ti.xcom_pull(task_ids=[list_jobs_task_name], key='return_value')
+    print("FREDDY", pulled)
     name1 = pulled[0][0]['name'].split('/')[-1]
     name2 = pulled[0][1]['name'].split('/')[-1]
     return [name1, name2]
@@ -110,7 +111,7 @@ with models.DAG(
         job_name=job1_name,
         job=_create_job(),
         dag=dag,
-        deferrable=True
+        deferrable=False
     )
 
     submit2 = CloudBatchSubmitJobOperator(
@@ -120,7 +121,7 @@ with models.DAG(
         job_name=job2_name,
         job=_create_job(),
         dag=dag,
-        deferrable=True
+        deferrable=False
     )
 
     list_tasks = CloudBatchListTasksOperator(
@@ -171,28 +172,29 @@ with models.DAG(
 
     )
 
-    clean_job1 = CloudBatchDeleteJobOperator(
-        task_id=clean1_task_name,
-        project_id=PROJECT_ID,
-        region=region,
-        job_name=job1_name,
-        dag=dag,
-        trigger_rule="one_failed"
-    )
+    # clean_job1 = CloudBatchDeleteJobOperator(
+    #     task_id=clean1_task_name,
+    #     project_id=PROJECT_ID,
+    #     region=region,
+    #     job_name=job1_name,
+    #     dag=dag,
+    #     trigger_rule="one_failed"
+    # )
 
-    clean_job2 = CloudBatchDeleteJobOperator(
-        task_id=clean2_task_name,
-        project_id=PROJECT_ID,
-        region=region,
-        job_name=job2_name,
-        dag=dag,
-        trigger_rule="one_failed"
-    )
+    # clean_job2 = CloudBatchDeleteJobOperator(
+    #     task_id=clean2_task_name,
+    #     project_id=PROJECT_ID,
+    #     region=region,
+    #     job_name=job2_name,
+    #     dag=dag,
+    #     trigger_rule="one_failed"
+    #  )
 
-    (submit1, submit2) >> list_tasks >> assert_tasks >> list_jobs >> get_name >> (
-    delete_job1, delete_job2)
-    delete_job1 >> clean_job1
-    delete_job2 >> clean_job2
+    # submit1>>submit2>>list_tasks>>assert_tasks>>list_jobs>>get_name>>delete_job1>>delete_job2
+
+    (submit1, submit2) >> list_tasks >> assert_tasks >> list_jobs >> get_name >> (delete_job1, delete_job2)
+    # delete_job1 >> clean_job1
+    # delete_job2 >> clean_job2
 
     from tests.system.utils.watcher import watcher
 
