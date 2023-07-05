@@ -33,6 +33,7 @@ class AwsBaseWaiterTrigger(BaseTrigger):
 
     :param serialized_fields: Fields that are specific to the subclass trigger and need to be serialized
         to be passed to the __init__ method on deserialization.
+        The conn id, region, and waiter delay & attempts are always serialized.
         format: {<parameter_name>: <parameter_value>}
 
     :param waiter_name: The name of the (possibly custom) boto waiter to use.
