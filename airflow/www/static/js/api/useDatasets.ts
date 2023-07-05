@@ -24,7 +24,7 @@ import { getMetaValue } from "src/utils";
 import type { DatasetListItem } from "src/types";
 import type { unitOfTime } from "moment";
 
-interface DatasetsData {
+export interface DatasetsData {
   datasets: DatasetListItem[];
   totalEntries: number;
 }
