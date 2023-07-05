@@ -28,7 +28,6 @@ if [[ -d "${FILES_DIR}" ]]; then
     sudo chown "${HOST_USER_ID}":"${HOST_GROUP_ID}" "${AIRFLOW__CORE__DAGS_FOLDER}"
 else
     export AIRFLOW__CORE__DAGS_FOLDER="${AIRFLOW_HOME}/dags"
-    export AIRFLOW__CORE__PLUGINS_FOLDER="${AIRFLOW_HOME}/plugins"
 fi
 
 
