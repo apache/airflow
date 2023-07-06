@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-05T15:44:13Z
+# This constraints file was automatically generated on 2023-07-06T04:39:18Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -37,7 +37,7 @@ PyYAML==6.0
 Pygments==2.15.1
 SQLAlchemy-JSONField==1.0.1.post0
 SQLAlchemy-Utils==0.41.1
-SQLAlchemy==1.4.48
+SQLAlchemy==1.4.49
 SecretStorage==3.3.3
 Shapely==1.8.5.post1
 Sphinx==5.3.0
@@ -67,7 +67,7 @@ amqp==5.1.1
 analytics-python==1.4.post1
 ansiwrap==0.8.4
 anyascii==0.3.2
-anyio==3.7.0
+anyio==3.7.1
 apache-airflow-providers-airbyte==3.3.1
 apache-airflow-providers-alibaba==2.4.1
 apache-airflow-providers-amazon==8.2.0
@@ -162,7 +162,7 @@ async-timeout==4.0.2
 atlasclient==1.0.0
 atlassian-python-api==3.39.0
 attrs==23.1.0
-aws-sam-translator==1.70.0
+aws-sam-translator==1.71.0
 aws-xray-sdk==2.12.0
 azure-batch==14.0.0
 azure-common==1.1.28
@@ -275,42 +275,42 @@ gevent==22.10.2
 gitdb==4.0.10
 google-ads==21.2.0
 google-api-core==2.11.0
-google-api-python-client==2.91.0
+google-api-python-client==2.92.0
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==1.0.0
 google-auth==2.21.0
 google-cloud-aiplatform==1.27.0
-google-cloud-appengine-logging==1.3.0
+google-cloud-appengine-logging==1.3.1
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.11.2
 google-cloud-bigquery-datatransfer==3.11.2
-google-cloud-bigquery-storage==2.20.0
+google-cloud-bigquery-storage==2.21.0
 google-cloud-bigquery==3.11.3
 google-cloud-bigtable==2.19.0
 google-cloud-build==3.17.1
 google-cloud-compute==1.12.0
 google-cloud-container==2.26.0
-google-cloud-core==2.3.2
-google-cloud-datacatalog==3.13.0
+google-cloud-core==2.3.3
+google-cloud-datacatalog==3.13.1
 google-cloud-dataflow-client==0.8.4
-google-cloud-dataform==0.5.1
-google-cloud-dataplex==1.5.0
-google-cloud-dataproc-metastore==1.11.0
+google-cloud-dataform==0.5.2
+google-cloud-dataplex==1.5.1
+google-cloud-dataproc-metastore==1.12.0
 google-cloud-dataproc==5.4.2
 google-cloud-dlp==3.12.2
-google-cloud-kms==2.17.0
+google-cloud-kms==2.18.0
 google-cloud-language==2.10.1
 google-cloud-logging==3.5.0
-google-cloud-memcache==1.7.1
-google-cloud-monitoring==2.15.0
-google-cloud-orchestration-airflow==1.9.0
+google-cloud-memcache==1.7.2
+google-cloud-monitoring==2.15.1
+google-cloud-orchestration-airflow==1.9.1
 google-cloud-os-login==2.9.1
 google-cloud-pubsub==2.17.1
-google-cloud-redis==2.13.0
-google-cloud-resource-manager==1.10.1
-google-cloud-secret-manager==2.16.1
+google-cloud-redis==2.13.1
+google-cloud-resource-manager==1.10.2
+google-cloud-secret-manager==2.16.2
 google-cloud-spanner==3.36.0
-google-cloud-speech==2.20.1
+google-cloud-speech==2.21.0
 google-cloud-storage==2.10.0
 google-cloud-tasks==2.13.2
 google-cloud-texttospeech==2.14.1
@@ -532,7 +532,7 @@ qds-sdk==1.16.1
 reactivex==4.0.4
 readme-renderer==40.0
 redis==4.6.0
-redshift-connector==2.0.911
+redshift-connector==2.0.912
 regex==2023.6.3
 requests-file==1.5.1
 requests-kerberos==0.14.0
