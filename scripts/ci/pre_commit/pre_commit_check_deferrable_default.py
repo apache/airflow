@@ -23,6 +23,7 @@ import glob
 import itertools
 import os
 import sys
+from typing import Iterator
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
 
@@ -61,7 +62,7 @@ def _is_valid_deferrable_default(default: ast.AST) -> bool:
     )
 
 
-def check_deferrable_default(module_filename: str) -> bool:
+def iter_check_deferrable_default_errors(module_filename: str) -> Iterator[str]:
     ast_obj = ast.parse(open(module_filename).read())
     cls_nodes = (node for node in ast.iter_child_nodes(ast_obj) if isinstance(node, ast.ClassDef))
     init_method_nodes = (
@@ -70,8 +71,6 @@ def check_deferrable_default(module_filename: str) -> bool:
         for node in ast.iter_child_nodes(cls_node)
         if isinstance(node, ast.FunctionDef) and node.name == "__init__"
     )
-
-    invalid_value_exists: bool = False
 
     for node in init_method_nodes:
         args = node.args
@@ -82,27 +81,29 @@ def check_deferrable_default(module_filename: str) -> bool:
                 continue
             if argument.arg != "deferrable" or _is_valid_deferrable_default(default):
                 continue
-            print(
-                f"{module_filename}:{default.lineno}\n"
-                "Incorrect deferrable default value\n"
-                "Please set the default value of deferrbale to "
-                """"conf.getboolean("operators", "default_deferrable", fallback=False)"\n"""
-                f"See: {DEFERRABLE_DOC}\n"
-            )
-            invalid_value_exists = True
-    return invalid_value_exists
+            yield f"{module_filename}:{default.lineno}"
 
 
-if __name__ == "__main__":
+def main() -> int:
     modules = itertools.chain(
         glob.glob(f"{ROOT_DIR}/airflow/**/sensors/**.py", recursive=True),
         glob.glob(f"{ROOT_DIR}/airflow/**/operators/**.py", recursive=True),
     )
 
-    invalid_value_exists: bool = False
-    for module_path in filter(lambda module_path: "__init__.py" not in module_path, modules):
-        if check_deferrable_default(module_path):
-            invalid_value_exists = True
+    invalid_value_errors = [iter_check_deferrable_default_errors(m) for m in modules]
 
-    if invalid_value_exists:
-        sys.exit(1)
+    if invalid_value_errors:
+        print("Incorrect deferrable default values detected at:")
+        for error in invalid_value_errors:
+            print(f"  {error}")
+        print(
+            """Please set the default value of deferrbale to """
+            """"conf.getboolean("operators", "default_deferrable", fallback=False)"\n"""
+            f"See: {DEFERRABLE_DOC}\n"
+        )
+
+    return len(invalid_value_errors)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
