@@ -53,6 +53,8 @@ AsyncCredentials = Union[AsyncClientSecretCredential, AsyncDefaultAzureCredentia
 
 def _ensure_prefixes(conn_type):
     """
+    Deprecated.
+
     Remove when provider min airflow version >= 2.5.0 since this is handled by
     provider manager from that version.
     """

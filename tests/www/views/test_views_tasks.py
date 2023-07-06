@@ -323,6 +323,15 @@ def test_views_get(admin_client, url, contents):
         check_content_in_response(content, resp)
 
 
+def test_rendered_task_view(admin_client):
+    url = f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
+    resp = admin_client.get(url, follow_redirects=True)
+    resp_html = resp.data.decode("utf-8")
+    assert resp.status_code == 200
+    assert "<td>_try_number</td>" not in resp_html
+    assert "<td>try_number</td>" in resp_html
+
+
 def test_rendered_k8s(admin_client):
     url = f"rendered-k8s?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}"
     with unittest.mock.patch.object(settings, "IS_K8S_OR_K8SCELERY_EXECUTOR", True):
@@ -977,6 +986,7 @@ def test_task_instances(admin_client):
     assert resp.status_code == 200
     assert resp.json == {
         "also_run_this": {
+            "custom_operator_name": None,
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
@@ -1007,6 +1017,7 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "run_after_loop": {
+            "custom_operator_name": None,
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
@@ -1037,6 +1048,7 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "run_this_last": {
+            "custom_operator_name": None,
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
@@ -1067,6 +1079,7 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_0": {
+            "custom_operator_name": None,
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
@@ -1097,6 +1110,7 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_1": {
+            "custom_operator_name": None,
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
@@ -1127,6 +1141,7 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "runme_2": {
+            "custom_operator_name": None,
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,
@@ -1157,6 +1172,7 @@ def test_task_instances(admin_client):
             "updated_at": DEFAULT_DATE.isoformat(),
         },
         "this_will_skip": {
+            "custom_operator_name": None,
             "dag_id": "example_bash_operator",
             "duration": None,
             "end_date": None,

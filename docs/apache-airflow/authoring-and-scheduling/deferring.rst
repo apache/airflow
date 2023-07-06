@@ -56,6 +56,36 @@ Writing a deferrable operator takes a bit more work. There are some main points 
 * You can defer multiple times, and you can defer before/after your Operator does significant work, or only defer if certain conditions are met (e.g. a system does not have an immediate answer). Deferral is entirely under your control.
 * Any Operator can defer; no special marking on its class is needed, and it's not limited to Sensors.
 * In order for any changes to a Trigger to be reflected, the *triggerer* needs to be restarted whenever the Trigger is modified.
+* If you want add an operator or sensor that supports both deferrable and non-deferrable modes. It's suggested to add ``deferable: bool = conf.getboolean("operators", "default_deferrable", fallback=False)`` to the ``__init__`` method of the operator and use it to decide whether to run the operator in deferrable mode. You'll be able to configure the default value of ``deferrable`` of all the operators and sensors that supports switch between deferrable and non-deferrable mode through ``default_deferrable`` in the ``operator`` section. Here's an example of a sensor that supports both modes.::
+
+    import time
+    from datetime import timedelta
+
+    from airflow.sensors.base import BaseSensorOperator
+    from airflow.triggers.temporal import TimeDeltaTrigger
+
+
+    class WaitOneHourSensor(BaseSensorOperator):
+        def __init__(
+            self,
+            deferable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+            **kwargs
+        ):
+            super().__init__(**kwargs)
+            self.deferrable = deferable
+
+        def execute(self, context):
+            if deferrable:
+                self.defer(
+                    trigger=TimeDeltaTrigger(timedelta(hours=1)),
+                    method_name="execute_complete"
+                )
+            else:
+                time.sleep(3600)
+
+        def execute_complete(self, context, event=None):
+            # We have no more work to do here. Mark as complete.
+            return
 
 
 Triggering Deferral

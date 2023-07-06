@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This module provides everything to be able to search in mails for a specific attachment
-and also to download it.
+Search in emails for a specific attachment and also to download it.
+
 It uses the smtplib library that is already integrated in python 3.
 """
 from __future__ import annotations
@@ -302,8 +302,9 @@ class SmtpHook(BaseHook):
 
     def _get_email_list_from_str(self, addresses: str) -> list[str]:
         """
-        Extract a list of email addresses from a string. The string
-        can contain multiple email addresses separated by
+        Extract a list of email addresses from a string.
+
+        The string can contain multiple email addresses separated by
         any of the following delimiters: ',' or ';'.
 
         :param addresses: A string containing one or more email addresses.

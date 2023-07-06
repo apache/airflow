@@ -51,6 +51,7 @@ Committers
 - Dan Davydov (@aoen)
 - Daniel Imberman (@dimberman)
 - Daniel Standish (@dstandish)
+- Dennis Ferruzzi (@ferruzzi)
 - Elad Kalif (@eladkal)
 - Ephraim Anierobi (@ephraimbuddy)
 - Felix Uellendall (@feluelle)

@@ -98,14 +98,22 @@ Rich scheduling and execution semantics enable you to easily define complex pipe
 intervals. Backfilling allows you to (re-)run pipelines on historical data after making changes to your logic.
 And the ability to rerun partial pipelines after resolving an error helps maximize efficiency.
 
-Airflow's user interface provides both in-depth views of pipelines and individual tasks, and an overview of
-pipelines over time. From the interface, you can inspect logs and manage tasks, for example retrying a task in
+Airflow's user interface provides:
+
+  1. In-depth views of two things:
+
+    i. Pipelines
+    ii. Tasks
+
+  2. Overview of your pipelines over time
+
+From the interface, you can inspect logs and manage tasks, for example retrying a task in
 case of failure.
 
 The open-source nature of Airflow ensures you work on components developed, tested, and used by many other
 `companies <https://github.com/apache/airflow/blob/main/INTHEWILD.md>`_ around the world. In the active
 `community <https://airflow.apache.org/community>`_ you can find plenty of helpful resources in the form of
-blogs posts, articles, conferences, books, and more. You can connect with other peers via several channels
+blog posts, articles, conferences, books, and more. You can connect with other peers via several channels
 such as `Slack <https://s.apache.org/airflow-slack>`_ and mailing lists.
 
 Airflow as a Platform is highly customizable. By utilizing :doc:`public-airflow-interface` you can extend
@@ -115,7 +123,7 @@ Why not Airflow™?
 =================
 
 Airflow™ was built for finite batch workflows. While the CLI and REST API do allow triggering workflows,
-Airflow was not built for infinitely-running event-based workflows. Airflow is not a streaming solution.
+Airflow was not built for infinitely running event-based workflows. Airflow is not a streaming solution.
 However, a streaming system such as Apache Kafka is often seen working together with Apache Airflow. Kafka can
 be used for ingestion and processing in real-time, event data is written to a storage location, and Airflow
 periodically starts a workflow processing a batch of data.

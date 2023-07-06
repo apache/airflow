@@ -465,6 +465,7 @@ def _refresh_from_db(
         task_instance.queue = ti.queue
         task_instance.priority_weight = ti.priority_weight
         task_instance.operator = ti.operator
+        task_instance.custom_operator_name = ti.custom_operator_name
         task_instance.queued_dttm = ti.queued_dttm
         task_instance.queued_by_job_id = ti.queued_by_job_id
         task_instance.pid = ti.pid
@@ -854,6 +855,7 @@ def _refresh_from_task(
     # value that needs to be stored in the db.
     task_instance.executor_config = task.executor_config
     task_instance.operator = task.task_type
+    task_instance.custom_operator_name = getattr(task, "custom_operator_name", None)
 
 
 def _record_task_map_for_downstreams(
@@ -1175,6 +1177,7 @@ class TaskInstance(Base, LoggingMixin):
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
+    custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
@@ -1353,6 +1356,7 @@ class TaskInstance(Base, LoggingMixin):
             "max_tries": task.retries,
             "executor_config": task.executor_config,
             "operator": task.task_type,
+            "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
         }
 
@@ -1401,6 +1405,11 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def next_try_number(self) -> int:
         return self._try_number + 1
+
+    @property
+    def operator_name(self) -> str | None:
+        """@property: use a more friendly display name for the operator, if set."""
+        return self.custom_operator_name or self.operator
 
     def command_as_list(
         self,
