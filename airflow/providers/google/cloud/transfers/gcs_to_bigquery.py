@@ -564,7 +564,7 @@ class GCSToBigQueryOperator(BaseOperator):
         self.log.info("Creating external table: %s", self.destination_project_dataset_table)
         self.hook.create_empty_table(
             table_resource=table_obj_api_repr,
-            project_id=table.project,
+            project_id=self.project_id or self.hook.project_id,
             location=self.location,
             exists_ok=True,
         )
