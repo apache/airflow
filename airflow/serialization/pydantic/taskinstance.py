@@ -61,6 +61,7 @@ class TaskInstancePydantic(BaseModelPydantic):
     queue: str
     priority_weight: Optional[int]
     operator: str
+    custom_operator_name: Optional[str]
     queued_dttm: Optional[str]
     queued_by_job_id: Optional[int]
     pid: Optional[int]
