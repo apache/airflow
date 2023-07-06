@@ -96,7 +96,7 @@ class SpannerHook(GoogleBaseHook, DbApiHook):
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
         project_id, instance_id, database_id = self._get_conn_params()
-        if not instance_id or not database_id:
+        if not all([instance_id, database_id]):
             raise AirflowException("The instance_id or database_id were not specified")
         return f"spanner+spanner:///projects/{project_id}/instances/{instance_id}/databases/{database_id}"
 
