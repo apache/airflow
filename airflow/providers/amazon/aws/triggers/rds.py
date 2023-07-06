@@ -47,12 +47,14 @@ class RdsDbInstanceTrigger(BaseTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str,
+        region_name: str | None,
         response: dict[str, Any],
     ):
         self.db_instance_identifier = db_instance_identifier
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
+        self.region_name = region_name
         self.waiter_name = waiter_name
         self.response = response
 
@@ -65,13 +67,14 @@ class RdsDbInstanceTrigger(BaseTrigger):
                 "waiter_delay": str(self.waiter_delay),
                 "waiter_max_attempts": str(self.waiter_max_attempts),
                 "aws_conn_id": self.aws_conn_id,
+                "region_name": self.region_name,
                 "waiter_name": self.waiter_name,
                 "response": self.response,
             },
         )
 
     async def run(self):
-        self.hook = RdsHook(aws_conn_id=self.aws_conn_id)
+        self.hook = RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         async with self.hook.async_conn as client:
             waiter = client.get_waiter(self.waiter_name)
             await async_wait(
