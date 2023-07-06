@@ -24,6 +24,7 @@ import pendulum
 import pytest
 
 from airflow import settings
+from airflow.decorators import task, task_group
 from airflow.exceptions import AirflowException
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import TaskInstance as TI
@@ -132,6 +133,41 @@ class TestSkipMixin:
         executed_states = {"task2": get_state(ti2), "task3": get_state(ti3)}
 
         assert executed_states == expected_states
+
+    def test_mapped_tasks_skip_all_except(self, dag_maker):
+        with dag_maker("dag_test_skip_all_except") as dag:
+
+            @task
+            def branch_op(k):
+                ...
+
+            @task_group
+            def task_group_op(k):
+                branch_a = EmptyOperator(task_id="branch_a")
+                branch_b = EmptyOperator(task_id="branch_b")
+                branch_op(k) >> [branch_a, branch_b]
+
+            task_group_op.expand(k=[i for i in range(2)])
+
+        dag_maker.create_dagrun()
+        branch_op_ti_0 = TI(dag.get_task("task_group_op.branch_op"), execution_date=DEFAULT_DATE, map_index=0)
+        branch_op_ti_1 = TI(dag.get_task("task_group_op.branch_op"), execution_date=DEFAULT_DATE, map_index=1)
+        branch_a_ti_0 = TI(dag.get_task("task_group_op.branch_a"), execution_date=DEFAULT_DATE, map_index=0)
+        branch_a_ti_1 = TI(dag.get_task("task_group_op.branch_a"), execution_date=DEFAULT_DATE, map_index=1)
+        branch_b_ti_0 = TI(dag.get_task("task_group_op.branch_b"), execution_date=DEFAULT_DATE, map_index=0)
+        branch_b_ti_1 = TI(dag.get_task("task_group_op.branch_b"), execution_date=DEFAULT_DATE, map_index=1)
+
+        SkipMixin().skip_all_except(ti=branch_op_ti_0, branch_task_ids="task_group_op.branch_a")
+        SkipMixin().skip_all_except(ti=branch_op_ti_1, branch_task_ids="task_group_op.branch_b")
+
+        def get_state(ti):
+            ti.refresh_from_db()
+            return ti.state
+
+        assert get_state(branch_a_ti_0) == State.NONE
+        assert get_state(branch_b_ti_0) == State.SKIPPED
+        assert get_state(branch_a_ti_1) == State.SKIPPED
+        assert get_state(branch_b_ti_1) == State.NONE
 
     def test_raise_exception_on_not_accepted_branch_task_ids_type(self, dag_maker):
         with dag_maker("dag_test_skip_all_except_wrong_type"):
