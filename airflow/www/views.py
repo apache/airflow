@@ -3136,6 +3136,8 @@ class Airflow(AirflowBaseView):
         for ti in dag.get_task_instances(dttm, dttm):
             if ti.task_id not in task_instances:
                 task_instances[ti.task_id] = wwwutils.get_instance_with_map(ti, session)
+                # Need to add operator_name explicitly because it's not a column in task_instances model.
+                task_instances[ti.task_id]["operator_name"] = ti.operator_name
         tasks = {
             t.task_id: {
                 "dag_id": t.dag_id,
