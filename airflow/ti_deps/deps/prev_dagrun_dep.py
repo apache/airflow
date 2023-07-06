@@ -112,11 +112,8 @@ class PrevDagrunDep(BaseTIDep):
             )
             return
 
-        unfinished_previous_tis = [
-            ti
-            for ti in previous_tis
-            if ti.state not in {TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS}
-        ]
+        finished_states = {TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS}
+        unfinished_previous_tis = [ti for ti in previous_tis if ti.state not in finished_states]
         if unfinished_previous_tis:
             ti_str = ",".join(str(ti) for ti in unfinished_previous_tis)
             reason = (
@@ -126,19 +123,20 @@ class PrevDagrunDep(BaseTIDep):
             yield self._failing_status(reason=reason)
             return
 
-        previous_tis_dependents_not_done = []
-        for previous_ti in previous_tis:
-            previous_ti.task = ti.task
-            if not previous_ti.are_dependents_done(session=session):
-                previous_tis_dependents_not_done.append(previous_ti)
+        if ti.task.wait_for_downstream:
 
-        if ti.task.wait_for_downstream and previous_tis_dependents_not_done:
-            ti_str = ",".join(str(ti) for ti in previous_tis_dependents_not_done)
-            yield self._failing_status(
-                reason=(
-                    f"The tasks downstream of the previous task instance(s) {ti_str} haven't completed "
-                    f"(and wait_for_downstream is True)."
+            def _are_depdendencies_done(prev_ti: TI) -> bool:
+                prev_ti.task = ti.task
+                return prev_ti.are_dependents_done(session=session)
+
+            previous_tis_dependents_not_done = [ti for ti in previous_tis if not _are_depdendencies_done(ti)]
+            if previous_tis_dependents_not_done:
+                ti_str = ",".join(str(ti) for ti in previous_tis_dependents_not_done)
+                yield self._failing_status(
+                    reason=(
+                        f"The tasks downstream of the previous task instance(s) {ti_str} haven't completed "
+                        f"(and wait_for_downstream is True)."
+                    )
                 )
-            )
-            return
+                return
         self._push_past_deps_met_xcom_if_needed(ti, dep_context)
