@@ -376,6 +376,17 @@ class EmrStepSensorTrigger(BaseTrigger):
 
 
 class EmrServerlessAppicationTrigger(BaseTrigger):
+    """
+    This Trigger will asynchronously poll for the status of EMR Serverless Application
+    until it reaches a particular state, which is determined by the waiter_name.
+
+    :param application_id: EMR Serverless application ID
+    :param waiter_name: Name of the waiter to use to wait for the application to complete
+    :param aws_conn_id: Reference to AWS connection id
+    :param waiter_delay: Delay in seconds between each attempt to check the status
+    :param waiter_max_attempts: Maximum number of attempts to check the status
+    """
+
     def __init__(
         self,
         application_id: str,
@@ -383,14 +394,13 @@ class EmrServerlessAppicationTrigger(BaseTrigger):
         aws_conn_id: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-
     ):
         self.application_id = application_id
         self.waiter_name = waiter_name
         self.aws_conn_id = aws_conn_id
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
-    
+
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             "airflow.providers.amazon.aws.triggers.emr.EmrServerlessAppicationTrigger",
@@ -400,8 +410,9 @@ class EmrServerlessAppicationTrigger(BaseTrigger):
                 "aws_conn_id": self.aws_conn_id,
                 "waiter_delay": str(self.waiter_delay),
                 "waiter_max_attempts": str(self.waiter_max_attempts),
-            }
+            },
         )
+
     async def run(self):
         self.hook = EmrServerlessHook(aws_conn_id=self.aws_conn_id)
         async with self.hook.async_conn as client:
@@ -417,50 +428,54 @@ class EmrServerlessAppicationTrigger(BaseTrigger):
             )
         yield TriggerEvent({"status": "success", "application_id": self.application_id})
 
+
 class EmrServerlessCancelJobsTrigger(BaseTrigger):
-    """
-    Trigger for cancelling a list of jobs in an EMR Serverless application.
+    """Trigger for cancelling a list of jobs in an EMR Serverless application.
+
+    :param application_id: EMR Serverless application ID
+    :param aws_conn_id: Reference to AWS connection id
+    :param waiter_delay: Delay in seconds between each attempt to check the status
+    :param waiter_max_attempts: Maximum number of attempts to check the status
     """
 
     def __init__(
         self,
         application_id: str,
-        states: list[str],
         aws_conn_id: str,
         waiter_delay: int,
         waiter_max_attempts: int,
     ):
         self.application_id = application_id
-        self.states = states
         self.aws_conn_id = aws_conn_id
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
-    
+
     def serialize(self) -> tuple[str, dict[str, Any]]:
         return (
             "airflow.providers.amazon.aws.triggers.emr.EmrServerlessCancelJobsTrigger",
             {
                 "application_id": self.application_id,
-                "states": self.states,
                 "aws_conn_id": self.aws_conn_id,
                 "waiter_delay": str(self.waiter_delay),
                 "waiter_max_attempts": str(self.waiter_max_attempts),
-            }
+            },
         )
-    
+
     async def run(self):
         self.hook = EmrServerlessHook(aws_conn_id=self.aws_conn_id)
         self.log.info("Waiting for jobs to cancel")
+
+        states = list(self.hook.JOB_INTERMEDIATE_STATES.union({"CANCELLING"}))
+
         async with self.hook.async_conn as client:
             waiter = self.hook.get_waiter("no_job_running", deferrable=True, client=client)
             await async_wait(
                 waiter=waiter,
                 waiter_delay=self.waiter_delay,
                 waiter_max_attempts=self.waiter_max_attempts,
-                args={"applicationId": self.application_id, "states": self.states},
+                args={"applicationId": self.application_id, "states": states},
                 failure_message="Error while waiting for jobs to cancel",
                 status_message="Currently running jobs",
                 status_args=["jobRuns[*].applicationId", "jobRuns[*].state"],
-
             )
         yield TriggerEvent({"status": "success", "application_id": self.application_id})
