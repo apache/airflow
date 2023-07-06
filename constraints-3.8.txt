@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-06T04:35:11Z
+# This constraints file was automatically generated on 2023-07-06T10:49:22Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -87,7 +87,7 @@ apache-airflow-providers-apache-pig==4.1.1
 apache-airflow-providers-apache-pinot==4.1.1
 apache-airflow-providers-apache-spark==4.1.1
 apache-airflow-providers-apache-sqoop==3.2.1
-apache-airflow-providers-apprise==1.0.0rc1
+apache-airflow-providers-apprise==1.0.0rc2
 apache-airflow-providers-arangodb==2.2.1
 apache-airflow-providers-asana==2.2.1
 apache-airflow-providers-atlassian-jira==2.1.1
@@ -371,7 +371,8 @@ jsonpath-ng==1.5.3
 jsonpickle==3.0.1
 jsonpointer==2.4
 jsonschema-spec==0.1.6
-jsonschema==4.17.3
+jsonschema-specifications==2023.6.1
+jsonschema==4.18.0
 junit-xml==1.9
 jupyter_client==8.3.0
 jupyter_core==5.3.1
@@ -539,6 +540,7 @@ reactivex==4.0.4
 readme-renderer==40.0
 redis==4.6.0
 redshift-connector==2.0.912
+referencing==0.29.1
 regex==2023.6.3
 requests-file==1.5.1
 requests-kerberos==0.14.0
@@ -553,6 +555,7 @@ rfc3986==1.5.0
 rich-argparse==1.2.0
 rich-click==1.6.1
 rich==13.4.2
+rpds-py==0.7.1
 rsa==4.9
 ruff==0.0.277
 s3transfer==0.6.1
