@@ -120,7 +120,7 @@ def all_helm_test_packages() -> list[str]:
     return sorted(
         [
             candidate.name
-            for candidate in (AIRFLOW_SOURCES_ROOT / "tests" / "charts").iterdir()
+            for candidate in (AIRFLOW_SOURCES_ROOT / "helm_tests").iterdir()
             if candidate.is_dir()
         ]
     )
