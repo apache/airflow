@@ -2927,7 +2927,7 @@ class DAG(LoggingMixin):
 
         most_recent_runs: dict[str, DagRun] = {}
         num_active_runs: dict[str, int] = {}
-        # Save runtime if dag is not scheduleable
+        # Skip these queries entirely if no DAGs can be scheduled to save time.
         if any(dag.timetable.can_be_scheduled for dag in dags):
             # Get the latest dag run for each existing dag as a single query (avoid n+1 query)
             most_recent_subq = (
