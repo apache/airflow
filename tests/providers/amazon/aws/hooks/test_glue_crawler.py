@@ -178,8 +178,6 @@ class TestGlueCrawlerHook:
         mock_get_conn.return_value.get_crawler.return_value = {"Crawler": mock_config}
         mock_get_conn.return_value.get_tags.return_value = {"Tags": mock_config["Tags"]}
 
-        mock_config_two = deepcopy(mock_config)
-        mock_config_two.pop("Tags")
         assert self.hook.update_tags(mock_crawler_name, {"test": "bla", "bar": "test"}) is True
         mock_get_conn.return_value.get_tags.assert_called_once_with(ResourceArn=self.crawler_arn)
         mock_get_conn.return_value.untag_resource.assert_not_called()
