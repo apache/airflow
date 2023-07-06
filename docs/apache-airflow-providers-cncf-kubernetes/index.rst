@@ -77,7 +77,7 @@ Package apache-airflow-providers-cncf-kubernetes
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 7.1.0
+Release: 7.2.0
 
 Provider package
 ----------------

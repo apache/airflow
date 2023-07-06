@@ -320,7 +320,11 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
             return None
 
         operator_lineage = sql_parser.generate_openlineage_metadata_from_sql(
-            sql=self.sql, hook=hook, database_info=database_info, database=self.database
+            sql=self.sql,
+            hook=hook,
+            database_info=database_info,
+            database=self.database,
+            sqlalchemy_engine=hook.get_sqlalchemy_engine(),
         )
 
         return operator_lineage

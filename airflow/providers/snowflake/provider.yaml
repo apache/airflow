@@ -23,6 +23,7 @@ description: |
 
 suspended: false
 versions:
+  - 4.3.0
   - 4.2.0
   - 4.1.0
   - 4.0.5
@@ -100,3 +101,8 @@ transfers:
 connection-types:
   - hook-class-name: airflow.providers.snowflake.hooks.snowflake.SnowflakeHook
     connection-type: snowflake
+
+triggers:
+  - integration-name: Snowflake
+    python-modules:
+      - airflow.providers.snowflake.triggers.snowflake_trigger

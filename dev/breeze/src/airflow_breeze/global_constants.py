@@ -225,6 +225,7 @@ COMMITTERS = [
     "ephraimbuddy",
     "feluelle",
     "feng-tao",
+    "ferruzzi",
     "houqp",
     "hussein-awala",
     "jedcunningham",

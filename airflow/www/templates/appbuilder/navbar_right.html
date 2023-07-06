@@ -66,12 +66,9 @@
 {% if not current_user.is_anonymous %}
   <li class="dropdown">
     <a class="dropdown-toggle" href="#">
-       <span class="navbar-user-icon" title="{{g.user.get_full_name()}}">
-         {% if current_user.first_name and current_user.last_name %}
-           <span>{{ (current_user.first_name[0] + current_user.last_name[0]).upper() }}</span>
-         {% else %}
-          <span class="material-icons">person</span>
-         {% endif %}
+       <span class="navbar-user-icon" title="{{ auth_manager.get_user_name() }}">
+         {% set user_names = auth_manager.get_user_name().split(" ", 1) %}
+         <span>{% for name in user_names %}{{ name[0].upper() }}{% endfor %}</span>
        </span>
        <b class="caret"></b>
     </a>
