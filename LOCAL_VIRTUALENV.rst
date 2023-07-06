@@ -54,7 +54,7 @@ Homebrew for macOS to install required software packages:
 * Python (One of: 3.8, 3.9, 3.10, 3.11)
 * MySQL 5.7+
 * libxml
-* helm
+* helm (only for helm chart tests)
 
 Refer to the `Dockerfile.ci <Dockerfile.ci>`__ for a comprehensive list
 of required packages.
