@@ -686,7 +686,7 @@ Helm Unit Tests
 
 On the Airflow Project, we have decided to stick with pythonic testing for our Helm chart. This makes our chart
 easier to test, easier to modify, and able to run with the same testing infrastructure. To add Helm unit tests
-add them in ``test-charts``.
+add them in ``helm_tests``.
 
 .. code-block:: python
 
@@ -755,19 +755,19 @@ This enters breeze container.
 
 .. code-block:: bash
 
-    pytest test-charts -n auto
+    pytest helm_tests -n auto
 
 This runs all chart tests using all processors you have available.
 
 .. code-block:: bash
 
-    pytest test-charts/test_airflow_common.py -n auto
+    pytest helm_tests/test_airflow_common.py -n auto
 
 This will run all tests from ``tests_airflow_common.py`` file using all processors you have available.
 
 .. code-block:: bash
 
-    pytest test-charts/test_airflow_common.py
+    pytest helm_tests/test_airflow_common.py
 
 This will run all tests from ``tests_airflow_common.py`` file sequentially.
 
