@@ -34,16 +34,30 @@ DEFERRABLE_DOC = (
 
 def _is_valid_deferrable_default(default: ast.AST) -> bool:
     """Check whether default is 'conf.getboolean("operators", "default_deferrable", fallback=False)'"""
+    if not isinstance(default, ast.Call):
+        return False  # Not a function call.
 
+    # Check the function callee is exactly 'conf.getboolean'.
+    call_to_conf_getboolean = (
+        isinstance(default.func, ast.Attribute)
+        and isinstance(default.func.value, ast.Name)
+        and default.func.value.id == "conf"
+        and default.func.attr == "getboolean"
+    )
+    if not call_to_conf_getboolean:
+        return False
+
+    # Check arguments.
     return (
-        isinstance(default, ast.Call)
-        and default.func.value.id == "conf"  # type: ignore[attr-defined]
-        and default.func.attr == "getboolean"  # type: ignore[attr-defined]
-        and len(default.args) == 2
-        and default.args[0].value == "operators"  # type: ignore[attr-defined]
-        and default.args[1].value == "default_deferrable"  # type: ignore[attr-defined]
+        len(default.args) == 2
+        and isinstance(default.args[0], ast.Constant)
+        and default.args[0].value == "operators"
+        and isinstance(default.args[1], ast.Constant)
+        and default.args[1].value == "default_deferrable"
         and len(default.keywords) == 1
-        and default.keywords[0].value.value is False  # type: ignore[attr-defined]
+        and default.keywords[0].arg == "fallback"
+        and isinstance(default.keywords[0].value, ast.Constant)
+        and default.keywords[0].value.value is False
     )
 
 
