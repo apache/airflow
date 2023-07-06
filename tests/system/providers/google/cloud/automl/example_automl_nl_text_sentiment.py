@@ -35,10 +35,9 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLTrainModelOperator,
 )
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_automl_text_sentiment"
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-GCP_AUTOML_LOCATION = "us-central1"
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
+GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
+GCP_AUTOML_SENTIMENT_BUCKET = os.environ.get("GCP_AUTOML_SENTIMENT_BUCKET", "gs://INVALID BUCKET NAME")
 
 # Example model
 MODEL = {
@@ -52,15 +51,13 @@ DATASET = {
     "text_sentiment_dataset_metadata": {"sentiment_max": 10},
 }
 
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl-text/dataset.csv"
-IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
+IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_SENTIMENT_BUCKET]}}
 
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 # Example DAG for AutoML Natural Language Text Sentiment
 with models.DAG(
-    DAG_ID,
+    "example_automl_text_sentiment",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},

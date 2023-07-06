@@ -35,10 +35,11 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLTrainModelOperator,
 )
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_automl_vision_detection"
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-GCP_AUTOML_LOCATION = "us-central1"
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
+GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
+GCP_AUTOML_DETECTION_BUCKET = os.environ.get(
+    "GCP_AUTOML_DETECTION_BUCKET", "gs://INVALID BUCKET NAME/img/openimage/csv/salads_ml_use.csv"
+)
 
 # Example model
 MODEL = {
@@ -52,9 +53,7 @@ DATASET = {
     "image_object_detection_dataset_metadata": {},
 }
 
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl-text/csv/salads_ml_use.csv"
-IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
+IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_DETECTION_BUCKET]}}
 
 extract_object_id = CloudAutoMLHook.extract_object_id
 

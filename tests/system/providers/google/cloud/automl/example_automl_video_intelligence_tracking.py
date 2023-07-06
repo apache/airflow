@@ -35,10 +35,12 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLTrainModelOperator,
 )
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_automl_video_tracking"
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-GCP_AUTOML_LOCATION = "us-central1"
+GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
+GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
+GCP_AUTOML_TRACKING_BUCKET = os.environ.get(
+    "GCP_AUTOML_TRACKING_BUCKET",
+    "gs://INVALID BUCKET NAME/youtube_8m_videos_animal_tiny.csv",
+)
 
 
 # Example model
@@ -53,16 +55,14 @@ DATASET = {
     "video_object_tracking_dataset_metadata": {},
 }
 
-DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-AUTOML_DATASET_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/automl-text/youtube_8m_videos_animal_tiny.csv"
-IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [AUTOML_DATASET_BUCKET]}}
+IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_TRACKING_BUCKET]}}
 
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 
 # Example DAG for AutoML Video Intelligence Object Tracking
 with models.DAG(
-    DAG_ID,
+    "example_automl_video_tracking",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},
