@@ -137,8 +137,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             project=self.project_id if self.project_id else project_id,
         )
 
-    def set_context(self, ti):
-        super().set_context(ti)
+    def set_context(self, ti, *, identifier: str | None = None):
+        super().set_context(ti, identifier=identifier)
         # Log relative path is used to construct local and remote
         # log path to upload log files into GCS and read from the
         # remote location.
