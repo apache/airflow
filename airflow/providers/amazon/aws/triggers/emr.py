@@ -377,6 +377,8 @@ class EmrStepSensorTrigger(BaseTrigger):
 
 class EmrServerlessAppicationTrigger(BaseTrigger):
     """
+    Trigger for Emr Serverless applications.
+
     This Trigger will asynchronously poll for the status of EMR Serverless Application
     until it reaches a particular state, which is determined by the waiter_name.
 
@@ -430,7 +432,8 @@ class EmrServerlessAppicationTrigger(BaseTrigger):
 
 
 class EmrServerlessCancelJobsTrigger(BaseTrigger):
-    """Trigger for cancelling a list of jobs in an EMR Serverless application.
+    """
+    Trigger for cancelling a list of jobs in an EMR Serverless application.
 
     :param application_id: EMR Serverless application ID
     :param aws_conn_id: Reference to AWS connection id
