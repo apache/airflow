@@ -119,7 +119,9 @@ class S3ToRedshiftOperator(BaseOperator):
                 if arg in self.redshift_data_api_kwargs.keys():
                     raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
 
-    def _build_copy_query(self, copy_destination: str, credentials_block: str, region_info: str, copy_options: str) -> str:
+    def _build_copy_query(
+        self, copy_destination: str, credentials_block: str, region_info: str | None, copy_options: str
+    ) -> str:
         column_names = "(" + ", ".join(self.column_list) + ")" if self.column_list else ""
         return f"""
                     COPY {copy_destination} {column_names}
@@ -154,7 +156,9 @@ class S3ToRedshiftOperator(BaseOperator):
         destination = f"{self.schema}.{self.table}"
         copy_destination = f"#{self.table}" if self.method == "UPSERT" else destination
 
-        copy_statement = self._build_copy_query(copy_destination, credentials_block, region_info, copy_options)
+        copy_statement = self._build_copy_query(
+            copy_destination, credentials_block, region_info, copy_options
+        )
 
         sql: str | Iterable[str]
 
