@@ -17,12 +17,15 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog for ``apache-airflow-providers-cncf-kubernetes``
-----------------------------------------------------------
+``apache-airflow-providers-cncf-kubernetes``
+
+
+Changelog
+---------
 
 7.2.0
 .....
@@ -39,10 +42,16 @@ Bug Fixes
 * ``Fix 'KubernetesPodTrigger' waiting strategy (#31348)``
 * ``fix spark-kubernetes-operator compatibality (#31798)``
 
+Misc
+~~~~
+* ``Add default_deferrable config (#31712)``
+
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
    * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
 
 7.1.0
 .....

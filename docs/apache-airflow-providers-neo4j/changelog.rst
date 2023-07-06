@@ -16,7 +16,6 @@
     specific language governing permissions and limitations
     under the License.
 
-Package ``apache-airflow-providers-neo4j``
-------------------------------------------
+
 
 .. include:: ../../airflow/providers/neo4j/CHANGELOG.rst

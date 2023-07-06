@@ -17,12 +17,15 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog for ``apache-airflow-providers-microsoft-winrm``
-----------------------------------------------------------
+``apache-airflow-providers-microsoft-winrm``
+
+
+Changelog
+---------
 
 3.2.1
 .....
