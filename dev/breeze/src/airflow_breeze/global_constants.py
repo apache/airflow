@@ -121,7 +121,7 @@ def all_helm_test_packages() -> list[str]:
         [
             candidate.name
             for candidate in (AIRFLOW_SOURCES_ROOT / "helm_tests").iterdir()
-            if candidate.is_dir()
+            if candidate.is_dir() and candidate.name != "__pycache__"
         ]
     )
 
