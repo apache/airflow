@@ -287,7 +287,7 @@ class BaseSerialization:
     _datetime_types = (datetime.datetime,)
 
     # Object types that are always excluded in serialization.
-    _excluded_types = (logging.Logger, Connection, type)
+    _excluded_types = (logging.Logger, Connection, type, property)
 
     _json_schema: Validator | None = None
 
@@ -822,7 +822,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
         if op.operator_extra_links:
             serialize_op["_operator_extra_links"] = cls._serialize_operator_extra_links(
-                op.operator_extra_links
+                op.operator_extra_links.__get__(op)
+                if isinstance(op.operator_extra_links, property)
+                else op.operator_extra_links
             )
 
         if include_deps:
