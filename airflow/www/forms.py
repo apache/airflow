@@ -207,7 +207,7 @@ def create_connection_form_class() -> type[DynamicForm]:
         def process(self, formdata=None, obj=None, **kwargs):
             super().process(formdata=formdata, obj=obj, **kwargs)
             for field in self._fields.values():
-                if hasattr(field, "data") and isinstance(field.data, str):
+                if isinstance(getattr(field, "data", None), str):
                     field.data = field.data.strip()
 
         conn_id = StringField(
