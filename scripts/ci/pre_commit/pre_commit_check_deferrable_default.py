@@ -75,8 +75,10 @@ def check_deferrable_default(module_filename: str) -> bool:
 
 
 if __name__ == "__main__":
-    modules = glob.glob(f"{ROOT_DIR}/airflow/**/sensors/**.py", recursive=True)
-    modules.extend(glob.glob(f"{ROOT_DIR}/airflow/**/operators/**.py", recursive=True))
+    modules = itertools.chain(
+        glob.glob(f"{ROOT_DIR}/airflow/**/sensors/**.py", recursive=True),
+        glob.glob(f"{ROOT_DIR}/airflow/**/operators/**.py", recursive=True),
+    )
 
     invalid_value_exists: bool = False
     for module_path in filter(lambda module_path: "__init__.py" not in module_path, modules):
