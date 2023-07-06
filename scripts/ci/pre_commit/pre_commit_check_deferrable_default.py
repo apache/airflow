@@ -26,6 +26,11 @@ import sys
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
 
+DEFERRABLE_DOC = (
+    "https://github.com/apache/airflow/blob/main/docs/apache-airflow/"
+    "authoring-and-scheduling/deferring.rst#writing-deferrable-operators"
+)
+
 
 def _is_valid_deferrable_default(default: ast.AST) -> bool:
     """Check whether default is 'conf.getboolean("operators", "default_deferrable", fallback=False)'"""
@@ -61,16 +66,16 @@ def check_deferrable_default(module_filename: str) -> bool:
         for argument, default in itertools.zip_longest(arguments, defaults, fillvalue=None):
             if argument is None or default is None:
                 continue
-            if argument.arg == "deferrable":
-                if not _is_valid_deferrable_default(default):
-                    print(
-                        f"{module_filename}:{default.lineno}\n"
-                        "Incorrect deferrable default value\n"
-                        "Please set the default value of deferrbale to "
-                        """"conf.getboolean("operators", "default_deferrable", fallback=False)"\n"""
-                        "See: https://github.com/apache/airflow/blob/main/docs/apache-airflow/authoring-and-scheduling/deferring.rst#writing-deferrable-operators\n"
-                    )
-                    invalid_value_exists = True
+            if argument.arg != "deferrable" or _is_valid_deferrable_default(default):
+                continue
+            print(
+                f"{module_filename}:{default.lineno}\n"
+                "Incorrect deferrable default value\n"
+                "Please set the default value of deferrbale to "
+                """"conf.getboolean("operators", "default_deferrable", fallback=False)"\n"""
+                f"See: {DEFERRABLE_DOC}\n"
+            )
+            invalid_value_exists = True
     return invalid_value_exists
 
 
