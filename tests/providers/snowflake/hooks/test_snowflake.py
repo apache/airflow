@@ -406,7 +406,7 @@ class TestPytestSnowflakeHook:
                 'private_key_file': "/dev/urandom",
             },
         }
-        with unittest.mock.patch.dict(
+        with mock.patch.dict(
             'os.environ', AIRFLOW_CONN_TEST_CONN=Connection(**connection_kwargs).get_uri()
         ), pytest.raises(ValueError, match="The private_key_file path points to an empty or invalid file."):
             SnowflakeHook(snowflake_conn_id='test_conn').get_conn()
