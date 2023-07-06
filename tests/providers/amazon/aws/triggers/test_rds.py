@@ -24,7 +24,13 @@ from botocore.exceptions import WaiterError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
-from airflow.providers.amazon.aws.triggers.rds import RdsDbInstanceTrigger
+from airflow.providers.amazon.aws.triggers.rds import (
+    RdsDbAvailableTrigger,
+    RdsDbDeletedTrigger,
+    RdsDbInstanceTrigger,
+    RdsDbStoppedTrigger,
+)
+from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.triggers.base import TriggerEvent
 
 TEST_DB_INSTANCE_IDENTIFIER = "test-db-instance-identifier"
@@ -38,6 +44,52 @@ TEST_RESPONSE = {
         "DBInstanceStatus": "test-db-instance-status",
     }
 }
+
+
+class TestRdsTriggers:
+    @pytest.mark.parametrize(
+        "trigger",
+        [
+            RdsDbAvailableTrigger(
+                db_identifier=TEST_DB_INSTANCE_IDENTIFIER,
+                waiter_delay=TEST_WAITER_DELAY,
+                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                region_name=TEST_REGION,
+                response=TEST_RESPONSE,
+                db_type=RdsDbType.INSTANCE,
+            ),
+            RdsDbDeletedTrigger(
+                db_identifier=TEST_DB_INSTANCE_IDENTIFIER,
+                waiter_delay=TEST_WAITER_DELAY,
+                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                region_name=TEST_REGION,
+                response=TEST_RESPONSE,
+                db_type=RdsDbType.INSTANCE,
+            ),
+            RdsDbStoppedTrigger(
+                db_identifier=TEST_DB_INSTANCE_IDENTIFIER,
+                waiter_delay=TEST_WAITER_DELAY,
+                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                region_name=TEST_REGION,
+                response=TEST_RESPONSE,
+                db_type=RdsDbType.INSTANCE,
+            ),
+        ],
+    )
+    def test_serialize_recreate(self, trigger):
+        class_path, args = trigger.serialize()
+
+        class_name = class_path.split(".")[-1]
+        clazz = globals()[class_name]
+        instance = clazz(**args)
+
+        class_path2, args2 = instance.serialize()
+
+        assert class_path == class_path2
+        assert args == args2
 
 
 class TestRdsDbInstanceTrigger:
