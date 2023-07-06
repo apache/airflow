@@ -363,7 +363,7 @@ class TestEksCreateClusterOperator:
         )
         with pytest.raises(TaskDeferred):
             eks_create_cluster_operator.execute({})
-        assert "Waiting for EKS Cluster to provision.  This will take some time." in caplog.messages
+        assert "Waiting for EKS Cluster to provision. This will take some time." in caplog.messages
 
 
 class TestEksCreateFargateProfileOperator:

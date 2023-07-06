@@ -281,12 +281,10 @@ class EksCreateClusterOperator(BaseOperator):
 
         # Short circuit early if we don't need to wait to attach compute
         # and the caller hasn't requested to wait for the cluster either.
-        # if not self.compute and not self.wait_for_completion and not self.deferrable:
-        #     return None
         if not any([self.compute, self.wait_for_completion, self.deferrable]):
             return None
 
-        self.log.info("Waiting for EKS Cluster to provision.  This will take some time.")
+        self.log.info("Waiting for EKS Cluster to provision. This will take some time.")
         client = self.eks_hook.conn
 
         if self.deferrable:

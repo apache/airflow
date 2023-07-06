@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 class EksCreateClusterTrigger(BaseTrigger):
     """
     Trigger for EksCreateClusterOperator.
+    
     The trigger will asynchronously wait for the cluster to be created.
 
     :param waiter_name: The name of the waiter to use.
@@ -95,6 +96,7 @@ class EksCreateClusterTrigger(BaseTrigger):
 class EksDeleteClusterTrigger(BaseTrigger):
     """
     Trigger for EksDeleteClusterOperator.
+    
     The trigger will asynchronously wait for the cluster to be deleted. If there are
     any nodegroups or fargate profiles associated with the cluster, they will be deleted
     before the cluster is deleted.
