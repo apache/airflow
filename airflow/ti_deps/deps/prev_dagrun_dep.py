@@ -17,12 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import func
+from sqlalchemy import func, select
 
 from airflow.models.taskinstance import PAST_DEPENDS_MET, TaskInstance as TI
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 
 class PrevDagrunDep(BaseTIDep):
@@ -80,12 +80,11 @@ class PrevDagrunDep(BaseTIDep):
             yield self._passing_status(reason="This task instance was the first task instance for its task.")
             return
 
-        # For Dynamic tasks previous ti can be more than one
-        previous_tis = session.query(TI).filter(
-            TI.dag_id == ti.dag_id,
-            TI.task_id == ti.task_id,
-            TI.run_id == last_dagrun.run_id,
-        )
+        previous_tis: list[TI] = session.scalars(
+            select(TI).where(
+                TI.dag_id == ti.dag_id, TI.task_id == ti.task_id, TI.run_id == last_dagrun.run_id
+            )
+        ).all()
 
         if not previous_tis:
             if ti.task.ignore_first_depends_on_past:
@@ -113,19 +112,17 @@ class PrevDagrunDep(BaseTIDep):
             )
             return
 
-        success_states = {State.SKIPPED, State.SUCCESS}
         unfinished_previous_tis = [
-            previous_ti for previous_ti in previous_tis if previous_ti.state not in success_states
+            ti
+            for ti in previous_tis
+            if ti.state not in {TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS}
         ]
-
         if unfinished_previous_tis:
+            ti_str = ",".join(str(ti) for ti in unfinished_previous_tis)
             reason = (
                 f"depends_on_past is true for this task, but the previous task instance(s) "
-                f"{','.join(map(str, unfinished_previous_tis))} is in the state(s) "
-                f"'{','.join([str(t.state) for t in unfinished_previous_tis])}' "
-                f"which is not a successful state(s)."
+                f"{ti_str} are not in a successful state."
             )
-
             yield self._failing_status(reason=reason)
             return
 
@@ -136,10 +133,10 @@ class PrevDagrunDep(BaseTIDep):
                 previous_tis_dependents_not_done.append(previous_ti)
 
         if ti.task.wait_for_downstream and previous_tis_dependents_not_done:
-            tasks_str = ",".join(map(str, previous_tis_dependents_not_done))
+            ti_str = ",".join(str(ti) for ti in previous_tis_dependents_not_done)
             yield self._failing_status(
                 reason=(
-                    f"The tasks downstream of the previous task instance(s) {tasks_str} haven't completed "
+                    f"The tasks downstream of the previous task instance(s) {ti_str} haven't completed "
                     f"(and wait_for_downstream is True)."
                 )
             )
