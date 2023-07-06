@@ -694,7 +694,7 @@ class DagBag(LoggingMixin):
         root_dag_id = dag.parent_dag.dag_id if dag.parent_dag else dag.dag_id
 
         cls.logger().debug("Syncing DAG permissions: %s to the DB", root_dag_id)
-        from airflow.www.security import ApplessAirflowSecurityManager
+        from airflow.auth.managers.fab.fab_security.airflow_manager import ApplessAirflowSecurityManager
 
         security_manager = ApplessAirflowSecurityManager(session=session)
         security_manager.sync_perm_for_dag(root_dag_id, dag.access_control)

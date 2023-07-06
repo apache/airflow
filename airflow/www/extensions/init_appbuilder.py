@@ -672,7 +672,7 @@ class AirflowAppBuilder:
 
 def init_appbuilder(app) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
-    from airflow.www.security import AirflowSecurityManager
+    from airflow.auth.managers.fab.fab_security.airflow_manager import AirflowSecurityManager
 
     security_manager_class = app.config.get("SECURITY_MANAGER_CLASS") or AirflowSecurityManager
 

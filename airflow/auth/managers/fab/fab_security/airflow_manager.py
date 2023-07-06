@@ -24,12 +24,12 @@ from flask import g
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
+from airflow.auth.managers.fab.fab_security.manager import SecurityManager
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.www.fab_security.sqla.manager import SecurityManager
 from airflow.www.fab_security.sqla.models import Permission, Resource, Role, User
 from airflow.www.fab_security.views import (
     ActionModelView,

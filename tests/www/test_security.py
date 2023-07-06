@@ -28,13 +28,13 @@ from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String
 
+from airflow.auth.managers.fab.fab_security.base_manager import AnonymousUser
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.base import Base
 from airflow.models.dag import DAG
 from airflow.security import permissions
 from airflow.www import app as application
-from airflow.www.fab_security.manager import AnonymousUser
 from airflow.www.fab_security.sqla.models import User, assoc_permission_role
 from airflow.www.utils import CustomSQLAInterface
 from tests.test_utils.api_connexion_utils import (
@@ -719,9 +719,9 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     dagbag_mock.collect_dags_from_db = collect_dags_from_db_mock
     dagbag_class_mock = mock.Mock()
     dagbag_class_mock.return_value = dagbag_mock
-    import airflow.www.security
+    import airflow.auth.managers.fab.fab_security.airflow_manager
 
-    monkeypatch.setitem(airflow.www.security.__dict__, "DagBag", dagbag_class_mock)
+    monkeypatch.setitem(airflow.auth.managers.fab.fab_security.security.__dict__, "DagBag", dagbag_class_mock)
     security_manager._sync_dag_view_permissions = mock.Mock()
 
     for dag in sample_dags:

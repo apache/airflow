@@ -23,11 +23,11 @@ import itertools
 import json
 import os
 
+from airflow.auth.managers.fab.fab_security.airflow_manager import EXISTING_ROLES
 from airflow.cli.simple_table import AirflowConsole
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.www.fab_security.sqla.models import Action, Permission, Resource, Role
-from airflow.www.security import EXISTING_ROLES
 
 
 @suppress_logs_and_warning

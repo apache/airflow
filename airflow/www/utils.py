@@ -57,7 +57,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
     from sqlalchemy.sql.operators import ColumnOperators
 
-    from airflow.www.fab_security.sqla.manager import SecurityManager
+    from airflow.auth.managers.fab.fab_security.manager import SecurityManager
 
 
 def datetime_to_string(value: DateTime | None) -> str | None:
