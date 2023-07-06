@@ -259,7 +259,7 @@ class TestAttrRenderer:
         )
         expected_markup = Markup("<nobr>{}</nobr>").format(expected_encoded_dag_run_conf)
 
-        formatter = json_f("conf", utils_json.WebEncoder)
+        formatter = json_f("conf")
         dagrun = Mock()
         dagrun.get = Mock(return_value=dag_run_conf)
 

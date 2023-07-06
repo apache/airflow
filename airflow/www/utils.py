@@ -49,6 +49,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils.json import WebEncoder
 from airflow.utils.state import State, TaskInstanceState
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
@@ -476,12 +477,12 @@ def datetime_html(dttm: DateTime | None) -> str:
     return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, as_iso_short)
 
 
-def json_f(attr_name, json_encoder: type[json.JSONEncoder] = json.JSONEncoder):
+def json_f(attr_name):
     """Returns a formatted string with HTML for given JSON serializable."""
 
     def json_(attr):
         f = attr.get(attr_name)
-        serialized = json.dumps(f, cls=json_encoder)
+        serialized = json.dumps(f, cls=WebEncoder)
         return Markup("<nobr>{}</nobr>").format(serialized)
 
     return json_

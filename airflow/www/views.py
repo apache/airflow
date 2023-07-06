@@ -5408,7 +5408,7 @@ class DagRunModelView(AirflowPrivilegeVerifierModelView):
         "queued_at": wwwutils.datetime_f("queued_at"),
         "dag_id": wwwutils.dag_link,
         "run_id": wwwutils.dag_run_link,
-        "conf": wwwutils.json_f("conf", utils_json.WebEncoder),
+        "conf": wwwutils.json_f("conf"),
         "duration": duration_f,
     }
 
