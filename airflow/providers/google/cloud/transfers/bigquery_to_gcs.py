@@ -25,6 +25,7 @@ from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, UnknownJob
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
@@ -114,7 +115,7 @@ class BigQueryToGCSOperator(BaseOperator):
         job_id: str | None = None,
         force_rerun: bool = False,
         reattach_states: set[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

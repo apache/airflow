@@ -82,7 +82,7 @@ Package apache-airflow-providers-amazon
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 
-Release: 8.2.0
+Release: 8.3.0
 
 Provider package
 ----------------
@@ -107,6 +107,7 @@ PIP package                              Version required
 =======================================  ==================
 ``apache-airflow``                       ``>=2.4.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
+``apache-airflow-providers-http``
 ``boto3``                                ``>=1.24.0``
 ``asgiref``
 ``watchtower``                           ``~=2.0.1``
@@ -144,6 +145,7 @@ Dependent package                                                               
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_                    ``google``
 `apache-airflow-providers-http <https://airflow.apache.org/docs/apache-airflow-providers-http>`_                        ``http``
 `apache-airflow-providers-imap <https://airflow.apache.org/docs/apache-airflow-providers-imap>`_                        ``imap``
+`apache-airflow-providers-microsoft-azure <https://airflow.apache.org/docs/apache-airflow-providers-microsoft-azure>`_  ``microsoft.azure``
 `apache-airflow-providers-mongo <https://airflow.apache.org/docs/apache-airflow-providers-mongo>`_                      ``mongo``
 `apache-airflow-providers-salesforce <https://airflow.apache.org/docs/apache-airflow-providers-salesforce>`_            ``salesforce``
 `apache-airflow-providers-ssh <https://airflow.apache.org/docs/apache-airflow-providers-ssh>`_                          ``ssh``
@@ -155,5 +157,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-amazon 8.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.2.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-amazon 8.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.2.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-amazon 8.3.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.3.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.3.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-8.3.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-amazon 8.3.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.3.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.3.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.3.0-py3-none-any.whl.sha512>`__)

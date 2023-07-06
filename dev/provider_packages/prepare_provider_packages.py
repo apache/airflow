@@ -80,13 +80,14 @@ INITIAL_CHANGELOG_CONTENT = """
     under the License.
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there
+   Please, only add notes to the Changelog just below the "Changelog" header when there
    are some breaking changes and you want to add an explanation to the users on how they are supposed
    to deal with them. The changelog is updated and maintained semi-automatically by release manager.
 
+``{{ package_name }}``
 
-Changelog for ``{{ package_name }}``
-{{ '-' * (18 + package_name | length) }}
+Changelog
+---------
 
 1.0.0
 .....
@@ -2014,7 +2015,12 @@ def generate_new_changelog(package_id, provider_details, changelog_path, changes
             template_name="UPDATE_CHANGELOG", context=context, extension=".rst"
         )
     else:
-        classified_changes = get_changes_classified(changes[0])
+        if changes:
+            classified_changes = get_changes_classified(changes[0])
+        else:
+            # change log exist but without version 1.0.0 entry
+            classified_changes = None
+
         context = {
             "version": latest_version,
             "version_header": "." * len(latest_version),

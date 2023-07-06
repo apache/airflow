@@ -48,10 +48,12 @@ VALID_AUTH_TYPES: list[str] = [
 
 class _VaultClient(LoggingMixin):
     """
-    Retrieves Authenticated client from Hashicorp Vault. This is purely internal class promoting
-    authentication code reuse between the Hook and the SecretBackend, it should not be used directly in
-    Airflow DAGs. Use VaultBackend for backend integration and Hook in case you want to communicate
-    with VaultHook using standard Airflow Connection definition.
+    Retrieves Authenticated client from Hashicorp Vault.
+
+    This is purely internal class promoting authentication code reuse between the Hook and the
+    SecretBackend, it should not be used directly in Airflow DAGs. Use VaultBackend for backend
+    integration and Hook in case you want to communicate with VaultHook using standard Airflow
+    Connection definition.
 
     :param url: Base URL for the Vault instance being addressed.
     :param auth_type: Authentication Type for Vault. Default is ``token``. Available values are in
@@ -172,12 +174,9 @@ class _VaultClient(LoggingMixin):
     @property
     def client(self):
         """
-        Authentication to Vault can expire. This wrapper function checks that
-        it is still authenticated to Vault, and invalidates the cache if this
-        is not the case.
+        Checks that it is still authenticated to Vault and invalidates the cache if this is not the case.
 
         :return: Vault Client
-
         """
         if not self._client.is_authenticated():
             # Invalidate the cache:

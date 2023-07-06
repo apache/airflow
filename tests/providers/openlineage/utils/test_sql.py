@@ -77,6 +77,7 @@ def test_get_table_schemas():
         hook=hook,
         namespace="bigquery",
         database=DB_NAME,
+        schema=DB_SCHEMA_NAME,
         in_query="fake_sql",
         out_query="another_fake_sql",
     )
@@ -139,6 +140,7 @@ def test_get_table_schemas_with_mixed_databases():
         hook=hook,
         namespace="bigquery",
         database=DB_NAME,
+        schema=DB_SCHEMA_NAME,
         in_query="fake_sql",
         out_query="another_fake_sql",
     )
@@ -179,6 +181,7 @@ def test_get_table_schemas_with_mixed_schemas():
         hook=hook,
         namespace="bigquery",
         database=DB_NAME,
+        schema=DB_SCHEMA_NAME,
         in_query="fake_sql",
         out_query="another_fake_sql",
     )
@@ -237,6 +240,7 @@ def test_get_table_schemas_with_other_database():
         hook=hook,
         namespace="bigquery",
         database=DB_NAME,
+        schema=DB_SCHEMA_NAME,
         in_query="fake_sql",
         out_query="another_fake_sql",
     )

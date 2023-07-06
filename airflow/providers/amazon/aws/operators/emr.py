@@ -24,6 +24,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 from uuid import uuid4
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
@@ -96,7 +97,7 @@ class EmrAddStepsOperator(BaseOperator):
         waiter_delay: int | None = None,
         waiter_max_attempts: int | None = None,
         execution_role_arn: str | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         if not exactly_one(job_flow_id is None, job_flow_name is None):
@@ -510,7 +511,7 @@ class EmrContainerOperator(BaseOperator):
         max_tries: int | None = None,
         tags: dict | None = None,
         max_polling_attempts: int | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -695,7 +696,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
         waiter_delay: int | None | ArgNotSet = NOTSET,
         waiter_countdown: int | None = None,
         waiter_check_interval_seconds: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ):
         if waiter_max_attempts is NOTSET:
@@ -900,7 +901,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         waiter_delay: int = 60,
         waiter_max_attempts: int = 20,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)

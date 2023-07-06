@@ -158,8 +158,9 @@ class PsrpHook(BaseHook):
     @contextmanager
     def invoke(self) -> Generator[PowerShell, None, None]:
         """
-        Context manager that yields a PowerShell object to which commands can be
-        added. Upon exit, the commands will be invoked.
+        Yields a PowerShell object to which commands can be added.
+
+        Upon exit, the commands will be invoked.
         """
         logger = copy(self.log)
         logger.setLevel(self._logging_level)

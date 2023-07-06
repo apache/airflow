@@ -16,12 +16,48 @@
     under the License.
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog for ``apache-airflow-providers-google``
--------------------------------------------------
+
+``apache-airflow-providers-google``
+
+
+Changelog
+---------
+
+10.3.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
+* ``Add deferrable mode to CloudSQLExportInstanceOperator (#30852)``
+* ``Adding 'src_fmt_configs' to the list of template fields. (#32097)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[Issue-32069] Fix name format in the batch requests (#32070)``
+* ``Fix 'BigQueryInsertJobOperator'  error handling in deferrable mode (#32034)``
+* ``Fix 'BIGQUERY_JOB_DETAILS_LINK_FMT' in 'BigQueryConsoleLink' (#31953)``
+* ``Make the deferrable version of DataprocCreateBatchOperator handle a batch_id that already exists (#32216)``
+
+
+Misc
+~~~~
+
+* ``Switch Google Ads API version from v13 to v14 (#32028)``
+* ``Deprecate 'delimiter' param and source object's wildcards in GCS, introduce 'match_glob' param. (#31261)``
+* ``Refactor GKECreateClusterOperator's body validation (#31923)``
+* ``Optimize deferrable mode execution for 'BigQueryValueCheckOperator' (#31872)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Google provider docstring improvements (#31731)``
 
 10.2.0
 ......

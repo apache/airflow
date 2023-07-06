@@ -17,12 +17,64 @@
 
 
 .. NOTE TO CONTRIBUTORS:
-   Please, only add notes to the Changelog just below the "Changelog for ..." header when there are some breaking changes
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
-Changelog for ``apache-airflow-providers-amazon``
--------------------------------------------------
+``apache-airflow-providers-amazon``
+
+Changelog
+---------
+
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'ChimeWebhookHook' (#31939)``
+* ``Add 'ChimeNotifier' (#32222)``
+* ``Add deferrable mode to S3KeysUnchangedSensor (#31940)``
+* ``Add deferrable mode to 'RdsCreateDbInstanceOperator' and 'RdsDeleteDbInstanceOperator' (#32171)``
+* ``Add deferrable mode for 'AthenaOperator' (#32186)``
+* ``Add a deferrable mode to 'BatchCreateComputeEnvironmentOperator' (#32036)``
+* ``Add deferrable mode in EMR operator and sensor (#32029)``
+* ``add async wait method to the "with logging" aws utils (#32055)``
+* ``Add custom waiters to EMR Serverless  (#30463)``
+* ``Add an option to 'GlueJobOperator' to stop the job run when the TI is killed (#32155)``
+* ``deferrable mode for 'SageMakerTuningOperator' and 'SageMakerEndpointOperator' (#32112)``
+* ``EKS Create/Delete Nodegroup Deferrable mode (#32165)``
+* ``Deferrable mode for ECS operators (#31881)``
+* ``feature: AWS - GlueJobOperator - job_poll_interval (#32147)``
+* ``Added 'AzureBlobStorageToS3Operator' transfer operator (#32270)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``bugfix: break down run+wait method in ECS operator (#32104)``
+* ``Handle 'UnboundLocalError' while parsing invalid 's3_url' (#32120)``
+* ``Fix 'LambdaInvokeFunctionOperator' payload parameter type (#32259)``
+
+Misc
+~~~~
+
+* ``Deprecate 'delimiter' param and source object's wildcards in GCS, introduce 'match_glob' param. (#31261)``
+* ``aws waiter util: log status info with error level on waiter error (#32247)``
+* ``rewrite method used in ecs to fetch less logs (#31786)``
+* ``Refactor Eks Create Cluster Operator code (#31960)``
+* ``Use a waiter in 'AthenaHook' (#31942)``
+* ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "add deferrable mode for 'AthenaOperator' (#32110)" (#32172)``
+   * ``add deferrable mode for 'AthenaOperator' (#32110)``
+   * ``D205 Support - Auto-fixes and Stragglers (#32212)``
+   * ``D205 Support - Providers: Amazon/AWS (#32224)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Minor name change for the util wait method. (#32152)``
+   * ``Clean up string concatenation (#32129)``
+   * ``cleanup Amazon CHANGELOG.rst (#32031)``
 
 8.2.0
 .....

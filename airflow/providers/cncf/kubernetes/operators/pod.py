@@ -33,6 +33,7 @@ from kubernetes.client import CoreV1Api, models as k8s
 from slugify import slugify
 from urllib3.exceptions import HTTPError
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
@@ -305,7 +306,7 @@ class KubernetesPodOperator(BaseOperator):
         configmaps: list[str] | None = None,
         skip_on_exit_code: int | Container[int] | None = None,
         base_container_name: str | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 2,
         log_pod_spec_on_failure: bool = True,
         on_finish_action: str = "delete_pod",

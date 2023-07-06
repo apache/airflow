@@ -63,12 +63,12 @@ class TableSchema:
     database: str | None
     fields: list[SchemaField]
 
-    def to_dataset(self, namespace: str, database: str | None = None) -> Dataset:
+    def to_dataset(self, namespace: str, database: str | None = None, schema: str | None = None) -> Dataset:
         # Prefix the table name with database and schema name using
         # the format: {database_name}.{table_schema}.{table_name}.
         name = ".".join(
             part
-            for part in [self.database if self.database else database, self.schema, self.table]
+            for part in [self.database or database, self.schema or schema, self.table]
             if part is not None
         )
         return Dataset(
@@ -81,6 +81,7 @@ class TableSchema:
 def get_table_schemas(
     hook: BaseHook,
     namespace: str,
+    schema: str | None,
     database: str | None,
     in_query: str | None,
     out_query: str | None,
@@ -97,12 +98,12 @@ def get_table_schemas(
     with closing(hook.get_conn()) as conn, closing(conn.cursor()) as cursor:
         if in_query:
             cursor.execute(in_query)
-            in_datasets = [x.to_dataset(namespace, database) for x in parse_query_result(cursor)]
+            in_datasets = [x.to_dataset(namespace, database, schema) for x in parse_query_result(cursor)]
         else:
             in_datasets = []
         if out_query:
             cursor.execute(out_query)
-            out_datasets = [x.to_dataset(namespace, database) for x in parse_query_result(cursor)]
+            out_datasets = [x.to_dataset(namespace, database, schema) for x in parse_query_result(cursor)]
         else:
             out_datasets = []
     return in_datasets, out_datasets
