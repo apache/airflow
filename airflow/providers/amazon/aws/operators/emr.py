@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import ast
-from airflow.configuration import conf
 import warnings
 from datetime import timedelta
 from functools import cached_property
@@ -1099,6 +1098,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
                 status_args=["application.state", "application.stateDetails"],
             )
         return application_id
+
     def start_application_deferred(self, context, event=None):
         if event["status"] == "success":
             self.log.info("Starting application %s", event["application_id"])
@@ -1120,6 +1120,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             return event["application_id"]
         else:
             raise AirflowException(f"Application {event['application_id']} failed to start")
+
 
 class EmrServerlessStartJobOperator(BaseOperator):
     """
@@ -1434,6 +1435,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
                 status_args=["application.state", "application.stateDetails"],
             )
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)
+
     def stop_application(self, context, event=None) -> None:
         if event["status"] == "success":
             self.hook.conn.stop_application(applicationId=self.application_id)
@@ -1448,6 +1450,7 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 method_name="execute_complete",
             )
+
     def execute_complete(self, context, event=None) -> None:
         if event["status"] == "success":
             self.log.info("EMR serverless application %s stopped successfully", self.application_id)
