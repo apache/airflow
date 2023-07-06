@@ -60,7 +60,7 @@ setup:version:123b462a421884dc2320ffc5e54b2478
 setup:cfeb42e9cbe3f77e6cc53974a52f34a2
 shell:29499e4b0d2738c021c33aace919cd2a
 start-airflow:4d6c3075e899da403b4bb7e07e19c2fd
-static-checks:4923b4277d705d876609bc96375c7cc4
+static-checks:d30e9b7dfc329d2657a54ab97c1453bf
 testing:docker-compose-tests:fb26a48e083b0a5c6eae2ebd052eaf72
 testing:helm-tests:936cf28fd84ce4ff5113795fdae9624b
 testing:integration-tests:372b0e421ebcefb1ea7a1008658134c3

@@ -52,7 +52,7 @@ from urllib.parse import urlsplit
 
 import jinja2
 import pendulum
-import re2 as re
+import re2
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
 from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Text, and_, case, func, not_, or_
@@ -2206,7 +2206,7 @@ class DAG(LoggingMixin):
         dag = copy.deepcopy(self, memo)  # type: ignore
 
         if isinstance(task_ids_or_regex, (str, Pattern)):
-            matched_tasks = [t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]
+            matched_tasks = [t for t in self.tasks if re2.findall(task_ids_or_regex, t.task_id)]
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
 
@@ -2668,8 +2668,8 @@ class DAG(LoggingMixin):
 
         regex = airflow_conf.get("scheduler", "allowed_run_id_pattern")
 
-        if run_id and not re.match(RUN_ID_REGEX, run_id):
-            if not regex.strip() or not re.match(regex.strip(), run_id):
+        if run_id and not re2.match(RUN_ID_REGEX, run_id):
+            if not regex.strip() or not re2.match(regex.strip(), run_id):
                 raise AirflowException(
                     f"The provided run ID '{run_id}' is invalid. It does not match either "
                     f"the configured pattern: '{regex}' or the built-in pattern: '{RUN_ID_REGEX}'"

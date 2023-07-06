@@ -24,7 +24,6 @@ import itertools
 import json
 import logging
 import math
-import re
 import sys
 import traceback
 import warnings
@@ -40,6 +39,7 @@ import flask.json
 import lazy_object_proxy
 import markupsafe
 import nvd3
+import re2
 import sqlalchemy as sqla
 from croniter import croniter
 from flask import (
@@ -2025,8 +2025,8 @@ class Airflow(AirflowBaseView):
             return redirect(origin)
 
         regex = conf.get("scheduler", "allowed_run_id_pattern")
-        if run_id and not re.match(RUN_ID_REGEX, run_id):
-            if not regex.strip() or not re.match(regex.strip(), run_id):
+        if run_id and not re2.match(RUN_ID_REGEX, run_id):
+            if not regex.strip() or not re2.match(regex.strip(), run_id):
                 flash(
                     f"The provided run ID '{run_id}' is invalid. It does not match either "
                     f"the configured pattern: '{regex}' or the built-in pattern: '{RUN_ID_REGEX}'",
@@ -4508,7 +4508,7 @@ class ConnectionModelView(AirflowModelView):
         """Duplicate Multiple connections"""
         for selected_conn in connections:
             new_conn_id = selected_conn.conn_id
-            match = re.search(r"_copy(\d+)$", selected_conn.conn_id)
+            match = re2.search(r"_copy(\d+)$", selected_conn.conn_id)
 
             base_conn_id = selected_conn.conn_id
             if match:
@@ -4765,8 +4765,8 @@ class ProviderView(AirflowBaseView):
             return markupsafe.Markup(f'<a href="{url}">{text}</a>')
 
         cd = markupsafe.escape(description)
-        cd = re.sub(r"`(.*)[\s+]+&lt;(.*)&gt;`__", _build_link, cd)
-        cd = re.sub(r"\n", r"<br>", cd)
+        cd = re2.sub(r"`(.*)[\s+]+&lt;(.*)&gt;`__", _build_link, cd)
+        cd = re2.sub(r"\n", r"<br>", cd)
         return markupsafe.Markup(cd)
 
 

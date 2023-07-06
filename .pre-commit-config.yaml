@@ -891,6 +891,14 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
         additional_dependencies: ['yarn@1.22.19']
         pass_filenames: false
+      - id: check-usage-of-re2-over-re
+        language: pygrep
+        name: Use re2 over re
+        description: Use re2 module instead of re
+        entry: "^\\s*from re\\s|^\\s*import re\\s"
+        pass_filenames: true
+        files: \.py$
+        exclude: ^airflow/providers|^dev/.*\.py$|^scripts/.*\.py$|^tests/|^docker_tests/|^docs/.*\.py$|^airflow/utils/helpers.py$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
         # breeze code uses Python 3.8 features, so we need to use Python 3.8

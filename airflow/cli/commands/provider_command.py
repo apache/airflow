@@ -17,7 +17,7 @@
 """Providers sub-commands."""
 from __future__ import annotations
 
-import re
+import re2
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.providers_manager import ProvidersManager
@@ -27,7 +27,7 @@ ERROR_IMPORTING_HOOK = "Error when importing hook!"
 
 
 def _remove_rst_syntax(value: str) -> str:
-    return re.sub("[`_<>]", "", value.strip(" \n."))
+    return re2.sub("[`_<>]", "", value.strip(" \n."))
 
 
 @suppress_logs_and_warning
