@@ -433,7 +433,7 @@ class EmrServerlessAppicationTrigger(BaseTrigger):
 
 class EmrServerlessCancelJobsTrigger(BaseTrigger):
     """
-    Trigger for cancelling a list of jobs in an EMR Serverless application.
+    Trigger for canceling a list of jobs in an EMR Serverless application.
 
     :param application_id: EMR Serverless application ID
     :param aws_conn_id: Reference to AWS connection id
