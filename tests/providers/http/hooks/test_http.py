@@ -21,14 +21,9 @@ import functools
 import json
 import logging
 import os
-import sys
 from collections import OrderedDict
 from http import HTTPStatus
-
-if sys.version_info.major == 3 and sys.version_info.minor >= 8:
-    from unittest import mock
-else:
-    from unittest import mock
+from unittest import mock
 
 import pytest
 import requests
