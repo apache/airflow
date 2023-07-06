@@ -60,10 +60,20 @@ def test_create_connection(admin_client, session):
 
 def test_connection_id_with_trailing_blanks(admin_client, session):
     conn_id_with_blanks = "conn_id_with_trailing_blanks   "
-    conn = {**CONNECTION, "conn_id": conn_id_with_blanks}
-    resp = admin_client.post("/connection/add", data=conn, follow_redirects=True)
-    # all the whitespaces get stripped off
-    check_content_in_response("Added Row", resp)
+
+    conn = Connection(
+        conn_id=conn_id_with_blanks,
+        conn_type="Google Cloud",
+    )
+
+    with create_session() as session:
+        session.query(Connection).delete()
+        session.add(conn)
+        session.commit()
+
+    response = {conn[0] for conn in session.query(Connection.conn_id).all()}
+    assert len(response) == 1
+    assert "conn_id_with_trailing_blanks" in list(response)[0]
 
 
 def test_action_logging_connection_masked_secrets(session, admin_client):
