@@ -38,11 +38,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 10.3.0
 ......
 
-Latest change: 2023-06-30
+Latest change: 2023-07-05
 
 =================================================================================================  ===========  =============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================================================================
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
+`f8593503cb <https://github.com/apache/airflow/commit/f8593503cbe252c2f4dc5ff48a3f292c9e13baad>`_  2023-07-05   ``Add default_deferrable config (#31712)``
 `d6e254db68 <https://github.com/apache/airflow/commit/d6e254db689db070f2f181006e7d6bc593482300>`_  2023-06-30   ``Deprecate 'delimiter' param and source object's wildcards in GCS, introduce 'match_glob' param. (#31261)``
 `dd937e51fe <https://github.com/apache/airflow/commit/dd937e51fe1ae3cd36a6993bd42e425960644e1d>`_  2023-06-30   ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
 `c0eaa9b25d <https://github.com/apache/airflow/commit/c0eaa9b25d11eeb6fba1b716323c4ff2c2dbd5e1>`_  2023-06-29   ``Add deferrable mode to CloudSQLExportInstanceOperator (#30852)``
