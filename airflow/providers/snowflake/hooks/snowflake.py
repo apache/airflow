@@ -477,7 +477,21 @@ class SnowflakeHook(DbApiHook):
         return "snowflake"
 
     def get_openlineage_default_schema(self) -> str | None:
-        return self.get_first("SELECT current_schema();")[0]
+        """
+        Attempts to get current schema.
+
+        Usually ``SELECT CURRENT_SCHEMA();`` should work.
+        However, apparently you may set ``database`` without ``schema``
+        and get results from ``SELECT CURRENT_SCHEMAS();`` but not
+        from ``SELECT CURRENT_SCHEMA();``.
+        It still may return nothing if no database is set in connection.
+        """
+        schema = self._get_conn_params()["schema"]
+        if not schema:
+            current_schemas = self.get_first("SELECT PARSE_JSON(CURRENT_SCHEMAS())[0]::string;")[0]
+            if current_schemas:
+                _, schema = current_schemas.split(".")
+        return schema
 
     def _get_openlineage_authority(self, _) -> str:
         from openlineage.common.provider.snowflake import fix_snowflake_sqlalchemy_uri

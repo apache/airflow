@@ -145,6 +145,7 @@ def test_exec_success(sql, return_last, split_statement, hook_results, hook_desc
 
 
 def test_execute_openlineage_events():
+    DB_NAME = "DATABASE"
     DB_SCHEMA_NAME = "PUBLIC"
 
     class SnowflakeHookForTests(SnowflakeHook):
@@ -152,7 +153,7 @@ def test_execute_openlineage_events():
         get_connection = MagicMock()
 
         def get_first(self, *_):
-            return [DB_SCHEMA_NAME]
+            return [f"{DB_NAME}.{DB_SCHEMA_NAME}"]
 
     dbapi_hook = SnowflakeHookForTests()
 
@@ -175,7 +176,12 @@ FORGOT TO COMMENT"""
     dbapi_hook.get_connection.return_value = Connection(
         conn_id="snowflake_default",
         conn_type="snowflake",
-        extra={"account": "test_account", "region": "us-east", "warehouse": "snow-warehouse"},
+        extra={
+            "account": "test_account",
+            "region": "us-east",
+            "warehouse": "snow-warehouse",
+            "database": DB_NAME,
+        },
     )
     dbapi_hook.get_conn.return_value.cursor.return_value.fetchall.side_effect = [rows, []]
 
@@ -184,7 +190,7 @@ FORGOT TO COMMENT"""
     assert lineage.outputs == [
         Dataset(
             namespace="snowflake://test_account.us-east.aws",
-            name="PUBLIC.POPULAR_ORDERS_DAY_OF_WEEK",
+            name=f"{DB_NAME}.{DB_SCHEMA_NAME}.POPULAR_ORDERS_DAY_OF_WEEK",
             facets={
                 "schema": SchemaDatasetFacet(
                     fields=[
