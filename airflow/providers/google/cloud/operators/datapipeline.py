@@ -73,8 +73,8 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
             data_pipeline_name = self.data_pipeline_name
         )
 
-
-        return {"data_pipeline_name": self.data_pipeline.name}
+        # returns the full response body
+        return self.data_pipeline
 
 
 class RunDataPipelineOperator(GoogleCloudBaseOperator):
