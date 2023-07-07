@@ -70,6 +70,13 @@ core:
       type: string
       example: ~
       default: "SequentialExecutor"
+    auth_manager:
+      description: |
+        The auth manager class that airflow should use. Full import path to the auth manager class.
+      version_added: ~
+      type: string
+      example: ~
+      default: "airflow.auth.managers.fab.fab_auth_manager.FabAuthManager"
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in

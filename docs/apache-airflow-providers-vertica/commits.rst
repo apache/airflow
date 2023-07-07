@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.5.0
 .....
 
-Latest change: 2023-06-30
+Latest change: 2023-07-05
 
 =================================================================================================  ===========  ================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
 `64a3787c24 <https://github.com/apache/airflow/commit/64a3787c2414cc5f2e07ff10477c824efc2e9a5d>`_  2023-06-30   ``Add various Vertica connection parameters (#32089)``
 `09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
 =================================================================================================  ===========  ================================================================

@@ -16,7 +16,6 @@
     specific language governing permissions and limitations
     under the License.
 
-Package ``apache-airflow-providers-samba``
-------------------------------------------
+
 
 .. include:: ../../airflow/providers/samba/CHANGELOG.rst

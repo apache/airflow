@@ -394,6 +394,7 @@ class TaskInstance(Base, LoggingMixin):
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
+    custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
@@ -571,6 +572,7 @@ class TaskInstance(Base, LoggingMixin):
             "max_tries": task.retries,
             "executor_config": task.executor_config,
             "operator": task.task_type,
+            "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
         }
 
@@ -616,6 +618,11 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def next_try_number(self) -> int:
         return self._try_number + 1
+
+    @property
+    def operator_name(self) -> str | None:
+        """@property: use a more friendly display name for the operator, if set."""
+        return self.custom_operator_name or self.operator
 
     def command_as_list(
         self,
@@ -858,6 +865,7 @@ class TaskInstance(Base, LoggingMixin):
             self.queue = ti.queue
             self.priority_weight = ti.priority_weight
             self.operator = ti.operator
+            self.custom_operator_name = ti.custom_operator_name
             self.queued_dttm = ti.queued_dttm
             self.queued_by_job_id = ti.queued_by_job_id
             self.pid = ti.pid
@@ -886,6 +894,7 @@ class TaskInstance(Base, LoggingMixin):
         # value that needs to be stored in the db.
         self.executor_config = task.executor_config
         self.operator = task.task_type
+        self.custom_operator_name = getattr(task, "custom_operator_name", None)
 
     @provide_session
     def clear_xcom_data(self, session: Session = NEW_SESSION) -> None:

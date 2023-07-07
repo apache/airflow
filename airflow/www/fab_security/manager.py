@@ -22,11 +22,11 @@ import base64
 import datetime
 import json
 import logging
-import re
 from functools import cached_property
 from typing import Any
 from uuid import uuid4
 
+import re2
 from flask import Flask, current_app, g, session, url_for
 from flask_appbuilder import AppBuilder
 from flask_appbuilder.const import (
@@ -703,7 +703,7 @@ class BaseSecurityManager:
 
     def _azure_parse_jwt(self, id_token):
         jwt_token_parts = r"^([^\.\s]*)\.([^\.\s]+)\.([^\.\s]*)$"
-        matches = re.search(jwt_token_parts, id_token)
+        matches = re2.search(jwt_token_parts, id_token)
         if not matches or len(matches.groups()) < 3:
             log.error("Unable to parse token.")
             return {}
@@ -1375,8 +1375,8 @@ class BaseSecurityManager:
     def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
         """Checks permission on builtin role."""
         perms = self.builtin_roles.get(role.name, [])
-        for (_resource_name, _action_name) in perms:
-            if re.match(_resource_name, resource_name) and re.match(_action_name, action_name):
+        for _resource_name, _action_name in perms:
+            if re2.match(_resource_name, resource_name) and re2.match(_action_name, action_name):
                 return True
         return False
 

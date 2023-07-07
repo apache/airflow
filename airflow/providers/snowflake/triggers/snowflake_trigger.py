@@ -93,11 +93,7 @@ class SnowflakeSqlApiTrigger(BaseTrigger):
             yield TriggerEvent({"status": "error", "message": str(e)})
 
     async def get_query_status(self, query_id: str) -> dict[str, Any]:
-        """
-        Async function to check whether the query statement submitted via SQL API is still
-        running state and returns True if it is still running else
-        return False.
-        """
+        """Return True if the SQL query is still running otherwise return False."""
         hook = SnowflakeSqlApiHook(
             self.snowflake_conn_id,
             self.token_life_time,

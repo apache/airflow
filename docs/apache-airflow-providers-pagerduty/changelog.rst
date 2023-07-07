@@ -16,7 +16,6 @@
     specific language governing permissions and limitations
     under the License.
 
-Package ``apache-airflow-providers-pagerduty``
-----------------------------------------------
+
 
 .. include:: ../../airflow/providers/pagerduty/CHANGELOG.rst

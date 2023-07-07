@@ -323,7 +323,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        if self.objects:
+        if self.objects is not None:
             objects = self.objects
         else:
             objects = hook.list(bucket_name=self.bucket_name, prefix=self.prefix)
