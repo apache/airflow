@@ -90,8 +90,7 @@ def main() -> int:
         glob.glob(f"{ROOT_DIR}/airflow/**/operators/**.py", recursive=True),
     )
 
-    invalid_value_errors = [iter_check_deferrable_default_errors(m) for m in modules]
-
+    invalid_value_errors = list(itertools.chain(*(iter_check_deferrable_default_errors(m) for m in modules)))
     if invalid_value_errors:
         print("Incorrect deferrable default values detected at:")
         for error in invalid_value_errors:
