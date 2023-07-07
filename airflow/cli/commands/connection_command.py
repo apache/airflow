@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
+from sqlalchemy import select
 from sqlalchemy.orm import exc
 
 from airflow.cli.simple_table import AirflowConsole
@@ -77,9 +78,10 @@ def connections_get(args):
 def connections_list(args):
     """Lists all connections at the command line."""
     with create_session() as session:
-        query = session.query(Connection)
+        query = select(Connection)
         if args.conn_id:
-            query = query.filter(Connection.conn_id == args.conn_id)
+            query = query.where(Connection.conn_id == args.conn_id)
+        query = session.scalars(query)
         conns = query.all()
 
         AirflowConsole().print_as(
@@ -177,7 +179,7 @@ def connections_export(args):
         raise SystemExit("Option `--serialization-format` may only be used with file type `env`.")
 
     with create_session() as session:
-        connections = session.query(Connection).order_by(Connection.conn_id).all()
+        connections = session.scalars(select(Connection).order_by(Connection.conn_id)).all()
 
     msg = _format_connections(
         conns=connections,
@@ -265,7 +267,7 @@ def connections_add(args):
             new_conn.set_extra(args.conn_extra)
 
     with create_session() as session:
-        if not session.query(Connection).filter(Connection.conn_id == new_conn.conn_id).first():
+        if not session.scalar(select(Connection).where(Connection.conn_id == new_conn.conn_id).limit(1)):
             session.add(new_conn)
             msg = "Successfully added `conn_id`={conn_id} : {uri}"
             msg = msg.format(
@@ -293,7 +295,7 @@ def connections_delete(args):
     """Deletes connection from DB."""
     with create_session() as session:
         try:
-            to_delete = session.query(Connection).filter(Connection.conn_id == args.conn_id).one()
+            to_delete = session.scalars(select(Connection).where(Connection.conn_id == args.conn_id)).one()
         except exc.NoResultFound:
             raise SystemExit(f"Did not find a connection with `conn_id`={args.conn_id}")
         except exc.MultipleResultsFound:
@@ -326,7 +328,7 @@ def _import_helper(file_path: str, overwrite: bool) -> None:
                 print(f"Could not import connection. {e}")
                 continue
 
-            existing_conn_id = session.query(Connection.id).filter(Connection.conn_id == conn_id).scalar()
+            existing_conn_id = session.scalar(select(Connection.id).where(Connection.conn_id == conn_id))
             if existing_conn_id is not None:
                 if not overwrite:
                     print(f"Could not import connection {conn_id}: connection already exists.")
