@@ -72,7 +72,7 @@ class ContextWrapper(list):
             # means we have XComArgs
             operators = [task.operator for task in self.tasks]
         SetupTeardownContext.push_setup_teardown_task(operators)
-        return self
+        return SetupTeardownContext
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         SetupTeardownContext.set_work_task_roots_and_leaves()
