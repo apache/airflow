@@ -495,7 +495,7 @@ Key features of setup and teardown tasks:
 
   * If you clear a task, its setups and teardowns will be cleared.
   * By default, teardown tasks are ignored for the purpose of evaluating dag run state.
-  * A teardown task will run if it's setup was successful, even if its work tasks failed.
+  * A teardown task will run if its setup was successful, even if its work tasks failed.
   * Teardown tasks are ignored when setting dependencies against task groups.
   * A setup task must always have a teardown and vice versa. You may use EmptyOperator as a setup or teardown.
 
