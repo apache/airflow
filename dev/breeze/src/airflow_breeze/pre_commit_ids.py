@@ -39,6 +39,7 @@ PRE_COMMIT_LIST = [
     "check-core-deprecation-classes",
     "check-daysago-import-from-utils",
     "check-decorated-operator-implements-custom-name",
+    "check-deferrable-default-value",
     "check-docstring-param-types",
     "check-example-dags-urls",
     "check-executables-have-shebangs",
