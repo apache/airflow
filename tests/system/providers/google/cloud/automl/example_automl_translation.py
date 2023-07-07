@@ -37,35 +37,40 @@ from airflow.providers.google.cloud.operators.automl import (
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
-GCP_AUTOML_TEXT_CLS_BUCKET = os.environ.get("GCP_AUTOML_TEXT_CLS_BUCKET", "gs://INVALID BUCKET NAME")
-
-# Example values
-DATASET_ID = ""
+GCP_AUTOML_TRANSLATION_BUCKET = os.environ.get(
+    "GCP_AUTOML_TRANSLATION_BUCKET", "gs://INVALID BUCKET NAME/file"
+)
 
 # Example model
 MODEL = {
     "display_name": "auto_model_1",
-    "dataset_id": DATASET_ID,
-    "text_classification_model_metadata": {},
+    "translation_model_metadata": {},
 }
 
 # Example dataset
 DATASET = {
-    "display_name": "test_text_cls_dataset",
-    "text_classification_dataset_metadata": {"classification_type": "MULTICLASS"},
+    "display_name": "test_translation_dataset",
+    "translation_dataset_metadata": {
+        "source_language_code": "en",
+        "target_language_code": "es",
+    },
 }
 
-IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_TEXT_CLS_BUCKET]}}
+
+IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_TRANSLATION_BUCKET]}}
 
 extract_object_id = CloudAutoMLHook.extract_object_id
 
-# Example DAG for AutoML Natural Language Text Classification
+
+# Example DAG for AutoML Translation
 with models.DAG(
-    "example_automl_text_cls",
+    "example_automl_translation",
     start_date=datetime(2021, 1, 1),
+    schedule="@once",
     catchup=False,
+    user_defined_macros={"extract_object_id": extract_object_id},
     tags=["example"],
-) as example_dag:
+) as dag:
     create_dataset_task = AutoMLCreateDatasetOperator(
         task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION
     )
@@ -99,10 +104,25 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
+    # TEST BODY
     import_dataset_task >> create_model
+    # TEST TEARDOWN
     delete_model_task >> delete_datasets_task
 
     # Task dependencies created via `XComArgs`:
     #   create_dataset_task >> import_dataset_task
     #   create_dataset_task >> create_model
+    #   create_model >> delete_model_task
     #   create_dataset_task >> delete_datasets_task
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
