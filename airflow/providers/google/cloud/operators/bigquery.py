@@ -2568,7 +2568,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
 
     :param configuration: The configuration parameter maps directly to BigQuery's
         configuration field in the job object. For more details see
-        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/Job#jobconfiguration
     :param job_id: The ID of the job. It will be suffixed with hash of job configuration
         unless ``force_rerun`` is True.
         The ID must contain only letters (a-z, A-Z), numbers (0-9), underscores (_), or
