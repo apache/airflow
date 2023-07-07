@@ -1192,6 +1192,7 @@ export interface components {
       metadatabase?: components["schemas"]["MetadatabaseStatus"];
       scheduler?: components["schemas"]["SchedulerStatus"];
       triggerer?: components["schemas"]["TriggererStatus"];
+      dag_processor?: components["schemas"]["DagProcessorStatus"];
     };
     /** @description The status of the metadatabase. */
     MetadatabaseStatus: {
@@ -1218,6 +1219,19 @@ export interface components {
        * @description The time the triggerer last did a heartbeat.
        */
       latest_triggerer_heartbeat?: string | null;
+    };
+    /**
+     * @description The status and the latest dag processor heartbeat.
+     *
+     * *New in version 2.6.3*
+     */
+    DagProcessorStatus: {
+      status?: components["schemas"]["HealthStatus"];
+      /**
+       * Format: datetime
+       * @description The time the dag processor last did a heartbeat.
+       */
+      latest_dag_processor_heartbeat?: string | null;
     };
     /** @description The pool */
     Pool: {
@@ -4666,6 +4680,9 @@ export type SchedulerStatus = CamelCasedPropertiesDeep<
 >;
 export type TriggererStatus = CamelCasedPropertiesDeep<
   components["schemas"]["TriggererStatus"]
+>;
+export type DagProcessorStatus = CamelCasedPropertiesDeep<
+  components["schemas"]["DagProcessorStatus"]
 >;
 export type Pool = CamelCasedPropertiesDeep<components["schemas"]["Pool"]>;
 export type PoolCollection = CamelCasedPropertiesDeep<

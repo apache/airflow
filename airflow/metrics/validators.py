@@ -21,11 +21,12 @@ from __future__ import annotations
 
 import abc
 import logging
-import re
 import string
 import warnings
 from functools import partial, wraps
 from typing import Callable, Iterable, Pattern, cast
+
+import re2
 
 from airflow.configuration import conf
 from airflow.exceptions import InvalidStatsNameException
@@ -78,7 +79,7 @@ BACK_COMPAT_METRIC_NAME_PATTERNS: set[str] = {
     r"^dagrun\.schedule_delay\.(?P<dag_id>.*)$",
     r"^dagrun\.(?P<dag_id>.*)\.first_task_scheduling_delay$",
 }
-BACK_COMPAT_METRIC_NAMES: set[Pattern[str]] = {re.compile(name) for name in BACK_COMPAT_METRIC_NAME_PATTERNS}
+BACK_COMPAT_METRIC_NAMES: set[Pattern[str]] = {re2.compile(name) for name in BACK_COMPAT_METRIC_NAME_PATTERNS}
 
 OTEL_NAME_MAX_LENGTH = 63
 
@@ -132,7 +133,7 @@ def stat_name_otel_handler(
         # If the name is in the exceptions list, do not fail it for being too long.
         # It may still be deemed invalid for other reasons below.
         for exemption in BACK_COMPAT_METRIC_NAMES:
-            if re.match(exemption, stat_name):
+            if re2.match(exemption, stat_name):
                 # There is a back-compat exception for this name; proceed
                 name_length_exemption = True
                 matched_exemption = exemption.pattern
