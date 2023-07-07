@@ -67,13 +67,17 @@ CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
 # corresponding provider.yaml file.
 #
 def fill_provider_dependencies() -> dict[str, dict[str, list[str]]]:
+    # in case we are loading setup from pre-commits, we want to skip the check for python version
+    # because if someone uses a version of Python where providers are excluded, the setup will fail
+    # to see the extras for those providers
+    skip_python_version_check = os.environ.get("_SKIP_PYTHON_VERSION_CHECK")
     try:
         with AIRFLOW_SOURCES_ROOT.joinpath("generated", "provider_dependencies.json").open() as f:
             dependencies = json.load(f)
         return {
             key: value
             for key, value in dependencies.items()
-            if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"]
+            if CURRENT_PYTHON_VERSION not in value["excluded-python-versions"] or skip_python_version_check
         }
     except Exception as e:
         print(f"Exception while loading provider dependencies {e}")
@@ -262,7 +266,9 @@ deprecated_api = [
 doc = [
     "astroid>=2.12.3",
     "checksumdir",
-    "click>=8.0",
+    # Click 8.1.4 breaks our mypy checks. The upper limit can be lifted when the
+    # https://github.com/apache/airflow/issues/32412 issue is resolved
+    "click>=8.0,<8.1.4",
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
     # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
     # <section> tags for sections

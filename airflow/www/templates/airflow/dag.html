@@ -60,7 +60,6 @@
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id) }}">
   <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
   <meta name="grid_url_no_root" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, base_date=base_date_arg) }}">
-  <meta name="dag_details_url" content="{{ url_for('Airflow.dag_details', dag_id=dag.dag_id) }}">
   <meta name="graph_url" content="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root) }}">
   <meta name="task_url" content="{{ url_for('Airflow.task', dag_id=dag.dag_id) }}">
   <meta name="log_url" content="{{ url_for('Airflow.log', dag_id=dag.dag_id) }}">
@@ -68,6 +67,7 @@
   <meta name="rendered_templates_url" content="{{ url_for('Airflow.rendered_templates', dag_id=dag.dag_id) }}">
   <meta name="rendered_k8s_url" content="{{ url_for('Airflow.rendered_k8s', dag_id=dag.dag_id) }}">
   <meta name="task_instances_list_url" content="{{ url_for('TaskInstanceModelView.list') }}">
+  <meta name="tag_index_url" content="{{ url_for('Airflow.index', tags='_TAG_NAME_') }}">
   <meta name="mapped_instances_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_mapped_task_instances', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
   <meta name="task_log_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_log_endpoint_get_log', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_', task_try_number='-1') }}">
   <meta name="upstream_dataset_events_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_get_upstream_dataset_events', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_') }}">
@@ -77,6 +77,7 @@
   <meta name="set_dag_run_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_set_dag_run_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_') }}">
   <meta name="dag_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag', dag_id=dag.dag_id) }}">
   <meta name="dag_source_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_source_endpoint_get_dag_source', file_token='_FILE_TOKEN_') }}">
+  <meta name="dag_details_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_endpoint_get_dag_details', dag_id=dag.dag_id) }}">
 
   <!-- End Urls -->
   <meta name="is_paused" content="{{ dag_is_paused }}">

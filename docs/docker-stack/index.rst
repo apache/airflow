@@ -71,7 +71,7 @@ The Apache Airflow image provided as convenience package is optimized for size, 
 it provides just a bare minimal set of the extras and dependencies installed and in most cases
 you want to either extend or customize the image. You can see all possible extras in :doc:`apache-airflow:extra-packages-ref`.
 The set of extras used in Airflow Production image are available in the
-`Dockerfile <https://github.com/apache/airflow/blob/2c6c7fdb2308de98e142618836bdf414df9768c8/Dockerfile#L37>`_.
+`Dockerfile <https://github.com/apache/airflow/blob/main/Dockerfile>`_.
 
 However, Airflow has more than 60 community-managed providers (installable via extras) and some of the
 default extras/providers installed are not used by everyone, sometimes others extras/providers
@@ -124,14 +124,23 @@ Support
 The reference Docker Image supports the following platforms and database:
 
 
-* Intel platform (x86_64)
-   * Postgres Client
-   * MySQL Client
-   * MSSQL Client
+Intel platform (x86_64)
+-----------------------
 
-* ARM platform (aarch64) - experimental support, might change any time
-   * Postgres Client
-   * MSSQL Client
+* Postgres Client
+* MySQL Client
+* MSSQL Client
+
+ARM platform (aarch64)
+----------------------
+
+ARM support is experimental, might change any time.
+
+* Postgres Client
+* MySQL Client (MySQL 8)
+* MSSQL Client
+
+Note that MySQL on arm has experimental support through MariaDB client library.
 
 Usage
 =====

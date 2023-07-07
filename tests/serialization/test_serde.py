@@ -100,6 +100,11 @@ class U(BaseModel):
     u: tuple
 
 
+class C:
+    def __call__(self):
+        return None
+
+
 @pytest.mark.usefixtures("recalculate_patterns")
 class TestSerDe:
     def test_ser_primitives(self):
@@ -252,6 +257,9 @@ class TestSerDe:
             deserialize(data)
 
     def test_backwards_compat(self):
+        """
+        Verify deserialization of old-style encoded Xcom values including nested ones
+        """
         uri = "s3://does_not_exist"
         data = {
             "__type": "airflow.datasets.Dataset",
@@ -259,13 +267,27 @@ class TestSerDe:
             "__var": {
                 "__var": {
                     "uri": uri,
-                    "extra": None,
+                    "extra": {
+                        "__var": {"hi": "bye"},
+                        "__type": "dict",
+                    },
                 },
                 "__type": "dict",
             },
         }
         dataset = deserialize(data)
+        assert dataset.extra == {"hi": "bye"}
         assert dataset.uri == uri
+
+    def test_backwards_compat_wrapped(self):
+        """
+        Verify deserialization of old-style wrapped XCom value
+        """
+        i = {
+            "extra": {"__var": {"hi": "bye"}, "__type": "dict"},
+        }
+        e = deserialize(i)
+        assert e["extra"] == {"hi": "bye"}
 
     def test_encode_dataset(self):
         dataset = Dataset("mytest://dataset")
@@ -331,3 +353,10 @@ class TestSerDe:
         e = serialize(i)
         s = deserialize(e)
         assert i == s
+
+    def test_error_when_serializing_callable_without_name(self):
+        i = C()
+        with pytest.raises(
+            TypeError, match="cannot serialize object of type <class 'tests.serialization.test_serde.C'>"
+        ):
+            serialize(i)

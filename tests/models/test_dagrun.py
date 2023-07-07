@@ -30,6 +30,7 @@ from sqlalchemy.orm.session import Session
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import setup, task, task_group, teardown
+from airflow.exceptions import AirflowException
 from airflow.models import (
     DAG,
     DagBag,
@@ -54,6 +55,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE as _DEFAULT_DATE
 from tests.test_utils import db
+from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import MockOperator
 
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
@@ -984,7 +986,7 @@ def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type,
     assert len(tis) == expected_tis
 
     Stats_incr.assert_any_call(
-        "task_instance_created-EmptyOperator", expected_tis, tags={"dag_id": "test", "run_type": run_type}
+        "task_instance_created_EmptyOperator", expected_tis, tags={"dag_id": "test", "run_type": run_type}
     )
     Stats_incr.assert_any_call(
         "task_instance_created",
@@ -1809,6 +1811,52 @@ def test_mapped_task_group_expands_at_create(dag_maker, session):
     ]
 
 
+def test_mapped_task_group_empty_operator(dag_maker, session):
+    """
+    Test that dynamic task inside a dynamic task group only marks
+    the corresponding downstream EmptyOperator as success.
+    """
+
+    literal = [1, 2, 3]
+
+    with dag_maker(session=session) as dag:
+
+        @task_group
+        def tg(x):
+            @task
+            def t1(x):
+                return x
+
+            t2 = EmptyOperator(task_id="t2")
+
+            @task
+            def t3(x):
+                return x
+
+            t1(x) >> t2 >> t3(x)
+
+        tg.expand(x=literal)
+
+    dr = dag_maker.create_dagrun()
+
+    t2_task = dag.get_task("tg.t2")
+    t2_0 = dr.get_task_instance(task_id="tg.t2", map_index=0)
+    t2_0.refresh_from_task(t2_task)
+    assert t2_0.state is None
+
+    t2_1 = dr.get_task_instance(task_id="tg.t2", map_index=1)
+    t2_1.refresh_from_task(t2_task)
+    assert t2_1.state is None
+
+    dr.schedule_tis([t2_0])
+
+    t2_0 = dr.get_task_instance(task_id="tg.t2", map_index=0)
+    assert t2_0.state == TaskInstanceState.SUCCESS
+
+    t2_1 = dr.get_task_instance(task_id="tg.t2", map_index=1)
+    assert t2_1.state is None
+
+
 def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     with dag_maker(session=session):
         task = BaseOperator(task_id="task_1")
@@ -2512,7 +2560,7 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
     def work_task():
         print(1)
 
-    @task
+    @setup
     def setup_task():
         print(1)
 
@@ -2541,3 +2589,33 @@ def test_tis_considered_for_state(dag_maker, session, input, expected):
     tis = dr.task_instance_scheduling_decisions(session).tis
     tis_for_state = {x.task_id for x in dr._tis_for_dagrun_state(dag=dag, tis=tis)}
     assert tis_for_state == expected
+
+
+@pytest.mark.parametrize(
+    "pattern, run_id, result",
+    [
+        ["^[A-Z]", "ABC", True],
+        ["^[A-Z]", "abc", False],
+        ["^[0-9]", "123", True],
+        # The below params tests that user configuration does not affect internally generated
+        # run_ids
+        ["", "scheduled__2023-01-01T00:00:00+00:00", True],
+        ["", "manual__2023-01-01T00:00:00+00:00", True],
+        ["", "dataset_triggered__2023-01-01T00:00:00+00:00", True],
+        ["", "scheduled_2023-01-01T00", False],
+        ["", "manual_2023-01-01T00", False],
+        ["", "dataset_triggered_2023-01-01T00", False],
+        ["^[0-9]", "scheduled__2023-01-01T00:00:00+00:00", True],
+        ["^[0-9]", "manual__2023-01-01T00:00:00+00:00", True],
+        ["^[a-z]", "dataset_triggered__2023-01-01T00:00:00+00:00", True],
+    ],
+)
+def test_dag_run_id_config(session, dag_maker, pattern, run_id, result):
+    with conf_vars({("scheduler", "allowed_run_id_pattern"): pattern}):
+        with dag_maker():
+            ...
+        if result:
+            dag_maker.create_dagrun(run_id=run_id)
+        else:
+            with pytest.raises(AirflowException):
+                dag_maker.create_dagrun(run_id=run_id)

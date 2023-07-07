@@ -21,8 +21,42 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-alibaba``
+
 Changelog
 ---------
+
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Alibaba Cloud AnalyticDB Spark Support (#31787)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Airbyte and Alibaba (#32214)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+
+2.4.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+
+Misc
+~~~~
+
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 2.4.0
 .....

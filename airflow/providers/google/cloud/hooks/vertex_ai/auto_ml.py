@@ -18,7 +18,7 @@
 """
 This module contains a Google Cloud Vertex AI hook.
 
-.. spelling::
+.. spelling:word-list::
 
     aiplatform
     au

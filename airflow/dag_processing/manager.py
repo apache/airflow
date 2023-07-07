@@ -35,7 +35,7 @@ from datetime import datetime, timedelta
 from importlib import import_module
 from multiprocessing.connection import Connection as MultiprocessingConnection
 from pathlib import Path
-from typing import Any, Callable, NamedTuple, cast
+from typing import Any, Callable, Iterator, NamedTuple, cast
 
 from setproctitle import setproctitle
 from sqlalchemy.orm import Session
@@ -373,7 +373,7 @@ class DagFileProcessorManager(LoggingMixin):
 
     def __init__(
         self,
-        dag_directory: os.PathLike,
+        dag_directory: os.PathLike[str],
         max_runs: int,
         processor_timeout: timedelta,
         dag_ids: list[str] | None,
@@ -749,7 +749,7 @@ class DagFileProcessorManager(LoggingMixin):
             self._add_paths_to_queue([request.full_filepath], True)
             Stats.incr("dag_processing.other_callback_count")
 
-    def _refresh_dag_dir(self):
+    def _refresh_dag_dir(self) -> bool:
         """Refresh file paths from dag dir if we haven't done it for too long."""
         now = timezone.utcnow()
         elapsed_time_since_refresh = (now - self.last_dag_dir_refresh_time).total_seconds()
@@ -767,34 +767,31 @@ class DagFileProcessorManager(LoggingMixin):
             except Exception:
                 self.log.exception("Error removing old import errors")
 
-            # Check if file path is a zipfile and get the full path of the python file.
-            # Without this, SerializedDagModel.remove_deleted_files would delete zipped dags.
-            # Likewise DagCode.remove_deleted_code
-            dag_filelocs = []
-            for fileloc in self._file_paths:
-                if not fileloc.endswith(".py") and zipfile.is_zipfile(fileloc):
-                    try:
-                        with zipfile.ZipFile(fileloc) as z:
-                            dag_filelocs.extend(
-                                [
-                                    os.path.join(fileloc, info.filename)
-                                    for info in z.infolist()
-                                    if might_contain_dag(info.filename, True, z)
-                                ]
-                            )
-                    except zipfile.BadZipFile as err:
-                        self.log.error("There was an err accessing %s, %s", fileloc, err)
-                else:
-                    dag_filelocs.append(fileloc)
+            def _iter_dag_filelocs(fileloc: str) -> Iterator[str]:
+                """Get "full" paths to DAGs if inside ZIP files.
+
+                This is the format used by the remove/delete functions.
+                """
+                if fileloc.endswith(".py") or not zipfile.is_zipfile(fileloc):
+                    yield fileloc
+                    return
+                try:
+                    with zipfile.ZipFile(fileloc) as z:
+                        for info in z.infolist():
+                            if might_contain_dag(info.filename, True, z):
+                                yield os.path.join(fileloc, info.filename)
+                except zipfile.BadZipFile:
+                    self.log.exception("There was an error accessing ZIP file %s %s", fileloc)
+
+            dag_filelocs = {full_loc for path in self._file_paths for full_loc in _iter_dag_filelocs(path)}
+
+            from airflow.models.dagcode import DagCode
 
             SerializedDagModel.remove_deleted_dags(
                 alive_dag_filelocs=dag_filelocs,
                 processor_subdir=self.get_dag_directory(),
             )
             DagModel.deactivate_deleted_dags(dag_filelocs)
-
-            from airflow.models.dagcode import DagCode
-
             DagCode.remove_deleted_code(dag_filelocs)
 
             return True

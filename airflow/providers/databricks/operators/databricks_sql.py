@@ -22,6 +22,7 @@ import csv
 import json
 from typing import TYPE_CHECKING, Any, Sequence
 
+from databricks.sql.types import Row
 from databricks.sql.utils import ParamEscaper
 
 from airflow.exceptions import AirflowException
@@ -31,6 +32,10 @@ from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+def make_serializable(val: Row):
+    return tuple(val)
 
 
 class DatabricksSqlOperator(SQLExecuteQueryOperator):
@@ -65,14 +70,11 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
     :param csv_params: parameters that will be passed to the ``csv.DictWriter`` class used to write CSV data.
     """
 
-    template_fields: Sequence[str] = (
-        "sql",
-        "_output_path",
-        "schema",
-        "catalog",
-        "http_headers",
-        "databricks_conn_id",
+    template_fields: Sequence[str] = tuple(
+        {"_output_path", "schema", "catalog", "http_headers", "databricks_conn_id"}
+        | set(SQLExecuteQueryOperator.template_fields)
     )
+
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
 
@@ -125,7 +127,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
 
     def _process_output(self, results: list[Any], descriptions: list[Sequence[Sequence] | None]) -> list[Any]:
         if not self._output_path:
-            return list(zip(descriptions, results))
+            return list(zip(descriptions, [[make_serializable(row) for row in res] for res in results]))
         if not self._output_format:
             raise AirflowException("Output format should be specified!")
         # Output to a file only the result of last query
@@ -158,7 +160,7 @@ class DatabricksSqlOperator(SQLExecuteQueryOperator):
                     file.write("\n")
         else:
             raise AirflowException(f"Unsupported output format: '{self._output_format}'")
-        return list(zip(descriptions, results))
+        return list(zip(descriptions, [[make_serializable(row) for row in res] for res in results]))
 
 
 COPY_INTO_APPROVED_FORMATS = ["CSV", "JSON", "AVRO", "ORC", "PARQUET", "TEXT", "BINARYFILE"]
@@ -167,6 +169,7 @@ COPY_INTO_APPROVED_FORMATS = ["CSV", "JSON", "AVRO", "ORC", "PARQUET", "TEXT", "
 class DatabricksCopyIntoOperator(BaseOperator):
     """
     Executes COPY INTO command in a Databricks SQL endpoint or a Databricks cluster.
+
     COPY INTO command is constructed from individual pieces, that are described in
     `documentation <https://docs.databricks.com/sql/language-manual/delta-copy-into.html>`_.
 

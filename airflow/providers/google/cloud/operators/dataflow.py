@@ -28,6 +28,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.google.cloud.hooks.dataflow import (
@@ -172,7 +173,9 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
     This class is deprecated.
     Please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
 
-    **Example**: ::
+    Example usage:
+
+    .. code-block:: python
 
         default_args = {
             "owner": "airflow",
@@ -417,7 +420,6 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
                     variables=pipeline_options,
                 )
                 while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
-
                     is_running = self.dataflow_hook.is_job_dataflow_running(
                         name=self.job_name,
                         variables=pipeline_options,
@@ -609,7 +611,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         cancel_timeout: int | None = 10 * 60,
         wait_until_finished: bool | None = None,
         append_job_name: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -799,7 +801,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         cancel_timeout: int | None = 10 * 60,
         wait_until_finished: bool | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         append_job_name: bool = True,
         *args,
         **kwargs,

@@ -60,6 +60,7 @@ class WebHDFSHook(BaseHook):
     def get_conn(self) -> Any:
         """
         Establishes a connection depending on the security mode set via config or environment variable.
+
         :return: a hdfscli InsecureClient or KerberosClient object.
         """
         connection = self._find_valid_server()
@@ -153,3 +154,15 @@ class WebHDFSHook(BaseHook):
             hdfs_path=destination, local_path=source, overwrite=overwrite, n_threads=parallelism, **kwargs
         )
         self.log.debug("Uploaded file %s to %s", source, destination)
+
+    def read_file(self, filename: str) -> bytes:
+        """Read a file from HDFS.
+
+        :param filename: The path of the file to read.
+        :return: File content as a raw string
+        """
+        conn = self.get_conn()
+
+        with conn.read(filename) as reader:
+            content = reader.read()
+        return content

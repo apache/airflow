@@ -38,8 +38,7 @@ ALLOWED_SPARK_BINARIES = ["spark-submit", "spark2-submit", "spark3-submit"]
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
     """
-    This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
-    It requires that the "spark-submit" binary is in the PATH.
+    Wrap the spark-submit binary to kick off a spark-submit job; requires "spark-submit" binary in the PATH.
 
     :param conf: Arbitrary Spark configuration properties
     :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
@@ -166,10 +165,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._env: dict[str, Any] | None = None
 
     def _resolve_should_track_driver_status(self) -> bool:
-        """Whether this hook should poll the Spark driver status.
+        """Check if we should track the driver status.
 
-        If this returns True, the hook would send subsequent spark-submit status
-        requests after the initial spark-submit request.
+        If so, we should send subsequent spark-submit status requests after the
+        initial spark-submit request.
+
+        :return: if the driver status should be tracked
         """
         return "spark://" in self._connection["master"] and self._connection["deploy_mode"] == "cluster"
 
@@ -518,6 +519,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _start_driver_status_tracking(self) -> None:
         """
         Polls the driver based on self._driver_id to get the status.
+
         Finish successfully when the status is FINISHED.
         Finish failed when the status is ERROR/UNKNOWN/KILLED/FAILED.
 

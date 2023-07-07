@@ -16,7 +16,7 @@
 # under the License.
 """OS Login hooks.
 
-.. spelling::
+.. spelling:word-list::
     ImportSshPublicKeyResponse
     oslogin
 """

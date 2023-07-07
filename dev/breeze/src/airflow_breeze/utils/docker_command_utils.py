@@ -41,6 +41,7 @@ except ImportError:
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import (
+    ALLOWED_CELERY_BROKERS,
     ALLOWED_PACKAGE_FORMATS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     FLOWER_HOST_PORT,
@@ -101,6 +102,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("setup.cfg", "/opt/airflow/setup.cfg"),
     ("setup.py", "/opt/airflow/setup.py"),
     ("tests", "/opt/airflow/tests"),
+    ("helm_tests", "/opt/airflow/helm_tests"),
     ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
     ("docker_tests", "/opt/airflow/docker_tests"),
     ("chart", "/opt/airflow/chart"),
@@ -281,6 +283,9 @@ def check_remote_ghcr_io_commands():
                 "[error]\nYou seem to be offline. This command requires access to network.[/]\n"
             )
             sys.exit(2)
+        get_console().print("[error]Response:[/]\n")
+        get_console().print(response.stdout.decode("utf-8"))
+        get_console().print(response.stderr.decode("utf-8"))
         if os.environ.get("CI"):
             get_console().print(
                 "\n[error]We are extremely sorry but you've hit the rare case that the "
@@ -622,6 +627,7 @@ def update_expected_environment_variables(env: dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, "ONLY_MIN_VERSION_UPDATE", "false")
     set_value_to_default_if_not_set(env, "PACKAGE_FORMAT", ALLOWED_PACKAGE_FORMATS[0])
     set_value_to_default_if_not_set(env, "PYTHONDONTWRITEBYTECODE", "true")
+    set_value_to_default_if_not_set(env, "REGENERATE_MISSING_DOCS", "false")
     set_value_to_default_if_not_set(env, "REMOVE_ARM_PACKAGES", "false")
     set_value_to_default_if_not_set(env, "RUN_SYSTEM_TESTS", "false")
     set_value_to_default_if_not_set(env, "RUN_TESTS", "false")
@@ -650,6 +656,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "AIRFLOW_PROD_IMAGE": "airflow_image_name",
     "AIRFLOW_SOURCES": "airflow_sources",
     "AIRFLOW_VERSION": "airflow_version",
+    "AIRFLOW__CORE__EXECUTOR": "executor",
     "BACKEND": "backend",
     "BASE_BRANCH": "base_branch",
     "COMPOSE_FILE": "compose_file",
@@ -668,6 +675,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "MYSQL_VERSION": "mysql_version",
     "NUM_RUNS": "num_runs",
     "ONLY_MIN_VERSION_UPDATE": "only_min_version_update",
+    "REGENERATE_MISSING_DOCS": "regenerate_missing_docs",
     "PACKAGE_FORMAT": "package_format",
     "POSTGRES_VERSION": "postgres_version",
     "PYTHON_MAJOR_MINOR_VERSION": "python",
@@ -680,6 +688,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
     "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",
+    "CELERY_FLOWER": "celery_flower",
 }
 
 DOCKER_VARIABLE_CONSTANTS = {
@@ -690,6 +699,7 @@ DOCKER_VARIABLE_CONSTANTS = {
     "REDIS_HOST_PORT": REDIS_HOST_PORT,
     "SSH_PORT": SSH_PORT,
     "WEBSERVER_HOST_PORT": WEBSERVER_HOST_PORT,
+    "CELERY_BROKER_URLS": "amqp://guest:guest@rabbitmq:5672,redis://redis:6379/0",
 }
 
 
@@ -717,8 +727,20 @@ def get_env_variables_for_docker_commands(params: ShellParams | BuildCiParams) -
         constant_param_value = DOCKER_VARIABLE_CONSTANTS[variable]
         if not env_variables.get(variable):
             env_variables[variable] = str(constant_param_value)
+    prepare_broker_url(params, env_variables)
     update_expected_environment_variables(env_variables)
     return env_variables
+
+
+def prepare_broker_url(params, env_variables):
+    """Prepare broker url for celery executor"""
+    urls = env_variables["CELERY_BROKER_URLS"].split(",")
+    url_map = {
+        ALLOWED_CELERY_BROKERS[0]: urls[0],
+        ALLOWED_CELERY_BROKERS[1]: urls[1],
+    }
+    if getattr(params, "celery_broker", None) and params.celery_broker in params.celery_broker in url_map:
+        env_variables["AIRFLOW__CELERY__BROKER_URL"] = url_map[params.celery_broker]
 
 
 def perform_environment_checks():

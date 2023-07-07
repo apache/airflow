@@ -26,7 +26,7 @@ An unusual element of the Apache Airflow project is that you can open a PR
 to fix an issue or make an enhancement, without needing to open an issue first.
 This is intended to make it as easy as possible to contribute to the project.
 
-Usually users are report `Issues <https://github.com/apache/airflow/issues>`_ where they describe
+Usually, users report `Issues <https://github.com/apache/airflow/issues>`_ where they describe
 the issues they think are Airflow issues and should be solved. There are two kinds of issues:
 
 * Bugs - when the user thinks the reported issue is a bug in Airflow
@@ -62,7 +62,7 @@ Issue Triage Team
 ''''''''''''''''''
 
 While many of the issues can be responded to by other users and committers, the committer team is not
-big enough to handle all such requests and sometimes they are busy with implementing important
+big enough to handle all such requests and sometimes they are busy with implementing or resolving more important issues.
 Therefore, some people who are regularly contributing and helping other users and shown their deep interest
 in the project can be invited to join the triage team.
 `the .asf.yaml <.asf.yaml>`_ file in the ``collaborators`` section.

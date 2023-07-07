@@ -18,14 +18,20 @@
 from __future__ import annotations
 
 import json
+import warnings
+from datetime import timedelta
 from typing import TYPE_CHECKING, Sequence
 
 from mypy_boto3_rds.type_defs import TagTypeDef
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
+from airflow.providers.amazon.aws.triggers.rds import RdsDbInstanceTrigger
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
 from airflow.providers.amazon.aws.utils.tags import format_tags
+from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -37,9 +43,27 @@ class RdsBaseOperator(BaseOperator):
     ui_color = "#eeaa88"
     ui_fgcolor = "#ffffff"
 
-    def __init__(self, *args, aws_conn_id: str = "aws_conn_id", hook_params: dict | None = None, **kwargs):
-        hook_params = hook_params or {}
-        self.hook = RdsHook(aws_conn_id=aws_conn_id, **hook_params)
+    def __init__(
+        self,
+        *args,
+        aws_conn_id: str = "aws_conn_id",
+        region_name: str | None = None,
+        hook_params: dict | None = None,
+        **kwargs,
+    ):
+        if hook_params is not None:
+            warnings.warn(
+                "The parameter hook_params is deprecated and will be removed. "
+                "Note that it is also incompatible with deferrable mode. "
+                "You can use the region_name parameter to specify the region. "
+                "If you were using hook_params for other purposes, please get in touch either on "
+                "airflow slack, or by opening a github issue on the project. "
+                "You can mention https://github.com/apache/airflow/pull/32352",
+                AirflowProviderDeprecationWarning,
+                stacklevel=3,  # 2 is in the operator's init, 3 is in the user code creating the operator
+            )
+        self.region_name = region_name
+        self.hook = RdsHook(aws_conn_id=aws_conn_id, region_name=region_name, **(hook_params or {}))
         super().__init__(*args, **kwargs)
 
         self._await_interval = 60  # seconds
@@ -56,6 +80,7 @@ class RdsBaseOperator(BaseOperator):
 class RdsCreateDbSnapshotOperator(RdsBaseOperator):
     """
     Creates a snapshot of a DB instance or DB cluster.
+
     The source DB instance or cluster must be in the available or storage-optimization state.
 
     .. seealso::
@@ -521,6 +546,11 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.create_db_instance
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param wait_for_completion:  If True, waits for creation of the DB instance to complete. (default: True)
+    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check DB instance state
+    :param waiter_max_attempts: The maximum number of attempts to check DB instance state
+    :param deferrable: If True, the operator will wait asynchronously for the DB instance to be created.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     template_fields = ("db_instance_identifier", "db_instance_class", "engine", "rds_kwargs")
@@ -534,6 +564,9 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         rds_kwargs: dict | None = None,
         aws_conn_id: str = "aws_default",
         wait_for_completion: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
         **kwargs,
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
@@ -542,7 +575,11 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         self.db_instance_class = db_instance_class
         self.engine = engine
         self.rds_kwargs = rds_kwargs or {}
-        self.wait_for_completion = wait_for_completion
+        self.wait_for_completion = False if deferrable else wait_for_completion
+        self.deferrable = deferrable
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context) -> str:
         self.log.info("Creating new DB instance %s", self.db_instance_identifier)
@@ -553,10 +590,40 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
             Engine=self.engine,
             **self.rds_kwargs,
         )
+        if self.deferrable:
+            self.defer(
+                trigger=RdsDbInstanceTrigger(
+                    db_instance_identifier=self.db_instance_identifier,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    waiter_name="db_instance_available",
+                    # ignoring type because create_db_instance is a dict
+                    response=create_db_instance,  # type: ignore[arg-type]
+                ),
+                method_name="execute_complete",
+                timeout=timedelta(seconds=self.waiter_delay * self.waiter_max_attempts),
+            )
 
         if self.wait_for_completion:
-            self.hook.wait_for_db_instance_state(self.db_instance_identifier, target_state="available")
+            waiter = self.hook.conn.get_waiter("db_instance_available")
+            wait(
+                waiter=waiter,
+                waiter_delay=self.waiter_delay,
+                waiter_max_attempts=self.waiter_max_attempts,
+                args={"DBInstanceIdentifier": self.db_instance_identifier},
+                failure_message="DB instance creation failed",
+                status_message="DB Instance status is",
+                status_args=["DBInstances[0].DBInstanceStatus"],
+            )
         return json.dumps(create_db_instance, default=str)
+
+    def execute_complete(self, context, event=None) -> str:
+        if event["status"] != "success":
+            raise AirflowException(f"DB instance creation failed: {event}")
+        else:
+            return json.dumps(event["response"], default=str)
 
 
 class RdsDeleteDbInstanceOperator(RdsBaseOperator):
@@ -572,6 +639,11 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.delete_db_instance
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     :param wait_for_completion:  If True, waits for deletion of the DB instance to complete. (default: True)
+    :param waiter_delay: Time (in seconds) to wait between two consecutive calls to check DB instance state
+    :param waiter_max_attempts: The maximum number of attempts to check DB instance state
+    :param deferrable: If True, the operator will wait asynchronously for the DB instance to be created.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     template_fields = ("db_instance_identifier", "rds_kwargs")
@@ -583,12 +655,19 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
         rds_kwargs: dict | None = None,
         aws_conn_id: str = "aws_default",
         wait_for_completion: bool = True,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
         **kwargs,
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
         self.db_instance_identifier = db_instance_identifier
         self.rds_kwargs = rds_kwargs or {}
-        self.wait_for_completion = wait_for_completion
+        self.wait_for_completion = False if deferrable else wait_for_completion
+        self.deferrable = deferrable
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
+        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: Context) -> str:
         self.log.info("Deleting DB instance %s", self.db_instance_identifier)
@@ -597,10 +676,40 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
             DBInstanceIdentifier=self.db_instance_identifier,
             **self.rds_kwargs,
         )
+        if self.deferrable:
+            self.defer(
+                trigger=RdsDbInstanceTrigger(
+                    db_instance_identifier=self.db_instance_identifier,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    waiter_name="db_instance_deleted",
+                    # ignoring type because delete_db_instance is a dict
+                    response=delete_db_instance,  # type: ignore[arg-type]
+                ),
+                method_name="execute_complete",
+                timeout=timedelta(seconds=self.waiter_delay * self.waiter_max_attempts),
+            )
 
         if self.wait_for_completion:
-            self.hook.wait_for_db_instance_state(self.db_instance_identifier, target_state="deleted")
+            waiter = self.hook.conn.get_waiter("db_instance_deleted")
+            wait(
+                waiter=waiter,
+                waiter_delay=self.waiter_delay,
+                waiter_max_attempts=self.waiter_max_attempts,
+                args={"DBInstanceIdentifier": self.db_instance_identifier},
+                failure_message="DB instance deletion failed",
+                status_message="DB Instance status is",
+                status_args=["DBInstances[0].DBInstanceStatus"],
+            )
         return json.dumps(delete_db_instance, default=str)
+
+    def execute_complete(self, context, event=None) -> str:
+        if event["status"] != "success":
+            raise AirflowException(f"DB instance deletion failed: {event}")
+        else:
+            return json.dumps(event["response"], default=str)
 
 
 class RdsStartDbOperator(RdsBaseOperator):

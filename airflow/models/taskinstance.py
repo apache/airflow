@@ -33,7 +33,7 @@ from functools import partial
 from pathlib import PurePath
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Tuple
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 
 import dill
 import jinja2
@@ -394,6 +394,7 @@ class TaskInstance(Base, LoggingMixin):
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
+    custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
@@ -571,6 +572,7 @@ class TaskInstance(Base, LoggingMixin):
             "max_tries": task.retries,
             "executor_config": task.executor_config,
             "operator": task.task_type,
+            "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
         }
 
@@ -616,6 +618,11 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def next_try_number(self) -> int:
         return self._try_number + 1
+
+    @property
+    def operator_name(self) -> str | None:
+        """@property: use a more friendly display name for the operator, if set."""
+        return self.custom_operator_name or self.operator
 
     def command_as_list(
         self,
@@ -759,26 +766,26 @@ class TaskInstance(Base, LoggingMixin):
         """Log URL for TaskInstance."""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
-        return (
-            f"{base_url}/log"
-            f"?execution_date={iso}"
+        return urljoin(
+            base_url,
+            f"log?execution_date={iso}"
             f"&task_id={self.task_id}"
             f"&dag_id={self.dag_id}"
-            f"&map_index={self.map_index}"
+            f"&map_index={self.map_index}",
         )
 
     @property
     def mark_success_url(self) -> str:
         """URL to mark TI success."""
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
-        return (
-            f"{base_url}/confirm"
-            f"?task_id={self.task_id}"
+        return urljoin(
+            base_url,
+            f"confirm?task_id={self.task_id}"
             f"&dag_id={self.dag_id}"
             f"&dag_run_id={quote(self.run_id)}"
             "&upstream=false"
             "&downstream=false"
-            "&state=success"
+            "&state=success",
         )
 
     @provide_session
@@ -858,6 +865,7 @@ class TaskInstance(Base, LoggingMixin):
             self.queue = ti.queue
             self.priority_weight = ti.priority_weight
             self.operator = ti.operator
+            self.custom_operator_name = ti.custom_operator_name
             self.queued_dttm = ti.queued_dttm
             self.queued_by_job_id = ti.queued_by_job_id
             self.pid = ti.pid
@@ -886,6 +894,7 @@ class TaskInstance(Base, LoggingMixin):
         # value that needs to be stored in the db.
         self.executor_config = task.executor_config
         self.operator = task.task_type
+        self.custom_operator_name = getattr(task, "custom_operator_name", None)
 
     @provide_session
     def clear_xcom_data(self, session: Session = NEW_SESSION) -> None:
@@ -2566,7 +2575,9 @@ class TaskInstance(Base, LoggingMixin):
             TaskInstance.state == State.RUNNING,
         )
         if same_dagrun:
-            num_running_task_instances_query.filter(TaskInstance.run_id == self.run_id)
+            num_running_task_instances_query = num_running_task_instances_query.filter(
+                TaskInstance.run_id == self.run_id
+            )
         return num_running_task_instances_query.scalar()
 
     def init_run_context(self, raw: bool = False) -> None:

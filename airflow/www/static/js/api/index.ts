@@ -42,6 +42,7 @@ import useUpstreamDatasetEvents from "./useUpstreamDatasetEvents";
 import useTaskInstance from "./useTaskInstance";
 import useDag from "./useDag";
 import useDagCode from "./useDagCode";
+import useDagDetails from "./useDagDetails";
 import useHealth from "./useHealth";
 import usePools from "./usePools";
 import useDags from "./useDags";
@@ -59,6 +60,7 @@ export {
   useClearTask,
   useDag,
   useDagCode,
+  useDagDetails,
   useDagRuns,
   useDags,
   useDataset,

@@ -20,6 +20,8 @@ import asyncio
 import time
 from typing import Any, AsyncIterator
 
+from azure.core.exceptions import ServiceRequestError
+
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryAsyncHook,
     AzureDataFactoryPipelineRunStatus,
@@ -28,9 +30,7 @@ from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
-    """
-    ADFPipelineRunStatusSensorTrigger is fired as deferred class with params to run the
-    task in trigger worker, when ADF Pipeline is running.
+    """Trigger with params to run the task when the ADF Pipeline is running.
 
     :param run_id: The pipeline run identifier.
     :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
@@ -70,32 +70,49 @@ class ADFPipelineRunStatusSensorTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to Azure Data Factory, polls for the pipeline run status."""
         hook = AzureDataFactoryAsyncHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
+        executed_after_token_refresh = False
         try:
             while True:
-                pipeline_status = await hook.get_adf_pipeline_run_status(
-                    run_id=self.run_id,
-                    resource_group_name=self.resource_group_name,
-                    factory_name=self.factory_name,
-                )
-                if pipeline_status == AzureDataFactoryPipelineRunStatus.FAILED:
-                    yield TriggerEvent(
-                        {"status": "error", "message": f"Pipeline run {self.run_id} has Failed."}
+                try:
+                    pipeline_status = await hook.get_adf_pipeline_run_status(
+                        run_id=self.run_id,
+                        resource_group_name=self.resource_group_name,
+                        factory_name=self.factory_name,
                     )
-                elif pipeline_status == AzureDataFactoryPipelineRunStatus.CANCELLED:
-                    msg = f"Pipeline run {self.run_id} has been Cancelled."
-                    yield TriggerEvent({"status": "error", "message": msg})
-                elif pipeline_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
-                    msg = f"Pipeline run {self.run_id} has been Succeeded."
-                    yield TriggerEvent({"status": "success", "message": msg})
-                await asyncio.sleep(self.poke_interval)
+                    executed_after_token_refresh = False
+                    if pipeline_status == AzureDataFactoryPipelineRunStatus.FAILED:
+                        yield TriggerEvent(
+                            {"status": "error", "message": f"Pipeline run {self.run_id} has Failed."}
+                        )
+                        return
+                    elif pipeline_status == AzureDataFactoryPipelineRunStatus.CANCELLED:
+                        msg = f"Pipeline run {self.run_id} has been Cancelled."
+                        yield TriggerEvent({"status": "error", "message": msg})
+                        return
+                    elif pipeline_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
+                        msg = f"Pipeline run {self.run_id} has been Succeeded."
+                        yield TriggerEvent({"status": "success", "message": msg})
+                        return
+                    await asyncio.sleep(self.poke_interval)
+                except ServiceRequestError:
+                    # conn might expire during long running pipeline.
+                    # If expcetion is caught, it tries to refresh connection once.
+                    # If it still doesn't fix the issue,
+                    # than the execute_after_token_refresh would still be False
+                    # and an exception will be raised
+                    if executed_after_token_refresh:
+                        await hook.refresh_conn()
+                        executed_after_token_refresh = False
+                        continue
+                    raise
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e)})
 
 
 class AzureDataFactoryTrigger(BaseTrigger):
-    """
-    AzureDataFactoryTrigger is triggered when Azure data factory pipeline job succeeded or failed.
-    When wait_for_termination is set to False it triggered immediately with success status.
+    """Trigger when the Azure data factory pipeline job finishes.
+
+    When wait_for_termination is set to False, it triggers immediately with success status.
 
     :param run_id: Run id of a Azure data pipeline run job.
     :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
@@ -149,33 +166,49 @@ class AzureDataFactoryTrigger(BaseTrigger):
                 resource_group_name=self.resource_group_name,
                 factory_name=self.factory_name,
             )
+            executed_after_token_refresh = True
             if self.wait_for_termination:
                 while self.end_time > time.time():
-                    pipeline_status = await hook.get_adf_pipeline_run_status(
-                        run_id=self.run_id,
-                        resource_group_name=self.resource_group_name,
-                        factory_name=self.factory_name,
-                    )
-                    if pipeline_status in AzureDataFactoryPipelineRunStatus.FAILURE_STATES:
-                        yield TriggerEvent(
-                            {
-                                "status": "error",
-                                "message": f"The pipeline run {self.run_id} has {pipeline_status}.",
-                                "run_id": self.run_id,
-                            }
+                    try:
+                        pipeline_status = await hook.get_adf_pipeline_run_status(
+                            run_id=self.run_id,
+                            resource_group_name=self.resource_group_name,
+                            factory_name=self.factory_name,
                         )
-                    elif pipeline_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
-                        yield TriggerEvent(
-                            {
-                                "status": "success",
-                                "message": f"The pipeline run {self.run_id} has {pipeline_status}.",
-                                "run_id": self.run_id,
-                            }
+                        executed_after_token_refresh = True
+                        if pipeline_status in AzureDataFactoryPipelineRunStatus.FAILURE_STATES:
+                            yield TriggerEvent(
+                                {
+                                    "status": "error",
+                                    "message": f"The pipeline run {self.run_id} has {pipeline_status}.",
+                                    "run_id": self.run_id,
+                                }
+                            )
+                            return
+                        elif pipeline_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED:
+                            yield TriggerEvent(
+                                {
+                                    "status": "success",
+                                    "message": f"The pipeline run {self.run_id} has {pipeline_status}.",
+                                    "run_id": self.run_id,
+                                }
+                            )
+                            return
+                        self.log.info(
+                            "Sleeping for %s. The pipeline state is %s.", self.check_interval, pipeline_status
                         )
-                    self.log.info(
-                        "Sleeping for %s. The pipeline state is %s.", self.check_interval, pipeline_status
-                    )
-                    await asyncio.sleep(self.check_interval)
+                        await asyncio.sleep(self.check_interval)
+                    except ServiceRequestError:
+                        # conn might expire during long running pipeline.
+                        # If expcetion is caught, it tries to refresh connection once.
+                        # If it still doesn't fix the issue,
+                        # than the execute_after_token_refresh would still be False
+                        # and an exception will be raised
+                        if executed_after_token_refresh:
+                            await hook.refresh_conn()
+                            executed_after_token_refresh = False
+                            continue
+                        raise
 
                 yield TriggerEvent(
                     {
@@ -193,4 +226,14 @@ class AzureDataFactoryTrigger(BaseTrigger):
                     }
                 )
         except Exception as e:
+            if self.run_id:
+                try:
+                    await hook.cancel_pipeline_run(
+                        run_id=self.run_id,
+                        resource_group_name=self.resource_group_name,
+                        factory_name=self.factory_name,
+                    )
+                    self.log.info("Unexpected error %s caught. Cancel pipeline run %s", str(e), self.run_id)
+                except Exception as err:
+                    yield TriggerEvent({"status": "error", "message": str(err), "run_id": self.run_id})
             yield TriggerEvent({"status": "error", "message": str(e), "run_id": self.run_id})

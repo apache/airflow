@@ -19,10 +19,18 @@
 ``apache-airflow-providers-celery``
 ===================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -34,6 +42,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -46,7 +55,7 @@ Package apache-airflow-providers-celery
 `Celery <http://www.celeryproject.org/>`__
 
 
-Release: 3.2.0
+Release: 3.2.1
 
 Provider package
 ----------------
@@ -73,5 +82,3 @@ PIP package         Version required
 ``celery``          ``>=5.2.3,<6``
 ``flower``          ``>=1.0.0``
 ==================  ==================
-
-.. include:: ../../airflow/providers/celery/CHANGELOG.rst

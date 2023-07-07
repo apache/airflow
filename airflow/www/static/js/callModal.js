@@ -56,6 +56,7 @@ const showExternalLogRedirect =
 const buttons = Array.from(
   document.querySelectorAll('a[id^="btn_"][data-base-url]')
 ).reduce((obj, elm) => {
+  // eslint-disable-next-line no-param-reassign
   obj[elm.id.replace("btn_", "")] = elm;
   return obj;
 }, {});
@@ -64,12 +65,14 @@ function updateButtonUrl(elm, params) {
   let url = elm.dataset.baseUrl;
   if (params.dag_id && elm.dataset.baseUrl.indexOf(dagId) !== -1) {
     url = url.replace(dagId, params.dag_id);
+    // eslint-disable-next-line no-param-reassign
     delete params.dag_id;
   }
   if (
     Object.prototype.hasOwnProperty.call(params, "map_index") &&
     params.map_index === undefined
   ) {
+    // eslint-disable-next-line no-param-reassign
     delete params.map_index;
   }
   elm.setAttribute("href", `${url}?${$.param(params)}`);

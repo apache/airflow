@@ -39,7 +39,6 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
     :param wasb_conn_id: Reference to the wasb connection.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param blob_name: Name of the blob
-    :param file_path: Path to the file to download
     :param container_name: Name of the container
     :param bucket_name: The bucket to upload to
     :param object_name: The object name to set when uploading the file
@@ -61,7 +60,6 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         wasb_conn_id="wasb_default",
         gcp_conn_id: str = "google_cloud_default",
         blob_name: str,
-        file_path: str,
         container_name: str,
         bucket_name: str,
         object_name: str,
@@ -74,7 +72,6 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
         self.wasb_conn_id = wasb_conn_id
         self.gcp_conn_id = gcp_conn_id
         self.blob_name = blob_name
-        self.file_path = file_path
         self.container_name = container_name
         self.bucket_name = bucket_name
         self.object_name = object_name
@@ -84,7 +81,6 @@ class AzureBlobStorageToGCSOperator(BaseOperator):
 
     template_fields: Sequence[str] = (
         "blob_name",
-        "file_path",
         "container_name",
         "bucket_name",
         "object_name",

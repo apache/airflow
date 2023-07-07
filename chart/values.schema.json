@@ -44,12 +44,6 @@
             "default": "",
             "x-docsSection": null
         },
-        "kubeVersionOverride": {
-            "description": "Provide a Kubernetes version (used for API Version selection) to override the auto-detected version",
-            "type": "string",
-            "default": "",
-            "x-docsSection": null
-        },
         "uid": {
             "description": "User of airflow user.",
             "type": "integer",
@@ -77,7 +71,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.6.1",
+            "default": "2.6.2",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -92,7 +86,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.6.1",
+            "default": "2.6.2",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -918,6 +912,42 @@
                 "- configMapRef:\n    name: '{{ .Release.Name }}-airflow-variables'"
             ]
         },
+        "priorityClasses": {
+            "description": "Priority Classes created by helm charts",
+            "type": "array",
+            "x-docsSection": "Kubernetes",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "preemptionPolicy": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "value"
+                ],
+                "additionalProperties": false
+            },
+            "default": [],
+            "examples": [
+                {
+                    "name": "class1",
+                    "preemptionPolicy": "PreemptLowerPriority",
+                    "value": 10000
+                },
+                {
+                    "name": "class2",
+                    "preemptionPolicy": "Never",
+                    "value": 100000
+                }
+            ]
+        },
         "extraSecrets": {
             "description": "Extra secrets that will be managed by the chart.",
             "type": "object",
@@ -1387,7 +1417,7 @@
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Allow KEDA autoscaling. `Persistence.enabled` must be set to false to use KEDA.",
+                            "description": "Allow KEDA autoscaling.",
                             "type": "boolean",
                             "default": false
                         },
@@ -1439,6 +1469,11 @@
                                     }
                                 }
                             }
+                        },
+                        "query": {
+                            "description": "Query to use for KEDA autoscaling. Must return a single integer.",
+                            "type": "string",
+                            "default": "SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }}) FROM task_instance WHERE (state='running' OR state='queued') {{- if eq .Values.executor \"CeleryKubernetesExecutor\" }} AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}' {{- end }}"
                         }
                     }
                 },
@@ -1625,6 +1660,14 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "runtimeClassName": {
+                    "description": "Specify runtime for worker pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "priorityClassName": {
                     "description": "Specify priority for worker pods.",
@@ -4796,7 +4839,7 @@
                     "default": []
                 },
                 "securityContext": {
-                    "description": "Security context for the StatsD pod (deprecated, use `securityContexts` instead). If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the StatsD pod (deprecated, use `securityContexts` instead).",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -4809,7 +4852,7 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the statsd. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the statsd.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {
@@ -5523,7 +5566,7 @@
                     ]
                 },
                 "securityContexts": {
-                    "description": "Security context definition for the redis. If not set, the values from global `securityContexts` will be used.",
+                    "description": "Security context definition for the redis.",
                     "type": "object",
                     "x-docsSection": "Kubernetes",
                     "properties": {

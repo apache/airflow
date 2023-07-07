@@ -18,71 +18,76 @@
  */
 
 import React from "react";
-import { Flex, Text, useTheme } from "@chakra-ui/react";
-import { Group } from "@visx/group";
+import { Box, Text, Flex, useTheme } from "@chakra-ui/react";
+import { Handle, NodeProps, Position } from "reactflow";
 import { MdPlayArrow, MdSensors } from "react-icons/md";
 import { HiDatabase } from "react-icons/hi";
 
-import type { ElkShape } from "elkjs";
-import type { DepNode } from "src/types";
-
 import DagNode from "./DagNode";
 
-export interface NodeType extends ElkShape {
-  value: DepNode["value"];
-  children?: NodeType[];
+export interface CustomNodeProps {
+  label: string;
+  type?: string;
+  height?: number;
+  width?: number;
+  isSelected?: boolean;
+  isHighlighted?: boolean;
+  onSelect: (datasetUri: string) => void;
+  isOpen?: boolean;
+  isActive?: boolean;
 }
 
-interface Props {
-  node: NodeType;
-  onSelect: (datasetId: string) => void;
-  isSelected: boolean;
-  isHighlighted: boolean;
-}
-
-const Node = ({
-  node: { height, width, x, y, value },
-  onSelect,
-  isSelected,
-  isHighlighted,
-}: Props) => {
+const BaseNode = ({
+  data: { label, type, isSelected, isHighlighted, onSelect },
+}: NodeProps<CustomNodeProps>) => {
   const { colors } = useTheme();
+
   return (
-    <Group top={y} left={x} height={height} width={width}>
-      <foreignObject width={width} height={height}>
-        {value.class === "dag" && (
-          <DagNode dagId={value.label} isHighlighted={isHighlighted} />
-        )}
-        {value.class !== "dag" && (
-          <Flex
-            borderWidth={isSelected ? 4 : 2}
-            borderColor={
-              isHighlighted || isSelected ? colors.blue[400] : undefined
-            }
-            borderRadius={5}
-            p={2}
-            height="100%"
-            width="100%"
-            fontWeight={isSelected ? "bold" : "normal"}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (value.class === "dataset") onSelect(value.label);
-            }}
-            cursor="pointer"
-            fontSize={16}
-            justifyContent="space-between"
-            alignItems="center"
-          >
-            {value.class === "dataset" && <HiDatabase size="16px" />}
-            {value.class === "sensor" && <MdSensors size="16px" />}
-            {value.class === "trigger" && <MdPlayArrow size="16px" />}
-            <Text>{value.label}</Text>
-          </Flex>
-        )}
-      </foreignObject>
-    </Group>
+    <Box bg="white">
+      {type === "dag" && (
+        <DagNode dagId={label} isHighlighted={isHighlighted} />
+      )}
+      {type !== "dag" && (
+        <Flex
+          borderWidth={isSelected ? 4 : 2}
+          borderColor={isSelected ? colors.blue[400] : undefined}
+          borderRadius={5}
+          p={2}
+          fontWeight={isSelected ? "bold" : "normal"}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (type === "dataset") onSelect(label);
+          }}
+          cursor="pointer"
+          fontSize={16}
+          justifyContent="space-between"
+          alignItems="center"
+        >
+          {type === "dataset" && <HiDatabase size="16px" />}
+          {type === "sensor" && <MdSensors size="16px" />}
+          {type === "trigger" && <MdPlayArrow size="16px" />}
+          <Text ml={2}>{label}</Text>
+        </Flex>
+      )}
+    </Box>
   );
 };
+
+const Node = (props: NodeProps<CustomNodeProps>) => (
+  <>
+    <Handle
+      type="target"
+      position={Position.Top}
+      style={{ visibility: "hidden" }}
+    />
+    <BaseNode {...props} />
+    <Handle
+      type="source"
+      position={Position.Bottom}
+      style={{ visibility: "hidden" }}
+    />
+  </>
+);
 
 export default Node;

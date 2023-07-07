@@ -35,14 +35,77 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.3.0
+......
+
+Latest change: 2023-07-05
+
+=================================================================================================  ===========  =============================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================================================
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
+`f8593503cb <https://github.com/apache/airflow/commit/f8593503cbe252c2f4dc5ff48a3f292c9e13baad>`_  2023-07-05   ``Add default_deferrable config (#31712)``
+`d6e254db68 <https://github.com/apache/airflow/commit/d6e254db689db070f2f181006e7d6bc593482300>`_  2023-06-30   ``Deprecate 'delimiter' param and source object's wildcards in GCS, introduce 'match_glob' param. (#31261)``
+`dd937e51fe <https://github.com/apache/airflow/commit/dd937e51fe1ae3cd36a6993bd42e425960644e1d>`_  2023-06-30   ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
+`c0eaa9b25d <https://github.com/apache/airflow/commit/c0eaa9b25d11eeb6fba1b716323c4ff2c2dbd5e1>`_  2023-06-29   ``Add deferrable mode to CloudSQLExportInstanceOperator (#30852)``
+`f3f69bf1e0 <https://github.com/apache/airflow/commit/f3f69bf1e0c025d260be91daada04476d2418e9d>`_  2023-06-29   ``Refactor GKECreateClusterOperator's body validation (#31923)``
+`7d2ec76c72 <https://github.com/apache/airflow/commit/7d2ec76c72f70259b67af0047aa785b28668b411>`_  2023-06-29   ``Make the deferrable version of DataprocCreateBatchOperator handle a batch_id that already exists (#32216)``
+`09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
+`b156db3a70 <https://github.com/apache/airflow/commit/b156db3a70cca5b3d231c0c49f013fbd0af5d194>`_  2023-06-23   ``Adding 'src_fmt_configs' to the list of template fields. (#32097)``
+`59d64d8f2e <https://github.com/apache/airflow/commit/59d64d8f2ed3c0e7b93d3c07041d47883cabb908>`_  2023-06-22   ``[Issue-32069] Fix name format in the batch requests (#32070)``
+`fd116cc196 <https://github.com/apache/airflow/commit/fd116cc1964c49e21aaac6062fff596764833c59>`_  2023-06-22   ``Google provider docstring improvements (#31731)``
+`8f41584777 <https://github.com/apache/airflow/commit/8f41584777d5121b5323cc14f7c29f5ebaf736fb>`_  2023-06-21   ``Optimize deferrable mode execution for 'BigQueryValueCheckOperator' (#31872)``
+`fe7a1aa096 <https://github.com/apache/airflow/commit/fe7a1aa0962538a99f5e73dbd3890a6f210d22ed>`_  2023-06-21   ``Switch Google Ads API version from v13 to v14 (#32028)``
+`43fa157e51 <https://github.com/apache/airflow/commit/43fa157e51ac6abe6de8475c7fd356507f453d8f>`_  2023-06-20   ``Fix 'BigQueryInsertJobOperator'  error handling in deferrable mode (#32034)``
+`2a79fb74fd <https://github.com/apache/airflow/commit/2a79fb74fd7203fe82b9384af42a59b3a41f84e9>`_  2023-06-20   ``Fix 'BIGQUERY_JOB_DETAILS_LINK_FMT' in 'BigQueryConsoleLink' (#31953)``
+=================================================================================================  ===========  =============================================================================================================
+
+10.2.0
+......
+
+Latest change: 2023-06-20
+
+=================================================================================================  ===========  ========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================================
+`79bcc2e668 <https://github.com/apache/airflow/commit/79bcc2e668e648098aad6eaa87fe8823c76bc69a>`_  2023-06-20   ``Prepare RC1 docs for June 2023 wave of Providers (#32001)``
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
+`f2ebc292fe <https://github.com/apache/airflow/commit/f2ebc292fe63d2ddd0686d90c3acc0630f017a07>`_  2023-06-19   ``Provide missing project id and creds for TabularDataset (#31991)``
+`66299338eb <https://github.com/apache/airflow/commit/66299338eb24aa71eb2e27ebd8b76079b39fd305>`_  2023-06-18   ``add a return when the event is yielded in a loop to stop the execution (#31985)``
+`e6960f1ad6 <https://github.com/apache/airflow/commit/e6960f1ad63f40ff4ccde6c86b17e051b302c104>`_  2023-06-15   ``Revert "Fix 'BIGQUERY_JOB_DETAILS_LINK_FMT' in 'BigQueryConsoleLink' (#31457)" (#31935)``
+`c7072c0490 <https://github.com/apache/airflow/commit/c7072c0490cb80b448622a27eb1056576d6b92a4>`_  2023-06-15   ``Fix 'BIGQUERY_JOB_DETAILS_LINK_FMT' in 'BigQueryConsoleLink' (#31457)``
+`a81ac70b33 <https://github.com/apache/airflow/commit/a81ac70b33a589c58b59864df931d3293fada382>`_  2023-06-15   ``Add deferrable mode to PubsubPullSensor (#31284)``
+`b502e665d6 <https://github.com/apache/airflow/commit/b502e665d633262f3ce52d9c002c0a25e6e4ec9d>`_  2023-06-14   ``Add a new param to set parquet row group size in 'BaseSQLToGCSOperator' (#31831)``
+`810d46776a <https://github.com/apache/airflow/commit/810d46776ad1a52f27ec578e5be875c39c90fc45>`_  2023-06-11   ``Implement MetastoreHivePartitionSensor (#31016)``
+`233663046d <https://github.com/apache/airflow/commit/233663046d5210359ce9f4db2fe3db4f5c38f6ee>`_  2023-06-08   ``Add 'cacheControl' field to google cloud storage (#31338)``
+`ba3665f76a <https://github.com/apache/airflow/commit/ba3665f76a2205bad4553ba00537026a1346e9ae>`_  2023-06-08   ``Bigquery: fix links for already existing tables and datasets. (#31589)``
+`fbeb01cb17 <https://github.com/apache/airflow/commit/fbeb01cb17b7cb9c2e27ac7010f423a2bced78b4>`_  2023-06-07   ``Replace unicodecsv with standard csv library (#31693)``
+`d91861d3bd <https://github.com/apache/airflow/commit/d91861d3bdbde18c937978c878d137d6c758e2c6>`_  2023-06-07   ``Optimize deferrable mode (#31758)``
+`9e268e13b1 <https://github.com/apache/airflow/commit/9e268e13b147401a5665e497aee87ac107ade8d1>`_  2023-06-07   ``Replace spelling directive with spelling:word-list (#31752)``
+`36ffbee4aa <https://github.com/apache/airflow/commit/36ffbee4aae37b83b188d35aedd36add8dedf50e>`_  2023-06-05   ``Add D400 pydocstyle check - Google provider only (#31422)``
+`495ae23d45 <https://github.com/apache/airflow/commit/495ae23d45eda52f2b368d0afa4213f4e69e97cd>`_  2023-06-05   ``Optimize deferrable mode execution for 'DataprocSubmitJobOperator' (#31317)``
+`86b5ba2802 <https://github.com/apache/airflow/commit/86b5ba28026fc6e8b7d868b83080189df9b09306>`_  2023-06-04   ``Remove return statement after yield from triggers class (#31703)``
+`dc5bf3fd02 <https://github.com/apache/airflow/commit/dc5bf3fd02c589578209cb0dd5b7d005b1516ae9>`_  2023-06-02   ``Add discoverability for triggers in provider.yaml (#31576)``
+`47c2023df2 <https://github.com/apache/airflow/commit/47c2023df273654bb6ea4b1ec08ab86dfb633092>`_  2023-05-31   ``Add 'preserveAsciiControlCharacters' to 'src_fmt_configs' (#31643)``
+`e3ec1ac72e <https://github.com/apache/airflow/commit/e3ec1ac72eac9aa6a9f3a99154fe0bf53a8d283a>`_  2023-05-30   ``Add support for credential configuation file auth to Google Secrets Manager secrets backend (#31597)``
+`9fa75aaf7a <https://github.com/apache/airflow/commit/9fa75aaf7a391ebf0e6b6949445c060f6de2ceb9>`_  2023-05-29   ``Remove Python 3.7 support (#30963)``
+`ef40148170 <https://github.com/apache/airflow/commit/ef40148170ce1110a4c9a859207d40dcc6ad1cd5>`_  2023-05-26   ``Add credential configuration file support to Google Cloud Hook (#31548)``
+`22e44ab9f2 <https://github.com/apache/airflow/commit/22e44ab9f2f3a68aa2ed236cfe514554dd479a38>`_  2023-05-26   ``FIPS environments: Mark uses of md5 as "not-used-for-security" (#31171)``
+`5ae9728db7 <https://github.com/apache/airflow/commit/5ae9728db7d34d287907ca3a919ac1a94c776799>`_  2023-05-25   ``Add deferrable mode to 'GCSUploadSessionCompleteSensor' (#31081)``
+`28f2e70916 <https://github.com/apache/airflow/commit/28f2e709165a56f0bc1097d7457149330914cea9>`_  2023-05-25   ``Optimize deferrable mode execution for 'BigQueryInsertJobOperator' (#31249)``
+`769e204d53 <https://github.com/apache/airflow/commit/769e204d533769a50f4b40b9f6cfe718960877df>`_  2023-05-24   ``Add append_job_name parameter in DataflowStartFlexTemplateOperator (#31511)``
+=================================================================================================  ===========  ========================================================================================================
+
 10.1.1
 ......
 
-Latest change: 2023-05-23
+Latest change: 2023-05-24
 
 =================================================================================================  ===========  ==============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================================
+`d745cee3db <https://github.com/apache/airflow/commit/d745cee3dbde6b437a817aa64e385a1a948389d5>`_  2023-05-24   ``Prepare adhoc wave of Providers (#31478)``
 `c082aec089 <https://github.com/apache/airflow/commit/c082aec089405ed0399cfee548011b0520be0011>`_  2023-05-23   ``Fix accessing a GKE cluster through the private endpoint in 'GKEStartPodOperator' (#31391)``
 `0d6e626b05 <https://github.com/apache/airflow/commit/0d6e626b050a860462224ad64dc5e9831fe8624d>`_  2023-05-22   ``Fix 'BigQueryGetDataOperator''s query job bugs in deferrable mode (#31433)``
 =================================================================================================  ===========  ==============================================================================================

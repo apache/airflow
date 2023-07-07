@@ -84,6 +84,7 @@ def test_redoc_should_render_template(capture_templates, admin_client):
     assert len(templates) == 1
     assert templates[0].name == "airflow/redoc.html"
     assert templates[0].local_context == {
+        "config_test_connection": "Disabled",
         "openapi_spec_url": "/api/v1/openapi.yaml",
         "rest_api_enabled": True,
         "get_docs_url": get_docs_url,
@@ -193,7 +194,7 @@ def test_task_dag_id_equals_filter(admin_client, url, content):
     [
         ("", "/home"),
         ("javascript:alert(1)", "/home"),
-        (" javascript:alert(1)", "http://localhost:8080/ javascript:alert(1)"),
+        (" javascript:alert(1)", "/home"),
         ("http://google.com", "/home"),
         ("google.com", "http://localhost:8080/google.com"),
         ("\\/google.com", "http://localhost:8080/\\/google.com"),

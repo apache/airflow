@@ -68,7 +68,7 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.test_utils.config import conf_vars
-from tests.test_utils.mock_operators import CustomOperator, GoogleLink, MockOperator
+from tests.test_utils.mock_operators import AirflowLink2, CustomOperator, GoogleLink, MockOperator
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
 repo_root = Path(airflow.__file__).parent.parent
@@ -1328,18 +1328,18 @@ class TestStringifiedDAGs:
 
         execution_date = datetime(2020, 1, 1)
         with DAG("test_task_group_setup_teardown_tasks", start_date=execution_date) as dag:
-            EmptyOperator.as_setup(task_id="setup")
-            EmptyOperator.as_teardown(task_id="teardown")
+            EmptyOperator(task_id="setup").as_setup()
+            EmptyOperator(task_id="teardown").as_teardown()
 
             with TaskGroup("group1"):
-                EmptyOperator.as_setup(task_id="setup1")
+                EmptyOperator(task_id="setup1").as_setup()
                 EmptyOperator(task_id="task1")
-                EmptyOperator.as_teardown(task_id="teardown1")
+                EmptyOperator(task_id="teardown1").as_teardown()
 
                 with TaskGroup("group2"):
-                    EmptyOperator.as_setup(task_id="setup2")
+                    EmptyOperator(task_id="setup2").as_setup()
                     EmptyOperator(task_id="task2")
-                    EmptyOperator.as_teardown(task_id="teardown2")
+                    EmptyOperator(task_id="teardown2").as_teardown()
 
         dag_dict = SerializedDAG.to_dict(dag)
         SerializedDAG.validate_schema(dag_dict)
@@ -1394,8 +1394,8 @@ class TestStringifiedDAGs:
 
         serialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
         task = serialized_dag.task_group.children["mytask"]
-        assert task.is_teardown
-        assert task.on_failure_fail_dagrun
+        assert task.is_teardown is True
+        assert task.on_failure_fail_dagrun is True
 
     def test_deps_sorted(self):
         """
@@ -2479,3 +2479,41 @@ def test_mapped_task_group_serde():
     serde_tg = serde_dag.task_group.children["tg"]
     assert isinstance(serde_tg, MappedTaskGroup)
     assert serde_tg._expand_input == DictOfListsExpandInput({"a": [".", ".."]})
+
+
+def test_mapped_task_with_operator_extra_links_property():
+    class _DummyOperator(BaseOperator):
+        def __init__(self, inputs, **kwargs):
+            super().__init__(**kwargs)
+            self.inputs = inputs
+
+        @property
+        def operator_extra_links(self):
+            return (AirflowLink2(),)
+
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+        _DummyOperator.partial(task_id="task").expand(inputs=[1, 2, 3])
+    serialized_dag = SerializedBaseOperator.serialize(dag)
+    assert serialized_dag["tasks"][0] == {
+        "task_id": "task",
+        "expand_input": {
+            "type": "dict-of-lists",
+            "value": {"__type": "dict", "__var": {"inputs": [1, 2, 3]}},
+        },
+        "partial_kwargs": {},
+        "_disallow_kwargs_override": False,
+        "_expand_input_attr": "expand_input",
+        "downstream_task_ids": [],
+        "_operator_extra_links": [{"tests.test_utils.mock_operators.AirflowLink2": {}}],
+        "ui_color": "#fff",
+        "ui_fgcolor": "#000",
+        "template_ext": [],
+        "template_fields": [],
+        "template_fields_renderers": {},
+        "_task_type": "_DummyOperator",
+        "_task_module": "tests.serialization.test_dag_serialization",
+        "_is_empty": False,
+        "_is_mapped": True,
+    }
+    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag)
+    assert deserialized_dag.task_dict["task"].operator_extra_links == [AirflowLink2()]

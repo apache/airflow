@@ -21,8 +21,27 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-apache-druid``
+
+
 Changelog
 ---------
+
+3.4.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Add note about dropping Python 3.7 for providers (#32015)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Apache provider docstring improvements (#31730)``
+   * ``Add D400 pydocstyle check - Apache providers only (#31424)``
 
 3.4.0
 .....
