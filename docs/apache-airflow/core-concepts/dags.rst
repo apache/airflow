@@ -552,7 +552,7 @@ Controlling dag run state
 
 Another feature of setup / teardown tasks is you can choose whether or not the teardown task should have an impact on dag run state.  Perhaps you don't care if the "cleanup" work performed by your teardown task fails, and you only consider the dag run a failure if the "work" tasks fail.  By default, teardown tasks are not considered for dag run state.
 
-Continuing with the example above, if you want the run's success to depend on ``delete_cluster``.  Then set property ``on_failure_fail_dagrun=True`` when setting ``delete_cluster`` as teardown:
+Continuing with the example above, if you want the run's success to depend on ``delete_cluster``, then set``on_failure_fail_dagrun=True`` when setting ``delete_cluster`` as teardown. For example:
 
 .. code-block:: python
 
