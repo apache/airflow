@@ -102,6 +102,7 @@ VOLUMES_FOR_SELECTED_MOUNTS = [
     ("setup.cfg", "/opt/airflow/setup.cfg"),
     ("setup.py", "/opt/airflow/setup.py"),
     ("tests", "/opt/airflow/tests"),
+    ("helm_tests", "/opt/airflow/helm_tests"),
     ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
     ("docker_tests", "/opt/airflow/docker_tests"),
     ("chart", "/opt/airflow/chart"),
