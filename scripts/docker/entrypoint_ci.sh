@@ -461,7 +461,7 @@ else
         "tests/utils"
     )
     WWW_TESTS=("tests/www")
-    HELM_CHART_TESTS=("tests/charts")
+    HELM_CHART_TESTS=("helm_tests")
     INTEGRATION_TESTS=("tests/integration")
     SYSTEM_TESTS=("tests/system")
     ALL_TESTS=("tests")
@@ -498,7 +498,7 @@ else
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
         if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
-            SELECTED_TESTS=("tests/charts/${HELM_TEST_PACKAGE}")
+            SELECTED_TESTS=("helm_tests/${HELM_TEST_PACKAGE}")
         else
             SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
         fi
