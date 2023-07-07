@@ -16,38 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-from unittest import mock
-from unittest.mock import AsyncMock
-
-import pytest
-from botocore.exceptions import WaiterError
-
-from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
 
 
 class TestAthenaTrigger:
-    @pytest.mark.asyncio
-    @mock.patch.object(AthenaHook, "get_waiter")
-    @mock.patch.object(AthenaHook, "async_conn")  # LatestBoto step of CI fails without this
-    async def test_run_with_error(self, conn_mock, waiter_mock):
-        waiter_mock.side_effect = WaiterError("name", "reason", {})
+    def test_serialize_recreate(self):
+        trigger = AthenaTrigger("query_id", 1, 5, "aws connection")
 
-        trigger = AthenaTrigger("query_id", 0, 5, None)
+        class_path, args = trigger.serialize()
 
-        with pytest.raises(WaiterError):
-            generator = trigger.run()
-            await generator.asend(None)
+        class_name = class_path.split(".")[-1]
+        clazz = globals()[class_name]
+        instance = clazz(**args)
 
-    @pytest.mark.asyncio
-    @mock.patch.object(AthenaHook, "get_waiter")
-    @mock.patch.object(AthenaHook, "async_conn")  # LatestBoto step of CI fails without this
-    async def test_run_success(self, conn_mock, waiter_mock):
-        waiter_mock().wait = AsyncMock()
-        trigger = AthenaTrigger("my_query_id", 0, 5, None)
+        class_path2, args2 = instance.serialize()
 
-        generator = trigger.run()
-        event = await generator.asend(None)
-
-        assert event.payload["status"] == "success"
-        assert event.payload["value"] == "my_query_id"
+        assert class_path == class_path2
+        assert args == args2

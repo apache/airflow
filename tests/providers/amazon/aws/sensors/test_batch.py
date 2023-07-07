@@ -27,7 +27,7 @@ from airflow.providers.amazon.aws.sensors.batch import (
     BatchJobQueueSensor,
     BatchSensor,
 )
-from airflow.providers.amazon.aws.triggers.batch import BatchSensorTrigger
+from airflow.providers.amazon.aws.triggers.batch import BatchJobTrigger
 
 TASK_ID = "batch_job_sensor"
 JOB_ID = "8222a1c2-b246-4e19-b1b8-0039bb4407c0"
@@ -210,26 +210,10 @@ class TestBatchAsyncSensor:
 
         with pytest.raises(TaskDeferred) as exc:
             self.TASK.execute({})
-        assert isinstance(exc.value.trigger, BatchSensorTrigger), "Trigger is not a BatchSensorTrigger"
+        assert isinstance(exc.value.trigger, BatchJobTrigger), "Trigger is not a BatchJobTrigger"
 
     def test_batch_sensor_async_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""
 
-        with pytest.raises(AirflowException) as exc_info:
-            self.TASK.execute_complete(
-                context={}, event={"status": "failure", "message": "test failure message"}
-            )
-
-        assert str(exc_info.value) == "test failure message"
-
-    @pytest.mark.parametrize(
-        "event",
-        [{"status": "success", "message": f"AWS Batch job ({JOB_ID}) succeeded"}],
-    )
-    def test_batch_sensor_async_execute_complete(self, caplog, event):
-        """Tests that execute_complete method returns None and that it prints expected log"""
-
-        with mock.patch.object(self.TASK.log, "info") as mock_log_info:
-            assert self.TASK.execute_complete(context={}, event=event) is None
-
-        mock_log_info.assert_called_with(event["message"])
+        with pytest.raises(AirflowException):
+            self.TASK.execute_complete(context={}, event={"status": "failure"})
