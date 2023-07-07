@@ -258,8 +258,7 @@ class EmrServerlessHook(AwsBaseHook):
 
     def cancel_running_jobs(self, application_id: str, waiter_config: dict = {}):
         """
-        List all jobs in an intermediate state, cancel them, then returns the number of
-        cancelled jobs.
+        Cancel jobs in an intermediate state, and return the number of cancelled jobs.
 
         Note: if new jobs are triggered while this operation is ongoing,
         it's going to time out and return an error.

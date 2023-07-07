@@ -1474,12 +1474,12 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
     :param waiter_check_interval_seconds: (deprecated) Number of seconds between polling the state
         of the application. Defaults to 60 seconds.
     :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
-        Default is 25.
+        Defaults to 25.
     :param waiter_delay: Number of seconds between polling the state of the application.
-        Default is 60 seconds.
+        Defaults to 60 seconds.
     :param deferrable: If True, the operator will wait asynchronously for application to be deleted.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
-        (default: False)
+        Defaults to False
     :param force_stop: If set to True, any job for that app that is not in a terminal state will be cancelled.
         Otherwise, trying to delete an app with running jobs will return an error.
         If you want to wait for the jobs to finish gracefully, use
