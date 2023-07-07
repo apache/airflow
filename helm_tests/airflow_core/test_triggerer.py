@@ -371,9 +371,10 @@ class TestTriggerer:
             values={"airflowVersion": f"{airflow_version}"},
             show_only=["templates/triggerer/triggerer-deployment.yaml"],
         )
-        assert probe_command in jmespath.search(
-            "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
-        )[-1]
+        assert (
+            probe_command
+            in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
+        )
 
     @pytest.mark.parametrize(
         "log_persistence_values, expected_volume",

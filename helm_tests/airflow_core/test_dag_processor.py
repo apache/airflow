@@ -348,12 +348,13 @@ class TestDagProcessor:
     )
     def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version, probe_command):
         docs = render_chart(
-            values={"airflowVersion": f"{airflow_version}","dagProcessor": {"enabled": True}},
+            values={"airflowVersion": f"{airflow_version}", "dagProcessor": {"enabled": True}},
             show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
         )
-        assert probe_command in jmespath.search(
-            "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
-        )[-1]
+        assert (
+            probe_command
+            in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
+        )
 
     @pytest.mark.parametrize(
         "log_persistence_values, expected_volume",
