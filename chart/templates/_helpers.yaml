@@ -690,7 +690,7 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --job-type TriggererJob  --hostname $(hostname)
+    airflow jobs check --job-type TriggererJob --hostname $(hostname)
   {{- end }}
 {{- end }}
 
