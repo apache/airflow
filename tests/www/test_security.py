@@ -374,7 +374,6 @@ def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
 
 def test_get_user_roles(app_builder, security_manager):
     user = mock.MagicMock()
-    user.is_anonymous = False
     roles = app_builder.sm.find_role("Admin")
     user.roles = roles
     assert security_manager.get_user_roles(user) == roles

@@ -83,7 +83,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
     set_state,
 )
-from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.configuration import AIRFLOW_CONFIG, auth_manager, conf
 from airflow.datasets import Dataset
 from airflow.exceptions import (
     AirflowConfigException,
@@ -617,13 +617,13 @@ def show_traceback(error):
     return (
         render_template(
             "airflow/traceback.html",
-            python_version=sys.version.split(" ")[0] if g.user.is_authenticated else "redact",
-            airflow_version=version if g.user.is_authenticated else "redact",
+            python_version=sys.version.split(" ")[0] if auth_manager.is_logged_in() else "redact",
+            airflow_version=version if auth_manager.is_logged_in() else "redact",
             hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and g.user.is_authenticated
+            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and auth_manager.is_logged_in()
             else "redact",
             info=traceback.format_exc()
-            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and g.user.is_authenticated
+            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and auth_manager.is_logged_in()
             else "Error! Please contact server admin.",
         ),
         500,
