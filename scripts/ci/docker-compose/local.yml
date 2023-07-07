@@ -115,6 +115,9 @@ services:
         source: ../../../tests
         target: /opt/airflow/tests
       - type: bind
+        source: ../../../helm_tests
+        target: /opt/airflow/helm_tests
+      - type: bind
         source: ../../../kubernetes_tests
         target: /opt/airflow/kubernetes_tests
       - type: bind
