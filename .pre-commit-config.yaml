@@ -931,12 +931,12 @@ repos:
         files: ^tests/.*\.py$
       - id: check-usage-of-re2-over-re
         language: pygrep
-        name: Use re2 over re
+        name: Use re2 module instead of re
         description: Use re2 module instead of re
         entry: "^\\s*from re\\s|^\\s*import re\\s"
         pass_filenames: true
         files: \.py$
-        exclude: ^airflow/providers|^dev/.*\.py$|^scripts/.*\.py$|^tests/|^docker_tests/|^docs/.*\.py$|^airflow/utils/helpers.py$
+        exclude: ^airflow/providers|^dev/.*\.py$|^scripts/.*\.py$|^tests/|^\w+_tests/|^docs/.*\.py$|^airflow/utils/helpers.py$
       - id: check-deferrable-default-value
         name: Check default value of deferrable attribute
         language: python
