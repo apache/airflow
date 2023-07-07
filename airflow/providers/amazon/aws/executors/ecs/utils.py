@@ -26,6 +26,30 @@ EcsQueuedTask = namedtuple("EcsQueuedTask", ("key", "command", "queue", "executo
 ExecutorConfigType = Dict[str, Any]
 EcsTaskInfo = namedtuple("EcsTaskInfo", ("cmd", "queue", "config"))
 
+CONFIG_GROUP_NAME = "aws_ecs_executor"
+
+CONFIG_DEFAULTS = {
+    "assign_public_ip": False,
+    "conn_id": "aws_default",
+    "launch_type": "FARGATE",
+    "platform_version": "LATEST",
+}
+
+
+class EcsConfigKeys:
+    """Keys loaded into the config which are related to the ECS Executor."""
+
+    ASSIGN_PUBLIC_IP = "assign_public_ip"
+    CLUSTER = "cluster"
+    CONTAINER_NAME = "container_name"
+    LAUNCH_TYPE = "launch_type"
+    PLATFORM_VERSION = "platform_version"
+    REGION = "region"
+    RUN_TASK_KWARGS = "run_task_kwargs"
+    SECURITY_GROUPS = "security_groups"
+    SUBNETS = "subnets"
+    TASK_DEFINITION = "task_definition"
+
 
 class EcsExecutorException(Exception):
     """Thrown when something unexpected has occurred within the ECS ecosystem."""

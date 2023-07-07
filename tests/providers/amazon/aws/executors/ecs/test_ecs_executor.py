@@ -24,7 +24,9 @@ import pytest
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.amazon.aws.executors.ecs import (
+    CONFIG_GROUP_NAME,
     AwsEcsExecutor,
+    EcsConfigKeys,
     EcsExecutorTask,
     EcsTaskCollection,
 )
@@ -422,20 +424,20 @@ class TestAwsEcsExecutor:
 
     @staticmethod
     def _set_conf():
-        os.environ["AIRFLOW__ECS_EXECUTOR__REGION"] = "us-west-1"
-        os.environ["AIRFLOW__ECS_EXECUTOR__CLUSTER"] = "some-cluster"
-        os.environ["AIRFLOW__ECS_EXECUTOR__CONTAINER_NAME"] = "some-container-name"
-        os.environ["AIRFLOW__ECS_EXECUTOR__TASK_DEFINITION"] = "some-task-def"
-        os.environ["AIRFLOW__ECS_EXECUTOR__LAUNCH_TYPE"] = "FARGATE"
-        os.environ["AIRFLOW__ECS_EXECUTOR__PLATFORM_VERSION"] = "LATEST"
-        os.environ["AIRFLOW__ECS_EXECUTOR__ASSIGN_PUBLIC_IP"] = "DISABLED"
-        os.environ["AIRFLOW__ECS_EXECUTOR__SECURITY_GROUPS"] = "sg1,sg2"
-        os.environ["AIRFLOW__ECS_EXECUTOR__SUBNETS"] = "sub1,sub2"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.REGION}".upper()] = "us-west-1"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.CLUSTER}".upper()] = "some-cluster"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.CONTAINER_NAME}".upper()] = "container-name"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.TASK_DEFINITION}".upper()] = "some-task-def"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.LAUNCH_TYPE}".upper()] = "FARGATE"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.PLATFORM_VERSION}".upper()] = "LATEST"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.ASSIGN_PUBLIC_IP}".upper()] = "False"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.SECURITY_GROUPS}".upper()] = "sg1,sg2"
+        os.environ[f"AIRFLOW__{CONFIG_GROUP_NAME}__{EcsConfigKeys.SUBNETS}".upper()] = "sub1,sub2"
 
     @staticmethod
     def _unset_conf():
         for env in os.environ:
-            if env.startswith("AIRFLOW__ECS_EXECUTOR__"):
+            if env.startswith(f"AIRFLOW__{CONFIG_GROUP_NAME.upper()}__"):
                 os.environ.pop(env)
 
     def _mock_sync(self, expected_state: State = State.SUCCESS) -> None:

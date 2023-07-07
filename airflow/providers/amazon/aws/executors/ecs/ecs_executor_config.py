@@ -16,7 +16,8 @@
 # under the License.
 
 """
-**Default AWS ECS Executor configuration**
+Default AWS ECS Executor configuration.
+
 This is the default configuration for calling the ECS `run_task` function.
 The AWS ECS Executor calls Boto3's run_task(**kwargs) function with the kwargs templated by this
 dictionary. See the URL below for documentation on the parameters accepted by the Boto3 run_task
@@ -27,29 +28,32 @@ send your own kwargs by overriding the airflow config file.
 https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
 :return: Dictionary kwargs to be used by ECS run_task() function.
 """
+
 from __future__ import annotations
 
+import json
+from json import JSONDecodeError
+
 from airflow.configuration import conf
+from airflow.providers.amazon.aws.executors.ecs.utils import CONFIG_DEFAULTS, CONFIG_GROUP_NAME, EcsConfigKeys
+from airflow.utils.helpers import prune_dict
 
+base_run_task_kwargs = str(conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.RUN_TASK_KWARGS, fallback=dict()))
+ECS_EXECUTOR_RUN_TASK_KWARGS = json.loads(base_run_task_kwargs)
 
-def has_option(section, config_name) -> bool:
-    """Returns True if configuration has a section and an option."""
-    if conf.has_option(section, config_name):
-        config_val = conf.get(section, config_name)
-        return config_val is not None and config_val != ""
-    return False
-
-
-ECS_EXECUTOR_RUN_TASK_KWARGS = {}
-if conf.has_option("ecs_executor", "region"):
+if conf.has_option(CONFIG_GROUP_NAME, EcsConfigKeys.REGION):
     ECS_EXECUTOR_RUN_TASK_KWARGS = {
-        "cluster": conf.get("ecs_executor", "cluster"),
-        "taskDefinition": conf.get("ecs_executor", "task_definition"),
-        "platformVersion": "LATEST",
+        "cluster": conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.CLUSTER),
+        "taskDefinition": conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.TASK_DEFINITION),
+        "platformVersion": conf.get(
+            CONFIG_GROUP_NAME,
+            EcsConfigKeys.PLATFORM_VERSION,
+            fallback=CONFIG_DEFAULTS[EcsConfigKeys.PLATFORM_VERSION],
+        ),
         "overrides": {
             "containerOverrides": [
                 {
-                    "name": conf.get("ecs_executor", "container_name"),
+                    "name": conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.CONTAINER_NAME),
                     # The executor will overwrite the 'command' property during execution.
                     # Must always be the first container!
                     "command": [],
@@ -57,21 +61,40 @@ if conf.has_option("ecs_executor", "region"):
             ]
         },
         "count": 1,
+        "launchType": conf.get(
+            CONFIG_GROUP_NAME, EcsConfigKeys.LAUNCH_TYPE, fallback=CONFIG_DEFAULTS[EcsConfigKeys.LAUNCH_TYPE]
+        ),
     }
 
-    if has_option("ecs_executor", "launch_type"):
-        ECS_EXECUTOR_RUN_TASK_KWARGS["launchType"] = conf.get("ecs_executor", "launch_type")
-
-    # Only build this section if 'subnets', 'security_groups', and 'assign_public_ip' are populated
-    if (
-        has_option("ecs_executor", "subnets")
-        and has_option("ecs_executor", "security_groups")
-        and conf.has_option("ecs_executor", "assign_public_ip")
+    if any(
+        [
+            subnets := conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.SUBNETS, fallback=None),
+            security_groups := conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.SECURITY_GROUPS, fallback=None),
+            assign_public_ip := conf.getboolean(
+                CONFIG_GROUP_NAME,
+                EcsConfigKeys.ASSIGN_PUBLIC_IP,
+                fallback=CONFIG_DEFAULTS[EcsConfigKeys.ASSIGN_PUBLIC_IP],
+            ),
+        ]
     ):
-        ECS_EXECUTOR_RUN_TASK_KWARGS["networkConfiguration"] = {
-            "awsvpcConfiguration": {
-                "subnets": conf.get("ecs_executor", "subnets").split(","),
-                "securityGroups": conf.get("ecs_executor", "security_groups").split(","),
-                "assignPublicIp": conf.get("ecs_executor", "assign_public_ip"),
+        network_config = prune_dict(
+            {
+                "awsvpcConfiguration": {
+                    "subnets": str(subnets).split(","),
+                    "securityGroups": str(security_groups).split(","),
+                    "assignPublicIp": "ENABLED" if assign_public_ip else "DISABLED",
+                }
             }
-        }
+        )
+
+        if "subnets" not in network_config["awsvpcConfiguration"]:
+            raise ValueError("At least one subnet is required to run a task.")
+
+        ECS_EXECUTOR_RUN_TASK_KWARGS["networkConfiguration"] = network_config
+
+    try:
+        json.loads(json.dumps(ECS_EXECUTOR_RUN_TASK_KWARGS))
+    except JSONDecodeError:
+        raise ValueError(
+            f"AWS ECS Executor config values must be JSON serializable. Got {ECS_EXECUTOR_RUN_TASK_KWARGS}"
+        )

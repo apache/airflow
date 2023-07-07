@@ -34,13 +34,14 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.models.taskinstance import TaskInstanceKey
 from airflow.providers.amazon.aws.executors.ecs.boto_schema import BotoDescribeTasksSchema, BotoRunTaskSchema
 from airflow.providers.amazon.aws.executors.ecs.utils import (
+    CONFIG_GROUP_NAME,
     CommandType,
+    EcsConfigKeys,
     EcsExecutorException,
     EcsQueuedTask,
     EcsTaskInfo,
     ExecutorConfigType,
 )
-from airflow.utils.module_loading import import_string
 from airflow.utils.state import State
 
 
@@ -133,9 +134,9 @@ class AwsEcsExecutor(BaseExecutor):
 
     def start(self):
         """Initialize Boto3 ECS Client, and other internal variables."""
-        region = conf.get("ecs_executor", "region")
-        self.cluster = conf.get("ecs_executor", "cluster")
-        self.container_name = conf.get("ecs_executor", "container_name")
+        region = conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.REGION)
+        self.cluster = conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.CLUSTER)
+        self.container_name = conf.get(CONFIG_GROUP_NAME, EcsConfigKeys.CONTAINER_NAME)
         # TODO:: Confirm that defaulting in the init is functionally identical then remove these
         #        next two commented lines.
         # self.active_workers = EcsTaskCollection()
@@ -307,30 +308,18 @@ class AwsEcsExecutor(BaseExecutor):
         self.end()
 
     def _load_run_kwargs(self) -> dict:
-        fallback = (
-            "airflow.providers.amazon.aws.executors.ecs.ecs_executor_config.ECS_EXECUTOR_RUN_TASK_KWARGS"
-        )
-        run_kwargs = import_string(
-            conf.get(
-                "ecs_executor",
-                "run_task_kwargs",
-                fallback=fallback,
+        try:
+            from airflow.providers.amazon.aws.executors.ecs.ecs_executor_config import (
+                ECS_EXECUTOR_RUN_TASK_KWARGS,
             )
-        )
-        if not isinstance(run_kwargs, dict):
-            raise ValueError(f"AWS ECS Executor config value must be a dictionary. Got {type(run_kwargs)}")
 
-        if (
-            "overrides" not in run_kwargs
-            or "containerOverrides" not in run_kwargs["overrides"]
-            or not run_kwargs["overrides"]["containerOverrides"]
-            or "command" not in self.get_container(run_kwargs["overrides"]["containerOverrides"])
-        ):
+            self.get_container(ECS_EXECUTOR_RUN_TASK_KWARGS["overrides"]["containerOverrides"])["command"]
+        except KeyError:
             raise KeyError(
                 "Rendered JSON template does not contain key "
                 '"overrides[containerOverrides][containers][x][command]"'
             )
-        return run_kwargs
+        return ECS_EXECUTOR_RUN_TASK_KWARGS
 
     def get_container(self, container_list):
         """Searches task list for core Airflow container."""
