@@ -339,6 +339,27 @@ class TestDagProcessor:
         )
 
     @pytest.mark.parametrize(
+        "airflow_version, probe_command",
+        [
+            ("2.4.9", "airflow jobs check --hostname $(hostname)"),
+            ("2.5.0", "airflow jobs check --local"),
+            ("2.5.2", "airflow jobs check --local --job-type DagProcessorJob")
+        ],
+    )
+    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version, probe_command):
+        docs = render_chart(
+            values={
+                "airflowVersion": f"{airflow_version}",
+                "dagProcessor": {"enabled": True}
+            },
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+        command_prefix = "CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint"
+        assert ["sh", "-c", f"{command_prefix} \\\n{probe_command}\n"] == jmespath.search(
+            "spec.template.spec.containers[0].livenessProbe.exec.command", docs[0]
+        )
+
+    @pytest.mark.parametrize(
         "log_persistence_values, expected_volume",
         [
             ({"enabled": False}, {"emptyDir": {}}),
