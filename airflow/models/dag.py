@@ -2373,6 +2373,8 @@ class DAG(LoggingMixin):
                 also_include.extend(t.get_upstreams_follow_setups())
             else:
                 also_include.extend(t.get_upstreams_only_setups_and_teardowns())
+            if t.is_setup and not include_downstream:
+                also_include.extend(x for x in t.downstream_list if x.is_teardown)
 
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
