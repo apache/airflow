@@ -35,7 +35,7 @@ from datetime import datetime
 
 from airflow import models
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
-from airflow.providers.google.cloud.operators.datapipeline import CreateDataPipelineOperator
+from airflow.providers.google.cloud.operators.datapipeline import CreateDataPipelineOperator, RunDataPipelineOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
 from airflow.utils.trigger_rule import TriggerRule
@@ -55,7 +55,7 @@ with models.DAG(
         location="us-central1",
         data_pipeline_name="airflow-test",
         body = {
-            "name": "projects/dataflow-interns/locations/us-central1/pipelines/dp-create-1642676351302-mp--1675461000",
+            "name": "projects/google.com:clouddfe/locations/us-central1/pipelines/dp-create-1642676351302-mp--1675461000",
             "type": "PIPELINE_TYPE_BATCH",
             "workload": {
                 "dataflowFlexTemplateRequest": {
@@ -75,7 +75,8 @@ with models.DAG(
                 }
             }
         }
+    )
+ 
 
-    )    
-
-    create_data_pipeline
+    create_data_pipeline 
+    # >> run_data_pipeline

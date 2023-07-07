@@ -69,6 +69,7 @@ class DataPipelineHook(GoogleBaseHook):
     def create_data_pipeline(
         self,
         body: dict,
+        data_pipeline_name: str,
         project_id: str,
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
     ) -> None:
