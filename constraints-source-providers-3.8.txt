@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-07T21:22:20Z
+# This constraints file was automatically generated on 2023-07-07T23:34:58Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -133,7 +133,7 @@ cfgv==3.3.1
 cfn-lint==0.77.10
 cgroupspy==0.2.2
 chardet==5.1.0
-charset-normalizer==3.1.0
+charset-normalizer==3.2.0
 checksumdir==1.2.0
 ciso8601==2.3.0
 click-default-group==1.2.2
@@ -266,7 +266,7 @@ idna==3.4
 ijson==3.2.2
 imagesize==1.4.1
 importlib-metadata==4.13.0
-importlib-resources==5.12.0
+importlib-resources==5.13.0
 impyla==0.18.0
 incremental==22.10.0
 inflection==0.5.1
@@ -361,7 +361,7 @@ opentelemetry-semantic-conventions==0.36b0
 opsgenie-sdk==2.1.5
 oracledb==1.3.2
 ordered-set==4.1.0
-orjson==3.9.1
+orjson==3.9.2
 oscrypto==1.3.0
 oss2==2.18.0
 packaging==23.1
@@ -379,7 +379,7 @@ pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
 pinotdb==0.5.0
-pipdeptree==2.9.3
+pipdeptree==2.9.4
 pipx==1.2.0
 pkginfo==1.9.6
 pkgutil_resolve_name==1.3.10
