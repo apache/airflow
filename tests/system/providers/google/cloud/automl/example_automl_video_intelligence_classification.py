@@ -37,44 +37,41 @@ from airflow.providers.google.cloud.operators.automl import (
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
-GCP_AUTOML_DETECTION_BUCKET = os.environ.get(
-    "GCP_AUTOML_DETECTION_BUCKET", "gs://INVALID BUCKET NAME/img/openimage/csv/salads_ml_use.csv"
+GCP_AUTOML_VIDEO_BUCKET = os.environ.get(
+    "GCP_AUTOML_VIDEO_BUCKET", "gs://INVALID BUCKET NAME/hmdb_split1.csv"
 )
-
-# Example values
-DATASET_ID = ""
 
 # Example model
 MODEL = {
-    "display_name": "auto_model",
-    "dataset_id": DATASET_ID,
-    "image_object_detection_model_metadata": {},
+    "display_name": "auto_model_1",
+    "video_classification_model_metadata": {},
 }
 
 # Example dataset
 DATASET = {
-    "display_name": "test_detection_dataset",
-    "image_object_detection_dataset_metadata": {},
+    "display_name": "test_video_dataset",
+    "video_classification_dataset_metadata": {},
 }
 
-IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_DETECTION_BUCKET]}}
+IMPORT_INPUT_CONFIG = {"gcs_source": {"input_uris": [GCP_AUTOML_VIDEO_BUCKET]}}
 
 extract_object_id = CloudAutoMLHook.extract_object_id
 
 
-# Example DAG for AutoML Vision Object Detection
+# Example DAG for AutoML Video Intelligence Classification
 with models.DAG(
-    "example_automl_vision_detection",
+    "example_automl_video",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},
     tags=["example"],
-) as example_dag:
+) as dag:
     create_dataset_task = AutoMLCreateDatasetOperator(
         task_id="create_dataset_task", dataset=DATASET, location=GCP_AUTOML_LOCATION
     )
 
     dataset_id = cast(str, XComArg(create_dataset_task, key="dataset_id"))
+    MODEL["dataset_id"] = dataset_id
 
     import_dataset_task = AutoMLImportDataOperator(
         task_id="import_dataset_task",
@@ -103,7 +100,9 @@ with models.DAG(
         project_id=GCP_PROJECT_ID,
     )
 
+    # TEST BODY
     import_dataset_task >> create_model
+    # TEST TEARDOWN
     delete_model_task >> delete_datasets_task
 
     # Task dependencies created via `XComArgs`:
@@ -111,3 +110,14 @@ with models.DAG(
     #   create_dataset_task >> create_model
     #   create_model >> delete_model_task
     #   create_dataset_task >> delete_datasets_task
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
