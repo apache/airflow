@@ -24,6 +24,7 @@ from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
 from airflow.providers.google.cloud.links.datafusion import (
     DataFusionInstanceLink,
@@ -759,7 +760,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         asynchronous=False,
-        deferrable=False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval=3.0,
         **kwargs,
     ) -> None:
