@@ -543,7 +543,7 @@ Let's look at an example:
     s1 >> w1 >> w2 >> t1.as_teardown(setups=s1) >> w3
     w2 >> w4
 
-In the above example, w1 and w2 are "between" s1 and t1 and therefore are assumed to require s1. Thus if w1 or w2 is cleared, so too will be s1 and t1.  But if w3 or w4 is cleared, neither s1 nor t1 will be cleared.
+In the above example, ``w1`` and ``w2`` are "between" ``s1`` and ``t1`` and therefore are assumed to require ``s1``. Thus if ``w1`` or ``w2`` is cleared, so too will be ``s1`` and ``t1``.  But if ``w3`` or ``w4`` is cleared, neither ``s1`` nor ``t1`` will be cleared.
 
 You can have multiple setup tasks wired to a single teardown.  The teardown will run if at least one of the setups completed successfully.
 
