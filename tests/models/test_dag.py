@@ -3834,7 +3834,7 @@ class TestTaskClearingSetupTeardownBehavior:
         """
         with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
             s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
-            s1 >> w1 >> t1
+            s1 >> w1 >> t1.as_teardown(setups=s1)
             s1 >> w2
             # w2 is downstream of s1, so when clearing upstream, it should clear s1 (since it
             # is upstream of w2) and t1 since it's the teardown for s1 even though not downstream of w1
