@@ -48,6 +48,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils.json import WebEncoder
 from airflow.utils.state import State, TaskInstanceState
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
@@ -481,7 +482,7 @@ def json_f(attr_name):
 
     def json_(attr):
         f = attr.get(attr_name)
-        serialized = json.dumps(f)
+        serialized = json.dumps(f, cls=WebEncoder)
         return Markup("<nobr>{}</nobr>").format(serialized)
 
     return json_
