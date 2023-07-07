@@ -529,7 +529,7 @@ Observations:
 
   * If you clear ``run_query`` to run it again, then both ``create_cluster`` and ``delete_cluster`` will be cleared.
   * If ``run_query`` fails, then ``delete_cluster`` will still run.
-  * The success of the dag run will depend on the success of ``run_query``.
+  * The success of the dag run will depend *only* on the success of ``run_query``.
 
 Setup "scope"
 """""""""""""
@@ -615,6 +615,20 @@ This is equivalent to the following:
     s >> b() >> c() >> t
 
 Passing data between setup, teardown, and normal task
+
+Running setups and teardowns in parallel
+""""""""""""""""""""""""""""""""""""""""
+
+You can run setup tasks in parallel:
+
+.. code-block:: python
+
+    (
+        [create_cluster, create_bucket]
+        >> run_query
+        >> [delete_cluster.as_teardown(setups=create_cluster), delete_bucket.as_teardown(setups=create_bucket)]
+    )
+
 
 Dynamic DAGs
 ------------
