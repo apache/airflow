@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-07T16:58:30Z
+# This constraints file was automatically generated on 2023-07-07T21:29:05Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -66,6 +66,7 @@ aliyun-python-sdk-core==2.13.36
 aliyun-python-sdk-kms==2.16.1
 amqp==5.1.1
 analytics-python==1.4.post1
+annotated-types==0.5.0
 ansiwrap==0.8.4
 anyascii==0.3.2
 anyio==3.7.1
@@ -213,7 +214,7 @@ cfgv==3.3.1
 cfn-lint==0.77.10
 cgroupspy==0.2.2
 chardet==5.1.0
-charset-normalizer==3.1.0
+charset-normalizer==3.2.0
 checksumdir==1.2.0
 ciso8601==2.3.0
 click-default-group==1.2.2
@@ -348,7 +349,7 @@ idna==3.4
 ijson==3.2.2
 imagesize==1.4.1
 importlib-metadata==4.13.0
-importlib-resources==5.13.0
+importlib-resources==6.0.0
 impyla==0.18.0
 incremental==22.10.0
 inflection==0.5.1
@@ -493,7 +494,8 @@ pycountry==22.3.5
 pycparser==2.21
 pycryptodome==3.18.0
 pycryptodomex==3.18.0
-pydantic==1.10.11
+pydantic==2.0.2
+pydantic_core==2.1.2
 pydata-google-auth==1.8.0
 pydot==1.4.2
 pydruid==0.6.5

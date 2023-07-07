@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-07T16:55:04Z
+# This constraints file was automatically generated on 2023-07-07T21:26:05Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -40,6 +40,7 @@ aioitertools==0.11.0
 aiosignal==1.3.1
 alembic==1.11.1
 amqp==5.1.1
+annotated-types==0.5.0
 anyio==3.7.1
 apispec==5.2.2
 argcomplete==3.1.1
@@ -58,7 +59,7 @@ celery==5.3.1
 certifi==2023.5.7
 cffi==1.15.1
 cgroupspy==0.2.2
-charset-normalizer==3.1.0
+charset-normalizer==3.2.0
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.3.0
@@ -71,11 +72,11 @@ connexion==2.14.2
 cron-descriptor==1.4.0
 croniter==1.4.1
 cryptography==41.0.1
-dask==2023.6.1
+dask==2023.7.0
 decorator==5.1.1
 dill==0.3.6
 distlib==0.3.6
-distributed==2023.6.1
+distributed==2023.7.0
 dnspython==2.3.0
 docutils==0.20.1
 email-validator==1.3.1
@@ -100,7 +101,7 @@ httpx==0.24.1
 humanize==4.7.0
 idna==3.4
 importlib-metadata==6.8.0
-importlib-resources==5.13.0
+importlib-resources==6.0.0
 inflection==0.5.1
 itsdangerous==2.1.2
 jmespath==1.0.1
@@ -154,7 +155,8 @@ pyarrow==12.0.1
 pyasn1-modules==0.3.0
 pyasn1==0.5.0
 pycparser==2.21
-pydantic==1.10.11
+pydantic==2.0.2
+pydantic_core==2.1.2
 pykerberos==1.2.4
 pyspnego==0.9.1
 python-daemon==3.0.1
