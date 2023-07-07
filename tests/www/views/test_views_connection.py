@@ -58,7 +58,7 @@ def test_create_connection(admin_client, session):
     _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
 
 
-def test_invalid_connection_id_trailing_blanks(admin_client, session):
+def test_connection_id_trailing_blanks(admin_client, session):
     conn_id_with_blanks = "conn_id_with_trailing_blanks   "
     conn = {**CONNECTION, "conn_id": conn_id_with_blanks}
     resp = admin_client.post("/connection/add", data=conn, follow_redirects=True)
@@ -69,7 +69,7 @@ def test_invalid_connection_id_trailing_blanks(admin_client, session):
     assert "conn_id_with_trailing_blanks" == list(response)[0]
 
 
-def test_invalid_connection_id_leading_blanks(admin_client, session):
+def test_connection_id_leading_blanks(admin_client, session):
     conn_id_with_blanks = "   conn_id_with_leading_blanks"
     conn = {**CONNECTION, "conn_id": conn_id_with_blanks}
     resp = admin_client.post("/connection/add", data=conn, follow_redirects=True)
@@ -78,6 +78,33 @@ def test_invalid_connection_id_leading_blanks(admin_client, session):
     response = {conn[0] for conn in session.query(Connection.conn_id).all()}
     assert len(response) == 1
     assert "conn_id_with_leading_blanks" == list(response)[0]
+
+
+def test_all_fields_with_blanks(admin_client, session):
+    connection = {
+        **CONNECTION,
+        "conn_id": "   connection_id_with_space",
+        "description": "  a sample http connection with leading and trailing blanks  ",
+        "host": "localhost    ",
+        "schema": "    airflow    ",
+        "port": 3306,
+    }
+
+    resp = admin_client.post("/connection/add", data=connection, follow_redirects=True)
+    check_content_in_response("Added Row", resp)
+
+    # validate all the fields
+    response = {conn[0] for conn in session.query(Connection.conn_id).all()}
+    assert "connection_id_with_space" == list(response)[0]
+
+    response = {conn[0] for conn in session.query(Connection.description).all()}
+    assert "a sample http connection with leading and trailing blanks" == list(response)[0]
+
+    response = {conn[0] for conn in session.query(Connection.host).all()}
+    assert "localhost" == list(response)[0]
+
+    response = {conn[0] for conn in session.query(Connection.schema).all()}
+    assert "airflow" == list(response)[0]
 
 
 def test_action_logging_connection_masked_secrets(session, admin_client):
