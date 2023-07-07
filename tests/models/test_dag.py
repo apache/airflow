@@ -3850,6 +3850,7 @@ class TestTaskClearingSetupTeardownBehavior:
             # that isn't changed with the introduction of w1
             assert self.cleared_downstream(t1) == {t1}
             # though, of course, clearing w1 clears them all
+            assert self.cleared_downstream(w1) == {s1, w1, t1}
 
     def test_clearing_setup_clears_teardown(self):
         with DAG(dag_id="test_dag", start_date=pendulum.now()) as dag:
