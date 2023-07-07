@@ -90,10 +90,10 @@ def main() -> int:
         glob.glob(f"{ROOT_DIR}/airflow/**/operators/**.py", recursive=True),
     )
 
-    invalid_value_errors = list(itertools.chain(*(iter_check_deferrable_default_errors(m) for m in modules)))
-    if invalid_value_errors:
+    errors = [error for module in modules for error in iter_check_deferrable_default_errors(module)]
+    if errors:
         print("Incorrect deferrable default values detected at:")
-        for error in invalid_value_errors:
+        for error in errors:
             print(f"  {error}")
         print(
             """Please set the default value of deferrbale to """
@@ -101,7 +101,7 @@ def main() -> int:
             f"See: {DEFERRABLE_DOC}\n"
         )
 
-    return len(invalid_value_errors)
+    return len(errors)
 
 
 if __name__ == "__main__":
