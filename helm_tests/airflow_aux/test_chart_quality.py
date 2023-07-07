@@ -22,7 +22,7 @@ from pathlib import Path
 import yaml
 from jsonschema import validate
 
-CHART_DIR = Path(__file__).resolve().parents[3] / "airflow" / "chart"
+CHART_DIR = Path(__file__).parents[2] / "chart"
 
 
 class TestChartQuality:
