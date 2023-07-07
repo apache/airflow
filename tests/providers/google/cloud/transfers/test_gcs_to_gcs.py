@@ -128,6 +128,7 @@ class TestGoogleCloudStorageToCloudStorageOperator:
     def test_copy_file_with_exact_match(self, mock_hook):
         SOURCE_FILES = [
             "test_object.txt",
+            "test_object.txt.abc",
             "test_object.txt.copy/",
             "test_object.txt.folder/",
         ]
@@ -145,6 +146,42 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             mock.call(TEST_BUCKET, prefix="test_object.txt", delimiter=None, match_glob=None),
         ]
         mock_hook.return_value.list.assert_has_calls(mock_calls)
+        mock_hook.return_value.rewrite.assert_has_calls(
+            [
+                mock.call(TEST_BUCKET, "test_object.txt", DESTINATION_BUCKET, "test_object.txt"),
+            ]
+        )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_copy_file_with_exact_match_destination(self, mock_hook):
+        SOURCE_FILES = [
+            "test_object.txt",
+            "test_object.txt.abc",
+            "test_object.txt.copy/",
+            "test_object.txt.folder/",
+        ]
+        DESTINATION_OBJ = f"{DESTINATION_OBJECT_PREFIX}/test_object.txt"
+
+        mock_hook.return_value.list.return_value = SOURCE_FILES
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJ,
+            exact_match=True,
+        )
+
+        operator.execute(None)
+        mock_calls = [
+            mock.call(TEST_BUCKET, prefix="test_object.txt", delimiter=None, match_glob=None),
+        ]
+        mock_hook.return_value.list.assert_has_calls(mock_calls)
+
+        mock_calls_rewrite = [
+            mock.call(TEST_BUCKET, "test_object.txt", DESTINATION_BUCKET, DESTINATION_OBJ),
+        ]
+        mock_hook.return_value.rewrite.assert_has_calls(mock_calls_rewrite)
 
     @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
     def test_execute_prefix_and_suffix(self, mock_hook):
