@@ -545,6 +545,8 @@ Let's look at an example:
 
 In the above example, w1 and w2 are "between" s1 and t1 and therefore are assumed to require s1. Thus if w1 or w2 is cleared, so too will be s1 and t1.  But if w3 or w4 is cleared, neither s1 nor t1 will be cleared.
 
+You can have multiple setup tasks wired to a single teardown.  The teardown will run if at least one of the setups completed successfully.
+
 Controlling dag run state
 """""""""""""""""""""""""
 
@@ -628,6 +630,12 @@ You can run setup tasks in parallel:
         >> run_query
         >> [delete_cluster.as_teardown(setups=create_cluster), delete_bucket.as_teardown(setups=create_bucket)]
     )
+
+When a setup fails or is skipped
+""""""""""""""""""""""""""""""""
+
+If a setup fails, its downstreams are failed, though with a non-teardown downstream tasks, you can override this behavior with trigger rules.  When a setup is skipped, its downstreams are skipped.
+
 
 
 Dynamic DAGs
