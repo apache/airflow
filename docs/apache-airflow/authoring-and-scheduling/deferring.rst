@@ -60,9 +60,12 @@ Writing a deferrable operator takes a bit more work. There are some main points 
 
     import time
     from datetime import timedelta
+    from typing import Any
 
+    from airflow.configuration import conf
     from airflow.sensors.base import BaseSensorOperator
     from airflow.triggers.temporal import TimeDeltaTrigger
+    from airflow.utils.context import Context
 
 
     class WaitOneHourSensor(BaseSensorOperator):
@@ -70,23 +73,26 @@ Writing a deferrable operator takes a bit more work. There are some main points 
             self,
             deferable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
             **kwargs
-        ):
+        ) -> None:
             super().__init__(**kwargs)
             self.deferrable = deferable
 
-        def execute(self, context):
-            if deferrable:
+        def execute(self, context: Context) -> None:
+            if self.deferrable:
                 self.defer(
                     trigger=TimeDeltaTrigger(timedelta(hours=1)),
-                    method_name="execute_complete"
+                    method_name="execute_complete",
                 )
             else:
                 time.sleep(3600)
 
-        def execute_complete(self, context, event=None):
+        def execute_complete(
+            self,
+            context: Context,
+            event: dict[str, Any] | None = None,
+        ) -> None:
             # We have no more work to do here. Mark as complete.
             return
-
 
 Triggering Deferral
 ~~~~~~~~~~~~~~~~~~~
@@ -109,16 +115,22 @@ You are free to set ``method_name`` to ``execute`` if you want your Operator to 
 Here's a basic example of how a sensor might trigger deferral::
 
     from datetime import timedelta
+    from typing import Any
 
     from airflow.sensors.base import BaseSensorOperator
     from airflow.triggers.temporal import TimeDeltaTrigger
+    from airflow.utils.context import Context
 
 
     class WaitOneHourSensor(BaseSensorOperator):
-        def execute(self, context):
-            self.defer(trigger=TimeDeltaTrigger(timedelta(hours=1)), method_name="execute_complete")
+        def execute(self, context: Context) -> None:
+            self.defer(
+                trigger=TimeDeltaTrigger(timedelta(hours=1)), method_name="execute_complete"
+            )
 
-        def execute_complete(self, context, event=None):
+        def execute_complete(
+            self, context: Context, event: dict[str, Any] | None = None
+        ) -> None:
             # We have no more work to do here. Mark as complete.
             return
 
@@ -153,7 +165,6 @@ There's also some design constraints to be aware of:
 
 Here's the structure of a basic Trigger::
 
-
     import asyncio
 
     from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -161,7 +172,6 @@ Here's the structure of a basic Trigger::
 
 
     class DateTimeTrigger(BaseTrigger):
-
         def __init__(self, moment):
             super().__init__()
             self.moment = moment
@@ -173,6 +183,7 @@ Here's the structure of a basic Trigger::
             while self.moment > timezone.utcnow():
                 await asyncio.sleep(1)
             yield TriggerEvent(self.moment)
+
 
 This is a very simplified version of Airflow's ``DateTimeTrigger``, and you can see several things here:
 
