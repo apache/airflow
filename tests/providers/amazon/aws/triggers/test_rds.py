@@ -31,6 +31,7 @@ TEST_DB_INSTANCE_IDENTIFIER = "test-db-instance-identifier"
 TEST_WAITER_DELAY = 10
 TEST_WAITER_MAX_ATTEMPTS = 10
 TEST_AWS_CONN_ID = "test-aws-id"
+TEST_REGION = "sa-east-1"
 TEST_RESPONSE = {
     "DBInstance": {
         "DBInstanceIdentifier": "test-db-instance-identifier",
@@ -47,7 +48,7 @@ class TestRdsDbInstanceTrigger:
             waiter_delay=TEST_WAITER_DELAY,
             waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
             aws_conn_id=TEST_AWS_CONN_ID,
-            hook_params={},
+            region_name=TEST_REGION,
             response=TEST_RESPONSE,
         )
         class_path, args = rds_db_instance_trigger.serialize()
@@ -58,7 +59,7 @@ class TestRdsDbInstanceTrigger:
         assert args["waiter_delay"] == str(TEST_WAITER_DELAY)
         assert args["waiter_max_attempts"] == str(TEST_WAITER_MAX_ATTEMPTS)
         assert args["aws_conn_id"] == TEST_AWS_CONN_ID
-        assert args["hook_params"] == {}
+        assert args["region_name"] == TEST_REGION
         assert args["response"] == TEST_RESPONSE
 
     @pytest.mark.asyncio
@@ -75,7 +76,7 @@ class TestRdsDbInstanceTrigger:
             waiter_delay=TEST_WAITER_DELAY,
             waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
             aws_conn_id=TEST_AWS_CONN_ID,
-            hook_params={},
+            region_name=TEST_REGION,
             response=TEST_RESPONSE,
         )
 
@@ -104,7 +105,7 @@ class TestRdsDbInstanceTrigger:
             waiter_delay=TEST_WAITER_DELAY,
             waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
             aws_conn_id=TEST_AWS_CONN_ID,
-            hook_params={},
+            region_name=TEST_REGION,
             response=TEST_RESPONSE,
         )
 
@@ -135,7 +136,7 @@ class TestRdsDbInstanceTrigger:
             waiter_delay=TEST_WAITER_DELAY,
             waiter_max_attempts=2,
             aws_conn_id=TEST_AWS_CONN_ID,
-            hook_params={},
+            region_name=TEST_REGION,
             response=TEST_RESPONSE,
         )
 
@@ -173,7 +174,7 @@ class TestRdsDbInstanceTrigger:
             waiter_delay=TEST_WAITER_DELAY,
             waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
             aws_conn_id=TEST_AWS_CONN_ID,
-            hook_params={},
+            region_name=TEST_REGION,
             response=TEST_RESPONSE,
         )
 
