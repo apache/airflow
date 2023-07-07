@@ -3084,6 +3084,8 @@ components:
           $ref: '#/components/schemas/SchedulerStatus'
         triggerer:
           $ref: '#/components/schemas/TriggererStatus'
+        dag_processor:
+          $ref: '#/components/schemas/DagProcessorStatus'
 
     MetadatabaseStatus:
       type: object
@@ -3116,6 +3118,22 @@ components:
           $ref: '#/components/schemas/HealthStatus'
         latest_triggerer_heartbeat:
           description: The time the triggerer last did a heartbeat.
+          type: string
+          format: datetime
+          readOnly: true
+          nullable: true
+
+    DagProcessorStatus:
+      type: object
+      description: |
+        The status and the latest dag processor heartbeat.
+
+        *New in version 2.6.3*
+      properties:
+        status:
+          $ref: '#/components/schemas/HealthStatus'
+        latest_dag_processor_heartbeat:
+          description: The time the dag processor last did a heartbeat.
           type: string
           format: datetime
           readOnly: true

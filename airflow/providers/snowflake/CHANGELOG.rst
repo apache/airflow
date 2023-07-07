@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+4.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Deferrable switch to SnowflakeSqlApiOperator (#31596)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 4.2.0
 .....
 

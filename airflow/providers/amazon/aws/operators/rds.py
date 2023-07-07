@@ -43,18 +43,27 @@ class RdsBaseOperator(BaseOperator):
     ui_color = "#eeaa88"
     ui_fgcolor = "#ffffff"
 
-    def __init__(self, *args, aws_conn_id: str = "aws_conn_id", hook_params: dict | None = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        aws_conn_id: str = "aws_conn_id",
+        region_name: str | None = None,
+        hook_params: dict | None = None,
+        **kwargs,
+    ):
         if hook_params is not None:
             warnings.warn(
                 "The parameter hook_params is deprecated and will be removed. "
-                "If you were using it, please get in touch either on airflow slack, "
-                "or by opening a github issue on the project. "
+                "Note that it is also incompatible with deferrable mode. "
+                "You can use the region_name parameter to specify the region. "
+                "If you were using hook_params for other purposes, please get in touch either on "
+                "airflow slack, or by opening a github issue on the project. "
                 "You can mention https://github.com/apache/airflow/pull/32352",
                 AirflowProviderDeprecationWarning,
                 stacklevel=3,  # 2 is in the operator's init, 3 is in the user code creating the operator
             )
-        self.hook_params = hook_params or {}
-        self.hook = RdsHook(aws_conn_id=aws_conn_id, **self.hook_params)
+        self.region_name = region_name
+        self.hook = RdsHook(aws_conn_id=aws_conn_id, region_name=region_name, **(hook_params or {}))
         super().__init__(*args, **kwargs)
 
         self._await_interval = 60  # seconds
@@ -588,7 +597,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    hook_params=self.hook_params,
+                    region_name=self.region_name,
                     waiter_name="db_instance_available",
                     # ignoring type because create_db_instance is a dict
                     response=create_db_instance,  # type: ignore[arg-type]
@@ -674,7 +683,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    hook_params=self.hook_params,
+                    region_name=self.region_name,
                     waiter_name="db_instance_deleted",
                     # ignoring type because delete_db_instance is a dict
                     response=delete_db_instance,  # type: ignore[arg-type]

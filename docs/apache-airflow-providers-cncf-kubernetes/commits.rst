@@ -31,11 +31,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 7.2.0
 .....
 
-Latest change: 2023-07-01
+Latest change: 2023-07-05
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
+`f8593503cb <https://github.com/apache/airflow/commit/f8593503cbe252c2f4dc5ff48a3f292c9e13baad>`_  2023-07-05   ``Add default_deferrable config (#31712)``
 `df4c8837d0 <https://github.com/apache/airflow/commit/df4c8837d022e66921bc0cf33f3249b235de6fdd>`_  2023-07-01   ``Fix KubernetesPodOperator validate xcom json and add retries (#32113)``
 `dd937e51fe <https://github.com/apache/airflow/commit/dd937e51fe1ae3cd36a6993bd42e425960644e1d>`_  2023-06-30   ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
 `8f5de83ee6 <https://github.com/apache/airflow/commit/8f5de83ee68c28100efc085add40ae4702bc3de1>`_  2023-06-29   ``Fix 'KubernetesPodTrigger' waiting strategy (#31348)``

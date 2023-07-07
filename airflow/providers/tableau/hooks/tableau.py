@@ -162,8 +162,7 @@ class TableauHook(BaseHook):
 
     def wait_for_state(self, job_id: str, target_state: TableauJobFinishCode, check_interval: float) -> bool:
         """
-        Wait until the current state of a defined Tableau Job is equal
-        to target_state or different from PENDING.
+        Wait until the current state of a defined Tableau Job is target_state or different from PENDING.
 
         :param job_id: The id of the job to check.
         :param target_state: Enum that describe the Tableau job's target state

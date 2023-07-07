@@ -38,6 +38,8 @@ Features
    appropriate section above if needed. Do not delete the lines(!):
    * ``D205 Support - Providers: Airbyte and Alibaba (#32214)``
    * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
 
 2.4.1
 .....

@@ -34,8 +34,9 @@ from __future__ import annotations
 # limitations under the License.
 #
 """Various security-related utils."""
-import re
 import socket
+
+import re2
 
 from airflow.utils.net import get_hostname
 
@@ -49,7 +50,7 @@ def get_components(principal) -> list[str] | None:
     """
     if not principal:
         return None
-    return re.split(r"[/@]", str(principal))
+    return re2.split(r"[/@]", str(principal))
 
 
 def replace_hostname_pattern(components, host=None):

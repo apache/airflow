@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 2.5.0
 .....
 
-Latest change: 2023-06-28
+Latest change: 2023-07-05
 
 =================================================================================================  ===========  ================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
 `0bc689ee6d <https://github.com/apache/airflow/commit/0bc689ee6d4b6967d7ae99a202031aac14d181a2>`_  2023-06-28   ``D205 Support - Providers: Airbyte and Alibaba (#32214)``
 `09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
 `f05beb7219 <https://github.com/apache/airflow/commit/f05beb721940c36f2c501ea8657516262b99c01e>`_  2023-06-27   ``Add Alibaba Cloud AnalyticDB Spark Support (#31787)``

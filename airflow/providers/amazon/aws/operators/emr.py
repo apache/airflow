@@ -577,7 +577,7 @@ class EmrContainerOperator(BaseOperator):
                     virtual_cluster_id=self.virtual_cluster_id,
                     job_id=self.job_id,
                     aws_conn_id=self.aws_conn_id,
-                    poll_interval=self.poll_interval,
+                    waiter_delay=self.poll_interval,
                 ),
                 method_name="execute_complete",
             )
@@ -943,8 +943,8 @@ class EmrTerminateJobFlowOperator(BaseOperator):
             self.defer(
                 trigger=EmrTerminateJobFlowTrigger(
                     job_flow_id=self.job_flow_id,
-                    poll_interval=self.waiter_delay,
-                    max_attempts=self.waiter_max_attempts,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
                 ),
                 method_name="execute_complete",

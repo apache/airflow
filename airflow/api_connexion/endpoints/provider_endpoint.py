@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-import re
+import re2
 
 from airflow.api_connexion import security
 from airflow.api_connexion.schemas.provider_schema import (
@@ -30,7 +30,7 @@ from airflow.security import permissions
 
 
 def _remove_rst_syntax(value: str) -> str:
-    return re.sub("[`_<>]", "", value.strip(" \n."))
+    return re2.sub("[`_<>]", "", value.strip(" \n."))
 
 
 def _provider_mapper(provider: ProviderInfo) -> Provider:

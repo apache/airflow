@@ -107,6 +107,7 @@ Airflow 2.3
     This can be done by setting ``DOCKER_BUILDKIT=1`` as an environment variable
     or by installing `the buildx plugin <https://docs.docker.com/buildx/working-with-buildx/>`_
     and running ``docker buildx build`` command.
+  * MySQL is experimentally supported on ARM through MariaDB client library
   * Add Python 3.10 support
   * Switch to ``Debian Bullseye`` based images. ``Debian Buster`` is deprecated and only available for
     customized image building.
