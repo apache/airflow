@@ -51,6 +51,10 @@ To check the health status of your Airflow instance, you can simply access the e
     "triggerer":{
       "status":"healthy",
       "latest_triggerer_heartbeat":"2018-12-26 17:16:12+00:00"
+    },
+    "dag_processor":{
+      "status":"healthy",
+      "latest_dag_processor_heartbeat":"2018-12-26 17:16:12+00:00"
     }
   }
 
@@ -70,6 +74,10 @@ To check the health status of your Airflow instance, you can simply access the e
   * The status of the ``triggerer`` behaves exactly like that of the ``scheduler`` as described above.
     Note that the ``status`` and ``latest_triggerer_heartbeat`` fields in the health check response will be null for
     deployments that do not include a ``triggerer`` component.
+
+  * The status of the ``dag_processor`` behaves exactly like that of the ``scheduler`` as described above.
+    Note that the ``status`` and ``latest_dag_processor_heartbeat`` fields in the health check response will be null for
+    deployments that do not include a ``dag_processor`` component.
 
 Please keep in mind that the HTTP response code of ``/health`` endpoint **should not** be used to determine the health
 status of the application. The return code is only indicative of the state of the rest call (200 for success).

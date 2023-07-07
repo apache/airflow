@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from deprecated import deprecated
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
@@ -271,7 +272,7 @@ class EmrContainerSensor(BaseSensorOperator):
         max_retries: int | None = None,
         aws_conn_id: str = "aws_default",
         poll_interval: int = 10,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -425,7 +426,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
         target_states: Iterable[str] | None = None,
         failed_states: Iterable[str] | None = None,
         max_attempts: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -549,7 +550,7 @@ class EmrStepSensor(EmrBaseSensor):
         target_states: Iterable[str] | None = None,
         failed_states: Iterable[str] | None = None,
         max_attempts: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)

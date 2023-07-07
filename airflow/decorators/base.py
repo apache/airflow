@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import inspect
-import re
 import warnings
 from functools import cached_property
 from itertools import chain
@@ -38,6 +37,7 @@ from typing import (
 )
 
 import attr
+import re2
 import typing_extensions
 from sqlalchemy.orm import Session
 
@@ -144,15 +144,15 @@ def get_unique_task_id(
         return task_id
 
     def _find_id_suffixes(dag: DAG) -> Iterator[int]:
-        prefix = re.split(r"__\d+$", tg_task_id)[0]
+        prefix = re2.split(r"__\d+$", tg_task_id)[0]
         for task_id in dag.task_ids:
-            match = re.match(rf"^{prefix}__(\d+)$", task_id)
+            match = re2.match(rf"^{prefix}__(\d+)$", task_id)
             if match is None:
                 continue
             yield int(match.group(1))
         yield 0  # Default if there's no matching task ID.
 
-    core = re.split(r"__\d+$", task_id)[0]
+    core = re2.split(r"__\d+$", task_id)[0]
     return f"{core}__{max(_find_id_suffixes(dag)) + 1}"
 
 

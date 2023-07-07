@@ -26,20 +26,14 @@ from typing import TYPE_CHECKING, Sequence
 
 import boto3
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator, XCom
 from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.hooks.ecs import (
-    EcsClusterStates,
-    EcsHook,
-    should_retry_eni,
-)
+from airflow.providers.amazon.aws.hooks.ecs import EcsClusterStates, EcsHook, should_retry_eni
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-from airflow.providers.amazon.aws.triggers.ecs import (
-    ClusterWaiterTrigger,
-    TaskDoneTrigger,
-)
+from airflow.providers.amazon.aws.triggers.ecs import ClusterWaiterTrigger, TaskDoneTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.utils.helpers import prune_dict
 from airflow.utils.session import provide_session
@@ -118,7 +112,7 @@ class EcsCreateClusterOperator(EcsBaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int = 15,
         waiter_max_attempts: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -201,7 +195,7 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int = 15,
         waiter_max_attempts: int = 60,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -482,7 +476,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         wait_for_completion: bool = True,
         waiter_delay: int = 6,
         waiter_max_attempts: int = 100,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -727,7 +721,6 @@ class EcsRunTaskOperator(EcsBaseOperator):
             raise AirflowException(response)
 
         for task in response["tasks"]:
-
             if task.get("stopCode", "") == "TaskFailedToStart":
                 # Reset task arn here otherwise the retry run will not start
                 # a new task but keep polling the old dead one

@@ -71,6 +71,7 @@ PRE_COMMIT_LIST = [
     "check-system-tests-tocs",
     "check-tests-unittest-testcase",
     "check-urlparse-usage-in-code",
+    "check-usage-of-re2-over-re",
     "check-xml",
     "codespell",
     "compile-www-assets",

@@ -54,9 +54,16 @@ Homebrew for macOS to install required software packages:
 * Python (One of: 3.8, 3.9, 3.10, 3.11)
 * MySQL 5.7+
 * libxml
+* helm (only for helm chart tests)
 
 Refer to the `Dockerfile.ci <Dockerfile.ci>`__ for a comprehensive list
 of required packages.
+
+.. note::
+
+   - MySql 2.2.0 needs pkgconf to be a pre requisite, refer `here <http://pkgconf.org/>`_ to install pkgconf
+   - MacOs with ARM architectures require graphviz for venv setup, refer `here <https://graphviz.org/download/>`_ to install graphviz
+   - The helm chart tests need helm to be installed as a pre requisite. Refer `here <https://helm.sh/docs/intro/install/>`_ to install and setup helm
 
 Extra Packages
 --------------
@@ -64,6 +71,7 @@ Extra Packages
 .. note::
 
    Only ``pip`` installation is currently officially supported.
+   Make sure you have the latest pip installed, reference `version <https://pip.pypa.io/en/stable/#>`_
 
    While there are some successes with using other tools like `poetry <https://python-poetry.org/>`_ or
    `pip-tools <https://pypi.org/project/pip-tools/>`_, they do not share the same workflow as

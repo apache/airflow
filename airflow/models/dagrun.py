@@ -24,7 +24,7 @@ from collections import defaultdict
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, TypeVar, overload
 
-import re2 as re
+import re2
 from sqlalchemy import (
     Boolean,
     Column,
@@ -248,7 +248,7 @@ class DagRun(Base, LoggingMixin):
         if not run_id:
             return None
         regex = airflow_conf.get("scheduler", "allowed_run_id_pattern")
-        if not re.match(regex, run_id) and not re.match(RUN_ID_REGEX, run_id):
+        if not re2.match(regex, run_id) and not re2.match(RUN_ID_REGEX, run_id):
             raise ValueError(
                 f"The run_id provided '{run_id}' does not match the pattern '{regex}' or '{RUN_ID_REGEX}'"
             )
@@ -1338,7 +1338,7 @@ class DagRun(Base, LoggingMixin):
                 and not ti.task.on_success_callback
                 and not ti.task.outlets
             ):
-                dummy_ti_ids.append(ti.task_id)
+                dummy_ti_ids.append((ti.task_id, ti.map_index))
             else:
                 schedulable_ti_ids.append((ti.task_id, ti.map_index))
 
@@ -1369,7 +1369,7 @@ class DagRun(Base, LoggingMixin):
                     .where(
                         TI.dag_id == self.dag_id,
                         TI.run_id == self.run_id,
-                        TI.task_id.in_(dummy_ti_ids_chunk),
+                        tuple_in_condition((TI.task_id, TI.map_index), dummy_ti_ids_chunk),
                     )
                     .values(
                         state=TaskInstanceState.SUCCESS,

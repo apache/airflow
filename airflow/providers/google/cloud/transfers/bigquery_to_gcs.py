@@ -25,6 +25,7 @@ from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, UnknownJob
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
@@ -114,7 +115,7 @@ class BigQueryToGCSOperator(BaseOperator):
         job_id: str | None = None,
         force_rerun: bool = False,
         reattach_states: set[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -145,7 +146,7 @@ class BigQueryToGCSOperator(BaseOperator):
     def _prepare_configuration(self):
         source_project, source_dataset, source_table = self.hook.split_tablename(
             table_input=self.source_project_dataset_table,
-            default_project_id=self.project_id or self.hook.project_id,
+            default_project_id=self.hook.project_id,
             var_name="source_project_dataset_table",
         )
 
@@ -183,7 +184,7 @@ class BigQueryToGCSOperator(BaseOperator):
 
         return hook.insert_job(
             configuration=configuration,
-            project_id=configuration["extract"]["sourceTable"]["projectId"],
+            project_id=self.project_id or hook.project_id,
             location=self.location,
             job_id=job_id,
             timeout=self.result_timeout,
@@ -254,7 +255,7 @@ class BigQueryToGCSOperator(BaseOperator):
                 trigger=BigQueryInsertJobTrigger(
                     conn_id=self.gcp_conn_id,
                     job_id=job_id,
-                    project_id=self.hook.project_id,
+                    project_id=self.project_id or self.hook.project_id,
                 ),
                 method_name="execute_complete",
             )

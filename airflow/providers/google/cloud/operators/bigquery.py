@@ -29,6 +29,7 @@ from google.api_core.retry import Retry
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 from google.cloud.bigquery.table import RowIterator
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
@@ -200,7 +201,7 @@ class BigQueryCheckOperator(_BigQueryDbHookMixin, SQLCheckOperator):
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
@@ -320,7 +321,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
@@ -460,7 +461,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         labels: dict | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
@@ -854,7 +855,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         location: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
         as_dict: bool = False,
         use_legacy_sql: bool = True,
@@ -1876,7 +1877,6 @@ class BigQueryCreateEmptyDatasetOperator(GoogleCloudBaseOperator):
         exists_ok: bool | None = None,
         **kwargs,
     ) -> None:
-
         self.dataset_id = dataset_id
         self.project_id = project_id
         self.location = location
@@ -2623,7 +2623,7 @@ class BigQueryInsertJobOperator(GoogleCloudBaseOperator):
         cancel_on_kill: bool = True,
         result_retry: Retry = DEFAULT_RETRY,
         result_timeout: float | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval: float = 4.0,
         **kwargs,
     ) -> None:
