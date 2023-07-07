@@ -26,7 +26,6 @@ from contextlib import redirect_stdout
 from unittest import mock
 
 import pytest
-from sqlalchemy import select
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import connection_command
@@ -565,7 +564,7 @@ class TestCliAddConnections:
                 "port",
                 "schema",
             ]
-            current_conn = session.scalars(select(Connection).where(Connection.conn_id == conn_id)).first()
+            current_conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
             assert expected_conn == {attr: getattr(current_conn, attr) for attr in comparable_attrs}
 
     def test_cli_connections_add_duplicate(self):
@@ -675,7 +674,7 @@ class TestCliDeleteConnections:
         assert "Successfully deleted connection with `conn_id`=new1" in stdout
 
         # Check deletions
-        result = session.scalars(select(Connection).filter(Connection.conn_id == "new1")).first()
+        result = session.query(Connection).filter(Connection.conn_id == "new1").first()
 
         assert result is None
 
@@ -751,7 +750,7 @@ class TestCliImportConnections:
 
         # Verify that the imported connections match the expected, sample connections
         with create_session() as session:
-            current_conns = session.scalars(select(Connection)).all()
+            current_conns = session.query(Connection).all()
 
             comparable_attrs = [
                 "conn_id",
@@ -828,7 +827,7 @@ class TestCliImportConnections:
             assert "Could not import connection new3: connection already exists." in stdout.getvalue()
 
         # Verify that the imported connections match the expected, sample connections
-        current_conns = session.scalars(select(Connection)).all()
+        current_conns = session.query(Connection).all()
 
         comparable_attrs = [
             "conn_id",
@@ -908,7 +907,7 @@ class TestCliImportConnections:
             assert "Could not import connection new3: connection already exists." not in stdout.getvalue()
 
         # Verify that the imported connections match the expected, sample connections
-        current_conns = session.scalars(select(Connection)).all()
+        current_conns = session.query(Connection).all()
 
         comparable_attrs = [
             "conn_id",
