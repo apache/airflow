@@ -596,7 +596,7 @@ Now let's consider an example with nesting:
     dag_t1 = dag_teardown1()
     dag_s1 >> [tg, w2] >> dag_t1.as_teardown(dag_s1)
 
-In this example s1 is downstream of dag_s1, so it must wait for dag_s1 to complete successfully.  But t1 and dag_t1 can run concurrently, because t1 is ignored in the expression ``tg >> dag_t1``.  If you clear w1, it will clear dag_s1 and dag_t1, but not anything in the task group.
+In this example ``s1`` is downstream of ``dag_s1``, so it must wait for ``dag_s1`` to complete successfully.  But ``t1`` and ``dag_t1`` can run concurrently, because ``t1`` is ignored in the expression ``tg >> dag_t1``.  If you clear ``w2``, it will clear ``dag_s1`` and ``dag_t1``, but not anything in the task group.
 
 Setup / teardown context manager
 """"""""""""""""""""""""""""""""
