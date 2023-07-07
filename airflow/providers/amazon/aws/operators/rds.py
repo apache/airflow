@@ -64,7 +64,7 @@ class RdsBaseOperator(BaseOperator):
             )
         hook_params = hook_params or {}
         self.region_name = region_name or hook_params.pop("region_name", None)
-        self.hook = RdsHook(aws_conn_id=aws_conn_id, region_name=region_name, **(hook_params))
+        self.hook = RdsHook(aws_conn_id=aws_conn_id, region_name=self.region_name, **(hook_params))
         super().__init__(*args, **kwargs)
 
         self._await_interval = 60  # seconds
