@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class AzureFileShareToGCSOperator(BaseOperator):
     """
-    Synch an Azure FileShare directory with a Google Cloud Storage destination path.
+    Sync an Azure FileShare directory with a Google Cloud Storage destination path.
 
     Does not include subdirectories.  May be filtered by prefix.
 

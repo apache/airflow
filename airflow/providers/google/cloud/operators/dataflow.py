@@ -63,7 +63,7 @@ class DataflowConfiguration:
     """
     Dataflow configuration for BeamRunJavaPipelineOperator and BeamRunPythonPipelineOperator.
 
-    See:
+    .. seealso::
         :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
         and :class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
 
@@ -172,7 +172,7 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
     Start a Java Cloud Dataflow batch job; the parameters of the operation will be passed to the job.
 
     This class is deprecated.
-    Please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
+    Please use :class:`providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
 
     Example usage:
 
@@ -1018,12 +1018,12 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
     """
     Launching Cloud Dataflow jobs written in python.
 
-     Note that both dataflow_default_options and options will be merged to specify pipeline
+    Note that both dataflow_default_options and options will be merged to specify pipeline
     execution parameter, and dataflow_default_options is expected to save high-level options,
     for instances, project and zone information, which apply to all dataflow operators in the DAG.
 
     This class is deprecated.
-    Please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
+    Please use :class:`providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
 
     .. seealso::
         For more detail on job submission have a look at the reference:

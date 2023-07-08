@@ -77,7 +77,10 @@ def provide_gcp_credentials(
     key_file_dict: dict | None = None,
 ) -> Generator[None, None, None]:
     """
-    Context manager that provides Google Cloud credentials for Application Default Credentials (ADC) strategy.
+    Context manager that provides Google Cloud credentials for Application Default Credentials (ADC).
+
+    .. seealso::
+        `Application Default Credentials (ADC) strategy`__.
 
     It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
     file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
