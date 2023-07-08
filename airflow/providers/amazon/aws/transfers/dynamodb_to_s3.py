@@ -84,7 +84,8 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
     :param dynamodb_table_name: Dynamodb table to replicate data from
     :param s3_bucket_name: S3 bucket to replicate data to
     :param file_size: Flush file to s3 if file size >= file_size
-    :param dynamodb_scan_kwargs: kwargs pass to <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>
+    :param dynamodb_scan_kwargs: kwargs pass to
+        <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html#DynamoDB.Table.scan>
     :param s3_key_prefix: Prefix of s3 object key
     :param process_func: How we transform a dynamodb item to bytes. By default, we dump the json
     :param export_time: Time in the past from which to export table data, counted in seconds from the start of
