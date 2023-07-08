@@ -307,17 +307,13 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :param offset: the offset start to read log from.
         :param metadata: log metadata, used for steaming log download.
         """
-        # Offset is the unique key for sorting logs given log_id.
         query = {
             "query": {
                 "bool": {
-                    "must": [
-                        {"match_phrase": {"log_id": log_id}},
-                        {"range": {self.offset_field: {"gt": int(offset)}}},
-                    ]
+                    "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
+                    "must": [{"match_phrase": {"log_id": log_id}}],
                 }
-            },
-            "sort": [{self.offset_field: {"order": "asc"}}],
+            }
         }
 
         try:
