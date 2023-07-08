@@ -109,4 +109,4 @@ class TestSimpleHttpOp:
                 "response": base64.standard_b64encode(pickle.dumps(response)).decode("ascii"),
             },
         )
-        assert "content" == result
+        assert result == "content"
