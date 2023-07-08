@@ -517,7 +517,7 @@ class GCSHook(GoogleBaseHook):
             blob.metadata = metadata
 
         if cache_control:
-            blob.cacheControl = cache_control
+            blob.cache_control = cache_control
 
         if filename and data:
             raise ValueError(
