@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-08T11:58:45Z
+# This constraints file was automatically generated on 2023-07-08T20:31:46Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -12,7 +12,7 @@ Authlib==1.2.1
 Babel==2.12.1
 ConfigUpdater==3.1.1
 Deprecated==1.2.14
-Flask-AppBuilder==4.3.1
+Flask-AppBuilder==4.3.3
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
 Flask-Caching==2.0.2
@@ -151,7 +151,7 @@ apache-airflow-providers-trino==5.1.1
 apache-airflow-providers-vertica==3.4.1
 apache-airflow-providers-zendesk==4.3.1
 apache-beam==2.48.0
-apispec==5.2.2
+apispec==6.3.0
 appdirs==1.4.4
 apprise==1.4.5
 argcomplete==3.1.1
@@ -159,7 +159,7 @@ arrow==1.2.3
 asana==3.2.1
 asgiref==3.7.2
 asn1crypto==1.5.1
-astroid==2.15.5
+astroid==2.15.6
 asttokens==2.2.1
 async-timeout==4.0.2
 atlasclient==1.0.0
@@ -392,7 +392,6 @@ looker-sdk==23.10.0
 lxml==4.9.3
 lz4==4.3.2
 markdown-it-py==3.0.0
-marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
 marshmallow==3.19.0
