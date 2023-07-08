@@ -60,7 +60,7 @@ in other products/circumstances. Therefore, some potential security vulnerabilit
 apply to Airflow, or have a different severity than some generic scoring systems (for example `CVSS`)
 calculation suggests.
 
-The security team (see below "Handling security issues in Airflow") will get back to
+The security team (see below [Handling security issues in Airflow](https://github.com/apache/airflow/security#handling-security-issues-in-airflow)) will get back to
 you after assessing the report.
 
 If you wish to know more about the ASF security process, the
