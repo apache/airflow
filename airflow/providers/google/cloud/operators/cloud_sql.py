@@ -1027,8 +1027,8 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
     def execute_complete(self, context, event=None) -> None:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "success":
             self.log.info("Operation %s completed successfully", event["operation_name"])

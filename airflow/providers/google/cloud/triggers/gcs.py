@@ -209,6 +209,7 @@ class GCSCheckBlobUpdateTimeTrigger(BaseTrigger):
 class GCSPrefixBlobTrigger(GCSBlobTrigger):
     """
     Looks for objects in bucket matching a prefix.
+
     If none found, sleep for interval and check again. Otherwise, return matches.
 
     :param bucket: the bucket in the google cloud storage where the objects are residing.
@@ -287,14 +288,10 @@ class GCSPrefixBlobTrigger(GCSBlobTrigger):
 
 class GCSUploadSessionTrigger(GCSPrefixBlobTrigger):
     """
-    Checks for changes in the number of objects at prefix in Google Cloud Storage
-    bucket and returns Trigger Event if the inactivity period has passed with no
-    increase in the number of objects.
+    Return Trigger Event if the inactivity period has passed with no increase in the number of objects.
 
-    :param bucket: The Google Cloud Storage bucket where the objects are.
-        expected.
-    :param prefix: The name of the prefix to check in the Google cloud
-        storage bucket.
+    :param bucket: The Google Cloud Storage bucket where the objects are expected.
+    :param prefix: The name of the prefix to check in the Google cloud storage bucket.
     :param poke_interval: polling period in seconds to check
     :param inactivity_period: The total seconds of inactivity to designate
         an upload session is over. Note, this mechanism is not real time and
@@ -354,10 +351,7 @@ class GCSUploadSessionTrigger(GCSPrefixBlobTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """
-        Simple loop until no change in any new files or deleted in list blob is
-        found for the inactivity_period.
-        """
+        """Loop until no new files or deleted files in list blob for the inactivity_period."""
         try:
             hook = self._get_async_hook()
             while True:
@@ -373,16 +367,12 @@ class GCSUploadSessionTrigger(GCSPrefixBlobTrigger):
             yield TriggerEvent({"status": "error", "message": str(e)})
 
     def _get_time(self) -> datetime:
-        """
-        This is just a wrapper of datetime.datetime.now to simplify mocking in the
-        unittests.
-        """
+        """This is just a wrapper of datetime.datetime.now to simplify mocking in the unittests."""
         return datetime.now()
 
     def _is_bucket_updated(self, current_objects: set[str]) -> dict[str, str]:
         """
-        Checks whether new objects have been uploaded and the inactivity_period
-        has passed and updates the state of the sensor accordingly.
+        Check whether new objects have been uploaded and the inactivity_period has passed; update the state.
 
         :param current_objects: set of object ids in bucket during last check.
         """
