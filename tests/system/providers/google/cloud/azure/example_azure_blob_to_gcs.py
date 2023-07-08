@@ -21,11 +21,10 @@ import os
 from datetime import datetime
 
 from airflow import DAG
+from airflow.providers.google.cloud.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
 from airflow.providers.microsoft.azure.sensors.wasb import (
     WasbBlobSensor,
-    WasbPrefixSensor,
 )
-from airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs import AzureBlobStorageToGCSOperator
 
 # Ignore missing args provided by default_args
 # type: ignore[call-arg]
@@ -36,35 +35,23 @@ AZURE_CONTAINER_NAME = os.environ.get("AZURE_CONTAINER_NAME", "airflow")
 GCP_BUCKET_FILE_PATH = os.environ.get("GCP_BUCKET_FILE_PATH", "file.txt")
 GCP_BUCKET_NAME = os.environ.get("GCP_BUCKET_NAME", "INVALID BUCKET NAME")
 GCP_OBJECT_NAME = os.environ.get("GCP_OBJECT_NAME", "file.txt")
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_azure_blob_to_gcs"
-PREFIX_NAME = os.environ.get("AZURE_PREFIX_NAME", "20230421")
 
-# [START how_to_azure_blob_to_gcs]
 with DAG(
     DAG_ID,
     schedule=None,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
-    default_args={
-        # azure args
-        "container_name": AZURE_CONTAINER_NAME,
-        "blob_name": BLOB_NAME,
-        "prefix": PREFIX_NAME,
-    },
 ) as dag:
-    wait_for_blob = WasbBlobSensor(task_id="wait_for_blob")
-
-    wait_for_blob_async = WasbBlobSensor(task_id="wait_for_blob_async", deferrable=True)
-
-    wait_for_blob_prefix = WasbPrefixSensor(task_id="wait_for_blob_prefix")
-
-    wait_for_blob_prefix_async = WasbPrefixSensor(
-        task_id="wait_for_blob_prefix_async",
-        deferrable=True,
+    wait_for_blob = WasbBlobSensor(
+        task_id="wait_for_blob", container_name=AZURE_CONTAINER_NAME, blob_name=BLOB_NAME
     )
 
+    # [START how_to_azure_blob_to_gcs]
     transfer_files_to_gcs = AzureBlobStorageToGCSOperator(
         task_id="transfer_files_to_gcs",
+        # azure args
+        container_name=AZURE_CONTAINER_NAME,
+        blob_name=BLOB_NAME,
         # GCP args
         bucket_name=GCP_BUCKET_NAME,
         object_name=GCP_OBJECT_NAME,
@@ -74,13 +61,7 @@ with DAG(
     )
     # [END how_to_azure_blob_to_gcs]
 
-    (
-        wait_for_blob
-        >> wait_for_blob_async
-        >> wait_for_blob_prefix
-        >> wait_for_blob_prefix_async
-        >> transfer_files_to_gcs
-    )
+    (wait_for_blob >> transfer_files_to_gcs)
 
     from tests.system.utils.watcher import watcher
 
