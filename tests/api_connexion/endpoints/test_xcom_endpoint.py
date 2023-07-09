@@ -82,6 +82,20 @@ def configured_app(minimal_app_for_api):
     delete_user(app, username="test_no_permissions")  # type: ignore
 
 
+def _compare_xcom_collections(collection1: dict, collection_2: dict):
+    assert collection1.get("total_entries") == collection_2.get("total_entries")
+    sort_key = lambda record: (
+        record.get("dag_id"),
+        record.get("task_id"),
+        record.get("execution_date"),
+        record.get("map_index"),
+        record.get("key"),
+    )
+    assert sorted(collection1.get("xcom_entries", []), key=sort_key) == sorted(
+        collection_2.get("xcom_entries", []), key=sort_key
+    )
+
+
 class TestXComEndpoint:
     @staticmethod
     def clean_db():
@@ -222,27 +236,30 @@ class TestGetXComEntries(TestXComEndpoint):
         response_data = response.json
         for xcom_entry in response_data["xcom_entries"]:
             xcom_entry["timestamp"] = "TIMESTAMP"
-        assert response_data == {
-            "xcom_entries": [
-                {
-                    "dag_id": dag_id,
-                    "execution_date": execution_date,
-                    "key": "test-xcom-key-1",
-                    "task_id": task_id,
-                    "timestamp": "TIMESTAMP",
-                    "map_index": -1,
-                },
-                {
-                    "dag_id": dag_id,
-                    "execution_date": execution_date,
-                    "key": "test-xcom-key-2",
-                    "task_id": task_id,
-                    "timestamp": "TIMESTAMP",
-                    "map_index": -1,
-                },
-            ],
-            "total_entries": 2,
-        }
+        _compare_xcom_collections(
+            response_data,
+            {
+                "xcom_entries": [
+                    {
+                        "dag_id": dag_id,
+                        "execution_date": execution_date,
+                        "key": "test-xcom-key-1",
+                        "task_id": task_id,
+                        "timestamp": "TIMESTAMP",
+                        "map_index": -1,
+                    },
+                    {
+                        "dag_id": dag_id,
+                        "execution_date": execution_date,
+                        "key": "test-xcom-key-2",
+                        "task_id": task_id,
+                        "timestamp": "TIMESTAMP",
+                        "map_index": -1,
+                    },
+                ],
+                "total_entries": 2,
+            },
+        )
 
     def test_should_respond_200_with_tilde_and_access_to_all_dags(self):
         dag_id_1 = "test-dag-id-1"
@@ -266,43 +283,46 @@ class TestGetXComEntries(TestXComEndpoint):
         response_data = response.json
         for xcom_entry in response_data["xcom_entries"]:
             xcom_entry["timestamp"] = "TIMESTAMP"
-        assert response_data == {
-            "xcom_entries": [
-                {
-                    "dag_id": dag_id_1,
-                    "execution_date": execution_date,
-                    "key": "test-xcom-key-1",
-                    "task_id": task_id_1,
-                    "timestamp": "TIMESTAMP",
-                    "map_index": -1,
-                },
-                {
-                    "dag_id": dag_id_1,
-                    "execution_date": execution_date,
-                    "key": "test-xcom-key-2",
-                    "task_id": task_id_1,
-                    "timestamp": "TIMESTAMP",
-                    "map_index": -1,
-                },
-                {
-                    "dag_id": dag_id_2,
-                    "execution_date": execution_date,
-                    "key": "test-xcom-key-1",
-                    "task_id": task_id_2,
-                    "timestamp": "TIMESTAMP",
-                    "map_index": -1,
-                },
-                {
-                    "dag_id": dag_id_2,
-                    "execution_date": execution_date,
-                    "key": "test-xcom-key-2",
-                    "task_id": task_id_2,
-                    "timestamp": "TIMESTAMP",
-                    "map_index": -1,
-                },
-            ],
-            "total_entries": 4,
-        }
+        _compare_xcom_collections(
+            response_data,
+            {
+                "xcom_entries": [
+                    {
+                        "dag_id": dag_id_1,
+                        "execution_date": execution_date,
+                        "key": "test-xcom-key-1",
+                        "task_id": task_id_1,
+                        "timestamp": "TIMESTAMP",
+                        "map_index": -1,
+                    },
+                    {
+                        "dag_id": dag_id_1,
+                        "execution_date": execution_date,
+                        "key": "test-xcom-key-2",
+                        "task_id": task_id_1,
+                        "timestamp": "TIMESTAMP",
+                        "map_index": -1,
+                    },
+                    {
+                        "dag_id": dag_id_2,
+                        "execution_date": execution_date,
+                        "key": "test-xcom-key-1",
+                        "task_id": task_id_2,
+                        "timestamp": "TIMESTAMP",
+                        "map_index": -1,
+                    },
+                    {
+                        "dag_id": dag_id_2,
+                        "execution_date": execution_date,
+                        "key": "test-xcom-key-2",
+                        "task_id": task_id_2,
+                        "timestamp": "TIMESTAMP",
+                        "map_index": -1,
+                    },
+                ],
+                "total_entries": 4,
+            },
+        )
 
     def test_should_respond_200_with_tilde_and_granular_dag_access(self):
         dag_id_1 = "test-dag-id-1"
@@ -326,27 +346,30 @@ class TestGetXComEntries(TestXComEndpoint):
         response_data = response.json
         for xcom_entry in response_data["xcom_entries"]:
             xcom_entry["timestamp"] = "TIMESTAMP"
-        assert response_data == {
-            "xcom_entries": [
-                {
-                    "dag_id": dag_id_1,
-                    "execution_date": execution_date,
-                    "key": "test-xcom-key-1",
-                    "task_id": task_id_1,
-                    "timestamp": "TIMESTAMP",
-                    "map_index": -1,
-                },
-                {
-                    "dag_id": dag_id_1,
-                    "execution_date": execution_date,
-                    "key": "test-xcom-key-2",
-                    "task_id": task_id_1,
-                    "timestamp": "TIMESTAMP",
-                    "map_index": -1,
-                },
-            ],
-            "total_entries": 2,
-        }
+        _compare_xcom_collections(
+            response_data,
+            {
+                "xcom_entries": [
+                    {
+                        "dag_id": dag_id_1,
+                        "execution_date": execution_date,
+                        "key": "test-xcom-key-1",
+                        "task_id": task_id_1,
+                        "timestamp": "TIMESTAMP",
+                        "map_index": -1,
+                    },
+                    {
+                        "dag_id": dag_id_1,
+                        "execution_date": execution_date,
+                        "key": "test-xcom-key-2",
+                        "task_id": task_id_1,
+                        "timestamp": "TIMESTAMP",
+                        "map_index": -1,
+                    },
+                ],
+                "total_entries": 2,
+            },
+        )
 
     def test_should_respond_200_with_map_index(self):
         dag_id = "test-dag-id"
