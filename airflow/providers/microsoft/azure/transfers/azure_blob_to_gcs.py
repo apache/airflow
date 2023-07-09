@@ -28,7 +28,9 @@ from airflow.providers.google.cloud.transfers.azure_blob_to_gcs import (
 class AzureBlobStorageToGCSOperator(AzureBlobStorageToGCSOperatorFromGoogleProvider):
     """
     This class is deprecated.
-    Please use `airflow.providers.google.cloud.transfers.azure_blob_to_gcs.AzureBlobStorageToGCSOperator`.
+
+    Please use
+    :class:`airflow.providers.google.cloud.transfers.azure_blob_to_gcs.AzureBlobStorageToGCSOperator`.
     """
 
     def __init__(self, *args, **kwargs):

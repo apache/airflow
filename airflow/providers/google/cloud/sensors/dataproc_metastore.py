@@ -33,7 +33,8 @@ if TYPE_CHECKING:
 class MetastoreHivePartitionSensor(BaseSensorOperator):
     """
     Waits for partitions to show up in Hive.
-        This sensor uses Google Cloud SDK and passes requests via gRPC.
+
+    This sensor uses Google Cloud SDK and passes requests via gRPC.
 
     :param service_id: Required. Dataproc Metastore service id.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.

@@ -1138,10 +1138,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         # END: create dagruns
 
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
-        """
-        Unconditionally create a DAG run for the given DAG, and update the dag_model's fields to control
-        if/when the next DAGRun should be created.
-        """
+        """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
         # Bulk Fetch DagRuns with dag_id and execution_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
@@ -1571,8 +1568,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
         """
-        Reset any TaskInstance still in QUEUED or SCHEDULED states that were
-        enqueued by a SchedulerJob that is no longer running.
+        Reset any TaskInstance in QUEUED or SCHEDULED state if its SchedulerJob is no longer running.
 
         :return: the number of TIs reset
         """
@@ -1658,10 +1654,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
     @provide_session
     def check_trigger_timeouts(self, session: Session = NEW_SESSION) -> None:
-        """
-        Looks at all tasks that are in the "deferred" state and whose trigger
-        or execution timeout has passed, so they can be marked as failed.
-        """
+        """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
         num_timed_out_tasks = session.execute(
             update(TI)
             .where(
@@ -1680,9 +1673,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
 
     def _find_zombies(self) -> None:
         """
-        Find zombie task instances, which are tasks haven't heartbeated for too long
-        or have a no-longer-running LocalTaskJob, and create a TaskCallbackRequest
-        to be handled by the DAG processor.
+        Find zombie task instances and create a TaskCallbackRequest to be handled by the DAG processor.
+
+        Zombie instances are tasks haven't heartbeated for too long or have a no-longer-running LocalTaskJob.
         """
         from airflow.jobs.job import Job
 
@@ -1775,8 +1768,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
     @provide_session
     def _orphan_unreferenced_datasets(self, session: Session = NEW_SESSION) -> None:
         """
-        Detects datasets that are no longer referenced in any DAG schedule parameters or task outlets and
-        sets the dataset is_orphaned flag to True.
+        Detect orphaned datasets and set is_orphaned flag to True.
+
+        An orphaned dataset is no longer referenced in any DAG schedule parameters or task outlets.
         """
         orphaned_dataset_query = session.scalars(
             select(DatasetModel)
