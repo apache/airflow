@@ -41,17 +41,19 @@ def clean_xcom():
 
 @pytest.fixture()
 def create_xcom(create_task_instance, session):
-    def maker(dag_id, task_id, execution_date, key, value=None):
+    def maker(dag_id, task_id, execution_date, key, map_index=-1, value=None):
         ti = create_task_instance(
             dag_id=dag_id,
             task_id=task_id,
             execution_date=execution_date,
+            map_index=map_index,
             session=session,
         )
         run: DagRun = ti.dag_run
         xcom = XCom(
             dag_run_id=run.id,
             task_id=ti.task_id,
+            map_index=map_index,
             key=key,
             value=value,
             timestamp=run.execution_date,
@@ -84,6 +86,7 @@ class TestXComCollectionItemSchema:
             "execution_date": self.default_time,
             "task_id": "test_task_id",
             "dag_id": "test_dag",
+            "map_index": -1,
         }
 
     def test_deserialize(self):
@@ -93,6 +96,7 @@ class TestXComCollectionItemSchema:
             "execution_date": self.default_time,
             "task_id": "test_task_id",
             "dag_id": "test_dag",
+            "map_index": 2,
         }
         result = xcom_collection_item_schema.load(xcom_dump)
         assert result == {
@@ -101,6 +105,7 @@ class TestXComCollectionItemSchema:
             "execution_date": self.default_time_parsed,
             "task_id": "test_task_id",
             "dag_id": "test_dag",
+            "map_index": 2,
         }
 
 
@@ -141,6 +146,7 @@ class TestXComCollectionSchema:
                     "execution_date": self.default_time_1,
                     "task_id": "test_task_id_1",
                     "dag_id": "test_dag_1",
+                    "map_index": -1,
                 },
                 {
                     "key": "test_key_2",
@@ -148,6 +154,7 @@ class TestXComCollectionSchema:
                     "execution_date": self.default_time_2,
                     "task_id": "test_task_id_2",
                     "dag_id": "test_dag_2",
+                    "map_index": -1,
                 },
             ],
             "total_entries": 2,
@@ -175,6 +182,7 @@ class TestXComSchema:
             "task_id": "test_task_id",
             "dag_id": "test_dag",
             "value": "test_binary",
+            "map_index": -1,
         }
 
     def test_deserialize(self):
