@@ -942,6 +942,20 @@ class TestDag:
             for row in session.query(DagModel.last_parsed_time).all():
                 assert row[0] is not None
 
+    @pytest.mark.parametrize("interval", [None, "@daily"])
+    def test_bulk_write_to_db_interval_save_runtime(self, interval):
+        mock_active_runs_of_dags = mock.MagicMock(side_effect=DagRun.active_runs_of_dags)
+        with mock.patch.object(DagRun, "active_runs_of_dags", mock_active_runs_of_dags):
+            dags_null_timetable = [
+                DAG("dag-interval-None", schedule_interval=None),
+                DAG("dag-interval-test", schedule_interval=interval),
+            ]
+            DAG.bulk_write_to_db(dags_null_timetable, session=settings.Session())
+            if interval:
+                mock_active_runs_of_dags.assert_called_once()
+            else:
+                mock_active_runs_of_dags.assert_not_called()
+
     @pytest.mark.parametrize("state", [DagRunState.RUNNING, DagRunState.QUEUED])
     def test_bulk_write_to_db_max_active_runs(self, state):
         """
