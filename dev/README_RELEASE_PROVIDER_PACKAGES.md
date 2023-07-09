@@ -414,6 +414,10 @@ cd "${AIRFLOW_REPO_ROOT}"
     --override-versioned
 
 cd "${AIRFLOW_SITE_DIRECTORY}"
+cd post-docs
+python add-back-references.py providers
+cd ..
+
 ```
 
 If you see `ModuleNotFoundError: No module named 'docs'`, set:
