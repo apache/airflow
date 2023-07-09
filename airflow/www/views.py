@@ -2159,10 +2159,17 @@ class Airflow(AirflowBaseView):
                     recent_confs=recent_confs,
                 )
 
-        if unpause and dag.get_is_paused():
-            dag_model = models.DagModel.get_dagmodel(dag_id)
-            if dag_model is not None:
-                dag_model.set_is_paused(is_paused=False)
+        if dag.get_is_paused():
+            if unpause or not ui_fields_defined:
+                flash(f"Unpaused DAG {dag_id}.")
+                dag_model = models.DagModel.get_dagmodel(dag_id)
+                if dag_model is not None:
+                    dag_model.set_is_paused(is_paused=False)
+            else:
+                flash(
+                    f"DAG {dag_id} is paused, unpause if you want to have the triggered run being executed.",
+                    "warning",
+                )
 
         try:
             dag.create_dagrun(
