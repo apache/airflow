@@ -216,6 +216,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Building image before running checks",
             "options": [
+                "--skip-image-check",
                 "--force-build",
                 "--image-tag",
                 "--github-repository",
