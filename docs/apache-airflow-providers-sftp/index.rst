@@ -35,6 +35,7 @@
     :caption: References
 
     Connection types <connections/sftp>
+    Sensors <sensors/sftp_sensor>
     Python API <_api/airflow/providers/sftp/index>
 
 .. toctree::

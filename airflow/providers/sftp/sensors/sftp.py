@@ -72,7 +72,7 @@ class SFTPSensor(BaseSensorOperator):
     def poke(self, context: Context) -> PokeReturnValue | bool:
         self.hook = SFTPHook(self.sftp_conn_id)
         self.log.info("Poking for %s, with pattern %s", self.path, self.file_pattern)
-        files_found_list = []
+        files_found = []
 
         if self.file_pattern:
             files_from_pattern = self.hook.get_files_by_pattern(self.path, self.file_pattern)
@@ -96,18 +96,18 @@ class SFTPSensor(BaseSensorOperator):
                 _mod_time = convert_to_utc(datetime.strptime(mod_time, "%Y%m%d%H%M%S"))
                 _newer_than = convert_to_utc(self.newer_than)
                 if _newer_than <= _mod_time:
-                    files_found_list.append(actual_file_to_check)
+                    files_found.append(actual_file_to_check)
             else:
-                files_found_list.append(actual_file_to_check)
+                files_found.append(actual_file_to_check)
         self.hook.close_conn()
-        if not len(files_found_list):
+        if not len(files_found):
             return False
         if self.python_callable:
             if self.op_kwargs:
-                self.op_kwargs["files_found"] = files_found_list
+                self.op_kwargs["files_found"] = files_found
             callable_return = self.python_callable(*self.op_args, **self.op_kwargs)
             return PokeReturnValue(
                 is_done=True,
-                xcom_value={"files_found": files_found_list, "decorator_return_value": callable_return},
+                xcom_value={"files_found": files_found, "decorator_return_value": callable_return},
             )
         return True
