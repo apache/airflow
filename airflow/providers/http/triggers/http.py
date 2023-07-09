@@ -15,17 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import annotations
-import traceback
-from typing import Any, AsyncIterator
-import pickle
+
 import base64
+import pickle
+from typing import Any, AsyncIterator
+
 import requests
+from aiohttp.client_reqrep import ClientResponse
+from requests.cookies import RequestsCookieJar
 from requests.structures import CaseInsensitiveDict
 
 from airflow.providers.http.hooks.http import HttpAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-from aiohttp.client_reqrep import ClientResponse
 
 
 class HttpTrigger(BaseTrigger):
@@ -81,11 +82,7 @@ class HttpTrigger(BaseTrigger):
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
-        """
-        Makes a series of asynchronous http calls via an http hook. It yields a Trigger if
-        response is a 200 and run_state is successful, will retry the call up to the retry limit
-        if the error is 'retryable', otherwise it throws an exception.
-        """
+        """Makes a series of asynchronous http calls via an http hook."""
         hook = HttpAsyncHook(
             method=self.method,
             http_conn_id=self.http_conn_id,
@@ -111,16 +108,17 @@ class HttpTrigger(BaseTrigger):
 
     @staticmethod
     async def _convert_response(client_response: ClientResponse) -> requests.Response:
-        """
-        Convert aiohttp.client_reqrep.ClientResponse to requests.Response.
-        """
+        """Convert aiohttp.client_reqrep.ClientResponse to requests.Response."""
         response = requests.Response()
         response._content = await client_response.read()
         response.status_code = client_response.status
         response.headers = CaseInsensitiveDict(client_response.headers)
-        response.url = client_response.url
-        response.history = client_response.history
+        response.url = str(client_response.url)
+        response.history = [HttpTrigger._convert_response(h) for h in client_response.history]
         response.encoding = client_response.get_encoding()
         response.reason = client_response.reason
-        response.cookies = client_response.cookies
+        cookies = RequestsCookieJar()
+        for k, v in client_response.cookies:
+            cookies.set(k, v)
+        response.cookies = cookies
         return response

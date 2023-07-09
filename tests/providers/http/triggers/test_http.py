@@ -19,19 +19,18 @@ from __future__ import annotations
 
 import base64
 import pickle
-from yarl import URL
-from http.cookies import SimpleCookie
 from asyncio import Future
+from http.cookies import SimpleCookie
 from unittest import mock
-from multidict import CIMultiDict, CIMultiDictProxy
-from requests.structures import CaseInsensitiveDict
 
 import pytest
+from aiohttp.client_reqrep import ClientResponse
+from multidict import CIMultiDict, CIMultiDictProxy
+from requests.structures import CaseInsensitiveDict
+from yarl import URL
 
 from airflow.providers.http.triggers.http import HttpTrigger
 from airflow.triggers.base import TriggerEvent
-
-from aiohttp.client_reqrep import ClientResponse
 
 HTTP_PATH = "airflow.providers.http.triggers.http.{}"
 TEST_CONN_ID = "http_default"
@@ -59,7 +58,7 @@ def trigger():
 @pytest.fixture
 def client_response():
     client_response = mock.AsyncMock(ClientResponse)
-    client_response.read.return_value = "content".encode("utf-8")
+    client_response.read.return_value = b"content"
     client_response.status = 200
     client_response.headers = CIMultiDictProxy(CIMultiDict([("header", "value")]))
     client_response.url = URL("https://example.com")
@@ -133,8 +132,8 @@ class TestHttpTrigger:
         assert response.content == await client_response.read()
         assert response.status_code == client_response.status
         assert response.headers == CaseInsensitiveDict(client_response.headers)
-        assert response.url == client_response.url
-        assert response.history == client_response.history
+        assert response.url == str(client_response.url)
+        assert response.history == [HttpTrigger._convert_response(h) for h in client_response.history]
         assert response.encoding == client_response.get_encoding()
         assert response.reason == client_response.reason
-        assert response.cookies == client_response.cookies
+        assert dict(response.cookies) == dict(client_response.cookies)

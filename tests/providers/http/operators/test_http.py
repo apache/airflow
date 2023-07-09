@@ -101,7 +101,7 @@ class TestSimpleHttpOp:
             deferrable=True,
         )
         response = Response()
-        response._content = "content".encode("utf-8")
+        response._content = b"content"
         result = operator.execute_complete(
             context={},
             event={

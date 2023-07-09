@@ -17,12 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import base64
+import pickle
 from typing import TYPE_CHECKING, Any, Callable, Sequence
+
 from requests import Response
 from requests.auth import AuthBase
-import pickle
-import base64
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.http.hooks.http import HttpHook
@@ -64,6 +66,7 @@ class SimpleHttpOperator(BaseOperator):
     :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
     :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
         ``socket.TCP_KEEPINTVL``)
+    :param deferrable: Run operator in the deferrable mode
     """
 
     template_fields: Sequence[str] = (
@@ -92,7 +95,7 @@ class SimpleHttpOperator(BaseOperator):
         tcp_keep_alive_idle: int = 120,
         tcp_keep_alive_count: int = 20,
         tcp_keep_alive_interval: int = 30,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -143,9 +146,7 @@ class SimpleHttpOperator(BaseOperator):
             return self.process_response(context=context, response=response)
 
     def process_response(self, context: Context, response: Response) -> str:
-        """
-        Process the response.
-        """
+        """Process the response."""
         from airflow.utils.operator_helpers import determine_kwargs
 
         if self.log_response:
