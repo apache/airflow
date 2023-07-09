@@ -44,6 +44,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--db-reset",
                 "--max-time",
                 "--github-repository",
+                "--builder",
             ],
         },
     ],
@@ -77,6 +78,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--platform",
                 "--image-tag",
                 "--github-repository",
+                "--builder",
             ],
         },
         {
@@ -144,6 +146,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--force-build",
                 "--image-tag",
                 "--github-repository",
+                "--builder",
             ],
         },
         {
@@ -186,6 +189,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--one-pass-only",
                 "--package-filter",
                 "--github-repository",
+                "--builder",
             ],
         },
     ],
@@ -197,7 +201,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--show-diff-on-failure",
                 "--initialize-environment",
                 "--max-initialization-attempts",
-                "--github-repository",
             ],
         },
         {
@@ -208,6 +211,15 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--commit-ref",
                 "--last-commit",
                 "--only-my-changes",
+            ],
+        },
+        {
+            "name": "Building image before running checks",
+            "options": [
+                "--force-build",
+                "--image-tag",
+                "--github-repository",
+                "--builder",
             ],
         },
     ],
