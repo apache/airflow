@@ -457,6 +457,11 @@ def build_docs(
     type=click.IntRange(1, 10),
     default=3,
 )
+@click.option(
+    "--skip-image-check",
+    help="Skip checking if the CI image is up to date. Useful if you run non-image checks only",
+    is_flag=True,
+)
 @option_image_tag_for_running
 @option_force_build
 @option_builder
@@ -473,6 +478,7 @@ def static_checks(
     type_: str,
     file: Iterable[str],
     precommit_args: tuple,
+    skip_image_check: bool,
     initialize_environment: bool,
     max_initialization_attempts: int,
     image_tag: str,
@@ -488,7 +494,8 @@ def static_checks(
         image_tag=image_tag,
         github_repository=github_repository,
     )
-    rebuild_or_pull_ci_image_if_needed(command_params=build_params)
+    if not skip_image_check:
+        rebuild_or_pull_ci_image_if_needed(command_params=build_params)
 
     if initialize_environment:
         get_console().print("[info]Make sure that pre-commit is installed and environment initialized[/]")
