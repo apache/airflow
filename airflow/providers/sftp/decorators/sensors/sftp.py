@@ -22,10 +22,11 @@ from typing import Callable, Sequence
 from airflow.decorators.base import TaskDecorator, get_unique_task_id, task_decorator_factory
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 
+
 class _DecoratedSFTPSensorOperator(SFTPSensor):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
-    
+
     :param python_callable: A reference to an object that is callable
     :param task_id: task Id
     :param op_args: a list of positional arguments that will get unpacked when
@@ -40,7 +41,6 @@ class _DecoratedSFTPSensorOperator(SFTPSensor):
     template_fields: Sequence[str] = ("op_args", "op_kwargs", *SFTPSensor.template_fields)
 
     custom_operator_name = "@task.sftp_sensor"
-    
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects (e.g protobuf).
@@ -55,7 +55,8 @@ class _DecoratedSFTPSensorOperator(SFTPSensor):
         kwargs.pop("multiple_outputs")
         kwargs["task_id"] = get_unique_task_id(task_id, kwargs.get("dag"), kwargs.get("task_group"))
         super().__init__(**kwargs)
-    
+
+
 def sftp_sensor_task(python_callable: Callable | None = None, **kwargs) -> TaskDecorator:
     """
     Wraps a function into an Airflow operator.
