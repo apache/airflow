@@ -21,8 +21,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.models import DAG
 from airflow.decorators import task
+from airflow.models import DAG
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 from airflow.providers.ssh.operators.ssh import SSHOperator
 
@@ -37,6 +37,7 @@ def sleep_function():
 
     time.sleep(60)
 
+
 with DAG(
     "example_sftp_sensor",
     schedule="@once",
@@ -48,13 +49,12 @@ with DAG(
     # [START howto_operator_sftp_sensor_decorator]
     @task.sftp_sensor(task_id="sftp_sensor", path=FULL_FILE_PATH, poke_interval=10)
     def sftp_sensor_decorator():
-        print(f"Files were successfully found!")
+        print("Files were successfully found!")
         # add your logic
         return "done"
 
-
     # [END howto_operator_sftp_sensor_decorator]
-    
+
     remove_file_task_start = SSHOperator(
         task_id="remove_file_start",
         command=f"rm {FULL_FILE_PATH} || true",

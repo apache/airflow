@@ -44,5 +44,3 @@ Whatever returned by the python callable is put into XCom.
     :dedent: 4
     :start-after: [START howto_operator_sftp_sensor_decorator]
     :end-before: [END howto_operator_sftp_sensor_decorator]
-
-
