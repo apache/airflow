@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-09T07:54:11Z
+# This constraints file was automatically generated on 2023-07-09T14:44:01Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -71,7 +71,7 @@ ansiwrap==0.8.4
 anyascii==0.3.2
 anyio==3.7.1
 apache-airflow-providers-airbyte==3.3.1
-apache-airflow-providers-alibaba==2.4.1
+apache-airflow-providers-alibaba==2.5.0
 apache-airflow-providers-amazon==8.2.0
 apache-airflow-providers-apache-beam==5.1.1
 apache-airflow-providers-apache-cassandra==3.2.1
@@ -79,26 +79,26 @@ apache-airflow-providers-apache-drill==2.4.1
 apache-airflow-providers-apache-druid==3.4.1
 apache-airflow-providers-apache-flink==1.1.1
 apache-airflow-providers-apache-hdfs==4.1.0
-apache-airflow-providers-apache-hive==6.1.1
-apache-airflow-providers-apache-impala==1.1.1
-apache-airflow-providers-apache-kafka==1.1.1
+apache-airflow-providers-apache-hive==6.1.2
+apache-airflow-providers-apache-impala==1.1.2
+apache-airflow-providers-apache-kafka==1.1.2
 apache-airflow-providers-apache-kylin==3.2.1
-apache-airflow-providers-apache-livy==3.5.1
+apache-airflow-providers-apache-livy==3.5.2
 apache-airflow-providers-apache-pig==4.1.1
 apache-airflow-providers-apache-pinot==4.1.1
 apache-airflow-providers-apache-spark==4.1.1
 apache-airflow-providers-apache-sqoop==3.2.1
-apache-airflow-providers-apprise==1.0.0rc2
+apache-airflow-providers-apprise==1.0.0
 apache-airflow-providers-arangodb==2.2.1
 apache-airflow-providers-asana==2.2.1
 apache-airflow-providers-atlassian-jira==2.1.1
 apache-airflow-providers-celery==3.2.1
 apache-airflow-providers-cloudant==3.2.1
-apache-airflow-providers-cncf-kubernetes==7.1.0
-apache-airflow-providers-common-sql==1.5.2
-apache-airflow-providers-databricks==4.3.0
+apache-airflow-providers-cncf-kubernetes==7.2.0
+apache-airflow-providers-common-sql==1.6.0
+apache-airflow-providers-databricks==4.3.1
 apache-airflow-providers-datadog==3.3.1
-apache-airflow-providers-dbt-cloud==3.2.1
+apache-airflow-providers-dbt-cloud==3.2.2
 apache-airflow-providers-dingding==3.2.1
 apache-airflow-providers-discord==3.3.0
 apache-airflow-providers-docker==3.7.1
@@ -107,15 +107,15 @@ apache-airflow-providers-exasol==4.2.1
 apache-airflow-providers-facebook==3.2.1
 apache-airflow-providers-ftp==3.4.2
 apache-airflow-providers-github==2.3.1
-apache-airflow-providers-google==10.2.0
+apache-airflow-providers-google==10.3.0
 apache-airflow-providers-grpc==3.2.1
-apache-airflow-providers-hashicorp==3.4.1
+apache-airflow-providers-hashicorp==3.4.2
 apache-airflow-providers-http==4.4.2
 apache-airflow-providers-imap==3.2.2
 apache-airflow-providers-influxdb==2.2.1
 apache-airflow-providers-jdbc==4.0.0
 apache-airflow-providers-jenkins==3.3.1
-apache-airflow-providers-microsoft-azure==6.1.2
+apache-airflow-providers-microsoft-azure==6.2.0
 apache-airflow-providers-microsoft-mssql==3.4.1
 apache-airflow-providers-microsoft-psrp==2.3.1
 apache-airflow-providers-microsoft-winrm==3.2.1
@@ -129,7 +129,7 @@ apache-airflow-providers-oracle==3.7.1
 apache-airflow-providers-pagerduty==3.3.0
 apache-airflow-providers-papermill==3.2.1
 apache-airflow-providers-plexus==3.2.1
-apache-airflow-providers-postgres==5.5.1
+apache-airflow-providers-postgres==5.5.2
 apache-airflow-providers-presto==5.1.1
 apache-airflow-providers-qubole==3.4.1
 apache-airflow-providers-redis==3.2.1
@@ -141,14 +141,14 @@ apache-airflow-providers-sftp==4.3.1
 apache-airflow-providers-singularity==3.2.1
 apache-airflow-providers-slack==7.3.1
 apache-airflow-providers-smtp==1.2.0
-apache-airflow-providers-snowflake==4.2.0
+apache-airflow-providers-snowflake==4.3.0
 apache-airflow-providers-sqlite==3.4.2
 apache-airflow-providers-ssh==3.7.1
 apache-airflow-providers-tableau==4.2.1
 apache-airflow-providers-tabular==1.2.1
 apache-airflow-providers-telegram==4.1.1
-apache-airflow-providers-trino==5.1.1
-apache-airflow-providers-vertica==3.4.1
+apache-airflow-providers-trino==5.2.0
+apache-airflow-providers-vertica==3.5.0
 apache-airflow-providers-zendesk==4.3.1
 apache-beam==2.48.0
 apispec==6.3.0
