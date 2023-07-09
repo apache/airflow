@@ -25,12 +25,17 @@ import validator from "validator";
 document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".js-ti-attr").forEach((attr) => {
     const value = attr.innerHTML;
+    const attrName = attr.previousElementSibling.textContent.trim();
     if (value.length === 32 && moment(value, "YYYY-MM-DD").isValid()) {
       // 32 is the length of our timestamps
       // eslint-disable-next-line no-param-reassign
       attr.innerHTML = "";
       const timeElement = document.createElement("time");
       timeElement.setAttribute("datetime", value);
+      timeElement.setAttribute(
+        "data-datetime-convert",
+        attrName === "execution_date" ? "false" : "true"
+      );
       const textNode = document.createTextNode(value);
       timeElement.appendChild(textNode);
       attr.appendChild(timeElement);
