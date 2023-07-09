@@ -367,38 +367,6 @@ Make sure docker-compose you install is first on the PATH variable of yours.
         )
 
 
-def check_docker_context():
-    """Checks whether Docker is using the expected context."""
-    expected_docker_context = "default"
-    response = run_command(
-        ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
-        no_output_dump_on_exception=False,
-        text=True,
-        capture_output=True,
-        dry_run_override=False,
-    )
-    if response.returncode != 0:
-        get_console().print(
-            "[warning]Could not check for Docker context.[/]\n"
-            '[warning]Please make sure that Docker is using the right context by running "docker info" and '
-            "checking the active Context.[/]"
-        )
-        return
-
-    used_docker_context = response.stdout.strip().replace('"', "")
-
-    if used_docker_context == expected_docker_context:
-        get_console().print(f"[success]Good Docker context used: {used_docker_context}.[/]")
-    else:
-        get_console().print(
-            f"[error]Docker is not using the default context, used context is: {used_docker_context}[/]\n"
-            f"[warning]Please make sure Docker is using the {expected_docker_context} context.[/]\n"
-            f'[warning]You can try switching contexts by running: "docker context use '
-            f'{expected_docker_context}"[/]'
-        )
-        sys.exit(1)
-
-
 def get_env_variable_value(arg_name: str, params: CommonBuildParams | ShellParams):
     raw_value = getattr(params, arg_name, None)
     value = str(raw_value) if raw_value is not None else ""
@@ -452,7 +420,9 @@ def prepare_docker_build_cache_command(
     build_flags = image_params.extra_docker_build_flags
     final_command = []
     final_command.extend(["docker"])
-    final_command.extend(["buildx", "build", "--builder", image_params.builder, "--progress=auto"])
+    final_command.extend(
+        ["buildx", "build", "--builder", get_docker_context(image_params.builder), "--progress=auto"]
+    )
     final_command.extend(build_flags)
     final_command.extend(["--pull"])
     final_command.extend(arguments)
@@ -488,7 +458,7 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
                 "buildx",
                 "build",
                 "--builder",
-                image_params.builder,
+                get_docker_context(image_params.builder),
                 "--progress=auto",
                 "--push" if image_params.push else "--load",
             ]
@@ -569,7 +539,7 @@ def build_cache(image_params: CommonBuildParams, output: Output | None) -> RunCo
 
 
 def make_sure_builder_configured(params: CommonBuildParams):
-    if params.builder != "default":
+    if params.builder != "autodetect":
         cmd = ["docker", "buildx", "inspect", params.builder]
         buildx_command_result = run_command(cmd, text=True, check=False, dry_run_override=False)
         if buildx_command_result and buildx_command_result.returncode != 0:
@@ -747,7 +717,6 @@ def perform_environment_checks():
     check_docker_is_running()
     check_docker_version()
     check_docker_compose_version()
-    check_docker_context()
 
 
 def get_docker_syntax_version() -> str:
@@ -759,10 +728,11 @@ def get_docker_syntax_version() -> str:
 def warm_up_docker_builder(image_params: CommonBuildParams):
     from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
-    if image_params.builder == "default":
+    docker_context = get_docker_context(image_params.builder)
+    if docker_context == "default":
         return
     docker_syntax = get_docker_syntax_version()
-    get_console().print(f"[info]Warming up the {image_params.builder} builder for syntax: {docker_syntax}")
+    get_console().print(f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}")
     warm_up_image_param = deepcopy(image_params)
     warm_up_image_param.image_tag = "warmup"
     warm_up_image_param.push = False
@@ -829,3 +799,47 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
                 check=False,
                 stderr=DEVNULL,
             )
+
+
+# When you are using Docker Desktop (specifically on MacOS). the preferred context is "desktop-linux"
+# because the docker socket to use is created in the .docker/ directory in the user's home directory
+# and it does not require the user to belong to the "docker" group.
+# The "default" context is the traditional one that requires "/var/run/docker.sock" to be writeable by the
+# user running the docker command.
+PREFERRED_CONTEXTS = ["desktop-linux", "default"]
+
+
+def autodetect_docker_context():
+    """
+    Auto-detects which docker context to use.
+
+    :return: name of the docker context to use
+    """
+    output = run_command(["docker", "context", "ls", "-q"], capture_output=True, check=False, text=True)
+    if output.returncode != 0:
+        get_console().print("[warning]Could not detect docker builder. Using default.[/]")
+        return "default"
+    context_list = output.stdout.splitlines()
+    if len(context_list) == 0:
+        get_console().print("[warning]Could not detect docker builder. Using default.[/]")
+        return "default"
+    if len(context_list) == 1:
+        get_console().print(f"[info]Using {context_list[0]} as context.[/]")
+        return context_list[0]
+    if len(context_list) > 1:
+        for preferred_context in PREFERRED_CONTEXTS:
+            if preferred_context in context_list:
+                get_console().print(f"[info]Using {preferred_context} as context.[/]")
+                return preferred_context
+    fallback_context = context_list[0]
+    get_console().print(
+        f"[warning]Could not use any of the preferred docker contexts {PREFERRED_CONTEXTS}.\n"
+        f"Using {fallback_context} as context.[/]"
+    )
+    return fallback_context
+
+
+def get_docker_context(context: str):
+    if context != "autodetect":
+        return context
+    return autodetect_docker_context()

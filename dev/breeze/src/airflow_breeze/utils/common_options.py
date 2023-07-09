@@ -502,7 +502,8 @@ option_builder = click.option(
     "--builder",
     help="Buildx builder used to perform `docker buildx build` commands.",
     envvar="BUILDER",
-    default="default",
+    show_default=True,
+    default="autodetect",
 )
 option_include_success_outputs = click.option(
     "--include-success-outputs",

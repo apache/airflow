@@ -45,7 +45,7 @@ class CommonBuildParams:
     )
     airflow_constraints_location: str = ""
     build_id: int = 0
-    builder: str = "default"
+    builder: str = "autodetect"
     constraints_github_repository: str = APACHE_AIRFLOW_GITHUB_REPOSITORY
     dev_apt_command: str = ""
     dev_apt_deps: str = ""
