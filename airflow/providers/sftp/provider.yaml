@@ -68,6 +68,7 @@ sensors:
   - integration-name: SSH File Transfer Protocol (SFTP)
     python-modules:
       - airflow.providers.sftp.sensors.sftp
+      - airflow.providers.sftp.decorators.sensors.sftp
 
 hooks:
   - integration-name: SSH File Transfer Protocol (SFTP)

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from paramiko.sftp import SFTP_NO_SUCH_FILE
 
@@ -54,9 +54,9 @@ class SFTPSensor(BaseSensorOperator):
         file_pattern: str = "",
         newer_than: datetime | None = None,
         sftp_conn_id: str = "sftp_default",
-        python_callable: callable | None = None,
-        op_args: list = [],
-        op_kwargs: Mapping[str, Any] = {},
+        python_callable: Callable | None = None,
+        op_args: list | None = None,
+        op_kwargs: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -65,9 +65,9 @@ class SFTPSensor(BaseSensorOperator):
         self.hook: SFTPHook | None = None
         self.sftp_conn_id = sftp_conn_id
         self.newer_than: datetime | None = newer_than
-        self.python_callable: callable | None = python_callable
-        self.op_args: list | None = op_args
-        self.op_kwargs: Mapping[str, Any] = op_kwargs
+        self.python_callable: Callable | None = python_callable
+        self.op_args = op_args or []
+        self.op_kwargs = op_kwargs or {}
 
     def poke(self, context: Context) -> PokeReturnValue | bool:
         self.hook = SFTPHook(self.sftp_conn_id)
@@ -102,7 +102,7 @@ class SFTPSensor(BaseSensorOperator):
         self.hook.close_conn()
         if not len(files_found):
             return False
-        if self.python_callable:
+        if self.python_callable is not None:
             if self.op_kwargs:
                 self.op_kwargs["files_found"] = files_found
             callable_return = self.python_callable(*self.op_args, **self.op_kwargs)
