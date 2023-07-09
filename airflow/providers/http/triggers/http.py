@@ -114,11 +114,11 @@ class HttpTrigger(BaseTrigger):
         response.status_code = client_response.status
         response.headers = CaseInsensitiveDict(client_response.headers)
         response.url = str(client_response.url)
-        response.history = [HttpTrigger._convert_response(h) for h in client_response.history]
+        response.history = [await HttpTrigger._convert_response(h) for h in client_response.history]
         response.encoding = client_response.get_encoding()
-        response.reason = client_response.reason
+        response.reason = str(client_response.reason)
         cookies = RequestsCookieJar()
-        for k, v in client_response.cookies:
+        for (k, v) in client_response.cookies.items():
             cookies.set(k, v)
         response.cookies = cookies
         return response
