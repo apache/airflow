@@ -390,7 +390,7 @@ You will need to change it manually to see the docs
 **NOTE** In order to run the publish documentation you need to activate virtualenv where you installed
 apache-airflow with doc extra:
 
-* `pip install 'apache-airflow[doc_gen]'`
+* `pip install '.[doc_gen]'`
 
 If you don't have virtual env set you can do:
 
