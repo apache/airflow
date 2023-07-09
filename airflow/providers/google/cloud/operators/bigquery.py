@@ -402,8 +402,7 @@ class BigQueryValueCheckOperator(_BigQueryDbHookMixin, SQLValueCheckOperator):
 
 class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperator):
     """
-    Checks that the values of metrics given as SQL expressions are within
-    a certain tolerance of the ones from days_back before.
+    Check that the values of metrics given as SQL expressions are within a tolerance of the older ones.
 
     This method constructs a query like so ::
 
@@ -545,9 +544,9 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
 
 class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
     """
-    BigQueryColumnCheckOperator subclasses the SQLColumnCheckOperator
-    in order to provide a job id for OpenLineage to parse. See base class
-    docstring for usage.
+    Subclasses the SQLColumnCheckOperator in order to provide a job id for OpenLineage to parse.
+
+    See base class docstring for usage.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -668,9 +667,9 @@ class BigQueryColumnCheckOperator(_BigQueryDbHookMixin, SQLColumnCheckOperator):
 
 class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
     """
-    BigQueryTableCheckOperator subclasses the SQLTableCheckOperator
-    in order to provide a job id for OpenLineage to parse. See base class
-    for usage.
+    Subclasses the SQLTableCheckOperator in order to provide a job id for OpenLineage to parse.
+
+    See base class for usage.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -770,8 +769,9 @@ class BigQueryTableCheckOperator(_BigQueryDbHookMixin, SQLTableCheckOperator):
 
 class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     """
-    Fetches the data from a BigQuery table (alternatively fetch data for selected columns) and returns data
-    in either of the following two formats, based on "as_dict" value:
+    Fetches the data from a BigQuery table (alternatively fetch data for selected columns) and returns data.
+
+    Data is returned in either of the following two formats, based on "as_dict" value:
     1. False (Default) - A Python list of lists, with the number of nested lists equal to the number of rows
     fetched. Each nested list represents a row, where the elements within it correspond to the column values
     for that particular row.

@@ -312,10 +312,11 @@ class GCSToGCSOperator(BaseOperator):
 
     def _copy_source_without_wildcard(self, hook, prefix):
         """
-        For source_objects with no wildcard, this operator would first list
-        all files in source_objects, using provided delimiter if any. Then copy
-        files from source_objects to destination_object and rename each source
-        file.
+        List all files in source_objects, copy files to destination_object, and rename each source file.
+
+        For source_objects with no wildcard, this operator would first list all
+        files in source_objects, using provided delimiter if any. Then copy files
+        from source_objects to destination_object and rename each source file.
 
         Example 1:
 
