@@ -27,7 +27,7 @@ This page shows how to transfer data from Amazon S3 to GCS.
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/howto/operator/google/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 Use the :class:`~airflow.providers.google.cloud.transfers.s3_to_gcs.S3ToGCSOperator`
 to transfer data from Amazon S3 to Google Cloud Storage.
