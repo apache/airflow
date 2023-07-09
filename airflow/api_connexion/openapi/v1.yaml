@@ -1573,6 +1573,8 @@ paths:
       operationId: get_xcom_entries
       tags: [XCom]
       parameters:
+        - $ref: '#/components/parameters/FilterMapIndex'
+        - $ref: '#/components/parameters/FilterXcomKey'
         - $ref: '#/components/parameters/PageLimit'
         - $ref: '#/components/parameters/PageOffset'
       responses:
@@ -1600,6 +1602,7 @@ paths:
       operationId: get_xcom_entry
       tags: [XCom]
       parameters:
+        - $ref: '#/components/parameters/FilterMapIndex'
         - in: query
           name: deserialize
           schema:
@@ -3489,6 +3492,8 @@ components:
         execution_date:
           type: string
           format: datetime
+        map_index:
+          type: integer
         task_id:
           type: string
         dag_id:
@@ -5094,6 +5099,14 @@ components:
         Only filter paused/unpaused DAGs. If absent or null, it returns paused and unpaused DAGs.
 
         *New in version 2.6.0*
+
+    FilterXcomKey:
+      in: query
+      name: xcom_key
+      schema:
+        type: string
+      required: false
+      description: Only filter the XCom records which have the provided key.
 
     # Other parameters
     FileToken:
