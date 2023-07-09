@@ -78,3 +78,7 @@ hooks:
 connection-types:
   - hook-class-name: airflow.providers.sftp.hooks.sftp.SFTPHook
     connection-type: sftp
+
+task-decorators:
+  - class-name: airflow.providers.sftp.decorators.sensors.sftp.sftp_sensor_task
+    name: sftp_sensor
