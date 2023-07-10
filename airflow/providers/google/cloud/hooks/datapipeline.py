@@ -96,18 +96,15 @@ class DataPipelineHook(GoogleBaseHook):
     def run_data_pipeline(
         self,
         data_pipeline_name: str,
-        project_id: str,
-        location: str = DEFAULT_DATAPIPELINE_LOCATION,
     ) -> None:
         """
         Runs DataPipeline.
         """
-        parent = self.build_parent_name(project_id, location)
         service = self.get_conn()
         print(dir(service.projects().locations()))
         request = (
             service.projects().locations().pipelines().run(
-                name = f"{parent}/pipelines/{data_pipeline_name}",
+                name = data_pipeline_name,
                 body = {},
             )
         )
