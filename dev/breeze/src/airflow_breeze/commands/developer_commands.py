@@ -95,6 +95,9 @@ from airflow_breeze.utils.run_utils import (
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
+from docs.exts.docs_build.docs_builder import AirflowDocsBuilder
+from docs.exts.docs_build.package_filter import process_package_filters
+from docs.publish_docs import get_available_packages
 
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # Make sure that whatever you add here as an option is also
@@ -403,6 +406,52 @@ def build_docs(
     ]
     process = run_command(cmd, text=True, env=env, check=False)
     sys.exit(process.returncode)
+
+
+@main.command(name="publish-docs")
+@click.option("-d", "--disable-checks", help="Disables extra checks.", is_flag=True)
+@click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
+@click.option(
+    "-s", "--airflow-site-directory", help="Local directory path of cloned airflow-site repo.", required=True
+)
+@click.option(
+    "--package-filter",
+    help="List of packages to consider.",
+    type=NotVerifiedBetterChoice(get_available_documentation_packages()),
+    multiple=True,
+)
+@option_verbose
+@option_dry_run
+def publish_docs(
+    disable_checks: bool,
+    override_versioned: bool,
+    airflow_site_directory: bool,
+    package_filter: tuple[str],
+):
+    """Publishes documentation to airflow-site."""
+    if not os.path.isdir(airflow_site_directory):
+        get_console().print(
+            "\n[error]location pointed by airflow_site_dir is not valid. "
+            "Provide the path of cloned airflow-site repo\n"
+        )
+
+    # set AIRFLOW_SITE_DIR env variable
+    os.environ["AIRFLOW_SITE_DIR"] = airflow_site_directory
+
+    available_packages = get_available_packages()
+    package_filters = package_filter
+
+    current_packages = process_package_filters(available_packages, package_filters)
+    print(f"Publishing docs for {len(current_packages)} package(s)")
+    for pkg in current_packages:
+        print(f" - {pkg}")
+    print()
+    for package_name in current_packages:
+        builder = AirflowDocsBuilder(package_name=package_name, for_production=True)
+        builder.publish(override_versioned=override_versioned)
+
+    # unset AIRFLOW_SITE_DIR env variable
+    del os.environ["AIRFLOW_SITE_DIR"]
 
 
 @main.command(
