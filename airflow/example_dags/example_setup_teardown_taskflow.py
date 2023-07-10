@@ -59,26 +59,16 @@ with DAG(
     @setup
     def outer_setup():
         print("I am outer_setup")
+        return "some cluster id"
 
     @teardown
-    def outer_teardown():
+    def outer_teardown(cluster_id):
         print("I am outer_teardown")
+        print(f"Tearing down cluster: {cluster_id}")
 
     @task
     def outer_work():
         print("I am just a normal task")
-
-    s = outer_setup()
-    t = outer_teardown()
-
-    # by using the decorators, outer_setup and outer_teardown are already marked as setup / teardown
-    # now we just need to make sure they are linked directly
-    # what we need to do is this::
-    #     s >> t
-    #     s >> outer_work() >> t
-    # but we can use a context manager to make it cleaner
-    with s >> t:
-        outer_work()
 
     @task_group
     def section_1():
@@ -99,5 +89,17 @@ with DAG(
         inner_setup_task = inner_setup()
         inner_work(inner_setup_task) >> inner_teardown(inner_setup_task)
 
-    # and let's put section 1 inside the outer setup and teardown tasks
-    s >> section_1() >> t
+    # by using the decorators, outer_setup and outer_teardown are already marked as setup / teardown
+    # now we just need to make sure they are linked directly.  At a low level, what we need
+    # to do so is the following::
+    #     s = outer_setup()
+    #     t = outer_teardown()
+    #     s >> t
+    #     s >> outer_work() >> t
+    # Thus, s and t are linked directly, and outer_work runs in between.  We can take advantage of
+    # the fact that we are in taskflow, along with the context manager on teardowns, as follows:
+    with outer_teardown(outer_setup()):
+        outer_work()
+
+        # and let's put section 1 inside the outer setup and teardown tasks
+        section_1()
