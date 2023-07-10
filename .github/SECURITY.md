@@ -44,7 +44,7 @@ Specifically, we will ignore results of security scans that contain list of
 dependencies of Airflow with dependencies in Airflow Docker reference image - there
 is a page that describes how the
 [Airflow reference Image is fixed at release time](https://airflow.apache.org/docs/docker-stack/index.html#fixing-images-at-release-time)
-and providing helpful instructions explaining general instruction on how you can build your
+and providing helpful instructions explaining how you can build your
 own image and manage dependencies of Airflow in your own image.
 
 **Please send one plain-text email for each vulnerability you are reporting including explanation
