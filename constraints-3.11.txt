@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-10T19:18:17Z
+# This constraints file was automatically generated on 2023-07-10T21:59:26Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -23,7 +23,7 @@ Flask-SQLAlchemy==2.5.1
 Flask-Session==0.5.0
 Flask-WTF==1.1.1
 Flask==2.2.5
-GitPython==3.1.31
+GitPython==3.1.32
 JPype1==1.4.1
 JayDeBeApi==1.2.3
 Jinja2==3.1.2
@@ -280,7 +280,7 @@ google-api-python-client==2.92.0
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==1.0.0
 google-auth==2.21.0
-google-cloud-aiplatform==1.27.1
+google-cloud-aiplatform==1.28.0
 google-cloud-appengine-logging==1.3.1
 google-cloud-audit-log==0.2.5
 google-cloud-automl==2.11.2
@@ -468,7 +468,7 @@ portalocker==2.7.0
 pre-commit==3.3.3
 presto-python-client==0.8.3
 prison==0.2.1
-prometheus-client==0.17.0
+prometheus-client==0.17.1
 prompt-toolkit==3.0.39
 proto-plus==1.22.3
 protobuf==4.23.4
