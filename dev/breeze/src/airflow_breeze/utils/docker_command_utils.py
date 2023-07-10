@@ -845,8 +845,6 @@ def get_and_use_docker_context(context: str):
     output = run_command(["docker", "context", "use", context], check=False)
     if output.returncode != 0:
         get_console().print(
-            "[error] Error when switching context. Add `--builder default` to your command "
-            "and report the issue on #airflow-breeze channel in Airflow Slack[/]"
+            f"[warning] Could no use the context {context}. Continuing with current context[/]"
         )
-        sys.exit(output.returncode)
     return context
