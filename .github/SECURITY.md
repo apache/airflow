@@ -47,9 +47,9 @@ is a page that describes how the
 and providing helpful instructions explaining how you can build your
 own image and manage dependencies of Airflow in your own image.
 
-**Please send one plain-text email for each vulnerability you are reporting including an explanation
+Please send one plain-text email for each vulnerability you are reporting including an explanation
 of how it affects Airflow security. We may ask that you resubmit your report if you send it as an image,
-movie, HTML, or PDF attachment when you could as easily describe it with plain text.**
+movie, HTML, or PDF attachment when you could as easily describe it with plain text.
 
 Before reporting vulnerabilities, please make sure to read and understand the
 [security model](https://airflow.apache.org/docs/apache-airflow/stable/security/) of Airflow, because
