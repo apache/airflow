@@ -1401,8 +1401,8 @@ class TaskGroupSerialization(BaseSerialization):
                 "value": cls.serialize(expand_input.value),
             }
             encoded["is_mapped"] = True
-            if task_group.concurrency_limit:
-                encoded["concurrency_limit"] = task_group.concurrency_limit
+            if task_group.max_active_groups_per_dagrun is not None:
+                encoded["max_active_groups_per_dagrun"] = task_group.max_active_groups_per_dagrun
 
         return encoded
 
@@ -1425,12 +1425,12 @@ class TaskGroupSerialization(BaseSerialization):
             group = TaskGroup(group_id=group_id, parent_group=parent_group, dag=dag, **kwargs)
         else:
             xi = encoded_group["expand_input"]
-            concurrency_limit = encoded_group.get("concurrency_limit")
+            max_active_groups_per_dagrun = encoded_group.get("max_active_groups_per_dagrun")
             group = MappedTaskGroup(
                 group_id=group_id,
                 parent_group=parent_group,
                 dag=dag,
-                concurrency_limit=concurrency_limit,
+                max_active_groups_per_dagrun=max_active_groups_per_dagrun,
                 expand_input=_ExpandInputRef(xi["type"], cls.deserialize(xi["value"])).deref(dag),
                 **kwargs,
             )

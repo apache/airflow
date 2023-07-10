@@ -92,6 +92,7 @@ class TaskGroup(DAGNode):
         ui_color: str = "CornflowerBlue",
         ui_fgcolor: str = "#000",
         add_suffix_on_collision: bool = False,
+        max_active_groups_per_dagrun: int | None = None,
     ):
         from airflow.models.dag import DagContext
 
@@ -158,6 +159,8 @@ class TaskGroup(DAGNode):
         self.downstream_group_ids: set[str | None] = set()
         self.upstream_task_ids = set()
         self.downstream_task_ids = set()
+
+        self.max_active_groups_per_dagrun = max_active_groups_per_dagrun
 
     def _check_for_group_id_collisions(self, add_suffix_on_collision: bool):
         if self._group_id is None:
@@ -554,10 +557,11 @@ class MappedTaskGroup(TaskGroup):
     a ``@task_group`` function instead.
     """
 
-    def __init__(self, *, expand_input: ExpandInput, concurrency_limit: int , **kwargs: Any) -> None:
+    def __init__(self, *, expand_input: ExpandInput, max_active_groups_per_dagrun: int | None,
+                 **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._expand_input = expand_input
-        self.concurrency_limit = concurrency_limit
+        self.max_active_groups_per_dagrun = max_active_groups_per_dagrun
         for op, _ in expand_input.iter_references():
             self.set_upstream(op)
 

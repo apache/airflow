@@ -297,11 +297,12 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         for (task_id, run_id, dag_id, map_index) in tg_concurrency_query:
             dag = self.dagbag.get_dag(dag_id, session)
             task = dag.get_task(task_id) if dag else None
-            if task and task.task_group and task.task_group.concurrency_limit is not None:
+            if task and task.task_group and getattr(task.task_group, "max_active_groups_per_dagrun", None) \
+                    is not None:
                 group_id = task.task_group.group_id
                 key = (dag_id, run_id, group_id)
                 if key not in tg_concurrency:
-                    tg_concurrency[key] = (task.task_group.concurrency_limit, set())
+                    tg_concurrency[key] = (task.task_group.max_active_groups_per_dagrun, set())
                 (limitation, allow_idx) = tg_concurrency[key]
                 if len(allow_idx) < limitation:
                     allow_idx.add(map_index)
@@ -562,8 +563,8 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         serialized_task = serialized_dag.get_task(task_id)
                         task_concurrency_limit = serialized_task.max_active_tis_per_dag
                         task_dagrun_concurrency_limit = serialized_task.max_active_tis_per_dagrun
-                        task_group_concurrency_limit = serialized_task.task_group.concurrency_limit \
-                                if isinstance(serialized_task.task_group, MappedTaskGroup) else None
+                        task_group_concurrency_limit = getattr(serialized_task.task_group,
+                                                               "max_active_groups_per_dagrun", None)
                         group_id = serialized_task.task_group.group_id
 
                     if task_concurrency_limit is not None:

@@ -34,7 +34,7 @@ class TaskConcurrencyDep(BaseTIDep):
         if (
             ti.task.max_active_tis_per_dag is None
             and ti.task.max_active_tis_per_dagrun is None
-            and ti.task.task_group is not MappedTaskGroup
+            and getattr(ti.task.task_group, "max_active_groups_per_dagrun", None) is None
         ):
             yield self._passing_status(reason="Task concurrency is not set.")
             return
@@ -57,13 +57,10 @@ class TaskConcurrencyDep(BaseTIDep):
             return
 
         # active task group limit per dag run
-        if (
-            ti.task.task_group is MappedTaskGroup
-            and ti.task.task_group.concurrency_limit is not None
-        ):
-            limit = ti.task.task_group.concurrency_limit
-            valid_idx = ti.get_valid_map_index(session, limit)
-            accept = (ti.map_index in valid_idx) or (len(valid_idx) < limit)
+        group_limit = getattr(ti.task.task_group, "max_active_groups_per_dagrun", None)
+        if group_limit is not None:
+            valid_idx = ti.get_valid_map_index(session, group_limit)
+            accept = (ti.map_index in valid_idx) or (len(valid_idx) < group_limit)
 
             if not accept:
                 yield self._failing_status(reason="The max task group concurrency has been reached.")

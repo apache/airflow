@@ -1145,7 +1145,7 @@ class TestSchedulerJob:
             [
                 1,
                 dict(),
-                4,
+                5,
                 {'tg.dummy1'},
                 1,
                 {'tg.dummy1'},
@@ -1153,7 +1153,7 @@ class TestSchedulerJob:
             [
                 1,
                 {0: (State.RUNNING, 30, None)},
-                3,
+                4,
                 {'tg.dummy1'},
                 0,
                 set(),
@@ -1161,7 +1161,7 @@ class TestSchedulerJob:
             [
                 1,
                 {0: (State.SUCCESS, 30, 15)},
-                4,
+                5,
                 {'tg.dummy1', 'tg.dummy2'},
                 1,
                 {'tg.dummy2'},
@@ -1169,15 +1169,15 @@ class TestSchedulerJob:
             [
                 2,
                 dict(),
-                4,
+                5,
                 {'tg.dummy1'},
-                2,
+                1,
                 {'tg.dummy1'},
             ],
             [
                 2,
                 {0: (State.RUNNING, 30, None), 1: (State.RUNNING, 30, None)},
-                2,
+                3,
                 {'tg.dummy1'},
                 0,
                 set(),
@@ -1185,7 +1185,7 @@ class TestSchedulerJob:
             [
                 2,
                 {0: (State.SUCCESS, 30, 15), 1: (State.RUNNING, 30, None)},
-                3,
+                4,
                 {'tg.dummy1', 'tg.dummy2'},
                 1,
                 {'tg.dummy2'},
@@ -1193,9 +1193,9 @@ class TestSchedulerJob:
             [
                 2,
                 {0: (State.SUCCESS, 30, 15), 1: (State.SUCCESS, 30, 15)},
-                4,
+                5,
                 {'tg.dummy1', 'tg.dummy2'},
-                2,
+                1,
                 {'tg.dummy2'},
             ],
         ],
@@ -1211,16 +1211,17 @@ class TestSchedulerJob:
         with dag_maker(dag_id="test_find_executable_task_instances_with_task_group_concurrency_limit"):
             @task(task_id="dummy")
             def t1() -> [str]:
-                return ["li", "zen", "gbo", "hui"]
+                return ["zhong", "xiao", "jie", "yong", "he"]
 
-            @task_group
+            @task_group(max_active_groups_per_dagrun=1)
             def tg(who: str):
                 tgt1 = BashOperator(task_id="dummy1", bash_command="sleep 300")
                 tgt2 = BashOperator(task_id="dummy2", bash_command="echo done")
                 tgt1 >> tgt2
 
             # tg.expand(concurrency_limit=1, who=t1())
-            t1() >> tg.expand(concurrency_limit=concurrency_limit, who=["zeng", "bo", "li", "hui"])
+            # t1() >> tg.expand(concurrency_limit=concurrency_limit, who=["zeng", "bo", "li", "hui"])
+            t1() >> tg.expand(who=["ren", "yi", "li", "zhi", "xin"])
 
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
@@ -1234,8 +1235,8 @@ class TestSchedulerJob:
 
         with create_session() as session:
             tis = dr.get_task_instances(session=session)
-            assert len(tis) == 9
-            (ti1, tg_ti1, tg_ti2, tg_ti3, tg_ti4, tg_ti5, tg_ti6, tg_ti7, tg_ti8) = tis
+            assert len(tis) == 11
+            (ti1, tg_ti1, tg_ti2, tg_ti3, tg_ti4, tg_ti5, tg_ti6, tg_ti7, tg_ti8, tg_ti9, tg_ti10) = tis
 
             # fake the task instance running status
             ti1.state = State.SUCCESS

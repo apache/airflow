@@ -124,14 +124,14 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
         # TODO: fixme when mypy gets compatible with new attrs
         return attr.evolve(self, partial_kwargs=kwargs)  # type: ignore[arg-type]
 
-    def expand(self, concurrency_limit: int = None, **kwargs: OperatorExpandArgument) -> DAGNode:
+    def expand(self, **kwargs: OperatorExpandArgument) -> DAGNode:
         if not kwargs:
             raise TypeError("no arguments to expand against")
         self._validate_arg_names("expand", kwargs)
         prevent_duplicates(self.partial_kwargs, kwargs, fail_reason="mapping already partial")
         expand_input = DictOfListsExpandInput(kwargs)
         return self._create_task_group(
-            functools.partial(MappedTaskGroup, expand_input=expand_input, concurrency_limit=concurrency_limit),
+            functools.partial(MappedTaskGroup, expand_input=expand_input),
             **self.partial_kwargs,
             **{k: MappedArgument(input=expand_input, key=k) for k in kwargs},
         )
@@ -184,6 +184,7 @@ def task_group(
     ui_color: str = "CornflowerBlue",
     ui_fgcolor: str = "#000",
     add_suffix_on_collision: bool = False,
+    max_active_groups_per_dagrun: int | None = None,
 ) -> Callable[[Callable[FParams, FReturn]], _TaskGroupFactory[FParams, FReturn]]:
     ...
 
