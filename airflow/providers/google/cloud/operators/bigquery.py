@@ -811,7 +811,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table_id: The table ID of the requested table. (templated)
     :param table_project_id: (Optional) The project ID of the requested table. If None, it will be derived from the hook's project ID. (templated)
-    :param project_id: (Optional) Google Cloud Project where the job is running. (templated)
+    :param project_id: (Optional) Google Cloud Project where the job is running. If None, it will be derived from the hook's project ID. (templated)
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
     :param selected_fields: List of fields to return (comma-separated). If
