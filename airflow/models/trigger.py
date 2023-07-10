@@ -243,7 +243,7 @@ class Trigger(Base):
             session.query(cls.id)
             .join(TaskInstance, cls.id == TaskInstance.trigger_id, isouter=True)
             .filter(or_(cls.triggerer_id.is_(None), cls.triggerer_id.notin_(alive_triggerer_ids)))
-            .order_by(-TaskInstance.priority_weight, cls.created_date)
+            .order_by(TaskInstance.priority_weight.desc(), cls.created_date)
             .limit(capacity),
             session,
             skip_locked=True,
