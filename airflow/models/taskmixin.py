@@ -117,45 +117,37 @@ class DependencyMixin:
         self.__rshift__(other)
         return self
 
+    @abstractmethod
+    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
+        """Add the task to the given task group."""
+        raise NotImplementedError()
+
+    @staticmethod
+    def _iter_references(obj: Any) -> Iterable[DependencyMixin]:
+        from airflow.models.baseoperator import AbstractOperator
+        from airflow.models.xcom_arg import PlainXComArg
+
+        if isinstance(obj, AbstractOperator):
+            yield obj
+        elif isinstance(obj, PlainXComArg):
+            yield obj.operator
+        elif isinstance(obj, Sequence):
+            for o in obj:
+                yield from DependencyMixin._iter_references(o)
+
     def set_setup_teardown_ctx_dependencies(self, other: DependencyMixin | Sequence[DependencyMixin]):
         if not SetupTeardownContext.active:
             return
-        from airflow.models.xcom_arg import PlainXComArg
-
-        op1 = self
-        if isinstance(self, PlainXComArg):
-            op1 = self.operator
-        SetupTeardownContext.update_context_map(op1)
-        if isinstance(other, Sequence):
-            for op in other:
-                if isinstance(op, PlainXComArg):
-                    op = op.operator
-                SetupTeardownContext.update_context_map(op)
-            return
-        if isinstance(other, PlainXComArg):
-            other = other.operator
-        SetupTeardownContext.update_context_map(other)
+        for op in DependencyMixin._iter_references([self, other]):
+            SetupTeardownContext.update_context_map(op)
 
     def set_taskgroup_ctx_dependencies(self, other: DependencyMixin | Sequence[DependencyMixin]):
         from airflow.utils.task_group import TaskGroupContext
 
         if not TaskGroupContext.active:
             return
-        from airflow.models.xcom_arg import PlainXComArg
-
-        op1 = self
-        if isinstance(self, PlainXComArg):
-            op1 = self.operator
-        TaskGroupContext.add_task(op1)
-        if isinstance(other, Sequence):
-            for op in other:
-                if isinstance(op, PlainXComArg):
-                    op = op.operator
-                TaskGroupContext.add_task(op)
-            return
-        if isinstance(other, PlainXComArg):
-            other = other.operator
-        TaskGroupContext.add_task(other)
+        for op in DependencyMixin._iter_references([self, other]):
+            TaskGroupContext.add_task(op)
 
 
 class TaskMixin(DependencyMixin):
@@ -186,6 +178,11 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
     @property
     @abstractmethod
     def node_id(self) -> str:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
+        """Add the task to the given task group."""
         raise NotImplementedError()
 
     @property

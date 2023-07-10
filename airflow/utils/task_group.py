@@ -25,7 +25,7 @@ import copy
 import functools
 import operator
 import weakref
-from typing import TYPE_CHECKING, Any, Generator, Iterator, Sequence, cast
+from typing import TYPE_CHECKING, Any, Generator, Iterator, Sequence
 
 import re2
 
@@ -554,6 +554,13 @@ class TaskGroup(DAGNode):
                         f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}"
                     )
 
+    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
+        """No-op, since we're not a task.
+
+        :meta private:
+        """
+        ...
+
 
 class MappedTaskGroup(TaskGroup):
     """A mapped task group.
@@ -663,16 +670,8 @@ class TaskGroupContext:
     @classmethod
     def add_task(cls, task: DependencyMixin) -> None:
         """Add the task to the current TaskGroup if not already there."""
-        from airflow.utils.edgemodifier import EdgeModifier
-
-        if isinstance(task, TaskGroup) or isinstance(task, EdgeModifier):
-            return
-        task_ = cast(DAGNode, task)
-        task_group = cls.get_current_task_group(task_.dag)
-        if task_group:
-            if task_.node_id in task_group.children:
-                return
-            task_group.add(task_)
+        if task_group := cls.get_current_task_group(None):
+            task.add_to_taskgroup(task_group)
 
 
 def task_group_to_dict(task_item_or_group):

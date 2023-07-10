@@ -172,6 +172,13 @@ class EdgeModifier(DependencyMixin):
         """
         dag.set_edge_info(upstream_id, downstream_id, {"label": self.label})
 
+    def add_to_taskgroup(self, task_group: TaskGroup) -> None:
+        """
+        No-op, since we're not a task.
+
+        :meta private:
+        """
+
 
 # Factory functions
 def Label(label: str):
