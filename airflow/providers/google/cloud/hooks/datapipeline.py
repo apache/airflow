@@ -95,7 +95,7 @@ class DataPipelineHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def run_data_pipeline(
         self,
-        pipeline_name: str,
+        data_pipeline_name: str,
     ) -> None:
         """
         Runs DataPipeline.
@@ -104,7 +104,7 @@ class DataPipelineHook(GoogleBaseHook):
         print(dir(service.projects().locations()))
         request = (
             service.projects().locations().pipelines().run(
-                name = pipeline_name,
+                name = data_pipeline_name,
                 body = {},
             )
         )

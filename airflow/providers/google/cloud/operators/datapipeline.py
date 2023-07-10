@@ -74,28 +74,27 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
         )
 
         # returns the full response body
-        return self.data_pipeline
+        return self.data_pipeline["name"]
 
 
 class RunDataPipelineOperator(GoogleCloudBaseOperator):
     """ Run Data Pipeline Operator """
     def __init__(
             self,
-            response_body: dict,
+            data_pipeline_name: str,
             gcp_conn_id: str = "google_cloud_default",
             **kwargs
     ) -> None:
         super().init(**kwargs)
 
-        self.response_body = response_body
+        self.data_pipeline_name = data_pipeline_name
         self.gcp_conn_id =  gcp_conn_id
-        self.pipeline_name = response_body["name"]
 
     def execute(self, context: Context):
         self.data_pipeline_hook = DataPipelineHook(gcp_conn_id=self.gcp_conn_id)
         
         self.response = self.data_pipeline_hook.run_data_pipeline(
-            pipeline_name = self.pipeline_name
+            data_pipeline_name = self.data_pipeline_name
         )
 
         return self.response
