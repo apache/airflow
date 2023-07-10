@@ -29,6 +29,7 @@ from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.fab_security.sqla.manager import SecurityManager
 from airflow.www.fab_security.sqla.models import Permission, Resource, Role, User
 from airflow.www.fab_security.views import (
@@ -56,8 +57,11 @@ EXISTING_ROLES = {
     "Public",
 }
 
+# Fetch the security manager override from the auth manager
+SecurityManagerOverride = get_auth_manager().get_security_manager_override_class()
 
-class AirflowSecurityManager(SecurityManager, LoggingMixin):
+
+class AirflowSecurityManager(SecurityManager, LoggingMixin, SecurityManagerOverride):  # type: ignore
     """Custom security manager, which introduces a permission model adapted to Airflow."""
 
     ###########################################################################
@@ -192,7 +196,31 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     userstatschartview = CustomUserStatsChartView
 
     def __init__(self, appbuilder) -> None:
-        super().__init__(appbuilder)
+        super().__init__(
+            appbuilder=appbuilder,
+            actionmodelview=self.actionmodelview,
+            authdbview=self.authdbview,
+            authldapview=self.authldapview,
+            authoauthview=self.authoauthview,
+            authoidview=self.authoidview,
+            authremoteuserview=self.authremoteuserview,
+            permissionmodelview=self.permissionmodelview,
+            registeruser_view=self.registeruser_view,
+            registeruserdbview=self.registeruserdbview,
+            registeruseroauthview=self.registeruseroauthview,
+            registerusermodelview=self.registerusermodelview,
+            registeruseroidview=self.registeruseroidview,
+            resetmypasswordview=self.resetmypasswordview,
+            resetpasswordview=self.resetpasswordview,
+            rolemodelview=self.rolemodelview,
+            userinfoeditview=self.userinfoeditview,
+            userdbmodelview=self.userdbmodelview,
+            userldapmodelview=self.userldapmodelview,
+            useroauthmodelview=self.useroauthmodelview,
+            useroidmodelview=self.useroidmodelview,
+            userremoteusermodelview=self.userremoteusermodelview,
+            userstatschartview=self.userstatschartview,
+        )
 
         # Go and fix up the SQLAInterface used from the stock one to our subclass.
         # This is needed to support the "hack" where we had to edit

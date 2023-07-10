@@ -41,7 +41,6 @@ from urllib.parse import urlsplit
 import re2
 from typing_extensions import overload
 
-from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
@@ -1743,24 +1742,6 @@ def initialize_secrets_backends() -> list[BaseSecretsBackend]:
     return backend_list
 
 
-def initialize_auth_manager() -> BaseAuthManager:
-    """
-    Initialize auth manager.
-
-    * import user manager class
-    * instantiate it and return it
-    """
-    auth_manager_cls = conf.getimport(section="core", key="auth_manager")
-
-    if not auth_manager_cls:
-        raise AirflowConfigException(
-            "No auth manager defined in the config. "
-            "Please specify one using section/key [core/auth_manager]."
-        )
-
-    return auth_manager_cls()
-
-
 @functools.lru_cache(maxsize=None)
 def _DEFAULT_CONFIG() -> str:
     path = _default_config_file_path("default_airflow.cfg")
@@ -1826,5 +1807,4 @@ WEBSERVER_CONFIG = ""  # Set by initialize_config
 
 conf = initialize_config()
 secrets_backend_list = initialize_secrets_backends()
-auth_manager = initialize_auth_manager()
 conf.validate()

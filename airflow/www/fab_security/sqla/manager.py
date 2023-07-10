@@ -58,7 +58,7 @@ class SecurityManager(BaseSecurityManager):
     permission_model = Permission
     registeruser_model = RegisterUser
 
-    def __init__(self, appbuilder):
+    def __init__(self, appbuilder, **kwargs):
         """
         Class constructor.
 

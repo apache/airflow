@@ -33,3 +33,19 @@ class BaseAuthManager(LoggingMixin):
     def get_user_name(self) -> str:
         """Return the username associated to the user in session."""
         ...
+
+    def get_security_manager_override_class(self) -> type:
+        """
+        Return the security manager override class.
+
+        The security manager override class is responsible for overriding the default security manager
+        class airflow.www.security.AirflowSecurityManager with a custom implementation. This class is
+        essentially inherited from airflow.www.security.AirflowSecurityManager.
+
+        By default, return an empty class.
+        """
+
+        class EmptyClass:
+            pass
+
+        return EmptyClass

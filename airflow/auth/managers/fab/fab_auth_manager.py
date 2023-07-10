@@ -20,6 +20,7 @@ from __future__ import annotations
 from flask_login import current_user
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager
+from airflow.auth.managers.fab.security_manager_override import FabAirflowSecurityManagerOverride
 
 
 class FabAuthManager(BaseAuthManager):
@@ -39,3 +40,7 @@ class FabAuthManager(BaseAuthManager):
         first_name = current_user.first_name or ""
         last_name = current_user.last_name or ""
         return f"{first_name} {last_name}".strip()
+
+    def get_security_manager_override_class(self) -> type:
+        """Return the security manager override."""
+        return FabAirflowSecurityManagerOverride
