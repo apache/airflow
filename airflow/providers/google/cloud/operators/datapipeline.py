@@ -99,7 +99,7 @@ class RunDataPipelineOperator(GoogleCloudBaseOperator):
         self.data_pipeline_hook = DataPipelineHook(gcp_conn_id=self.gcp_conn_id)
         
         self.response = self.data_pipeline_hook.run_data_pipeline(
-            pipeline_id = self.data_pipeline_name,
+            data_pipeline_name = self.data_pipeline_name,
             project_id = self.project_id,
             location = self.location
         )
