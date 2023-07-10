@@ -76,7 +76,7 @@ with models.DAG(
             }
         }
     )
-    run_data_pipeline = RunDataPipelineOperator(pipeline_name = create_data_pipeline["name"])
+    run_data_pipeline = RunDataPipelineOperator(pipeline_name = create_data_pipeline)
  
 
     create_data_pipeline >> run_data_pipeline
