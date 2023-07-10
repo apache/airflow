@@ -74,7 +74,7 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
         )
 
         # returns the full response body
-        return self.data_pipeline["name"]
+        return self.data_pipeline
 
 
 class RunDataPipelineOperator(GoogleCloudBaseOperator):
