@@ -974,16 +974,14 @@ class DataprocHook(GoogleBaseHook):
         client = self.get_batch_client(region)
         parent = f"projects/{project_id}/regions/{region}"
 
-        request = {
-            "parent": parent,
-            "page_size": page_size,
-            "page_token": page_token,
-            "filter": filter_,
-            "order_by": order_by,
-        }
-
         result = client.list_batches(
-            request=request,
+            request={
+                "parent": parent,
+                "page_size": page_size,
+                "page_token": page_token,
+                "filter": filter_,
+                "order_by": order_by,
+            },
             retry=retry,
             timeout=timeout,
             metadata=metadata,
