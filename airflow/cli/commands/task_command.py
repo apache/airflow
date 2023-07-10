@@ -534,15 +534,15 @@ def _guess_debugger() -> _SupportedDebugger:
 @provide_session
 def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
     """Get the status of all task instances in a DagRun."""
-    dag_run = session.scalars(
+    dag_run = session.scalar(
         select(DagRun).where(DagRun.run_id == args.execution_date_or_run_id, DagRun.dag_id == args.dag_id)
-    ).one_or_none()
+    )
     if not dag_run:
         try:
             execution_date = timezone.parse(args.execution_date_or_run_id)
-            dag_run = session.scalars(
+            dag_run = session.scalar(
                 select(DagRun).where(DagRun.execution_date == execution_date, DagRun.dag_id == args.dag_id)
-            ).one_or_none()
+            )
         except (ParserError, TypeError) as err:
             raise AirflowException(f"Error parsing the supplied execution_date. Error: {str(err)}")
 

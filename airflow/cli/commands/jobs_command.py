@@ -43,7 +43,7 @@ def check(args, session: Session = NEW_SESSION) -> None:
     if args.limit > 0:
         query = query.limit(args.limit)
 
-    alive_jobs: list[Job] = [job for job in session.scalars(query).all() if job.is_alive()]
+    alive_jobs: list[Job] = [job for job in session.scalars(query) if job.is_alive()]
 
     count_alive_jobs = len(alive_jobs)
     if count_alive_jobs == 0:

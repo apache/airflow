@@ -430,10 +430,10 @@ def dag_list_jobs(args, dag: DAG | None = None, session: Session = NEW_SESSION) 
         queries.append(Job.state == args.state)
 
     fields = ["dag_id", "state", "job_type", "start_date", "end_date"]
-    all_jobs = session.scalars(
+    all_jobs_iter = session.scalars(
         select(Job).where(*queries).order_by(Job.start_date.desc()).limit(args.limit)
-    ).all()
-    all_jobs = [{f: str(job.__getattribute__(f)) for f in fields} for job in all_jobs]
+    )
+    all_jobs = [{f: str(job.__getattribute__(f)) for f in fields} for job in all_jobs_iter]
 
     AirflowConsole().print_as(
         data=all_jobs,

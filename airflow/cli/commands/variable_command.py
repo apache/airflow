@@ -35,7 +35,7 @@ from airflow.utils.session import create_session
 def variables_list(args):
     """Displays all the variables."""
     with create_session() as session:
-        variables = session.scalars(select(Variable))
+        variables = session.scalars(select(Variable)).all()
     AirflowConsole().print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
 
 
@@ -109,7 +109,7 @@ def _variable_export_helper(filepath):
     """Helps export all the variables to the file."""
     var_dict = {}
     with create_session() as session:
-        qry = session.scalars(select(Variable)).all()
+        qry = session.scalars(select(Variable))
 
         data = json.JSONDecoder()
         for var in qry:
