@@ -33,10 +33,10 @@ from airflow.providers.snowflake.utils.sql_api_generate_jwt import JWTGenerator
 
 class SnowflakeSqlApiHook(SnowflakeHook):
     """
-    A client to interact with Snowflake using SQL API  and allows submitting
-    multiple SQL statements in a single request. In combination with aiohttp, make post request to submit SQL
-    statements for execution, poll to check the status of the execution of a statement. Fetch query results
-    asynchronously.
+    A client to interact with Snowflake using SQL API and submit multiple SQL statements in a single request.
+
+    In combination with aiohttp, make post request to submit SQL statements for execution,
+    poll to check the status of the execution of a statement. Fetch query results asynchronously.
 
     This hook requires the snowflake_conn_id connection. This hooks mainly uses account, schema, database,
      warehouse, private_key_file or private_key_content field must be setup in the connection. Other inputs
@@ -137,7 +137,10 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         conn_config = self._get_conn_params()
 
         req_id = uuid.uuid4()
-        url = f"https://{conn_config['account']}.{conn_config['region']}.snowflakecomputing.com/api/v2/statements"
+        url = (
+            f"https://{conn_config['account']}.{conn_config['region']}"
+            f".snowflakecomputing.com/api/v2/statements"
+        )
         params: dict[str, Any] | None = {"requestId": str(req_id), "async": True, "pageSize": 10}
         headers = self.get_headers()
         if bindings is None:
@@ -171,9 +174,7 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         return self.query_ids
 
     def get_headers(self) -> dict[str, Any]:
-        """Based on the private key, and with connection details JWT Token is generated and header
-        is formed.
-        """
+        """Form JWT Token and header based on the private key, and connection details."""
         if not self.private_key:
             self.get_private_key()
         conn_config = self._get_conn_params()
@@ -206,13 +207,15 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         req_id = uuid.uuid4()
         header = self.get_headers()
         params = {"requestId": str(req_id)}
-        url = f"https://{conn_config['account']}.{conn_config['region']}.snowflakecomputing.com/api/v2/statements/{query_id}"
+        url = (
+            f"https://{conn_config['account']}.{conn_config['region']}"
+            f".snowflakecomputing.com/api/v2/statements/{query_id}"
+        )
         return header, params, url
 
     def check_query_output(self, query_ids: list[str]) -> None:
         """
-        Based on the query ids passed as the parameter make HTTP request to snowflake SQL API and logs
-        the response.
+        Make HTTP request to snowflake SQL API based on the provided query ids and log the response.
 
         :param query_ids: statement handles query id for the individual statements.
         """

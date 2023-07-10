@@ -39,6 +39,8 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
    * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
 
 1.1.1
 .....

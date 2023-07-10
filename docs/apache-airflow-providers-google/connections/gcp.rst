@@ -298,4 +298,4 @@ Note that as domain-wide delegation is currently supported by most of the Google
 
 * All of Google Cloud operators and hooks.
 * Firebase hooks.
-* All transfer operators that involve Google cloud in different providers, for example: :class:`airflow.providers.microsoft.azure.transfers.azure_blob_to_gcs`.
+* All transfer operators that involve Google cloud in different providers, for example: :class:`airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Operator`.

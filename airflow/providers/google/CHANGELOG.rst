@@ -53,11 +53,14 @@ Misc
 * ``Deprecate 'delimiter' param and source object's wildcards in GCS, introduce 'match_glob' param. (#31261)``
 * ``Refactor GKECreateClusterOperator's body validation (#31923)``
 * ``Optimize deferrable mode execution for 'BigQueryValueCheckOperator' (#31872)``
+* ``Add default_deferrable config (#31712)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Improve provider documentation and README structure (#32125)``
    * ``Google provider docstring improvements (#31731)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
 
 10.2.0
 ......

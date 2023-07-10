@@ -598,6 +598,7 @@ class DagFileProcessor(LoggingMixin):
     ) -> None:
         """
         Update any import errors to be displayed in the UI.
+
         For the DAGs in the given DagBag, record any associated import errors and clears
         errors for files that no longer have them. These are usually displayed through the
         Airflow UI so that users know that there are issues parsing DAGs.
@@ -664,6 +665,7 @@ class DagFileProcessor(LoggingMixin):
     def update_dag_warnings(self, *, session: Session, dagbag: DagBag) -> None:
         """
         Update any import warnings to be displayed in the UI.
+
         For the DAGs in the given DagBag, record any associated configuration warnings and clear
         warnings for files that no longer have them. These are usually displayed through the
         Airflow UI so that users know that there are issues parsing DAGs.
@@ -691,6 +693,7 @@ class DagFileProcessor(LoggingMixin):
     ) -> None:
         """
         Execute on failure callbacks.
+
         These objects can come from SchedulerJobRunner or from DagProcessorJobRunner.
 
         :param dagbag: Dag Bag of dags

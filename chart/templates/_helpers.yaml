@@ -690,16 +690,25 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --job-type TriggererJob  --hostname $(hostname)
+    airflow jobs check --job-type TriggererJob --hostname $(hostname)
   {{- end }}
 {{- end }}
 
 {{- define "dag_processor_liveness_check_command" }}
+  {{- $commandArgs := (list) -}}
+  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
+    {{- $commandArgs = append $commandArgs "--local" -}}
+    {{- if semverCompare ">=2.5.2" .Values.airflowVersion }}
+      {{- $commandArgs = concat $commandArgs (list "--job-type" "DagProcessorJob") -}}
+    {{- end }}
+  {{- else }}
+    {{- $commandArgs = concat $commandArgs (list "--hostname" "$(hostname)") -}}
+  {{- end }}
   - sh
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --hostname $(hostname)
+    airflow jobs check {{ join " " $commandArgs }}
 {{- end }}
 
 {{- define "registry_docker_config" }}

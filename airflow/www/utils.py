@@ -37,7 +37,7 @@ from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from pygments.lexer import Lexer
-from sqlalchemy import delete, func, types
+from sqlalchemy import delete, func, select, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 from sqlalchemy.sql import Select
 
@@ -49,6 +49,7 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils.json import WebEncoder
 from airflow.utils.state import State, TaskInstanceState
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
@@ -67,16 +68,15 @@ def datetime_to_string(value: DateTime | None) -> str | None:
 
 
 def get_mapped_instances(task_instance, session):
-    return (
-        session.query(TaskInstance)
-        .filter(
+    return session.scalars(
+        select(TaskInstance)
+        .where(
             TaskInstance.dag_id == task_instance.dag_id,
             TaskInstance.run_id == task_instance.run_id,
             TaskInstance.task_id == task_instance.task_id,
         )
         .order_by(TaskInstance.map_index)
-        .all()
-    )
+    ).all()
 
 
 def get_instance_with_map(task_instance, session):
@@ -178,14 +178,16 @@ def encode_dag_run(
 
 def check_import_errors(fileloc, session):
     # Check dag import errors
-    import_errors = session.query(errors.ImportError).filter(errors.ImportError.filename == fileloc).all()
+    import_errors = session.scalars(
+        select(errors.ImportError).where(errors.ImportError.filename == fileloc)
+    ).all()
     if import_errors:
         for import_error in import_errors:
             flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
 
 
 def check_dag_warnings(dag_id, session):
-    dag_warnings = session.query(DagWarning).filter(DagWarning.dag_id == dag_id).all()
+    dag_warnings = session.scalars(select(DagWarning).where(DagWarning.dag_id == dag_id)).all()
     if dag_warnings:
         for dag_warning in dag_warnings:
             flash(dag_warning.message, "warning")
@@ -481,7 +483,7 @@ def json_f(attr_name):
 
     def json_(attr):
         f = attr.get(attr_name)
-        serialized = json.dumps(f)
+        serialized = json.dumps(f, cls=WebEncoder)
         return Markup("<nobr>{}</nobr>").format(serialized)
 
     return json_

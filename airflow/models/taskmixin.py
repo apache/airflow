@@ -123,21 +123,15 @@ class DependencyMixin:
         op1 = self
         if isinstance(self, PlainXComArg):
             op1 = self.operator
-        if getattr(op1, "is_setup") or getattr(op1, "is_teardown"):
-            return
         SetupTeardownContext.update_context_map(op1)
         if isinstance(other, Sequence):
             for op in other:
                 if isinstance(op, PlainXComArg):
                     op = op.operator
-                if getattr(op, "is_setup") or getattr(op, "is_teardown"):
-                    continue
                 SetupTeardownContext.update_context_map(op)
             return
         if isinstance(other, PlainXComArg):
             other = other.operator
-        if getattr(other, "is_setup") or getattr(other, "is_teardown"):
-            return
         SetupTeardownContext.update_context_map(other)
 
 

@@ -806,11 +806,15 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     ```shell script
     ./docs/publish_docs.py --package-filter apache-airflow --package-filter docker-stack
     cd "${AIRFLOW_SITE_DIRECTORY}"
+    cd post-docs
+    python add-back-references.py airflow
+    cd ..
     git add .
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push
     # and finally open a PR
     ```
+
 
 ## Notify developers of release
 

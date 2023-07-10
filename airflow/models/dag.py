@@ -52,7 +52,7 @@ from urllib.parse import urlsplit
 
 import jinja2
 import pendulum
-import re2 as re
+import re2
 from dateutil.relativedelta import relativedelta
 from pendulum.tz.timezone import Timezone
 from sqlalchemy import (
@@ -2361,7 +2361,7 @@ class DAG(LoggingMixin):
         dag = copy.deepcopy(self, memo)  # type: ignore
 
         if isinstance(task_ids_or_regex, (str, Pattern)):
-            matched_tasks = [t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]
+            matched_tasks = [t for t in self.tasks if re2.findall(task_ids_or_regex, t.task_id)]
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
 
@@ -2373,6 +2373,8 @@ class DAG(LoggingMixin):
                 also_include.extend(t.get_upstreams_follow_setups())
             else:
                 also_include.extend(t.get_upstreams_only_setups_and_teardowns())
+            if t.is_setup and not include_downstream:
+                also_include.extend(x for x in t.downstream_list if x.is_teardown)
 
         direct_upstreams: list[Operator] = []
         if include_direct_upstream:
@@ -2828,8 +2830,8 @@ class DAG(LoggingMixin):
 
         regex = airflow_conf.get("scheduler", "allowed_run_id_pattern")
 
-        if run_id and not re.match(RUN_ID_REGEX, run_id):
-            if not regex.strip() or not re.match(regex.strip(), run_id):
+        if run_id and not re2.match(RUN_ID_REGEX, run_id):
+            if not regex.strip() or not re2.match(regex.strip(), run_id):
                 raise AirflowException(
                     f"The provided run ID '{run_id}' is invalid. It does not match either "
                     f"the configured pattern: '{regex}' or the built-in pattern: '{RUN_ID_REGEX}'"
@@ -2925,27 +2927,30 @@ class DAG(LoggingMixin):
             session.add(orm_dag)
             orm_dags.append(orm_dag)
 
-        # Get the latest dag run for each existing dag as a single query (avoid n+1 query)
-        most_recent_subq = (
-            select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
-            .where(
-                DagRun.dag_id.in_(existing_dags),
-                or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
+        most_recent_runs: dict[str, DagRun] = {}
+        num_active_runs: dict[str, int] = {}
+        # Skip these queries entirely if no DAGs can be scheduled to save time.
+        if any(dag.timetable.can_be_scheduled for dag in dags):
+            # Get the latest dag run for each existing dag as a single query (avoid n+1 query)
+            most_recent_subq = (
+                select(DagRun.dag_id, func.max(DagRun.execution_date).label("max_execution_date"))
+                .where(
+                    DagRun.dag_id.in_(existing_dags),
+                    or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
+                )
+                .group_by(DagRun.dag_id)
+                .subquery()
             )
-            .group_by(DagRun.dag_id)
-            .subquery()
-        )
-        most_recent_runs_iter = session.scalars(
-            select(DagRun).where(
-                DagRun.dag_id == most_recent_subq.c.dag_id,
-                DagRun.execution_date == most_recent_subq.c.max_execution_date,
+            most_recent_runs_iter = session.scalars(
+                select(DagRun).where(
+                    DagRun.dag_id == most_recent_subq.c.dag_id,
+                    DagRun.execution_date == most_recent_subq.c.max_execution_date,
+                )
             )
-        )
-        most_recent_runs = {run.dag_id: run for run in most_recent_runs_iter}
+            most_recent_runs = {run.dag_id: run for run in most_recent_runs_iter}
 
-        # Get number of active dagruns for all dags we are processing as a single query.
-
-        num_active_runs = DagRun.active_runs_of_dags(dag_ids=existing_dags, session=session)
+            # Get number of active dagruns for all dags we are processing as a single query.
+            num_active_runs = DagRun.active_runs_of_dags(dag_ids=existing_dags, session=session)
 
         filelocs = []
 

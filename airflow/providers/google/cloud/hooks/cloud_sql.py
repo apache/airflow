@@ -304,8 +304,7 @@ class CloudSQLHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def export_instance(self, instance: str, body: dict, project_id: str):
         """
-        Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump
-        or CSV file.
+        Exports data from a Cloud SQL instance to a Cloud Storage bucket as a SQL dump or CSV file.
 
         :param instance: Database instance ID of the Cloud SQL instance. This does not include the
             project ID.
@@ -327,8 +326,7 @@ class CloudSQLHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def import_instance(self, instance: str, body: dict, project_id: str) -> None:
         """
-        Imports data into a Cloud SQL instance from a SQL dump or CSV file in
-        Cloud Storage.
+        Imports data into a Cloud SQL instance from a SQL dump or CSV file in Cloud Storage.
 
         :param instance: Database instance ID. This does not include the
             project ID.
@@ -382,8 +380,7 @@ class CloudSQLHook(GoogleBaseHook):
         self, project_id: str, operation_name: str, time_to_sleep: int = TIME_TO_SLEEP_IN_SECONDS
     ) -> None:
         """
-        Waits for the named operation to complete - checks status of the
-        asynchronous call.
+        Waits for the named operation to complete - checks status of the asynchronous call.
 
         :param project_id: Project ID of the project that contains the instance.
         :param operation_name: Name of the operation.
@@ -721,10 +718,11 @@ CLOUD_SQL_VALID_DATABASE_TYPES = ["postgres", "mysql"]
 
 
 class CloudSQLDatabaseHook(BaseHook):
-    """Serves DB connection configuration for Google Cloud SQL (Connections
-    of *gcpcloudsqldb://* type).
+    """
+    Serves DB connection configuration for Google Cloud SQL (Connections of *gcpcloudsqldb://* type).
 
     The hook is a "meta" one. It does not perform an actual connection.
+
     It is there to retrieve all the parameters configured in gcpcloudsql:// connection,
     start/stop Cloud SQL Proxy if needed, dynamically generate Postgres or MySQL
     connection in the database and return an actual Postgres or MySQL hook.

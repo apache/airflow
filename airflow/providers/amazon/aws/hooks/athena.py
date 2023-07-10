@@ -253,7 +253,7 @@ class AthenaHook(AwsBaseHook):
         try:
             wait(
                 waiter=self.get_waiter("query_complete"),
-                waiter_delay=sleep_time or self.sleep_time,
+                waiter_delay=self.sleep_time if sleep_time is None else sleep_time,
                 waiter_max_attempts=max_polling_attempts or 120,
                 args={"QueryExecutionId": query_execution_id},
                 failure_message=f"Error while waiting for query {query_execution_id} to complete",

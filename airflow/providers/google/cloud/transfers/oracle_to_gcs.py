@@ -87,8 +87,7 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
 
     def convert_type(self, value, schema_type, **kwargs):
         """
-        Takes a value from Oracle db, and converts it to a value that's safe for
-        JSON/Google Cloud Storage/BigQuery.
+        Take a value from Oracle db and convert it to a value safe for JSON/Google Cloud Storage/BigQuery.
 
         * Datetimes are converted to UTC seconds.
         * Decimals are converted to floats.

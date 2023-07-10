@@ -47,6 +47,7 @@ Features
 * ``Deferrable mode for ECS operators (#31881)``
 * ``feature: AWS - GlueJobOperator - job_poll_interval (#32147)``
 * ``Added 'AzureBlobStorageToS3Operator' transfer operator (#32270)``
+* ``Introduce a base class for aws triggers (#32274)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -54,6 +55,7 @@ Bug Fixes
 * ``bugfix: break down run+wait method in ECS operator (#32104)``
 * ``Handle 'UnboundLocalError' while parsing invalid 's3_url' (#32120)``
 * ``Fix 'LambdaInvokeFunctionOperator' payload parameter type (#32259)``
+* ``Bug fix GCSToS3Operator: avoid 'ValueError' when 'replace=False' with files already in S3 (#32322)``
 
 Misc
 ~~~~
@@ -64,6 +66,11 @@ Misc
 * ``Refactor Eks Create Cluster Operator code (#31960)``
 * ``Use a waiter in 'AthenaHook' (#31942)``
 * ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
+* ``Add default_deferrable config (#31712)``
+* ``deprecate arbitrary parameter passing to RDS hook (#32352)``
+* ``quick fix on RDS operator to prevent parameter collision (#32436)``
+* ``Remove ability to specify arbitrary hook params in AWS RDS trigger (#32386)``
+* ``Only update crawler tags if present in config dict (#32331)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
@@ -75,6 +82,10 @@ Misc
    * ``Minor name change for the util wait method. (#32152)``
    * ``Clean up string concatenation (#32129)``
    * ``cleanup Amazon CHANGELOG.rst (#32031)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Stragglers and new additions (#32447)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 
 8.2.0
 .....
