@@ -277,7 +277,13 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         return client.CustomObjectsApi(api_client=self.api_client)
 
     def create_custom_object(
-        self, group: str, version: str, plural: str, body: str | dict, namespace: str | None = None
+        self,
+        group: str,
+        version: str,
+        plural: str,
+        body: str | dict,
+        namespace: str | None = None,
+        delete_existing_object: bool = True,
     ):
         """
         Creates custom resource definition object in Kubernetes.
@@ -287,6 +293,7 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         :param plural: api plural
         :param body: crd object definition
         :param namespace: kubernetes namespace
+        :param delete_existing_object: whether to delete the existing object before creating or not
         """
         api: client.CustomObjectsApi = self.custom_object_client
 
@@ -294,6 +301,20 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
             body_dict = _load_body_to_dict(body)
         else:
             body_dict = body
+
+        if delete_existing_object and "name" in body_dict["metadata"]:
+            try:
+                api.delete_namespaced_custom_object(
+                    group=group,
+                    version=version,
+                    namespace=namespace,
+                    plural=plural,
+                    name=body_dict["metadata"]["name"],
+                )
+
+                self.log.warning("Deleted %s with the same name", plural)
+            except client.ApiException:
+                self.log.info("%s %s not found", plural, body_dict["metadata"]["name"])
 
         response = api.create_namespaced_custom_object(
             group=group,

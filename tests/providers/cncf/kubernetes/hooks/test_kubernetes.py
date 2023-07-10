@@ -376,6 +376,37 @@ class TestKubernetesHook:
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch(f"{HOOK_MODULE}.client.CustomObjectsApi")
+    def test_create_custom_object(
+        self, mock_custom_object_api, mock_kube_config_merger, mock_kube_config_loader
+    ):
+        hook = KubernetesHook()
+        hook.create_custom_object(
+            group="group",
+            version="version",
+            plural="plural",
+            namespace="namespace",
+            body={"metadata": {"name": "name"}},
+        )
+
+        mock_custom_object_api.return_value.delete_namespaced_custom_object.assert_called_once_with(
+            group="group",
+            version="version",
+            plural="plural",
+            name="name",
+            namespace="namespace",
+        )
+
+        mock_custom_object_api.return_value.create_namespaced_custom_object.assert_called_once_with(
+            group="group",
+            version="version",
+            plural="plural",
+            namespace="namespace",
+            body={"metadata": {"name": "name"}},
+        )
+
+    @patch("kubernetes.config.kube_config.KubeConfigLoader")
+    @patch("kubernetes.config.kube_config.KubeConfigMerger")
+    @patch(f"{HOOK_MODULE}.client.CustomObjectsApi")
     def test_delete_custom_object(
         self, mock_custom_object_api, mock_kube_config_merger, mock_kube_config_loader
     ):

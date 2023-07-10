@@ -46,6 +46,7 @@ class SparkKubernetesOperator(BaseOperator):
     :param api_group: kubernetes api group of sparkApplication
     :param api_version: kubernetes api version of sparkApplication
     :param watch: whether to watch the job status and logs or not
+    :param delete_existing_object: whether to delete the existing object before creating or not
     """
 
     template_fields: Sequence[str] = ("application_file", "namespace")
@@ -64,6 +65,7 @@ class SparkKubernetesOperator(BaseOperator):
         cluster_context: str | None = None,
         config_file: str | None = None,
         watch: bool = False,
+        delete_existing_object: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -77,6 +79,7 @@ class SparkKubernetesOperator(BaseOperator):
         self.cluster_context = cluster_context
         self.config_file = config_file
         self.watch = watch
+        self.delete_existing_object = delete_existing_object
 
         self.hook = KubernetesHook(
             conn_id=self.kubernetes_conn_id,
@@ -109,6 +112,7 @@ class SparkKubernetesOperator(BaseOperator):
                     namespace=namespace,
                 )
                 is_job_created = True
+                is_deleted = self.delete_existing_object
                 for event in namespace_event_stream:
                     obj = event["object"]
                     if event["object"].last_timestamp >= datetime.datetime.strptime(
@@ -129,6 +133,9 @@ class SparkKubernetesOperator(BaseOperator):
                             "SparkApplicationFailed",
                             "SparkApplicationDeleted",
                         ]:
+                            if is_deleted and obj.reason == "SparkApplicationDeleted":
+                                is_deleted = False
+                                continue
                             is_job_created = False
                             raise AirflowException(obj.message)
                         elif obj.reason == "SparkApplicationCompleted":
