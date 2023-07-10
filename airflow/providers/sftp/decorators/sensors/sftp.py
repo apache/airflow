@@ -23,7 +23,7 @@ from airflow.decorators.base import TaskDecorator, get_unique_task_id, task_deco
 from airflow.providers.sftp.sensors.sftp import SFTPSensor
 
 
-class _DecoratedSFTPSensorOperator(SFTPSensor):
+class _DecoratedSFTPSensor(SFTPSensor):
     """
     Wraps a Python callable and captures args/kwargs when called for execution.
 
@@ -67,6 +67,6 @@ def sftp_sensor_task(python_callable: Callable | None = None, **kwargs) -> TaskD
     return task_decorator_factory(
         python_callable=python_callable,
         multiple_outputs=False,
-        decorated_operator_class=_DecoratedSFTPSensorOperator,
+        decorated_operator_class=_DecoratedSFTPSensor,
         **kwargs,
     )
