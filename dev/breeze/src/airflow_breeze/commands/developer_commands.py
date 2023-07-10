@@ -691,8 +691,8 @@ def enter_shell(**kwargs) -> RunCommandResult:
 
     if shell_params.backend == "sqlite":
         get_console().print(
-            f"\n[warn]backend: sqlite is not"
-            f" compatible with executor: {shell_params.executor}."
+            f"\n[warn]backend: sqlite is not "
+            f"compatible with executor: {shell_params.executor}. "
             f"Changing the executor to SequentialExecutor.\n"
         )
         shell_params.executor = "SequentialExecutor"
