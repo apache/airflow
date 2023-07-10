@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-10T14:51:37Z
+# This constraints file was automatically generated on 2023-07-10T19:06:32Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -87,7 +87,7 @@ aws-sam-translator==1.71.0
 aws-xray-sdk==2.12.0
 azure-batch==14.0.0
 azure-common==1.1.28
-azure-core==1.27.1
+azure-core==1.28.0
 azure-cosmos==4.4.0
 azure-datalake-store==0.0.53
 azure-identity==1.13.0
@@ -206,11 +206,11 @@ google-cloud-bigquery-datatransfer==3.11.2
 google-cloud-bigquery-storage==2.22.0
 google-cloud-bigquery==3.11.3
 google-cloud-bigtable==2.19.0
-google-cloud-build==3.17.1
+google-cloud-build==3.18.0
 google-cloud-compute==1.12.1
 google-cloud-container==2.26.0
 google-cloud-core==2.3.3
-google-cloud-datacatalog==3.13.1
+google-cloud-datacatalog==3.14.0
 google-cloud-dataflow-client==0.8.4
 google-cloud-dataform==0.5.2
 google-cloud-dataplex==1.5.1
@@ -223,7 +223,7 @@ google-cloud-logging==3.5.0
 google-cloud-memcache==1.7.2
 google-cloud-monitoring==2.15.1
 google-cloud-orchestration-airflow==1.9.1
-google-cloud-os-login==2.9.1
+google-cloud-os-login==2.10.0
 google-cloud-pubsub==2.17.1
 google-cloud-redis==2.13.1
 google-cloud-resource-manager==1.10.2
@@ -406,7 +406,7 @@ pycparser==2.21
 pycryptodome==3.18.0
 pycryptodomex==3.18.0
 pydantic==1.10.11
-pydata-google-auth==1.8.0
+pydata-google-auth==1.8.1
 pydot==1.4.2
 pydruid==0.6.5
 pyenchant==3.2.2
@@ -525,7 +525,7 @@ text-unidecode==1.3
 textwrap3==0.9.2
 thrift-sasl==0.4.3
 thrift==0.16.0
-time-machine==2.10.0
+time-machine==2.11.0
 toolz==0.12.0
 tornado==6.3.2
 towncrier==23.6.0
