@@ -513,7 +513,6 @@ Suppose you have a dag that creates a cluster, runs a query, and deletes the clu
 
 To enable create_cluster and delete_cluster as setup and teardown tasks, we mark them as such methods ``as_setup`` and ``as_teardown`` and add an upstream / downstream relationship between them:
 
-
 .. code-block:: python
 
   create_cluster.as_setup() >> run_query >> delete_cluster.as_teardown()
@@ -524,6 +523,23 @@ For convenience we can do this in one line by passing ``create_cluster`` to the 
 .. code-block:: python
 
   create_cluster >> run_query >> delete_cluster.as_teardown(setups=create_cluster)
+
+Additionally, if we have multiple tasks to wrap, we can use the teardown as a context manager:
+
+.. code-block:: python
+
+  with delete_cluster.as_teardown(setups=create_cluster):
+      [RunQueryOne(), RunQueryTwo()] >> DoSomeOtherStuff()
+      WorkOne() >> [do_this_stuff(), do_other_stuff()]
+
+This will set create_cluster to run before the tasks in the context, and delete_cluster after them.
+
+Note that if you are attempting to add an already-instantiated task to a setup context you need to do it explicitly:
+
+.. code-block:: python
+
+  with my_teardown_task as scope:
+      scope.add_task(work_task)  # work_task was already instantiated elsewhere
 
 Observations:
 
@@ -597,26 +613,6 @@ Now let's consider an example with nesting:
     dag_s1 >> [tg, w2] >> dag_t1.as_teardown(dag_s1)
 
 In this example ``s1`` is downstream of ``dag_s1``, so it must wait for ``dag_s1`` to complete successfully.  But ``t1`` and ``dag_t1`` can run concurrently, because ``t1`` is ignored in the expression ``tg >> dag_t1``.  If you clear ``w2``, it will clear ``dag_s1`` and ``dag_t1``, but not anything in the task group.
-
-Setup / teardown context manager
-""""""""""""""""""""""""""""""""
-
-We provide a context manager for convenience.  In the following example, if tasks ``s`` and ``t`` have been marked as setup and teardown tasks, they may be used as context manager that will wrap all tasks defined in the context inside the setup / teardown.  Example:
-
-.. code-block:: python
-
-    with s >> t:
-        a()
-        b() >> c()
-
-This is equivalent to the following:
-
-.. code-block:: python
-
-    s >> a() >> t.as_teardown(setups=s)
-    s >> b() >> c() >> t
-
-Passing data between setup, teardown, and normal task
 
 Running setups and teardowns in parallel
 """"""""""""""""""""""""""""""""""""""""
