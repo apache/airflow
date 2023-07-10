@@ -421,7 +421,7 @@ def prepare_docker_build_cache_command(
     final_command = []
     final_command.extend(["docker"])
     final_command.extend(
-        ["buildx", "build", "--builder", get_docker_context(image_params.builder), "--progress=auto"]
+        ["buildx", "build", "--builder", get_and_use_docker_context(image_params.builder), "--progress=auto"]
     )
     final_command.extend(build_flags)
     final_command.extend(["--pull"])
@@ -458,7 +458,7 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
                 "buildx",
                 "build",
                 "--builder",
-                get_docker_context(image_params.builder),
+                get_and_use_docker_context(image_params.builder),
                 "--progress=auto",
                 "--push" if image_params.push else "--load",
             ]
@@ -728,7 +728,7 @@ def get_docker_syntax_version() -> str:
 def warm_up_docker_builder(image_params: CommonBuildParams):
     from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
-    docker_context = get_docker_context(image_params.builder)
+    docker_context = get_and_use_docker_context(image_params.builder)
     if docker_context == "default":
         return
     docker_syntax = get_docker_syntax_version()
@@ -839,7 +839,14 @@ def autodetect_docker_context():
     return fallback_context
 
 
-def get_docker_context(context: str):
-    if context != "autodetect":
-        return context
-    return autodetect_docker_context()
+def get_and_use_docker_context(context: str):
+    if context == "autodetect":
+        context = autodetect_docker_context()
+    output = run_command(["docker", "context", "use", context], check=False)
+    if output.returncode != 0:
+        get_console().print(
+            "[error] Error when switching context. Add `--builder default` to your command "
+            "and report the issue on #airflow-breeze channel in Airflow Slack[/]"
+        )
+        sys.exit(output.returncode)
+    return context
