@@ -271,7 +271,7 @@ with models.DAG(
     start_date=START_DATE,
     catchup=False,
     tags=["example"],
-) as dag_template:
+) as dag:
     # [START howto_operator_stop_dataflow_job]
     stop_dataflow_job = DataflowStopJobOperator(
         task_id="stop-dataflow-job",
@@ -289,3 +289,16 @@ with models.DAG(
     )
 
     stop_dataflow_job >> start_template_job
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+# Running the template run. Change the id to the desired run
+test_run = get_test_run(dag_template)
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

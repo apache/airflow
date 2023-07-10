@@ -26,6 +26,8 @@ from datetime import datetime
 from airflow import models
 from airflow.providers.google.cloud.operators.dataflow import DataflowStartFlexTemplateOperator
 
+DAG_ID = "example_gcp_dataflow_flex_template_java"
+
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
 DATAFLOW_FLEX_TEMPLATE_JOB_NAME = os.environ.get(
@@ -45,10 +47,10 @@ BQ_FLEX_TEMPLATE_DATASET = os.environ.get("GCP_DATAFLOW_BQ_FLEX_TEMPLATE_DATASET
 BQ_FLEX_TEMPLATE_LOCATION = os.environ.get("GCP_DATAFLOW_BQ_FLEX_TEMPLATE_LOCATION>", "us-west1")
 
 with models.DAG(
-    dag_id="example_gcp_dataflow_flex_template_java",
+    dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,
-) as dag_flex_template:
+) as dag:
     # [START howto_operator_start_template_job]
     start_flex_template = DataflowStartFlexTemplateOperator(
         task_id="start_flex_template_streaming_beam_sql",
@@ -67,3 +69,11 @@ with models.DAG(
         location=BQ_FLEX_TEMPLATE_LOCATION,
     )
     # [END howto_operator_start_template_job]
+
+    start_flex_template
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

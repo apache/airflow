@@ -26,6 +26,8 @@ from datetime import datetime
 from airflow import models
 from airflow.providers.google.cloud.operators.dataflow import DataflowStartSqlJobOperator
 
+DAG_ID = "example_gcp_dataflow_sql"
+
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
 BQ_SQL_DATASET = os.environ.get("GCP_DATAFLOW_BQ_SQL_DATASET", "airflow_dataflow_samples")
@@ -36,11 +38,11 @@ DATAFLOW_SQL_LOCATION = os.environ.get("GCP_DATAFLOW_SQL_LOCATION", "us-west1")
 
 
 with models.DAG(
-    dag_id="example_gcp_dataflow_sql",
+    dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example"],
-) as dag_sql:
+) as dag:
     # [START howto_operator_start_sql_job]
     start_sql = DataflowStartSqlJobOperator(
         task_id="start_sql_query",
@@ -65,3 +67,10 @@ with models.DAG(
         do_xcom_push=True,
     )
     # [END howto_operator_start_sql_job]
+
+    start_sql
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
