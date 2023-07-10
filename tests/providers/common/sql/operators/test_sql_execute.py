@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from typing import Any, NamedTuple, Sequence
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -354,3 +355,17 @@ FORGOT TO COMMENT"""
         )
         == lineage_on_complete
     )
+
+
+def test_with_no_openlineage_provider():
+    import importlib
+
+    def mock__import__(name, globals_=None, locals_=None, fromlist=(), level=0):
+        if level == 0 and name.startswith("airflow.providers.openlineage"):
+            raise ImportError("No provider 'apache-airflow-providers-openlineage'")
+        return importlib.__import__(name, globals=globals_, locals=locals_, fromlist=fromlist, level=level)
+
+    with mock.patch("builtins.__import__", side_effect=mock__import__):
+        op = SQLExecuteQueryOperator(task_id=TASK_ID, sql="SELECT 1;")
+        assert op.get_openlineage_facets_on_start() is None
+        assert op.get_openlineage_facets_on_complete(None) is None

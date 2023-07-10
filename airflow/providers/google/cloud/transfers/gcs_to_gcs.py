@@ -312,10 +312,11 @@ class GCSToGCSOperator(BaseOperator):
 
     def _copy_source_without_wildcard(self, hook, prefix):
         """
-        For source_objects with no wildcard, this operator would first list
-        all files in source_objects, using provided delimiter if any. Then copy
-        files from source_objects to destination_object and rename each source
-        file.
+        List all files in source_objects, copy files to destination_object, and rename each source file.
+
+        For source_objects with no wildcard, this operator would first list all
+        files in source_objects, using provided delimiter if any. Then copy files
+        from source_objects to destination_object and rename each source file.
 
         Example 1:
 
@@ -370,6 +371,8 @@ class GCSToGCSOperator(BaseOperator):
             self.source_bucket, prefix=prefix, delimiter=self.delimiter, match_glob=self.match_glob
         )
 
+        objects = [obj for obj in objects if self._check_exact_match(obj, prefix)]
+
         if not self.replace:
             # If we are not replacing, ignore files already existing in source buckets
             objects = self._ignore_existing_files(
@@ -405,7 +408,7 @@ class GCSToGCSOperator(BaseOperator):
     def _copy_directory(self, hook, source_objects, prefix):
         _prefix = prefix.rstrip("/") + "/"
         for source_obj in source_objects:
-            if self.exact_match and (source_obj != prefix or not source_obj.endswith(prefix)):
+            if not self._check_exact_match(source_obj, prefix):
                 continue
             if self.destination_object is None:
                 destination_object = source_obj
@@ -416,6 +419,12 @@ class GCSToGCSOperator(BaseOperator):
             self._copy_single_object(
                 hook=hook, source_object=source_obj, destination_object=destination_object
             )
+
+    def _check_exact_match(self, source_object: str, prefix: str) -> bool:
+        """Checks whether source_object's name matches the prefix according to the exact_match flag."""
+        if self.exact_match and (source_object != prefix or not source_object.endswith(prefix)):
+            return False
+        return True
 
     def _copy_source_with_wildcard(self, hook, prefix):
         total_wildcards = prefix.count(WILDCARD)

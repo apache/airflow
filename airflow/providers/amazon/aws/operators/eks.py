@@ -31,8 +31,9 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.eks import (
     EksCreateFargateProfileTrigger,
+    EksCreateNodegroupTrigger,
     EksDeleteFargateProfileTrigger,
-    EksNodegroupTrigger,
+    EksDeleteNodegroupTrigger,
 )
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
@@ -413,12 +414,11 @@ class EksCreateNodegroupOperator(BaseOperator):
 
         if self.deferrable:
             self.defer(
-                trigger=EksNodegroupTrigger(
-                    waiter_name="nodegroup_active",
+                trigger=EksCreateNodegroupTrigger(
                     cluster_name=self.cluster_name,
                     nodegroup_name=self.nodegroup_name,
                     aws_conn_id=self.aws_conn_id,
-                    region=self.region,
+                    region_name=self.region,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
@@ -711,12 +711,11 @@ class EksDeleteNodegroupOperator(BaseOperator):
         eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
         if self.deferrable:
             self.defer(
-                trigger=EksNodegroupTrigger(
-                    waiter_name="nodegroup_deleted",
+                trigger=EksDeleteNodegroupTrigger(
                     cluster_name=self.cluster_name,
                     nodegroup_name=self.nodegroup_name,
                     aws_conn_id=self.aws_conn_id,
-                    region=self.region,
+                    region_name=self.region,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),

@@ -109,8 +109,8 @@ export default function tiTooltip(ti, task, { includeTryNumber = false } = {}) {
   if (ti.map_index >= 0 && !ti.mapped_states) {
     tt += `Map Index: ${escapeHtml(ti.map_index)}<br>`;
   }
-  if (ti.operator !== undefined) {
-    tt += `Operator: ${escapeHtml(ti.operator)}<br>`;
+  if (ti.operator_name !== undefined) {
+    tt += `Operator: ${escapeHtml(ti.operator_name)}<br>`;
   }
   if (task && task.trigger_rule) {
     tt += `Trigger Rule: ${task.trigger_rule}<br>`;
@@ -170,8 +170,8 @@ export function taskQueuedStateTooltip(ti) {
   if (ti.run_id !== undefined) {
     tt += `Run Id: <nobr>${escapeHtml(ti.run_id)}</nobr><br>`;
   }
-  if (ti.operator !== undefined) {
-    tt += `Operator: ${escapeHtml(ti.operator)}<br>`;
+  if (ti.operator_name !== undefined) {
+    tt += `Operator: ${escapeHtml(ti.operator_name)}<br>`;
   }
   if (ti.start_date && ti.queued_dttm) {
     const startDate =

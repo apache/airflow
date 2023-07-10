@@ -183,24 +183,61 @@ class TestGetXComEntry(TestXComEndpoint):
         )
 
     @pytest.mark.parametrize(
-        "query, expected_value",
+        "allowed, query, expected_status_or_value",
         [
-            pytest.param("?deserialize=true", "real deserialized TEST_VALUE", id="true"),
-            pytest.param("?deserialize=false", "orm deserialized TEST_VALUE", id="false"),
-            pytest.param("", "orm deserialized TEST_VALUE", id="default"),
+            pytest.param(
+                True,
+                "?deserialize=true",
+                "real deserialized TEST_VALUE",
+                id="true",
+            ),
+            pytest.param(
+                False,
+                "?deserialize=true",
+                400,
+                id="disallowed",
+            ),
+            pytest.param(
+                True,
+                "?deserialize=false",
+                "orm deserialized TEST_VALUE",
+                id="false-irrelevant",
+            ),
+            pytest.param(
+                False,
+                "?deserialize=false",
+                "orm deserialized TEST_VALUE",
+                id="false",
+            ),
+            pytest.param(
+                True,
+                "",
+                "orm deserialized TEST_VALUE",
+                id="default-irrelevant",
+            ),
+            pytest.param(
+                False,
+                "",
+                "orm deserialized TEST_VALUE",
+                id="default",
+            ),
         ],
     )
     @conf_vars({("core", "xcom_backend"): "tests.api_connexion.endpoints.test_xcom_endpoint.CustomXCom"})
-    def test_custom_xcom_deserialize(self, query, expected_value):
+    def test_custom_xcom_deserialize(self, allowed: bool, query: str, expected_status_or_value: int | str):
         XCom = resolve_xcom_backend()
         self._create_xcom_entry("dag", "run", utcnow(), "task", "key", backend=XCom)
 
         url = f"/api/v1/dags/dag/dagRuns/run/taskInstances/task/xcomEntries/key{query}"
         with mock.patch("airflow.api_connexion.endpoints.xcom_endpoint.XCom", XCom):
-            response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
+            with conf_vars({("api", "enable_xcom_deserialize_support"): str(allowed)}):
+                response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
 
-        assert response.status_code == 200
-        assert response.json["value"] == expected_value
+        if isinstance(expected_status_or_value, int):
+            assert response.status_code == expected_status_or_value
+        else:
+            assert response.status_code == 200
+            assert response.json["value"] == expected_status_or_value
 
 
 class TestGetXComEntries(TestXComEndpoint):

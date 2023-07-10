@@ -516,6 +516,9 @@ hooks:
       - airflow.providers.amazon.aws.hooks.appflow
 
 triggers:
+  - integration-name: Amazon Web Services
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.base
   - integration-name: Amazon Athena
     python-modules:
       - airflow.providers.amazon.aws.triggers.athena

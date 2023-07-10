@@ -32,6 +32,7 @@ from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
     option_answer,
     option_backend,
+    option_builder,
     option_db_reset,
     option_dry_run,
     option_forward_credentials,
@@ -100,6 +101,7 @@ class MainGroupWithAliases(BreezeGroup):
 )
 @option_python
 @option_backend
+@option_builder
 @option_postgres_version
 @option_mysql_version
 @option_mssql_version

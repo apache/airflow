@@ -316,7 +316,7 @@ class EmrContainerSensor(BaseSensorOperator):
                     virtual_cluster_id=self.virtual_cluster_id,
                     job_id=self.job_id,
                     aws_conn_id=self.aws_conn_id,
-                    poll_interval=self.poll_interval,
+                    waiter_delay=self.poll_interval,
                 ),
                 method_name="execute_complete",
             )
@@ -501,9 +501,9 @@ class EmrJobFlowSensor(EmrBaseSensor):
                 timeout=timedelta(seconds=self.poke_interval * self.max_attempts),
                 trigger=EmrTerminateJobFlowTrigger(
                     job_flow_id=self.job_flow_id,
-                    max_attempts=self.max_attempts,
+                    waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    poll_interval=int(self.poke_interval),
+                    waiter_delay=int(self.poke_interval),
                 ),
                 method_name="execute_complete",
             )
@@ -628,9 +628,9 @@ class EmrStepSensor(EmrBaseSensor):
                 trigger=EmrStepSensorTrigger(
                     job_flow_id=self.job_flow_id,
                     step_id=self.step_id,
+                    waiter_delay=int(self.poke_interval),
+                    waiter_max_attempts=self.max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    max_attempts=self.max_attempts,
-                    poke_interval=int(self.poke_interval),
                 ),
                 method_name="execute_complete",
             )

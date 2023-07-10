@@ -35,6 +35,7 @@
     :caption: References
 
     Connection types <connections/sftp>
+    Sensors <sensors/sftp_sensor>
     Python API <_api/airflow/providers/sftp/index>
 
 .. toctree::
@@ -45,6 +46,12 @@
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-sftp/>
     Installing from sources <installing-providers-from-sources>
 
+.. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/sftp/index>
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 

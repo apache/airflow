@@ -28,6 +28,21 @@
 Changelog
 ---------
 
+3.2.2
+.....
+
+Misc
+~~~~
+
+* ``Add default_deferrable config (#31712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
+   * ``Improve provider documentation and README structure (#32125)``
+
 3.2.1
 .....
 

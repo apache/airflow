@@ -330,12 +330,12 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         return operator_lineage
 
     def get_openlineage_facets_on_complete(self, task_instance) -> OperatorLineage | None:
-        operator_lineage = self.get_openlineage_facets_on_start() or OperatorLineage()
-
         try:
             from airflow.providers.openlineage.extractors import OperatorLineage
         except ImportError:
-            return operator_lineage
+            return None
+
+        operator_lineage = self.get_openlineage_facets_on_start() or OperatorLineage()
 
         hook = self.get_db_hook()
         try:

@@ -148,6 +148,12 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-openlineage/**/*
     - tests/providers/openlineage/**/*
 
+  provider:elasticsearch:
+    - airflow/providers/elasticsearch/**/*
+    - docs/apache-airflow-providers-elasticsearch/**/*
+    - tests/providers/elasticsearch/**/*
+    - tests/system/providers/elasticsearch/**/*
+
   area:providers:
     - airflow/providers/**/*
     - docs/apache-airflow-providers-*/**/*

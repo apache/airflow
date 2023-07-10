@@ -171,6 +171,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-decorated-operator-implements-custom-name           | Check @task decorator implements custom_operator_name        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-deferrable-default-value                            | Check default value of deferrable attribute                  |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-docstring-param-types                               | Check that docstrings do not specify param types             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-example-dags-urls                                   | Check that example dags url include provider versions        |         |
@@ -234,6 +236,8 @@ require Breeze Docker image to be built locally.
 | check-tests-unittest-testcase                             | Check that unit tests do not inherit from unittest.TestCase  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-urlparse-usage-in-code                              | Don't use urlparse in code                                   |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-usage-of-re2-over-re                                | Use re2 module instead of re                                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-xml                                                 | Check XML files with xmllint                                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

@@ -25,6 +25,36 @@ from airflow.exceptions import AirflowException
 from airflow.operators.bash import BashOperator
 
 
+def make_task(name, type_, setup_=False, teardown_=False):
+    if type_ == "classic" and setup_:
+        return BashOperator(task_id=name, bash_command="echo 1").as_setup()
+    elif type_ == "classic" and teardown_:
+        return BashOperator(task_id=name, bash_command="echo 1").as_teardown()
+    elif type_ == "classic":
+        return BashOperator(task_id=name, bash_command="echo 1")
+    elif setup_:
+
+        @setup
+        def setuptask():
+            pass
+
+        return setuptask.override(task_id=name)()
+    elif teardown_:
+
+        @teardown
+        def teardowntask():
+            pass
+
+        return teardowntask.override(task_id=name)()
+    else:
+
+        @task
+        def my_task():
+            pass
+
+        return my_task.override(task_id=name)()
+
+
 class TestSetupTearDownTask:
     def test_marking_functions_as_setup_task(self, dag_maker):
         @setup
@@ -1114,7 +1144,7 @@ class TestSetupTearDownTask:
             print("teardowntask")
 
         with pytest.raises(
-            ValueError, match="All upstream tasks in the context manager must be a setup or teardown task"
+            ValueError, match="Upstream tasks to a teardown task must be a setup task on the context manager"
         ):
             with dag_maker():
                 with setuptask() >> mytask() >> teardowntask():
@@ -1130,7 +1160,7 @@ class TestSetupTearDownTask:
             print("setuptask")
 
         with pytest.raises(
-            ValueError, match="All upstream tasks in the context manager must be a setup or teardown task"
+            ValueError, match="Setup tasks cannot have upstreams set manually on the context manager"
         ):
             with dag_maker():
                 with mytask() >> setuptask():
@@ -1150,7 +1180,7 @@ class TestSetupTearDownTask:
             print("teardowntask")
 
         with pytest.raises(
-            ValueError, match="All upstream tasks in the context manager must be a setup or teardown task"
+            ValueError, match="Upstream tasks to a teardown task must be a setup task on the context manager"
         ):
             with dag_maker():
                 with mytask() >> context_wrapper([teardowntask(), teardowntask2()]):
@@ -1170,10 +1200,11 @@ class TestSetupTearDownTask:
             print("setuptask")
 
         with pytest.raises(
-            ValueError, match="All upstream tasks in the context manager must be a setup or teardown task"
+            ValueError,
+            match="Downstream tasks to a setup task must be a teardown task on the context manager",
         ):
             with dag_maker():
-                with mytask() >> context_wrapper([setuptask(), setuptask2()]):
+                with mytask() << context_wrapper([setuptask(), setuptask2()]):
                     ...
 
     def test_tasks_decorators_called_outside_context_manager_can_link_up(self, dag_maker):
@@ -1359,3 +1390,59 @@ class TestSetupTearDownTask:
         assert dag.task_group.children["mytask2"].upstream_task_ids == {"setuptask2"}
         assert dag.task_group.children["mytask2"].downstream_task_ids == {"teardowntask2"}
         assert dag.task_group.children["teardowntask2"].upstream_task_ids == {"mytask2", "setuptask2"}
+
+    def test_prevent_bad_usage_of_contextmanager(self, dag_maker):
+
+        with dag_maker():
+            setuptask = make_task("setuptask", type_="decorated", setup_=True)
+            teardowntask = make_task("teardowntask", type_="decorated", teardown_=True)
+            with pytest.raises(
+                ValueError,
+                match="Downstream to a teardown task cannot be set manually on the context manager",
+            ):
+                with setuptask << teardowntask:
+                    ...
+
+        with dag_maker():
+            setuptask = make_task("setuptask", type_="decorated", setup_=True)
+            setuptask2 = make_task("setuptask2", type_="decorated", setup_=True)
+            teardowntask = make_task("teardowntask", type_="decorated", teardown_=True)
+            with pytest.raises(ValueError, match="Multiple shifts are not allowed in the context manager"):
+                with setuptask >> setuptask2 >> teardowntask:
+                    ...
+
+        with dag_maker():
+            setuptask = make_task("setuptask", type_="decorated", setup_=True)
+            teardowntask = make_task("teardowntask", type_="decorated", teardown_=True)
+            with pytest.raises(
+                ValueError, match="Setup tasks cannot have upstreams set manually on the context manager"
+            ):
+                with teardowntask >> setuptask:
+                    ...
+
+        with dag_maker():
+            setuptask = make_task("setuptask", type_="decorated", setup_=True)
+            teardowntask = make_task("teardowntask", type_="decorated", teardown_=True)
+            teardowntask2 = make_task("teardowntask2", type_="decorated", teardown_=True)
+            with pytest.raises(ValueError, match="Multiple shifts are not allowed in the context manager"):
+                with teardowntask2 << teardowntask << setuptask:
+                    ...
+
+        with dag_maker():
+            setuptask = make_task("setuptask", type_="decorated", setup_=True)
+            teardowntask = make_task("teardowntask", type_="decorated", teardown_=True)
+            setuptask2 = make_task("setuptask2", type_="decorated", setup_=True)
+            with pytest.raises(
+                ValueError, match="Setup tasks cannot have upstreams set manually on the context manager"
+            ):
+                with teardowntask >> context_wrapper([setuptask2, setuptask]):
+                    ...
+
+        with dag_maker():
+            setuptask = make_task("setuptask", type_="decorated", setup_=True)
+            teardowntask = make_task("teardowntask", type_="decorated", teardown_=True)
+            setuptask2 = make_task("setuptask2", type_="decorated", setup_=True)
+            teardowntask2 = make_task("teardowntask2", type_="decorated", teardown_=True)
+            with pytest.raises(ValueError, match="Multiple shifts are not allowed in the context manager"):
+                with setuptask >> setuptask2 >> context_wrapper([teardowntask, teardowntask2]):
+                    ...
