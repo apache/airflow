@@ -545,6 +545,10 @@ def is_camel_case_with_acronyms(s: str):
     :param s: string to check
     :return: true if the name looks cool as Class name.
     """
+    if s and s[0] == "_":  # Leading underscores are fine.
+        s = s[1:]
+    if not s:
+        return True
     return s != s.lower() and s != s.upper() and "_" not in s and s[0].upper() == s[0]
 
 
@@ -567,7 +571,8 @@ def check_if_classes_are_properly_named(
             if not is_camel_case_with_acronyms(class_name):
                 console.print(
                     f"[red]The class {class_full_name} is wrongly named. The "
-                    f"class name should be CamelCaseWithACRONYMS ![/]"
+                    f"class name should be CamelCaseWithACRONYMS optionally "
+                    f"with a single leading underscore[/]"
                 )
                 error_encountered = True
             if not class_name.endswith(class_suffix):
