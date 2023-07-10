@@ -64,6 +64,7 @@ TASK_ID = "test-bq-generic-operator"
 TEST_DATASET = "test-dataset"
 TEST_DATASET_LOCATION = "EU"
 TEST_GCP_PROJECT_ID = "test-project"
+TEST_JOB_PROJECT_ID = "test-job-project"
 TEST_DELETE_CONTENTS = True
 TEST_TABLE_ID = "test-table-id"
 TEST_GCS_BUCKET = "test-bucket"
@@ -804,7 +805,8 @@ class TestBigQueryGetDataOperator:
             task_id=TASK_ID,
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
-            project_id=TEST_GCP_PROJECT_ID,
+            table_project_id=TEST_GCP_PROJECT_ID,
+            project_id=TEST_JOB_PROJECT_ID,
             max_results=max_results,
             selected_fields=selected_fields,
             location=TEST_DATASET_LOCATION,
@@ -816,20 +818,21 @@ class TestBigQueryGetDataOperator:
         mock_hook.return_value.list_rows.assert_called_once_with(
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
-            project_id=TEST_GCP_PROJECT_ID,
+            table_project_id=TEST_GCP_PROJECT_ID,
+            project_id=TEST_JOB_PROJECT_ID,
             max_results=max_results,
             selected_fields=selected_fields,
             location=TEST_DATASET_LOCATION,
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_generate_query__with_project_id(self, mock_hook):
+    def test_generate_query__with_table_project_id(self, mock_hook):
         operator = BigQueryGetDataOperator(
             gcp_conn_id=GCP_CONN_ID,
             task_id=TASK_ID,
             dataset_id=TEST_DATASET,
             table_id=TEST_TABLE_ID,
-            project_id=TEST_GCP_PROJECT_ID,
+            table_project_id=TEST_GCP_PROJECT_ID,
             max_results=100,
             use_legacy_sql=False,
         )
@@ -839,7 +842,7 @@ class TestBigQueryGetDataOperator:
         )
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
-    def test_generate_query__without_project_id(self, mock_hook):
+    def test_generate_query__without_table_project_id(self, mock_hook):
         hook_project_id = mock_hook.project_id
         operator = BigQueryGetDataOperator(
             gcp_conn_id=GCP_CONN_ID,

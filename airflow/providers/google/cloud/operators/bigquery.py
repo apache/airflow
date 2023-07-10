@@ -810,8 +810,8 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
 
     :param dataset_id: The dataset ID of the requested table. (templated)
     :param table_id: The table ID of the requested table. (templated)
-    :param project_id: (Optional) The name of the project where the data
-        will be returned from. If None, it will be derived from the hook's project ID. (templated)
+    :param table_project_id: (Optional) The project ID of the requested table. If None, it will be derived from the hook's project ID. (templated)
+    :param project_id: (Optional) Google Cloud Project where the job is running. (templated)
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
     :param selected_fields: List of fields to return (comma-separated). If
@@ -837,6 +837,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     template_fields: Sequence[str] = (
         "dataset_id",
         "table_id",
+        "table_project_id",
         "project_id",
         "max_results",
         "selected_fields",
@@ -849,6 +850,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         *,
         dataset_id: str,
         table_id: str,
+        table_project_id: str | None = None,
         project_id: str | None = None,
         max_results: int = 100,
         selected_fields: str | None = None,
@@ -863,6 +865,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     ) -> None:
         super().__init__(**kwargs)
 
+        self.table_project_id = table_project_id
         self.dataset_id = dataset_id
         self.table_id = table_id
         self.max_results = int(max_results)
@@ -887,7 +890,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         return hook.insert_job(
             configuration=configuration,
             location=self.location,
-            project_id=hook.project_id,
+            project_id=self.project_id or hook.project_id,
             job_id=job_id,
             nowait=True,
         )
@@ -900,7 +903,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         else:
             query += "*"
         query += (
-            f" from `{self.project_id or hook.project_id}.{self.dataset_id}"
+            f" from `{self.table_project_id or hook.project_id}.{self.dataset_id}"
             f".{self.table_id}` limit {self.max_results}"
         )
         return query
@@ -915,7 +918,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         if not self.deferrable:
             self.log.info(
                 "Fetching Data from %s.%s.%s max results: %s",
-                self.project_id or hook.project_id,
+                self.table_project_id or hook.project_id,
                 self.dataset_id,
                 self.table_id,
                 self.max_results,
@@ -924,7 +927,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 schema: dict[str, list] = hook.get_schema(
                     dataset_id=self.dataset_id,
                     table_id=self.table_id,
-                    project_id=self.project_id,
+                    project_id=self.table_project_id or hook.project_id,
                 )
                 if "fields" in schema:
                     self.selected_fields = ",".join([field["name"] for field in schema["fields"]])
@@ -935,7 +938,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 max_results=self.max_results,
                 selected_fields=self.selected_fields,
                 location=self.location,
-                project_id=self.project_id,
+                project_id=self.table_project_id or hook.project_id,
             )
 
             if isinstance(rows, RowIterator):
@@ -961,7 +964,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 job_id=job.job_id,
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
-                project_id=hook.project_id,
+                project_id=self.project_id or hook.project_id,
                 poll_interval=self.poll_interval,
                 as_dict=self.as_dict,
             ),
