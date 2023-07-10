@@ -31,6 +31,7 @@ from functools import partial
 from typing import IO, TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.models import BaseOperator
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.apache.beam.triggers.beam import BeamPipelineTrigger
@@ -267,7 +268,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         py_system_site_packages: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         dataflow_config: DataflowConfiguration | dict | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(
