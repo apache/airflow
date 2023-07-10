@@ -2722,6 +2722,8 @@ class DAG(LoggingMixin):
             session=session,
         )
         self.log.debug("Getting dagrun for dag %s", self.dag_id)
+        logical_date = timezone.coerce_datetime(execution_date)
+        data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
         dr: DagRun = _get_or_create_dagrun(
             dag=self,
             start_date=execution_date,
@@ -2729,6 +2731,7 @@ class DAG(LoggingMixin):
             run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
             session=session,
             conf=run_conf,
+            data_interval=data_interval,
         )
 
         tasks = self.task_dict
@@ -3895,6 +3898,7 @@ def _get_or_create_dagrun(
     execution_date: datetime,
     run_id: str,
     session: Session,
+    data_interval: tuple[datetime, datetime] | None = None,
 ) -> DagRun:
     """Create a DAG run, replacing an existing instance if needed to prevent collisions.
 
@@ -3922,6 +3926,7 @@ def _get_or_create_dagrun(
         start_date=start_date or execution_date,
         session=session,
         conf=conf,
+        data_interval=data_interval,
     )
     log.info("created dagrun %s", dr)
     return dr
