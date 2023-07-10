@@ -53,6 +53,12 @@ For convenience we can do this in one line by passing ``create_cluster`` to the 
 
   create_cluster >> run_query >> delete_cluster.as_teardown(setups=create_cluster)
 
+Observations:
+
+  * If you clear ``run_query`` to run it again, then both ``create_cluster`` and ``delete_cluster`` will be cleared.
+  * If ``run_query`` fails, then ``delete_cluster`` will still run.
+  * The success of the dag run will depend *only* on the success of ``run_query``.
+
 Additionally, if we have multiple tasks to wrap, we can use the teardown as a context manager:
 
 .. code-block:: python
@@ -69,12 +75,6 @@ Note that if you are attempting to add an already-instantiated task to a setup c
 
   with my_teardown_task as scope:
       scope.add_task(work_task)  # work_task was already instantiated elsewhere
-
-Observations:
-
-  * If you clear ``run_query`` to run it again, then both ``create_cluster`` and ``delete_cluster`` will be cleared.
-  * If ``run_query`` fails, then ``delete_cluster`` will still run.
-  * The success of the dag run will depend *only* on the success of ``run_query``.
 
 Setup "scope"
 """""""""""""
