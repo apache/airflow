@@ -19,7 +19,7 @@ from __future__ import annotations
 import pickle
 
 import pytest
-from sqlalchemy import or_
+from sqlalchemy import or_, select
 
 from airflow.api_connexion.schemas.xcom_schema import (
     XComCollection,
@@ -142,14 +142,15 @@ class TestXComCollectionSchema:
             execution_date=self.time_2,
             key="test_key_2",
         )
-        xcom_models_query = session.query(XCom).filter(
-            or_(XCom.execution_date == self.time_1, XCom.execution_date == self.time_2)
-        )
-        xcom_models_queried = xcom_models_query.all()
+        xcom_models = session.scalars(
+            select(XCom)
+            .where(or_(XCom.execution_date == self.time_1, XCom.execution_date == self.time_2))
+            .order_by(XCom.dag_run_id)
+        ).all()
         deserialized_xcoms = xcom_collection_schema.dump(
             XComCollection(
-                xcom_entries=xcom_models_queried,
-                total_entries=xcom_models_query.count(),
+                xcom_entries=xcom_models,
+                total_entries=len(xcom_models),
             )
         )
         _compare_xcom_collections(
