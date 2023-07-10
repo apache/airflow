@@ -49,6 +49,8 @@ def get_xcom_entries(
     dag_id: str,
     dag_run_id: str,
     task_id: str,
+    map_index: int | None = None,
+    xcom_key: str | None = None,
     limit: int | None,
     offset: int | None = None,
     session: Session = NEW_SESSION,
@@ -68,6 +70,10 @@ def get_xcom_entries(
         query = query.where(XCom.task_id == task_id)
     if dag_run_id != "~":
         query = query.where(DR.run_id == dag_run_id)
+    if map_index is not None:
+        query = query.where(XCom.map_index == map_index)
+    if xcom_key is not None:
+        query = query.where(XCom.key == xcom_key)
     query = query.order_by(DR.execution_date, XCom.task_id, XCom.dag_id, XCom.key)
     total_entries = session.execute(select(func.count()).select_from(query)).scalar()
     query = session.scalars(query.offset(offset).limit(limit))
@@ -89,6 +95,7 @@ def get_xcom_entry(
     task_id: str,
     dag_run_id: str,
     xcom_key: str,
+    map_index: int = -1,
     deserialize: bool = False,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
@@ -100,7 +107,9 @@ def get_xcom_entry(
     else:
         query = select(XCom)
 
-    query = query.where(XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.key == xcom_key)
+    query = query.where(
+        XCom.dag_id == dag_id, XCom.task_id == task_id, XCom.key == xcom_key, XCom.map_index == map_index
+    )
     query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))
     query = query.where(DR.run_id == dag_run_id)
 
