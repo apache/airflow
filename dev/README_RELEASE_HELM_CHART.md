@@ -634,6 +634,9 @@ between the two repositories to be able to build the documentation.
 
     ```shell
     cd "${AIRFLOW_SITE_DIRECTORY}"
+    cd post-docs
+    python add-back-references.py helm
+    cd ..
     curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/$RC/index.yaml -o index.yaml
     cp ${AIRFLOW_SVN_RELEASE_HELM}/${VERSION}/airflow-${VERSION}.tgz .
     helm repo index --merge ./index.yaml . --url "https://downloads.apache.org/airflow/helm-chart/$VERSION"

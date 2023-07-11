@@ -72,12 +72,19 @@ def _run_dag_backfill(dags: list[DAG], args) -> None:
 
         if args.dry_run:
             print(f"Dry run of DAG {dag.dag_id} on {args.start_date}")
-            dr = DagRun(dag.dag_id, execution_date=args.start_date)
-            for task in dag.tasks:
-                print(f"Task {task.task_id} located in DAG {dag.dag_id}")
-                ti = TaskInstance(task, run_id=None)
-                ti.dag_run = dr
-                ti.dry_run()
+            dagrun_infos = dag.iter_dagrun_infos_between(earliest=args.start_date, latest=args.end_date)
+            for dagrun_info in dagrun_infos:
+                dr = DagRun(
+                    dag.dag_id,
+                    execution_date=dagrun_info.logical_date,
+                    data_interval=dagrun_info.data_interval,
+                )
+
+                for task in dag.tasks:
+                    print(f"Task {task.task_id} located in DAG {dag.dag_id}")
+                    ti = TaskInstance(task, run_id=None)
+                    ti.dag_run = dr
+                    ti.dry_run()
         else:
             if args.reset_dagruns:
                 DAG.clear_dags(

@@ -360,6 +360,23 @@ class TestTriggerer:
         )
 
     @pytest.mark.parametrize(
+        "airflow_version, probe_command",
+        [
+            ("2.4.9", "airflow jobs check --job-type TriggererJob --hostname $(hostname)"),
+            ("2.5.0", "airflow jobs check --job-type TriggererJob --local"),
+        ],
+    )
+    def test_livenessprobe_command_depends_on_airflow_version(self, airflow_version, probe_command):
+        docs = render_chart(
+            values={"airflowVersion": f"{airflow_version}"},
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+        assert (
+            probe_command
+            in jmespath.search("spec.template.spec.containers[0].livenessProbe.exec.command", docs[0])[-1]
+        )
+
+    @pytest.mark.parametrize(
         "log_persistence_values, expected_volume",
         [
             ({"enabled": False}, {"emptyDir": {}}),

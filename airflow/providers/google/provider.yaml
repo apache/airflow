@@ -107,6 +107,7 @@ dependencies:
   - google-cloud-spanner>=3.11.1
   - google-cloud-speech>=2.18.0
   - google-cloud-storage>=2.7.0
+  - google-cloud-storage-transfer>=1.4.1
   - google-cloud-tasks>=2.13.0
   - google-cloud-texttospeech>=2.14.1
   - google-cloud-translate>=3.11.0
@@ -848,6 +849,9 @@ triggers:
   - integration-name: Google Cloud Composer
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_composer
+  - integration-name: Google Cloud Storage Transfer Service
+    python-modules:
+      - airflow.providers.google.cloud.triggers.cloud_storage_transfer_service
   - integration-name: Google Cloud SQL
     python-modules:
       - airflow.providers.google.cloud.triggers.cloud_sql
@@ -1007,7 +1011,10 @@ transfers:
     target-integration-name: Google Cloud Storage (GCS)
     python-module: airflow.providers.google.cloud.transfers.mssql_to_gcs
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/mssql_to_gcs.rst
-
+  - source-integration-name: Microsoft Azure Blob Storage
+    target-integration-name: Google Cloud Storage (GCS)
+    python-module: airflow.providers.google.cloud.transfers.azure_blob_to_gcs
+    how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/azure_blob_to_gcs.rst
 
 connection-types:
   - hook-class-name: airflow.providers.google.common.hooks.base_google.GoogleBaseHook
