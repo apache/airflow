@@ -924,9 +924,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
             if not self.table_project_id:
                 self.table_project_id = self.project_id
             else:
-                self.log.info(
-                    "Ignoring project_id parameter, as table_project_id is found."
-                )
+                self.log.info("Ignoring project_id parameter, as table_project_id is found.")
 
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
