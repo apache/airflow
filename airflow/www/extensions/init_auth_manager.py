@@ -29,7 +29,6 @@ def init_auth_manager() -> BaseAuthManager:
 
     Import the user manager class, instantiate it and return it.
     """
-    global auth_manager
     auth_manager_cls = conf.getimport(section="core", key="auth_manager")
 
     if not auth_manager_cls:
