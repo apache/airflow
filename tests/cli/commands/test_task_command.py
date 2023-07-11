@@ -33,7 +33,7 @@ from unittest.mock import sentinel
 
 import pendulum
 import pytest
-import sqlalchemy.exc
+from sqlalchemy.exc import NoResultFound
 
 from airflow import DAG
 from airflow.cli import cli_parser
@@ -500,14 +500,14 @@ class TestCliTasks:
         assert 'echo "2022-01-01"' in output
         assert 'echo "2022-01-08"' in output
 
-    @mock.patch("sqlalchemy.orm.session.Session.query")
+    @mock.patch("sqlalchemy.orm.session.Session.scalar")
     @mock.patch("airflow.cli.commands.task_command.DagRun")
     def test_task_render_with_custom_timetable(self, mock_dagrun, mock_query):
         """
         when calling `tasks render` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
         """
-        mock_query.side_effect = sqlalchemy.exc.NoResultFound
+        mock_query.side_effect = NoResultFound
 
         task_command.task_render(
             self.parser.parse_args(["tasks", "render", "example_workday_timetable", "run_this", "2022-01-01"])

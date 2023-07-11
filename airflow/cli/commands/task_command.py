@@ -112,9 +112,9 @@ def _get_dag_run(
         with suppress(ParserError, TypeError):
             execution_date = timezone.parse(exec_date_or_run_id)
         try:
-            dag_run = session.scalars(
+            dag_run = session.scalar(
                 select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
-            ).one()
+            )
 
         except NoResultFound:
             if not create_if_necessary:
