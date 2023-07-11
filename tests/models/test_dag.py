@@ -106,6 +106,18 @@ def clear_datasets():
     clear_db_datasets()
 
 
+def make_task(name, type_="classic"):
+    if type_ == "classic":
+        return BashOperator(task_id=name, bash_command="echo 1")
+    else:
+
+        @task_decorator
+        def my_task():
+            pass
+
+        return my_task.override(task_id=name)()
+
+
 class TestDag:
     def setup_method(self) -> None:
         clear_db_runs()
@@ -3939,7 +3951,7 @@ class TestTaskClearingSetupTeardownBehavior:
 
         with dag_maker("test_dag") as dag:
             s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
-            w1 >> w2
+            s1 >> w1 >> w2
             with s1 >> t1:
                 ...
         with pytest.raises(
@@ -3951,9 +3963,23 @@ class TestTaskClearingSetupTeardownBehavior:
         with dag_maker("test_dag") as dag:
             s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
             s1 >> t1 >> w1 >> w2
+            s1 >> w1
 
         with pytest.raises(
             AirflowDagInconsistent,
             match="Dag has teardown task without an upstream work task: dag='test_dag', task='t1'",
+        ):
+            dag.validate()
+
+        with dag_maker("test_dag") as dag:
+            s1 = make_task("s1")
+            w1 = make_task("w1")
+            w2 = make_task("w2")
+            t1 = make_task("t1")
+            w1 >> w2 >> t1.as_teardown(setups=s1)
+
+        with pytest.raises(
+            AirflowDagInconsistent,
+            match="Dag has setup task without a downstream work task: dag='test_dag', task='s1'",
         ):
             dag.validate()

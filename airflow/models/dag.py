@@ -714,15 +714,22 @@ class DAG(LoggingMixin):
         :meta private:
         """
         for task in self.tasks:
-            if task.is_setup and not any(x.is_teardown for x in task.downstream_list):
-                raise AirflowDagInconsistent(
-                    f"Dag has setup without teardown: dag='{self.dag_id}', task='{task.task_id}'"
-                )
-            if task.is_teardown and all(x.is_setup for x in task.upstream_list):
-                raise AirflowDagInconsistent(
-                    f"Dag has teardown task without an upstream work task: dag='{self.dag_id}',"
-                    f" task='{task.task_id}'"
-                )
+            if task.is_setup:
+                if not any(x.is_teardown for x in task.downstream_list):
+                    raise AirflowDagInconsistent(
+                        f"Dag has setup without teardown: dag='{self.dag_id}', task='{task.task_id}'"
+                    )
+                if not [x for x in task.downstream_list if not x.is_teardown and not x.is_setup]:
+                    raise AirflowDagInconsistent(
+                        f"Dag has setup task without a downstream work task: dag='{self.dag_id}',"
+                        f" task='{task.task_id}'"
+                    )
+            if task.is_teardown:
+                if all(x.is_setup for x in task.upstream_list):
+                    raise AirflowDagInconsistent(
+                        f"Dag has teardown task without an upstream work task: dag='{self.dag_id}',"
+                        f" task='{task.task_id}'"
+                    )
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
