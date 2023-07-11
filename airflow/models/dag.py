@@ -2771,6 +2771,7 @@ class DAG(LoggingMixin):
                     continue
                 # Special case: TI resumes from deferred state.
                 try:
+                    add_logger_if_needed(ti)
                     ti.task = tasks[ti.task_id]
                     _run_task(ti, session=session)
                 except Exception:
