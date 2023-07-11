@@ -19,16 +19,13 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
-import dill
 import pendulum
 from pydantic import BaseModel as BaseModelPydantic
 from sqlalchemy.orm import Session
 
 from airflow.models import Operator
-from airflow.models.taskinstance import hybrid_property
 from airflow.utils.context import Context
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import ExecutorConfigType
 from airflow.utils.state import DagRunState
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
@@ -46,11 +43,12 @@ class TaskInstancePydantic(BaseModelPydantic):
     dag_id: str
     run_id: str
     map_index: int
-    start_date: datetime
+    start_date: Optional[datetime]
     end_date: Optional[datetime]
-    execution_date: datetime
+    execution_date: Optional[datetime]
     duration: Optional[float]
     state: Optional[str]
+    try_number: int
     _try_number: int
     max_tries: int
     hostname: str
@@ -65,7 +63,7 @@ class TaskInstancePydantic(BaseModelPydantic):
     queued_dttm: Optional[str]
     queued_by_job_id: Optional[int]
     pid: Optional[int]
-    executor_config = ExecutorConfigType(pickler=dill)
+    executor_config: Any
     updated_at: Optional[datetime]
     external_executor_id: Optional[str]
     trigger_id: Optional[int]
@@ -235,31 +233,6 @@ class TaskInstancePydantic(BaseModelPydantic):
             context=context,
             force_fail=force_fail,
         )
-
-    @hybrid_property
-    def try_number(self):
-        """
-        Return the try number that a task number will be when it is actually run.
-
-        If the TaskInstance is currently running, this will match the column in the
-        database, in all other cases this will be incremented.
-
-        This is designed so that task logs end up in the right file.
-        """
-        from airflow.models.taskinstance import _get_try_number
-
-        return _get_try_number(self)
-
-    @try_number.setter
-    def try_number(self, value: int) -> None:
-        """
-        Set a task try number.
-
-        :param value: the try number
-        """
-        from airflow.models.taskinstance import _set_try_number
-
-        _set_try_number(self, value)
 
     def refresh_from_task(self, task: Operator, pool_override: str | None = None) -> None:
         """

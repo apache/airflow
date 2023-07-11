@@ -358,7 +358,7 @@ def _creator_note(val):
         return TaskInstanceNote(*val)
 
 
-def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context, task_orig):
+def _execute_task(task_instance, context, task_orig):
     """
     Executes Task (optionally with a Timeout) and pushes Xcom results.
 
@@ -523,7 +523,7 @@ def _clear_next_method_args(task_instance: TaskInstance | TaskInstancePydantic) 
 
 
 def _get_template_context(
-    task_instance: TaskInstance | TaskInstancePydantic,
+    task_instance,
     session: Session | None = None,
     ignore_param_exceptions: bool = True,
 ) -> Context:
