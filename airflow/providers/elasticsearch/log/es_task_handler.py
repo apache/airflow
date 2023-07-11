@@ -24,7 +24,7 @@ from collections import defaultdict
 from datetime import datetime
 from operator import attrgetter
 from time import time
-from typing import TYPE_CHECKING, Any, List, Tuple, Dict
+from typing import TYPE_CHECKING, Any, List, Tuple
 from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -123,8 +123,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         self.formatter: logging.Formatter
         self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
-        self._doc_type_map: Dict[Any, Any] = {}
-        self._doc_type: List[Any] = []
+        self._doc_type_map: dict[Any, Any] = {}
+        self._doc_type: list[Any] = []
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:
@@ -282,7 +282,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         :param offset: the offset start to read log from.
         :param metadata: log metadata, used for steaming log download.
         """
-        query: Dict[Any, Any] = {
+        query: dict[Any, Any] = {
             "query": {
                 "bool": {
                     "filter": [{"range": {self.offset_field: {"gt": int(offset)}}}],
@@ -300,7 +300,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             self.log.exception("Could not get current log size with log_id: %s", log_id)
             raise e
 
-        logs: List[Any] | ElasticSearchResponse = []
+        logs: list[Any] | ElasticSearchResponse = []
         if max_log_line != 0:
             try:
                 query.update({"sort": [self.offset_field]})
