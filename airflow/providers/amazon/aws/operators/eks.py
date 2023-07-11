@@ -21,7 +21,7 @@ import logging
 import warnings
 from ast import literal_eval
 from datetime import timedelta
-from typing import TYPE_CHECKING, List, Sequence, cast
+from typing import TYPE_CHECKING, Any, List, Sequence, cast
 
 from botocore.exceptions import ClientError, WaiterError
 
@@ -331,7 +331,7 @@ class EksCreateClusterOperator(BaseOperator):
             subnets=cast(List[str], self.resources_vpc_config.get("subnetIds")),
         )
 
-    def deferrable_create_cluster_next(self, context, event=None):
+    def deferrable_create_cluster_next(self, context: Context, event: dict[str, Any] = {}) -> None:
         if event["status"] == "failed":
             self.log.error("Cluster failed to start and will be torn down.")
             self.eks_hook.delete_cluster(name=self.cluster_name)
@@ -342,7 +342,7 @@ class EksCreateClusterOperator(BaseOperator):
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
                     region_name=self.region,
-                    delete_resources=False,
+                    force_delete_compute=False,
                 ),
                 method_name="execute_failed",
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
@@ -393,18 +393,17 @@ class EksCreateClusterOperator(BaseOperator):
                     timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 )
 
-    def execute_failed(self, context, event=None):
+    def execute_failed(self, context: Context, event: dict[str, Any] = {}) -> None:
         if event["status"] == "delteted":
             self.log.info("Cluster deleted")
             raise event["exception"]
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] = {}) -> None:
         resource = "fargate profile" if self.compute == "fargate" else self.compute
         if event["status"] != "success":
             raise AirflowException(f"Error creating {resource}: {event}")
-        else:
-            self.log.info("%s created successfully", resource)
-        return
+
+        self.log.info("%s created successfully", resource)
 
 
 class EksCreateNodegroupOperator(BaseOperator):
@@ -715,7 +714,7 @@ class EksDeleteClusterOperator(BaseOperator):
                 method_name="execute_complete",
                 timeout=timedelta(seconds=self.waiter_delay * self.waiter_max_attempts),
             )
-        if self.force_delete_compute:
+        elif self.force_delete_compute:
             self.delete_any_nodegroups(eks_hook)
             self.delete_any_fargate_profiles(eks_hook)
 
@@ -763,7 +762,7 @@ class EksDeleteClusterOperator(BaseOperator):
                 )
         self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
 
-    def execute_complete(self, context, event=None):
+    def execute_complete(self, context: Context, event: dict[str, Any] = {}) -> None:
         if event["status"] == "success":
             self.log.info("Cluster deleted successfully.")
 
