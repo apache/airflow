@@ -411,10 +411,13 @@ def build_docs(
 
 
 @main.command(name="publish-docs")
-@click.option("-d", "--disable-checks", help="Disables extra checks.", is_flag=True)
 @click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
 @click.option(
-    "-s", "--airflow-site-directory", help="Local directory path of cloned airflow-site repo.", required=True
+    "-a",
+    "--airflow-site-directory",
+    envvar="AIRFLOW_SITE_DIRECTORY",
+    help="Local directory path of cloned airflow-site repo.",
+    required=True,
 )
 @click.option(
     "--package-filter",
@@ -425,7 +428,6 @@ def build_docs(
 @option_verbose
 @option_dry_run
 def publish_docs(
-    disable_checks: bool,
     override_versioned: bool,
     airflow_site_directory: bool,
     package_filter: tuple[str],

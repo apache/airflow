@@ -26,7 +26,7 @@ from subprocess import run
 
 from rich.console import Console
 
-from .errors import DocBuildError, parse_sphinx_warnings
+from .docs_errors import DocBuildError, parse_sphinx_warnings
 from .helm_chart_utils import chart_version
 from .publish_docs_helpers import ALL_PROVIDER_YAMLS, pretty_format_path
 from .spelling_checks import SpellingError, parse_spelling_warnings
