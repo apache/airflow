@@ -41,7 +41,7 @@ class TestEventBridgePutEventsOperator:
 
     @mock.patch.object(EventBridgeHook, "conn")
     def test_execute(self, mock_conn: MagicMock):
-        hook_response = {"Entries": [{"EventId": "foobar"}]}
+        hook_response = {"FailedEntryCiunt": 0, "Entries": [{"EventId": "foobar"}]}
 
         mock_conn.put_events.return_value = hook_response
 

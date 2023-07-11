@@ -16,14 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-from typing import Sequence
+from functools import cached_property
+from typing import TYPE_CHECKING, Sequence
 
 from airflow import AirflowException
-from airflow.decorators.base import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eventbridge import EventBridgeHook
 from airflow.providers.amazon.aws.utils import trim_none_values
-from airflow.utils.context import Context
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class EventBridgePutEventsOperator(BaseOperator):
@@ -74,7 +76,7 @@ class EventBridgePutEventsOperator(BaseOperator):
 
         # If events have failed, log those error codes and messages to console, and raise an exception.
 
-        if "FailedEntryCount" in response:
+        if response.get("FailedEntryCount"):
             self.log.error("Some events have failed to send.")
             for event in response["Entries"]:
                 if "ErrorCode" in event:
@@ -84,4 +86,5 @@ class EventBridgePutEventsOperator(BaseOperator):
                 f"{response['FailedEntryCount']} entries in this request have failed to send."
             )
 
-        return [e["EventId"] for e in response["Entries"]]
+        if self.do_xcom_push:
+            return [e["EventId"] for e in response["Entries"]]
