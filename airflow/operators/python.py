@@ -30,9 +30,10 @@ from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Collection, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence
 
 import dill
+from pendulum import DateTime
 
 from airflow.exceptions import (
     AirflowConfigException,
@@ -251,13 +252,16 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.log.info("Proceeding with downstream tasks...")
             return condition
 
-        downstream_tasks = context["task"].get_flat_relatives(upstream=False)
+        downstream_tasks = [
+            x for x in context["task"].get_flat_relatives(upstream=False) if not x.is_teardown
+        ]
         self.log.debug("Downstream task IDs %s", downstream_tasks)
 
         if downstream_tasks:
             dag_run = context["dag_run"]
             execution_date = dag_run.execution_date
-
+            if TYPE_CHECKING:
+                assert isinstance(execution_date, DateTime)
             if self.ignore_downstream_trigger_rules is True:
                 self.log.info("Skipping all downstream tasks...")
                 self.skip(dag_run, execution_date, downstream_tasks, map_index=context["ti"].map_index)
@@ -266,9 +270,11 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
                 # Explicitly setting the state of the direct, downstream task(s) to "skipped" and letting the
                 # Scheduler handle the remaining downstream task(s) appropriately.
                 self.skip(
-                    dag_run,
-                    execution_date,
-                    context["task"].get_direct_relatives(upstream=False),
+                    dag_run=dag_run,
+                    execution_date=execution_date,
+                    tasks=(
+                        x for x in context["task"].get_direct_relatives(upstream=False) if not x.is_teardown
+                    ),
                     map_index=context["ti"].map_index,
                 )
 

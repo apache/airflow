@@ -69,13 +69,14 @@ from airflow.models.abstractoperator import (
     DEFAULT_WAIT_FOR_PAST_DEPENDS_BEFORE_SKIPPING,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
+    Operator,
     TaskStateChangeCallback,
 )
 from airflow.models.mappedoperator import OperatorPartial, validate_mapping_kwargs
 from airflow.models.param import ParamsDict
 from airflow.models.pool import Pool
 from airflow.models.taskinstance import TaskInstance, clear_task_instances
-from airflow.models.taskmixin import DAGNode, DependencyMixin
+from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
@@ -1373,7 +1374,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 self.log.info("Rendering template for %s", field)
                 self.log.info(content)
 
-    def get_direct_relatives(self, upstream: bool = False) -> Iterable[DAGNode]:
+    def get_direct_relatives(self, upstream: bool = False) -> Iterable[Operator]:
         """
         Get list of the direct relatives to the current task, upstream or
         downstream.

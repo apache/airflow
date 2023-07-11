@@ -27,6 +27,7 @@ from collections import namedtuple
 from datetime import date, datetime, timedelta
 from subprocess import CalledProcessError
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 from slugify import slugify
@@ -35,7 +36,7 @@ from airflow.decorators import task_group
 from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.taskinstance import clear_task_instances, set_current_context
+from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
     BranchPythonOperator,
@@ -1145,3 +1146,45 @@ class TestCurrentContextRuntime:
         with DAG(dag_id="edge_case_context_dag", default_args=DEFAULT_ARGS, schedule="@once"):
             op = PythonOperator(python_callable=get_all_the_context, task_id="get_all_the_context")
             op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
+
+
+@pytest.mark.parametrize(
+    "ignore_downstream_trigger_rules, with_teardown, should_skip, expected",
+    [
+        (False, True, True, ["op2"]),
+        (False, True, False, []),
+        (False, False, True, ["op2"]),
+        (False, False, False, []),
+        (True, True, True, ["op2", "op3"]),
+        (True, True, False, []),
+        (True, False, True, ["op2", "op3", "op4"]),
+        (True, False, False, []),
+    ],
+)
+def test_short_circuit_with_teardowns(
+    dag_maker, ignore_downstream_trigger_rules, should_skip, with_teardown, expected
+):
+    with dag_maker() as dag:
+        op1 = ShortCircuitOperator(
+            task_id="op1",
+            python_callable=lambda: not should_skip,
+            ignore_downstream_trigger_rules=ignore_downstream_trigger_rules,
+        )
+        op2 = PythonOperator(task_id="op2", python_callable=print)
+        op3 = PythonOperator(task_id="op3", python_callable=print)
+        op4 = PythonOperator(task_id="op4", python_callable=print)
+        if with_teardown:
+            op4.as_teardown()
+        op1 >> op2 >> op3 >> op4
+        op1.skip = MagicMock()
+        dagrun = dag_maker.create_dagrun()
+        tis = dagrun.get_task_instances()
+        ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+        ti._run_raw_task()
+        expected_tasks = {dag.task_dict[x] for x in expected}
+    if should_skip:
+        # we can't use assert_called_with because it's a set and therefore not ordered
+        actual_skipped = set(op1.skip.call_args.args[2])
+        assert actual_skipped == expected_tasks
+    else:
+        op1.skip.assert_not_called()
