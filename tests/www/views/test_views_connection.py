@@ -323,7 +323,7 @@ def test_duplicate_connection(admin_client):
         "test_duplicate_postgres_connection_copy1",
         "test_duplicate_postgres_connection_copy2",
     }
-    connections_ids = {conn.conn_id for conn in session.query(Connection.conn_id).all()}
+    connections_ids = {conn.conn_id for conn in session.query(Connection.conn_id)}
     assert expected_connections_ids == connections_ids
 
 
@@ -354,7 +354,7 @@ def test_duplicate_connection_error(admin_client):
     assert resp.status_code == 200
 
     expected_connections_ids = {f"test_duplicate_postgres_connection_copy{i}" for i in range(1, 11)}
-    connections_ids = {conn.conn_id for conn in session.query(Connection.conn_id).all()}
+    connections_ids = {conn.conn_id for conn in session.query(Connection.conn_id)}
     assert expected_connections_ids == connections_ids
 
 
