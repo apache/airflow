@@ -58,15 +58,45 @@ def test_create_connection(admin_client, session):
     _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
 
 
-def test_invalid_connection_id_trailing_blanks(admin_client, session):
-    invalid_conn_id = "conn_id_with_trailing_blanks   "
-    invalid_connection = {**CONNECTION, "conn_id": invalid_conn_id}
-    resp = admin_client.post("/connection/add", data=invalid_connection, follow_redirects=True)
-    check_content_in_response(
-        f"The key '{invalid_conn_id}' has to be made of alphanumeric characters, "
-        + "dashes, dots and underscores exclusively",
-        resp,
-    )
+def test_connection_id_trailing_blanks(admin_client, session):
+    conn_id_with_blanks = "conn_id_with_trailing_blanks   "
+    conn = {**CONNECTION, "conn_id": conn_id_with_blanks}
+    resp = admin_client.post("/connection/add", data=conn, follow_redirects=True)
+    check_content_in_response("Added Row", resp)
+
+    conn = session.query(Connection).one()
+    assert "conn_id_with_trailing_blanks" == conn.conn_id
+
+
+def test_connection_id_leading_blanks(admin_client, session):
+    conn_id_with_blanks = "   conn_id_with_leading_blanks"
+    conn = {**CONNECTION, "conn_id": conn_id_with_blanks}
+    resp = admin_client.post("/connection/add", data=conn, follow_redirects=True)
+    check_content_in_response("Added Row", resp)
+
+    conn = session.query(Connection).one()
+    assert "conn_id_with_leading_blanks" == conn.conn_id
+
+
+def test_all_fields_with_blanks(admin_client, session):
+    connection = {
+        **CONNECTION,
+        "conn_id": "   connection_id_with_space",
+        "description": "  a sample http connection with leading and trailing blanks  ",
+        "host": "localhost    ",
+        "schema": "    airflow    ",
+        "port": 3306,
+    }
+
+    resp = admin_client.post("/connection/add", data=connection, follow_redirects=True)
+    check_content_in_response("Added Row", resp)
+
+    # validate all the fields
+    conn = session.query(Connection).one()
+    assert "connection_id_with_space" == conn.conn_id
+    assert "a sample http connection with leading and trailing blanks" == conn.description
+    assert "localhost" == conn.host
+    assert "airflow" == conn.schema
 
 
 def test_action_logging_connection_masked_secrets(session, admin_client):
