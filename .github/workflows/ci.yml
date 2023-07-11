@@ -631,6 +631,15 @@ jobs:
             docs-inventory-
       - name: "Build docs"
         run: breeze build-docs ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+      - name: "Clone airflow-site"
+        run: >
+          git clone https://github.com/apache/airflow-site.git /workspace/airflow-site &&
+          echo "AIRFLOW_SITE_DIRECTORY=/workspace/airflow-site" >> "$GITHUB_ENV"
+      - name: "Publish docs"
+        run: >
+          breeze publish-docs
+          --override-versioned
+          --package-filter ${{ needs.build-info.outputs.docs-filter-list-as-string }}
       - name: Configure AWS credentials
         uses: ./.github/actions/configure-aws-credentials
         if: >
