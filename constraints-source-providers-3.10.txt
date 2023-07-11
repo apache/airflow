@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-11T12:58:36Z
+# This constraints file was automatically generated on 2023-07-11T17:11:00Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -192,11 +192,11 @@ gcloud-aio-bigquery==6.3.0
 gcloud-aio-storage==8.2.0
 gcsfs==2023.6.0
 geomet==0.2.1.post1
-gevent==22.10.2
+gevent==23.7.0
 gitdb==4.0.10
 google-ads==21.2.0
 google-api-core==2.11.0
-google-api-python-client==2.92.0
+google-api-python-client==2.93.0
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==1.0.0
 google-auth==2.21.0
@@ -209,7 +209,7 @@ google-cloud-bigquery-storage==2.22.0
 google-cloud-bigquery==3.11.3
 google-cloud-bigtable==2.19.0
 google-cloud-build==3.18.0
-google-cloud-compute==1.12.1
+google-cloud-compute==1.13.0
 google-cloud-container==2.26.0
 google-cloud-core==2.3.3
 google-cloud-datacatalog==3.14.0
