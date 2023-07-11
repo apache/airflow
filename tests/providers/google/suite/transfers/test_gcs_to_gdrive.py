@@ -107,10 +107,13 @@ class TestGcsToGDriveOperator:
                     impersonation_chain=None,
                 ),
                 mock.call().upload_file(
-                    local_location="TMP1", remote_location="copied_sales/2017/january-backup.avro", folder_id="aAopls6bE4tUllZVGJvRUU"
+                    local_location="TMP1",
+                    remote_location="copied_sales/2017/january-backup.avro",
+                    folder_id="aAopls6bE4tUllZVGJvRUU",
                 ),
             ]
         )
+
     #
     @mock.patch(MODULE + ".GCSHook")
     @mock.patch(MODULE + ".GoogleDriveHook")

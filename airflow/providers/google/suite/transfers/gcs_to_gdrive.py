@@ -169,7 +169,7 @@ class GCSToGoogleDriveOperator(BaseOperator):
             self.gdrive_hook.upload_file(
                 local_location=filename,
                 remote_location=destination_object,
-                folder_id=self.destination_folder_id
+                folder_id=self.destination_folder_id,
             )
 
         if self.move_object:
