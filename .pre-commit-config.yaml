@@ -943,6 +943,12 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_deferrable_default.py
         pass_filenames: false
         files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
+      - id: add-default-deferrable-operators-list-to-documentation
+        name: Add deferrable operators list to documentation
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_insert_deferrable_operators_to_doc.py
+        pass_filenames: false
+        files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev

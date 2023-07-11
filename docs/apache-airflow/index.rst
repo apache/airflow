@@ -163,6 +163,7 @@ so coding will always be required.
     :caption: References
 
     Operators and hooks <operators-and-hooks-ref>
+    Deferrable Operators <deferrable-operator-ref>
     CLI <cli-and-env-variables-ref>
     Templates <templates-ref>
     Stable REST API <stable-rest-api-ref>
