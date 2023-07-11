@@ -27,7 +27,7 @@ This operator can be used to copy data from one BigQuery table to another.
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:BigQueryToBigQueryOperator:
 
