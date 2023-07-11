@@ -64,8 +64,6 @@ annotations:
       url: https://airflow.apache.org/docs/apache-airflow/2.6.3/_images/duration.png
     - title: Code View
       url: https://airflow.apache.org/docs/apache-airflow/2.6.3/_images/code.png
-    - title: Task Instance Context Menu
-      url: https://airflow.apache.org/docs/apache-airflow/2.6.3/_images/context.png
   artifacthub.io/changes: |
     - description: Add support for container security context
       kind: added
