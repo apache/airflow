@@ -91,7 +91,6 @@ from airflow.exceptions import (
     TaskNotFound,
 )
 from airflow.jobs.job import run_job
-from airflow.models import MappedOperator
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import Base, StringID
 from airflow.models.baseoperator import BaseOperator
@@ -2765,25 +2764,22 @@ class DAG(LoggingMixin):
                         "Task failed. DAG will continue to run until finished and be marked as failed.",
                         exc_info=True,
                     )
-            for ti in dr.get_task_instances():
-                # Special case TI resume from deferred state
-                if ti.state == TaskInstanceState.SCHEDULED:
-                    if ti.next_method:
-                        try:
-                            if isinstance(tasks[ti.task_id], MappedOperator):
-                                execute_callable = getattr(tasks[ti.task_id].operator_class, ti.next_method)
-                            else:
-                                execute_callable = getattr(tasks[ti.task_id], ti.next_method)
-                            execute_callable = functools.partial(execute_callable, None, ti.next_kwargs)
-                            execute_callable()
-                            ti.set_state(TaskInstanceState.SUCCESS)
-                        except Exception:
-                            try_number = task_try_number.get(f"{ti.task_id}_{ti.map_index}", 0)
-                            if try_number > ti.max_tries:
-                                ti.set_state(TaskInstanceState.FAILED)
-                            else:
-                                ti.set_state(TaskInstanceState.UP_FOR_RETRY)
-                                task_try_number[f"{ti.task_id}_{ti.map_index}"] = try_number + 1
+            for ti in dr.get_task_instances(session=session):
+                if ti.state != TaskInstanceState.SCHEDULED:
+                    continue
+                if not ti.next_method:
+                    continue
+                # Special case: TI resumes from deferred state.
+                try:
+                    ti.task = tasks[ti.task_id]
+                    _run_task(ti, session=session)
+                except Exception:
+                    try_number = task_try_number.get(f"{ti.task_id}_{ti.map_index}", 0)
+                    if try_number > ti.max_tries:
+                        ti.set_state(TaskInstanceState.FAILED)
+                    else:
+                        ti.set_state(TaskInstanceState.UP_FOR_RETRY)
+                        task_try_number[f"{ti.task_id}_{ti.map_index}"] = try_number + 1
 
         if conn_file_path or variable_file_path:
             # Remove the local variables we have added to the secrets_backend_list
