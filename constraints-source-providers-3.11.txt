@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-10T21:47:37Z
+# This constraints file was automatically generated on 2023-07-11T07:52:20Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -113,7 +113,7 @@ bcrypt==4.0.1
 beautifulsoup4==4.12.2
 billiard==4.1.0
 bitarray==2.7.6
-black==23.3.0
+black==23.7.0
 bleach==6.0.0
 blinker==1.6.2
 boto3==1.26.161
@@ -375,7 +375,7 @@ pendulum==2.1.2
 pexpect==4.8.0
 pickleshare==0.7.5
 pinotdb==0.5.0
-pipdeptree==2.9.4
+pipdeptree==2.9.5
 pipx==1.2.0
 pkginfo==1.9.6
 platformdirs==3.8.1
@@ -386,7 +386,7 @@ portalocker==2.7.0
 pre-commit==3.3.3
 presto-python-client==0.8.3
 prison==0.2.1
-prometheus-client==0.17.0
+prometheus-client==0.17.1
 prompt-toolkit==3.0.39
 proto-plus==1.22.3
 protobuf==4.23.4
