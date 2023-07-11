@@ -82,17 +82,6 @@ def _generate_temporary_run_id() -> str:
     return f"__airflow_temporary_run_{timezone.utcnow().isoformat()}__"
 
 
-def _raw_get_dag_run(*args, session: Session) -> DagRun:
-    """Call SQLAlchemy to get a DAG run.
-
-    This function exists only for simpler mocking in unit tests. Positional
-    arguments are passed directly to SQLAlchemy as WHERE clauses.
-
-    :raise sqlalchemy.exc.NoResultFound: No matching DAG run found.
-    """
-    return session.scalars(select(DagRun).where(*args)).one()
-
-
 def _get_dag_run(
     *,
     dag: DAG,
@@ -123,11 +112,9 @@ def _get_dag_run(
         with suppress(ParserError, TypeError):
             execution_date = timezone.parse(exec_date_or_run_id)
         try:
-            _raw_get_dag_run(
-                DagRun.dag_id == dag.dag_id,
-                DagRun.execution_date == execution_date,
-                session=session,
-            )
+            dag_run = session.scalars(
+                select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
+            ).one()
         except NoResultFound:
             if not create_if_necessary:
                 raise DagRunNotFound(

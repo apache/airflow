@@ -500,14 +500,14 @@ class TestCliTasks:
         assert 'echo "2022-01-01"' in output
         assert 'echo "2022-01-08"' in output
 
-    @mock.patch("airflow.cli.commands.task_command._raw_get_dag_run")
+    @mock.patch("airflow.cli.commands.task_command.select")
     @mock.patch("airflow.cli.commands.task_command.DagRun")
-    def test_task_render_with_custom_timetable(self, mock_dagrun, mock_raw_get_dag_run):
+    def test_task_render_with_custom_timetable(self, mock_dagrun, mock_select):
         """
         when calling `tasks render` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
         """
-        mock_raw_get_dag_run.side_effect = sqlalchemy.exc.NoResultFound
+        mock_select.side_effect = sqlalchemy.exc.NoResultFound
         task_command.task_render(
             self.parser.parse_args(["tasks", "render", "example_workday_timetable", "run_this", "2022-01-01"])
         )
