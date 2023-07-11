@@ -585,7 +585,7 @@ class TestBaseSensor:
         with pytest.raises(AirflowException) as ctx:
             make_sensor(poke_interval=863998946, mode="reschedule", return_value="irrelevant")
         assert str(ctx.value) == (
-            "Cannot set poke_interval to 863998946 seconds in reschedule mode "
+            "Cannot set poke_interval to 863998946.0 seconds in reschedule mode "
             "since it will take reschedule time over MySQL's TIMESTAMP limit."
         )
 
