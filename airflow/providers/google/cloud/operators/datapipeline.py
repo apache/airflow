@@ -81,11 +81,12 @@ class RunDataPipelineOperator(GoogleCloudBaseOperator):
     """ Run Data Pipeline Operator """
     def __init__(
             self,
+            *,
             data_pipeline_name: str,
             gcp_conn_id: str = "google_cloud_default",
             **kwargs
     ) -> None:
-        super().init(**kwargs)
+        super().__init__(**kwargs)
 
         self.data_pipeline_name = data_pipeline_name
         self.gcp_conn_id =  gcp_conn_id

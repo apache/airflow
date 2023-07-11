@@ -76,7 +76,11 @@ with models.DAG(
             }
         }
     )
-    run_data_pipeline = RunDataPipelineOperator(pipeline_name = create_data_pipeline["name"])
+    print(create_data_pipeline)
+    run_data_pipeline = RunDataPipelineOperator(
+        task_id = "run_data_pipeline",
+        data_pipeline_name = "projects/google.com:clouddfe/locations/us-central1/pipelines/dp-create-1642676351302-mp--1675461000"
+        )
  
 
     create_data_pipeline >> run_data_pipeline
