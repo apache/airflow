@@ -17,86 +17,60 @@
 from __future__ import annotations
 
 import warnings
-import asyncio
-from functools import cached_property
 from typing import Any
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
+from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
+from airflow.triggers.base import TriggerEvent
 
 
-class EksCreateClusterTrigger(BaseTrigger):
+class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
     """
     Trigger for EksCreateClusterOperator.
-    
+
     The trigger will asynchronously wait for the cluster to be created.
 
-    :param waiter_name: The name of the waiter to use.
     :param cluster_name: The name of the EKS cluster
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param region: Which AWS region the connection should use.
+    :param region_name: Which AWS region the connection should use.
          If this is None or empty then the default boto3 behaviour is used.
     """
 
     def __init__(
         self,
-        waiter_name: str,
         cluster_name: str,
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str,
-        region: str | None,
+        region_name: str | None,
     ):
-        self.waiter_name = waiter_name
-        self.cluster_name = cluster_name
-        self.waiter_delay = waiter_delay
-        self.waiter_max_attempts = waiter_max_attempts
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-
-    def serialize(self) -> tuple[str, dict[str, Any]]:
-        return (
-            self.__class__.__module__ + "." + self.__class__.__qualname__,
-            {
-                "waiter_name": self.waiter_name,
-                "cluster_name": self.cluster_name,
-                "waiter_delay": str(self.waiter_delay),
-                "waiter_max_attempts": str(self.waiter_max_attempts),
-                "aws_conn_id": self.aws_conn_id,
-                "region": self.region,
-            },
+        super().__init__(
+            serialized_fields={"cluster_name": cluster_name, "region_name": region_name},
+            waiter_name="cluster_active",
+            waiter_args={"name": cluster_name},
+            failure_message="Error checking Eks cluster",
+            status_message="Eks cluster status is",
+            status_queries=["cluster.status"],
+            return_value=None,
+            waiter_delay=waiter_delay,
+            waiter_max_attempts=waiter_max_attempts,
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
         )
 
-    async def run(self):
-        failure_message = "Error checking Eks cluster"
-        self.hook = EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
-        async with self.hook.async_conn as client:
-            waiter = client.get_waiter(self.waiter_name)
-            try:
-                await async_wait(
-                    waiter=waiter,
-                    waiter_max_attempts=int(self.waiter_max_attempts),
-                    waiter_delay=int(self.waiter_delay),
-                    args={"name": self.cluster_name},
-                    failure_message=failure_message,
-                    status_message="Eks cluster status is",
-                    status_args=["cluster.status"],
-                )
-            except AirflowException as exc:
-                if failure_message in str(exc):
-                    yield TriggerEvent({"status": "failed", "exception": exc})
-                raise
-        yield TriggerEvent({"status": "success"})
+    def hook(self) -> AwsGenericHook:
+        return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
 
-class EksDeleteClusterTrigger(BaseTrigger):
+class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
     """
     Trigger for EksDeleteClusterOperator.
-    
+
     The trigger will asynchronously wait for the cluster to be deleted. If there are
     any nodegroups or fargate profiles associated with the cluster, they will be deleted
     before the cluster is deleted.
@@ -105,7 +79,7 @@ class EksDeleteClusterTrigger(BaseTrigger):
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param region: Which AWS region the connection should use.
+    :param region_name: Which AWS region the connection should use.
          If this is None or empty then the default boto3 behaviour is used.
     :param force_delete_compute: If True, any nodegroups or fargate profiles associated
         with the cluster will be deleted before the cluster is deleted.
@@ -117,14 +91,14 @@ class EksDeleteClusterTrigger(BaseTrigger):
         waiter_delay: int,
         waiter_max_attempts: int,
         aws_conn_id: str,
-        region: str | None,
+        region_name: str | None,
         force_delete_compute: bool,
     ):
         self.cluster_name = cluster_name
         self.waiter_delay = waiter_delay
         self.waiter_max_attempts = waiter_max_attempts
         self.aws_conn_id = aws_conn_id
-        self.region = region
+        self.region_name = region_name
         self.force_delete_compute = force_delete_compute
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
@@ -135,14 +109,13 @@ class EksDeleteClusterTrigger(BaseTrigger):
                 "waiter_delay": str(self.waiter_delay),
                 "waiter_max_attempts": str(self.waiter_max_attempts),
                 "aws_conn_id": self.aws_conn_id,
-                "region": self.region,
+                "region_name": self.region_name,
                 "force_delete_compute": self.force_delete_compute,
             },
         )
 
-    @cached_property
-    def hook(self) -> EksHook:
-        return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
+    def hook(self) -> AwsGenericHook:
+        return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
 
     async def run(self):
         async with self.hook.async_conn as client:
@@ -164,6 +137,12 @@ class EksDeleteClusterTrigger(BaseTrigger):
         yield TriggerEvent({"status": "deleted"})
 
     async def delete_any_nodegroups(self, client):
+        """
+        Deletes all EKS Nodegroups for a provided Amazon EKS Cluster.
+
+        All the EKS Nodegroups are deleted simultaneously. We wait for
+        all Nodegroups to be deleted before returning.
+        """
         nodegroups = await client.list_nodegroups(clusterName=self.cluster_name)
         if nodegroups.get("nodegroups", None):
             self.log.info("Deleting nodegroups")
@@ -329,7 +308,11 @@ class EksCreateNodegroupTrigger(AwsBaseWaiterTrigger):
         region_name: str | None,
     ):
         super().__init__(
-            serialized_fields={"cluster_name": cluster_name, "nodegroup_name": nodegroup_name},
+            serialized_fields={
+                "cluster_name": cluster_name,
+                "nodegroup_name": nodegroup_name,
+                "region_name": region_name,
+            },
             waiter_name="nodegroup_active",
             waiter_args={"clusterName": cluster_name, "nodegroupName": nodegroup_name},
             failure_message="Error creating nodegroup",

@@ -230,7 +230,7 @@ class EksCreateClusterOperator(BaseOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
         **kwargs,
@@ -290,10 +290,9 @@ class EksCreateClusterOperator(BaseOperator):
         if self.deferrable:
             self.defer(
                 trigger=EksCreateClusterTrigger(
-                    waiter_name="cluster_active",
                     cluster_name=self.cluster_name,
                     aws_conn_id=self.aws_conn_id,
-                    region=self.region,
+                    region_name=self.region,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
@@ -342,7 +341,7 @@ class EksCreateClusterOperator(BaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    region=self.region,
+                    region_name=self.region,
                     delete_resources=False,
                 ),
                 method_name="execute_failed",
@@ -382,12 +381,11 @@ class EksCreateClusterOperator(BaseOperator):
                 )
             else:
                 self.defer(
-                    trigger=EksNodegroupTrigger(
-                        waiter_name="nodegroup_active",
+                    trigger=EksCreateNodegroupTrigger(
                         nodegroup_name=self.nodegroup_name,
                         cluster_name=self.cluster_name,
                         aws_conn_id=self.aws_conn_id,
-                        region=self.region,
+                        region_name=self.region,
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
                     ),
@@ -684,7 +682,7 @@ class EksDeleteClusterOperator(BaseOperator):
         wait_for_completion: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
         region: str | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         waiter_delay: int = 30,
         waiter_max_attempts: int = 40,
         **kwargs,
@@ -711,7 +709,7 @@ class EksDeleteClusterOperator(BaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    region=self.region,
+                    region_name=self.region,
                     force_delete_compute=self.force_delete_compute,
                 ),
                 method_name="execute_complete",
