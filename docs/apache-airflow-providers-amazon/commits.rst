@@ -31,11 +31,17 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.3.0
 .....
 
-Latest change: 2023-07-05
+Latest change: 2023-07-08
 
 =================================================================================================  ===========  ============================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================================================================
+`c99c03135c <https://github.com/apache/airflow/commit/c99c03135ca7e7c41e1c6d338de9e41422ea84f0>`_  2023-07-08   ``D205 Support - Providers: Stragglers and new additions (#32447)``
+`8c6751ff0f <https://github.com/apache/airflow/commit/8c6751ff0f2056af1cb08cec03db8a4d6c913ca7>`_  2023-07-07   ``quick fix on RDS operator to prevent parameter collision (#32436)``
+`869f3a93a8 <https://github.com/apache/airflow/commit/869f3a93a8873381a57382f8a0ab88879ca43f9a>`_  2023-07-07   ``Remove ability to specify arbitrary hook params in AWS RDS trigger (#32386)``
+`05f1acfcb7 <https://github.com/apache/airflow/commit/05f1acfcb708a6785d5b60dd6a2a1ef930a73a7d>`_  2023-07-07   ``Introduce a base class for aws triggers (#32274)``
+`7a3bc8d7c8 <https://github.com/apache/airflow/commit/7a3bc8d7c85448447abd39287ef6a3704b237a90>`_  2023-07-06   ``Only update crawler tags if present in config dict (#32331)``
+`225e3041d2 <https://github.com/apache/airflow/commit/225e3041d269698d0456e09586924c1898d09434>`_  2023-07-06   ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
 `3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
 `cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
 `f8593503cb <https://github.com/apache/airflow/commit/f8593503cbe252c2f4dc5ff48a3f292c9e13baad>`_  2023-07-05   ``Add default_deferrable config (#31712)``

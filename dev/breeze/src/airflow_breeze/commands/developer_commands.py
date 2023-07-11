@@ -45,6 +45,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_extras,
     option_answer,
     option_backend,
+    option_builder,
     option_celery_broker,
     option_celery_flower,
     option_db_reset,
@@ -119,6 +120,7 @@ class TimerThread(threading.Thread):
 @option_python
 @option_platform_single
 @option_backend
+@option_builder
 @option_postgres_version
 @option_mysql_version
 @option_mssql_version
@@ -147,6 +149,7 @@ class TimerThread(threading.Thread):
 def shell(
     python: str,
     backend: str,
+    builder: str,
     integration: tuple[str],
     postgres_version: str,
     mysql_version: str,
@@ -182,6 +185,7 @@ def shell(
         python=python,
         github_repository=github_repository,
         backend=backend,
+        builder=builder,
         integration=integration,
         postgres_version=postgres_version,
         mysql_version=mysql_version,
@@ -211,6 +215,7 @@ def shell(
 @option_python
 @option_platform_single
 @option_backend
+@option_builder
 @option_postgres_version
 @option_load_example_dags
 @option_load_default_connection
@@ -250,6 +255,7 @@ def shell(
 def start_airflow(
     python: str,
     backend: str,
+    builder: str,
     integration: tuple[str],
     postgres_version: str,
     load_example_dags: bool,
@@ -290,6 +296,7 @@ def start_airflow(
         python=python,
         github_repository=github_repository,
         backend=backend,
+        builder=builder,
         integration=integration,
         postgres_version=postgres_version,
         load_default_connections=load_default_connections,
@@ -320,6 +327,7 @@ def start_airflow(
 @main.command(name="build-docs")
 @click.option("-d", "--docs-only", help="Only build documentation.", is_flag=True)
 @click.option("-s", "--spellcheck-only", help="Only run spell checking.", is_flag=True)
+@option_builder
 @click.option(
     "--package-filter",
     help="List of packages to consider.",
@@ -350,6 +358,7 @@ def build_docs(
     docs_only: bool,
     spellcheck_only: bool,
     for_production: bool,
+    builder: str,
     clean_build: bool,
     one_pass_only: bool,
     package_filter: tuple[str],
@@ -361,7 +370,9 @@ def build_docs(
         clean_build = True
     perform_environment_checks()
     cleanup_python_generated_files()
-    params = BuildCiParams(github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
+    params = BuildCiParams(
+        github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION, builder=builder
+    )
     rebuild_or_pull_ci_image_if_needed(command_params=params)
     if clean_build:
         docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
@@ -446,6 +457,14 @@ def build_docs(
     type=click.IntRange(1, 10),
     default=3,
 )
+@click.option(
+    "--skip-image-check",
+    help="Skip checking if the CI image is up to date. Useful if you run non-image checks only",
+    is_flag=True,
+)
+@option_image_tag_for_running
+@option_force_build
+@option_builder
 @option_github_repository
 @option_verbose
 @option_dry_run
@@ -459,12 +478,24 @@ def static_checks(
     type_: str,
     file: Iterable[str],
     precommit_args: tuple,
+    skip_image_check: bool,
     initialize_environment: bool,
     max_initialization_attempts: int,
+    image_tag: str,
+    force_build: bool,
+    builder: str,
     github_repository: str,
 ):
     assert_pre_commit_installed()
     perform_environment_checks()
+    build_params = BuildCiParams(
+        builder=builder,
+        force_build=force_build,
+        image_tag=image_tag,
+        github_repository=github_repository,
+    )
+    if not skip_image_check:
+        rebuild_or_pull_ci_image_if_needed(command_params=build_params)
 
     if initialize_environment:
         get_console().print("[info]Make sure that pre-commit is installed and environment initialized[/]")
@@ -660,8 +691,8 @@ def enter_shell(**kwargs) -> RunCommandResult:
 
     if shell_params.backend == "sqlite":
         get_console().print(
-            f"\n[warn]backend: sqlite is not"
-            f" compatible with executor: {shell_params.executor}."
+            f"\n[warn]backend: sqlite is not "
+            f"compatible with executor: {shell_params.executor}. "
             f"Changing the executor to SequentialExecutor.\n"
         )
         shell_params.executor = "SequentialExecutor"

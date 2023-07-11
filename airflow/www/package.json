@@ -74,7 +74,7 @@
     "openapi-typescript": "^5.4.1",
     "prettier": "^2.8.4",
     "style-loader": "^1.2.1",
-    "stylelint": "^13.6.1",
+    "stylelint": "^15.10.1",
     "stylelint-config-prettier": "^9.0.5",
     "stylelint-config-standard": "^20.0.0",
     "terser-webpack-plugin": "<5.0.0",

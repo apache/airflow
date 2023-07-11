@@ -1425,6 +1425,7 @@ export interface components {
       timestamp?: string;
       /** Format: datetime */
       execution_date?: string;
+      map_index?: number;
       task_id?: string;
       dag_id?: string;
     };
@@ -2390,6 +2391,8 @@ export interface components {
      * *New in version 2.6.0*
      */
     Paused: boolean;
+    /** @description Only filter the XCom records which have the provided key. */
+    FilterXcomKey: string;
     /**
      * @description The key containing the encrypted path to the file. Encryption and decryption take place only on
      * the server. This prevents the client from reading an non-DAG file. This also ensures API
@@ -3839,6 +3842,10 @@ export interface operations {
         task_id: components["parameters"]["TaskID"];
       };
       query: {
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
+        /** Only filter the XCom records which have the provided key. */
+        xcom_key?: components["parameters"]["FilterXcomKey"];
         /** The numbers of items to return. */
         limit?: components["parameters"]["PageLimit"];
         /** The number of items to skip before starting to collect the result set. */
@@ -3869,6 +3876,8 @@ export interface operations {
         xcom_key: components["parameters"]["XComKey"];
       };
       query: {
+        /** Filter on map index for mapped task. */
+        map_index?: components["parameters"]["FilterMapIndex"];
         /**
          * Whether to deserialize an XCom value when using a custom XCom backend.
          *

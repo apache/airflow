@@ -61,9 +61,12 @@ class CheckJobRunning(Enum):
 
 
 class DataflowConfiguration:
-    """Dataflow configuration that can be passed to
-    :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` and
-    :class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
+    """
+    Dataflow configuration for BeamRunJavaPipelineOperator and BeamRunPythonPipelineOperator.
+
+    .. seealso::
+        :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
+        and :class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
 
     :param job_name: The 'jobName' to use when executing the Dataflow job
         (templated). This ends up being set in the pipeline options, so any entry
@@ -167,11 +170,10 @@ class DataflowConfiguration:
 
 class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
     """
-    Start a Java Cloud Dataflow batch job. The parameters of the operation
-    will be passed to the job.
+    Start a Java Cloud Dataflow batch job; the parameters of the operation will be passed to the job.
 
     This class is deprecated.
-    Please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
+    Please use :class:`providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
 
     Example usage:
 
@@ -452,8 +454,7 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
 
 class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
     """
-    Start a Templated Cloud Dataflow job. The parameters of the operation
-    will be passed to the job.
+    Start a Templated Cloud Dataflow job; the parameters of the operation will be passed to the job.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1015,14 +1016,14 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
 
 class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
     """
-    Launching Cloud Dataflow jobs written in python. Note that both
-    dataflow_default_options and options will be merged to specify pipeline
-    execution parameter, and dataflow_default_options is expected to save
-    high-level options, for instances, project and zone information, which
-    apply to all dataflow operators in the DAG.
+    Launching Cloud Dataflow jobs written in python.
+
+    Note that both dataflow_default_options and options will be merged to specify pipeline
+    execution parameter, and dataflow_default_options is expected to save high-level options,
+    for instances, project and zone information, which apply to all dataflow operators in the DAG.
 
     This class is deprecated.
-    Please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
+    Please use :class:`providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
 
     .. seealso::
         For more detail on job submission have a look at the reference:
@@ -1232,6 +1233,7 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
 class DataflowStopJobOperator(GoogleCloudBaseOperator):
     """
     Stops the job with the specified name prefix or Job ID.
+
     All jobs with provided name prefix will be stopped.
     Streaming jobs are drained by default.
 

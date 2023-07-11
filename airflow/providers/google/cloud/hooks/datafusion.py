@@ -103,10 +103,7 @@ class DataFusionHook(GoogleBaseHook):
         failure_states: list[str] | None = None,
         timeout: int = 5 * 60,
     ) -> None:
-        """
-        Polls pipeline state and raises an exception if the state is one of
-        `failure_states` or the operation timed_out.
-        """
+        """Polls pipeline state and raises an exception if the state fails or times out."""
         failure_states = failure_states or FAILURE_STATES
         success_states = success_states or SUCCESS_STATES
         start_time = monotonic()
@@ -190,6 +187,7 @@ class DataFusionHook(GoogleBaseHook):
     def restart_instance(self, instance_name: str, location: str, project_id: str) -> Operation:
         """
         Restart a single Data Fusion instance.
+
         At the end of an operation instance is fully restarted.
 
         :param instance_name: The name of the instance to restart.
