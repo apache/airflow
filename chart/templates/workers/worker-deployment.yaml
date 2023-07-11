@@ -205,7 +205,7 @@ spec:
                 {{- else }}
                 - sh
                 - -c
-                - CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -m celery --app airflow.executors.celery_executor.app inspect ping -d celery@$(hostname)
+                - CONNECTION_CHECK_MAX_COUNT=0 exec /entrypoint python -m celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d celery@$(hostname)
                 {{- end }}
           {{- end }}
           ports:

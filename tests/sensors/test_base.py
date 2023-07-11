@@ -24,8 +24,6 @@ import pytest
 import time_machine
 
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
-from airflow.executors.celery_executor import CeleryExecutor
-from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 from airflow.executors.debug_executor import DebugExecutor
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
@@ -44,6 +42,8 @@ from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models import TaskReschedule
 from airflow.models.xcom import XCom
 from airflow.operators.empty import EmptyOperator
+from airflow.providers.celery.executors.celery_executor import CeleryExecutor
+from airflow.providers.celery.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue, poke_mode_only
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
