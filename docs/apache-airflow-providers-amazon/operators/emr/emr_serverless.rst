@@ -40,6 +40,8 @@ Create an EMR Serverless Application
 
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessCreateApplicationOperator` to
 create a new EMR Serverless Application.
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
+the aiobotocore module to be installed.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_serverless.py
    :language: python
@@ -70,6 +72,8 @@ Stop an EMR Serverless Application
 
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessStopApplicationOperator` to
 stop an EMR Serverless Application.
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
+the aiobotocore module to be installed.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_serverless.py
    :language: python
@@ -84,6 +88,8 @@ Delete an EMR Serverless Application
 
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessDeleteApplicationOperator` to
 delete an EMR Serverless Application.
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter. This requires
+the aiobotocore module to be installed.
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_emr_serverless.py
    :language: python

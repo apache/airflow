@@ -21,6 +21,11 @@ import pytest
 from airflow.providers.amazon.aws.triggers.emr import (
     EmrServerlessStartApplicationTrigger,
     EmrServerlessStartJobTrigger,
+    EmrServerlessCancelJobsTrigger,
+    EmrServerlessCreateApplicationTrigger,
+    EmrServerlessDeleteApplicationTrigger,
+    EmrServerlessStartApplicationTrigger,
+    EmrServerlessStopApplicationTrigger,
 )
 
 TEST_APPLICATION_ID = "test-application-id"
@@ -35,7 +40,31 @@ class TestEmrTriggers:
     @pytest.mark.parametrize(
         "trigger",
         [
+            EmrServerlessCreateApplicationTrigger(
+                application_id=TEST_APPLICATION_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_WAITER_DELAY,
+                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
+            ),
             EmrServerlessStartApplicationTrigger(
+                application_id=TEST_APPLICATION_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_WAITER_DELAY,
+                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
+            ),
+            EmrServerlessStopApplicationTrigger(
+                application_id=TEST_APPLICATION_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_WAITER_DELAY,
+                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
+            ),
+            EmrServerlessDeleteApplicationTrigger(
+                application_id=TEST_APPLICATION_ID,
+                aws_conn_id=TEST_AWS_CONN_ID,
+                waiter_delay=TEST_WAITER_DELAY,
+                waiter_max_attempts=TEST_WAITER_MAX_ATTEMPTS,
+            ),
+            EmrServerlessCancelJobsTrigger(
                 application_id=TEST_APPLICATION_ID,
                 aws_conn_id=TEST_AWS_CONN_ID,
                 waiter_delay=TEST_WAITER_DELAY,
