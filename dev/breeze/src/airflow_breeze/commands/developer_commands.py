@@ -86,6 +86,11 @@ from airflow_breeze.utils.path_utils import (
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
 )
+from airflow_breeze.utils.publish_docs_builder import PublishDocsBuilder
+from airflow_breeze.utils.publish_docs_helpers import (
+    get_available_packages,
+    process_package_filters,
+)
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
     assert_pre_commit_installed,
@@ -95,9 +100,6 @@ from airflow_breeze.utils.run_utils import (
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
-from docs.exts.docs_build.docs_builder import AirflowDocsBuilder
-from docs.exts.docs_build.package_filter import process_package_filters
-from docs.publish_docs import get_available_packages
 
 # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 # Make sure that whatever you add here as an option is also
@@ -435,9 +437,6 @@ def publish_docs(
             "Provide the path of cloned airflow-site repo\n"
         )
 
-    # set AIRFLOW_SITE_DIR env variable
-    os.environ["AIRFLOW_SITE_DIR"] = airflow_site_directory
-
     available_packages = get_available_packages()
     package_filters = package_filter
 
@@ -447,11 +446,8 @@ def publish_docs(
         print(f" - {pkg}")
     print()
     for package_name in current_packages:
-        builder = AirflowDocsBuilder(package_name=package_name, for_production=True)
-        builder.publish(override_versioned=override_versioned)
-
-    # unset AIRFLOW_SITE_DIR env variable
-    del os.environ["AIRFLOW_SITE_DIR"]
+        builder = PublishDocsBuilder(package_name=package_name, for_production=True)
+        builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
 
 
 @main.command(
