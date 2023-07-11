@@ -87,7 +87,7 @@ Doc only changes
 - Add ``™`` to Airflow in prominent places (#31977)
 
 
-Airflow 2.6.2 (2023-06-12)
+Airflow 2.6.2 (2023-06-17)
 --------------------------
 
 Significant Changes
