@@ -22,62 +22,14 @@ from unittest.mock import AsyncMock
 import pytest
 from botocore.exceptions import WaiterError
 
-from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
-from airflow.providers.amazon.aws.triggers.ecs import ClusterWaiterTrigger, TaskDoneTrigger
+from airflow.providers.amazon.aws.triggers.ecs import (
+    ClusterActiveTrigger,
+    ClusterInactiveTrigger,
+    TaskDoneTrigger,
+)
 from airflow.triggers.base import TriggerEvent
-
-
-class TestClusterWaiterTrigger:
-    @pytest.mark.asyncio
-    @mock.patch.object(EcsHook, "async_conn")
-    async def test_run_max_attempts(self, client_mock):
-        a_mock = mock.MagicMock()
-        client_mock.__aenter__.return_value = a_mock
-        wait_mock = AsyncMock()
-        wait_mock.side_effect = WaiterError("name", "reason", {"clusters": [{"status": "my_status"}]})
-        a_mock.get_waiter().wait = wait_mock
-
-        max_attempts = 5
-        trigger = ClusterWaiterTrigger("my_waiter", "cluster_arn", 0, max_attempts, None, None)
-
-        with pytest.raises(AirflowException):
-            generator = trigger.run()
-            await generator.asend(None)
-
-        assert wait_mock.call_count == max_attempts
-
-    @pytest.mark.asyncio
-    @mock.patch.object(EcsHook, "async_conn")
-    async def test_run_success(self, client_mock):
-        a_mock = mock.MagicMock()
-        client_mock.__aenter__.return_value = a_mock
-        wait_mock = AsyncMock()
-        a_mock.get_waiter().wait = wait_mock
-
-        trigger = ClusterWaiterTrigger("my_waiter", "cluster_arn", 0, 5, None, None)
-
-        generator = trigger.run()
-        response: TriggerEvent = await generator.asend(None)
-
-        assert response.payload["status"] == "success"
-        assert response.payload["arn"] == "cluster_arn"
-
-    @pytest.mark.asyncio
-    @mock.patch.object(EcsHook, "async_conn")
-    async def test_run_error(self, client_mock):
-        a_mock = mock.MagicMock()
-        client_mock.__aenter__.return_value = a_mock
-        wait_mock = AsyncMock()
-        wait_mock.side_effect = WaiterError("terminal failure", "reason", {})
-        a_mock.get_waiter().wait = wait_mock
-
-        trigger = ClusterWaiterTrigger("my_waiter", "cluster_arn", 0, 5, None, None)
-
-        with pytest.raises(AirflowException):
-            generator = trigger.run()
-            await generator.asend(None)
 
 
 class TestTaskDoneTrigger:
@@ -121,3 +73,36 @@ class TestTaskDoneTrigger:
 
         assert response.payload["status"] == "success"
         assert response.payload["task_arn"] == "my_task_arn"
+
+
+class TestClusterTriggers:
+    @pytest.mark.parametrize(
+        "trigger",
+        [
+            ClusterActiveTrigger(
+                cluster_arn="my_arn",
+                aws_conn_id="my_conn",
+                waiter_delay=1,
+                waiter_max_attempts=2,
+                region_name="my_region",
+            ),
+            ClusterInactiveTrigger(
+                cluster_arn="my_arn",
+                aws_conn_id="my_conn",
+                waiter_delay=1,
+                waiter_max_attempts=2,
+                region_name="my_region",
+            ),
+        ],
+    )
+    def test_serialize_recreate(self, trigger):
+        class_path, args = trigger.serialize()
+
+        class_name = class_path.split(".")[-1]
+        clazz = globals()[class_name]
+        instance = clazz(**args)
+
+        class_path2, args2 = instance.serialize()
+
+        assert class_path == class_path2
+        assert args == args2

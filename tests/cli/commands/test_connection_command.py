@@ -167,9 +167,7 @@ class TestCliExportConnections:
         def my_side_effect(_):
             raise Exception("dummy exception")
 
-        mock_session.return_value.__enter__.return_value.query.return_value.order_by.side_effect = (
-            my_side_effect
-        )
+        mock_session.return_value.__enter__.return_value.scalars.side_effect = my_side_effect
         args = self.parser.parse_args(["connections", "export", output_filepath.as_posix()])
         with pytest.raises(Exception, match=r"dummy exception"):
             connection_command.connections_export(args)

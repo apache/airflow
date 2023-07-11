@@ -937,6 +937,19 @@ class TestGCSHookUpload:
         assert metadata == blob_object.return_value.metadata
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_upload_cache_control(self, mock_service, testdata_file):
+        test_bucket = "test_bucket"
+        test_object = "test_object"
+        cache_control = "public, max-age=3600"
+
+        bucket_mock = mock_service.return_value.bucket
+        blob_object = bucket_mock.return_value.blob
+
+        self.gcs_hook.upload(test_bucket, test_object, filename=testdata_file, cache_control=cache_control)
+
+        assert cache_control == blob_object.return_value.cache_control
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_upload_file_gzip(self, mock_service, testdata_file):
         test_bucket = "test_bucket"
         test_object = "test_object"

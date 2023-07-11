@@ -56,6 +56,12 @@ Docker Desktop
 - **Docker problems**: Sometimes it is not obvious that space is an issue when you run into
   a problem with Docker. If you see a weird behaviour, try ``breeze cleanup`` command.
   Also see `pruning <https://docs.docker.com/config/pruning/>`_ instructions from Docker.
+- **Docker context**: In recent versions Docker Desktop is by default configured to use ``desktop-linux``
+  docker context that uses docker socket created in user home directory. Older versions (and plain docker)
+  uses ``/var/run/docker.sock`` socket and ``default`` context. Breeze will attempt to detect if you have
+  ``desktop-linux`` context configured and will use it if it is available, but you can force the
+  context by adding ``--builder`` flag to the commands that build image or run the container and forward
+  the socket to inside the image.
 
 Here is an example configuration with more than 200GB disk space for Docker:
 
@@ -84,7 +90,8 @@ Here is an example configuration with more than 200GB disk space for Docker:
 - ``newgrp docker``
 - 4. Check if docker can be run without root
 - ``docker run hello-world``
-- 5. Make sure that "Allow the default Docker socket to be used" in "Advanced" tab of "Docker Desktop" settings is checked
+- 5. In some cases you might make sure that "Allow the default Docker socket to
+  be used" in "Advanced" tab of "Docker Desktop" settings is checked
 
 .. raw:: html
 
@@ -852,7 +859,7 @@ blocked by it, or your proxy setting has not been done properly.
 Advanced commands
 =================
 
-Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testing. Under the
+Airflow Breeze is a Python script serving as a "swiss-army-knife" of Airflow testing. Under the
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
 environment. Breeze script allows performing the following tasks:
 

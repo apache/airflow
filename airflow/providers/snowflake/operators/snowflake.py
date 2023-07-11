@@ -23,6 +23,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Sequence, SupportsAbs, cast
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
@@ -30,9 +31,7 @@ from airflow.providers.common.sql.operators.sql import (
     SQLIntervalCheckOperator,
     SQLValueCheckOperator,
 )
-from airflow.providers.snowflake.hooks.snowflake_sql_api import (
-    SnowflakeSqlApiHook,
-)
+from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
 
 if TYPE_CHECKING:
@@ -451,7 +450,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         token_life_time: timedelta = LIFETIME,
         token_renewal_delta: timedelta = RENEWAL_DELTA,
         bindings: dict[str, Any] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
         self.snowflake_conn_id = snowflake_conn_id
