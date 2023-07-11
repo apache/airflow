@@ -778,7 +778,7 @@ redirects_file = "redirects.txt"
 # -- Options for sphinxcontrib-spelling ----------------------------------------
 spelling_word_list_filename = [os.path.join(CONF_DIR, "spelling_wordlist.txt")]
 if PACKAGE_NAME == "apache-airflow":
-    spelling_exclude_patterns = ["project.rst", "changelog.rst", "deferrable-operator-ref.rst"]
+    spelling_exclude_patterns = ["project.rst", "changelog.rst"]
 if PACKAGE_NAME == "helm-chart":
     spelling_exclude_patterns = ["changelog.rst"]
 spelling_ignore_contributor_names = False

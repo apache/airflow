@@ -23,7 +23,6 @@
 from __future__ import annotations
 
 PRE_COMMIT_LIST = [
-    "add-default-deferrable-operators-list-to-documentation",
     "all",
     "black",
     "blacken-docs",
