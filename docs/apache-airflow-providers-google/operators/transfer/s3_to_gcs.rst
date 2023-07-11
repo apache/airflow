@@ -37,6 +37,16 @@ to transfer data from Amazon S3 to Google Cloud Storage.
     :start-after: [START howto_transfer_s3togcs_operator]
     :end-before: [END howto_transfer_s3togcs_operator]
 
+There is a possibility to start S3ToGCSOperator asynchronously using deferrable mode. To do so just add parameter
+``deferrable=True`` into the operator call. Under the hood it will delegate data transfer to Google Cloud Storage
+Transfer Service. By changing parameter ``poll_interval=10`` you can control frequency of polling a transfer
+job status.
+
+.. exampleinclude::/../tests/system/providers/google/cloud/gcs/example_s3_to_gcs_async.py
+    :language: python
+    :start-after: [START howto_transfer_s3togcs_operator_async]
+    :end-before: [END howto_transfer_s3togcs_operator_async]
+
 Reference
 ^^^^^^^^^
 
