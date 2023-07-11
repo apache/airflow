@@ -12,4 +12,3 @@ rich
 rich_click
 semver
 tabulate
-jsonschema
