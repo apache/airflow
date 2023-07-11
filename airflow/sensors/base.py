@@ -156,7 +156,9 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
             return poke_interval
         if isinstance(poke_interval, (int, float)) and poke_interval >= 0:
             return timedelta(seconds=poke_interval)
-        raise AirflowException("Operator arg `poke_interval` must be timedelta object or a non-negative number")
+        raise AirflowException(
+            "Operator arg `poke_interval` must be timedelta object or a non-negative number"
+        )
 
     @staticmethod
     def _coerce_timeout(timeout: float | timedelta) -> timedelta:
@@ -165,7 +167,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         if isinstance(timeout, (int, float)) and timeout >= 0:
             return timedelta(seconds=timeout)
         raise AirflowException("Operator arg `timeout` must be timedelta object or a non-negative number")
-
 
     @staticmethod
     def _coerce_max_wait(max_wait: float | timedelta | None) -> timedelta | None:
@@ -205,7 +206,6 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         started_at: datetime.datetime | float
 
         if self.reschedule:
-
             # If reschedule, use the start date of the first try (first try can be either the very
             # first execution of the task, or the first execution after the task was cleared.)
             first_try_number = context["ti"].max_tries - self.retries + 1
