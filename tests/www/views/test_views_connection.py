@@ -64,9 +64,8 @@ def test_connection_id_trailing_blanks(admin_client, session):
     resp = admin_client.post("/connection/add", data=conn, follow_redirects=True)
     check_content_in_response("Added Row", resp)
 
-    response = {conn[0] for conn in session.query(Connection.conn_id).all()}
-    assert len(response) == 1
-    assert "conn_id_with_trailing_blanks" == list(response)[0]
+    conn = session.query(Connection).one()
+    assert "conn_id_with_trailing_blanks" == conn.conn_id
 
 
 def test_connection_id_leading_blanks(admin_client, session):
@@ -75,9 +74,8 @@ def test_connection_id_leading_blanks(admin_client, session):
     resp = admin_client.post("/connection/add", data=conn, follow_redirects=True)
     check_content_in_response("Added Row", resp)
 
-    response = {conn[0] for conn in session.query(Connection.conn_id).all()}
-    assert len(response) == 1
-    assert "conn_id_with_leading_blanks" == list(response)[0]
+    conn = session.query(Connection).one()
+    assert "conn_id_with_leading_blanks" == conn.conn_id
 
 
 def test_all_fields_with_blanks(admin_client, session):
@@ -94,17 +92,11 @@ def test_all_fields_with_blanks(admin_client, session):
     check_content_in_response("Added Row", resp)
 
     # validate all the fields
-    response = {conn[0] for conn in session.query(Connection.conn_id).all()}
-    assert "connection_id_with_space" == list(response)[0]
-
-    response = {conn[0] for conn in session.query(Connection.description).all()}
-    assert "a sample http connection with leading and trailing blanks" == list(response)[0]
-
-    response = {conn[0] for conn in session.query(Connection.host).all()}
-    assert "localhost" == list(response)[0]
-
-    response = {conn[0] for conn in session.query(Connection.schema).all()}
-    assert "airflow" == list(response)[0]
+    conn = session.query(Connection).one()
+    assert "connection_id_with_space" == conn.conn_id
+    assert "a sample http connection with leading and trailing blanks" == conn.description
+    assert "localhost" == conn.host
+    assert "airflow" == conn.schema
 
 
 def test_action_logging_connection_masked_secrets(session, admin_client):
