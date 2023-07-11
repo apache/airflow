@@ -317,7 +317,7 @@ repos:
         name: Lint OpenAPI using openapi-spec-validator
         entry: openapi-spec-validator --schema 3.0.0
         language: python
-        additional_dependencies: ['openapi-spec-validator']
+        additional_dependencies: ['openapi-spec-validator>=0.6.0']
         files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint Dockerfile
