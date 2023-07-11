@@ -75,7 +75,6 @@ from airflow.utils.sqlalchemy import (
     with_row_locks,
 )
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -108,8 +107,9 @@ class ConcurrencyMap:
     task_group_concurrency_map: dict[tuple[str, str, str], tuple[int, set[int]]]
 
     @classmethod
-    def from_concurrency_map(cls, ti_map: dict[tuple[str, str, str], int],
-                             tg_map: dict[tuple[str, str, str], tuple[int, set[int]]]) -> ConcurrencyMap:
+    def from_concurrency_map(
+        cls, ti_map: dict[tuple[str, str, str], int], tg_map: dict[tuple[str, str, str], tuple[int, set[int]]]
+    ) -> ConcurrencyMap:
         instance = cls(Counter(), Counter(), Counter(ti_map), tg_map)
         for (d, r, t), c in ti_map.items():
             instance.dag_active_tasks_map[d] += c
@@ -284,12 +284,23 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
             .where(TI.state.in_(states))
             .group_by(TI.task_id, TI.run_id, TI.dag_id)
         )
-        ti_concurrency = {(dag_id, run_id, task_id): count for task_id, run_id, dag_id, count in ti_concurrency_query}
+        ti_concurrency = {
+            (dag_id, run_id, task_id): count for task_id, run_id, dag_id, count in ti_concurrency_query
+        }
 
         tg_concurrency_query: list[tuple[str, str, str, str, int]] = (
             session.query(TI.task_id, TI.run_id, TI.dag_id, TI.map_index)
-            .filter(TI.state.in_([State.SCHEDULED, State.QUEUED, State.RUNNING, State.UP_FOR_RESCHEDULE,
-                                  State.UP_FOR_RETRY]))
+            .filter(
+                TI.state.in_(
+                    [
+                        State.SCHEDULED,
+                        State.QUEUED,
+                        State.RUNNING,
+                        State.UP_FOR_RESCHEDULE,
+                        State.UP_FOR_RETRY
+                    ]
+                )
+            )
             .filter(TI.map_index >= 0)
             .order_by(TI.dag_id, TI.run_id, TI.map_index)
         )
@@ -566,9 +577,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         group_id = serialized_task.task_group.group_id
 
                     if task_concurrency_limit is not None:
-                        current_task_concurrency = concurrency_map.task_concurrency_map[
-                            (dag_id, task_id)
-                        ]
+                        current_task_concurrency = concurrency_map.task_concurrency_map[(dag_id, task_id)]
 
                         if current_task_concurrency >= task_concurrency_limit:
                             self.log.info(
@@ -596,8 +605,9 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     if task_group_concurrency_limit is not None:
                         tg_key: tuple[str, str, str] = (dag_id, run_id, group_id)
                         if tg_key not in concurrency_map.task_group_concurrency_map:
-                            concurrency_map.task_group_concurrency_map[tg_key] = \
-                                (task_group_concurrency_limit ,set())
+                            concurrency_map.task_group_concurrency_map[tg_key] = (
+                                task_group_concurrency_limit ,set()
+                            )
 
                         acceptable = False
                         (_, allow_idx) = concurrency_map.task_group_concurrency_map[tg_key]

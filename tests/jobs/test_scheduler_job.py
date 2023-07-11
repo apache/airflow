@@ -1138,7 +1138,6 @@ class TestSchedulerJob:
         assert 1 == len(res)
         session.rollback()
 
-
     @pytest.mark.parametrize(
         "concurrency_limit,mapped_tis_state,schedule_count,schedule_tids,queued_count,queued_tids",
         [
@@ -1146,15 +1145,15 @@ class TestSchedulerJob:
                 1,
                 dict(),
                 5,
-                {'tg.dummy1'},
+                {"tg.dummy1"},
                 1,
-                {'tg.dummy1'},
+                {"tg.dummy1"},
             ],
             [
                 1,
                 {0: (State.RUNNING, 30, None)},
                 4,
-                {'tg.dummy1'},
+                {"tg.dummy1"},
                 0,
                 set(),
             ],
@@ -1162,23 +1161,23 @@ class TestSchedulerJob:
                 1,
                 {0: (State.SUCCESS, 30, 15)},
                 5,
-                {'tg.dummy1', 'tg.dummy2'},
+                {"tg.dummy1", "tg.dummy2"},
                 1,
-                {'tg.dummy2'},
+                {"tg.dummy2"},
             ],
             [
                 2,
                 dict(),
                 5,
-                {'tg.dummy1'},
+                {"tg.dummy1"},
                 1,
-                {'tg.dummy1'},
+                {"tg.dummy1"},
             ],
             [
                 2,
                 {0: (State.RUNNING, 30, None), 1: (State.RUNNING, 30, None)},
                 3,
-                {'tg.dummy1'},
+                {"tg.dummy1"},
                 0,
                 set(),
             ],
@@ -1186,23 +1185,29 @@ class TestSchedulerJob:
                 2,
                 {0: (State.SUCCESS, 30, 15), 1: (State.RUNNING, 30, None)},
                 4,
-                {'tg.dummy1', 'tg.dummy2'},
+                {"tg.dummy1", "tg.dummy2"},
                 1,
-                {'tg.dummy2'},
+                {"tg.dummy2"},
             ],
             [
                 2,
                 {0: (State.SUCCESS, 30, 15), 1: (State.SUCCESS, 30, 15)},
                 5,
-                {'tg.dummy1', 'tg.dummy2'},
+                {"tg.dummy1", "tg.dummy2"},
                 1,
-                {'tg.dummy2'},
+                {"tg.dummy2"},
             ],
         ],
     )
     def test_find_executable_task_instances_with_task_group_concurrency_limit(
-        self, dag_maker, concurrency_limit: int, mapped_tis_state: dict, schedule_count: int,
-        schedule_tids: set, queued_count: int, queued_tids: set
+        self,
+        dag_maker,
+        concurrency_limit: int,
+        mapped_tis_state: dict,
+        schedule_count: int,
+        schedule_tids: set,
+        queued_count: int,
+        queued_tids: set
     ):
         """
         Test if _executable_task_instances_to_queued puts the right task instances into the
@@ -1244,7 +1249,7 @@ class TestSchedulerJob:
             ti1.end_date = timezone.utcnow() - datetime.timedelta(minutes=30)
             session.merge(ti1)
             for k, (state, start_date_offset, end_date_offset) in mapped_tis_state.items():
-                tg_ti = tis[k+1]
+                tg_ti = tis[k + 1]
                 tg_ti.state = state
                 if start_date_offset:
                     tg_ti.start_date = timezone.utcnow() - datetime.timedelta(minutes=start_date_offset)
@@ -1263,7 +1268,6 @@ class TestSchedulerJob:
             ti_queued = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
             assert len(ti_queued) == queued_count
             assert set([ti.task_id for ti in ti_queued]) == queued_tids
-
 
     def test_change_state_for_executable_task_instances_no_tis_with_state(self, dag_maker):
         dag_id = "SchedulerJobTest.test_change_state_for__no_tis_with_state"

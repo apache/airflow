@@ -129,7 +129,6 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
-from airflow.utils.task_group import MappedTaskGroup
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -2979,8 +2978,8 @@ class DAG(LoggingMixin):
             orm_dag.max_active_runs = dag.max_active_runs
             orm_dag.has_task_concurrency_limits = any(
                 t.max_active_tis_per_dag is not None
-                    or t.max_active_tis_per_dagrun is not None
-                    or getattr(t.task_group, "max_active_groups_per_dagrun", None) is not None
+                or t.max_active_tis_per_dagrun is not None
+                or t.task_group.max_active_groups_per_dagrun is not None
                 for t in dag.tasks
             )
             orm_dag.schedule_interval = dag.schedule_interval
