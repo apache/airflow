@@ -141,13 +141,14 @@ def _dump_table_to_file(*, target_table, file_path, export_format, session):
 
 
 def _do_delete(*, query, orm_model, skip_archive, session):
-    import re
     from datetime import datetime
+
+    import re2
 
     print("Performing Delete...")
     # using bulk delete
     # create a new table and copy the rows there
-    timestamp_str = re.sub(r"[^\d]", "", datetime.utcnow().isoformat())[:14]
+    timestamp_str = re2.sub(r"[^\d]", "", datetime.utcnow().isoformat())[:14]
     target_table_name = f"{ARCHIVE_TABLE_PREFIX}{orm_model.name}__{timestamp_str}"
     print(f"Moving data to table {target_table_name}")
     bind = session.get_bind()

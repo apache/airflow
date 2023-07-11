@@ -15,6 +15,10 @@
     specific language governing permissions and limitations
     under the License.
 
+.. spelling::
+
+    ListTransferJobsAsyncPager
+    StorageTransferServiceAsyncClient
 
 
 Google Cloud Transfer Service Operators

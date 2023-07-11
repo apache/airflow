@@ -266,7 +266,9 @@ deprecated_api = [
 doc = [
     "astroid>=2.12.3",
     "checksumdir",
-    "click>=8.0",
+    # Click 8.1.4 breaks our mypy checks. The upper limit can be lifted when the
+    # https://github.com/apache/airflow/issues/32412 issue is resolved
+    "click>=8.0,<8.1.4",
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
     # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
     # <section> tags for sections
@@ -289,7 +291,7 @@ doc_gen = [
 flask_appbuilder_oauth = [
     "authlib>=1.0.0",
     # The version here should be upgraded at the same time as flask-appbuilder in setup.cfg
-    "flask-appbuilder[oauth]==4.3.1",
+    "flask-appbuilder[oauth]==4.3.3",
 ]
 kerberos = [
     "pykerberos>=1.1.13",

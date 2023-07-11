@@ -19,8 +19,9 @@
 from __future__ import annotations
 
 import logging
-import re
 import ssl
+
+import re2
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
@@ -88,7 +89,7 @@ try:
                 "ca_certs": conf.get("celery", "SSL_CACERT"),
                 "cert_reqs": ssl.CERT_REQUIRED,
             }
-        elif broker_url and re.search("rediss?://|sentinel://", broker_url):
+        elif broker_url and re2.search("rediss?://|sentinel://", broker_url):
             broker_use_ssl = {
                 "ssl_keyfile": conf.get("celery", "SSL_KEY"),
                 "ssl_certfile": conf.get("celery", "SSL_CERT"),
@@ -114,7 +115,7 @@ except Exception as e:
         f"all necessary certs and key ({e})."
     )
 
-if re.search("rediss?://|amqp://|rpc://", result_backend):
+if re2.search("rediss?://|amqp://|rpc://", result_backend):
     log.warning(
         "You have configured a result_backend of %s, it is highly recommended "
         "to use an alternative result_backend (i.e. a database).",

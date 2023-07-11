@@ -19,7 +19,6 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Iterable, Optional
 
-from pendulum import DateTime
 from pydantic import BaseModel as BaseModelPydantic
 from sqlalchemy import PickleType
 from sqlalchemy.orm import Session
@@ -38,8 +37,8 @@ class DagRunPydantic(BaseModelPydantic):
     id: int
     dag_id: str
     queued_at: Optional[datetime]
-    execution_date: DateTime
-    logical_date: DateTime
+    execution_date: datetime
+    logical_date: datetime
     start_date: Optional[datetime]
     end_date: Optional[datetime]
     state: str

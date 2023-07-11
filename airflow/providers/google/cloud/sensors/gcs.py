@@ -120,8 +120,8 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
     def execute_complete(self, context: Context, event: dict[str, str]) -> str:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "error":
             raise AirflowException(event["message"])
@@ -160,10 +160,10 @@ class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
 
 def ts_function(context):
     """
-    Default callback for the GoogleCloudStorageObjectUpdatedSensor. The default
-    behaviour is check for the object being updated after the data interval's
-    end, or execution_date + interval on Airflow versions prior to 2.2 (before
-    AIP-39 implementation).
+    Default callback for the GoogleCloudStorageObjectUpdatedSensor.
+
+    The default behaviour is check for the object being updated after the data interval's end,
+    or execution_date + interval on Airflow versions prior to 2.2 (before AIP-39 implementation).
     """
     try:
         return context["data_interval_end"]
@@ -340,10 +340,7 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
                 )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str | list[str]]) -> str | list[str]:
-        """
-        Callback for when the trigger fires; returns immediately.
-        Relies on trigger to throw a success event.
-        """
+        """Callback for the trigger; returns immediately and relies on trigger to throw a success event."""
         self.log.info("Resuming from trigger and checking status")
         if event["status"] == "success":
             return event["matches"]
@@ -351,16 +348,15 @@ class GCSObjectsWithPrefixExistenceSensor(BaseSensorOperator):
 
 
 def get_time():
-    """
-    This is just a wrapper of datetime.datetime.now to simplify mocking in the
-    unittests.
-    """
+    """This is just a wrapper of datetime.datetime.now to simplify mocking in the unittests."""
     return datetime.now()
 
 
 @poke_mode_only
 class GCSUploadSessionCompleteSensor(BaseSensorOperator):
     """
+    Return True if the inactivity period has passed with no increase in the number of objects in the bucket.
+
     Checks for changes in the number of objects at prefix in Google Cloud Storage
     bucket and returns True if the inactivity period has passed with no
     increase in the number of objects. Note, this sensor will not behave correctly
@@ -441,8 +437,7 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
 
     def is_bucket_updated(self, current_objects: set[str]) -> bool:
         """
-        Checks whether new objects have been uploaded and the inactivity_period
-        has passed and updates the state of the sensor accordingly.
+        Check whether new objects have been added and the inactivity_period has passed, and update the state.
 
         :param current_objects: set of object ids in bucket during last poke.
         """
@@ -545,8 +540,8 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
             if event["status"] == "success":

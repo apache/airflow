@@ -21,7 +21,6 @@ from __future__ import annotations
 import functools
 import logging
 import os
-import re
 import socket
 import sys
 import threading
@@ -32,6 +31,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
+import re2
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -252,7 +252,7 @@ def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
     if not use_regex:
         return [get_dag(subdir, dag_id)]
     dagbag = DagBag(process_subdir(subdir))
-    matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
+    matched_dags = [dag for dag in dagbag.dags.values() if re2.search(dag_id, dag.dag_id)]
     if not matched_dags:
         raise AirflowException(
             f"dag_id could not be found with regex: {dag_id}. Either the dag did not exist or "
