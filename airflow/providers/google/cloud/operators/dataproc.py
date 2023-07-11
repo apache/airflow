@@ -2572,7 +2572,7 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param filter_: Result filters as specified in ListBatchesRequest
+    :param filter: Result filters as specified in ListBatchesRequest
     :param order_by: How to order results as specified in ListBatchesRequest
     """
 
@@ -2591,7 +2591,7 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        filter_: str | None = None,
+        filter: str | None = None,
         order_by: str | None = None,
         **kwargs,
     ) -> None:
@@ -2605,7 +2605,7 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self.filter_ = filter_
+        self.filter = filter
         self.order_by = order_by
 
     def execute(self, context: Context):
@@ -2618,7 +2618,7 @@ class DataprocListBatchesOperator(GoogleCloudBaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
-            filter_=self.filter_,
+            filter=self.filter,
             order_by=self.order_by,
         )
         DataprocListLink.persist(context=context, task_instance=self, url=DATAPROC_BATCHES_LINK)
