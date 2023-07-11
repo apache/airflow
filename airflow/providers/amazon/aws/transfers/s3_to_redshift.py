@@ -120,7 +120,7 @@ class S3ToRedshiftOperator(BaseOperator):
                     raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
 
     def _build_copy_query(
-        self, copy_destination: str, credentials_block: str, region_info: str | None, copy_options: str
+        self, copy_destination: str, credentials_block: str, region_info: str, copy_options: str
     ) -> str:
         column_names = "(" + ", ".join(self.column_list) + ")" if self.column_list else ""
         return f"""
@@ -142,7 +142,7 @@ class S3ToRedshiftOperator(BaseOperator):
         else:
             redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
         conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
-        region_info: str | None = ""
+        region_info = ""
         if conn.extra_dejson.get("region", False):
             region_info = f"region '{conn.extra_dejson['region']}'"
         if conn.extra_dejson.get("role_arn", False):
