@@ -301,7 +301,7 @@ By default, a DAG will only run a Task when all the Tasks it depends on are succ
 
 * :ref:`concepts:branching` - select which Task to move onto based on a condition
 * :ref:`concepts:trigger-rules` - set the conditions under which a DAG will run a task.
-* :doc:`howto/setup-and-teardown` - define setup and teardown relationships
+* :ref:`howto:setup-and-teardown` - define setup and teardown relationships
 * :ref:`concepts:latest-only` - a special form of branching that only runs on DAGs running against the present
 * :ref:`concepts:depends-on-past` - tasks can depend on themselves *from a previous run*
 
