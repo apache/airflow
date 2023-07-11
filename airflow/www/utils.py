@@ -87,7 +87,9 @@ def get_instance_with_map(task_instance, session):
 
 
 def get_try_count(try_number: int, state: State):
-    return try_number + 1 if state in [State.DEFERRED, State.UP_FOR_RESCHEDULE] else try_number
+    if state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
+        return try_number + 1
+    return try_number
 
 
 priority: list[None | TaskInstanceState] = [
