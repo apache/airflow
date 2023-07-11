@@ -96,6 +96,8 @@ class DataPipelineHook(GoogleBaseHook):
     def run_data_pipeline(
         self,
         data_pipeline_name: str,
+        project_id: str,
+        location: str = DEFAULT_DATAPIPELINE_LOCATION,
     ) -> None:
         """
         Runs DataPipeline.
