@@ -193,12 +193,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
     ],
-    "breeze publish-docs": [
-        {
-            "name": "Publish docs flags",
-            "options": ["--for-production", "--package-filter", "--airflow-site-dir"],
-        },
-    ],
     "breeze static-checks": [
         {
             "name": "Pre-commit flags",

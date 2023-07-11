@@ -637,7 +637,7 @@ jobs:
           echo "AIRFLOW_SITE_DIRECTORY=${GITHUB_WORKSPACE}/airflow-site" >> "$GITHUB_ENV"
       - name: "Publish docs"
         run: >
-          breeze publish-docs
+          breeze release-management publish-docs
           --override-versioned
           --package-filter ${{ needs.build-info.outputs.docs-filter-list-as-string }}
       - name: Configure AWS credentials

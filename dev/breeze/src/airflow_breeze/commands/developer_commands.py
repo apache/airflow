@@ -86,11 +86,6 @@ from airflow_breeze.utils.path_utils import (
     cleanup_python_generated_files,
     create_mypy_volume_if_needed,
 )
-from airflow_breeze.utils.publish_docs_builder import PublishDocsBuilder
-from airflow_breeze.utils.publish_docs_helpers import (
-    get_available_packages,
-    process_package_filters,
-)
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
     assert_pre_commit_installed,
@@ -408,48 +403,6 @@ def build_docs(
     ]
     process = run_command(cmd, text=True, env=env, check=False)
     sys.exit(process.returncode)
-
-
-@main.command(name="publish-docs")
-@click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
-@click.option(
-    "-a",
-    "--airflow-site-directory",
-    envvar="AIRFLOW_SITE_DIRECTORY",
-    help="Local directory path of cloned airflow-site repo.",
-    required=True,
-)
-@click.option(
-    "--package-filter",
-    help="List of packages to consider.",
-    type=NotVerifiedBetterChoice(get_available_documentation_packages()),
-    multiple=True,
-)
-@option_verbose
-@option_dry_run
-def publish_docs(
-    override_versioned: bool,
-    airflow_site_directory: bool,
-    package_filter: tuple[str],
-):
-    """Publishes documentation to airflow-site."""
-    if not os.path.isdir(airflow_site_directory):
-        get_console().print(
-            "\n[error]location pointed by airflow_site_dir is not valid. "
-            "Provide the path of cloned airflow-site repo\n"
-        )
-
-    available_packages = get_available_packages()
-    package_filters = package_filter
-
-    current_packages = process_package_filters(available_packages, package_filters)
-    print(f"Publishing docs for {len(current_packages)} package(s)")
-    for pkg in current_packages:
-        print(f" - {pkg}")
-    print()
-    for package_name in current_packages:
-        builder = PublishDocsBuilder(package_name=package_name, for_production=True)
-        builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
 
 
 @main.command(
