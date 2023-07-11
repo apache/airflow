@@ -24,7 +24,7 @@ from collections import defaultdict
 from datetime import datetime
 from operator import attrgetter
 from time import time
-from typing import TYPE_CHECKING, List, Tuple
+from typing import TYPE_CHECKING, Any, List, Tuple, Dict
 from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -37,6 +37,7 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.providers.elasticsearch.log.es_json_formatter import ElasticsearchJSONFormatter
+from airflow.providers.elasticsearch.log.es_response import ElasticSearchResponse, Hit
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
@@ -50,34 +51,6 @@ EsLogMsgType = List[Tuple[str, str]]
 # LogTemplate model to record the log ID template used. If this function does
 # not exist, the task handler should use the log_id_template attribute instead.
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
-
-
-class Log:
-    """wrapper class to mimic the attributes in Search class used in elasticsearch_dsl.Search."""
-
-    def __init__(self, offset):
-        self.offset = offset
-
-
-class ElasticSearchResponse:
-    """wrapper class to mimic the Search class used in elasticsearch_dsl.Search."""
-
-    def __init__(self, **kwargs):
-        # Store all provided keyword arguments as attributes of this object
-        for key, value in kwargs.items():
-            if key == "log":
-                setattr(self, key, Log(**value))
-            else:
-                setattr(self, key, value)
-
-    def to_dict(self):
-        result = {}
-        for key in self.__dict__.keys():
-            if key == "log":
-                result[key] = self.__dict__[key].__dict__
-            else:
-                result[key] = self.__dict__[key]
-        return result
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
@@ -150,6 +123,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         self.formatter: logging.Formatter
         self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
+        self._doc_type_map: Dict[Any] = {}
+        self._doc_type: List[Any] = []
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:
@@ -299,7 +274,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         # Just a safe-guard to preserve backwards-compatibility
         return log_line.message
 
-    def es_read(self, log_id: str, offset: str, metadata: dict) -> list:
+    def es_read(self, log_id: str, offset: str, metadata: dict) -> list | ElasticSearchResponse:
         """
         Return the logs matching log_id in Elasticsearch and next offset or ''.
 
@@ -325,21 +300,17 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             self.log.exception("Could not get current log size with log_id: %s", log_id)
             raise e
 
-        logs = []
+        logs: list[Any] | ElasticSearchResponse = []
         if max_log_line != 0:
             try:
+                query.update({"sort": [self.offset_field]})
                 res = self.client.search(
                     index=self.index_patterns,
                     body=query,
                     size=self.MAX_LINE_PER_PAGE,
                     from_=self.MAX_LINE_PER_PAGE * self.PAGE,
                 )
-                logs = [
-                    ElasticSearchResponse(
-                        **unwrap_response(response),
-                    )
-                    for response in res["hits"]["hits"]
-                ]
+                logs = ElasticSearchResponse(self, res)
             except elasticsearch.exceptions.ElasticsearchException:
                 self.log.exception("Could not read log with log_id: %s", log_id)
 
@@ -444,6 +415,46 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         """Whether we can support external links."""
         return bool(self.frontend)
 
+    def _resolve_nested(self, hit, parent_class=None):
+        doc_class = Hit
+
+        nested_path = []
+        nesting = hit["_nested"]
+        while nesting and "field" in nesting:
+            nested_path.append(nesting["field"])
+            nesting = nesting.get("_nested")
+        nested_path = ".".join(nested_path)
+
+        if hasattr(parent_class, "_index"):
+            nested_field = parent_class._index.resolve_field(nested_path)
+
+        if nested_field is not None:
+            return nested_field._doc_class
+
+        return doc_class
+
+    def _get_result(self, hit, parent_class=None):
+        doc_class = Hit
+        dt = hit.get("_type")
+
+        if "_nested" in hit:
+            doc_class = self._resolve_nested(hit, parent_class)
+
+        elif dt in self._doc_type_map:
+            doc_class = self._doc_type_map[dt]
+
+        else:
+            for doc_type in self._doc_type:
+                if hasattr(doc_type, "_matches") and doc_type._matches(hit):
+                    doc_class = doc_type
+                    break
+
+        for t in hit.get("inner_hits", ()):
+            hit["inner_hits"][t] = ElasticSearchResponse(self, hit["inner_hits"][t], doc_class=doc_class)
+
+        callback = getattr(doc_class, "from_es", doc_class)
+        return callback(hit)
+
 
 def getattr_nested(obj, item, default):
     """
@@ -458,33 +469,3 @@ def getattr_nested(obj, item, default):
         return attrgetter(item)(obj)
     except AttributeError:
         return default
-
-
-def unwrap_response(res):
-    source = res["_source"]
-    transformed = {
-        "log_id": source.get("log_id"),
-        "message": source.get("message"),
-        "meta": {
-            "id": res.get("_id"),
-            "index": res.get("_index"),
-            "version": res.get("_version"),
-            "headers": res.get("_headers"),
-        },
-    }
-    if "offset" in source:
-        transformed["offset"] = source["offset"]
-    if "asctime" in source:
-        transformed["asctime"] = source["asctime"]
-    if "filename" in source:
-        transformed["filename"] = source["filename"]
-    if "host" in source:
-        transformed["host"] = source["host"]
-    if "levelname" in source:
-        transformed["levelname"] = source["levelname"]
-    if "lineno" in source:
-        transformed["lineno"] = source["lineno"]
-    if "log" in source:
-        transformed["log"] = source["log"]
-
-    return transformed
