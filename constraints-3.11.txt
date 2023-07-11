@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-11T08:04:02Z
+# This constraints file was automatically generated on 2023-07-11T13:08:48Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -312,6 +312,7 @@ google-cloud-resource-manager==1.10.2
 google-cloud-secret-manager==2.16.2
 google-cloud-spanner==3.36.0
 google-cloud-speech==2.21.0
+google-cloud-storage-transfer==1.9.1
 google-cloud-storage==2.10.0
 google-cloud-tasks==2.13.2
 google-cloud-texttospeech==2.14.1
