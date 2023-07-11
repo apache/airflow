@@ -89,13 +89,13 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     :param soft_fail: Set to true to mark the task as SKIPPED on failure
     :param poke_interval: Time that the job should wait in between each try.
         Can be ``timedelta`` or ``float`` seconds.
-    :param timeout: Time before the task times out and fails.
+    :param timeout: Time elapsed before the task times out and fails.
         Can be ``timedelta`` or ``float`` seconds.
         This should not be confused with ``execution_timeout`` of the
-        ``BaseOperator`` class. ``timeout`` measure the time between the
+        ``BaseOperator`` class. ``timeout`` measures the time elapsed between the
         first poke and the current time (taking into account any
         reschedule delay between each poke), while ``execution_timeout``
-        check the **running** time of the task (leaving out any reschedule
+        checks the **running** time of the task (leaving out any reschedule
         delay). In case that the ``mode`` is ``poke`` (see below), both of
         them are equivalent (as the sensor is never rescheduled), which is not
         the case in ``reschedule`` mode.
