@@ -33,6 +33,8 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
     EmrContainerTrigger,
     EmrCreateJobFlowTrigger,
+    EmrServerlessStartApplicationTrigger,
+    EmrServerlessStartJobTrigger,
     EmrTerminateJobFlowTrigger,
 )
 from airflow.providers.amazon.aws.utils.waiter import waiter
@@ -1107,6 +1109,9 @@ class EmrServerlessStartJobOperator(BaseOperator):
     :waiter_max_attempts: Number of times the waiter should poll the application to check the state.
         If not set, the waiter will use its default value.
     :param waiter_delay: Number of seconds between polling the state of the job run.
+    :param deferrable: If True, the operator will wait asynchronously for the crawl to complete.
+        This implies waiting for completion. This mode requires aiobotocore module to be installed.
+        (default: False)
     """
 
     template_fields: Sequence[str] = (
@@ -1137,6 +1142,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         waiter_check_interval_seconds: int | ArgNotSet = NOTSET,
         waiter_max_attempts: int | ArgNotSet = NOTSET,
         waiter_delay: int | ArgNotSet = NOTSET,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         if waiter_check_interval_seconds is NOTSET:
@@ -1171,6 +1177,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
         self.waiter_delay = int(waiter_delay)  # type: ignore[arg-type]
         self.job_id: str | None = None
+        self.deferrable = deferrable
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -1187,7 +1194,17 @@ class EmrServerlessStartJobOperator(BaseOperator):
         if app_state not in EmrServerlessHook.APPLICATION_SUCCESS_STATES:
             self.hook.conn.start_application(applicationId=self.application_id)
             waiter = self.hook.get_waiter("serverless_app_started")
-
+            if self.deferrable:
+                self.defer(
+                    trigger=EmrServerlessStartApplicationTrigger(
+                        application_id=self.application_id,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                    ),
+                    method_name="start_job_run_after_defer",
+                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                )
             wait(
                 waiter=waiter,
                 waiter_max_attempts=self.waiter_max_attempts,
@@ -1213,6 +1230,18 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
         self.job_id = response["jobRunId"]
         self.log.info("EMR serverless job started: %s", self.job_id)
+        if self.deferrable:
+            self.defer(
+                trigger=EmrServerlessStartJobTrigger(
+                    application_id=self.application_id,
+                    job_id=self.job_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                ),
+                method_name="execute_complete",
+                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+            )
         if self.wait_for_completion:
             waiter = self.hook.get_waiter("serverless_job_completed")
             wait(
@@ -1226,6 +1255,39 @@ class EmrServerlessStartJobOperator(BaseOperator):
             )
 
         return self.job_id
+
+    def start_job_run_after_defer(self, context: Context, event: dict[str, Any] = {}) -> None:
+        if event["status"] != "success":
+            self.log.info("Application %s failed to start", self.application_id)
+        response = self.hook.conn.start_job_run(
+            clientToken=self.client_request_token,
+            applicationId=self.application_id,
+            executionRoleArn=self.execution_role_arn,
+            jobDriver=self.job_driver,
+            configurationOverrides=self.configuration_overrides,
+            name=self.name,
+            **self.config,
+        )
+
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise AirflowException(f"EMR serverless job failed to start: {response}")
+
+        self.defer(
+            trigger=EmrServerlessStartJobTrigger(
+                application_id=self.application_id,
+                job_id=response["jobRunId"],
+                waiter_delay=self.waiter_delay,
+                waiter_max_attempts=self.waiter_max_attempts,
+                aws_conn_id=self.aws_conn_id,
+            ),
+            method_name="execute_complete",
+            timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, Any] = {}) -> None:
+        if event["status"] == "success":
+            self.log.info("Serverless job completed")
+            return event["job_id"]
 
     def on_kill(self) -> None:
         """Cancel the submitted job run."""
