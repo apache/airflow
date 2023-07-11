@@ -1076,7 +1076,6 @@ export interface components {
       /** @enum {string} */
       run_type?: "backfill" | "manual" | "scheduled" | "dataset_triggered";
       state?: components["schemas"]["DagState"];
-      /** @default true */
       external_trigger?: boolean;
       /**
        * @description JSON object describing additional configuration parameters.

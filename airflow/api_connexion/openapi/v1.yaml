@@ -2892,7 +2892,6 @@ components:
           $ref: '#/components/schemas/DagState'
         external_trigger:
           type: boolean
-          default: true
           readOnly: true
         conf:
           type: object
