@@ -369,6 +369,10 @@ def _execute_task(task_instance: TaskInstance | TaskInstancePydantic, context, t
     :meta private:
     """
     task_to_execute = task_instance.task
+
+    if isinstance(task_to_execute, MappedOperator):
+        raise AirflowException("MappedOperator cannot be executed.")
+
     # If the task has been deferred and is being executed due to a trigger,
     # then we need to pick the right method to come back to, otherwise
     # we go for the default execute
