@@ -557,11 +557,9 @@ class MappedTaskGroup(TaskGroup):
     a ``@task_group`` function instead.
     """
 
-    def __init__(self, *, expand_input: ExpandInput, max_active_groups_per_dagrun: int | None,
-                 **kwargs: Any) -> None:
+    def __init__(self, *, expand_input: ExpandInput, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._expand_input = expand_input
-        self.max_active_groups_per_dagrun = max_active_groups_per_dagrun
         for op, _ in expand_input.iter_references():
             self.set_upstream(op)
 

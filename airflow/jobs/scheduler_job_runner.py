@@ -297,8 +297,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         for (task_id, run_id, dag_id, map_index) in tg_concurrency_query:
             dag = self.dagbag.get_dag(dag_id, session)
             task = dag.get_task(task_id) if dag else None
-            if task and task.task_group and getattr(task.task_group, "max_active_groups_per_dagrun", None) \
-                    is not None:
+            if task and task.task_group and task.task_group.max_active_groups_per_dagrun is not None:
                 group_id = task.task_group.group_id
                 key = (dag_id, run_id, group_id)
                 if key not in tg_concurrency:
@@ -563,8 +562,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         serialized_task = serialized_dag.get_task(task_id)
                         task_concurrency_limit = serialized_task.max_active_tis_per_dag
                         task_dagrun_concurrency_limit = serialized_task.max_active_tis_per_dagrun
-                        task_group_concurrency_limit = getattr(serialized_task.task_group,
-                                                               "max_active_groups_per_dagrun", None)
+                        task_group_concurrency_limit = serialized_task.task_group.max_active_groups_per_dagrun
                         group_id = serialized_task.task_group.group_id
 
                     if task_concurrency_limit is not None:
