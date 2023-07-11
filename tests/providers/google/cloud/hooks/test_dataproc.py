@@ -941,7 +941,7 @@ class TestDataprocAsyncHook:
                 parent=PARENT.format(GCP_PROJECT, GCP_LOCATION),
                 page_size=None,
                 page_token=None,
-                filter_=None,
+                filter=None,
                 order_by=None,
             ),
             metadata=(),
