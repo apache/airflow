@@ -256,9 +256,14 @@ class EmrServerlessHook(AwsBaseHook):
         kwargs["client_type"] = "emr-serverless"
         super().__init__(*args, **kwargs)
 
-    def cancel_running_jobs(self, application_id: str, waiter_config: dict = {}):
+    def cancel_running_jobs(
+        self, application_id: str, waiter_config: dict = {}, wait_for_completion: bool = True
+    ):
         """
         Cancel jobs in an intermediate state, and return the number of cancelled jobs.
+
+        If wait_for_completion is True, then the method will wait until the jobs are
+        cancelled before returning.
 
         Note: if new jobs are triggered while this operation is ongoing,
         it's going to time out and return an error.
@@ -284,6 +289,15 @@ class EmrServerlessHook(AwsBaseHook):
                 )
                 for job_id in job_ids:
                     self.conn.cancel_job_run(applicationId=application_id, jobRunId=job_id)
+        if wait_for_completion:
+            if count > 0:
+                self.log.info("now waiting for the %s cancelled job(s) to terminate", count)
+                self.get_waiter("no_job_running").wait(
+                    applicationId=application_id,
+                    states=list(self.JOB_INTERMEDIATE_STATES.union({"CANCELLING"})),
+                    WaiterConfig=waiter_config,
+                )
+
         return count
 
 

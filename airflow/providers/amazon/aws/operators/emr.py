@@ -33,8 +33,11 @@ from airflow.providers.amazon.aws.triggers.emr import (
     EmrAddStepsTrigger,
     EmrContainerTrigger,
     EmrCreateJobFlowTrigger,
-    EmrServerlessAppicationTrigger,
     EmrServerlessCancelJobsTrigger,
+    EmrServerlessCreateApplicationTrigger,
+    EmrServerlessDeleteApplicationTrigger,
+    EmrServerlessStartApplicationTrigger,
+    EmrServerlessStopApplicationTrigger,
     EmrTerminateJobFlowTrigger,
 )
 from airflow.providers.amazon.aws.utils.waiter import waiter
@@ -1061,9 +1064,8 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         self.log.info("EMR serverless application created: %s", application_id)
         if self.deferrable:
             self.defer(
-                trigger=EmrServerlessAppicationTrigger(
+                trigger=EmrServerlessCreateApplicationTrigger(
                     application_id=application_id,
-                    waiter_name="serverless_app_created",
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -1104,9 +1106,8 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
             self.log.info("Starting application %s", event["application_id"])
             self.hook.conn.start_application(applicationId=event["application_id"])
             self.defer(
-                trigger=EmrServerlessAppicationTrigger(
+                trigger=EmrServerlessStartApplicationTrigger(
                     application_id=event["application_id"],
-                    waiter_name="serverless_app_started",
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -1384,7 +1385,8 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
 
         if self.force_stop:
             count = self.hook.cancel_running_jobs(
-                self.application_id,
+                application_id=self.application_id,
+                wait_for_completion=False,
             )
             if count > 0:
                 self.log.info("now waiting for the %s cancelled job(s) to terminate", count)
@@ -1413,9 +1415,8 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         self.hook.conn.stop_application(applicationId=self.application_id)
         if self.deferrable:
             self.defer(
-                trigger=EmrServerlessAppicationTrigger(
+                trigger=EmrServerlessStopApplicationTrigger(
                     application_id=self.application_id,
-                    waiter_name="serverless_app_stopped",
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -1440,9 +1441,8 @@ class EmrServerlessStopApplicationOperator(BaseOperator):
         if event["status"] == "success":
             self.hook.conn.stop_application(applicationId=self.application_id)
             self.defer(
-                trigger=EmrServerlessAppicationTrigger(
+                trigger=EmrServerlessStopApplicationTrigger(
                     application_id=self.application_id,
-                    waiter_name="serverless_app_stopped",
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
@@ -1497,7 +1497,7 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
         waiter_max_attempts: int | ArgNotSet = NOTSET,
         waiter_delay: int | ArgNotSet = NOTSET,
         force_stop: bool = False,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         if waiter_check_interval_seconds is NOTSET:
@@ -1548,9 +1548,8 @@ class EmrServerlessDeleteApplicationOperator(EmrServerlessStopApplicationOperato
 
         if self.deferrable:
             self.defer(
-                trigger=EmrServerlessAppicationTrigger(
+                trigger=EmrServerlessDeleteApplicationTrigger(
                     application_id=self.application_id,
-                    waiter_name="serverless_app_terminated",
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
