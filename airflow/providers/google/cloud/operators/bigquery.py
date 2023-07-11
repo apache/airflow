@@ -812,8 +812,10 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
     :param table_id: The table ID of the requested table. (templated)
     :param table_project_id: (Optional) The project ID of the requested table.
         If None, it will be derived from the hook's project ID. (templated)
-    :param project_id: (Optional) Google Cloud Project where the job is running.
+    :param job_project_id: (Optional) Google Cloud Project where the job is running.
         If None, it will be derived from the hook's project ID. (templated)
+    :param project_id: (Deprecated) (Optional) The name of the project where the data
+        will be returned from. If None, it will be derived from the hook's project ID. (templated)
     :param max_results: The maximum number of records (rows) to be fetched
         from the table. (templated)
     :param selected_fields: List of fields to return (comma-separated). If
@@ -840,6 +842,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         "dataset_id",
         "table_id",
         "table_project_id",
+        "job_project_id",
         "project_id",
         "max_results",
         "selected_fields",
@@ -853,6 +856,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         dataset_id: str,
         table_id: str,
         table_project_id: str | None = None,
+        job_project_id: str | None = None,
         project_id: str | None = None,
         max_results: int = 100,
         selected_fields: str | None = None,
@@ -870,6 +874,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         self.table_project_id = table_project_id
         self.dataset_id = dataset_id
         self.table_id = table_id
+        self.job_project_id = job_project_id
         self.max_results = int(max_results)
         self.selected_fields = selected_fields
         self.gcp_conn_id = gcp_conn_id
@@ -892,7 +897,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         return hook.insert_job(
             configuration=configuration,
             location=self.location,
-            project_id=self.project_id or hook.project_id,
+            project_id=self.job_project_id or hook.project_id,
             job_id=job_id,
             nowait=True,
         )
@@ -911,6 +916,18 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
         return query
 
     def execute(self, context: Context):
+        if self.project_id:
+            self.log.warning(
+                "The project_id parameter is deprecated, and will be removed in a future release."
+                " Please use table_project_id instead.",
+            )
+            if not self.table_project_id:
+                self.table_project_id = self.project_id
+            else:
+                self.log.info(
+                    "Ignoring project_id parameter, as table_project_id is found."
+                )
+
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -966,7 +983,7 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator):
                 job_id=job.job_id,
                 dataset_id=self.dataset_id,
                 table_id=self.table_id,
-                project_id=self.project_id or hook.project_id,
+                project_id=self.job_project_id or hook.project_id,
                 poll_interval=self.poll_interval,
                 as_dict=self.as_dict,
             ),
