@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2023-07-12T08:24:53Z
+# This constraints file was automatically generated on 2023-07-12T09:29:32Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -393,7 +393,6 @@ looker-sdk==23.10.0
 lxml==4.9.3
 lz4==4.3.2
 markdown-it-py==3.0.0
-marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
 marshmallow==3.19.0
@@ -508,7 +507,6 @@ pymssql==2.2.7
 pyodbc==4.0.39
 pyparsing==3.1.0
 pypsrp==0.8.1
-pyrsistent==0.19.3
 pyspark==3.4.1
 pyspnego==0.9.1
 pytest-asyncio==0.21.0
