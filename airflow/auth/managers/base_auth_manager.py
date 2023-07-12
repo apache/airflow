@@ -34,6 +34,11 @@ class BaseAuthManager(LoggingMixin):
         """Return the username associated to the user in session."""
         ...
 
+    @abstractmethod
+    def is_logged_in(self) -> bool:
+        """Return whether the user is logged in."""
+        ...
+
     def get_security_manager_override_class(self) -> type:
         """
         Return the security manager override class.
