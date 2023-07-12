@@ -213,7 +213,7 @@ class WasbHook(BaseHook):
                 if not account_url.startswith("https://"):
                     # TODO: require url in the host field in the next major version?
                     account_url = f"https://{conn.login}.blob.core.windows.net"
-                return BlobServiceClient(account_url=f"{account_url}/{sas_token}", **extra)
+                return BlobServiceClient(account_url=f"{account_url.rstrip('/')}/{sas_token}", **extra)
 
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
