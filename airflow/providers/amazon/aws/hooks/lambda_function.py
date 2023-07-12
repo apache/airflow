@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import Any
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-from airflow.providers.amazon.aws.utils import prune_dict
+from airflow.utils.helpers import prune_dict
 
 
 class LambdaHook(AwsBaseHook):

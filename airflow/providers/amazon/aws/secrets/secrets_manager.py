@@ -26,8 +26,8 @@ from typing import Any
 from urllib.parse import unquote
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.utils import prune_dict
 from airflow.secrets import BaseSecretsBackend
+from airflow.utils.helpers import prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
