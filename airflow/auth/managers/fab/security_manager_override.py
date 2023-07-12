@@ -19,12 +19,8 @@ from __future__ import annotations
 
 from functools import cached_property
 
-from flask import Flask
-from flask_appbuilder import AppBuilder
 from flask_appbuilder.const import AUTH_DB, AUTH_LDAP, AUTH_OAUTH, AUTH_OID, AUTH_REMOTE_USER
 from flask_babel import lazy_gettext
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
 
 
 class FabAirflowSecurityManagerOverride:
@@ -63,69 +59,32 @@ class FabAirflowSecurityManagerOverride:
     """ The obj instance for user view """
     user_view = None
 
-    def __init__(
-        self,
-        appbuilder: AppBuilder,
-        actionmodelview,
-        authdbview,
-        authldapview,
-        authoauthview,
-        authoidview,
-        authremoteuserview,
-        permissionmodelview,
-        registeruser_view,
-        registeruserdbview,
-        registeruseroauthview,
-        registerusermodelview,
-        registeruseroidview,
-        resetmypasswordview,
-        resetpasswordview,
-        rolemodelview,
-        userinfoeditview,
-        userdbmodelview,
-        userldapmodelview,
-        useroauthmodelview,
-        useroidmodelview,
-        userremoteusermodelview,
-        userstatschartview,
-        **kwargs,
-    ):
-        self.appbuilder = appbuilder
-        self.actionmodelview = actionmodelview
-        self.authdbview = authdbview
-        self.authldapview = authldapview
-        self.authoauthview = authoauthview
-        self.authoidview = authoidview
-        self.authremoteuserview = authremoteuserview
-        self.permissionmodelview = permissionmodelview
-        self.registeruser_view = registeruser_view
-        self.registeruserdbview = registeruserdbview
-        self.registeruseroauthview = registeruseroauthview
-        self.registerusermodelview = registerusermodelview
-        self.registeruseroidview = registeruseroidview
-        self.resetmypasswordview = resetmypasswordview
-        self.resetpasswordview = resetpasswordview
-        self.rolemodelview = rolemodelview
-        self.userinfoeditview = userinfoeditview
-        self.userdbmodelview = userdbmodelview
-        self.userldapmodelview = userldapmodelview
-        self.useroauthmodelview = useroauthmodelview
-        self.useroidmodelview = useroidmodelview
-        self.userremoteusermodelview = userremoteusermodelview
-        self.userstatschartview = userstatschartview
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
-        # Setup Flask-Limiter
-        self.limiter = self.create_limiter(appbuilder.get_app())
-
-    def create_limiter(self, app: Flask) -> Limiter:
-        """
-        Create a Flask limiter.
-
-        :param app: The Flask app.
-        """
-        limiter = Limiter(key_func=get_remote_address)
-        limiter.init_app(app)
-        return limiter
+        self.appbuilder = kwargs["appbuilder"]
+        self.actionmodelview = kwargs["actionmodelview"]
+        self.authdbview = kwargs["authdbview"]
+        self.authldapview = kwargs["authldapview"]
+        self.authoauthview = kwargs["authoauthview"]
+        self.authoidview = kwargs["authoidview"]
+        self.authremoteuserview = kwargs["authremoteuserview"]
+        self.permissionmodelview = kwargs["permissionmodelview"]
+        self.registeruser_view = kwargs["registeruser_view"]
+        self.registeruserdbview = kwargs["registeruserdbview"]
+        self.registeruseroauthview = kwargs["registeruseroauthview"]
+        self.registerusermodelview = kwargs["registerusermodelview"]
+        self.registeruseroidview = kwargs["registeruseroidview"]
+        self.resetmypasswordview = kwargs["resetmypasswordview"]
+        self.resetpasswordview = kwargs["resetpasswordview"]
+        self.rolemodelview = kwargs["rolemodelview"]
+        self.userinfoeditview = kwargs["userinfoeditview"]
+        self.userdbmodelview = kwargs["userdbmodelview"]
+        self.userldapmodelview = kwargs["userldapmodelview"]
+        self.useroauthmodelview = kwargs["useroauthmodelview"]
+        self.useroidmodelview = kwargs["useroidmodelview"]
+        self.userremoteusermodelview = kwargs["userremoteusermodelview"]
+        self.userstatschartview = kwargs["userstatschartview"]
 
     def register_views(self):
         """Register FAB auth manager related views."""

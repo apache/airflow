@@ -44,8 +44,4 @@ class BaseAuthManager(LoggingMixin):
 
         By default, return an empty class.
         """
-
-        class EmptyClass:
-            pass
-
-        return EmptyClass
+        return object

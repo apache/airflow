@@ -22,7 +22,6 @@ import base64
 import datetime
 import json
 import logging
-from functools import cached_property
 from typing import Any
 from uuid import uuid4
 
@@ -205,12 +204,6 @@ class BaseSecurityManager:
     actionmodelview = PermissionModelView
     userstatschartview = UserStatsChartView
     permissionmodelview = PermissionModelView
-
-    @cached_property
-    def resourcemodelview(self):
-        from airflow.www.views import ResourceModelView
-
-        return ResourceModelView
 
     def __init__(self, appbuilder):
         self.appbuilder = appbuilder

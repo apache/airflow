@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Any, Collection, Container, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Collection, Container, Iterable, Sequence
 
 from flask import g
 from sqlalchemy import or_
@@ -57,11 +57,14 @@ EXISTING_ROLES = {
     "Public",
 }
 
-# Fetch the security manager override from the auth manager
-SecurityManagerOverride = get_auth_manager().get_security_manager_override_class()
+if TYPE_CHECKING:
+    SecurityManagerOverride: type = object
+else:
+    # Fetch the security manager override from the auth manager
+    SecurityManagerOverride = get_auth_manager().get_security_manager_override_class()
 
 
-class AirflowSecurityManager(SecurityManager, LoggingMixin, SecurityManagerOverride):  # type: ignore
+class AirflowSecurityManager(SecurityManagerOverride, SecurityManager, LoggingMixin):
     """Custom security manager, which introduces a permission model adapted to Airflow."""
 
     ###########################################################################
