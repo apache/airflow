@@ -259,7 +259,7 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
     This class is deprecated and will be removed in a future release.
 
     Please use :class:`airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceSensor`
-    and set `deferrable` attribute to `True` instead.
+    and set *deferrable* attribute to *True* instead.
 
     :param project_id: The Google cloud project in which to look for the table.
        The connection supplied to the hook must provide
@@ -299,7 +299,7 @@ class BigQueryTableExistencePartitionAsyncSensor(BigQueryTablePartitionExistence
     This class is deprecated and will be removed in a future release.
 
     Please use :class:`airflow.providers.google.cloud.sensors.bigquery.BigQueryTablePartitionExistenceSensor`
-    and set `deferrable` attribute to `True` instead.
+    and set *deferrable* attribute to *True* instead.
 
     :param project_id: The Google cloud project in which to look for the table.
        The connection supplied to the hook must provide

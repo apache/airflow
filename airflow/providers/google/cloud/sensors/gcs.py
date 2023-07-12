@@ -136,7 +136,7 @@ class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):
     This class is deprecated and will be removed in a future release.
 
     Please use :class:`airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor`
-    and set `deferrable` attribute to `True` instead.
+    and set *deferrable* attribute to *True* instead.
 
     :param bucket: The Google Cloud Storage bucket where the object is.
     :param object: The name of the object to check in the Google cloud storage bucket.

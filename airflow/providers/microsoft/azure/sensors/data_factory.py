@@ -131,7 +131,7 @@ class AzureDataFactoryPipelineRunStatusAsyncSensor(AzureDataFactoryPipelineRunSt
 
     Please use
     :class:`airflow.providers.microsoft.azure.sensors.data_factory.AzureDataFactoryPipelineRunStatusSensor`
-    and set `deferrable` attribute to `True` instead.
+    and set *deferrable* attribute to *True* instead.
 
     :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
     :param run_id: The pipeline run identifier.
