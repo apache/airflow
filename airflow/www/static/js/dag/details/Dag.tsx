@@ -45,7 +45,7 @@ import {
 } from "src/utils";
 import { useGridData, useDagDetails } from "src/api";
 import Time from "src/components/Time";
-import ViewScheduleInterval from "src/components/ViewScheduleInterval";
+import ViewTimeDelta from "src/components/ViewTimeDelta";
 import type { TaskState } from "src/types";
 
 import type { DAG, DAGDetail } from "src/types/api-generated";
@@ -283,7 +283,7 @@ const Dag = () => {
                     <Text>{dagDetailsData.scheduleInterval?.value}</Text>
                   ) : (
                     // for TimeDelta and RelativeDelta
-                    <ViewScheduleInterval
+                    <ViewTimeDelta
                       data={omit(dagDetailsData.scheduleInterval, [
                         "type",
                         "value",
@@ -299,7 +299,7 @@ const Dag = () => {
                     <Text>null</Text>
                   ) : (
                     // for TimeDelta and RelativeDelta
-                    <ViewScheduleInterval
+                    <ViewTimeDelta
                       data={omit(dagDetailsData.dagRunTimeout, ["type"])}
                     />
                   )}
