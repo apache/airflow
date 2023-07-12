@@ -60,8 +60,7 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
         self.data_pipeline_name = data_pipeline_name
         self.gcp_conn_id = gcp_conn_id
         self.datapipeline_hook : DataPipelineHook | None = None
-
-        self.body["pipelineSources"] = {"airflow"}
+        self.body["pipelineSources"] = {"airflow":"airflow"}
 
     def execute(self, context: Context):
         self.datapipeline_hook = DataPipelineHook(
