@@ -23,7 +23,7 @@ import pytest
 
 from airflow import models
 from airflow.cli import cli_parser
-from airflow.executors import celery_executor, celery_kubernetes_executor
+from airflow.providers.celery.executors import celery_executor, celery_kubernetes_executor
 from tests.test_utils.config import conf_vars
 
 # Create custom executors here because conftest is imported first

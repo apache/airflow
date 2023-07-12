@@ -30,7 +30,7 @@ class TestSlackNotifier:
             EmptyOperator(task_id="task1")
 
         notifier = send_slack_notification(text="test")
-        notifier(context={"dag": dag})
+        notifier({"dag": dag})
         mock_slack_hook.return_value.call.assert_called_once_with(
             "chat.postMessage",
             json={
@@ -50,7 +50,7 @@ class TestSlackNotifier:
             EmptyOperator(task_id="task1")
 
         notifier = SlackNotifier(text="test")
-        notifier(context={"dag": dag})
+        notifier({"dag": dag})
         mock_slack_hook.return_value.call.assert_called_once_with(
             "chat.postMessage",
             json={

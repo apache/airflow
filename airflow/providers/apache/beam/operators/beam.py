@@ -47,7 +47,8 @@ if TYPE_CHECKING:
 
 class BeamDataflowMixin(metaclass=ABCMeta):
     """
-    Helper class to store common, Dataflow specific logic for both
+    Helper class to store common, Dataflow specific logic for both.
+
     :class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`,
     :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` and
     :class:`~airflow.providers.apache.beam.operators.beam.BeamRunGoPipelineOperator`.
@@ -205,11 +206,13 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
 
 class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
     """
-    Launching Apache Beam pipelines written in Python. Note that both
-    ``default_pipeline_options`` and ``pipeline_options`` will be merged to specify pipeline
-    execution parameter, and ``default_pipeline_options`` is expected to save
-    high-level options, for instances, project and zone information, which
-    apply to all beam operators in the DAG.
+    Launch Apache Beam pipelines written in Python.
+
+    Note that both ``default_pipeline_options`` and ``pipeline_options``
+    will be merged to specify pipeline execution parameter, and
+    ``default_pipeline_options`` is expected to save high-level options,
+    for instances, project and zone information, which apply to all beam
+    operators in the DAG.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -498,11 +501,13 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
 
 class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
     """
-    Launching Apache Beam pipelines written in Go. Note that both
-    ``default_pipeline_options`` and ``pipeline_options`` will be merged to specify pipeline
-    execution parameter, and ``default_pipeline_options`` is expected to save
-    high-level options, for instances, project and zone information, which
-    apply to all beam operators in the DAG.
+    Launch Apache Beam pipelines written in Go.
+
+    Note that both ``default_pipeline_options`` and ``pipeline_options``
+    will be merged to specify pipeline execution parameter, and
+    ``default_pipeline_options`` is expected to save high-level options,
+    for instances, project and zone information, which apply to all beam
+    operators in the DAG.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

@@ -458,8 +458,7 @@ class ListEndpointsOperator(GoogleCloudBaseOperator):
 
 class UndeployModelOperator(GoogleCloudBaseOperator):
     """
-    Undeploys a Model from an Endpoint, removing a DeployedModel from it, and freeing all resources it's
-    using.
+    Undeploys a Model from an Endpoint, removing a DeployedModel from it, and freeing all used resources.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.

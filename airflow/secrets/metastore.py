@@ -21,6 +21,7 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.exceptions import RemovedInAirflow3Warning
@@ -38,7 +39,7 @@ class MetastoreBackend(BaseSecretsBackend):
     def get_connection(self, conn_id: str, session: Session = NEW_SESSION) -> Connection | None:
         from airflow.models.connection import Connection
 
-        conn = session.query(Connection).filter(Connection.conn_id == conn_id).first()
+        conn = session.scalar(select(Connection).where(Connection.conn_id == conn_id).limit(1))
         session.expunge_all()
         return conn
 
@@ -65,7 +66,7 @@ class MetastoreBackend(BaseSecretsBackend):
         """
         from airflow.models.variable import Variable
 
-        var_value = session.query(Variable).filter(Variable.key == key).first()
+        var_value = session.scalar(select(Variable).where(Variable.key == key).limit(1))
         session.expunge_all()
         if var_value:
             return var_value.val

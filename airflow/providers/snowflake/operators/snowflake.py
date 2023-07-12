@@ -20,9 +20,10 @@ from __future__ import annotations
 import time
 import warnings
 from datetime import timedelta
-from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, Iterable, List, Mapping, Sequence, SupportsAbs, cast
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import (
     SQLCheckOperator,
@@ -30,9 +31,8 @@ from airflow.providers.common.sql.operators.sql import (
     SQLIntervalCheckOperator,
     SQLValueCheckOperator,
 )
-from airflow.providers.snowflake.hooks.snowflake_sql_api import (
-    SnowflakeSqlApiHook,
-)
+from airflow.providers.snowflake.hooks.snowflake_sql_api import SnowflakeSqlApiHook
+from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -134,10 +134,11 @@ class SnowflakeOperator(SQLExecuteQueryOperator):
 
 class SnowflakeCheckOperator(SQLCheckOperator):
     """
-    Performs a check against Snowflake. The ``SnowflakeCheckOperator`` expects
-    a sql query that will return a single row. Each value on that
-    first row is evaluated using python ``bool`` casting. If any of the
-    values return ``False`` the check is failed and errors out.
+    Performs a check against Snowflake.
+
+    The ``SnowflakeCheckOperator`` expects a sql query that will return a single row. Each
+    value on that first row is evaluated using python ``bool`` casting. If any of the values
+    return ``False`` the check is failed and errors out.
 
     Note that Python bool casting evals the following as ``False``:
 
@@ -224,8 +225,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
 
 class SnowflakeValueCheckOperator(SQLValueCheckOperator):
     """
-    Performs a simple check using sql code against a specified value, within a
-    certain level of tolerance.
+    Performs a simple check using sql code against a specified value, within a certain level of tolerance.
 
     :param sql: the sql to be executed
     :param pass_value: the value to check against
@@ -292,8 +292,7 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
 
 class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
     """
-    Checks that the values of metrics given as SQL expressions are within
-    a certain tolerance of the ones from days_back before.
+    Checks that the metrics given as SQL expressions are within tolerance of the ones from days_back before.
 
     This method constructs a query like so ::
 
@@ -430,6 +429,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
     :param bindings: (Optional) Values of bind variables in the SQL statement.
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.
+    :param deferrable: Run operator in the deferrable mode.
     """  # noqa
 
     LIFETIME = timedelta(minutes=59)  # The tokens will have a 59 minutes lifetime
@@ -450,6 +450,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         token_life_time: timedelta = LIFETIME,
         token_renewal_delta: timedelta = RENEWAL_DELTA,
         bindings: dict[str, Any] | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
         self.snowflake_conn_id = snowflake_conn_id
@@ -459,6 +460,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         self.token_renewal_delta = token_renewal_delta
         self.bindings = bindings
         self.execute_async = False
+        self.deferrable = deferrable
         if any([warehouse, database, role, schema, authenticator, session_parameters]):  # pragma: no cover
             hook_params = kwargs.pop("hook_params", {})  # pragma: no cover
             kwargs["hook_params"] = {
@@ -475,6 +477,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
     def execute(self, context: Context) -> None:
         """
         Make a POST API request to snowflake by using SnowflakeSQL and execute the query to get the ids.
+
         By deferring the SnowflakeSqlApiTrigger class passed along with query ids.
         """
         self.log.info("Executing: %s", self.sql)
@@ -482,6 +485,7 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
             snowflake_conn_id=self.snowflake_conn_id,
             token_life_time=self.token_life_time,
             token_renewal_delta=self.token_renewal_delta,
+            deferrable=self.deferrable,
         )
         self.query_ids = self._hook.execute_query(
             self.sql, statement_count=self.statement_count, bindings=self.bindings  # type: ignore[arg-type]
@@ -491,10 +495,23 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
         if self.do_xcom_push:
             context["ti"].xcom_push(key="query_ids", value=self.query_ids)
 
-        statement_status = self.poll_on_queries()
-        if statement_status["error"]:
-            raise AirflowException(statement_status["error"])
-        self._hook.check_query_output(self.query_ids)
+        if self.deferrable:
+            self.defer(
+                timeout=self.execution_timeout,
+                trigger=SnowflakeSqlApiTrigger(
+                    poll_interval=self.poll_interval,
+                    query_ids=self.query_ids,
+                    snowflake_conn_id=self.snowflake_conn_id,
+                    token_life_time=self.token_life_time,
+                    token_renewal_delta=self.token_renewal_delta,
+                ),
+                method_name="execute_complete",
+            )
+        else:
+            statement_status = self.poll_on_queries()
+            if statement_status["error"]:
+                raise AirflowException(statement_status["error"])
+            self._hook.check_query_output(self.query_ids)
 
     def poll_on_queries(self):
         """Poll on requested queries."""
@@ -517,3 +534,21 @@ class SnowflakeSqlApiOperator(SQLExecuteQueryOperator):
                 queries_in_progress.remove(query_id)
             time.sleep(self.poll_interval)
         return {"success": statement_success_status, "error": statement_error_status}
+
+    def execute_complete(self, context: Context, event: dict[str, str | list[str]] | None = None) -> None:
+        """
+        Callback for when the trigger fires - returns immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        if event:
+            if "status" in event and event["status"] == "error":
+                msg = f"{event['status']}: {event['message']}"
+                raise AirflowException(msg)
+            elif "status" in event and event["status"] == "success":
+                hook = SnowflakeSqlApiHook(snowflake_conn_id=self.snowflake_conn_id)
+                query_ids = cast(List[str], event["statement_query_ids"])
+                hook.check_query_output(query_ids)
+                self.log.info("%s completed successfully.", self.task_id)
+        else:
+            self.log.info("%s completed successfully.", self.task_id)

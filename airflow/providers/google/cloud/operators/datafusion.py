@@ -24,6 +24,7 @@ from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
 from airflow.providers.google.cloud.links.datafusion import (
     DataFusionInstanceLink,
@@ -50,6 +51,7 @@ class DataFusionPipelineLinkHelper:
 class CloudDataFusionRestartInstanceOperator(GoogleCloudBaseOperator):
     """
     Restart a single Data Fusion instance.
+
     At the end of an operation instance is fully restarted.
 
     .. seealso::
@@ -759,7 +761,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         asynchronous=False,
-        deferrable=False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         poll_interval=3.0,
         **kwargs,
     ) -> None:
@@ -848,8 +850,8 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]):
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event["status"] == "error":
             raise AirflowException(event["message"])

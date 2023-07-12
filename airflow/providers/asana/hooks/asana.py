@@ -28,10 +28,7 @@ from airflow.hooks.base import BaseHook
 
 
 def _ensure_prefixes(conn_type):
-    """
-    Remove when provider min airflow version >= 2.5.0 since this is handled by
-    provider manager from that version.
-    """
+    """Remove when provider min airflow version >= 2.5.0 since this is now handled by provider manager."""
 
     def dec(func):
         @wraps(func)

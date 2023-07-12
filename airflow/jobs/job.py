@@ -40,7 +40,7 @@ from airflow.utils.net import get_hostname
 from airflow.utils.platform import getuser
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
-from airflow.utils.state import State
+from airflow.utils.state import JobState
 
 
 def _resolve_dagrun_model():
@@ -104,9 +104,6 @@ class Job(Base, LoggingMixin):
         self.hostname = get_hostname()
         if executor:
             self.executor = executor
-            self.executor_class = executor.__class__.__name__
-        else:
-            self.executor_class = conf.get("core", "EXECUTOR")
         self.start_date = timezone.utcnow()
         self.latest_heartbeat = timezone.utcnow()
         if heartrate is not None:
@@ -135,7 +132,7 @@ class Job(Base, LoggingMixin):
         else:
             health_check_threshold: int = self.heartrate * grace_multiplier
         return (
-            self.state == State.RUNNING
+            self.state == JobState.RUNNING
             and (timezone.utcnow() - self.latest_heartbeat).total_seconds() < health_check_threshold
         )
 
@@ -160,16 +157,13 @@ class Job(Base, LoggingMixin):
         self, heartbeat_callback: Callable[[Session], None], session: Session = NEW_SESSION
     ) -> None:
         """
-        Heartbeats update the job's entry in the database with a timestamp
-        for the latest_heartbeat and allows for the job to be killed
-        externally. This allows at the system level to monitor what is
-        actually active.
+        Update the job's entry in the database with the latest_heartbeat timestamp.
 
-        For instance, an old heartbeat for SchedulerJob would mean something
-        is wrong.
-
-        This also allows for any job to be killed externally, regardless
-        of who is running it or on which machine it is running.
+        This allows for the job to be killed externally and allows the system
+        to monitor what is actually active.  For instance, an old heartbeat
+        for SchedulerJob would mean something is wrong.  This also allows for
+        any job to be killed externally, regardless of who is running it or on
+        which machine it is running.
 
         Note that if your heart rate is set to 60 seconds and you call this
         method after 10 seconds of processing since the last heartbeat, it
@@ -187,7 +181,7 @@ class Job(Base, LoggingMixin):
             session.merge(self)
             previous_heartbeat = self.latest_heartbeat
 
-            if self.state in State.terminating_states:
+            if self.state in (JobState.SHUTDOWN, JobState.RESTARTING):
                 # TODO: Make sure it is AIP-44 compliant
                 self.kill()
 
@@ -221,7 +215,7 @@ class Job(Base, LoggingMixin):
     def prepare_for_execution(self, session: Session = NEW_SESSION):
         """Prepares the job for execution."""
         Stats.incr(self.__class__.__name__.lower() + "_start", 1, 1)
-        self.state = State.RUNNING
+        self.state = JobState.RUNNING
         self.start_date = timezone.utcnow()
         session.add(self)
         session.commit()
@@ -257,7 +251,7 @@ def most_recent_job(job_type: str, session: Session = NEW_SESSION) -> Job | None
         .where(Job.job_type == job_type)
         .order_by(
             # Put "running" jobs at the front.
-            case({State.RUNNING: 0}, value=Job.state, else_=1),
+            case({JobState.RUNNING: 0}, value=Job.state, else_=1),
             Job.latest_heartbeat.desc(),
         )
         .limit(1)
@@ -314,12 +308,12 @@ def execute_job(job: Job | JobPydantic, execute_callable: Callable[[], int | Non
     try:
         ret = execute_callable()
         # In case of max runs or max duration
-        job.state = State.SUCCESS
+        job.state = JobState.SUCCESS
     except SystemExit:
         # In case of ^C or SIGTERM
-        job.state = State.SUCCESS
+        job.state = JobState.SUCCESS
     except Exception:
-        job.state = State.FAILED
+        job.state = JobState.FAILED
         raise
     return ret
 

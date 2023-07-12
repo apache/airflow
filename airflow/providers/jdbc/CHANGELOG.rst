@@ -21,11 +21,16 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-jdbc``
+
 Changelog
 ---------
 
 4.0.0
 .....
+
+.. note::
+  This release dropped support for Python 3.7
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -37,6 +42,12 @@ To configure driver parameters (driver path and driver class), you can use the f
 3. Set the "driver_path" and/or "driver_class" extra in the connection and correspondingly enable the "allow_driver_path_in_extra" and/or "allow_driver_class_in_extra" options in the "providers.jdbc" section of the Airflow configuration.
 4. Patch the "JdbcHook.default_driver_path" and/or "JdbcHook.default_driver_class" values in the "local_settings.py" file.
 
+* ``Restrict direct usage of driver params via extras for JDBC connection (#31849)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 3.4.0
 .....

@@ -39,8 +39,8 @@ class SFTPOperation:
 class SFTPOperator(BaseOperator):
     """
     SFTPOperator for transferring files from remote host to local or vice a versa.
-    This operator uses sftp_hook to open sftp transport channel that serve as basis
-    for file transfer.
+
+    This operator uses sftp_hook to open sftp transport channel that serve as basis for file transfer.
 
     :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>`
         from airflow Connections. `ssh_conn_id` will be ignored if `ssh_hook`

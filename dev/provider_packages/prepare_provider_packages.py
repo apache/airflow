@@ -43,6 +43,7 @@ from random import choice
 from shutil import copyfile
 from typing import Any, Generator, Iterable, NamedTuple
 
+import jinja2
 import jsonschema
 import rich_click as click
 import semver as semver
@@ -61,8 +62,6 @@ MIN_AIRFLOW_VERSION = "2.4.0"
 MIN_AIRFLOW_VERSION_EXCEPTIONS = {"openlineage": "2.6.0"}
 
 INITIAL_CHANGELOG_CONTENT = """
-
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -80,6 +79,12 @@ INITIAL_CHANGELOG_CONTENT = """
     specific language governing permissions and limitations
     under the License.
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there
+   are some breaking changes and you want to add an explanation to the users on how they are supposed
+   to deal with them. The changelog is updated and maintained semi-automatically by release manager.
+
+``{{ package_name }}``
 
 Changelog
 ---------
@@ -142,7 +147,7 @@ class ProviderPackageDetails(NamedTuple):
     full_package_name: str
     pypi_package_name: str
     source_provider_package_path: str
-    documentation_provider_package_path: str
+    documentation_provider_package_path: Path
     provider_description: str
     versions: list[str]
     excluded_python_versions: list[str]
@@ -830,15 +835,13 @@ def get_source_package_path(provider_package_id: str) -> str:
     return os.path.join(PROVIDERS_PATH, *provider_package_id.split("."))
 
 
-def get_documentation_package_path(provider_package_id: str) -> str:
+def get_documentation_package_path(provider_package_id: str) -> Path:
     """Retrieves documentation package path from package id.
 
     :param provider_package_id: id of the package
     :return: path of the documentation folder
     """
-    return os.path.join(
-        DOCUMENTATION_PATH, f"apache-airflow-providers-{provider_package_id.replace('.','-')}"
-    )
+    return DOCUMENTATION_PATH / f"apache-airflow-providers-{provider_package_id.replace('.','-')}"
 
 
 def get_generated_package_path(provider_package_id: str) -> str:
@@ -946,19 +949,21 @@ def get_all_changes_for_package(
     provider_package_id: str,
     verbose: bool,
     base_branch: str,
+    force: bool,
 ) -> tuple[bool, list[list[Change]] | Change | None, str]:
     """Retrieves all changes for the package.
 
     :param provider_package_id: provider package id
-    :param base_branch: base branch to check changes in apache remote for changes
     :param verbose: whether to print verbose messages
+    :param base_branch: base branch to check changes in apache remote for changes
+    :param force: whether to force the check even if the tag exists
     """
     provider_details = get_provider_details(provider_package_id)
     current_version = provider_details.versions[0]
     current_tag_no_suffix = get_version_tag(current_version, provider_package_id)
     if verbose:
         console.print(f"Checking if tag '{current_tag_no_suffix}' exist.")
-    if not subprocess.call(
+    if not force and not subprocess.call(
         get_git_tag_check_command(current_tag_no_suffix),
         cwd=provider_details.source_provider_package_path,
         stderr=subprocess.DEVNULL,
@@ -1275,6 +1280,7 @@ def update_release_notes(
     verbose: bool,
     answer: str | None,
     base_branch: str,
+    regenerate_missing_docs: bool,
 ) -> bool:
     """Updates generated files.
 
@@ -1286,10 +1292,13 @@ def update_release_notes(
     :param verbose: whether to print verbose messages
     :param answer: force answer to question if set.
     :param base_branch: base branch to check changes in apache remote for changes
+    :param regenerate_missing_docs: whether to regenerate missing docs
     :returns False if the package should be skipped, True if everything generated properly
     """
     verify_provider_package(provider_package_id)
-    proceed, latest_change, changes = get_all_changes_for_package(provider_package_id, verbose, base_branch)
+    proceed, latest_change, changes = get_all_changes_for_package(
+        provider_package_id, verbose, base_branch, force
+    )
     if not force:
         if proceed:
             if not confirm("Provider marked for release. Proceed", answer=answer):
@@ -1317,7 +1326,7 @@ def update_release_notes(
             elif type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
                 add_new_version(type_of_change, provider_package_id)
             proceed, latest_change, changes = get_all_changes_for_package(
-                provider_package_id, verbose, base_branch
+                provider_package_id, verbose, base_branch, force
             )
     provider_details = get_provider_details(provider_package_id)
     provider_info = get_provider_info_from_provider_yaml(provider_package_id)
@@ -1329,9 +1338,25 @@ def update_release_notes(
     )
     jinja_context["DETAILED_CHANGES_RST"] = changes
     jinja_context["DETAILED_CHANGES_PRESENT"] = len(changes) > 0
-    update_commits_rst(
-        jinja_context, provider_package_id, provider_details.documentation_provider_package_path
+    update_changelog_rst(
+        jinja_context,
+        provider_package_id,
+        provider_details.documentation_provider_package_path,
+        regenerate_missing_docs,
     )
+    update_security_rst(
+        jinja_context,
+        provider_package_id,
+        provider_details.documentation_provider_package_path,
+        regenerate_missing_docs,
+    )
+    if not force:
+        update_commits_rst(
+            jinja_context,
+            provider_package_id,
+            provider_details.documentation_provider_package_path,
+            regenerate_missing_docs,
+        )
     return True
 
 
@@ -1409,9 +1434,9 @@ AUTOMATICALLY_GENERATED_CONTENT = (
 
 
 def update_index_rst(
-    context,
-    provider_package_id,
-    target_path,
+    context: dict[str, Any],
+    provider_package_id: str,
+    target_path: Path,
 ):
     index_update = render_template(
         template_name="PROVIDER_INDEX", context=context, extension=".rst", keep_trailing_newline=True
@@ -1431,20 +1456,78 @@ def update_index_rst(
     replace_content(index_file_path, old_text, new_text, provider_package_id)
 
 
-def update_commits_rst(
-    context,
-    provider_package_id,
-    target_path,
+def _update_file(
+    context: dict[str, Any],
+    template_name: str,
+    extension: str,
+    file_name: str,
+    provider_package_id: str,
+    target_path: Path,
+    regenerate_missing_docs: bool,
 ):
+    file_path = target_path / file_name
+    if regenerate_missing_docs and file_path.exists():
+        return
     new_text = render_template(
-        template_name="PROVIDER_COMMITS", context=context, extension=".rst", keep_trailing_newline=True
+        template_name=template_name, context=context, extension=extension, keep_trailing_newline=True
     )
-    index_file_path = os.path.join(target_path, "commits.rst")
+    file_path = target_path / file_name
     old_text = ""
-    if os.path.isfile(index_file_path):
-        with open(index_file_path) as readme_file_read:
+    if os.path.isfile(file_path):
+        with open(file_path) as readme_file_read:
             old_text = readme_file_read.read()
-    replace_content(index_file_path, old_text, new_text, provider_package_id)
+    replace_content(file_path, old_text, new_text, provider_package_id)
+
+
+def update_changelog_rst(
+    context: dict[str, Any],
+    provider_package_id: str,
+    target_path: Path,
+    regenerate_missing_docs: bool,
+):
+    _update_file(
+        context=context,
+        template_name="PROVIDER_CHANGELOG",
+        extension=".rst",
+        file_name="changelog.rst",
+        provider_package_id=provider_package_id,
+        target_path=target_path,
+        regenerate_missing_docs=regenerate_missing_docs,
+    )
+
+
+def update_security_rst(
+    context: dict[str, Any],
+    provider_package_id: str,
+    target_path: Path,
+    regenerate_missing_docs: bool,
+):
+    _update_file(
+        context=context,
+        template_name="PROVIDER_SECURITY",
+        extension=".rst",
+        file_name="security.rst",
+        provider_package_id=provider_package_id,
+        target_path=target_path,
+        regenerate_missing_docs=regenerate_missing_docs,
+    )
+
+
+def update_commits_rst(
+    context: dict[str, Any],
+    provider_package_id: str,
+    target_path: Path,
+    regenerate_missing_docs: bool,
+):
+    _update_file(
+        context=context,
+        template_name="PROVIDER_COMMITS",
+        extension=".rst",
+        file_name="commits.rst",
+        provider_package_id=provider_package_id,
+        target_path=target_path,
+        regenerate_missing_docs=regenerate_missing_docs,
+    )
 
 
 def replace_min_airflow_version_in_provider_yaml(
@@ -1572,17 +1655,20 @@ def verify_changelog_exists(package: str) -> str:
     provider_details = get_provider_details(package)
     changelog_path = os.path.join(provider_details.source_provider_package_path, "CHANGELOG.rst")
     if not os.path.isfile(changelog_path):
-        console.print(f"[red]ERROR: Missing ${changelog_path}[/]")
-        console.print("Please add the file with initial content:")
-        console.print()
+        console.print(f"\n[red]ERROR: Missing {changelog_path}[/]\n")
+        console.print("[info]Please add the file with initial content:")
+        console.print("----- START COPYING AFTER THIS LINE ------- ")
+        processed_changelog = jinja2.Template(INITIAL_CHANGELOG_CONTENT, autoescape=True).render(
+            package_name=provider_details.pypi_package_name,
+        )
         syntax = Syntax(
-            INITIAL_CHANGELOG_CONTENT,
+            processed_changelog,
             "rst",
             theme="ansi_dark",
         )
         console.print(syntax)
-        console.print()
-        raise Exception(f"Missing {changelog_path}")
+        console.print("----- END COPYING BEFORE THIS LINE ------- ")
+        sys.exit(1)
     return changelog_path
 
 
@@ -1631,14 +1717,16 @@ def update_package_documentation(
         console.print("Updating documentation for the latest release version.")
         make_sure_remote_apache_exists_and_fetch(git_update, verbose)
         only_min_version_upgrade = os.environ.get("ONLY_MIN_VERSION_UPDATE", "false").lower() == "true"
+        regenerate_missing_docs = os.environ.get("REGENERATE_MISSING_DOCS", "false").lower() == "true"
         if not only_min_version_upgrade:
             if not update_release_notes(
                 provider_package_id,
                 version_suffix,
-                force=force,
+                force=force or regenerate_missing_docs,
                 verbose=verbose,
                 answer=answer,
                 base_branch=base_branch,
+                regenerate_missing_docs=regenerate_missing_docs,
             ):
                 # Returns 64 in case of skipped package
                 sys.exit(64)
@@ -1853,11 +1941,11 @@ def get_changes_classified(changes: list[Change]) -> ClassifiedChanges:
 @option_verbose
 def update_changelog(package_id: str, base_branch: str, verbose: bool):
     """Updates changelog for the provider."""
-    if _update_changelog(package_id, base_branch, verbose):
+    if _update_changelog(package_id, base_branch, verbose, True):
         sys.exit(64)
 
 
-def _update_changelog(package_id: str, base_branch: str, verbose: bool) -> bool:
+def _update_changelog(package_id: str, base_branch: str, verbose: bool, force: bool) -> bool:
     """Internal update changelog method.
 
     :param package_id: package id
@@ -1877,13 +1965,22 @@ def _update_changelog(package_id: str, base_branch: str, verbose: bool) -> bool:
             version_suffix="",
         )
         changelog_path = os.path.join(provider_details.source_provider_package_path, "CHANGELOG.rst")
-        proceed, changes, _ = get_all_changes_for_package(package_id, verbose, base_branch)
+        proceed, changes, _ = get_all_changes_for_package(package_id, verbose, base_branch, force)
         if not proceed:
-            console.print(
-                f"[yellow]The provider {package_id} is not being released. Skipping the package.[/]"
-            )
+            if force:
+                console.print(
+                    f"[info]The provider {package_id} is not being release but we regenerate docs for it "
+                    f"(except commits).[/]"
+                )
+            else:
+                console.print(
+                    f"[yellow]The provider {package_id} is not being released. Skipping the package.[/]"
+                )
             return True
-        generate_new_changelog(package_id, provider_details, changelog_path, changes)
+        if os.environ.get("REGENERATE_MISSING_DOCS", "false").lower() == "true":
+            console.print("[info]REGENERATE_MISSING_DOCS is set to true, skipping changelog update[/]")
+        else:
+            generate_new_changelog(package_id, provider_details, changelog_path, changes)
         console.print()
         console.print(f"Update index.rst for {package_id}")
         console.print()
@@ -1918,7 +2015,12 @@ def generate_new_changelog(package_id, provider_details, changelog_path, changes
             template_name="UPDATE_CHANGELOG", context=context, extension=".rst"
         )
     else:
-        classified_changes = get_changes_classified(changes[0])
+        if changes:
+            classified_changes = get_changes_classified(changes[0])
+        else:
+            # change log exist but without version 1.0.0 entry
+            classified_changes = None
+
         context = {
             "version": latest_version,
             "version_header": "." * len(latest_version),
@@ -1969,7 +2071,7 @@ def update_changelogs(changelog_files: list[str], git_update: bool, base_branch:
         make_sure_remote_apache_exists_and_fetch(git_update, verbose)
     for changelog_file in changelog_files:
         package_id = get_package_from_changelog(changelog_file)
-        _update_changelog(package_id=package_id, base_branch=base_branch, verbose=verbose)
+        _update_changelog(package_id=package_id, base_branch=base_branch, verbose=verbose, force=True)
 
 
 if __name__ == "__main__":

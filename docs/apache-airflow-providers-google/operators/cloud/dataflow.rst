@@ -25,7 +25,7 @@ using the Apache Beam programming model which allows for both batch and streamin
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 Ways to run a data pipeline
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^

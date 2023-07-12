@@ -52,8 +52,7 @@ HIVE_QUEUE_PRIORITIES = ["VERY_HIGH", "HIGH", "NORMAL", "LOW", "VERY_LOW"]
 
 def get_context_from_env_var() -> dict[Any, Any]:
     """
-    Extract context from env variable, e.g. dag_id, task_id and execution_date,
-    so that they can be used inside BashOperator and PythonOperator.
+    Extract context from env variable, (dag_id, task_id, etc) for use in BashOperator and PythonOperator.
 
     :return: The context of interest.
     """
@@ -150,9 +149,11 @@ class HiveCliHook(BaseHook):
                 template = conn.extra_dejson.get("principal", "hive/_HOST@EXAMPLE.COM")
                 if "_HOST" in template:
                     template = utils.replace_hostname_pattern(utils.get_components(template))
-
                 proxy_user = self._get_proxy_user()
-
+                if ";" in template:
+                    raise RuntimeError("The principal should not contain the ';' character")
+                if ";" in proxy_user:
+                    raise RuntimeError("The proxy_user should not contain the ';' character")
                 jdbc_url += f";principal={template};{proxy_user}"
             elif self.auth:
                 jdbc_url += ";auth=" + self.auth
@@ -188,8 +189,7 @@ class HiveCliHook(BaseHook):
     @staticmethod
     def _prepare_hiveconf(d: dict[Any, Any]) -> list[Any]:
         """
-        This function prepares a list of hiveconf params
-        from a dictionary of key value pairs.
+        Prepares a list of hiveconf params from a dictionary of key value pairs.
 
         :param d:
 
@@ -212,9 +212,10 @@ class HiveCliHook(BaseHook):
         hive_conf: dict[Any, Any] | None = None,
     ) -> Any:
         """
-        Run an hql statement using the hive cli. If hive_conf is specified
-        it should be a dict and the entries will be set as key/value pairs
-        in HiveConf.
+        Run an hql statement using the hive cli.
+
+        If hive_conf is specified it should be a dict and the entries
+        will be set as key/value pairs in HiveConf.
 
         :param hql: an hql (hive query language) statement to run with hive cli
         :param schema: Name of hive schema (database) to use
@@ -652,8 +653,9 @@ class HiveMetastoreHook(BaseHook):
 
     def get_partitions(self, schema: str, table_name: str, partition_filter: str | None = None) -> list[Any]:
         """
-        Returns a list of all partitions in a table. Works only
-        for tables with less than 32767 (java short max val).
+        Returns a list of all partitions in a table.
+
+        Works only for tables with less than 32767 (java short max val).
         For subpartitioned table, the number might easily exceed this.
 
         >>> hh = HiveMetastoreHook()
@@ -689,9 +691,9 @@ class HiveMetastoreHook(BaseHook):
         part_specs: list[Any], partition_key: str | None, filter_map: dict[str, Any] | None
     ) -> Any:
         """
-        Helper method to get max partition of partitions with partition_key
-        from part specs. key:value pair in filter_map will be used to
-        filter out partitions.
+        Helper method to get max partition of partitions with partition_key from part specs.
+
+        key:value pair in filter_map will be used to filter out partitions.
 
         :param part_specs: list of partition specs.
         :param partition_key: partition key name.
@@ -736,6 +738,7 @@ class HiveMetastoreHook(BaseHook):
     ) -> Any:
         """
         Returns the maximum value for all partitions with given field in a table.
+
         If only one partition key exist in the table, the key will be used as field.
         filter_map should be a partition_key:partition_value map and will be used to
         filter out partitions.
@@ -1014,8 +1017,7 @@ class HiveServer2Hook(DbApiHook):
         self, sql: str | list[str], parameters: Iterable | Mapping | None = None, **kwargs
     ) -> Any:
         """
-        Get a set of records from a Hive query. You can optionally pass 'schema' kwarg
-        which specifies target schema and default to 'default'.
+        Get a set of records from a Hive query; optionally pass a 'schema' kwarg to specify target schema.
 
         :param sql: hql to be executed.
         :param parameters: optional configuration passed to get_results

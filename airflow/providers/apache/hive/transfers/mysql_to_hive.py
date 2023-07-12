@@ -36,8 +36,11 @@ if TYPE_CHECKING:
 
 class MySqlToHiveOperator(BaseOperator):
     """
-    Moves data from MySql to Hive. The operator runs your query against
-    MySQL, stores the file locally before loading it into a Hive table.
+    Moves data from MySql to Hive.
+
+    The operator runs your query against MySQL, stores the file locally
+    before loading it into a Hive table.
+
     If the ``create`` or ``recreate`` arguments are set to ``True``,
     a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.
     Hive data types are inferred from the cursor's metadata. Note that the

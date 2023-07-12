@@ -23,6 +23,8 @@ description: |
 
 suspended: false
 versions:
+  - 2.5.0
+  - 2.4.1
   - 2.4.0
   - 2.3.0
   - 2.2.0
@@ -37,6 +39,8 @@ versions:
 dependencies:
   - apache-airflow>=2.4.0
   - oss2>=2.14.0
+  - alibabacloud_adb20211201>=1.0.0
+  - alibabacloud_tea_openapi>=0.3.7
 
 integrations:
   - integration-name: Alibaba Cloud OSS
@@ -45,26 +49,42 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-alibaba/operators/oss.rst
     tags: [alibaba]
+  - integration-name: Alibaba Cloud AnalyticDB Spark
+    external-doc-url: https://www.alibabacloud.com/help/en/analyticdb-for-mysql/latest/spark-developerment
+    how-to-guide:
+      - /docs/apache-airflow-providers-alibaba/operators/analyticdb_spark.rst
+    tags: [alibaba]
 
 operators:
   - integration-name: Alibaba Cloud OSS
     python-modules:
       - airflow.providers.alibaba.cloud.operators.oss
+  - integration-name: Alibaba Cloud AnalyticDB Spark
+    python-modules:
+      - airflow.providers.alibaba.cloud.operators.analyticdb_spark
 
 sensors:
   - integration-name: Alibaba Cloud OSS
     python-modules:
       - airflow.providers.alibaba.cloud.sensors.oss_key
+  - integration-name: Alibaba Cloud AnalyticDB Spark
+    python-modules:
+      - airflow.providers.alibaba.cloud.sensors.analyticdb_spark
 
 hooks:
   - integration-name: Alibaba Cloud OSS
     python-modules:
       - airflow.providers.alibaba.cloud.hooks.oss
+  - integration-name: Alibaba Cloud AnalyticDB Spark
+    python-modules:
+      - airflow.providers.alibaba.cloud.hooks.analyticdb_spark
 
 
 connection-types:
   - hook-class-name: airflow.providers.alibaba.cloud.hooks.oss.OSSHook
     connection-type: oss
+  - hook-class-name: airflow.providers.alibaba.cloud.hooks.analyticdb_spark.AnalyticDBSparkHook
+    connection-type: adb_spark
 
 logging:
   - airflow.providers.alibaba.cloud.log.oss_task_handler.OSSTaskHandler

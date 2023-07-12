@@ -48,6 +48,7 @@ CLUSTER_URL = "https://test-host"
 SSL_CA_CERT = "TEST_SSL_CA_CERT_CONTENT"
 FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."
 BASE_CONTAINER_NAME = "base"
+ON_FINISH_ACTION = "delete_pod"
 
 OPERATION_NAME = "test-operation-name"
 PROJECT_ID = "test-project-id"
@@ -93,13 +94,14 @@ class TestGKEStartPodTrigger:
             "poll_interval": POLL_INTERVAL,
             "cluster_context": CLUSTER_CONTEXT,
             "in_cluster": IN_CLUSTER,
-            "should_delete_pod": SHOULD_DELETE_POD,
             "get_logs": GET_LOGS,
             "startup_timeout": STARTUP_TIMEOUT_SECS,
             "trigger_start_time": TRIGGER_START_TIME,
             "cluster_url": CLUSTER_URL,
             "ssl_ca_cert": SSL_CA_CERT,
             "base_container_name": BASE_CONTAINER_NAME,
+            "on_finish_action": ON_FINISH_ACTION,
+            "should_delete_pod": SHOULD_DELETE_POD,
         }
 
     @pytest.mark.asyncio

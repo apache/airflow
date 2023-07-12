@@ -49,11 +49,10 @@ MOCK_QUERY_EXECUTION_OUTPUT = {
 
 class TestAthenaHook:
     def setup_method(self):
-        self.athena = AthenaHook(sleep_time=0)
+        self.athena = AthenaHook()
 
     def test_init(self):
         assert self.athena.aws_conn_id == "aws_default"
-        assert self.athena.sleep_time == 0
 
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_run_query_without_token(self, mock_conn):
@@ -104,7 +103,7 @@ class TestAthenaHook:
     @mock.patch.object(AthenaHook, "log")
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_run_query_no_log_query(self, mock_conn, log):
-        athena_hook_no_log_query = AthenaHook(sleep_time=0, log_query=False)
+        athena_hook_no_log_query = AthenaHook(log_query=False)
         athena_hook_no_log_query.run_query(
             query=MOCK_DATA["query"],
             query_context=mock_query_context,
@@ -176,7 +175,9 @@ class TestAthenaHook:
     @mock.patch.object(AthenaHook, "get_conn")
     def test_hook_poll_query_when_final(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_SUCCEEDED_QUERY_EXECUTION
-        result = self.athena.poll_query_status(query_execution_id=MOCK_DATA["query_execution_id"])
+        result = self.athena.poll_query_status(
+            query_execution_id=MOCK_DATA["query_execution_id"], sleep_time=0
+        )
         mock_conn.return_value.get_query_execution.assert_called_once()
         assert result == "SUCCEEDED"
 
@@ -184,8 +185,7 @@ class TestAthenaHook:
     def test_hook_poll_query_with_timeout(self, mock_conn):
         mock_conn.return_value.get_query_execution.return_value = MOCK_RUNNING_QUERY_EXECUTION
         result = self.athena.poll_query_status(
-            query_execution_id=MOCK_DATA["query_execution_id"],
-            max_polling_attempts=1,
+            query_execution_id=MOCK_DATA["query_execution_id"], max_polling_attempts=1, sleep_time=0
         )
         mock_conn.return_value.get_query_execution.assert_called_once()
         assert result == "RUNNING"

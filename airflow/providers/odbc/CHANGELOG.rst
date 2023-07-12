@@ -21,11 +21,17 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-odbc``
+
+
 Changelog
 ---------
 
 4.0.0
 .....
+
+.. note::
+  This release dropped support for Python 3.7
 
 Breaking changes
 ~~~~~~~~~~~~~~~~
@@ -34,6 +40,22 @@ The driver parameter has to be passed via keyword ``driver`` argument when initi
 ``hook_params`` dictionary (with ``driver`` key) when instantiating Hook from SQL Operators. It was possible
 to instantiate it via extras before, but in this version, only setting it via constructor is supported.
 
+* ``Disable setting ODBC driver via extra by default (#31713)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Check if sqlalchemy_scheme extra contains forbidden characters (#31984)``
+
+Misc
+~~~~
+
+* ``Control permissibility of driver config in extra from airflow.cfg (#31754)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 3.3.0
 .....
