@@ -49,7 +49,7 @@ from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState, State
+from airflow.utils.state import DagRunState, TaskInstanceState
 
 T = TypeVar("T")
 
@@ -187,7 +187,7 @@ def get_mapped_task_instances(
 ) -> APIResponse:
     """Get list of task instances."""
     # Because state can be 'none'
-    states = _convert_state(state)
+    states = _convert_ti_states(state)
 
     base_query = (
         select(TI)
@@ -264,10 +264,10 @@ def get_mapped_task_instances(
     )
 
 
-def _convert_state(states: Iterable[str] | None) -> list[str | None] | None:
+def _convert_ti_states(states: Iterable[str] | None) -> list[TaskInstanceState | None] | None:
     if not states:
         return None
-    return [State.NONE if s == "none" else s for s in states]
+    return [None if s == "none" else TaskInstanceState(s) for s in states]
 
 
 def _apply_array_filter(query: Select, key: ClauseElement, values: Iterable[Any] | None) -> Select:
@@ -329,7 +329,7 @@ def get_task_instances(
 ) -> APIResponse:
     """Get list of task instances."""
     # Because state can be 'none'
-    states = _convert_state(state)
+    states = _convert_ti_states(state)
 
     base_query = select(TI).join(TI.dag_run)
 
@@ -395,7 +395,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         data = task_instance_batch_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
-    states = _convert_state(data["state"])
+    states = _convert_ti_states(data["state"])
     base_query = select(TI).join(TI.dag_run)
 
     base_query = _apply_array_filter(base_query, key=TI.dag_id, values=data["dag_ids"])

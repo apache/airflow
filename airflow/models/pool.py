@@ -28,7 +28,7 @@ from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.typing_compat import TypedDict
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import nowait, with_row_locks
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 
 class PoolStats(TypedDict):
@@ -247,7 +247,7 @@ class Pool(Base):
             session.scalar(
                 select(func.sum(TaskInstance.pool_slots))
                 .filter(TaskInstance.pool == self.pool)
-                .filter(TaskInstance.state == State.RUNNING)
+                .filter(TaskInstance.state == TaskInstanceState.RUNNING)
             )
             or 0
         )
@@ -266,7 +266,7 @@ class Pool(Base):
             session.scalar(
                 select(func.sum(TaskInstance.pool_slots))
                 .filter(TaskInstance.pool == self.pool)
-                .filter(TaskInstance.state == State.QUEUED)
+                .filter(TaskInstance.state == TaskInstanceState.QUEUED)
             )
             or 0
         )
@@ -285,7 +285,7 @@ class Pool(Base):
             session.scalar(
                 select(func.sum(TaskInstance.pool_slots))
                 .filter(TaskInstance.pool == self.pool)
-                .filter(TaskInstance.state == State.SCHEDULED)
+                .filter(TaskInstance.state == TaskInstanceState.SCHEDULED)
             )
             or 0
         )

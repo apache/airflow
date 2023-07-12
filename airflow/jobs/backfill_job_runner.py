@@ -68,7 +68,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
 
     job_type = "BackfillJob"
 
-    STATES_COUNT_AS_RUNNING = (State.RUNNING, State.QUEUED)
+    STATES_COUNT_AS_RUNNING = (TaskInstanceState.RUNNING, TaskInstanceState.QUEUED)
 
     @attr.define
     class _DagRunTaskStatus:
@@ -219,7 +219,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
             # is changed externally, e.g. by clearing tasks from the ui. We need to cover
             # for that as otherwise those tasks would fall outside the scope of
             # the backfill suddenly.
-            elif ti.state == State.NONE:
+            elif ti.state is None:
                 self.log.warning(
                     "FIXME: task instance %s state was set to none externally or "
                     "reaching concurrency limits. Re-adding task to queue.",
@@ -1000,7 +1000,7 @@ class BackfillJobRunner(BaseJobRunner[Job], LoggingMixin):
             ).all()
 
             for ti in reset_tis:
-                ti.state = State.NONE
+                ti.state = None
                 session.merge(ti)
 
             return result + reset_tis
