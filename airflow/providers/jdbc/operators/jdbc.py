@@ -30,6 +30,10 @@ class JdbcOperator(SQLExecuteQueryOperator):
 
     Requires jaydebeapi.
 
+    This class is deprecated.
+
+    Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator` instead.
+
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:JdbcOperator`
