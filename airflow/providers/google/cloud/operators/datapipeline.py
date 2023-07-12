@@ -49,6 +49,8 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
     :param location: The location to direct the Data Pipeline instance to (example_dags uses uscentral-1).
     :param gcp_conn_id: The connection ID to connect to the Google Cloud
         Platform.
+
+    Returns the created Pipeline instance in JSON representation.
     """
     def __init__(
         self,
@@ -93,6 +95,8 @@ class RunDataPipelineOperator(GoogleCloudBaseOperator):
     :param location: The location of the Data Pipeline instance to (example_dags uses uscentral-1).
     :param gcp_conn_id: The connection ID to connect to the Google Cloud
         Platform.
+
+    Returns the created Job in JSON representation.
     """
     def __init__(
             self,
