@@ -37,6 +37,20 @@ Changelog
   previous behaviour, you might need to retrieve ``name`` property from the array elements returned by
   this method.
 
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix breaking change when Active Directory ID is used as host in WASB (#32560)``
+* ``Fix get_blobs_list_async method to return BlobProperties (#32545)``
+
+Misc
+~~~~
+
+* ``Moves 'AzureBlobStorageToGCSOperator' from Azure to Google provider (#32306)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``D205 Support - Providers: Stragglers and new additions (#32447)``
+
 6.2.0
 .....
 
