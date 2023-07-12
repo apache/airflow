@@ -39,3 +39,7 @@ class FabAuthManager(BaseAuthManager):
         first_name = current_user.first_name or ""
         last_name = current_user.last_name or ""
         return f"{first_name} {last_name}".strip()
+
+    def is_logged_in(self) -> bool:
+        """Return whether the user is logged in."""
+        return current_user and not current_user.is_anonymous
