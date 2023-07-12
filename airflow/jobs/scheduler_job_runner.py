@@ -74,7 +74,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -1586,10 +1586,10 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         update(Job)
                         .where(
                             Job.job_type == "SchedulerJob",
-                            Job.state == State.RUNNING,
+                            Job.state == JobState.RUNNING,
                             Job.latest_heartbeat < (timezone.utcnow() - timedelta(seconds=timeout)),
                         )
-                        .values(state=State.FAILED)
+                        .values(state=JobState.FAILED)
                     ).rowcount
 
                     if num_failed:
@@ -1605,7 +1605,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                         # "or queued_by_job_id IS NONE") can go as soon as scheduler HA is
                         # released.
                         .outerjoin(TI.queued_by_job)
-                        .where(or_(TI.queued_by_job_id.is_(None), Job.state != State.RUNNING))
+                        .where(or_(TI.queued_by_job_id.is_(None), Job.state != JobState.RUNNING))
                         .join(TI.dag_run)
                         .where(
                             DagRun.run_type != DagRunType.BACKFILL_JOB,
@@ -1690,7 +1690,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
                     .where(TI.state == TaskInstanceState.RUNNING)
                     .where(
                         or_(
-                            Job.state != State.RUNNING,
+                            Job.state != JobState.RUNNING,
                             Job.latest_heartbeat < limit_dttm,
                         )
                     )

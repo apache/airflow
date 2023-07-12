@@ -57,6 +57,7 @@ from sqlalchemy import (
     inspect,
     or_,
     text,
+    update,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
@@ -123,7 +124,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.timeout import timeout
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -292,8 +293,7 @@ def clear_task_instances(
     if job_ids:
         from airflow.jobs.job import Job
 
-        for job in session.query(Job).filter(Job.id.in_(job_ids)).all():
-            job.state = TaskInstanceState.RESTARTING
+        session.execute(update(Job).where(Job.id.in_(job_ids)).values(state=JobState.RESTARTING))
 
     if activate_dag_runs is not None:
         warnings.warn(
