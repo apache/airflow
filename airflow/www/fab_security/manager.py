@@ -70,7 +70,8 @@ from flask_limiter.util import get_remote_address
 from flask_login import AnonymousUserMixin, LoginManager, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from airflow.configuration import auth_manager, conf
+from airflow.configuration import conf
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
@@ -518,7 +519,7 @@ class BaseSecurityManager:
     @property
     def current_user(self):
         """Current user object."""
-        if auth_manager.is_logged_in():
+        if get_auth_manager().is_logged_in():
             return g.user
         elif current_user_jwt:
             return current_user_jwt
@@ -1285,7 +1286,7 @@ class BaseSecurityManager:
         return result
 
     def get_user_menu_access(self, menu_names: list[str] | None = None) -> set[str]:
-        if auth_manager.is_logged_in():
+        if get_auth_manager().is_logged_in():
             return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
         elif current_user_jwt:
             return self._get_user_permission_resources(

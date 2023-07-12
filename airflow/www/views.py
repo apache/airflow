@@ -83,7 +83,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
     set_state,
 )
-from airflow.configuration import AIRFLOW_CONFIG, auth_manager, conf
+from airflow.configuration import AIRFLOW_CONFIG, conf
 from airflow.datasets import Dataset
 from airflow.exceptions import (
     AirflowConfigException,
@@ -130,6 +130,7 @@ from airflow.utils.timezone import td_format, utcnow
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
+from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.forms import (
     DagRunEditForm,
     DateTimeForm,
@@ -617,13 +618,13 @@ def show_traceback(error):
     return (
         render_template(
             "airflow/traceback.html",
-            python_version=sys.version.split(" ")[0] if auth_manager.is_logged_in() else "redact",
-            airflow_version=version if auth_manager.is_logged_in() else "redact",
+            python_version=sys.version.split(" ")[0] if get_auth_manager().is_logged_in() else "redact",
+            airflow_version=version if get_auth_manager().is_logged_in() else "redact",
             hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and auth_manager.is_logged_in()
+            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and get_auth_manager().is_logged_in()
             else "redact",
             info=traceback.format_exc()
-            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and auth_manager.is_logged_in()
+            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and get_auth_manager().is_logged_in()
             else "Error! Please contact server admin.",
         ),
         500,
