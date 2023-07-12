@@ -74,6 +74,7 @@ const Dag = () => {
     "tags",
     "owners",
     "params",
+    "dagRunTimeout",
   ];
 
   const listParams = new URLSearchParamsWrapper({
@@ -287,6 +288,19 @@ const Dag = () => {
                         "type",
                         "value",
                       ])}
+                    />
+                  )}
+                </Td>
+              </Tr>
+              <Tr>
+                <Td>Dag run timeout</Td>
+                <Td>
+                  {dagDetailsData.dagRunTimeout?.type === undefined ? (
+                    <Text>null</Text>
+                  ) : (
+                    // for TimeDelta and RelativeDelta
+                    <ViewScheduleInterval
+                      data={omit(dagDetailsData.dagRunTimeout, ["type"])}
                     />
                   )}
                 </Td>
