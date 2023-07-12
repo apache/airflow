@@ -204,6 +204,12 @@ def create_connection_form_class() -> type[DynamicForm]:
                 yield (connection_type, provider_info.hook_name)
 
     class ConnectionForm(DynamicForm):
+        def process(self, formdata=None, obj=None, **kwargs):
+            super().process(formdata=formdata, obj=obj, **kwargs)
+            for field in self._fields.values():
+                if isinstance(getattr(field, "data", None), str):
+                    field.data = field.data.strip()
+
         conn_id = StringField(
             lazy_gettext("Connection Id"),
             validators=[InputRequired(), ValidKey()],

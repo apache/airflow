@@ -45,6 +45,7 @@ from airflow_breeze.global_constants import (
     MOUNT_ALL,
     MOUNT_SELECTED,
     MULTI_PLATFORM,
+    get_available_documentation_packages,
 )
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
@@ -77,7 +78,7 @@ from airflow_breeze.utils.common_options import (
 )
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import Output, get_console
-from airflow_breeze.utils.custom_param_types import BetterChoice
+from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_remote_ghcr_io_commands,
     get_env_variables_for_docker_commands,
@@ -102,6 +103,11 @@ from airflow_breeze.utils.provider_dependencies import (
     DEPENDENCIES,
     generate_providers_metadata_for_package,
     get_related_providers,
+)
+from airflow_breeze.utils.publish_docs_builder import PublishDocsBuilder
+from airflow_breeze.utils.publish_docs_helpers import (
+    get_available_packages,
+    process_package_filters,
 )
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.run_utils import (
@@ -770,6 +776,51 @@ def alias_image(image_from: str, image_to: str):
 
 
 @release_management.command(
+    name="publish-docs",
+    help="Command to publish generated documentation to airflow-site",
+)
+@click.option("-s", "--override-versioned", help="Overrides versioned directories.", is_flag=True)
+@click.option(
+    "-a",
+    "--airflow-site-directory",
+    envvar="AIRFLOW_SITE_DIRECTORY",
+    help="Local directory path of cloned airflow-site repo.",
+    required=True,
+)
+@click.option(
+    "--package-filter",
+    help="List of packages to consider.",
+    type=NotVerifiedBetterChoice(get_available_documentation_packages()),
+    multiple=True,
+)
+@option_verbose
+@option_dry_run
+def publish_docs(
+    override_versioned: bool,
+    airflow_site_directory: bool,
+    package_filter: tuple[str],
+):
+    """Publishes documentation to airflow-site."""
+    if not os.path.isdir(airflow_site_directory):
+        get_console().print(
+            "\n[error]location pointed by airflow_site_dir is not valid. "
+            "Provide the path of cloned airflow-site repo\n"
+        )
+
+    available_packages = get_available_packages()
+    package_filters = package_filter
+
+    current_packages = process_package_filters(available_packages, package_filters)
+    print(f"Publishing docs for {len(current_packages)} package(s)")
+    for pkg in current_packages:
+        print(f" - {pkg}")
+    print()
+    for package_name in current_packages:
+        builder = PublishDocsBuilder(package_name=package_name, for_production=True)
+        builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
+
+
+@release_management.command(
     name="release-prod-images", help="Release production images to DockerHub (needs DockerHub permissions)."
 )
 @click.option("--airflow-version", required=True, help="Airflow version to release (2.3.0, 2.3.0rc1 etc.)")
@@ -941,8 +992,8 @@ def release_prod_images(
 def is_package_in_dist(dist_files: list[str], package: str) -> bool:
     """Check if package has been prepared in dist folder."""
     for file in dist_files:
-        if file.startswith(f'apache_airflow_providers_{package.replace(".","_")}') or file.startswith(
-            f'apache-airflow-providers-{package.replace(".","-")}'
+        if file.startswith(f'apache_airflow_providers_{package.replace(".", "_")}') or file.startswith(
+            f'apache-airflow-providers-{package.replace(".", "-")}'
         ):
             return True
     return False
@@ -1110,7 +1161,7 @@ def generate_issue_content_providers(
         get_console().print()
         get_console().print(
             "Issue title: [yellow]Status of testing Providers that were "
-            f"prepared on { datetime.now().strftime('%B %d, %Y') }[/]"
+            f"prepared on {datetime.now().strftime('%B %d, %Y')}[/]"
         )
         get_console().print()
         syntax = Syntax(issue_content, "markdown", theme="ansi_dark")

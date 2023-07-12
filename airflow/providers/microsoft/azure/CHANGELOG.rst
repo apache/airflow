@@ -27,6 +27,16 @@
 Changelog
 ---------
 
+6.2.1
+.....
+
+.. note::
+  Note: this version contains a fix to ``get_blobs_list_async`` method in ``WasbHook`` where it returned
+  a list of blob names, but advertised (via type hints) that it returns a list of ``BlobProperties`` objects.
+  This was a bug in the implementation and it was fixed in this release. However, if you were relying on the
+  previous behaviour, you might need to retrieve ``name`` property from the array elements returned by
+  this method.
+
 6.2.0
 .....
 

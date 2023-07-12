@@ -1389,10 +1389,12 @@ class TestKubernetesPodOperatorAsync:
             ({"skip_on_exit_code": None}, 100, AirflowException, "Failed", "error"),
         ],
     )
+    @patch(KUB_OP_PATH.format("pod_manager"))
     @patch(HOOK_CLASS)
     def test_async_create_pod_with_skip_on_exit_code_should_skip(
         self,
         mocked_hook,
+        mock_manager,
         extra_kwargs,
         actual_exit_code,
         expected_exc,
@@ -1426,6 +1428,7 @@ class TestKubernetesPodOperatorAsync:
         remote_pod.status.phase = pod_status
         remote_pod.status.container_statuses = [base_container, sidecar_container]
         mocked_hook.return_value.get_pod.return_value = remote_pod
+        mock_manager.await_pod_completion.return_value = remote_pod
 
         context = {
             "ti": MagicMock(),
@@ -1608,3 +1611,99 @@ class TestKubernetesPodOperatorAsync:
         pod.status = V1PodStatus(phase=PodPhase.FAILED)
         with pytest.raises(AirflowException, match=expect_match):
             k.cleanup(pod, pod)
+
+
+@pytest.mark.parametrize("do_xcom_push", [True, False])
+@patch(KUB_OP_PATH.format("extract_xcom"))
+@patch(KUB_OP_PATH.format("post_complete_action"))
+@patch(HOOK_CLASS)
+def test_async_kpo_wait_termination_before_cleanup_on_success(
+    mocked_hook, post_complete_action, mock_extract_xcom, do_xcom_push
+):
+    metadata = {"metadata.name": TEST_NAME, "metadata.namespace": TEST_NAMESPACE}
+    running_state = mock.MagicMock(**metadata, **{"status.phase": "Running"})
+    succeeded_state = mock.MagicMock(**metadata, **{"status.phase": "Succeeded"})
+    mocked_hook.return_value.get_pod.return_value = running_state
+    read_pod_mock = mocked_hook.return_value.core_v1_client.read_namespaced_pod
+    read_pod_mock.side_effect = [
+        running_state,
+        running_state,
+        succeeded_state,
+    ]
+
+    ti_mock = MagicMock()
+
+    success_event = {
+        "status": "success",
+        "message": TEST_SUCCESS_MESSAGE,
+        "name": TEST_NAME,
+        "namespace": TEST_NAMESPACE,
+    }
+
+    k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=do_xcom_push)
+    k.execute_complete({"ti": ti_mock}, success_event)
+
+    # check if it gets the pod
+    mocked_hook.return_value.get_pod.assert_called_once_with(TEST_NAME, TEST_NAMESPACE)
+
+    # check if it pushes the xcom
+    assert ti_mock.xcom_push.call_count == 2
+    ti_mock.xcom_push.assert_any_call(key="pod_name", value=TEST_NAME)
+    ti_mock.xcom_push.assert_any_call(key="pod_namespace", value=TEST_NAMESPACE)
+
+    # assert that the xcom are extracted/not extracted
+    if do_xcom_push:
+        mock_extract_xcom.assert_called_once()
+    else:
+        mock_extract_xcom.assert_not_called()
+
+    # check if it waits for the pod to complete
+    assert read_pod_mock.call_count == 3
+
+    # assert that the cleanup is called
+    post_complete_action.assert_called_once()
+
+
+@pytest.mark.parametrize("do_xcom_push", [True, False])
+@patch(KUB_OP_PATH.format("extract_xcom"))
+@patch(KUB_OP_PATH.format("post_complete_action"))
+@patch(HOOK_CLASS)
+def test_async_kpo_wait_termination_before_cleanup_on_failure(
+    mocked_hook, post_complete_action, mock_extract_xcom, do_xcom_push
+):
+    metadata = {"metadata.name": TEST_NAME, "metadata.namespace": TEST_NAMESPACE}
+    running_state = mock.MagicMock(**metadata, **{"status.phase": "Running"})
+    failed_state = mock.MagicMock(**metadata, **{"status.phase": "Failed"})
+    mocked_hook.return_value.get_pod.return_value = running_state
+    read_pod_mock = mocked_hook.return_value.core_v1_client.read_namespaced_pod
+    read_pod_mock.side_effect = [
+        running_state,
+        running_state,
+        failed_state,
+    ]
+
+    ti_mock = MagicMock()
+
+    success_event = {"status": "failed", "message": "error", "name": TEST_NAME, "namespace": TEST_NAMESPACE}
+
+    post_complete_action.side_effect = AirflowException()
+
+    k = KubernetesPodOperator(task_id="task", deferrable=True, do_xcom_push=do_xcom_push)
+
+    with pytest.raises(AirflowException):
+        k.execute_complete({"ti": ti_mock}, success_event)
+
+    # check if it gets the pod
+    mocked_hook.return_value.get_pod.assert_called_once_with(TEST_NAME, TEST_NAMESPACE)
+
+    # assert that it does not push the xcom
+    ti_mock.xcom_push.assert_not_called()
+
+    # assert that the xcom are not extracted
+    mock_extract_xcom.assert_not_called()
+
+    # check if it waits for the pod to complete
+    assert read_pod_mock.call_count == 3
+
+    # assert that the cleanup is called
+    post_complete_action.assert_called_once()
