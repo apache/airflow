@@ -396,10 +396,8 @@ def get_otel_logger(cls) -> SafeOtelLogger:
 
     resource = Resource(attributes={SERVICE_NAME: "Airflow"})
 
-    if ssl_active:
-        endpoint = f"https://{host}:{port}/v1/metrics"
-    else:
-        endpoint = f"http://{host}:{port}/v1/metrics"
+    protocol = "https" if ssl_active else "http"
+    endpoint = f"{protocol}://{host}:{port}/v1/metrics"
 
     logging.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     readers = [
