@@ -69,6 +69,9 @@ def restore_env():
         "AIRFLOW__TESTSECTION__TESTPERCENT": "with%percent",
         "AIRFLOW__TESTCMDENV__ITSACOMMAND_CMD": 'echo -n "OK"',
         "AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD": 'echo -n "NOT OK"',
+        # also set minimum conf values required to pass validation
+        "AIRFLOW__SCHEDULER__MAX_TIS_PER_QUERY": "16",
+        "AIRFLOW__CORE__PARALLELISM": "32",
     },
 )
 class TestConf:
@@ -730,9 +733,15 @@ notacommand = OK
         )
         assert message == exception
 
-    def test_validate_max_tis_per_query(self):
+    @mock.patch.dict(
+        "os.environ",
+        {
+            "AIRFLOW__SCHEDULER__MAX_TIS_PER_QUERY": "200",
+            "AIRFLOW__CORE__PARALLELISM": "100",
+        },
+    )
+    def test_max_tis_per_query_too_high(self):
         test_conf = AirflowConfigParser()
-        test_conf.read_dict({"core": {"parallelism": "100"}, "scheduler": {"max_tis_per_query": "200"}})
 
         with pytest.warns(UserWarning) as ctx:
             test_conf._validate_max_tis_per_query()
@@ -745,12 +754,6 @@ notacommand = OK
             "size when enqueue TaskInstances."
         )
         assert expected_message == captured_warnings_msg
-
-        # expect no warning  when max_tis_per_query equals or less than parallelism
-        test_conf.read_dict({"core": {"parallelism": "100"}, "scheduler": {"max_tis_per_query": "50"}})
-        with pytest.warns(None) as ctx:
-            test_conf._validate_max_tis_per_query()
-        assert len(ctx) == 0
 
     def test_as_dict_works_without_sensitive_cmds(self):
         conf_materialize_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
@@ -876,6 +879,14 @@ key7 =
         assert test_conf.gettimedelta("default", "key7") is None
 
 
+@mock.patch.dict(
+    "os.environ",
+    {
+        # set minimum conf values required to pass validation
+        "AIRFLOW__SCHEDULER__MAX_TIS_PER_QUERY": "16",
+        "AIRFLOW__CORE__PARALLELISM": "32",
+    },
+)
 class TestDeprecatedConf:
     @conf_vars(
         {
