@@ -23,7 +23,6 @@ import logging
 import multiprocessing
 import os
 import pathlib
-import re
 import shlex
 import stat
 import subprocess
@@ -36,12 +35,13 @@ from collections import OrderedDict
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
 from contextlib import contextmanager, suppress
 from json.decoder import JSONDecodeError
-from re import Pattern
-from typing import IO, Any, Dict, Iterable, Set, Tuple, Union
+from typing import IO, Any, Dict, Iterable, Pattern, Set, Tuple, Union
 from urllib.parse import urlsplit
 
+import re2
 from typing_extensions import overload
 
+from airflow.auth.managers.base_auth_manager import BaseAuthManager
 from airflow.exceptions import AirflowConfigException
 from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
 from airflow.utils import yaml
@@ -55,7 +55,7 @@ if not sys.warnoptions:
     warnings.filterwarnings(action="default", category=DeprecationWarning, module="airflow")
     warnings.filterwarnings(action="default", category=PendingDeprecationWarning, module="airflow")
 
-_SQLITE3_VERSION_PATTERN = re.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
+_SQLITE3_VERSION_PATTERN = re2.compile(r"(?P<version>^\d+(?:\.\d+)*)\D?.*$")
 
 ConfigType = Union[str, int, float, bool]
 ConfigOptionsDictType = Dict[str, ConfigType]
@@ -269,36 +269,36 @@ class AirflowConfigParser(ConfigParser):
     # about. Mapping of section -> setting -> { old, replace, by_version }
     deprecated_values: dict[str, dict[str, tuple[Pattern, str, str]]] = {
         "core": {
-            "hostname_callable": (re.compile(r":"), r".", "2.1"),
+            "hostname_callable": (re2.compile(r":"), r".", "2.1"),
         },
         "webserver": {
-            "navbar_color": (re.compile(r"\A#007A87\Z", re.IGNORECASE), "#fff", "2.1"),
-            "dag_default_view": (re.compile(r"^tree$"), "grid", "3.0"),
+            "navbar_color": (re2.compile(r"(?i)\A#007A87\z"), "#fff", "2.1"),
+            "dag_default_view": (re2.compile(r"^tree$"), "grid", "3.0"),
         },
         "email": {
             "email_backend": (
-                re.compile(r"^airflow\.contrib\.utils\.sendgrid\.send_email$"),
+                re2.compile(r"^airflow\.contrib\.utils\.sendgrid\.send_email$"),
                 r"airflow.providers.sendgrid.utils.emailer.send_email",
                 "2.1",
             ),
         },
         "logging": {
             "log_filename_template": (
-                re.compile(re.escape("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")),
+                re2.compile(re2.escape("{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log")),
                 "XX-set-after-default-config-loaded-XX",
                 "3.0",
             ),
         },
         "api": {
             "auth_backends": (
-                re.compile(r"^airflow\.api\.auth\.backend\.deny_all$|^$"),
+                re2.compile(r"^airflow\.api\.auth\.backend\.deny_all$|^$"),
                 "airflow.api.auth.backend.session",
                 "3.0",
             ),
         },
         "elasticsearch": {
             "log_id_template": (
-                re.compile("^" + re.escape("{dag_id}-{task_id}-{execution_date}-{try_number}") + "$"),
+                re2.compile("^" + re2.escape("{dag_id}-{task_id}-{execution_date}-{try_number}") + "$"),
                 "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}",
                 "3.0",
             )
@@ -425,7 +425,7 @@ class AirflowConfigParser(ConfigParser):
                 FutureWarning,
             )
             self.upgraded_values[(section, key)] = old_value
-            new_value = re.sub("^" + re.escape(f"{parsed.scheme}://"), f"{good_scheme}://", old_value)
+            new_value = re2.sub("^" + re2.escape(f"{parsed.scheme}://"), f"{good_scheme}://", old_value)
             self._update_env_var(section=section, name=key, new_value=new_value)
 
             # if the old value is set via env var, we need to wipe it
@@ -1690,6 +1690,7 @@ def set(*args, **kwargs) -> None:
 def ensure_secrets_loaded() -> list[BaseSecretsBackend]:
     """
     Ensure that all secrets backends are loaded.
+
     If the secrets_backend_list contains only 2 default backends, reload it.
     """
     # Check if the secrets_backend_list contains only 2 default backends
@@ -1740,6 +1741,24 @@ def initialize_secrets_backends() -> list[BaseSecretsBackend]:
         backend_list.append(secrets_backend_cls())
 
     return backend_list
+
+
+def initialize_auth_manager() -> BaseAuthManager:
+    """
+    Initialize auth manager.
+
+    * import user manager class
+    * instantiate it and return it
+    """
+    auth_manager_cls = conf.getimport(section="core", key="auth_manager")
+
+    if not auth_manager_cls:
+        raise AirflowConfigException(
+            "No auth manager defined in the config. "
+            "Please specify one using section/key [core/auth_manager]."
+        )
+
+    return auth_manager_cls()
 
 
 @functools.lru_cache(maxsize=None)
@@ -1807,4 +1826,5 @@ WEBSERVER_CONFIG = ""  # Set by initialize_config
 
 conf = initialize_config()
 secrets_backend_list = initialize_secrets_backends()
+auth_manager = initialize_auth_manager()
 conf.validate()

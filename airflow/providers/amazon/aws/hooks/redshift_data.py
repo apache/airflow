@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
     """
     Interact with Amazon Redshift Data API.
+
     Provide thin wrapper around
     :external+boto3:py:class:`boto3.client("redshift-data") <RedshiftDataAPIService.Client>`.
 

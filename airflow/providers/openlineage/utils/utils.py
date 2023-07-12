@@ -101,6 +101,7 @@ def url_to_https(url) -> str | None:
 def redacted_connection_uri(conn: Connection, filtered_params=None, filtered_prefixes=None):
     """
     Return the connection URI for the given Connection.
+
     This method additionally filters URI by removing query parameters that are known to carry sensitive data
     like username, password, access key.
     """
@@ -324,7 +325,9 @@ def get_airflow_run_facet(
 
 
 class OpenLineageRedactor(SecretsMasker):
-    """This class redacts sensitive data similar to SecretsMasker in Airflow logs.
+    """
+    This class redacts sensitive data similar to SecretsMasker in Airflow logs.
+
     The difference is that our default max recursion depth is way higher - due to
     the structure of OL events we need more depth.
     Additionally, we allow data structures to specify data that needs not to be

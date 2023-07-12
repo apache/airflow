@@ -191,7 +191,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/http/file.py",
                 ),
                 {
-                    "affected-providers-list-as-string": "airbyte apache.livy "
+                    "affected-providers-list-as-string": "airbyte amazon apache.livy "
                     "dbt.cloud dingding discord http",
                     "all-python-versions": "['3.8']",
                     "all-python-versions-list-as-string": "3.8",
@@ -200,11 +200,11 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "image-build": "true",
                     "needs-helm-tests": "true",
                     "run-tests": "true",
-                    "run-amazon-tests": "false",
+                    "run-amazon-tests": "true",
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always "
+                    "parallel-test-types-list-as-string": "Providers[amazon] Always "
                     "Providers[airbyte,apache.livy,dbt.cloud,dingding,discord,http]",
                 },
                 id="Helm tests, http and all relevant providers, kubernetes tests and "
@@ -311,7 +311,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("airflow/providers/amazon/__init__.py",),
             {
                 "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.sql exasol ftp google imap "
+                "common.sql exasol ftp google http imap microsoft.azure "
                 "mongo mysql postgres salesforce ssh",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
@@ -325,7 +325,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "run-amazon-tests": "true",
                 "parallel-test-types-list-as-string": "Providers[amazon] Always "
-                "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,imap,"
+                "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,http,imap,microsoft.azure,"
                 "mongo,mysql,postgres,salesforce,ssh] Providers[google]",
             },
             id="Providers tests run including amazon tests if amazon provider files changed",
@@ -353,7 +353,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             ("airflow/providers/amazon/file.py",),
             {
                 "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
-                "common.sql exasol ftp google imap "
+                "common.sql exasol ftp google http imap microsoft.azure "
                 "mongo mysql postgres salesforce ssh",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
@@ -368,7 +368,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "upgrade-to-newer-dependencies": "false",
                 "parallel-test-types-list-as-string": "Providers[amazon] Always "
                 "Providers[apache.hive,cncf.kubernetes,common.sql,exasol,ftp,"
-                "imap,mongo,mysql,postgres,salesforce,ssh] Providers[google]",
+                "http,imap,microsoft.azure,mongo,mysql,postgres,salesforce,ssh] Providers[google]",
             },
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
@@ -994,6 +994,7 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
                 "--package-filter apache-airflow-providers-microsoft-mssql "
                 "--package-filter apache-airflow-providers-mysql "
                 "--package-filter apache-airflow-providers-odbc "
+                "--package-filter apache-airflow-providers-openlineage "
                 "--package-filter apache-airflow-providers-oracle "
                 "--package-filter apache-airflow-providers-postgres "
                 "--package-filter apache-airflow-providers-presto "
@@ -1013,6 +1014,36 @@ def test_upgrade_to_newer_dependencies(files: tuple[str, ...], expected_outputs:
                 "--package-filter apache-airflow-providers-http",
             },
             id="Airbyte provider docs changed",
+        ),
+        pytest.param(
+            ("docs/apache-airflow-providers-airbyte/docs.rst", "docs/apache-airflow/docs.rst"),
+            {
+                "docs-filter-list-as-string": "--package-filter apache-airflow "
+                "--package-filter apache-airflow-providers-airbyte "
+                "--package-filter apache-airflow-providers-http",
+            },
+            id="Airbyte provider and airflow core docs changed",
+        ),
+        pytest.param(
+            (
+                "docs/apache-airflow-providers-airbyte/docs.rst",
+                "docs/apache-airflow/docs.rst",
+                "docs/apache-airflow-providers/docs.rst",
+            ),
+            {
+                "docs-filter-list-as-string": "--package-filter apache-airflow "
+                "--package-filter apache-airflow-providers "
+                "--package-filter apache-airflow-providers-airbyte "
+                "--package-filter apache-airflow-providers-http",
+            },
+            id="Airbyte provider and airflow core and common provider docs changed",
+        ),
+        pytest.param(
+            ("docs/apache-airflow/docs.rst",),
+            {
+                "docs-filter-list-as-string": "--package-filter apache-airflow",
+            },
+            id="Only Airflow docs changed",
         ),
         pytest.param(
             ("airflow/providers/celery/file.py",),

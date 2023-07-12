@@ -28,7 +28,7 @@ document editor, file sharing mechanisms.
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:GCSToGoogleDriveOperator:
 
@@ -52,6 +52,17 @@ The following Operator would copy a single file.
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_gdrive_copy_single_file]
     :end-before: [END howto_operator_gcs_to_gdrive_copy_single_file]
+
+Copy into an existing folder
+----------------------------
+
+The following Operator would copy a single file into an existing folder with the specified ID.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_gdrive.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_gcs_to_gdrive_copy_single_file_into_folder]
+    :end-before: [END howto_operator_gcs_to_gdrive_copy_single_file_into_folder]
 
 Copy multiple files
 -------------------

@@ -26,7 +26,14 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class MsSqlHook(DbApiHook):
-    """Interact with Microsoft SQL Server."""
+    """
+    Interact with Microsoft SQL Server.
+
+    :param args: passed to DBApiHook
+    :param sqlalchemy_scheme: Scheme sqlalchemy connection.  Default is ``mssql+pymssql`` Only used for
+      ``get_sqlalchemy_engine`` and ``get_sqlalchemy_connection`` methods.
+    :param kwargs: passed to DbApiHook
+    """
 
     conn_name_attr = "mssql_conn_id"
     default_conn_name = "mssql_default"
@@ -41,12 +48,6 @@ class MsSqlHook(DbApiHook):
         sqlalchemy_scheme: str | None = None,
         **kwargs,
     ) -> None:
-        """
-        :param args: passed to DBApiHook
-        :param sqlalchemy_scheme: Scheme sqlalchemy connection.  Default is ``mssql+pymssql`` Only used for
-          ``get_sqlalchemy_engine`` and ``get_sqlalchemy_connection`` methods.
-        :param kwargs: passed to DbApiHook
-        """
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
         self._sqlalchemy_scheme = sqlalchemy_scheme
@@ -55,6 +56,7 @@ class MsSqlHook(DbApiHook):
     def connection_extra_lower(self) -> dict:
         """
         ``connection.extra_dejson`` but where keys are converted to lower case.
+
         This is used internally for case-insensitive access of mssql params.
         """
         conn = self.get_connection(self.mssql_conn_id)  # type: ignore[attr-defined]
@@ -63,11 +65,10 @@ class MsSqlHook(DbApiHook):
     @property
     def sqlalchemy_scheme(self) -> str:
         """Sqlalchemy scheme either from constructor, connection extras or default."""
-        return (
-            self._sqlalchemy_scheme
-            or self.connection_extra_lower.get("sqlalchemy_scheme")
-            or self.DEFAULT_SQLALCHEMY_SCHEME
-        )
+        extra_scheme = self.connection_extra_lower.get("sqlalchemy_scheme")
+        if not self._sqlalchemy_scheme and extra_scheme and (":" in extra_scheme or "/" in extra_scheme):
+            raise RuntimeError("sqlalchemy_scheme in connection extra should not contain : or / characters")
+        return self._sqlalchemy_scheme or extra_scheme or self.DEFAULT_SQLALCHEMY_SCHEME
 
     def get_uri(self) -> str:
         from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit

@@ -24,12 +24,14 @@ This module contains AWS Athena hook.
 """
 from __future__ import annotations
 
-from time import sleep
+import warnings
 from typing import Any
 
 from botocore.paginate import PageIterator
 
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
 
 class AthenaHook(AwsBaseHook):
@@ -38,8 +40,7 @@ class AthenaHook(AwsBaseHook):
     Provide thick wrapper around
     :external+boto3:py:class:`boto3.client("athena") <Athena.Client>`.
 
-    :param sleep_time: Time (in seconds) to wait between two consecutive calls
-        to check query status on Athena.
+    :param sleep_time: obsolete, please use the parameter of `poll_query_status` method instead
     :param log_query: Whether to log athena query and other execution params
         when it's executed. Defaults to *True*.
 
@@ -65,9 +66,20 @@ class AthenaHook(AwsBaseHook):
         "CANCELLED",
     )
 
-    def __init__(self, *args: Any, sleep_time: int = 30, log_query: bool = True, **kwargs: Any) -> None:
+    def __init__(
+        self, *args: Any, sleep_time: int | None = None, log_query: bool = True, **kwargs: Any
+    ) -> None:
         super().__init__(client_type="athena", *args, **kwargs)  # type: ignore
-        self.sleep_time = sleep_time
+        if sleep_time is not None:
+            self.sleep_time = sleep_time
+            warnings.warn(
+                "The `sleep_time` parameter of the Athena hook is deprecated, "
+                "please pass this parameter to the poll_query_status method instead.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            self.sleep_time = 30  # previous default value
         self.log_query = log_query
 
     def run_query(
@@ -229,51 +241,31 @@ class AthenaHook(AwsBaseHook):
         return paginator.paginate(**result_params)
 
     def poll_query_status(
-        self,
-        query_execution_id: str,
-        max_polling_attempts: int | None = None,
+        self, query_execution_id: str, max_polling_attempts: int | None = None, sleep_time: int | None = None
     ) -> str | None:
         """Poll the state of a submitted query until it reaches final state.
 
         :param query_execution_id: ID of submitted athena query
-        :param max_polling_attempts: Number of times to poll for query state
-            before function exits
+        :param max_polling_attempts: Number of times to poll for query state before function exits
+        :param sleep_time: Time (in seconds) to wait between two consecutive query status checks.
         :return: One of the final states
         """
-        try_number = 1
-        final_query_state = None  # Query state when query reaches final state or max_polling_attempts reached
-        while True:
-            query_state = self.check_query_status(query_execution_id)
-            if query_state is None:
-                self.log.info(
-                    "Query execution id: %s, trial %s: Invalid query state. Retrying again",
-                    query_execution_id,
-                    try_number,
-                )
-            elif query_state in self.TERMINAL_STATES:
-                self.log.info(
-                    "Query execution id: %s, trial %s: Query execution completed. Final state is %s",
-                    query_execution_id,
-                    try_number,
-                    query_state,
-                )
-                final_query_state = query_state
-                break
-            else:
-                self.log.info(
-                    "Query execution id: %s, trial %s: Query is still in non-terminal state - %s",
-                    query_execution_id,
-                    try_number,
-                    query_state,
-                )
-            if (
-                max_polling_attempts and try_number >= max_polling_attempts
-            ):  # Break loop if max_polling_attempts reached
-                final_query_state = query_state
-                break
-            try_number += 1
-            sleep(self.sleep_time)
-        return final_query_state
+        try:
+            wait(
+                waiter=self.get_waiter("query_complete"),
+                waiter_delay=self.sleep_time if sleep_time is None else sleep_time,
+                waiter_max_attempts=max_polling_attempts or 120,
+                args={"QueryExecutionId": query_execution_id},
+                failure_message=f"Error while waiting for query {query_execution_id} to complete",
+                status_message=f"Query execution id: {query_execution_id}, "
+                f"Query is still in non-terminal state",
+                status_args=["QueryExecution.Status.State"],
+            )
+        except AirflowException as error:
+            # this function does not raise errors to keep previous behavior.
+            self.log.warning(error)
+        finally:
+            return self.check_query_status(query_execution_id)
 
     def get_output_location(self, query_execution_id: str) -> str:
         """Get the output location of the query results in S3 URI format.

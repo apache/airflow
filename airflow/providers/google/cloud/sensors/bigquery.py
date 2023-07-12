@@ -22,6 +22,7 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.triggers.bigquery import (
@@ -71,7 +72,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         table_id: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         if deferrable and "poke_interval" not in kwargs:
@@ -132,8 +133,8 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
         self.log.info("Sensor checks existence of table: %s", table_uri)
@@ -184,7 +185,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         partition_id: str,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         if deferrable and "poke_interval" not in kwargs:
@@ -215,10 +216,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         )
 
     def execute(self, context: Context) -> None:
-        """
-        Airflow runs this method on the worker and defers using the triggers
-        if deferrable is set to True.
-        """
+        """Airflow runs this method on the worker and defers using the triggers if deferrable is True."""
         if not self.deferrable:
             super().execute(context)
         else:
@@ -242,8 +240,8 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         table_uri = f"{self.project_id}:{self.dataset_id}.{self.table_id}"
         self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)

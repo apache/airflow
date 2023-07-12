@@ -32,9 +32,11 @@ from openlineage.client.facet import SourceCodeJobFacet
 
 class BashExtractor(BaseExtractor):
     """
+    Extract executed bash command and put it into SourceCodeJobFacet.
+
     This extractor provides visibility on what bash task does by extracting
-    executed bash command and putting it into SourceCodeJobFacet. It does not extract
-    datasets.
+    executed bash command and putting it into SourceCodeJobFacet. It does
+    not extract datasets.
 
     :meta private:
     """

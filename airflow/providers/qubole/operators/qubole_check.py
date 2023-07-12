@@ -45,7 +45,8 @@ class _QuboleCheckOperatorMixin:
 
     def get_hook(self) -> QuboleCheckHook:
         """
-        Reinitialising the hook, as some template fields might have changed
+        Reinitialising the hook, as some template fields might have changed.
+
         This method overwrites the original QuboleOperator.get_hook() which returns a QuboleHook.
         """
         return QuboleCheckHook(
@@ -55,8 +56,9 @@ class _QuboleCheckOperatorMixin:
 
 class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOperator):
     """
-    Performs checks against Qubole Commands. ``QuboleCheckOperator`` expects
-    a command that will be executed on QDS.
+    Performs checks against Qubole Commands.
+
+    ``QuboleCheckOperator`` expects a command that will be executed on QDS.
     By default, each value on first row of the result of this Qubole Command
     is evaluated using python ``bool`` casting. If any of the
     values return ``False``, the check is failed and errors out.
@@ -129,6 +131,7 @@ class QuboleCheckOperator(_QuboleCheckOperatorMixin, SQLCheckOperator, QuboleOpe
 class QuboleValueCheckOperator(_QuboleCheckOperatorMixin, SQLValueCheckOperator, QuboleOperator):
     """
     Performs a simple value check using Qubole command.
+
     By default, each value on the first row of this
     Qubole command is compared with a pre-defined value.
     The check fails and errors out if the output of the command

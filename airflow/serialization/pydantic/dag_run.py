@@ -18,7 +18,6 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pendulum import DateTime
 from pydantic import BaseModel as BaseModelPydantic
 
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
@@ -30,7 +29,7 @@ class DagRunPydantic(BaseModelPydantic):
     id: int
     dag_id: str
     queued_at: Optional[datetime]
-    execution_date: DateTime
+    execution_date: datetime
     start_date: Optional[datetime]
     end_date: Optional[datetime]
     state: str

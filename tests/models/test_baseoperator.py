@@ -31,7 +31,13 @@ from airflow.decorators import task as task_decorator
 from airflow.exceptions import AirflowException, DagInvalidTriggerRule, RemovedInAirflow3Warning
 from airflow.lineage.entities import File
 from airflow.models import DAG
-from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
+from airflow.models.baseoperator import (
+    BaseOperator,
+    BaseOperatorMeta,
+    chain,
+    chain_linear,
+    cross_downstream,
+)
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import Label
 from airflow.utils.task_group import TaskGroup
@@ -514,6 +520,55 @@ class TestBaseOperator:
         assert {tgop3, tgop4} == set(tgop2.get_direct_relatives(upstream=False))
         assert [op2] == tgop3.get_direct_relatives(upstream=False)
         assert [op2] == tgop4.get_direct_relatives(upstream=False)
+
+    def test_chain_linear(self):
+        dag = DAG(dag_id="test_chain_linear", start_date=datetime.now())
+
+        t1, t2, t3, t4, t5, t6, t7 = (BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 8))
+        chain_linear(t1, [t2, t3, t4], [t5, t6], t7)
+
+        assert set(t1.get_direct_relatives(upstream=False)) == {t2, t3, t4}
+        assert set(t2.get_direct_relatives(upstream=False)) == {t5, t6}
+        assert set(t3.get_direct_relatives(upstream=False)) == {t5, t6}
+        assert set(t7.get_direct_relatives(upstream=True)) == {t5, t6}
+
+        t1, t2, t3, t4, t5, t6 = (
+            task_decorator(task_id=f"xcomarg_task{i}", python_callable=lambda: None, dag=dag)()
+            for i in range(1, 7)
+        )
+        chain_linear(t1, [t2, t3], [t4, t5], t6)
+
+        assert set(t1.operator.get_direct_relatives(upstream=False)) == {t2.operator, t3.operator}
+        assert set(t2.operator.get_direct_relatives(upstream=False)) == {t4.operator, t5.operator}
+        assert set(t3.operator.get_direct_relatives(upstream=False)) == {t4.operator, t5.operator}
+        assert set(t6.operator.get_direct_relatives(upstream=True)) == {t4.operator, t5.operator}
+
+        # Begin test for `TaskGroups`
+        tg1, tg2 = (TaskGroup(group_id=f"tg{i}", dag=dag) for i in range(1, 3))
+        op1, op2 = (BaseOperator(task_id=f"task{i}", dag=dag) for i in range(1, 3))
+        tgop1, tgop2 = (
+            BaseOperator(task_id=f"task_group_task{i}", task_group=tg1, dag=dag) for i in range(1, 3)
+        )
+        tgop3, tgop4 = (
+            BaseOperator(task_id=f"task_group_task{i}", task_group=tg2, dag=dag) for i in range(1, 3)
+        )
+        chain_linear(op1, tg1, tg2, op2)
+
+        assert set(op1.get_direct_relatives(upstream=False)) == {tgop1, tgop2}
+        assert set(tgop1.get_direct_relatives(upstream=False)) == {tgop3, tgop4}
+        assert set(tgop2.get_direct_relatives(upstream=False)) == {tgop3, tgop4}
+        assert set(tgop3.get_direct_relatives(upstream=False)) == {op2}
+        assert set(tgop4.get_direct_relatives(upstream=False)) == {op2}
+
+        t1, t2 = (BaseOperator(task_id=f"t-{i}", dag=dag) for i in range(1, 3))
+        with pytest.raises(ValueError, match="Labels are not supported"):
+            chain_linear(t1, Label("hi"), t2)
+
+        with pytest.raises(ValueError, match="nothing to do"):
+            chain_linear()
+
+        with pytest.raises(ValueError, match="Did you forget to expand"):
+            chain_linear(t1)
 
     def test_chain_not_support_type(self):
         dag = DAG(dag_id="test_chain", start_date=datetime.now())

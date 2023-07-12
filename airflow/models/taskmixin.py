@@ -24,10 +24,13 @@ import pendulum
 
 from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.utils.setup_teardown import SetupTeardownContext
+from airflow.utils.types import NOTSET, ArgNotSet
 
 if TYPE_CHECKING:
     from logging import Logger
 
+    from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.utils.edgemodifier import EdgeModifier
@@ -69,6 +72,19 @@ class DependencyMixin:
         """Set a task or a task list to be directly downstream from the current task."""
         raise NotImplementedError()
 
+    def as_setup(self) -> DependencyMixin:
+        """Mark a task as setup task."""
+        raise NotImplementedError()
+
+    def as_teardown(
+        self,
+        *,
+        setups: BaseOperator | Iterable[BaseOperator] | ArgNotSet = NOTSET,
+        on_failure_fail_dagrun=NOTSET,
+    ) -> DependencyMixin:
+        """Mark a task as teardown and set its setups as direct relatives."""
+        raise NotImplementedError()
+
     def update_relative(
         self, other: DependencyMixin, upstream: bool = True, edge_modifier: EdgeModifier | None = None
     ) -> None:
@@ -80,11 +96,13 @@ class DependencyMixin:
     def __lshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Implements Task << Task."""
         self.set_upstream(other)
+        self.set_setup_teardown_ctx_dependencies(other)
         return other
 
     def __rshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
         """Implements Task >> Task."""
         self.set_downstream(other)
+        self.set_setup_teardown_ctx_dependencies(other)
         return other
 
     def __rrshift__(self, other: DependencyMixin | Sequence[DependencyMixin]):
@@ -96,6 +114,25 @@ class DependencyMixin:
         """Called for Task << [Task] because list don't have __lshift__ operators."""
         self.__rshift__(other)
         return self
+
+    def set_setup_teardown_ctx_dependencies(self, other: DependencyMixin | Sequence[DependencyMixin]):
+        if not SetupTeardownContext.active:
+            return
+        from airflow.models.xcom_arg import PlainXComArg
+
+        op1 = self
+        if isinstance(self, PlainXComArg):
+            op1 = self.operator
+        SetupTeardownContext.update_context_map(op1)
+        if isinstance(other, Sequence):
+            for op in other:
+                if isinstance(op, PlainXComArg):
+                    op = op.operator
+                SetupTeardownContext.update_context_map(op)
+            return
+        if isinstance(other, PlainXComArg):
+            other = other.operator
+        SetupTeardownContext.update_context_map(other)
 
 
 class TaskMixin(DependencyMixin):
@@ -174,7 +211,6 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         """Sets relatives for the task or task list."""
         from airflow.models.baseoperator import BaseOperator
         from airflow.models.mappedoperator import MappedOperator
-        from airflow.models.operator import Operator
 
         if not isinstance(task_or_task_list, Sequence):
             task_or_task_list = [task_or_task_list]

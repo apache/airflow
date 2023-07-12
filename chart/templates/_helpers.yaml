@@ -244,7 +244,7 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
   {{- end }}
   {{- if .Values.dags.gitSync.extraVolumeMounts }}
-    {{- toYaml .Values.dags.gitSync.extraVolumeMounts | nindent 2 }}
+    {{- tpl (toYaml .Values.dags.gitSync.extraVolumeMounts) . | nindent 2 }}
   {{- end }}
 {{- end }}
 
@@ -690,16 +690,25 @@ server_tls_key_file = /etc/pgbouncer/server.key
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --job-type TriggererJob  --hostname $(hostname)
+    airflow jobs check --job-type TriggererJob --hostname $(hostname)
   {{- end }}
 {{- end }}
 
 {{- define "dag_processor_liveness_check_command" }}
+  {{- $commandArgs := (list) -}}
+  {{- if semverCompare ">=2.5.0" .Values.airflowVersion }}
+    {{- $commandArgs = append $commandArgs "--local" -}}
+    {{- if semverCompare ">=2.5.2" .Values.airflowVersion }}
+      {{- $commandArgs = concat $commandArgs (list "--job-type" "DagProcessorJob") -}}
+    {{- end }}
+  {{- else }}
+    {{- $commandArgs = concat $commandArgs (list "--hostname" "$(hostname)") -}}
+  {{- end }}
   - sh
   - -c
   - |
     CONNECTION_CHECK_MAX_COUNT=0 AIRFLOW__LOGGING__LOGGING_LEVEL=ERROR exec /entrypoint \
-    airflow jobs check --hostname $(hostname)
+    airflow jobs check {{ join " " $commandArgs }}
 {{- end }}
 
 {{- define "registry_docker_config" }}
@@ -861,6 +870,29 @@ capabilities:
   drop:
     - ALL
     {{- end -}}
+  {{- end -}}
+{{- end -}}
+
+  {{/*
+     Set the default value for external container securityContext(redis and statsd).
+     If no value is passed for <node>.securityContexts.container, defaults to deny privileges escallation and dropping all POSIX capabilities.
+
+     +-----------------------------------+      +-----------------------------------------------------------+
+     | <node>.securityContexts.container |  ->  | allowPrivilegesEscalation: false, capabilities.drop: [ALL]|
+     +-----------------------------------+      +-----------------------------------------------------------+
+
+
+    The template can be called like so:
+      include "externalContainerSecurityContext" .Values.statsd
+    */}}
+{{- define "externalContainerSecurityContext" -}}
+  {{- if .securityContexts.container -}}
+    {{ toYaml .securityContexts.container | print }}
+  {{- else -}}
+allowPrivilegeEscalation: false
+capabilities:
+  drop:
+    - ALL
   {{- end -}}
 {{- end -}}
 

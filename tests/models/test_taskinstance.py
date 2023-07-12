@@ -1304,7 +1304,7 @@ class TestTaskInstance:
                 task = EmptyOperator(task_id=f"work_{i}", dag=dag)
                 task.set_downstream(downstream)
             for i in range(upstream_setups):
-                task = EmptyOperator.as_setup(task_id=f"setup_{i}", dag=dag)
+                task = EmptyOperator(task_id=f"setup_{i}", dag=dag).as_setup()
                 task.set_downstream(downstream)
             assert task.start_date is not None
             run_date = task.start_date + datetime.timedelta(days=5)
@@ -3114,6 +3114,7 @@ class TestTaskInstance:
             "queue": "some_queue_id",
             "priority_weight": 123,
             "operator": "some_custom_operator",
+            "custom_operator_name": "some_custom_operator",
             "queued_dttm": run_date + datetime.timedelta(hours=1),
             "queued_by_job_id": 321,
             "pid": 123,

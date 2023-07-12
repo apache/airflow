@@ -47,7 +47,7 @@ spec:
   {{- if or (and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled)) .Values.workers.extraInitContainers }}
   initContainers:
     {{- if and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled) }}
-      {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 4 }}
+      {{- include "git_sync_container" (dict "Values" .Values "is_init" "true" "Template" .Template) | nindent 4 }}
     {{- end }}
     {{- if .Values.workers.extraInitContainers }}
       {{- toYaml .Values.workers.extraInitContainers | nindent 4 }}
@@ -84,6 +84,9 @@ spec:
     {{- end }}
   {{- if .Values.workers.priorityClassName }}
   priorityClassName: {{ .Values.workers.priorityClassName }}
+  {{- end }}
+  {{- if .Values.workers.runtimeClassName }}
+  priorityClassName: {{ .Values.workers.runtimeClassName }}
   {{- end }}
   {{- if or .Values.registry.secretName .Values.registry.connection }}
   imagePullSecrets:

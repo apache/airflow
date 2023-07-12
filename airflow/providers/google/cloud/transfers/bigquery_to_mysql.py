@@ -28,8 +28,7 @@ from airflow.providers.mysql.hooks.mysql import MySqlHook
 
 class BigQueryToMySqlOperator(BigQueryToSqlBaseOperator):
     """
-    Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
-    and insert that data into a MySQL table.
+    Fetch data from a BigQuery table (alternatively fetch selected columns) and insert it into a MySQL table.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

@@ -22,6 +22,7 @@ import click
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
+    ALL_HISTORICAL_PYTHON_VERSIONS,
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
     ALLOWED_CELERY_BROKERS,
@@ -501,7 +502,8 @@ option_builder = click.option(
     "--builder",
     help="Buildx builder used to perform `docker buildx build` commands.",
     envvar="BUILDER",
-    default="default",
+    show_default=True,
+    default="autodetect",
 )
 option_include_success_outputs = click.option(
     "--include-success-outputs",
@@ -560,4 +562,11 @@ option_skip_constraints = click.option(
     is_flag=True,
     help="Do not use constraints when installing providers.",
     envvar="SKIP_CONSTRAINTS",
+)
+option_historical_python_version = click.option(
+    "--python",
+    type=BetterChoice(ALL_HISTORICAL_PYTHON_VERSIONS),
+    required=False,
+    envvar="PYTHON_VERSION",
+    help="Python version to update sbom from. (defaults to all historical python versions)",
 )

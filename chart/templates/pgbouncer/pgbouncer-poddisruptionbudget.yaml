@@ -21,8 +21,8 @@
 ## Pgbouncer PodDisruptionBudget
 #################################
 {{- if and .Values.pgbouncer.enabled .Values.pgbouncer.podDisruptionBudget.enabled }}
-kind: PodDisruptionBudget
 apiVersion: policy/v1
+kind: PodDisruptionBudget
 metadata:
   name: {{ .Release.Name }}-pgbouncer-pdb
   labels:

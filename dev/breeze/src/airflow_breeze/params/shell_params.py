@@ -78,6 +78,7 @@ class ShellParams:
     airflow_extras: str = ""
     backend: str = ALLOWED_BACKENDS[0]
     base_branch: str = "main"
+    builder: str = "autodetect"
     ci: bool = False
     collect_only: bool = False
     db_reset: bool = False
@@ -123,6 +124,7 @@ class ShellParams:
     celery_broker: str = DEFAULT_CELERY_BROKER
     celery_flower: bool = False
     only_min_version_update: bool = False
+    regenerate_missing_docs: bool = False
 
     def clone_with_test(self, test_type: str) -> ShellParams:
         new_params = deepcopy(self)

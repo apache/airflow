@@ -28,14 +28,45 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.6.0
+.....
+
+Latest change: 2023-07-05
+
+=================================================================================================  ===========  =================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================================
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`ee4a838d49 <https://github.com/apache/airflow/commit/ee4a838d49461b3b053a9cbe660dbff06a17fff5>`_  2023-07-05   ``Pass SQLAlchemy engine to construct information schema query. (#32371)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
+`f2e2125b07 <https://github.com/apache/airflow/commit/f2e2125b070794b6a66fb3e2840ca14d07054cf2>`_  2023-06-29   ``openlineage, common.sql:  provide OL SQL parser as internal OpenLineage provider API (#31398)``
+`8c37b74a20 <https://github.com/apache/airflow/commit/8c37b74a208a808d905c1b86d081d69d7a1aa900>`_  2023-06-28   ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+`09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
+=================================================================================================  ===========  =================================================================================================
+
+1.5.2
+.....
+
+Latest change: 2023-06-20
+
+=================================================================================================  ===========  =============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================
+`79bcc2e668 <https://github.com/apache/airflow/commit/79bcc2e668e648098aad6eaa87fe8823c76bc69a>`_  2023-06-20   ``Prepare RC1 docs for June 2023 wave of Providers (#32001)``
+`9276310a43 <https://github.com/apache/airflow/commit/9276310a43d17a9e9e38c2cb83686a15656896b2>`_  2023-06-05   ``Improve docstrings in providers (#31681)``
+`a59076eaee <https://github.com/apache/airflow/commit/a59076eaeed03dd46e749ad58160193b4ef3660c>`_  2023-06-02   ``Add D400 pydocstyle check - Providers (#31427)``
+`9fa75aaf7a <https://github.com/apache/airflow/commit/9fa75aaf7a391ebf0e6b6949445c060f6de2ceb9>`_  2023-05-29   ``Remove Python 3.7 support (#30963)``
+=================================================================================================  ===========  =============================================================
+
 1.5.1
 .....
 
-Latest change: 2023-05-23
+Latest change: 2023-05-24
 
 =================================================================================================  ===========  ======================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================
+`d745cee3db <https://github.com/apache/airflow/commit/d745cee3dbde6b437a817aa64e385a1a948389d5>`_  2023-05-24   ``Prepare adhoc wave of Providers (#31478)``
 `547e352578 <https://github.com/apache/airflow/commit/547e352578fac92f072b269dc257d21cdc279d97>`_  2023-05-23   ``Bring back min-airflow-version for preinstalled providers (#31469)``
 =================================================================================================  ===========  ======================================================================
 

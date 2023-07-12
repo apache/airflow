@@ -51,13 +51,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.6.1"
+defaultAirflowTag: "2.6.3"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.6.1"
+airflowVersion: "2.6.3"
 
 # Images
 images:
@@ -282,6 +282,21 @@ enableBuiltInSecretEnvVars:
   AIRFLOW__CELERY__BROKER_URL: true
   AIRFLOW__ELASTICSEARCH__HOST: true
   AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST: true
+
+# Priority Classes that will be installed by charts.
+# Ideally, there should be an entry for dagProcessor, flower,
+#   pgbouncer, scheduler, statsd, triggerer, webserver, worker.
+# The format for priorityClasses is an array with each element having:
+#   * name is the name of the priorityClass. Ensure the same name is given to the respective section as well
+#   * preemptionPolicy for the priorityClass
+#   * value is the preemption value for the priorityClass
+priorityClasses: []
+#  - name: class1 (if this is for dagProcessor, ensure overriding .Values.dagProcessor.priorityClass too)
+#    preemptionPolicy: PreemptLowerPriority
+#    value: 10000
+#  - name: class2
+#    preemptionPolicy: Never
+#    value: 100000
 
 # Extra secrets that will be managed by the chart
 # (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
@@ -510,7 +525,6 @@ workers:
     annotations: {}
 
   # Allow KEDA autoscaling.
-  # Persistence.enabled must be set to false to use KEDA.
   keda:
     enabled: false
     namespaceLabels: {}
@@ -538,6 +552,15 @@ workers:
     #         - type: Percent
     #           value: 100
     #           periodSeconds: 15
+
+    # Query to use for KEDA autoscaling. Must return a single integer.
+    query: >-
+      SELECT ceil(COUNT(*)::decimal / {{ .Values.config.celery.worker_concurrency }})
+      FROM task_instance
+      WHERE (state='running' OR state='queued')
+      {{- if eq .Values.executor "CeleryKubernetesExecutor" }}
+      AND queue != '{{ .Values.config.celery_kubernetes_executor.kubernetes_queue }}'
+      {{- end }}
 
   persistence:
     # Enable persistent volumes
@@ -609,6 +632,7 @@ workers:
 
   # Select certain nodes for airflow worker pods.
   nodeSelector: {}
+  runtimeClassName: ~
   priorityClassName: ~
   affinity: {}
   # default worker affinity is:
@@ -889,7 +913,18 @@ createUserJob:
   # Launch additional containers into user creation job
   extraContainers: []
 
-  # Mount additional volumes into user creation job
+  # Mount additional volumes into user creation job. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -1273,7 +1308,18 @@ triggerer:
   # Add additional init containers into triggerers.
   extraInitContainers: []
 
-  # Mount additional volumes into triggerer.
+  # Mount additional volumes into triggerer. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -1402,7 +1448,18 @@ dagProcessor:
   # Add additional init containers into dag processors.
   extraInitContainers: []
 
-  # Mount additional volumes into dag processor.
+  # Mount additional volumes into dag processor. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -1538,7 +1595,18 @@ flower:
 
   # Launch additional containers into the flower pods.
   extraContainers: []
-  # Mount additional volumes into the flower pods.
+  # Mount additional volumes into the flower pods. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -1585,7 +1653,6 @@ statsd:
   uid: 65534
   # When not set, `statsd.uid` will be used
 
-  # When not set, the values defined in the global securityContext will be used
   # (deprecated, use `securityContexts` instead)
   securityContext: {}
   #  runAsUser: 65534
@@ -1735,7 +1802,18 @@ pgbouncer:
   # Add extra general PgBouncer ini configuration: https://www.pgbouncer.org/config.html
   extraIni: ~
 
-  # Mount additional volumes into pgbouncer.
+  # Mount additional volumes into pgbouncer. It can be templated like in the following example:
+  #   extraVolumes:
+  #     - name: my-templated-extra-volume
+  #       secret:
+  #          secretName: '{{ include "my_secret_template" . }}'
+  #          defaultMode: 0640
+  #          optional: true
+  #
+  #   extraVolumeMounts:
+  #     - name: my-templated-extra-volume
+  #       mountPath: "{{ .Values.my_custom_path }}"
+  #       readOnly: true
   extraVolumes: []
   extraVolumeMounts: []
 
@@ -2146,6 +2224,11 @@ dags:
     securityContexts:
       container: {}
 
+    # Mount additional volumes into git-sync. It can be templated like in the following example:
+    #   extraVolumeMounts:
+    #     - name: my-templated-extra-volume
+    #       mountPath: "{{ .Values.my_custom_path }}"
+    #       readOnly: true
     extraVolumeMounts: []
     env: []
     # Supported env vars for gitsync can be found at https://github.com/kubernetes/git-sync

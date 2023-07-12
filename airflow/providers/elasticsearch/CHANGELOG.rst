@@ -21,8 +21,45 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-elasticsearch``
+
+
 Changelog
 ---------
+
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. note::
+  Deprecate non-official elasticsearch libraries. Only the official elasticsearch library was used
+
+* ``Deprecate the 2 non-official elasticsearch libraries (#31920)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+
+4.5.1
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+Misc
+~~~~
+
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 4.5.0
 .....

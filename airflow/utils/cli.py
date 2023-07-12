@@ -21,7 +21,6 @@ from __future__ import annotations
 import functools
 import logging
 import os
-import re
 import socket
 import sys
 import threading
@@ -32,6 +31,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
+import re2
 from sqlalchemy.orm import Session
 
 from airflow import settings
@@ -215,27 +215,34 @@ def _search_for_dag_file(val: str | None) -> str | None:
     return None
 
 
-def get_dag(subdir: str | None, dag_id: str) -> DAG:
+def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
     """
     Returns DAG of a given dag_id.
 
-    First it we'll try to use the given subdir.  If that doesn't work, we'll try to
+    First we'll try to use the given subdir.  If that doesn't work, we'll try to
     find the correct path (assuming it's a file) and failing that, use the configured
     dags folder.
     """
     from airflow.models import DagBag
 
-    first_path = process_subdir(subdir)
-    dagbag = DagBag(first_path)
-    if dag_id not in dagbag.dags:
+    if from_db:
+        dagbag = DagBag(read_dags_from_db=True)
+    else:
+        first_path = process_subdir(subdir)
+        dagbag = DagBag(first_path)
+    dag = dagbag.get_dag(dag_id)
+    if not dag:
+        if from_db:
+            raise AirflowException(f"Dag {dag_id!r} could not be found in DagBag read from database.")
         fallback_path = _search_for_dag_file(subdir) or settings.DAGS_FOLDER
         logger.warning("Dag %r not found in path %s; trying path %s", dag_id, first_path, fallback_path)
         dagbag = DagBag(dag_folder=fallback_path)
-        if dag_id not in dagbag.dags:
+        dag = dagbag.get_dag(dag_id)
+        if not dag:
             raise AirflowException(
                 f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
             )
-    return dagbag.dags[dag_id]
+    return dag
 
 
 def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
@@ -245,7 +252,7 @@ def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
     if not use_regex:
         return [get_dag(subdir, dag_id)]
     dagbag = DagBag(process_subdir(subdir))
-    matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
+    matched_dags = [dag for dag in dagbag.dags.values() if re2.search(dag_id, dag.dag_id)]
     if not matched_dags:
         raise AirflowException(
             f"dag_id could not be found with regex: {dag_id}. Either the dag did not exist or "

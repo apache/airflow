@@ -33,7 +33,7 @@ from functools import partial
 from pathlib import PurePath
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Tuple
-from urllib.parse import quote
+from urllib.parse import quote, urljoin
 
 import dill
 import jinja2
@@ -57,6 +57,7 @@ from sqlalchemy import (
     inspect,
     or_,
     text,
+    update,
 )
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.mutable import MutableDict
@@ -123,7 +124,7 @@ from airflow.utils.sqlalchemy import (
     tuple_in_condition,
     with_row_locks,
 )
-from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from airflow.utils.task_group import MappedTaskGroup
 from airflow.utils.timeout import timeout
 from airflow.utils.xcom import XCOM_RETURN_KEY
@@ -292,8 +293,7 @@ def clear_task_instances(
     if job_ids:
         from airflow.jobs.job import Job
 
-        for job in session.query(Job).filter(Job.id.in_(job_ids)).all():
-            job.state = TaskInstanceState.RESTARTING
+        session.execute(update(Job).where(Job.id.in_(job_ids)).values(state=JobState.RESTARTING))
 
     if activate_dag_runs is not None:
         warnings.warn(
@@ -394,6 +394,7 @@ class TaskInstance(Base, LoggingMixin):
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
+    custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
@@ -571,6 +572,7 @@ class TaskInstance(Base, LoggingMixin):
             "max_tries": task.retries,
             "executor_config": task.executor_config,
             "operator": task.task_type,
+            "custom_operator_name": getattr(task, "custom_operator_name", None),
             "map_index": map_index,
         }
 
@@ -591,7 +593,7 @@ class TaskInstance(Base, LoggingMixin):
         database, in all other cases this will be incremented.
         """
         # This is designed so that task logs end up in the right file.
-        if self.state == State.RUNNING:
+        if self.state == TaskInstanceState.RUNNING:
             return self._try_number
         return self._try_number + 1
 
@@ -616,6 +618,11 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def next_try_number(self) -> int:
         return self._try_number + 1
+
+    @property
+    def operator_name(self) -> str | None:
+        """@property: use a more friendly display name for the operator, if set."""
+        return self.custom_operator_name or self.operator
 
     def command_as_list(
         self,
@@ -759,26 +766,26 @@ class TaskInstance(Base, LoggingMixin):
         """Log URL for TaskInstance."""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
-        return (
-            f"{base_url}/log"
-            f"?execution_date={iso}"
+        return urljoin(
+            base_url,
+            f"log?execution_date={iso}"
             f"&task_id={self.task_id}"
             f"&dag_id={self.dag_id}"
-            f"&map_index={self.map_index}"
+            f"&map_index={self.map_index}",
         )
 
     @property
     def mark_success_url(self) -> str:
         """URL to mark TI success."""
         base_url = conf.get_mandatory_value("webserver", "BASE_URL")
-        return (
-            f"{base_url}/confirm"
-            f"?task_id={self.task_id}"
+        return urljoin(
+            base_url,
+            f"confirm?task_id={self.task_id}"
             f"&dag_id={self.dag_id}"
             f"&dag_run_id={quote(self.run_id)}"
             "&upstream=false"
             "&downstream=false"
-            "&state=success"
+            "&state=success",
         )
 
     @provide_session
@@ -804,7 +811,7 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         """
         self.log.error("Recording the task instance as FAILED")
-        self.state = State.FAILED
+        self.state = TaskInstanceState.FAILED
         session.merge(self)
         session.commit()
 
@@ -858,6 +865,7 @@ class TaskInstance(Base, LoggingMixin):
             self.queue = ti.queue
             self.priority_weight = ti.priority_weight
             self.operator = ti.operator
+            self.custom_operator_name = ti.custom_operator_name
             self.queued_dttm = ti.queued_dttm
             self.queued_by_job_id = ti.queued_by_job_id
             self.pid = ti.pid
@@ -886,6 +894,7 @@ class TaskInstance(Base, LoggingMixin):
         # value that needs to be stored in the db.
         self.executor_config = task.executor_config
         self.operator = task.task_type
+        self.custom_operator_name = getattr(task, "custom_operator_name", None)
 
     @provide_session
     def clear_xcom_data(self, session: Session = NEW_SESSION) -> None:
@@ -931,7 +940,7 @@ class TaskInstance(Base, LoggingMixin):
         self.log.debug("Setting task state for %s to %s", self, state)
         self.state = state
         self.start_date = self.start_date or current_time
-        if self.state in State.finished or self.state == State.UP_FOR_RETRY:
+        if self.state in State.finished or self.state == TaskInstanceState.UP_FOR_RETRY:
             self.end_date = self.end_date or current_time
             self.duration = (self.end_date - self.start_date).total_seconds()
         session.merge(self)
@@ -944,7 +953,7 @@ class TaskInstance(Base, LoggingMixin):
         has elapsed.
         """
         # is the task still in the retry waiting period?
-        return self.state == State.UP_FOR_RETRY and not self.ready_for_retry()
+        return self.state == TaskInstanceState.UP_FOR_RETRY and not self.ready_for_retry()
 
     @provide_session
     def are_dependents_done(self, session: Session = NEW_SESSION) -> bool:
@@ -967,7 +976,7 @@ class TaskInstance(Base, LoggingMixin):
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id.in_(task.downstream_task_ids),
             TaskInstance.run_id == self.run_id,
-            TaskInstance.state.in_([State.SKIPPED, State.SUCCESS]),
+            TaskInstance.state.in_((TaskInstanceState.SKIPPED, TaskInstanceState.SUCCESS)),
         )
         count = ti[0][0]
         return count == len(task.downstream_task_ids)
@@ -1204,7 +1213,7 @@ class TaskInstance(Base, LoggingMixin):
         Checks on whether the task instance is in the right state and timeframe
         to be retried.
         """
-        return self.state == State.UP_FOR_RETRY and self.next_retry_datetime() < timezone.utcnow()
+        return self.state == TaskInstanceState.UP_FOR_RETRY and self.next_retry_datetime() < timezone.utcnow()
 
     @provide_session
     def get_dagrun(self, session: Session = NEW_SESSION) -> DagRun:
@@ -1273,7 +1282,7 @@ class TaskInstance(Base, LoggingMixin):
         self.hostname = get_hostname()
         self.pid = None
 
-        if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
+        if not ignore_all_deps and not ignore_ti_state and self.state == TaskInstanceState.SUCCESS:
             Stats.incr("previously_succeeded", tags=self.stats_tags)
 
         if not mark_success:
@@ -1301,7 +1310,7 @@ class TaskInstance(Base, LoggingMixin):
             # start date that is recorded in task_reschedule table
             # If the task continues after being deferred (next_method is set), use the original start_date
             self.start_date = self.start_date if self.next_method else timezone.utcnow()
-            if self.state == State.UP_FOR_RESCHEDULE:
+            if self.state == TaskInstanceState.UP_FOR_RESCHEDULE:
                 task_reschedule: TR = TR.query_for_task_instance(self, session=session).first()
                 if task_reschedule:
                     self.start_date = task_reschedule.start_date
@@ -1319,7 +1328,7 @@ class TaskInstance(Base, LoggingMixin):
                 description="requeueable deps",
             )
             if not self.are_dependencies_met(dep_context=dep_context, session=session, verbose=True):
-                self.state = State.NONE
+                self.state = None
                 self.log.warning(
                     "Rescheduling due to concurrency limits reached "
                     "at task runtime. Attempt %s of "
@@ -1339,10 +1348,10 @@ class TaskInstance(Base, LoggingMixin):
         self._try_number += 1
 
         if not test_mode:
-            session.add(Log(State.RUNNING, self))
+            session.add(Log(TaskInstanceState.RUNNING.value, self))
 
-        self.state = State.RUNNING
-        self.emit_state_change_metric(State.RUNNING)
+        self.state = TaskInstanceState.RUNNING
+        self.emit_state_change_metric(TaskInstanceState.RUNNING)
         self.external_executor_id = external_executor_id
         self.end_date = None
         if not test_mode:
@@ -1382,7 +1391,7 @@ class TaskInstance(Base, LoggingMixin):
             self._date_or_empty("end_date"),
         )
 
-    def emit_state_change_metric(self, new_state: TaskInstanceState):
+    def emit_state_change_metric(self, new_state: TaskInstanceState) -> None:
         """
         Sends a time metric representing how much time a given state transition took.
         The previous state and metric name is deduced from the state the task was put in.
@@ -1398,7 +1407,7 @@ class TaskInstance(Base, LoggingMixin):
             return
 
         # switch on state and deduce which metric to send
-        if new_state == State.RUNNING:
+        if new_state == TaskInstanceState.RUNNING:
             metric_name = "queued_duration"
             if self.queued_dttm is None:
                 # this should not really happen except in tests or rare cases,
@@ -1410,7 +1419,7 @@ class TaskInstance(Base, LoggingMixin):
                 )
                 return
             timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
-        elif new_state == State.QUEUED:
+        elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
                 # same comment as above
@@ -1497,7 +1506,7 @@ class TaskInstance(Base, LoggingMixin):
                 self._execute_task_with_callbacks(context, test_mode)
             if not test_mode:
                 self.refresh_from_db(lock_for_update=True, session=session)
-            self.state = State.SUCCESS
+            self.state = TaskInstanceState.SUCCESS
         except TaskDeferred as defer:
             # The task has signalled it wants to defer execution based on
             # a trigger.
@@ -1521,7 +1530,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.log.info(e)
             if not test_mode:
                 self.refresh_from_db(lock_for_update=True, session=session)
-            self.state = State.SKIPPED
+            self.state = TaskInstanceState.SKIPPED
         except AirflowRescheduleException as reschedule_exception:
             self._handle_reschedule(actual_start_date, reschedule_exception, test_mode, session=session)
             session.commit()
@@ -1744,7 +1753,7 @@ class TaskInstance(Base, LoggingMixin):
         # Then, update ourselves so it matches the deferral request
         # Keep an eye on the logic in `check_and_change_state_before_execution()`
         # depending on self.next_method semantics
-        self.state = State.DEFERRED
+        self.state = TaskInstanceState.DEFERRED
         self.trigger_id = trigger_row.id
         self.next_method = defer.method_name
         self.next_kwargs = defer.kwargs or {}
@@ -1863,7 +1872,7 @@ class TaskInstance(Base, LoggingMixin):
         )
 
         # set state
-        self.state = State.UP_FOR_RESCHEDULE
+        self.state = TaskInstanceState.UP_FOR_RESCHEDULE
 
         # Decrement try_number so subsequent runs will use the same try number and write
         # to same log file.
@@ -1928,7 +1937,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr("ti_failures", tags=self.stats_tags)
 
         if not test_mode:
-            session.add(Log(State.FAILED, self))
+            session.add(Log(TaskInstanceState.FAILED.value, self))
 
             # Log failure duration
             session.add(TaskFail(ti=self))
@@ -1962,7 +1971,7 @@ class TaskInstance(Base, LoggingMixin):
             self.log.error("Unable to unmap task to determine if we need to send an alert email")
 
         if force_fail or not self.is_eligible_to_retry():
-            self.state = State.FAILED
+            self.state = TaskInstanceState.FAILED
             email_for_state = operator.attrgetter("email_on_failure")
             callbacks = task.on_failure_callback if task else None
             callback_type = "on_failure"
@@ -1971,10 +1980,10 @@ class TaskInstance(Base, LoggingMixin):
                 tis = self.get_dagrun(session).get_task_instances()
                 stop_all_tasks_in_dag(tis, session, self.task_id)
         else:
-            if self.state == State.QUEUED:
+            if self.state == TaskInstanceState.QUEUED:
                 # We increase the try_number so as to fail the task if it fails to start after sometime
                 self._try_number += 1
-            self.state = State.UP_FOR_RETRY
+            self.state = TaskInstanceState.UP_FOR_RETRY
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
             callback_type = "on_retry"
@@ -1995,7 +2004,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry."""
-        if self.state == State.RESTARTING:
+        if self.state == TaskInstanceState.RESTARTING:
             # If a task is cleared when running, it goes into RESTARTING state and is always
             # eligible for retry
             return True
@@ -2336,7 +2345,7 @@ class TaskInstance(Base, LoggingMixin):
             'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
         )
 
-        # This function is called after changing the state from State.RUNNING,
+        # This function is called after changing the state from RUNNING,
         # so we need to subtract 1 from self.try_number here.
         current_try_number = self.try_number - 1
         additional_context: dict[str, Any] = {
@@ -2563,7 +2572,7 @@ class TaskInstance(Base, LoggingMixin):
         num_running_task_instances_query = session.query(func.count()).filter(
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id == self.task_id,
-            TaskInstance.state == State.RUNNING,
+            TaskInstance.state == TaskInstanceState.RUNNING,
         )
         if same_dagrun:
             num_running_task_instances_query = num_running_task_instances_query.filter(
@@ -2885,7 +2894,7 @@ def _is_further_mapped_inside(operator: Operator, container: TaskGroup) -> bool:
 
 # State of the task instance.
 # Stores string version of the task state.
-TaskInstanceStateType = Tuple[TaskInstanceKey, str]
+TaskInstanceStateType = Tuple[TaskInstanceKey, TaskInstanceState]
 
 
 class SimpleTaskInstance:
