@@ -82,7 +82,7 @@ class TestCassandraHook:
                 load_balancing_policy=mock.ANY,
             )
 
-            assert isinstance(mock_cluster_ctor.call_args[1]["load_balancing_policy"], TokenAwarePolicy)
+            assert isinstance(mock_cluster_ctor.call_args.kwargs["load_balancing_policy"], TokenAwarePolicy)
 
     def test_get_lb_policy_with_no_args(self):
         # test LB policies with no args

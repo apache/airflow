@@ -28,14 +28,77 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.3.1
+.....
+
+Latest change: 2023-07-05
+
+=================================================================================================  ===========  ===============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================================
+`3878fe6fab <https://github.com/apache/airflow/commit/3878fe6fab3ccc1461932b456c48996f2763139f>`_  2023-07-05   ``Remove spurious headers for provider changelogs (#32373)``
+`cb4927a018 <https://github.com/apache/airflow/commit/cb4927a01887e2413c45d8d9cb63e74aa994ee74>`_  2023-07-05   ``Prepare docs for July 2023 wave of Providers (#32298)``
+`f8593503cb <https://github.com/apache/airflow/commit/f8593503cbe252c2f4dc5ff48a3f292c9e13baad>`_  2023-07-05   ``Add default_deferrable config (#31712)``
+`6b4350e89c <https://github.com/apache/airflow/commit/6b4350e89cd1b3cc66347b31b10337105ccb9907>`_  2023-06-29   ``Modify 'template_fields' of 'DatabricksSqlOperator' to support parent class fields (#32253)``
+`d1aa509bbd <https://github.com/apache/airflow/commit/d1aa509bbd1941ceb3fe31789efeebbddd58d32f>`_  2023-06-28   ``D205 Support - Providers: Databricks to Github (inclusive) (#32243)``
+`09d4718d3a <https://github.com/apache/airflow/commit/09d4718d3a46aecf3355d14d3d23022002f4a818>`_  2023-06-27   ``Improve provider documentation and README structure (#32125)``
+=================================================================================================  ===========  ===============================================================================================
+
+4.3.0
+.....
+
+Latest change: 2023-06-20
+
+=================================================================================================  ===========  ===========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================================
+`79bcc2e668 <https://github.com/apache/airflow/commit/79bcc2e668e648098aad6eaa87fe8823c76bc69a>`_  2023-06-20   ``Prepare RC1 docs for June 2023 wave of Providers (#32001)``
+`8b146152d6 <https://github.com/apache/airflow/commit/8b146152d62118defb3004c997c89c99348ef948>`_  2023-06-20   ``Add note about dropping Python 3.7 for providers (#32015)``
+`69bc90b824 <https://github.com/apache/airflow/commit/69bc90b82403b705b3c30176cc3d64b767f2252e>`_  2023-06-19   ``Fix type annotation (#31888)``
+`66299338eb <https://github.com/apache/airflow/commit/66299338eb24aa71eb2e27ebd8b76079b39fd305>`_  2023-06-18   ``add a return when the event is yielded in a loop to stop the execution (#31985)``
+`7b096483fa <https://github.com/apache/airflow/commit/7b096483fa20df921101a09816a1d2701e9ae1dd>`_  2023-06-14   ``Making Databricks run related multi-query string in one session again (#31898) (#31899)``
+`049c6184b7 <https://github.com/apache/airflow/commit/049c6184b730a7ede41db9406654f054ddc8cc5f>`_  2023-06-08   ``Fix Databricks SQL operator serialization (#31780)``
+`9276310a43 <https://github.com/apache/airflow/commit/9276310a43d17a9e9e38c2cb83686a15656896b2>`_  2023-06-05   ``Improve docstrings in providers (#31681)``
+`86b5ba2802 <https://github.com/apache/airflow/commit/86b5ba28026fc6e8b7d868b83080189df9b09306>`_  2023-06-04   ``Remove return statement after yield from triggers class (#31703)``
+`dc5bf3fd02 <https://github.com/apache/airflow/commit/dc5bf3fd02c589578209cb0dd5b7d005b1516ae9>`_  2023-06-02   ``Add discoverability for triggers in provider.yaml (#31576)``
+`a59076eaee <https://github.com/apache/airflow/commit/a59076eaeed03dd46e749ad58160193b4ef3660c>`_  2023-06-02   ``Add D400 pydocstyle check - Providers (#31427)``
+`9fa75aaf7a <https://github.com/apache/airflow/commit/9fa75aaf7a391ebf0e6b6949445c060f6de2ceb9>`_  2023-05-29   ``Remove Python 3.7 support (#30963)``
+=================================================================================================  ===========  ===========================================================================================
+
+4.2.0
+.....
+
+Latest change: 2023-05-19
+
+=================================================================================================  ===========  ======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================
+`45548b9451 <https://github.com/apache/airflow/commit/45548b9451fba4e48c6f0c0ba6050482c2ea2956>`_  2023-05-19   ``Prepare RC2 docs for May 2023 wave of Providers (#31416)``
+`abea189022 <https://github.com/apache/airflow/commit/abea18902257c0250fedb764edda462f9e5abc84>`_  2023-05-18   ``Use '__version__' in providers not 'version' (#31393)``
+`f5aed58d9f <https://github.com/apache/airflow/commit/f5aed58d9fb2137fa5f0e3ce75b6709bf8393a94>`_  2023-05-18   ``Fixing circular import error in providers caused by airflow version check (#31379)``
+`d9ff55cf6d <https://github.com/apache/airflow/commit/d9ff55cf6d95bb342fed7a87613db7b9e7c8dd0f>`_  2023-05-16   ``Prepare docs for May 2023 wave of Providers (#31252)``
+`fdc7a31aeb <https://github.com/apache/airflow/commit/fdc7a31aeb3d9f64579ee6ad83107b021eb2cade>`_  2023-05-13   ``Add 'DatabricksPartitionSensor' (#30980)``
+`edd7133a13 <https://github.com/apache/airflow/commit/edd7133a1336c9553d77ba13c83bc7f48d4c63f0>`_  2023-05-09   ``Add conditional output processing in SQL operators (#31136)``
+`3df0be0f6f <https://github.com/apache/airflow/commit/3df0be0f6fe9786a5fcb85151fb83167649ee163>`_  2023-05-08   ``Add cancel all runs functionality to Databricks hook (#31038)``
+`ac46902154 <https://github.com/apache/airflow/commit/ac46902154c060246dec942f921f7670015e6031>`_  2023-05-04   ``Move TaskInstanceKey to a separate file (#31033)``
+`0a30706aa7 <https://github.com/apache/airflow/commit/0a30706aa7c581905ca99a8b6e2f05960d480729>`_  2023-05-03   ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+`eef5bc7f16 <https://github.com/apache/airflow/commit/eef5bc7f166dc357fea0cc592d39714b1a5e3c14>`_  2023-05-03   ``Add full automation for min Airflow version for providers (#30994)``
+`a7eb32a5b2 <https://github.com/apache/airflow/commit/a7eb32a5b222e236454d3e474eec478ded7c368d>`_  2023-04-30   ``Bump minimum Airflow version in providers (#30917)``
+`9409446097 <https://github.com/apache/airflow/commit/940944609751e2584b191aa776b6221aa78703d3>`_  2023-04-24   ``Add cli cmd to list the provider trigger info (#30822)``
+`ecb9a9ea78 <https://github.com/apache/airflow/commit/ecb9a9ea78203bd1ce2f2d645d554409651ba8c1>`_  2023-04-23   ``Add retry param in databrics async operator (#30744)``
+`9bebf85e24 <https://github.com/apache/airflow/commit/9bebf85e24e352f9194da2f98e2bc66a5e6b972e>`_  2023-04-22   ``Add repair job functionality to databricks hook (#30786)``
+`7d02277ae1 <https://github.com/apache/airflow/commit/7d02277ae13b7d1e6cea9e6c8ff0d411100daf77>`_  2023-04-22   ``Deprecate databricks async operator (#30761)``
+=================================================================================================  ===========  ======================================================================================
+
 4.1.0
 .....
 
-Latest change: 2023-04-14
+Latest change: 2023-04-21
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`e46ce78b66 <https://github.com/apache/airflow/commit/e46ce78b66953146c04de5da00cab6299787adad>`_  2023-04-21   ``Prepare docs for adhoc release of providers (#30787)``
 `37cf0506b5 <https://github.com/apache/airflow/commit/37cf0506b50931a68aeed7b9fb602e824adca9d6>`_  2023-04-14   ``Add delete inactive run functionality to databricks provider (#30646)``
 `1e311cf036 <https://github.com/apache/airflow/commit/1e311cf036b04d010f296aff1fbf612f22397893>`_  2023-04-11   ``Databricks SQL sensor (#30477)``
 `d23a3bbed8 <https://github.com/apache/airflow/commit/d23a3bbed89ae04369983f21455bf85ccc1ae1cb>`_  2023-04-04   ``Add mechanism to suspend providers (#30422)``

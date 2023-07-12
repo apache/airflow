@@ -53,9 +53,11 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Advanced flag for tests command",
             "options": [
                 "--image-tag",
+                "--use-airflow-version",
                 "--mount-sources",
                 "--upgrade-boto",
                 "--remove-arm-packages",
+                "--skip-docker-compose-down",
             ],
         },
     ],
@@ -101,6 +103,8 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-name",
                 "--image-tag",
                 "--python",
+                "--skip-docker-compose-deletion",
+                "--wait-for-containers-timeout",
                 "--github-repository",
             ],
         }

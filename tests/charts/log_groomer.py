@@ -27,29 +27,62 @@ class LogGroomerTestBase:
     folder: str = ""
 
     def test_log_groomer_collector_default_enabled(self):
-        docs = render_chart(show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"])
+        if self.obj_name == "dag-processor":
+            values = {"dagProcessor": {"enabled": True}}
+        else:
+            values = None
+
+        docs = render_chart(
+            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
+        )
+
         assert 2 == len(jmespath.search("spec.template.spec.containers", docs[0]))
         assert f"{self.obj_name}-log-groomer" in [
             c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
         ]
 
     def test_log_groomer_collector_can_be_disabled(self):
+        if self.obj_name == "dag-processor":
+            values = {
+                "dagProcessor": {
+                    "enabled": True,
+                    "logGroomerSidecar": {"enabled": False},
+                }
+            }
+        else:
+            values = {f"{self.folder}": {"logGroomerSidecar": {"enabled": False}}}
+
         docs = render_chart(
-            values={f"{self.folder}": {"logGroomerSidecar": {"enabled": False}}},
+            values=values,
             show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
+
         actual = jmespath.search("spec.template.spec.containers", docs[0])
 
         assert len(actual) == 1
 
     def test_log_groomer_collector_default_command_and_args(self):
-        docs = render_chart(show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"])
+        if self.obj_name == "dag-processor":
+            values = {"dagProcessor": {"enabled": True}}
+        else:
+            values = None
+
+        docs = render_chart(
+            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
+        )
 
         assert jmespath.search("spec.template.spec.containers[1].command", docs[0]) is None
         assert ["bash", "/clean-logs"] == jmespath.search("spec.template.spec.containers[1].args", docs[0])
 
     def test_log_groomer_collector_default_retention_days(self):
-        docs = render_chart(show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"])
+        if self.obj_name == "dag-processor":
+            values = {"dagProcessor": {"enabled": True}}
+        else:
+            values = None
+
+        docs = render_chart(
+            values=values, show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"]
+        )
 
         assert "AIRFLOW__LOG_RETENTION_DAYS" == jmespath.search(
             "spec.template.spec.containers[1].env[0].name", docs[0]
@@ -59,8 +92,18 @@ class LogGroomerTestBase:
     @pytest.mark.parametrize("command", [None, ["custom", "command"]])
     @pytest.mark.parametrize("args", [None, ["custom", "args"]])
     def test_log_groomer_command_and_args_overrides(self, command, args):
+        if self.obj_name == "dag-processor":
+            values = {
+                "dagProcessor": {
+                    "enabled": True,
+                    "logGroomerSidecar": {"command": command, "args": args},
+                }
+            }
+        else:
+            values = {f"{self.folder}": {"logGroomerSidecar": {"command": command, "args": args}}}
+
         docs = render_chart(
-            values={f"{self.folder}": {"logGroomerSidecar": {"command": command, "args": args}}},
+            values=values,
             show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
@@ -68,15 +111,28 @@ class LogGroomerTestBase:
         assert args == jmespath.search("spec.template.spec.containers[1].args", docs[0])
 
     def test_log_groomer_command_and_args_overrides_are_templated(self):
-        docs = render_chart(
-            values={
+        if self.obj_name == "dag-processor":
+            values = {
+                "dagProcessor": {
+                    "enabled": True,
+                    "logGroomerSidecar": {
+                        "command": ["{{ .Release.Name }}"],
+                        "args": ["{{ .Release.Service }}"],
+                    },
+                }
+            }
+        else:
+            values = {
                 f"{self.folder}": {
                     "logGroomerSidecar": {
                         "command": ["{{ .Release.Name }}"],
                         "args": ["{{ .Release.Service }}"],
                     }
                 }
-            },
+            }
+
+        docs = render_chart(
+            values=values,
             show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
@@ -85,8 +141,15 @@ class LogGroomerTestBase:
 
     @pytest.mark.parametrize("retention_days, retention_result", [(None, None), (30, "30")])
     def test_log_groomer_retention_days_overrides(self, retention_days, retention_result):
+        if self.obj_name == "dag-processor":
+            values = {
+                "dagProcessor": {"enabled": True, "logGroomerSidecar": {"retentionDays": retention_days}}
+            }
+        else:
+            values = {f"{self.folder}": {"logGroomerSidecar": {"retentionDays": retention_days}}}
+
         docs = render_chart(
-            values={f"{self.folder}": {"logGroomerSidecar": {"retentionDays": retention_days}}},
+            values=values,
             show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 
@@ -101,8 +164,20 @@ class LogGroomerTestBase:
             assert jmespath.search("spec.template.spec.containers[1].env", docs[0]) is None
 
     def test_log_groomer_resources(self):
-        docs = render_chart(
-            values={
+        if self.obj_name == "dag-processor":
+            values = {
+                "dagProcessor": {
+                    "enabled": True,
+                    "logGroomerSidecar": {
+                        "resources": {
+                            "requests": {"memory": "2Gi", "cpu": "1"},
+                            "limits": {"memory": "3Gi", "cpu": "2"},
+                        }
+                    },
+                }
+            }
+        else:
+            values = {
                 f"{self.folder}": {
                     "logGroomerSidecar": {
                         "resources": {
@@ -111,7 +186,10 @@ class LogGroomerTestBase:
                         }
                     }
                 }
-            },
+            }
+
+        docs = render_chart(
+            values=values,
             show_only=[f"templates/{self.folder}/{self.obj_name}-deployment.yaml"],
         )
 

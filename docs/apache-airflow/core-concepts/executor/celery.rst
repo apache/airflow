@@ -22,7 +22,7 @@ Celery Executor
 ===============
 
 ``CeleryExecutor`` is one of the ways you can scale out the number of workers. For this
-to work, you need to setup a Celery backend (**RabbitMQ**, **Redis**, ...) and
+to work, you need to setup a Celery backend (**RabbitMQ**, **Redis**, **Redis Sentinel** ...) and
 change your ``airflow.cfg`` to point the executor parameter to
 ``CeleryExecutor`` and provide the related Celery settings.
 
@@ -83,6 +83,7 @@ Some caveats:
 
 - Make sure to use a database backed result backend
 - Make sure to set a visibility timeout in ``[celery_broker_transport_options]`` that exceeds the ETA of your longest running task
+- Make sure to specify the password for Redis Server in the ``[celery_broker_transport_options]`` section if you are using Redis Sentinel as your broker and the Redis servers are password-protected
 - Make sure to set umask in ``[worker_umask]`` to set permissions for newly created files by workers.
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
 - Queue names are limited to 256 characters, but each broker backend might have its own restrictions

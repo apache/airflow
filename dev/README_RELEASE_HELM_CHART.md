@@ -38,6 +38,7 @@
   - [Publish release tag](#publish-release-tag)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Send announcements about security issues fixed in the release](#send-announcements-about-security-issues-fixed-in-the-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
@@ -612,7 +613,7 @@ between the two repositories to be able to build the documentation.
     ```shell
     cd "${AIRFLOW_REPO_ROOT}"
     git checkout helm-chart/${VERSION}
-    breeze build-docs --package-filter helm-chart --clean-build --for-production
+    breeze build-docs --package-filter helm-chart --clean-build
     ```
 
 - Now you can preview the documentation.
@@ -624,7 +625,7 @@ between the two repositories to be able to build the documentation.
 - Copy the documentation to the ``airflow-site`` repository.
 
     ```shell
-    ./docs/publish_docs.py --package-filter helm-chart
+    breeze release-management publish-docs --package-filter helm-chart
     ```
 
 - Update `index.yaml`
@@ -633,6 +634,9 @@ between the two repositories to be able to build the documentation.
 
     ```shell
     cd "${AIRFLOW_SITE_DIRECTORY}"
+    cd post-docs
+    python add-back-references.py helm
+    cd ..
     curl https://dist.apache.org/repos/dist/dev/airflow/helm-chart/$RC/index.yaml -o index.yaml
     cp ${AIRFLOW_SVN_RELEASE_HELM}/${VERSION}/airflow-${VERSION}.tgz .
     helm repo index --merge ./index.yaml . --url "https://downloads.apache.org/airflow/helm-chart/$VERSION"
@@ -689,6 +693,20 @@ Send the same email to announce@apache.org, except change the opening line to `D
 It is more reliable to send it via the web ui at https://lists.apache.org/list.html?announce@apache.org
 (press "c" to compose a new thread)
 
+## Send announcements about security issues fixed in the release
+
+The release manager should review and mark as READY all the security issues fixed in the release.
+Such issues are marked as affecting `< <JUST_RELEASED_VERSION>` in the CVE management tool
+at https://cveprocess.apache.org/. Then the release manager should announced the issues via the tool.
+
+Once announced, each of the issue should be linked with a 'reference' with tag 'vendor advisory' with the
+URL to the announcement published automatically by the CVE management tool.
+Note that the announce@apache.org is moderated, and the link to the email thread will not be published
+immediately, that's why it is recommended to add the link to users@airflow.apache.org which takes usually
+few seconds to be published after the CVE tool sends them.
+
+The ASF Security will be notified and will submit to the CVE project and will set the state to 'PUBLIC'.
+
 ## Add release data to Apache Committee Report Helper
 
 Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
@@ -703,7 +721,8 @@ Create a new release on GitHub with the release notes and assets from the releas
 
 ## Close the milestone
 
-Close the milestone on GitHub. Create the next one if it hasn't been already (it probably has been).
+Before closing the milestone on Github, make sure that all PR marked for it are either part of the release (was cherry picked) or
+postponed to the next release, then close the milestone. Create the next one if it hasn't been already (it probably has been).
 Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
 make sure to update the last updated timestamp as well.
 
@@ -739,7 +758,9 @@ Announcement is done from official Apache-Airflow accounts.
 
 * Twitter: https://twitter.com/ApacheAirflow
 * Linkedin: https://www.linkedin.com/company/apache-airflow/
+* Fosstodon: https://fosstodon.org/@airflow
 
+Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask PMC to post.
 
 ------------------------------------------------------------------------------------------------------------

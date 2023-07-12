@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Qubole operator"""
+"""Qubole operator."""
 from __future__ import annotations
 
 import re
@@ -33,12 +33,12 @@ from airflow.providers.qubole.hooks.qubole import (
 
 if TYPE_CHECKING:
 
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 
 class QDSLink(BaseOperatorLink):
-    """Link to QDS"""
+    """Link to QDS."""
 
     name = "Go to QDS"
 
@@ -268,19 +268,19 @@ class QuboleOperator(BaseOperator):
         fetch: bool = True,
         include_headers: bool = False,
     ) -> str:
-        """get_results from Qubole"""
+        """get_results from Qubole."""
         return self.get_hook().get_results(ti, fp, inline, delim, fetch, include_headers)
 
     def get_log(self, ti) -> None:
-        """get_log from Qubole"""
+        """get_log from Qubole."""
         return self.get_hook().get_log(ti)
 
     def get_jobs_id(self, ti) -> None:
-        """Get jobs_id from Qubole"""
+        """Get jobs_id from Qubole."""
         return self.get_hook().get_jobs_id(ti)
 
     def get_hook(self) -> QuboleHook:
-        """Reinitialising the hook, as some template fields might have changed"""
+        """Reinitialising the hook, as some template fields might have changed."""
         return QuboleHook(**self.kwargs)
 
     def __getattribute__(self, name: str) -> str:

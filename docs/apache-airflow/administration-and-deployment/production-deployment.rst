@@ -123,8 +123,8 @@ We provide :doc:`a Docker Image (OCI) for Apache Airflow <docker-stack:index>` f
 Helm Chart for Kubernetes
 =========================
 
-`The Helm <https://helm.sh/>`__ provides a simple mechanism to deploy software to a Kubernetes cluster. We maintain
-:doc:`official Helm chart <helm-chart:index>` for Airflow that helps you define, install, and upgrade deployment. The Helm Chart uses :doc:`official Docker image and Dockerfile <docker-stack:index>` that is also maintained and released by the community.
+`Helm <https://helm.sh/>`__ provides a simple mechanism to deploy software to a Kubernetes cluster. We maintain
+:doc:`an official Helm chart <helm-chart:index>` for Airflow that helps you define, install, and upgrade deployment. The Helm Chart uses :doc:`our official Docker image and Dockerfile <docker-stack:index>` that is also maintained and released by the community.
 
 .. _production-deployment:kerberos:
 

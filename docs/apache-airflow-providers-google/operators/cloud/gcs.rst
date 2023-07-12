@@ -27,7 +27,7 @@ storing data for archival and disaster recovery, or distributing large data obje
 Prerequisite Tasks
 ^^^^^^^^^^^^^^^^^^
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 Operators
 ^^^^^^^^^
@@ -223,6 +223,15 @@ Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionComp
     :dedent: 4
     :start-after: [START howto_sensor_gcs_upload_session_complete_task]
     :end-before: [END howto_sensor_gcs_upload_session_complete_task]
+
+You can set the parameter ``deferrable`` to True if you want the worker slots to be freed up while sensor is running.
+
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_sensor.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_gcs_upload_session_async_task]
+    :end-before: [END howto_sensor_gcs_upload_session_async_task]
 
 .. _howto/sensor:GCSObjectUpdateSensor:
 

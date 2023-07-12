@@ -18,9 +18,9 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import (
     ClusterStates,
@@ -61,6 +61,7 @@ UNEXPECTED_TERMINAL_STATE_MSG = (
 class EksBaseSensor(BaseSensorOperator):
     """
     Base class to check various EKS states.
+
     Subclasses need to implement get_state and get_terminal_states methods.
 
     :param cluster_name: The name of the Cluster

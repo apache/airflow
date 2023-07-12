@@ -31,7 +31,7 @@ from airflow.sensors.base import BaseSensorOperator
 
 
 class TaskState:
-    """Dataplex Task states"""
+    """Dataplex Task states."""
 
     STATE_UNSPECIFIED = 0
     ACTIVE = 1
@@ -42,7 +42,7 @@ class TaskState:
 
 class DataplexTaskStateSensor(BaseSensorOperator):
     """
-    Check the status of the Dataplex task
+    Check the status of the Dataplex task.
 
     :param project_id: Required. The ID of the Google Cloud project that the task belongs to.
     :param region: Required. The ID of the Google Cloud region that the task belongs to.

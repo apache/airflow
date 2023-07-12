@@ -19,10 +19,18 @@
 ``apache-airflow-providers-http``
 =================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Guides
 
@@ -30,6 +38,7 @@ Content
     Operators <operators>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -37,11 +46,13 @@ Content
 
 .. toctree::
     :hidden:
+    :maxdepth: 1
     :caption: System tests
 
     System Tests <_api/tests/system/providers/http/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -53,6 +64,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -65,7 +77,7 @@ Package apache-airflow-providers-http
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 4.3.0
+Release: 4.5.0
 
 Provider package
 ----------------
@@ -83,13 +95,14 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 =====================  ==================
 PIP package            Version required
 =====================  ==================
+``apache-airflow``     ``>=2.4.0``
 ``requests``           ``>=2.26.0``
 ``requests_toolbelt``
 ``aiohttp``
 ``asgiref``
 =====================  ==================
-
-.. include:: ../../airflow/providers/http/CHANGELOG.rst

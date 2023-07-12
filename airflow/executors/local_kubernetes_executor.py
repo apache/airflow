@@ -33,8 +33,8 @@ if TYPE_CHECKING:
 
 class LocalKubernetesExecutor(LoggingMixin):
     """
-    LocalKubernetesExecutor consists of LocalExecutor and KubernetesExecutor.
-    It chooses the executor to use based on the queue defined on the task.
+    Chooses between LocalExecutor and KubernetesExecutor based on the queue defined on the task.
+
     When the task's queue is the value of ``kubernetes_queue`` in section ``[local_kubernetes_executor]``
     of the configuration (default value: `kubernetes`), KubernetesExecutor is selected to run the task,
     otherwise, LocalExecutor is used.
@@ -149,7 +149,7 @@ class LocalKubernetesExecutor(LoggingMixin):
         )
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
-        """Fetch task log from kubernetes executor"""
+        """Fetch task log from kubernetes executor."""
         if ti.queue == self.kubernetes_executor.kubernetes_queue:
             return self.kubernetes_executor.get_task_log(ti=ti, try_number=try_number)
         return [], []

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Hook for HashiCorp Vault"""
+"""Hook for HashiCorp Vault."""
 from __future__ import annotations
 
 import json
@@ -25,6 +25,7 @@ import hvac
 from hvac.exceptions import VaultError
 from requests import Response
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.hashicorp._internal_client.vault_client import (
     DEFAULT_KUBERNETES_JWT_PATH,
@@ -148,7 +149,7 @@ class VaultHook(BaseHook):
                 warnings.warn(
                     """The usage of role_id for AppRole authentication has been deprecated.
                     Please use connection login.""",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
             elif self.connection.extra_dejson.get("role_id"):
@@ -156,7 +157,7 @@ class VaultHook(BaseHook):
                 warnings.warn(
                     """The usage of role_id in connection extra for AppRole authentication has been
                     deprecated. Please use connection login.""",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
             elif self.connection.login:
@@ -365,7 +366,7 @@ class VaultHook(BaseHook):
 
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, IntegerField, StringField
@@ -402,14 +403,14 @@ class VaultHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["extra"],
             "relabeling": {},
         }
 
     def test_connection(self) -> tuple[bool, str]:
-        """Test Vault connectivity from UI"""
+        """Test Vault connectivity from UI."""
         try:
             self.get_conn()
             return True, "Connection successfully tested"

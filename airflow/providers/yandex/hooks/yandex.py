@@ -22,7 +22,7 @@ from typing import Any
 
 import yandexcloud
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 
@@ -40,7 +40,7 @@ class YandexCloudBaseHook(BaseHook):
 
     @staticmethod
     def get_connection_form_widgets() -> dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
+        """Returns connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import PasswordField, StringField
@@ -87,7 +87,7 @@ class YandexCloudBaseHook(BaseHook):
 
     @classmethod
     def provider_user_agent(cls) -> str | None:
-        """Construct User-Agent from Airflow core & provider package versions"""
+        """Construct User-Agent from Airflow core & provider package versions."""
         import airflow
         from airflow.providers_manager import ProvidersManager
 
@@ -102,7 +102,7 @@ class YandexCloudBaseHook(BaseHook):
 
     @staticmethod
     def get_ui_field_behaviour() -> dict[str, Any]:
-        """Returns custom field behaviour"""
+        """Returns custom field behaviour."""
         return {
             "hidden_fields": ["host", "schema", "login", "password", "port", "extra"],
             "relabeling": {},
@@ -120,7 +120,7 @@ class YandexCloudBaseHook(BaseHook):
         if connection_id:
             warnings.warn(
                 "Using `connection_id` is deprecated. Please use `yandex_conn_id` parameter.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         self.connection_id = yandex_conn_id or connection_id or self.default_conn_name

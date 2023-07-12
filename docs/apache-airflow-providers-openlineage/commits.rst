@@ -18,9 +18,9 @@
 
 
 Package apache-airflow-providers-openlineage
---------------------------------------------
+------------------------------------------------------
 
-`OpenLineage Provider <https://openlineage.io>`__
+`OpenLineage <https://openlineage.io/>`__
 
 
 This is detailed commit list of changes for versions provider package: ``openlineage``.

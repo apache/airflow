@@ -16,19 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-import sys
-
 import pytest
 
-from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftCreateClusterTrigger
-from airflow.triggers.base import TriggerEvent
-
-if sys.version_info < (3, 8):
-    from asynctest import CoroutineMock as AsyncMock, mock as async_mock
-else:
-    from unittest import mock as async_mock
-    from unittest.mock import AsyncMock
-
+from airflow.providers.amazon.aws.triggers.redshift_cluster import (
+    RedshiftCreateClusterSnapshotTrigger,
+    RedshiftCreateClusterTrigger,
+    RedshiftDeleteClusterTrigger,
+    RedshiftPauseClusterTrigger,
+    RedshiftResumeClusterTrigger,
+)
 
 TEST_CLUSTER_IDENTIFIER = "test-cluster"
 TEST_POLL_INTERVAL = 10
@@ -36,39 +32,50 @@ TEST_MAX_ATTEMPT = 10
 TEST_AWS_CONN_ID = "test-aws-id"
 
 
-class TestRedshiftCreateClusterTrigger:
-    def test_redshift_create_cluster_trigger_serialize(self):
-        redshift_create_cluster_trigger = RedshiftCreateClusterTrigger(
-            cluster_identifier=TEST_CLUSTER_IDENTIFIER,
-            poll_interval=TEST_POLL_INTERVAL,
-            max_attempt=TEST_MAX_ATTEMPT,
-            aws_conn_id=TEST_AWS_CONN_ID,
-        )
-        class_path, args = redshift_create_cluster_trigger.serialize()
-        assert (
-            class_path
-            == "airflow.providers.amazon.aws.triggers.redshift_cluster.RedshiftCreateClusterTrigger"
-        )
-        assert args["cluster_identifier"] == TEST_CLUSTER_IDENTIFIER
-        assert args["poll_interval"] == str(TEST_POLL_INTERVAL)
-        assert args["max_attempt"] == str(TEST_MAX_ATTEMPT)
-        assert args["aws_conn_id"] == TEST_AWS_CONN_ID
+class TestRedshiftClusterTriggers:
+    @pytest.mark.parametrize(
+        "trigger",
+        [
+            RedshiftCreateClusterTrigger(
+                cluster_identifier=TEST_CLUSTER_IDENTIFIER,
+                poll_interval=TEST_POLL_INTERVAL,
+                max_attempt=TEST_MAX_ATTEMPT,
+                aws_conn_id=TEST_AWS_CONN_ID,
+            ),
+            RedshiftPauseClusterTrigger(
+                cluster_identifier=TEST_CLUSTER_IDENTIFIER,
+                poll_interval=TEST_POLL_INTERVAL,
+                max_attempts=TEST_MAX_ATTEMPT,
+                aws_conn_id=TEST_AWS_CONN_ID,
+            ),
+            RedshiftCreateClusterSnapshotTrigger(
+                cluster_identifier=TEST_CLUSTER_IDENTIFIER,
+                poll_interval=TEST_POLL_INTERVAL,
+                max_attempts=TEST_MAX_ATTEMPT,
+                aws_conn_id=TEST_AWS_CONN_ID,
+            ),
+            RedshiftResumeClusterTrigger(
+                cluster_identifier=TEST_CLUSTER_IDENTIFIER,
+                poll_interval=TEST_POLL_INTERVAL,
+                max_attempts=TEST_MAX_ATTEMPT,
+                aws_conn_id=TEST_AWS_CONN_ID,
+            ),
+            RedshiftDeleteClusterTrigger(
+                cluster_identifier=TEST_CLUSTER_IDENTIFIER,
+                poll_interval=TEST_POLL_INTERVAL,
+                max_attempts=TEST_MAX_ATTEMPT,
+                aws_conn_id=TEST_AWS_CONN_ID,
+            ),
+        ],
+    )
+    def test_serialize_recreate(self, trigger):
+        class_path, args = trigger.serialize()
 
-    @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.async_conn")
-    async def test_redshift_create_cluster_trigger_run(self, mock_async_conn):
-        mock = async_mock.MagicMock()
-        mock_async_conn.__aenter__.return_value = mock
-        mock.get_waiter().wait = AsyncMock()
+        class_name = class_path.split(".")[-1]
+        clazz = globals()[class_name]
+        instance = clazz(**args)
 
-        redshift_create_cluster_trigger = RedshiftCreateClusterTrigger(
-            cluster_identifier=TEST_CLUSTER_IDENTIFIER,
-            poll_interval=TEST_POLL_INTERVAL,
-            max_attempt=TEST_MAX_ATTEMPT,
-            aws_conn_id=TEST_AWS_CONN_ID,
-        )
+        class_path2, args2 = instance.serialize()
 
-        generator = redshift_create_cluster_trigger.run()
-        response = await generator.asend(None)
-
-        assert response == TriggerEvent({"status": "success", "message": "Cluster Created"})
+        assert class_path == class_path2
+        assert args == args2

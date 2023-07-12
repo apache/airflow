@@ -19,10 +19,18 @@
 ``apache-airflow-providers-imap``
 =================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
@@ -30,6 +38,7 @@ Content
     Python API <_api/airflow/providers/imap/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -40,6 +49,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -52,7 +62,7 @@ Package apache-airflow-providers-imap
 `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 
-Release: 3.1.1
+Release: 3.2.2
 
 Provider package
 ----------------
@@ -67,4 +77,13 @@ You can install this package on top of an existing Airflow 2 installation (see `
 for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-imap``
 
-.. include:: ../../airflow/providers/imap/CHANGELOG.rst
+Requirements
+------------
+
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.4.0``
+==================  ==================

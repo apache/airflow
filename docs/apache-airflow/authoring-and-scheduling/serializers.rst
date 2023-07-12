@@ -26,7 +26,7 @@ and efficiency.
 Serialization is a surprisingly hard job. Python out of the box only has support for serialization of primitives,
 like ``str`` and ``int`` and it loops over iterables. When things become more complex, custom serialization is required.
 
-Airflow out of the box supports three ways of custom serialization. Primitives are are returned as is, without
+Airflow out of the box supports three ways of custom serialization. Primitives are returned as is, without
 additional encoding, e.g. a ``str`` remains a ``str``. When it is not a primitive (or iterable thereof) Airflow
 looks for a registered serializer and deserializer in the namespace of ``airflow.serialization.serializers``.
 If not found it will look in the class for a ``serialize()`` method or in case of deserialization a

@@ -25,6 +25,7 @@
 #}
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -50,13 +51,17 @@ Installation
 You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
 for the minimum Airflow version supported) via
 ``pip install {{PACKAGE_PIP_NAME}}``
-{%- if PIP_REQUIREMENTS %}
 
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``{{ MIN_AIRFLOW_VERSION }}``.
+
+{%- if PIP_REQUIREMENTS %}
+
 {{  PIP_REQUIREMENTS_TABLE_RST | safe}}
 {%- endif %}
+
 {%- if CROSS_PROVIDERS_DEPENDENCIES %}
 
 Cross provider package dependencies
@@ -86,5 +91,3 @@ You can download officially released packages and verify their checksums and sig
 
 
 {%- endif %}
-
-.. include:: {{ CHANGELOG_RELATIVE_PATH }}/CHANGELOG.rst

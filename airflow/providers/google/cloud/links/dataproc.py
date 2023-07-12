@@ -25,7 +25,7 @@ from airflow.providers.google.cloud.links.base import BASE_LINK
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 DATAPROC_BASE_LINK = BASE_LINK + "/dataproc"
@@ -42,7 +42,7 @@ DATAPROC_BATCHES_LINK = DATAPROC_BASE_LINK + "/batches?project={project_id}"
 
 
 class DataprocLink(BaseOperatorLink):
-    """Helper class for constructing Dataproc resource link"""
+    """Helper class for constructing Dataproc resource link."""
 
     name = "Dataproc resource"
     key = "conf"
@@ -82,7 +82,7 @@ class DataprocLink(BaseOperatorLink):
 
 
 class DataprocListLink(BaseOperatorLink):
-    """Helper class for constructing list of Dataproc resources link"""
+    """Helper class for constructing list of Dataproc resources link."""
 
     name = "Dataproc resources"
     key = "list_conf"

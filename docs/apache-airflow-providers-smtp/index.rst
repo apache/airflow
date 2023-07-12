@@ -19,17 +19,27 @@
 ``apache-airflow-providers-smtp``
 =================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Connection types <connections/smtp>
+    SMTP Notifications <notifications/smtp_notifier_howto_guide>
     Python API <_api/airflow/providers/smtp/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -40,6 +50,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -52,7 +63,7 @@ Package apache-airflow-providers-smtp
 `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
 
-Release: 1.0.1
+Release: 1.2.0
 
 Provider package
 ----------------
@@ -70,10 +81,10 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
+The minimum Apache Airflow version supported by this provider package is ``2.4.0``.
+
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.3.0``
+``apache-airflow``  ``>=2.4.0``
 ==================  ==================
-
-.. include:: ../../airflow/providers/smtp/CHANGELOG.rst

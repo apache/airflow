@@ -22,7 +22,7 @@ from copy import deepcopy
 from datetime import date, time
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID,
@@ -111,8 +111,7 @@ class TransferJobPreprocessor:
 
     def process_body(self) -> dict:
         """
-        Injects AWS credentials into body if needed and
-        reformats schedule information.
+        Injects AWS credentials into body if needed and reformats schedule information.
 
         :return: Preprocessed body
         """
@@ -122,12 +121,12 @@ class TransferJobPreprocessor:
 
     @staticmethod
     def _convert_date_to_dict(field_date: date) -> dict:
-        """Convert native python ``datetime.date`` object  to a format supported by the API"""
+        """Convert native python ``datetime.date`` object  to a format supported by the API."""
         return {DAY: field_date.day, MONTH: field_date.month, YEAR: field_date.year}
 
     @staticmethod
     def _convert_time_to_dict(time_object: time) -> dict:
-        """Convert native python ``datetime.time`` object  to a format supported by the API"""
+        """Convert native python ``datetime.time`` object  to a format supported by the API."""
         return {HOURS: time_object.hour, MINUTES: time_object.minute, SECONDS: time_object.second}
 
 
@@ -162,9 +161,10 @@ class TransferJobValidator:
 
     def validate_body(self) -> None:
         """
-        Validates the body. Checks if body specifies `transferSpec`
-        if yes, then check if AWS credentials are passed correctly and
-        no more than 1 data source was selected.
+        Validates the body.
+
+        Checks if body specifies `transferSpec` if yes, then check if AWS credentials
+        are passed correctly and no more than 1 data source was selected.
 
         :raises: AirflowException
         """
@@ -360,10 +360,11 @@ class CloudDataTransferServiceUpdateJobOperator(GoogleCloudBaseOperator):
 
 class CloudDataTransferServiceDeleteJobOperator(GoogleCloudBaseOperator):
     """
-    Delete a transfer job. This is a soft delete. After a transfer job is
-    deleted, the job and all the transfer executions are subject to garbage
-    collection. Transfer jobs become eligible for garbage collection
-    30 days after soft delete.
+    Delete a transfer job.
+
+    This is a soft delete. After a transfer job is deleted, the job and all the transfer
+    executions are subject to garbage collection. Transfer jobs become eligible for garbage
+    collection 30 days after soft delete.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -429,8 +430,7 @@ class CloudDataTransferServiceDeleteJobOperator(GoogleCloudBaseOperator):
 
 class CloudDataTransferServiceGetOperationOperator(GoogleCloudBaseOperator):
     """
-    Gets the latest state of a long-running operation in Google Storage Transfer
-    Service.
+    Gets the latest state of a long-running operation in Google Storage Transfer Service.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -503,8 +503,7 @@ class CloudDataTransferServiceGetOperationOperator(GoogleCloudBaseOperator):
 
 class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
     """
-    Lists long-running operations in Google Storage Transfer
-    Service that match the specified filter.
+    Lists long-running operations in Google Storage Transfer Service that match the specified filter.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -548,7 +547,9 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
         if request_filter is None:
             if "filter" in kwargs:
                 request_filter = kwargs["filter"]
-                DeprecationWarning("Use 'request_filter' instead 'filter' to pass the argument.")
+                AirflowProviderDeprecationWarning(
+                    "Use 'request_filter' instead 'filter' to pass the argument."
+                )
             else:
                 TypeError("__init__() missing 1 required positional argument: 'request_filter'")
 
@@ -764,8 +765,7 @@ class CloudDataTransferServiceCancelOperationOperator(GoogleCloudBaseOperator):
 
 class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
     """
-    Synchronizes an S3 bucket with a Google Cloud Storage bucket using the
-    Google Cloud Storage Transfer Service.
+    Sync an S3 bucket with a Google Cloud Storage bucket using the Google Cloud Storage Transfer Service.
 
     .. warning::
 

@@ -35,17 +35,17 @@ if TYPE_CHECKING:
 
 
 class FlushAction(Enum):
-    """Facebook Ads Export Options"""
+    """Facebook Ads Export Options."""
 
     EXPORT_ONCE = "ExportAtOnce"
     EXPORT_EVERY_ACCOUNT = "ExportEveryAccount"
 
 
 class FacebookAdsReportToGcsOperator(BaseOperator):
-    """
-    Fetches the results from the Facebook Ads API as desired in the params
-    Converts and saves the data as a temporary JSON file
-    Uploads the JSON to Google Cloud Storage
+    """Fetch from Facebook Ads API.
+
+    This converts and saves the data as a temporary JSON file, and uploads the
+    JSON to Google Cloud Storage.
 
     .. seealso::
         For more information on the Facebook Ads API, take a look at the API docs:

@@ -43,7 +43,7 @@ TAG_TEMPLATE_LINK = (
 
 
 class DataCatalogEntryGroupLink(BaseGoogleLink):
-    """Helper class for constructing Data Catalog Entry Group Link"""
+    """Helper class for constructing Data Catalog Entry Group Link."""
 
     name = "Data Catalog Entry Group"
     key = "data_catalog_entry_group"
@@ -65,7 +65,7 @@ class DataCatalogEntryGroupLink(BaseGoogleLink):
 
 
 class DataCatalogEntryLink(BaseGoogleLink):
-    """Helper class for constructing Data Catalog Entry Link"""
+    """Helper class for constructing Data Catalog Entry Link."""
 
     name = "Data Catalog Entry"
     key = "data_catalog_entry"
@@ -93,7 +93,7 @@ class DataCatalogEntryLink(BaseGoogleLink):
 
 
 class DataCatalogTagTemplateLink(BaseGoogleLink):
-    """Helper class for constructing Data Catalog Tag Template Link"""
+    """Helper class for constructing Data Catalog Tag Template Link."""
 
     name = "Data Catalog Tag Template"
     key = "data_catalog_tag_template"

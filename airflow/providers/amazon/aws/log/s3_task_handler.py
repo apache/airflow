@@ -20,10 +20,10 @@ from __future__ import annotations
 import os
 import pathlib
 import shutil
+from functools import cached_property
 
 from packaging.version import Version
 
-from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.log.file_task_handler import FileTaskHandler
@@ -31,7 +31,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def get_default_delete_local_copy():
-    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not
+    """Load delete_local_logs conf if Airflow version > 2.6 and return False if not.
+
     TODO: delete this function when min airflow version >= 2.6
     """
     from airflow.version import version
@@ -43,9 +44,9 @@ def get_default_delete_local_copy():
 
 class S3TaskHandler(FileTaskHandler, LoggingMixin):
     """
-    S3TaskHandler is a python log handler that handles and reads
-    task instance logs. It extends airflow FileTaskHandler and
-    uploads to and reads from S3 remote storage.
+    S3TaskHandler is a python log handler that handles and reads task instance logs.
+
+    It extends airflow FileTaskHandler and uploads to and reads from S3 remote storage.
     """
 
     trigger_should_wrap = True
@@ -110,7 +111,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read_remote_logs(self, ti, try_number, metadata=None):
+    def _read_remote_logs(self, ti, try_number, metadata=None) -> tuple[list[str], list[str]]:
         # Explicitly getting log relative path is necessary as the given
         # task instance might be different than task instance passed in
         # in set_context method.
@@ -132,6 +133,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     def _read(self, ti, try_number, metadata=None):
         """
         Read logs of given task instance and try_number from S3 remote storage.
+
         If failed, read the log from task instance host machine.
 
         todo: when min airflow version >= 2.6 then remove this method (``_read``)
@@ -158,7 +160,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     def s3_log_exists(self, remote_log_location: str) -> bool:
         """
-        Check if remote_log_location exists in remote storage
+        Check if remote_log_location exists in remote storage.
 
         :param remote_log_location: log's location in remote storage
         :return: True if location exists else False
@@ -167,8 +169,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     def s3_read(self, remote_log_location: str, return_error: bool = False) -> str:
         """
-        Returns the log found at the remote_log_location. Returns '' if no
-        logs are found or there is an error.
+        Returns the log found at the remote_log_location. Return '' if no logs are found or there is an error.
 
         :param remote_log_location: the log's location in remote storage
         :param return_error: if True, returns a string error message if an
@@ -187,8 +188,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     def s3_write(self, log: str, remote_log_location: str, append: bool = True, max_retry: int = 1) -> bool:
         """
-        Writes the log to the remote_log_location and return `True` when done. Fails silently
-         and return `False` if no log was created.
+        Write the log to the remote_log_location; return `True` or fails silently and return `False`.
 
         :param log: the log to write to the remote_log_location
         :param remote_log_location: the log's location in remote storage

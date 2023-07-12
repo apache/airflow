@@ -20,6 +20,8 @@ from __future__ import annotations
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
+
 from airflow.providers.amazon.aws.operators.step_function import (
     StepFunctionGetExecutionOutputOperator,
     StepFunctionStartExecutionOperator,
@@ -58,9 +60,10 @@ class TestStepFunctionGetExecutionOutputOperator:
         assert REGION_NAME == operator.region_name
 
     @mock.patch("airflow.providers.amazon.aws.operators.step_function.StepFunctionHook")
-    def test_execute(self, mock_hook):
+    @pytest.mark.parametrize("response", ["output", "error"])
+    def test_execute(self, mock_hook, response):
         # Given
-        hook_response = {"output": "{}"}
+        hook_response = {response: "{}"}
 
         hook_instance = mock_hook.return_value
         hook_instance.describe_execution.return_value = hook_response

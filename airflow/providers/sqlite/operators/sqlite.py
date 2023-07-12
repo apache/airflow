@@ -20,12 +20,13 @@ from __future__ import annotations
 import warnings
 from typing import Sequence
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
 class SqliteOperator(SQLExecuteQueryOperator):
     """
-    Executes sql code in a specific Sqlite database
+    Executes sql code in a specific Sqlite database.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -49,6 +50,6 @@ class SqliteOperator(SQLExecuteQueryOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.""",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )

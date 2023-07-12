@@ -19,40 +19,53 @@
 ``apache-airflow-providers-openlineage``
 ========================================
 
-Content
--------
 
 .. toctree::
+    :hidden:
+    :maxdepth: 1
+    :caption: Basics
+
+    Home <self>
+    Changelog <changelog>
+    Security <security>
+
+.. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: User guide
 
     Guides <guides/user>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Developer guide
 
     Guides <guides/developer>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Structure of provider
 
     Guides <guides/structure>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Macros
 
     Macros <macros>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/openlineage/index>
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Resources
 
@@ -63,6 +76,7 @@ Content
 
 
 .. toctree::
+    :hidden:
     :maxdepth: 1
     :caption: Commits
 
@@ -70,7 +84,7 @@ Content
 
 
 Package apache-airflow-providers-openlineage
---------------------------------------------
+------------------------------------------------------
 
 `OpenLineage <https://openlineage.io/>`__
 
@@ -93,10 +107,16 @@ for the minimum Airflow version supported) via
 Requirements
 ------------
 
-==================  ==================
-PIP package         Version required
-==================  ==================
-``apache-airflow``  ``>=2.6.0``
-==================  ==================
+The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
+
+=======================================  ==================
+PIP package                              Version required
+=======================================  ==================
+``apache-airflow``                       ``>=2.6.0``
+``apache-airflow-providers-common-sql``  ``>=1.3.1``
+``attrs``                                ``>=22.2``
+``openlineage-integration-common``       ``>=0.22.0``
+``openlineage-python``                   ``>=0.22.0``
+=======================================  ==================
 
 .. include:: ../../airflow/providers/openlineage/CHANGELOG.rst

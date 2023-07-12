@@ -23,6 +23,10 @@ description: |
 
 suspended: false
 versions:
+  - 4.5.0
+  - 4.4.2
+  - 4.4.1
+  - 4.4.0
   - 4.3.0
   - 4.2.0
   - 4.1.1
@@ -41,6 +45,7 @@ versions:
   - 1.0.0
 
 dependencies:
+  - apache-airflow>=2.4.0
   # The 2.26.0 release of requests got rid of the chardet LGPL mandatory dependency, allowing us to
   # release it as a requirement for airflow
   - requests>=2.26.0
@@ -69,6 +74,11 @@ hooks:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     python-modules:
       - airflow.providers.http.hooks.http
+
+triggers:
+  - integration-name: Hypertext Transfer Protocol (HTTP)
+    python-modules:
+      - airflow.providers.http.triggers.http
 
 connection-types:
   - hook-class-name: airflow.providers.http.hooks.http.HttpHook

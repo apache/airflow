@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Alert,
   AlertIcon,
@@ -30,8 +30,10 @@ import {
 } from "@chakra-ui/react";
 
 import { getMetaValue } from "src/utils";
+import { useKeysPress } from "src/utils/useKeysPress";
 import { useClearTask } from "src/api";
 import useClearTaskDryRun from "src/api/useClearTaskDryRun";
+import keyboardShortcutIdentifier from "src/dag/keyboardShortcutIdentifier";
 
 import ActionButton from "./ActionButton";
 import ActionModal from "./ActionModal";
@@ -68,7 +70,7 @@ const ClearInstance = ({
   const [upstream, setUpstream] = useState(false);
   const onToggleUpstream = () => setUpstream(!upstream);
 
-  const [downstream, setDownstream] = useState(false);
+  const [downstream, setDownstream] = useState(true);
   const onToggleDownstream = () => setDownstream(!downstream);
 
   const [recursive, setRecursive] = useState(true);
@@ -76,6 +78,10 @@ const ClearInstance = ({
 
   const [failed, setFailed] = useState(false);
   const onToggleFailed = () => setFailed(!failed);
+
+  const initialClearButtonFocusRef = useRef<HTMLButtonElement>(null);
+
+  useKeysPress(keyboardShortcutIdentifier.taskRunClear, onOpen);
 
   const mapIndexes =
     mapIndex !== undefined && mapIndex !== -1 ? [mapIndex] : undefined;
@@ -106,11 +112,11 @@ const ClearInstance = ({
 
   const resetModal = () => {
     onClose();
-    setDownstream(false);
+    setDownstream(true);
     setUpstream(false);
     setPast(false);
     setFuture(false);
-    setRecursive(false);
+    setRecursive(true);
     setFailed(false);
   };
 
@@ -135,7 +141,6 @@ const ClearInstance = ({
       <Button
         title={clearLabel}
         aria-label={clearLabel}
-        ml={2}
         isDisabled={!canEdit}
         colorScheme="blue"
         onClick={onOpen}
@@ -174,6 +179,7 @@ const ClearInstance = ({
         affectedTasks={affectedTasks}
         submitButton={
           <Button
+            ref={initialClearButtonFocusRef}
             colorScheme="blue"
             isLoading={isLoading || isLoadingDryRun}
             isDisabled={!affectedTasks?.length}
@@ -182,6 +188,7 @@ const ClearInstance = ({
             Clear
           </Button>
         }
+        initialFocusRef={initialClearButtonFocusRef}
       >
         <Box>
           <Text>Include: </Text>

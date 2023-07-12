@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import itertools
 import json
-import sys
 import time
+from unittest import mock
+from unittest.mock import AsyncMock
 
 import aiohttp
 import pytest
@@ -46,13 +47,6 @@ from airflow.providers.databricks.hooks.databricks_base import (
     BearerAuth,
 )
 from airflow.utils.session import provide_session
-
-if sys.version_info < (3, 8):
-    from asynctest import mock
-    from asynctest.mock import CoroutineMock as AsyncMock
-else:
-    from unittest import mock
-    from unittest.mock import AsyncMock
 
 TASK_ID = "databricks-operator"
 DEFAULT_CONN_ID = "databricks_default"
@@ -138,9 +132,16 @@ def get_run_output_endpoint(host):
 
 def cancel_run_endpoint(host):
     """
-    Utility function to generate the get run endpoint given the host.
+    Utility function to generate the cancel run endpoint given the host.
     """
     return f"https://{host}/api/2.1/jobs/runs/cancel"
+
+
+def cancel_all_runs_endpoint(host):
+    """
+    Utility function to generate the cancel all runs endpoint given the host.
+    """
+    return f"https://{host}/api/2.1/jobs/runs/cancel-all"
 
 
 def delete_run_endpoint(host):
@@ -529,6 +530,21 @@ class TestDatabricksHook:
         mock_requests.post.assert_called_once_with(
             cancel_run_endpoint(HOST),
             json={"run_id": RUN_ID},
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=self.hook.user_agent_header,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests")
+    def test_cancel_all_runs(self, mock_requests):
+        mock_requests.post.return_value.json.return_value = {}
+
+        self.hook.cancel_all_runs(JOB_ID)
+
+        mock_requests.post.assert_called_once_with(
+            cancel_all_runs_endpoint(HOST),
+            json={"job_id": JOB_ID},
             params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=self.hook.user_agent_header,

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Objects relating to sourcing connections from Google Cloud Secrets Manager"""
+"""Objects relating to sourcing connections from Google Cloud Secrets Manager."""
 from __future__ import annotations
 
 import logging
@@ -23,7 +23,7 @@ import warnings
 
 from google.auth.exceptions import DefaultCredentialsError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.secrets import BaseSecretsBackend
@@ -42,7 +42,7 @@ def _parse_version(val):
 
 class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
     """
-    Retrieves Connection object from Google Cloud Secrets Manager
+    Retrieves Connection object from Google Cloud Secrets Manager.
 
     Configurable via ``airflow.cfg`` as follows:
 
@@ -72,6 +72,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
     :param gcp_key_path: Path to Google Cloud Service Account key file (JSON). Mutually exclusive with
         gcp_keyfile_dict. use default credentials in the current environment if not provided.
     :param gcp_keyfile_dict: Dictionary of keyfile parameters. Mutually exclusive with gcp_key_path.
+    :param gcp_credential_config_file: File path to or content of a GCP credential configuration file.
     :param gcp_scopes: Comma-separated string containing OAuth2 scopes
     :param project_id: Project ID to read the secrets from. If not passed, the project ID from credentials
         will be used.
@@ -85,6 +86,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         config_prefix: str = "airflow-config",
         gcp_keyfile_dict: dict | None = None,
         gcp_key_path: str | None = None,
+        gcp_credential_config_file: dict[str, str] | str | None = None,
         gcp_scopes: str | None = None,
         project_id: str | None = None,
         sep: str = "-",
@@ -103,13 +105,16 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
                 )
         try:
             self.credentials, self.project_id = get_credentials_and_project_id(
-                keyfile_dict=gcp_keyfile_dict, key_path=gcp_key_path, scopes=gcp_scopes
+                keyfile_dict=gcp_keyfile_dict,
+                key_path=gcp_key_path,
+                credential_config_file=gcp_credential_config_file,
+                scopes=gcp_scopes,
             )
         except (DefaultCredentialsError, FileNotFoundError):
             log.exception(
                 "Unable to load credentials for GCP Secret Manager. "
-                "Make sure that the keyfile path, dictionary, or GOOGLE_APPLICATION_CREDENTIALS "
-                "environment variable is correct and properly configured."
+                "Make sure that the keyfile path or dictionary, credential configuration file, "
+                "or GOOGLE_APPLICATION_CREDENTIALS environment variable is correct and properly configured."
             )
 
         # In case project id provided
@@ -131,7 +136,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_conn_value(self, conn_id: str) -> str | None:
         """
-        Get serialized representation of Connection
+        Get serialized representation of Connection.
 
         :param conn_id: connection id
         """
@@ -153,14 +158,14 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
             warnings.warn(
                 f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
                 "in a future release.  Please use method `get_conn_value` instead.",
-                DeprecationWarning,
+                AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
         return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> str | None:
         """
-        Get Airflow Variable from Environment Variable
+        Get Airflow Variable from Environment Variable.
 
         :param key: Variable Key
         :return: Variable Value
@@ -172,7 +177,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_config(self, key: str) -> str | None:
         """
-        Get Airflow Configuration
+        Get Airflow Configuration.
 
         :param key: Configuration Option Key
         :return: Configuration Option Value

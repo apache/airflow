@@ -18,14 +18,14 @@
 import sys
 from collections import namedtuple
 from datetime import date, timedelta
-from typing import TYPE_CHECKING, Dict, Tuple
+from typing import TYPE_CHECKING, Dict, Tuple, Union
 
 import pytest
 
-from airflow import PY38
+from airflow import PY38, PY311
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.decorators.base import DecoratedMappedOperator
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, XComNotFound
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import DictOfListsExpandInput
@@ -33,7 +33,6 @@ from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import PlainXComArg, XComArg
-from airflow.settings import _ENABLE_AIP_52
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
@@ -122,6 +121,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
                 ...
 
             line = sys._getframe().f_lineno - 6 if PY38 else sys._getframe().f_lineno - 3
+            if PY311:
+                # extra line explaining the error location in Py311
+                line = line - 1
 
         warn = recwarn[0]
         assert warn.filename == __file__
@@ -802,6 +804,49 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
     assert result == "'example' None"
 
 
+@pytest.mark.parametrize("multiple_outputs", [True, False])
+def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, session, multiple_outputs):
+    from airflow.exceptions import AirflowSkipException
+    from airflow.utils.trigger_rule import TriggerRule
+
+    result = None
+
+    with dag_maker(session=session) as dag:
+
+        @dag.task()
+        def up1() -> str:
+            return "example"
+
+        @dag.task(multiple_outputs=multiple_outputs)
+        def up2(x) -> Union[dict, None]:
+            if x == 2:
+                return {"x": "example"}
+            raise AirflowSkipException()
+
+        @dag.task(trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+        def down(a, b):
+            nonlocal result
+            result = f"{a!r} {b!r}"
+
+        down(up1(), up2(1)["x"])
+
+    dr = dag_maker.create_dagrun()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 2  # "up1" and "up2"
+    for ti in decision.schedulable_tis:
+        ti.run(session=session)
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    assert len(decision.schedulable_tis) == 1  # "down"
+    if multiple_outputs:
+        decision.schedulable_tis[0].run(session=session)
+        assert result == "'example' None"
+    else:
+        with pytest.raises(XComNotFound):
+            decision.schedulable_tis[0].run(session=session)
+
+
 @pytest.mark.filterwarnings("error")
 def test_no_warnings(reset_logging_config, caplog):
     @task_decorator
@@ -858,7 +903,6 @@ def test_task_decorator_dataset(dag_maker, session):
     assert result == uri
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
 def test_teardown_trigger_rule_selective_application(dag_maker, session):
     with dag_maker(session=session) as dag:
 
@@ -884,7 +928,6 @@ def test_teardown_trigger_rule_selective_application(dag_maker, session):
     assert teardown_task.operator.trigger_rule == TriggerRule.ALL_DONE_SETUP_SUCCESS
 
 
-@pytest.mark.skipif(not _ENABLE_AIP_52, reason="AIP-52 is disabled")
 def test_teardown_trigger_rule_override_behavior(dag_maker, session):
     with dag_maker(session=session) as dag:
 

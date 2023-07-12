@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-.. spelling::
+"""OS Login hooks.
 
+.. spelling:word-list::
     ImportSshPublicKeyResponse
     oslogin
 """
@@ -58,7 +58,7 @@ class OSLoginHook(GoogleBaseHook):
         self._conn: OsLoginServiceClient | None = None
 
     def get_conn(self) -> OsLoginServiceClient:
-        """Return OS Login service client"""
+        """Return OS Login service client."""
         if self._conn:
             return self._conn
 
@@ -76,9 +76,9 @@ class OSLoginHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> ImportSshPublicKeyResponse:
         """
-        Adds an SSH public key and returns the profile information. Default POSIX
-        account information is set when no username and UID exist as part of the
-        login profile.
+        Adds an SSH public key and returns the profile information.
+
+        Default POSIX account information is set when no username and UID exist as part of the login profile.
 
         :param user: The unique ID for the user
         :param ssh_public_key: The SSH public key and expiration time.

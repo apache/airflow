@@ -19,19 +19,20 @@ from __future__ import annotations
 import os
 import typing
 
+from airflow.configuration import conf
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 
 if typing.TYPE_CHECKING:
     from airflow.models import TaskInstance
 
-_JOB_NAMESPACE = os.getenv("OPENLINEAGE_NAMESPACE", "default")
+_JOB_NAMESPACE = conf.get("openlineage", "namespace", fallback=os.getenv("OPENLINEAGE_NAMESPACE", "default"))
 
 
 def lineage_run_id(task_instance: TaskInstance):
     """
-    Macro function which returns the generated run id for a given task. This
-    can be used to forward the run id from a task to a child run so the job
-    hierarchy is preserved.
+    Macro function which returns the generated run id for a given task.
+
+    This can be used to forward the run id from a task to a child run so the job hierarchy is preserved.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -44,8 +45,9 @@ def lineage_run_id(task_instance: TaskInstance):
 
 def lineage_parent_id(run_id: str, task_instance: TaskInstance):
     """
-    Macro function which returns the generated job and run id for a given task. This
-    can be used to forward the ids from a task to a child run so the job
+    Macro function which returns the generated job and run id for a given task.
+
+    This can be used to forward the ids from a task to a child run so the job
     hierarchy is preserved. Child run can create ParentRunFacet from those ids.
 
     .. seealso::

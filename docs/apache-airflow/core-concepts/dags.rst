@@ -192,7 +192,7 @@ DAGs do not *require* a schedule, but it's very common to define one. You define
 
 The ``schedule`` argument takes any value that is a valid `Crontab <https://en.wikipedia.org/wiki/Cron>`_ schedule value, so you could also do::
 
-    with DAG("my_daily_dag", schedule="0 * * * *"):
+    with DAG("my_daily_dag", schedule="0 0 * * *"):
         ...
 
 .. tip::
@@ -328,7 +328,7 @@ The ``@task.branch`` can also be used with XComs allowing branching context to d
 .. code-block:: python
 
     @task.branch(task_id="branch_task")
-    def branch_func(ti):
+    def branch_func(ti=None):
         xcom_value = int(ti.xcom_pull(task_ids="start_task"))
         if xcom_value >= 5:
             return "continue_task"

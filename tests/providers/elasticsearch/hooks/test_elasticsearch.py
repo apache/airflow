@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 from elasticsearch import Elasticsearch
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.elasticsearch.hooks.elasticsearch import (
     ElasticsearchHook,
@@ -38,7 +39,7 @@ class TestElasticsearchHook:
         conn = self.conn
         self.connection = Connection(host="localhost", port=9200, schema="http")
 
-        with pytest.warns(DeprecationWarning):
+        with pytest.warns(AirflowProviderDeprecationWarning):
 
             class UnitTestElasticsearchHook(ElasticsearchHook):
                 conn_name_attr = "test_conn_id"

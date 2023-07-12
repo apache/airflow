@@ -21,8 +21,193 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-amazon``
+
 Changelog
 ---------
+
+8.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Append region info to S3ToRedshitOperator if present (#32328)``
+
+8.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'ChimeWebhookHook' (#31939)``
+* ``Add 'ChimeNotifier' (#32222)``
+* ``Add deferrable mode to S3KeysUnchangedSensor (#31940)``
+* ``Add deferrable mode to 'RdsCreateDbInstanceOperator' and 'RdsDeleteDbInstanceOperator' (#32171)``
+* ``Add deferrable mode for 'AthenaOperator' (#32186)``
+* ``Add a deferrable mode to 'BatchCreateComputeEnvironmentOperator' (#32036)``
+* ``Add deferrable mode in EMR operator and sensor (#32029)``
+* ``add async wait method to the "with logging" aws utils (#32055)``
+* ``Add custom waiters to EMR Serverless  (#30463)``
+* ``Add an option to 'GlueJobOperator' to stop the job run when the TI is killed (#32155)``
+* ``deferrable mode for 'SageMakerTuningOperator' and 'SageMakerEndpointOperator' (#32112)``
+* ``EKS Create/Delete Nodegroup Deferrable mode (#32165)``
+* ``Deferrable mode for ECS operators (#31881)``
+* ``feature: AWS - GlueJobOperator - job_poll_interval (#32147)``
+* ``Added 'AzureBlobStorageToS3Operator' transfer operator (#32270)``
+* ``Introduce a base class for aws triggers (#32274)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``bugfix: break down run+wait method in ECS operator (#32104)``
+* ``Handle 'UnboundLocalError' while parsing invalid 's3_url' (#32120)``
+* ``Fix 'LambdaInvokeFunctionOperator' payload parameter type (#32259)``
+* ``Bug fix GCSToS3Operator: avoid 'ValueError' when 'replace=False' with files already in S3 (#32322)``
+
+Misc
+~~~~
+
+* ``Deprecate 'delimiter' param and source object's wildcards in GCS, introduce 'match_glob' param. (#31261)``
+* ``aws waiter util: log status info with error level on waiter error (#32247)``
+* ``rewrite method used in ecs to fetch less logs (#31786)``
+* ``Refactor Eks Create Cluster Operator code (#31960)``
+* ``Use a waiter in 'AthenaHook' (#31942)``
+* ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
+* ``Add default_deferrable config (#31712)``
+* ``deprecate arbitrary parameter passing to RDS hook (#32352)``
+* ``quick fix on RDS operator to prevent parameter collision (#32436)``
+* ``Remove ability to specify arbitrary hook params in AWS RDS trigger (#32386)``
+* ``Only update crawler tags if present in config dict (#32331)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "add deferrable mode for 'AthenaOperator' (#32110)" (#32172)``
+   * ``add deferrable mode for 'AthenaOperator' (#32110)``
+   * ``D205 Support - Auto-fixes and Stragglers (#32212)``
+   * ``D205 Support - Providers: Amazon/AWS (#32224)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Minor name change for the util wait method. (#32152)``
+   * ``Clean up string concatenation (#32129)``
+   * ``cleanup Amazon CHANGELOG.rst (#32031)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+   * ``D205 Support - Providers: Stragglers and new additions (#32447)``
+   * ``Prepare docs for July 2023 wave of Providers (RC2) (#32381)``
+
+8.2.0
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+
+Features
+~~~~~~~~
+
+* ``Add deferrable option to EmrTerminateJobFlowOperator (#31646)``
+* ``Add Deferrable option to EmrCreateJobFlowOperator (#31641)``
+* ``Add deferrable mode to 'BatchSensor'  (#30279)``
+* ``Add deferrable mode for S3KeySensor (#31018)``
+* ``Add Deferrable mode to Emr Add Steps operator (#30928)``
+* ``Add deferrable mode in Redshift delete cluster (#30244)``
+* ``Add deferrable mode to AWS glue operators (Job & Crawl) (#30948)``
+* ``Add deferrable param in BatchOperator (#30865)``
+* ``Add Deferrable Mode to RedshiftCreateClusterSnapshotOperator (#30856)``
+* ``Deferrable mode for EksCreateFargateProfileOperator and EksDeleteFargateProfileOperator (#31657)``
+* ``allow anonymous AWS access (#31659)``
+* ``Support of wildcard in S3ListOperator and S3ToGCSOperator (#31640)``
+* ``Add 'deferrable' param in 'EmrContainerSensor' (#30945)``
+* ``Add realtime container execution logs for BatchOperator (#31837)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Various fixes on ECS run task operator (#31838)``
+* ``fix return values on glue operators deferrable mode (#31694)``
+* ``Add back missing AsyncIterator import (#31710)``
+* ``Use a continuation token to get logs in ecs (#31824)``
+* ``Fetch status in while loop so as to not exit too early (#31804)``
+* ``[AWS hook] use provided client to get the official waiter on fallback (#31748)``
+* ``handle missing LogUri in emr 'describe_cluster' API response (#31482)``
+
+Misc
+~~~~
+
+* ``Add Python 3.11 support (#27264)``
+* ``Added config template field to EmrServerlessStartJobOperator (#31746)``
+* ``Add null check for host in Amazon Redshift connection (#31567)``
+* ``add workgroup to templated fields (#31574)``
+* ``Add docstring and signature for _read_remote_logs (#31623)``
+* ``Deprecate 'wait_for_completion' from 'EcsRegisterTaskDefinitionOperator' and 'EcsDeregisterTaskDefinitionOperator' (#31884)``
+* ``Remove Python 3.7 support (#30963)``
+* ``Change Deferrable implementation for RedshiftResumeClusterOperator to follow standard (#30864)``
+* ``Change Deferrable implementation for RedshiftPauseClusterOperator to follow standard (#30853)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check (#31742)``
+   * ``Add D400 pydocstyle check - Amazon provider only (#31423)``
+   * ``AWS system test example_dynamodb_to_s3: add retry when fecthing the export time (#31388)``
+   * ``Amazon provider docstring improvements (#31729)``
+   * ``Replace spelling directive with spelling:word-list (#31752)``
+   * ``Remove aws unused code (#31610)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
+   * ``Add discoverability for triggers in provider.yaml (#31576)``
+
+8.1.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``DynamoDBToS3Operator - Add a feature to export the table to a point in time. (#31142)``
+* ``Add deferrable param in SageMakerTransformOperator (#31063)``
+* ``Add deferrable param in SageMakerTrainingOperator (#31042)``
+* ``Add deferrable param in SageMakerProcessingOperator (#31062)``
+* ``Add IAM authentication to Amazon Redshift Connection by AWS Connection (#28187)``
+* ``'StepFunctionStartExecutionOperator': get logs in case of failure (#31072)``
+* ``Add on_kill to EMR Serverless Job Operator (#31169)``
+* ``Add Deferrable Mode for EC2StateSensor (#31130)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``bigfix: EMRHook  Loop through paginated response to check for cluster id (#29732)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers (#30917)``
+* ``Add template field to S3ToRedshiftOperator (#30781)``
+* ``Add extras links to some more EMR Operators and Sensors (#31032)``
+* ``Add retries to S3 delete_bucket (#31192)``
+* ``Add tags param in RedshiftCreateClusterSnapshotOperator (#31006)``
+* ``improve/fix glue job logs printing (#30886)``
+* ``Import aiobotocore only if deferrable is true (#31094)``
+* ``Update return types of 'get_key' methods on 'S3Hook' (#30923)``
+* ``Support 'shareIdentifier' in BatchOperator (#30829)``
+* ``BaseAWS - Override client when resource_type is user to get custom waiters (#30897)``
+* ``Add future-compatible mongo Hook typing (#31289)``
+* ``Handle temporary credentials when resource_type is used to get custom waiters (#31333)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move TaskInstanceKey to a separate file (#31033)``
+   * ``Use 'AirflowProviderDeprecationWarning' in providers (#30975)``
+   * ``DynamoDBToS3Operator - Add feature to export table to a point in time (#30501)``
+   * ``Revert "DynamoDBToS3Operator - Add feature to export table to a point in time (#30501)" (#31139)``
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Bring back detection of implicit single-line string concatenation (#31270)``
+   * ``Fix AWS system test example_dynamodb (#31395)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Fix AWS system test example_dynamodb_to_s3 (#31362)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
 
 8.0.0
 ......
@@ -346,8 +531,9 @@ Bug Fixes
 6.1.0
 .....
 
-This release of provider is only available for Airflow 2.3+ as explained in the
-`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Misc
 ~~~~
@@ -586,8 +772,9 @@ Bug Fixes
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+.. note::
+  This release of provider is only available for Airflow 2.2+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Features
 ~~~~~~~~

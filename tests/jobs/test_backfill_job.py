@@ -45,7 +45,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models import DagBag, Pool, TaskInstance as TI
 from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.models.taskinstance import TaskInstanceKey
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.models.taskmap import TaskMap
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone

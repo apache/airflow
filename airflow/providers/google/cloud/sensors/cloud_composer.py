@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class CloudComposerEnvironmentSensor(BaseSensorOperator):
     """
-    Check the status of the Cloud Composer Environment task
+    Check the status of the Cloud Composer Environment task.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -84,8 +84,8 @@ class CloudComposerEnvironmentSensor(BaseSensorOperator):
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         if event:
             if event.get("operation_done"):

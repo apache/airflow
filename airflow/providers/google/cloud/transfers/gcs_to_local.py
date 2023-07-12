@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -91,7 +91,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
             object_name = kwargs.get("object")
             if object_name is not None:
                 self.object_name = object_name
-                DeprecationWarning("Use 'object_name' instead of 'object'.")
+                AirflowProviderDeprecationWarning("Use 'object_name' instead of 'object'.")
             else:
                 TypeError("__init__() missing 1 required positional argument: 'object_name'")
 

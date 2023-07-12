@@ -17,7 +17,9 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
+from unittest.mock import patch
 
 import pendulum
 import pytest
@@ -29,6 +31,7 @@ from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
+from airflow.utils.context import Context
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
@@ -55,6 +58,38 @@ def test_task_mapping_with_dag():
 
     assert finish.upstream_list == [mapped]
     assert mapped.downstream_list == [finish]
+
+
+@patch("airflow.models.abstractoperator.AbstractOperator.render_template")
+def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
+    caplog.set_level(logging.INFO)
+
+    class UnrenderableClass:
+        def __bool__(self):
+            raise ValueError("Similar to Pandas DataFrames, this class raises an exception.")
+
+    class CustomOperator(BaseOperator):
+        template_fields = ("arg",)
+
+        def __init__(self, arg, **kwargs):
+            super().__init__(**kwargs)
+            self.arg = arg
+
+        def execute(self, context: Context):
+            pass
+
+    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+        task1 = CustomOperator(task_id="op1", arg=None)
+        unrenderable_values = [UnrenderableClass(), UnrenderableClass()]
+        mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
+        task1 >> mapped
+    dag.test()
+    assert caplog.text.count("task_2 ran successfully") == 2
+    assert (
+        "Unable to check if the value of type 'UnrenderableClass' is False for task 'task_2', field 'arg'"
+        in caplog.text
+    )
+    mock_render_template.assert_called()
 
 
 def test_task_mapping_without_dag_context():

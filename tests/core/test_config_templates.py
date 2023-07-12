@@ -35,6 +35,7 @@ DEFAULT_AIRFLOW_SECTIONS = [
     "debug",
     "api",
     "lineage",
+    "openlineage",
     "atlas",
     "operators",
     "hive",

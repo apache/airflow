@@ -20,12 +20,13 @@ from __future__ import annotations
 import warnings
 from typing import Sequence
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 
 class MySqlOperator(SQLExecuteQueryOperator):
     """
-    Executes sql code in a specific MySQL database
+    Executes sql code in a specific MySQL database.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -64,6 +65,6 @@ class MySqlOperator(SQLExecuteQueryOperator):
             """This class is deprecated.
             Please use `airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
             Also, you can provide `hook_params={'schema': <database>}`.""",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )

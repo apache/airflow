@@ -30,7 +30,7 @@ if TYPE_CHECKING:
 
 
 class BaseNotifier(Templater):
-    """BaseNotifier class for sending notifications"""
+    """BaseNotifier class for sending notifications."""
 
     template_fields: Sequence[str] = ()
     template_ext: Sequence[str] = ()
@@ -41,7 +41,7 @@ class BaseNotifier(Templater):
 
     def _update_context(self, context: Context) -> Context:
         """
-        Add additional context to the context
+        Add additional context to the context.
 
         :param context: The airflow context
         """
@@ -73,19 +73,33 @@ class BaseNotifier(Templater):
     @abstractmethod
     def notify(self, context: Context) -> None:
         """
-        Sends a notification
+        Sends a notification.
 
         :param context: The airflow context
         """
         ...
 
-    def __call__(self, context: Context) -> None:
+    def __call__(self, *args) -> None:
         """
-        Send a notification
+        Send a notification.
 
         :param context: The airflow context
         """
-        context = self._update_context(context)
+        # Currently, there are two ways a callback is invoked
+        # 1. callback(context) - for on_*_callbacks
+        # 2. callback(dag, task_list, blocking_task_list, slas, blocking_tis) - for sla_miss_callback
+        # we have to distinguish between the two calls so that we can prepare the correct context,
+        if len(args) == 1:
+            context = args[0]
+        else:
+            context = {
+                "dag": args[0],
+                "task_list": args[1],
+                "blocking_task_list": args[2],
+                "slas": args[3],
+                "blocking_tis": args[4],
+            }
+        self._update_context(context)
         self.render_template_fields(context)
         try:
             self.notify(context)

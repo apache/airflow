@@ -18,20 +18,23 @@
 from __future__ import annotations
 
 import hashlib
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from _typeshed import ReadableBuffer
 
 from airflow import PY39
 
 
-def md5(data: bytes, *, usedforsecurity: bool | None = None):
+def md5(__string: ReadableBuffer = b"") -> hashlib._Hash:
     """
-    Safely allows calling the hashlib.md5 function with the "usedforsecurity" param.
-    :param data: The data to hash.
-    :param usedforsecurity: The value to pass to the md5 function's "usedforsecurity" param.
-        Defaults to None.
+    Safely allows calling the hashlib.md5 function with the "usedforsecurity" disabled
+    when specified in the configuration.
+
+    :param string: The data to hash.
+        Default to empty str byte.
     :return: The hashed value.
-    :rtype: _Hash
     """
-    if PY39 and usedforsecurity is not None:
-        return hashlib.md5(data, usedforsecurity=usedforsecurity)  # type: ignore
-    else:
-        return hashlib.md5(data)
+    if PY39:
+        return hashlib.md5(__string, usedforsecurity=False)  # type: ignore
+    return hashlib.md5(__string)

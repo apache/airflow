@@ -58,7 +58,7 @@ from google.cloud.vision_v1.types import ReferenceImage  # isort:skip
 
 # [END howto_operator_vision_reference_image_import]
 # [START howto_operator_vision_enums_import]
-from google.cloud.vision import enums  # isort:skip
+from google.cloud.vision_v1 import Feature  # isort:skip
 
 # [END howto_operator_vision_enums_import]
 
@@ -93,7 +93,7 @@ reference_image = ReferenceImage(uri=VISION_IMAGE_URL)
 # [START howto_operator_vision_annotate_image_request]
 annotate_image_request = {
     "image": {"source": {"image_uri": VISION_IMAGE_URL}},
-    "features": [{"type": enums.Feature.Type.LOGO_DETECTION}],
+    "features": [{"type_": Feature.Type.LOGO_DETECTION}],
 }
 # [END howto_operator_vision_annotate_image_request]
 
@@ -121,7 +121,7 @@ with models.DAG(
     copy_single_file = GCSToGCSOperator(
         task_id="copy_single_gcs_file",
         source_bucket=BUCKET_NAME_SRC,
-        source_object=PATH_SRC,
+        source_object=[PATH_SRC],
         destination_bucket=BUCKET_NAME,
         destination_object=FILE_NAME,
     )

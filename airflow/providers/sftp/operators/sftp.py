@@ -23,14 +23,14 @@ import warnings
 from pathlib import Path
 from typing import Any, Sequence
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
 class SFTPOperation:
-    """Operation that can be used with SFTP"""
+    """Operation that can be used with SFTP."""
 
     PUT = "put"
     GET = "get"
@@ -39,8 +39,8 @@ class SFTPOperation:
 class SFTPOperator(BaseOperator):
     """
     SFTPOperator for transferring files from remote host to local or vice a versa.
-    This operator uses sftp_hook to open sftp transport channel that serve as basis
-    for file transfer.
+
+    This operator uses sftp_hook to open sftp transport channel that serve as basis for file transfer.
 
     :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>`
         from airflow Connections. `ssh_conn_id` will be ignored if `ssh_hook`
@@ -141,7 +141,7 @@ class SFTPOperator(BaseOperator):
                     "Parameter `ssh_hook` is deprecated"
                     "Please use `sftp_hook` instead."
                     "The old parameter `ssh_hook` will be removed in a future version.",
-                    DeprecationWarning,
+                    AirflowProviderDeprecationWarning,
                     stacklevel=2,
                 )
                 self.sftp_hook = SFTPHook(ssh_hook=self.ssh_hook)

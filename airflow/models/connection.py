@@ -187,10 +187,22 @@ class Connection(Base, LoggingMixin):
         return conn_type
 
     def _parse_from_uri(self, uri: str):
+        schemes_count_in_uri = uri.count("://")
+        if schemes_count_in_uri > 2:
+            raise AirflowException(f"Invalid connection string: {uri}.")
+        host_with_protocol = schemes_count_in_uri == 2
         uri_parts = urlsplit(uri)
         conn_type = uri_parts.scheme
         self.conn_type = self._normalize_conn_type(conn_type)
-        self.host = _parse_netloc_to_hostname(uri_parts)
+        rest_of_the_url = uri.replace(f"{conn_type}://", ("" if host_with_protocol else "//"))
+        if host_with_protocol:
+            uri_splits = rest_of_the_url.split("://", 1)
+            if "@" in uri_splits[0] or ":" in uri_splits[0]:
+                raise AirflowException(f"Invalid connection string: {uri}.")
+        uri_parts = urlsplit(rest_of_the_url)
+        protocol = uri_parts.scheme if host_with_protocol else None
+        host = _parse_netloc_to_hostname(uri_parts)
+        self.host = self._create_host(protocol, host)
         quoted_schema = uri_parts.path[1:]
         self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
         self.login = unquote(uri_parts.username) if uri_parts.username else uri_parts.username
@@ -203,8 +215,17 @@ class Connection(Base, LoggingMixin):
             else:
                 self.extra = json.dumps(query)
 
+    @staticmethod
+    def _create_host(protocol, host) -> str | None:
+        """Returns the connection host with the protocol."""
+        if not host:
+            return host
+        if protocol:
+            return f"{protocol}://{host}"
+        return host
+
     def get_uri(self) -> str:
-        """Return connection in URI format"""
+        """Return connection in URI format."""
         if self.conn_type and "_" in self.conn_type:
             self.log.warning(
                 "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
@@ -215,6 +236,14 @@ class Connection(Base, LoggingMixin):
             uri = f"{self.conn_type.lower().replace('_', '-')}://"
         else:
             uri = "//"
+
+        if self.host and "://" in self.host:
+            protocol, host = self.host.split("://", 1)
+        else:
+            protocol, host = None, self.host
+
+        if protocol:
+            uri += f"{protocol}://"
 
         authority_block = ""
         if self.login is not None:
@@ -229,8 +258,8 @@ class Connection(Base, LoggingMixin):
             uri += authority_block
 
         host_block = ""
-        if self.host:
-            host_block += quote(self.host, safe="")
+        if host:
+            host_block += quote(host, safe="")
 
         if self.port:
             if host_block == "" and authority_block == "":
@@ -313,7 +342,7 @@ class Connection(Base, LoggingMixin):
         return synonym("_extra", descriptor=property(cls.get_extra, cls.set_extra))
 
     def rotate_fernet_key(self):
-        """Encrypts data with a new key. See: :ref:`security/fernet`"""
+        """Encrypts data with a new key. See: :ref:`security/fernet`."""
         fernet = get_fernet()
         if self._password and self.is_encrypted:
             self._password = fernet.rotate(self._password.encode("utf-8")).decode()
@@ -321,7 +350,7 @@ class Connection(Base, LoggingMixin):
             self._extra = fernet.rotate(self._extra.encode("utf-8")).decode()
 
     def get_hook(self, *, hook_params=None):
-        """Return hook based on conn_type"""
+        """Return hook based on conn_type."""
         from airflow.providers_manager import ProvidersManager
 
         hook = ProvidersManager().hooks.get(self.conn_type, None)

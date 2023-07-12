@@ -96,7 +96,11 @@ class TestMongoToS3Operator:
         operator.execute(None)
 
         mock_mongo_hook.return_value.find.assert_called_once_with(
-            mongo_collection=MONGO_COLLECTION, query=MONGO_QUERY, mongo_db=None, projection=None
+            mongo_collection=MONGO_COLLECTION,
+            query=MONGO_QUERY,
+            find_one=False,
+            mongo_db=None,
+            projection=None,
         )
 
         op_stringify = self.mock_operator._stringify
@@ -119,7 +123,11 @@ class TestMongoToS3Operator:
         operator.execute(None)
 
         mock_mongo_hook.return_value.find.assert_called_once_with(
-            mongo_collection=MONGO_COLLECTION, query=MONGO_QUERY, mongo_db=None, projection=None
+            mongo_collection=MONGO_COLLECTION,
+            query=MONGO_QUERY,
+            find_one=False,
+            mongo_db=None,
+            projection=None,
         )
 
         op_stringify = self.mock_operator._stringify

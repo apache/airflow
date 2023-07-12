@@ -19,12 +19,14 @@ from __future__ import annotations
 
 import warnings
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.operators.sql import SQLCheckOperator
 
 
 class DruidCheckOperator(SQLCheckOperator):
     """
     This class is deprecated.
+
     Please use `airflow.providers.common.sql.operators.sql.SQLCheckOperator`.
     """
 
@@ -32,7 +34,7 @@ class DruidCheckOperator(SQLCheckOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.common.sql.operators.sql.SQLCheckOperator`.""",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         super().__init__(conn_id=druid_broker_conn_id, **kwargs)

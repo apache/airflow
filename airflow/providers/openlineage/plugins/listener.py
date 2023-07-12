@@ -38,10 +38,7 @@ if TYPE_CHECKING:
 
 
 class OpenLineageListener:
-    """
-    OpenLineage listener
-    Sends events on task instance and dag run starts, completes and failures.
-    """
+    """OpenLineage listener sends events on task instance and dag run starts, completes and failures."""
 
     def __init__(self):
         self.log = logging.getLogger(__name__)

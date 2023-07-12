@@ -39,10 +39,10 @@ ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_dataprep"
 
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
-GCS_BUCKET_NAME = f"dataprep-bucket-heorhi-{DAG_ID}-{ENV_ID}"
+GCS_BUCKET_NAME = f"dataprep-bucket-{DAG_ID}-{ENV_ID}"
 GCS_BUCKET_PATH = f"gs://{GCS_BUCKET_NAME}/task_results/"
 
-FLOW_ID = os.environ.get("FLOW_ID", "")
+FLOW_ID = os.environ.get("FLOW_ID")
 RECIPE_ID = os.environ.get("RECIPE_ID")
 RECIPE_NAME = os.environ.get("RECIPE_NAME")
 WRITE_SETTINGS = (

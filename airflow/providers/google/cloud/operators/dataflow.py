@@ -24,10 +24,12 @@ import uuid
 import warnings
 from contextlib import ExitStack
 from enum import Enum
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow import AirflowException
-from airflow.compat.functools import cached_property
+from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
@@ -46,7 +48,8 @@ if TYPE_CHECKING:
 
 class CheckJobRunning(Enum):
     """
-    Helper enum for choosing what to do if job is already running
+    Helper enum for choosing what to do if job is already running.
+
     IgnoreJob - do not check if running
     FinishIfRunning - finish current dag run with no action
     WaitForRun - wait for job to finish and then continue with new job
@@ -58,9 +61,12 @@ class CheckJobRunning(Enum):
 
 
 class DataflowConfiguration:
-    """Dataflow configuration that can be passed to
-    :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` and
-    :class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
+    """
+    Dataflow configuration for BeamRunJavaPipelineOperator and BeamRunPythonPipelineOperator.
+
+    .. seealso::
+        :class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
+        and :class:`~airflow.providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
 
     :param job_name: The 'jobName' to use when executing the Dataflow job
         (templated). This ends up being set in the pipeline options, so any entry
@@ -164,13 +170,14 @@ class DataflowConfiguration:
 
 class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
     """
-    Start a Java Cloud Dataflow batch job. The parameters of the operation
-    will be passed to the job.
+    Start a Java Cloud Dataflow batch job; the parameters of the operation will be passed to the job.
 
     This class is deprecated.
-    Please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
+    Please use :class:`providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`.
 
-    **Example**: ::
+    Example usage:
+
+    .. code-block:: python
 
         default_args = {
             "owner": "airflow",
@@ -347,7 +354,7 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
         warnings.warn(
             f"The `{self.__class__.__name__}` operator is deprecated, "
             f"please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` instead.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         super().__init__(**kwargs)
@@ -415,7 +422,6 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
                     variables=pipeline_options,
                 )
                 while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
-
                     is_running = self.dataflow_hook.is_job_dataflow_running(
                         name=self.job_name,
                         variables=pipeline_options,
@@ -448,8 +454,7 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
 
 class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
     """
-    Start a Templated Cloud Dataflow job. The parameters of the operation
-    will be passed to the job.
+    Start a Templated Cloud Dataflow job; the parameters of the operation will be passed to the job.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -599,7 +604,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         options: dict[str, Any] | None = None,
         dataflow_default_options: dict[str, Any] | None = None,
         parameters: dict[str, str] | None = None,
-        location: str = DEFAULT_DATAFLOW_LOCATION,
+        location: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         poll_sleep: int = 10,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -607,7 +612,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         cancel_timeout: int | None = 10 * 60,
         wait_until_finished: bool | None = None,
         append_job_name: bool = True,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -689,7 +694,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
             trigger=TemplateJobStartTrigger(
                 project_id=self.project_id,
                 job_id=job_id,
-                location=self.location,
+                location=self.location if self.location else DEFAULT_DATAFLOW_LOCATION,
                 gcp_conn_id=self.gcp_conn_id,
                 poll_sleep=self.poll_sleep,
                 impersonation_chain=self.impersonation_chain,
@@ -781,6 +786,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param deferrable: Run operator in the deferrable mode.
+    :param append_job_name: True if unique suffix has to be appended to job name.
     """
 
     template_fields: Sequence[str] = ("body", "location", "project_id", "gcp_conn_id")
@@ -796,7 +802,8 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         cancel_timeout: int | None = 10 * 60,
         wait_until_finished: bool | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        append_job_name: bool = True,
         *args,
         **kwargs,
     ) -> None:
@@ -811,6 +818,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         self.job: dict | None = None
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
+        self.append_job_name = append_job_name
 
         self._validate_deferrable_params()
 
@@ -837,7 +845,8 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         return hook
 
     def execute(self, context: Context):
-        self._append_uuid_to_job_name()
+        if self.append_job_name:
+            self._append_uuid_to_job_name()
 
         def set_current_job(current_job):
             self.job = current_job
@@ -1007,14 +1016,14 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
 
 class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
     """
-    Launching Cloud Dataflow jobs written in python. Note that both
-    dataflow_default_options and options will be merged to specify pipeline
-    execution parameter, and dataflow_default_options is expected to save
-    high-level options, for instances, project and zone information, which
-    apply to all dataflow operators in the DAG.
+    Launching Cloud Dataflow jobs written in python.
+
+    Note that both dataflow_default_options and options will be merged to specify pipeline
+    execution parameter, and dataflow_default_options is expected to save high-level options,
+    for instances, project and zone information, which apply to all dataflow operators in the DAG.
 
     This class is deprecated.
-    Please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
+    Please use :class:`providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator`.
 
     .. seealso::
         For more detail on job submission have a look at the reference:
@@ -1130,7 +1139,7 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         warnings.warn(
             f"The `{self.__class__.__name__}` operator is deprecated, "
             "please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator` instead.",
-            DeprecationWarning,
+            AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
         super().__init__(**kwargs)
@@ -1224,6 +1233,7 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
 class DataflowStopJobOperator(GoogleCloudBaseOperator):
     """
     Stops the job with the specified name prefix or Job ID.
+
     All jobs with provided name prefix will be stopped.
     Streaming jobs are drained by default.
 

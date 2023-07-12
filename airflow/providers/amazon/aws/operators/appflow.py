@@ -17,10 +17,10 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from functools import cached_property
 from time import sleep
 from typing import TYPE_CHECKING, cast
 
-from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.operators.python import ShortCircuitOperator

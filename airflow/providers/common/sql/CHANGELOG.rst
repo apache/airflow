@@ -21,8 +21,72 @@
     The changelog is updated and maintained semi-automatically by release manager.
 
 
-Changelog
----------
+------
+
+1.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``openlineage, common.sql:  provide OL SQL parser as internal OpenLineage provider API (#31398)``
+
+Misc
+~~~~
+* ``Pass SQLAlchemy engine to construct information schema query. (#32371)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+
+1.5.2
+.....
+
+Misc
+~~~~
+
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve docstrings in providers (#31681)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+
+1.5.1
+.....
+
+Misc
+~~~~
+
+* ``Bring back min-airflow-version for preinstalled providers (#31469)``
+
+1.5.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.4+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add conditional output processing in SQL operators (#31136)``
+
+Misc
+~~~~
+
+* ``Remove noisy log from SQL table check (#31037)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add full automation for min Airflow version for providers (#30994)``
+   * ``Add mechanism to suspend providers (#30422)``
+   * ``Use '__version__' in providers not 'version' (#31393)``
+   * ``Fixing circular import error in providers caused by airflow version check (#31379)``
+   * ``Prepare docs for May 2023 wave of Providers (#31252)``
 
 1.4.0
 .....
@@ -107,8 +171,9 @@ Bug Fixes
 1.3.0
 .....
 
-This release of provider is only available for Airflow 2.3+ as explained in the
-`Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/README.md#support-for-providers>`_.
+.. note::
+  This release of provider is only available for Airflow 2.3+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 Misc
 ~~~~

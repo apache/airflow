@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import type { CamelCase } from "type-fest";
+import type { ElkShape } from "elkjs";
 import type * as API from "./api-generated";
 
 type RunState = "success" | "running" | "queued" | "failed";
@@ -116,6 +118,7 @@ interface DepNode {
     isOpen?: boolean;
     isJoinNode?: boolean;
     childCount?: number;
+    setupTeardownType?: "setup" | "teardown";
   };
   children?: DepNode[];
 }
@@ -125,6 +128,17 @@ interface DepEdge {
   target: string;
 }
 
+export interface NodeType extends ElkShape {
+  value: DepNode["value"];
+  children?: NodeType[];
+}
+
+export interface WebserverEdge {
+  label?: string;
+  sourceId: string;
+  targetId: string;
+}
+
 interface DatasetListItem extends API.Dataset {
   lastDatasetUpdate: string | null;
   totalUpdates: number;
@@ -132,17 +146,44 @@ interface DatasetListItem extends API.Dataset {
 
 type MinimalTaskInstance = Pick<TaskInstance, "taskId" | "mapIndex" | "runId">;
 
+type PrimaryShortcutKey = "ctrlKey" | "shiftKey" | "altKey" | "metaKey";
+
+interface KeyboardShortcutKeys {
+  primaryKey: PrimaryShortcutKey;
+  secondaryKey: Array<string>;
+  detail: string;
+}
+
+interface KeyboardShortcutIdentifier {
+  [name: string]: KeyboardShortcutKeys;
+}
+
+interface HistoricalMetricsData {
+  dagRunStates: {
+    [K in CamelCase<RunState>]: number;
+  };
+  dagRunTypes: {
+    [K in CamelCase<DagRun["runType"]>]: number;
+  };
+  taskInstanceStates: {
+    [K in TaskState extends string ? CamelCase<K> : never]: number;
+  };
+}
+
 export type {
   API,
-  MinimalTaskInstance,
   Dag,
   DagRun,
   DatasetListItem,
   DepEdge,
   DepNode,
+  HistoricalMetricsData,
+  MinimalTaskInstance,
   RunOrdering,
   RunState,
   Task,
   TaskInstance,
   TaskState,
+  KeyboardShortcutKeys,
+  KeyboardShortcutIdentifier,
 };

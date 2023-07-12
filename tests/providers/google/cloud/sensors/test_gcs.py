@@ -24,7 +24,7 @@ import pendulum
 import pytest
 from google.cloud.storage.retry import DEFAULT_RETRY
 
-from airflow.exceptions import AirflowSensorTimeout, TaskDeferred
+from airflow.exceptions import AirflowProviderDeprecationWarning, AirflowSensorTimeout, TaskDeferred
 from airflow.models.dag import DAG, AirflowException
 from airflow.providers.google.cloud.sensors.gcs import (
     GCSObjectExistenceAsyncSensor,
@@ -38,6 +38,7 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSBlobTrigger,
     GCSCheckBlobUpdateTimeTrigger,
     GCSPrefixBlobTrigger,
+    GCSUploadSessionTrigger,
 )
 
 TEST_BUCKET = "TEST_BUCKET"
@@ -55,6 +56,10 @@ TEST_DAG_ID = "unit_tests_gcs_sensor"
 DEFAULT_DATE = datetime(2015, 1, 1)
 
 MOCK_DATE_ARRAY = [datetime(2019, 2, 24, 12, 0, 0) - i * timedelta(seconds=10) for i in range(25)]
+
+TEST_INACTIVITY_PERIOD = 5
+
+TEST_MIN_OBJECTS = 1
 
 
 @pytest.fixture()
@@ -168,7 +173,7 @@ class TestGoogleCloudStorageObjectSensorAsync:
         Asserts that a task is deferred and a GCSBlobTrigger will be fired
         when the GCSObjectExistenceAsyncSensor is executed.
         """
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = GCSObjectExistenceAsyncSensor(
                 task_id="task-id",
                 bucket=TEST_BUCKET,
@@ -182,7 +187,7 @@ class TestGoogleCloudStorageObjectSensorAsync:
 
     def test_gcs_object_existence_sensor_async_execute_failure(self):
         """Tests that an AirflowException is raised in case of error event"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = GCSObjectExistenceAsyncSensor(
                 task_id="task-id",
                 bucket=TEST_BUCKET,
@@ -194,7 +199,7 @@ class TestGoogleCloudStorageObjectSensorAsync:
 
     def test_gcs_object_existence_sensor_async_execute_complete(self):
         """Asserts that logging occurs as expected"""
-        with pytest.warns(DeprecationWarning, match=self.depcrecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning, match=self.depcrecation_message):
             task = GCSObjectExistenceAsyncSensor(
                 task_id="task-id",
                 bucket=TEST_BUCKET,
@@ -518,3 +523,43 @@ class TestGCSUploadSessionCompleteSensor:
         self.sensor.is_bucket_updated(set())
         assert self.sensor.inactivity_seconds == 10
         assert not self.sensor.is_bucket_updated(set())
+
+
+class TestGCSUploadSessionCompleteSensorAsync:
+    OPERATOR = GCSUploadSessionCompleteSensor(
+        task_id="gcs-obj-session",
+        bucket=TEST_BUCKET,
+        google_cloud_conn_id=TEST_GCP_CONN_ID,
+        prefix=TEST_OBJECT,
+        inactivity_period=TEST_INACTIVITY_PERIOD,
+        min_objects=TEST_MIN_OBJECTS,
+        deferrable=True,
+    )
+
+    @mock.patch("airflow.providers.google.cloud.sensors.gcs.GCSHook")
+    def test_gcs_upload_session_complete_sensor_async(self, mock_hook):
+        """
+        Asserts that a task is deferred and a GCSUploadSessionTrigger will be fired
+        when the GCSUploadSessionCompleteSensorAsync is executed.
+        """
+        mock_hook.return_value.is_bucket_updated.return_value = False
+        with pytest.raises(TaskDeferred) as exc:
+            self.OPERATOR.execute(mock.MagicMock())
+        assert isinstance(
+            exc.value.trigger, GCSUploadSessionTrigger
+        ), "Trigger is not a GCSUploadSessionTrigger"
+
+    def test_gcs_upload_session_complete_sensor_execute_failure(self, context):
+        """Tests that an AirflowException is raised in case of error event"""
+
+        with pytest.raises(AirflowException):
+            self.OPERATOR.execute_complete(
+                context=context, event={"status": "error", "message": "test failure message"}
+            )
+
+    def test_gcs_upload_session_complete_sensor_async_execute_complete(self, context):
+        """Asserts that execute complete is completed as expected"""
+
+        assert self.OPERATOR.execute_complete(
+            context=context, event={"status": "success", "message": "success"}
+        )

@@ -23,6 +23,8 @@ from datetime import datetime
 
 import oracledb
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
+
 try:
     import numpy
 except ImportError:
@@ -121,13 +123,12 @@ class OracleHook(DbApiHook):
         self.fetch_lobs = fetch_lobs
 
     def get_conn(self) -> oracledb.Connection:
-        """
-        Returns a oracle connection object
-        Optional parameters for using a custom DSN connection
-        (instead of using a server alias from tnsnames.ora)
-        The dsn (data source name) is the TNS entry
-        (from the Oracle names server or tnsnames.ora file)
-        or is a string like the one returned from makedsn().
+        """Get an Oracle connection object.
+
+        Optional parameters for using a custom DSN connection (instead of using
+        a server alias from tnsnames.ora) The dsn (data source name) is the TNS
+        entry (from the Oracle names server or tnsnames.ora file), or is a
+        string like the one returned from ``makedsn()``.
 
         :param dsn: the data source name for the Oracle server
         :param service_name: the db_unique_name of the database
@@ -205,7 +206,7 @@ class OracleHook(DbApiHook):
                     warnings.warn(
                         """Using conn.schema to pass the Oracle Service Name is deprecated.
                         Please use conn.extra.service_name instead.""",
-                        DeprecationWarning,
+                        AirflowProviderDeprecationWarning,
                         stacklevel=2,
                     )
                     dsn += "/" + conn.schema
@@ -260,15 +261,15 @@ class OracleHook(DbApiHook):
         replace: bool | None = False,
         **kwargs,
     ) -> None:
-        """
-        A generic way to insert a set of tuples into a table,
-        the whole set of inserts is treated as one transaction
-        Changes from standard DbApiHook implementation:
+        """Insert a collection of tuples into a table.
 
-        - Oracle SQL queries in oracledb can not be terminated with a semicolon (`;`)
-        - Replace NaN values with NULL using `numpy.nan_to_num` (not using
-          `is_nan()` because of input types error for strings)
-        - Coerce datetime cells to Oracle DATETIME format during insert
+        All data to insert are treated as one transaction. Changes from standard
+        DbApiHook implementation:
+
+        - Oracle SQL queries can not be terminated with a semicolon (``;``).
+        - Replace NaN values with NULL using ``numpy.nan_to_num`` (not using
+          ``is_nan()`` because of input types error for strings).
+        - Coerce datetime cells to Oracle DATETIME format during insert.
 
         :param table: target Oracle table, use dot notation to target a
             specific database
@@ -325,10 +326,10 @@ class OracleHook(DbApiHook):
         target_fields: list[str] | None = None,
         commit_every: int = 5000,
     ):
-        """
-        A performant bulk insert for oracledb
-        that uses prepared statements via `executemany()`.
-        For best performance, pass in `rows` as an iterator.
+        """A performant bulk insert for Oracle DB.
+
+        This uses prepared statements via `executemany()`. For best performance,
+        pass in `rows` as an iterator.
 
         :param table: target Oracle table, use dot notation to target a
             specific database
@@ -380,7 +381,7 @@ class OracleHook(DbApiHook):
         """
         Call the stored procedure identified by the provided string.
 
-        Any 'OUT parameters' must be provided with a value of either the
+        Any OUT parameters must be provided with a value of either the
         expected Python type (e.g., `int`) or an instance of that type.
 
         The return value is a list or mapping that includes parameters in

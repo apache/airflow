@@ -23,7 +23,7 @@ from airflow.models import BaseOperatorLink, XCom
 
 if TYPE_CHECKING:
     from airflow.models import BaseOperator
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstancekey import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -31,7 +31,7 @@ BASE_AWS_CONSOLE_LINK = "https://console.{aws_domain}"
 
 
 class BaseAwsLink(BaseOperatorLink):
-    """Base Helper class for constructing AWS Console Link"""
+    """Base Helper class for constructing AWS Console Link."""
 
     name: ClassVar[str]
     key: ClassVar[str]
@@ -50,7 +50,7 @@ class BaseAwsLink(BaseOperatorLink):
 
     def format_link(self, **kwargs) -> str:
         """
-        Format AWS Service Link
+        Format AWS Service Link.
 
         Some AWS Service Link should require additional escaping
         in this case this method should be overridden.
@@ -80,7 +80,7 @@ class BaseAwsLink(BaseOperatorLink):
     def persist(
         cls, context: Context, operator: BaseOperator, region_name: str, aws_partition: str, **kwargs
     ) -> None:
-        """Store link information into XCom"""
+        """Store link information into XCom."""
         if not operator.do_xcom_push:
             return
 

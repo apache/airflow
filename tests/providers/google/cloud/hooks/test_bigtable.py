@@ -503,8 +503,9 @@ class TestBigtableHookDefaultProjectId:
         create.assert_called_once_with([], {})
 
     @mock.patch("google.cloud.bigtable.cluster.Cluster.update")
+    @mock.patch("google.cloud.bigtable.cluster.Cluster.reload")
     @mock.patch("airflow.providers.google.cloud.hooks.bigtable.BigtableHook._get_client")
-    def test_update_cluster(self, get_client, update):
+    def test_update_cluster(self, get_client, reload, update):
         instance_method = get_client.return_value.instance
         instance_exists_method = instance_method.return_value.exists
         instance_exists_method.return_value = True
@@ -514,6 +515,7 @@ class TestBigtableHookDefaultProjectId:
             instance=instance, cluster_id=CBT_CLUSTER, nodes=4
         )
         get_client.assert_not_called()
+        reload.assert_called_once_with()
         update.assert_called_once_with()
 
     @mock.patch("google.cloud.bigtable.table.Table.list_column_families")

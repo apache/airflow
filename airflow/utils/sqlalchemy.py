@@ -17,19 +17,19 @@
 # under the License.
 from __future__ import annotations
 
+import contextlib
 import copy
 import datetime
 import json
 import logging
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
 
 import pendulum
 from dateutil import relativedelta
 from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, true, tuple_
 from sqlalchemy.dialects import mssql, mysql
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm.session import Session
-from sqlalchemy.sql import ColumnElement
+from sqlalchemy.sql import ColumnElement, Select
 from sqlalchemy.sql.expression import ColumnOperators
 from sqlalchemy.types import JSON, Text, TypeDecorator, TypeEngine, UnicodeText
 
@@ -39,6 +39,7 @@ from airflow.serialization.enums import Encoding
 
 if TYPE_CHECKING:
     from kubernetes.client.models.v1_pod import V1Pod
+    from sqlalchemy.orm import Query, Session
 
 log = logging.getLogger(__name__)
 
@@ -51,7 +52,6 @@ class UtcDateTime(TypeDecorator):
     """
     Almost equivalent to :class:`~sqlalchemy.types.TIMESTAMP` with
     ``timezone=True`` option, but it differs from that by:
-
     - Never silently take naive :class:`~datetime.datetime`, instead it
       always raise :exc:`ValueError` unless time zone aware value.
     - :class:`~datetime.datetime` value's :attr:`~datetime.datetime.tzinfo`
@@ -59,8 +59,7 @@ class UtcDateTime(TypeDecorator):
     - Unlike SQLAlchemy's built-in :class:`~sqlalchemy.types.TIMESTAMP`,
       it never return naive :class:`~datetime.datetime`, but time zone
       aware value, even with SQLite or MySQL.
-    - Always returns TIMESTAMP in UTC
-
+    - Always returns TIMESTAMP in UTC.
     """
 
     impl = TIMESTAMP(timezone=True)
@@ -120,7 +119,7 @@ class ExtendedJSON(TypeDecorator):
     cache_ok = True
 
     def db_supports_json(self):
-        """Checks if the database supports JSON (i.e. is NOT MSSQL)"""
+        """Checks if the database supports JSON (i.e. is NOT MSSQL)."""
         return not conf.get("database", "sql_alchemy_conn").startswith("mssql")
 
     def load_dialect_impl(self, dialect) -> TypeEngine:
@@ -398,10 +397,11 @@ def nowait(session: Session) -> dict[str, Any]:
 
 
 def nulls_first(col, session: Session) -> dict[str, Any]:
-    """
-    Adds a nullsfirst construct to the column ordering. Currently only Postgres supports it.
-    In MySQL & Sqlite NULL values are considered lower than any non-NULL value, therefore, NULL values
-    appear first when the order is ASC (ascending)
+    """Specify *NULLS FIRST* to the column ordering.
+
+    This is only done to Postgres, currently the only backend that supports it.
+    Other databases do not need it since NULL values are considered lower than
+    any other values, and appear first when the order is ASC (ascending).
     """
     if session.bind.dialect.name == "postgresql":
         return nullsfirst(col)
@@ -412,7 +412,7 @@ def nulls_first(col, session: Session) -> dict[str, Any]:
 USE_ROW_LEVEL_LOCKING: bool = conf.getboolean("scheduler", "use_row_level_locking", fallback=True)
 
 
-def with_row_locks(query, session: Session, **kwargs):
+def with_row_locks(query: Query, session: Session, **kwargs) -> Query:
     """
     Apply with_for_update to an SQLAlchemy query, if row level locking is in use.
 
@@ -430,8 +430,22 @@ def with_row_locks(query, session: Session, **kwargs):
         return query
 
 
+@contextlib.contextmanager
+def lock_rows(query: Query, session: Session) -> Generator[None, None, None]:
+    """Lock database rows during the context manager block.
+
+    This is a convenient method for ``with_row_locks`` when we don't need the
+    locked rows.
+
+    :meta private:
+    """
+    locked_rows = with_row_locks(query, session).all()
+    yield
+    del locked_rows
+
+
 class CommitProhibitorGuard:
-    """Context manager class that powers prohibit_commit"""
+    """Context manager class that powers prohibit_commit."""
 
     expected_commit = False
 
@@ -484,7 +498,7 @@ def prohibit_commit(session):
 
 
 def is_lock_not_available_error(error: OperationalError):
-    """Check if the Error is about not being able to acquire lock"""
+    """Check if the Error is about not being able to acquire lock."""
     # DB specific error codes:
     # Postgres: 55P03
     # MySQL: 3572, 'Statement aborted because lock(s) could not be acquired immediately and NOWAIT
@@ -501,11 +515,31 @@ def is_lock_not_available_error(error: OperationalError):
     return False
 
 
+@overload
 def tuple_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
 ) -> ColumnOperators:
-    """Generates a tuple-in-collection operator to use in ``.filter()``.
+    ...
+
+
+@overload
+def tuple_in_condition(
+    columns: tuple[ColumnElement, ...],
+    collection: Select,
+    *,
+    session: Session,
+) -> ColumnOperators:
+    ...
+
+
+def tuple_in_condition(
+    columns: tuple[ColumnElement, ...],
+    collection: Iterable[Any] | Select,
+    *,
+    session: Session | None = None,
+) -> ColumnOperators:
+    """Generates a tuple-in-collection operator to use in ``.where()``.
 
     For most SQL backends, this generates a simple ``([col, ...]) IN [condition]``
     clause. This however does not work with MSSQL, where we need to expand to
@@ -515,17 +549,43 @@ def tuple_in_condition(
     """
     if settings.engine.dialect.name != "mssql":
         return tuple_(*columns).in_(collection)
-    clauses = [and_(*(c == v for c, v in zip(columns, values))) for values in collection]
+    if not isinstance(collection, Select):
+        rows = collection
+    elif session is None:
+        raise TypeError("session is required when passing in a subquery")
+    else:
+        rows = session.execute(collection)
+    clauses = [and_(*(c == v for c, v in zip(columns, values))) for values in rows]
     if not clauses:
         return false()
     return or_(*clauses)
 
 
+@overload
 def tuple_not_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
 ) -> ColumnOperators:
-    """Generates a tuple-not-in-collection operator to use in ``.filter()``.
+    ...
+
+
+@overload
+def tuple_not_in_condition(
+    columns: tuple[ColumnElement, ...],
+    collection: Select,
+    *,
+    session: Session,
+) -> ColumnOperators:
+    ...
+
+
+def tuple_not_in_condition(
+    columns: tuple[ColumnElement, ...],
+    collection: Iterable[Any] | Select,
+    *,
+    session: Session | None = None,
+) -> ColumnOperators:
+    """Generates a tuple-not-in-collection operator to use in ``.where()``.
 
     This is similar to ``tuple_in_condition`` except generating ``NOT IN``.
 
@@ -533,7 +593,13 @@ def tuple_not_in_condition(
     """
     if settings.engine.dialect.name != "mssql":
         return tuple_(*columns).not_in(collection)
-    clauses = [or_(*(c != v for c, v in zip(columns, values))) for values in collection]
+    if not isinstance(collection, Select):
+        rows = collection
+    elif session is None:
+        raise TypeError("session is required when passing in a subquery")
+    else:
+        rows = session.execute(collection)
+    clauses = [or_(*(c != v for c, v in zip(columns, values))) for values in rows]
     if not clauses:
         return true()
     return and_(*clauses)

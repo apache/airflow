@@ -18,12 +18,13 @@
 """
 This module contains a Google AutoML hook.
 
-.. spelling::
+.. spelling:word-list::
 
     PredictResponse
 """
 from __future__ import annotations
 
+from functools import cached_property
 from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -48,7 +49,7 @@ from google.cloud.automl_v1beta1.services.auto_ml.pagers import (
 )
 from google.protobuf.field_mask_pb2 import FieldMask
 
-from airflow.compat.functools import cached_property
+from airflow import AirflowException
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
@@ -93,6 +94,14 @@ class CloudAutoMLHook(GoogleBaseHook):
             self._client = AutoMlClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
+    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
+        """Waits for long-lasting operation to complete."""
+        try:
+            return operation.result(timeout=timeout)
+        except Exception:
+            error = operation.exception(timeout=timeout)
+            raise AirflowException(error)
+
     @cached_property
     def prediction_client(self) -> PredictionServiceClient:
         """
@@ -113,10 +122,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         retry: Retry | _MethodDefault = DEFAULT,
     ) -> Operation:
         """
-        Creates a model_id. Returns a Model in the `response` field when it
-        completes. When you create a model, several model evaluations are
-        created for it: a global evaluation, and one evaluation for each
-        annotation spec.
+        Creates a model_id and returns a Model in the `response` field when it completes.
+
+        When you create a model, several model evaluations are created for it:
+        a global evaluation, and one evaluation for each annotation spec.
 
         :param model: The model_id to create. If a dict is provided, it must be of the same form
             as the protobuf message `google.cloud.automl_v1beta1.types.Model`
@@ -154,9 +163,10 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Perform a batch prediction. Unlike the online `Predict`, batch
-        prediction result won't be immediately available in the response.
-        Instead, a long running operation object is returned.
+        Perform a batch prediction and returns a long-running operation object.
+
+        Unlike the online `Predict`, batch prediction result won't be immediately
+        available in the response.  Instead, a long-running operation object is returned.
 
         :param model_id: Name of the model_id requested to serve the batch prediction.
         :param input_config: Required. The input configuration for batch prediction.
@@ -206,8 +216,7 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> PredictResponse:
         """
-        Perform an online prediction. The prediction result will be directly
-        returned in the response.
+        Perform an online prediction and returns the prediction result in the response.
 
         :param model_id: Name of the model_id requested to serve the prediction.
         :param payload: Required. Payload to perform a prediction on. The payload must match the problem type
@@ -476,7 +485,9 @@ class CloudAutoMLHook(GoogleBaseHook):
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
-        Deploys a model. If a model is already deployed, deploying it with the same parameters
+        Deploys a model.
+
+        If a model is already deployed, deploying it with the same parameters
         has no effect. Deploying with different parameters (as e.g. changing node_number) will
         reset the deployment state without pausing the model_id's availability.
 

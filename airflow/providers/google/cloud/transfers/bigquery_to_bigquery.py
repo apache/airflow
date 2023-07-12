@@ -21,6 +21,7 @@ from __future__ import annotations
 import warnings
 from typing import TYPE_CHECKING, Sequence
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
@@ -53,10 +54,11 @@ class BigQueryToBigQueryOperator(BaseOperator):
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
     :param encryption_configuration: [Optional] Custom encryption configuration (e.g., Cloud KMS keys).
-        **Example**: ::
+
+        .. code-block:: python
 
             encryption_configuration = {
-                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
+                "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key",
             }
     :param location: The geographic location of the job. You must specify the location to run the job if
         the location to run a job is not in the US or the EU multi-regional location or
@@ -122,7 +124,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         )
 
         with warnings.catch_warnings():
-            warnings.simplefilter("ignore", DeprecationWarning)
+            warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
             job_id = hook.run_copy(
                 source_project_dataset_tables=self.source_project_dataset_tables,
                 destination_project_dataset_table=self.destination_project_dataset_table,

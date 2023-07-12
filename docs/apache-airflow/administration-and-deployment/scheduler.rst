@@ -154,6 +154,7 @@ The following databases are fully supported and provide an "optimal" experience:
 
   Microsoft SQLServer has not been tested with HA.
 
+.. _fine-tuning-scheduler:
 
 Fine-tuning your Scheduler performance
 --------------------------------------
