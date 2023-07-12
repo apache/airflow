@@ -344,16 +344,17 @@ def test_duplicate_connection(admin_client):
 
     data = {"action": "mulduplicate", "rowid": [conn1.id, conn3.id]}
     resp = admin_client.post("/connection/action_post", data=data, follow_redirects=True)
-    expected_result = {
+    assert resp.status_code == 200
+
+    expected_connections_ids = {
         "test_duplicate_gcp_connection",
         "test_duplicate_gcp_connection_copy1",
         "test_duplicate_mysql_connection",
         "test_duplicate_postgres_connection_copy1",
         "test_duplicate_postgres_connection_copy2",
     }
-    response = {conn[0] for conn in session.query(Connection.conn_id).all()}
-    assert resp.status_code == 200
-    assert expected_result == response
+    connections_ids = {conn.conn_id for conn in session.query(Connection.conn_id)}
+    assert expected_connections_ids == connections_ids
 
 
 def test_duplicate_connection_error(admin_client):
@@ -380,12 +381,11 @@ def test_duplicate_connection_error(admin_client):
 
     data = {"action": "mulduplicate", "rowid": [connections[0].id]}
     resp = admin_client.post("/connection/action_post", data=data, follow_redirects=True)
-
-    expected_result = {f"test_duplicate_postgres_connection_copy{i}" for i in range(1, 11)}
-
     assert resp.status_code == 200
-    response = {conn[0] for conn in session.query(Connection.conn_id).all()}
-    assert expected_result == response
+
+    expected_connections_ids = {f"test_duplicate_postgres_connection_copy{i}" for i in range(1, 11)}
+    connections_ids = {conn.conn_id for conn in session.query(Connection.conn_id)}
+    assert expected_connections_ids == connections_ids
 
 
 @pytest.fixture()
