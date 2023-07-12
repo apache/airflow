@@ -31,7 +31,7 @@ from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
-from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.amazon.aws.utils import prune_dict
 from airflow.providers.amazon.aws.utils.sagemaker import ApprovalStatus
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.json import AirflowJsonEncoder
@@ -1325,7 +1325,7 @@ class SageMakerCreateExperimentOperator(SageMakerBaseOperator):
             "Description": self.description,
             "Tags": format_tags(self.tags),
         }
-        ans = sagemaker_hook.conn.create_experiment(**trim_none_values(params))
+        ans = sagemaker_hook.conn.create_experiment(**prune_dict(params))
         arn = ans["ExperimentArn"]
         self.log.info("Experiment %s created successfully with ARN %s.", self.name, arn)
         return arn

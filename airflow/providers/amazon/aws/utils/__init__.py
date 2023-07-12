@@ -21,13 +21,17 @@ import re
 from datetime import datetime
 from enum import Enum
 
+from deprecated import deprecated
+
+from airflow.utils.helpers import prune_dict
 from airflow.version import version
 
 log = logging.getLogger(__name__)
 
 
+@deprecated(reason="use prune_dict() instead")
 def trim_none_values(obj: dict):
-    return {key: val for key, val in obj.items() if val is not None}
+    return prune_dict(obj)
 
 
 def datetime_to_epoch(date_time: datetime) -> int:

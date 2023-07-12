@@ -22,7 +22,7 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, Iterable
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
-from airflow.providers.amazon.aws.utils import trim_none_values
+from airflow.providers.amazon.aws.utils import prune_dict
 
 if TYPE_CHECKING:
     from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient  # noqa
@@ -88,10 +88,10 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         }
         if isinstance(sql, list):
             kwargs["Sqls"] = sql
-            resp = self.conn.batch_execute_statement(**trim_none_values(kwargs))
+            resp = self.conn.batch_execute_statement(**prune_dict(kwargs))
         else:
             kwargs["Sql"] = sql
-            resp = self.conn.execute_statement(**trim_none_values(kwargs))
+            resp = self.conn.execute_statement(**prune_dict(kwargs))
 
         statement_id = resp["Id"]
 
