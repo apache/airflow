@@ -31,7 +31,7 @@ from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence, cast
 
 import dill
 
@@ -278,12 +278,9 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         self.log.info("Skipping downstream tasks")
 
-        if TYPE_CHECKING:
-            assert isinstance(dag_run.execution_date, DateTime)
-
         self.skip(
             dag_run=dag_run,
-            execution_date=dag_run.execution_date,
+            execution_date=cast("DateTime", dag_run.execution_date),
             tasks=to_skip,
             map_index=context["ti"].map_index,
         )
