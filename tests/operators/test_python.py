@@ -1148,71 +1148,98 @@ class TestCurrentContextRuntime:
             op.run(ignore_first_depends_on_past=True, ignore_ti_state=True)
 
 
-@pytest.mark.parametrize(
-    "ignore_downstream_trigger_rules, with_teardown, should_skip, expected",
-    [
-        (False, True, True, ["op2"]),
-        (False, True, False, []),
-        (False, False, True, ["op2"]),
-        (False, False, False, []),
-        (True, True, True, ["op2", "op3"]),
-        (True, True, False, []),
-        (True, False, True, ["op2", "op3", "op4"]),
-        (True, False, False, []),
-    ],
-)
-def test_short_circuit_with_teardowns(
-    dag_maker, ignore_downstream_trigger_rules, should_skip, with_teardown, expected
-):
-    with dag_maker() as dag:
-        op1 = ShortCircuitOperator(
-            task_id="op1",
-            python_callable=lambda: not should_skip,
-            ignore_downstream_trigger_rules=ignore_downstream_trigger_rules,
-        )
-        op2 = PythonOperator(task_id="op2", python_callable=print)
-        op3 = PythonOperator(task_id="op3", python_callable=print)
-        op4 = PythonOperator(task_id="op4", python_callable=print)
-        if with_teardown:
-            op4.as_teardown()
-        op1 >> op2 >> op3 >> op4
-        op1.skip = MagicMock()
-        dagrun = dag_maker.create_dagrun()
-        tis = dagrun.get_task_instances()
-        ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
-        ti._run_raw_task()
-        expected_tasks = {dag.task_dict[x] for x in expected}
-    if should_skip:
-        # we can't use assert_called_with because it's a set and therefore not ordered
-        actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
-        assert actual_skipped == expected_tasks
-    else:
-        op1.skip.assert_not_called()
-
-
-@pytest.mark.parametrize("config", ["sequence", "parallel"])
-def test_short_circuit_with_teardowns_complicated(dag_maker, config):
-    with dag_maker():
-        s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
-        s2 = PythonOperator(task_id="s2", python_callable=print).as_setup()
-        op1 = ShortCircuitOperator(
-            task_id="op1",
-            python_callable=lambda: False,
-        )
-        op2 = PythonOperator(task_id="op2", python_callable=print)
-        t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(setups=s1)
-        t2 = PythonOperator(task_id="t2", python_callable=print).as_teardown(setups=s2)
-        if config == "sequence":
-            s1 >> op1 >> s2 >> op2 >> [t1, t2]
-        elif config == "parallel":
-            s1 >> op1 >> s2 >> op2 >> t2 >> t1
+class TestShortCircuitWithTeardown:
+    @pytest.mark.parametrize(
+        "ignore_downstream_trigger_rules, with_teardown, should_skip, expected",
+        [
+            (False, True, True, ["op2"]),
+            (False, True, False, []),
+            (False, False, True, ["op2"]),
+            (False, False, False, []),
+            (True, True, True, ["op2", "op3"]),
+            (True, True, False, []),
+            (True, False, True, ["op2", "op3", "op4"]),
+            (True, False, False, []),
+        ],
+    )
+    def test_short_circuit_with_teardowns(
+        self, dag_maker, ignore_downstream_trigger_rules, should_skip, with_teardown, expected
+    ):
+        with dag_maker() as dag:
+            op1 = ShortCircuitOperator(
+                task_id="op1",
+                python_callable=lambda: not should_skip,
+                ignore_downstream_trigger_rules=ignore_downstream_trigger_rules,
+            )
+            op2 = PythonOperator(task_id="op2", python_callable=print)
+            op3 = PythonOperator(task_id="op3", python_callable=print)
+            op4 = PythonOperator(task_id="op4", python_callable=print)
+            if with_teardown:
+                op4.as_teardown()
+            op1 >> op2 >> op3 >> op4
+            op1.skip = MagicMock()
+            dagrun = dag_maker.create_dagrun()
+            tis = dagrun.get_task_instances()
+            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti._run_raw_task()
+            expected_tasks = {dag.task_dict[x] for x in expected}
+        if should_skip:
+            # we can't use assert_called_with because it's a set and therefore not ordered
+            actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
+            assert actual_skipped == expected_tasks
         else:
-            raise ValueError("unexpected")
-        op1.skip = MagicMock()
-        dagrun = dag_maker.create_dagrun()
-        tis = dagrun.get_task_instances()
-        ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
-        ti._run_raw_task()
-        # we can't use assert_called_with because it's a set and therefore not ordered
-        actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
-        assert actual_skipped == {s2, op2, t2}
+            op1.skip.assert_not_called()
+
+    @pytest.mark.parametrize("config", ["sequence", "parallel"])
+    def test_short_circuit_with_teardowns_complicated(self, dag_maker, config):
+        with dag_maker():
+            s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
+            s2 = PythonOperator(task_id="s2", python_callable=print).as_setup()
+            op1 = ShortCircuitOperator(
+                task_id="op1",
+                python_callable=lambda: False,
+            )
+            op2 = PythonOperator(task_id="op2", python_callable=print)
+            t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(setups=s1)
+            t2 = PythonOperator(task_id="t2", python_callable=print).as_teardown(setups=s2)
+            if config == "sequence":
+                s1 >> op1 >> s2 >> op2 >> [t1, t2]
+            elif config == "parallel":
+                s1 >> op1 >> s2 >> op2 >> t2 >> t1
+            else:
+                raise ValueError("unexpected")
+            op1.skip = MagicMock()
+            dagrun = dag_maker.create_dagrun()
+            tis = dagrun.get_task_instances()
+            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti._run_raw_task()
+            # we can't use assert_called_with because it's a set and therefore not ordered
+            actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
+            assert actual_skipped == {s2, op2}
+
+    def test_short_circuit_with_teardowns_complicated_2(self, dag_maker):
+        with dag_maker():
+            s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
+            s2 = PythonOperator(task_id="s2", python_callable=print).as_setup()
+            op1 = ShortCircuitOperator(
+                task_id="op1",
+                python_callable=lambda: False,
+            )
+            op2 = PythonOperator(task_id="op2", python_callable=print)
+            op3 = PythonOperator(task_id="op3", python_callable=print)
+            t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(setups=s1)
+            t2 = PythonOperator(task_id="t2", python_callable=print).as_teardown(setups=s2)
+            s1 >> op1 >> op3 >> t1
+            s2 >> op2 >> t2
+
+            # this is the weird, maybe nonsensical part
+            # in this case we don't want to skip t2 since it should run
+            op1 >> t2
+            op1.skip = MagicMock()
+            dagrun = dag_maker.create_dagrun()
+            tis = dagrun.get_task_instances()
+            ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
+            ti._run_raw_task()
+            # we can't use assert_called_with because it's a set and therefore not ordered
+            actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
+            assert actual_skipped == {op3}

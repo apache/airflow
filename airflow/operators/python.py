@@ -251,19 +251,8 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
         if condition:
             self.log.info("Proceeding with downstream tasks...")
             return condition
-
-        scope_teardowns = {x.task_id for x in self.get_upstreams_only_setups_and_teardowns() if x.is_teardown}
-
-        def is_relevant_teardown(other):
-            if other.task_id in scope_teardowns:
-                return True
-            elif other.is_teardown and not any(x.is_setup for x in other.upstream_list):
-                return True
-            else:
-                return False
-
         downstream_tasks = [
-            x for x in context["task"].get_flat_relatives(upstream=False) if not is_relevant_teardown(x)
+            x for x in context["task"].get_flat_relatives(upstream=False) if not x.is_teardown
         ]
         self.log.debug("Downstream task IDs %s", downstream_tasks)
 
@@ -285,9 +274,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
                 # Explicitly setting the state of the direct, downstream task(s) to "skipped" and letting the
                 # Scheduler handle the remaining downstream task(s) appropriately.
                 to_skip = [
-                    x
-                    for x in context["task"].get_direct_relatives(upstream=False)
-                    if not is_relevant_teardown(x)
+                    x for x in context["task"].get_direct_relatives(upstream=False) if not x.is_teardown
                 ]
                 self.skip(
                     dag_run=dag_run,
