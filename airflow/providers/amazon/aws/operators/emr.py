@@ -1036,7 +1036,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.release_label = release_label
         self.job_type = job_type
-        self.wait_for_completion = False if deferrable else wait_for_completion
+        self.wait_for_completion = wait_for_completion
         self.kwargs = kwargs
         self.config = config or {}
         self.waiter_max_attempts = int(waiter_max_attempts)  # type: ignore[arg-type]
@@ -1103,19 +1103,20 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         return application_id
 
     def start_application_deferred(self, context, event=None):
-        if event["status"] == "success":
-            self.log.info("Starting application %s", event["application_id"])
-            self.hook.conn.start_application(applicationId=event["application_id"])
-            self.defer(
-                trigger=EmrServerlessStartApplicationTrigger(
-                    application_id=event["application_id"],
-                    aws_conn_id=self.aws_conn_id,
-                    waiter_delay=self.waiter_delay,
-                    waiter_max_attempts=self.waiter_max_attempts,
-                ),
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
-                method_name="execute_complete",
-            )
+        if event["status"] != "success":
+            raise AirflowException(f"Application {event['application_id']} failed to create")
+        self.log.info("Starting application %s", event["application_id"])
+        self.hook.conn.start_application(applicationId=event["application_id"])
+        self.defer(
+            trigger=EmrServerlessStartApplicationTrigger(
+                application_id=event["application_id"],
+                aws_conn_id=self.aws_conn_id,
+                waiter_delay=self.waiter_delay,
+                waiter_max_attempts=self.waiter_max_attempts,
+            ),
+            timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+            method_name="execute_complete",
+        )
 
     def execute_complete(self, context, event=None):
         if event["status"] == "success":
