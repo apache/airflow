@@ -69,13 +69,19 @@ class DataPipelineHook(GoogleBaseHook):
     def create_data_pipeline(
         self,
         body: dict,
-        data_pipeline_name: str,
         project_id: str,
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
     ) -> None:
         """
-        Creates DataPipeline.
+        Creates a new Data Pipeline instance from the Data Pipeline API.
+
+        :param body: The request body (contains instance of Pipeline). See:
+            https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/create#request-body
+        :param project_id: The ID of the GCP project that owns the job.
+        :param location: The location to direct the Data Pipeline instance to (example_dags uses uscentral-1).
+
         """
+        
         parent = self.build_parent_name(project_id, location)
         service = self.get_conn()
         print(dir(service.projects().locations()))
@@ -100,13 +106,19 @@ class DataPipelineHook(GoogleBaseHook):
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
     ) -> None:
         """
-        Runs DataPipeline.
+        Runs a Data Pipeline Instance using the Data Pipeline API 
+
+        :param data_pipeline_name:  The display name of the pipeline. In example 
+            projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
+        :param project_id: The ID of the GCP project that owns the job.
+        :param location: The location of the Data Pipeline instance to (example_dags uses uscentral-1).
         """
+        parent = self.build_parent_name(project_id, location)
         service = self.get_conn()
         print(dir(service.projects().locations()))
         request = (
             service.projects().locations().pipelines().run(
-                name = data_pipeline_name,
+                name = f"{parent}/pipelines/{data_pipeline_name}",
                 body = {},
             )
         )

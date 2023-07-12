@@ -40,13 +40,20 @@ from airflow.version import version
 
 
 class CreateDataPipelineOperator(GoogleCloudBaseOperator):
-    """ Create DataPipeline Operator
+    """ 
+    Creates a new Data Pipeline instance from the Data Pipeline API.
+
+    :param body: The request body (contains instance of Pipeline). See:
+        https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/create#request-body
+    :param project_id: The ID of the GCP project that owns the job.
+    :param location: The location to direct the Data Pipeline instance to (example_dags uses uscentral-1).
+    :param gcp_conn_id: The connection ID to connect to the Google Cloud
+        Platform.
     """
     def __init__(
         self,
         *,
         body: dict,
-        data_pipeline_name: str = "{{task.task_id}}",
         project_id: str | None = None,
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
@@ -57,7 +64,6 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
         self.body = body
         self.project_id = project_id
         self.location = location
-        self.data_pipeline_name = data_pipeline_name
         self.gcp_conn_id = gcp_conn_id
         self.datapipeline_hook : DataPipelineHook | None = None
         self.body["pipelineSources"] = {"airflow":"airflow"}
@@ -71,15 +77,24 @@ class CreateDataPipelineOperator(GoogleCloudBaseOperator):
             project_id = self.project_id,
             body = self.body,
             location = self.location,
-            data_pipeline_name = self.data_pipeline_name
         )
+        self.log.info("Response Body: ", self.data_pipeline)
 
         # returns the full response body
         return self.data_pipeline
 
 
 class RunDataPipelineOperator(GoogleCloudBaseOperator):
-    """ Run Data Pipeline Operator """
+    """ 
+    Runs a Data Pipeline Instance using the Data Pipeline API 
+
+    :param data_pipeline_name:  The display name of the pipeline. In example 
+        projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
+    :param project_id: The ID of the GCP project that owns the job.
+    :param location: The location of the Data Pipeline instance to (example_dags uses uscentral-1).
+    :param gcp_conn_id: The connection ID to connect to the Google Cloud
+        Platform.
+    """
     def __init__(
             self,
             data_pipeline_name: str,

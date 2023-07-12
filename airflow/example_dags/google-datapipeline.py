@@ -53,7 +53,6 @@ with models.DAG(
         task_id="create_data_pipeline",
         project_id="dataflow-interns",
         location="us-central1",
-        data_pipeline_name="airflow-test",
         body = {
             "name": "projects/dataflow-interns/locations/us-central1/pipelines/dp-create-1642676351302-mp--1675461000",
             "type": "PIPELINE_TYPE_BATCH",
@@ -79,9 +78,8 @@ with models.DAG(
     print(create_data_pipeline)
     run_data_pipeline = RunDataPipelineOperator(
         task_id = "run_data_pipeline",
-        data_pipeline_name = "projects/dataflow-interns/locations/us-central1/pipelines/dp-create-1642676351302-mp--1675461000"
+        data_pipeline_name = "dp-create-1642676351302-mp--1675461000"
         )
  
-
     create_data_pipeline 
     run_data_pipeline
