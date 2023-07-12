@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+3.3.0
+.....
+
+.. note::
+  This provider release is the first release that has Celery Executor and
+  Celery Kubernetes Executor moved from the core ``apache-airflow`` package to a Celery
+  provider package.
+
 3.2.1
 .....
 
