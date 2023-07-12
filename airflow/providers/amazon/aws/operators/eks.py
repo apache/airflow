@@ -331,8 +331,11 @@ class EksCreateClusterOperator(BaseOperator):
             subnets=cast(List[str], self.resources_vpc_config.get("subnetIds")),
         )
 
-    def deferrable_create_cluster_next(self, context: Context, event: dict[str, Any] = {}) -> None:
-        if event["status"] == "failed":
+    def deferrable_create_cluster_next(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event is None:
+            self.log.error("Trigger error: event is None")
+            raise AirflowException("Trigger error: event is None")
+        elif event["status"] == "failed":
             self.log.error("Cluster failed to start and will be torn down.")
             self.eks_hook.delete_cluster(name=self.cluster_name)
             self.defer(
@@ -393,14 +396,20 @@ class EksCreateClusterOperator(BaseOperator):
                     timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
                 )
 
-    def execute_failed(self, context: Context, event: dict[str, Any] = {}) -> None:
-        if event["status"] == "delteted":
+    def execute_failed(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event is None:
+            self.log.info("Trigger error: event is None")
+            raise AirflowException("Trigger error: event is None")
+        elif event["status"] == "delteted":
             self.log.info("Cluster deleted")
             raise event["exception"]
 
-    def execute_complete(self, context: Context, event: dict[str, Any] = {}) -> None:
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         resource = "fargate profile" if self.compute == "fargate" else self.compute
-        if event["status"] != "success":
+        if event is None:
+            self.log.info("Trigger error: event is None")
+            raise AirflowException("Trigger error: event is None")
+        elif event["status"] != "success":
             raise AirflowException(f"Error creating {resource}: {event}")
 
         self.log.info("%s created successfully", resource)
@@ -762,8 +771,11 @@ class EksDeleteClusterOperator(BaseOperator):
                 )
         self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
 
-    def execute_complete(self, context: Context, event: dict[str, Any] = {}) -> None:
-        if event["status"] == "success":
+    def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
+        if event is None:
+            self.log.error("Trigger error. Event is None")
+            raise AirflowException("Trigger error. Event is None")
+        elif event["status"] == "success":
             self.log.info("Cluster deleted successfully.")
 
 
