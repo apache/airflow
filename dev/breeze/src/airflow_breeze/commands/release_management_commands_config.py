@@ -16,16 +16,34 @@
 # under the License.
 from __future__ import annotations
 
-RELEASE_MANAGEMENT_COMMANDS: dict[str, str | list[str]] = {
-    "name": "Release management",
+RELEASE_AIRFLOW_COMMANDS: dict[str, str | list[str]] = {
+    "name": "Airflow release commands",
     "commands": [
-        "verify-provider-packages",
+        "prepare-airflow-package",
+        "create-minor-branch",
+        "start-rc-process",
+        "start-release",
+        "release-prod-images",
+    ],
+}
+
+RELEASE_PROVIDERS_COMMANDS: dict[str, str | list[str]] = {
+    "name": "Providers release commands",
+    "commands": [
         "prepare-provider-documentation",
         "prepare-provider-packages",
-        "prepare-airflow-package",
-        "release-prod-images",
-        "generate-constraints",
+        "install-provider-packages",
+        "verify-provider-packages",
+        "generate-providers-metadata",
+        "generate-issue-content-providers",
+    ],
+}
+
+RELEASE_OTHER_COMMANDS: dict[str, str | list[str]] = {
+    "name": "Other release commands",
+    "commands": [
         "publish-docs",
+        "generate-constraints",
     ],
 }
 

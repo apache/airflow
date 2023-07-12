@@ -35,7 +35,7 @@ prod-image:build:58ab53c2f5e799bbe05d6fac26d001bf
 prod-image:pull:76f1f27e6119928412abecf153fce4bb
 prod-image:verify:bd2b78738a7c388dbad6076c41a9f906
 prod-image:2da480c21d7eb120075489dc1da0f55b
-release-management:create-minor-branch:91d4727f5d95df6eed6c09a5408fda08
+release-management:create-minor-branch:a3834afc4aa5d1e98002c9e9e7a9931d
 release-management:generate-constraints:b8fcaf8f0acd35ed5dbd48659bdb6485
 release-management:generate-issue-content-providers:9cea234261547208ac812464d3e4a598
 release-management:generate-providers-metadata:d4e8e5cfaa024e3963af02d7a873048d
@@ -45,10 +45,10 @@ release-management:prepare-provider-documentation:bc0b95c6a0f308273ab25f728afdb0
 release-management:prepare-provider-packages:3e19a787c71d5515a2bc05539da0022f
 release-management:publish-docs:4a7d78a846f7e58c6af4a55cbdf7104b
 release-management:release-prod-images:4d85a23a2175bf8894de5aedbdd85614
-release-management:start-rc-process:108c9daabd5970fde86210b1669990cc
-release-management:start-release:ad13846c7573ddaaa59adc72f0f00284
+release-management:start-rc-process:b27bd524dd3c89f50a747b60a7e892c1
+release-management:start-release:419f48f6a4ff4457cb9de7ff496aebbe
 release-management:verify-provider-packages:96dce5644aad6b37080acf77b3d8de3a
-release-management:473d554e19e108635deda89eb8e0bd05
+release-management:b53a6b829715075b5570de4760887a2a
 sbom:generate-provider-requirements:1e7609a0ebafb839d30ec90e4254a628
 sbom:update-sbom-information:0ce56884e5f842e3e80d6619df1ccc64
 sbom:d9c57d78e23a29ec9cd0139e230e1811
