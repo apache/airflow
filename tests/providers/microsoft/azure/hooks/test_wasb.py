@@ -56,7 +56,6 @@ class TestWasbHook:
         self.public_read_conn_id_without_host = "pub_read_id_without_host"
         self.managed_identity_conn_id = "managed_identity"
         self.authority = "https://test_authority.com"
-        self.test_account_name_as_hostname = "testaccountname"
 
         self.proxies = {"http": "http_proxy_uri", "https": "https_proxy_uri"}
         self.client_secret_auth_config = {
