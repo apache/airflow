@@ -630,7 +630,19 @@ jobs:
             docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
             docs-inventory-
       - name: "Build docs"
-        run: breeze build-docs ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+        run: >
+          breeze build-docs
+          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+          --for-production
+      - name: "Clone airflow-site"
+        run: >
+          git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
+          echo "AIRFLOW_SITE_DIRECTORY=${GITHUB_WORKSPACE}/airflow-site" >> "$GITHUB_ENV"
+      - name: "Publish docs"
+        run: >
+          breeze release-management publish-docs
+          --override-versioned
+          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
       - name: Configure AWS credentials
         uses: ./.github/actions/configure-aws-credentials
         if: >

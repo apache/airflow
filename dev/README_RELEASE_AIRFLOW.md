@@ -804,7 +804,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 - Copy the documentation to the ``airflow-site`` repository, create commit, push changes, open a PR and merge it when the build is green.
 
     ```shell script
-    ./docs/publish_docs.py --package-filter apache-airflow --package-filter docker-stack
+    breeze release-management publish-docs --package-filter apache-airflow --package-filter docker-stack
     cd "${AIRFLOW_SITE_DIRECTORY}"
     cd post-docs
     python add-back-references.py airflow

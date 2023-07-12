@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -euo pipefail
+from __future__ import annotations
 
-if [[ $# == "0" ]]; then
-    echo "ERROR: Pass provider ids as list"
-    exit 1
-fi
+import os
+from pathlib import Path
 
-provider_filters=()
-for provider in "${@}"
-do
-    provider_filters+=("--package-filter" "apache-airflow-providers-${provider//./-}")
-done
+import yaml
 
-breeze release-management build-docs \
-    "${provider_filters[@]}"
+CHART_DIR = Path(__file__).resolve().parents[5] / "chart"
+CHART_YAML_PATH = os.path.join(CHART_DIR, "Chart.yaml")
 
-cd "${AIRFLOW_SITE_DIRECTORY}"
+
+def chart_yaml() -> dict:
+    with open(CHART_YAML_PATH) as f:
+        return yaml.safe_load(f)
+
+
+def chart_version() -> str:
+    return chart_yaml()["version"]
