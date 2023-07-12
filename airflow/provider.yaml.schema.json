@@ -306,13 +306,20 @@
           "type": "string"
       }
     },
-      "notifications": {
+    "notifications": {
           "type": "array",
           "description": "Notification class names",
           "items": {
               "type": "string"
           }
     },
+    "executors": {
+          "type": "array",
+          "description": "Executor class names",
+          "items": {
+              "type": "string"
+          }
+      },
     "plugins": {
       "type": "array",
       "description": "Plugins exposed by the provider",
