@@ -816,7 +816,7 @@ def publish_docs(
         print(f" - {pkg}")
     print()
     for package_name in current_packages:
-        builder = PublishDocsBuilder(package_name=package_name, for_production=True)
+        builder = PublishDocsBuilder(package_name=package_name)
         builder.publish(override_versioned=override_versioned, airflow_site_dir=airflow_site_directory)
 
 

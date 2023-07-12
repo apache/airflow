@@ -633,7 +633,6 @@ jobs:
         run: >
           breeze build-docs
           ${{ needs.build-info.outputs.docs-filter-list-as-string }}
-          --for-production
       - name: "Clone airflow-site"
         run: >
           git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&

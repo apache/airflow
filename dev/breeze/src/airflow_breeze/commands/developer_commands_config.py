@@ -185,7 +185,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--docs-only",
                 "--spellcheck-only",
                 "--clean-build",
-                "--for-production",
                 "--one-pass-only",
                 "--package-filter",
                 "--github-repository",
