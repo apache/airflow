@@ -74,10 +74,7 @@ class EventBridgePutEventsOperator(BaseOperator):
 
         self.log.info("Sent %d events to EventBridge.", len(self.entries))
 
-        # If events have failed, log those error codes and messages to console, and raise an exception.
-
         if response.get("FailedEntryCount"):
-            self.log.error("Some events have failed to send.")
             for event in response["Entries"]:
                 if "ErrorCode" in event:
                     self.log.error(event)
