@@ -5822,7 +5822,7 @@
                     "default": false
                 },
                 "schedule": {
-                    "description": "Cleanup schedule.",
+                    "description": "Cleanup schedule (templated).",
                     "type": "string",
                     "default": "*/15 * * * *"
                 },
