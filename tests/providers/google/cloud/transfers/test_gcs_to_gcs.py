@@ -656,3 +656,174 @@ class TestGoogleCloudStorageToCloudStorageOperator:
             AirflowException, match=f"{SOURCE_OBJECTS_SINGLE_FILE} does not exist in bucket {TEST_BUCKET}"
         ):
             operator.execute(None)
+
+    @pytest.mark.parametrize(
+        "existing_objects, source_object, match_glob, exact_match, expected_source_objects, "
+        "expected_destination_objects",
+        [
+            (["source/foo.txt"], "source/foo.txt", None, True, ["source/foo.txt"], ["{prefix}/foo.txt"]),
+            (["source/foo.txt"], "source/foo.txt", None, False, ["source/foo.txt"], ["{prefix}/foo.txt"]),
+            (["source/foo.txt"], "source", None, False, ["source/foo.txt"], ["{prefix}/foo.txt"]),
+            (["source/foo.txt"], "source/", None, False, ["source/foo.txt"], ["{prefix}/foo.txt"]),
+            (["source/foo.txt"], "source/*", None, False, ["source/foo.txt"], ["{prefix}/foo.txt"]),
+            (["source/foo.txt"], "source/foo.*", None, False, ["source/foo.txt"], ["{prefix}/txt"]),
+            (["source/foo.txt"], "source/", "**/foo*", False, ["source/foo.txt"], ["{prefix}/foo.txt"]),
+            (["source/foo.txt"], "source/", "**/foo.txt", False, ["source/foo.txt"], ["{prefix}/foo.txt"]),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source/foo.txt",
+                None,
+                True,
+                ["source/foo.txt"],
+                ["{prefix}/foo.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source/foo.txt",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source/",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source/*",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source/foo.*",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc"],
+                ["{prefix}/txt", "{prefix}/txt.abc"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source/",
+                "**/foo*",
+                False,
+                ["source/foo.txt", "source/foo.txt.abc"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc"],
+                "source/",
+                "**/foo.txt",
+                False,
+                ["source/foo.txt"],
+                ["{prefix}/foo.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source/foo.txt",
+                None,
+                True,
+                ["source/foo.txt"],
+                ["{prefix}/foo.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source/foo.txt",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc", "{prefix}/foo.txt/subfolder/file.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc", "{prefix}/foo.txt/subfolder/file.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source/",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc", "{prefix}/foo.txt/subfolder/file.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source/*",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc", "{prefix}/foo.txt/subfolder/file.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source/foo.*",
+                None,
+                False,
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                ["{prefix}/txt", "{prefix}/txt.abc", "{prefix}/txt/subfolder/file.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source/",
+                "**/foo*",
+                False,
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                ["{prefix}/foo.txt", "{prefix}/foo.txt.abc", "{prefix}/foo.txt/subfolder/file.txt"],
+            ),
+            (
+                ["source/foo.txt", "source/foo.txt.abc", "source/foo.txt/subfolder/file.txt"],
+                "source/",
+                "**/foo.txt",
+                False,
+                ["source/foo.txt"],
+                ["{prefix}/foo.txt"],
+            ),
+        ],
+    )
+    @mock.patch("airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook")
+    def test_copy_files_into_a_folder(
+        self,
+        mock_hook,
+        existing_objects,
+        source_object,
+        match_glob,
+        exact_match,
+        expected_source_objects,
+        expected_destination_objects,
+    ):
+        mock_hook.return_value.list.return_value = existing_objects
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=source_object,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJECT_PREFIX + "/",
+            exact_match=exact_match,
+            match_glob=match_glob,
+        )
+        operator.execute(None)
+
+        mock_calls = [
+            mock.call(TEST_BUCKET, src, DESTINATION_BUCKET, dst.format(prefix=DESTINATION_OBJECT_PREFIX))
+            for src, dst in zip(expected_source_objects, expected_destination_objects)
+        ]
+        mock_hook.return_value.rewrite.assert_has_calls(mock_calls)

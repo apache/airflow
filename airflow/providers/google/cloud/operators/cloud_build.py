@@ -747,8 +747,7 @@ class CloudBuildListBuildsOperator(GoogleCloudBaseOperator):
 
 class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
     """
-    Creates a new build based on the specified build. This method creates a new build
-    using the original build request, which may or may not result in an identical build.
+    Creates a new build using the original build request, which may or may not result in an identical build.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -999,6 +998,7 @@ class CloudBuildUpdateBuildTriggerOperator(GoogleCloudBaseOperator):
 class BuildProcessor:
     """
     Processes build configurations to add additional functionality to support the use of operators.
+
     The following improvements are made:
     * It is required to provide the source and only one type can be given,
     * It is possible to provide the source as the URL address instead dict.

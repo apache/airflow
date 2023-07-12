@@ -16,14 +16,15 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest import mock
 from unittest.mock import call
 
 import pytest
 
 from airflow_breeze.utils.docker_command_utils import (
+    autodetect_docker_context,
     check_docker_compose_version,
-    check_docker_context,
     check_docker_version,
 )
 
@@ -190,75 +191,54 @@ def test_check_docker_compose_version_ok(mock_get_console, mock_run_command):
     )
 
 
-@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
-def test_check_docker_compose_version_higher(mock_get_console, mock_run_command):
-    mock_run_command.return_value.returncode = 0
-    mock_run_command.return_value.stdout = "1.29.2"
-    check_docker_compose_version()
-    mock_run_command.assert_called_with(
-        ["docker", "compose", "version"],
-        no_output_dump_on_exception=True,
-        capture_output=True,
-        text=True,
-        dry_run_override=False,
-    )
-    mock_get_console.return_value.print.assert_called_with(
-        "[success]Good version of docker-compose: 1.29.2[/]"
-    )
+@pytest.mark.parametrize(
+    "context_output, selected_context, console_output",
+    [
+        (
+            "default",
+            "default",
+            "[info]Using default as context",
+        ),
+        ("", "default", "[warning]Could not detect docker builder"),
+        ("a\nb", "a", "[warning]Could not use any of the preferred docker contexts"),
+        ("a\ndesktop-linux", "desktop-linux", "[info]Using desktop-linux as context"),
+        ("a\ndefault", "default", "[info]Using default as context"),
+        ("a\ndefault\ndesktop-linux", "desktop-linux", "[info]Using desktop-linux as context"),
+    ],
+)
+def test_autodetect_docker_context(context_output: str, selected_context: str, console_output: str):
+    with mock.patch("airflow_breeze.utils.docker_command_utils.run_command") as mock_run_command:
+        mock_run_command.return_value.returncode = 0
+        mock_run_command.return_value.stdout = context_output
+        with mock.patch("airflow_breeze.utils.docker_command_utils.get_console") as mock_get_console:
+            mock_get_console.return_value.input.return_value = selected_context
+            assert autodetect_docker_context() == selected_context
+            mock_get_console.return_value.print.assert_called_once()
+            assert console_output in mock_get_console.return_value.print.call_args[0][0]
 
 
-@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
-def test_check_docker_context_default(mock_get_console, mock_run_command):
-    mock_run_command.return_value.returncode = 0
-    mock_run_command.return_value.stdout = "default"
-    check_docker_context()
-    mock_run_command.assert_called_with(
-        ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
-        no_output_dump_on_exception=False,
-        text=True,
-        capture_output=True,
-        dry_run_override=False,
-    )
-    mock_get_console.return_value.print.assert_called_with("[success]Good Docker context used: default.[/]")
+SOCKET_INFO = json.dumps(
+    [
+        {
+            "Name": "default",
+            "Metadata": {},
+            "Endpoints": {"docker": {"Host": "unix:///not-standard/docker.sock", "SkipTLSVerify": False}},
+            "TLSMaterial": {},
+            "Storage": {"MetadataPath": "\u003cIN MEMORY\u003e", "TLSPath": "\u003cIN MEMORY\u003e"},
+        }
+    ]
+)
 
-
-@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
-def test_check_docker_context_other(mock_get_console, mock_run_command):
-    mock_run_command.return_value.returncode = 0
-    mock_run_command.return_value.stdout = "other"
-    with pytest.raises(SystemExit):
-        check_docker_context()
-    mock_run_command.assert_called_with(
-        ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
-        no_output_dump_on_exception=False,
-        text=True,
-        capture_output=True,
-        dry_run_override=False,
-    )
-    mock_get_console.return_value.print.assert_called_with(
-        "[error]Docker is not using the default context, used context is: other[/]\n"
-        "[warning]Please make sure Docker is using the default context.[/]\n"
-        '[warning]You can try switching contexts by running: "docker context use default"[/]'
-    )
-
-
-@mock.patch("airflow_breeze.utils.docker_command_utils.run_command")
-@mock.patch("airflow_breeze.utils.docker_command_utils.get_console")
-def test_check_docker_context_command_failed(mock_get_console, mock_run_command):
-    mock_run_command.return_value.returncode = 1
-    check_docker_context()
-    mock_run_command.assert_called_with(
-        ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
-        no_output_dump_on_exception=False,
-        text=True,
-        capture_output=True,
-        dry_run_override=False,
-    )
-    mock_get_console.return_value.print.assert_called_with(
-        "[warning]Could not check for Docker context.[/]\n"
-        '[warning]Please make sure that Docker is using the right context by running "docker info" and '
-        "checking the active Context.[/]"
-    )
+SOCKET_INFO_DESKTOP_LINUX = json.dumps(
+    [
+        {
+            "Name": "desktop-linux",
+            "Metadata": {},
+            "Endpoints": {
+                "docker": {"Host": "unix:///VERY_NON_STANDARD/docker.sock", "SkipTLSVerify": False}
+            },
+            "TLSMaterial": {},
+            "Storage": {"MetadataPath": "\u003cIN MEMORY\u003e", "TLSPath": "\u003cIN MEMORY\u003e"},
+        }
+    ]
+)

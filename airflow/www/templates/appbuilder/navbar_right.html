@@ -63,7 +63,7 @@
   </ul>
 </li>
 
-{% if not current_user.is_anonymous %}
+{% if auth_manager.is_logged_in() %}
   <li class="dropdown">
     <a class="dropdown-toggle" href="#">
        <span class="navbar-user-icon" title="{{ auth_manager.get_user_name() }}">

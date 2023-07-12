@@ -19,13 +19,15 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from unittest.mock import Mock
 from urllib.parse import parse_qs
 
 from bs4 import BeautifulSoup
+from markupsafe import Markup
 
 from airflow.utils import json as utils_json
 from airflow.www import utils
-from airflow.www.utils import wrapped_markdown
+from airflow.www.utils import json_f, wrapped_markdown
 
 
 class TestUtils:
@@ -242,6 +244,26 @@ class TestAttrRenderer:
             dag_run_conf, json_encoder=utils_json.WebEncoder
         )
         assert expected_encoded_dag_run_conf == encoded_dag_run_conf
+
+    def test_json_f_webencoder(self):
+        dag_run_conf = {
+            "1": "string",
+            "2": b"bytes",
+            "3": 123,
+            "4": "à".encode("latin"),
+            "5": datetime(2023, 1, 1),
+        }
+        expected_encoded_dag_run_conf = (
+            # HTML sanitization is insane
+            '{"1": "string", "2": "bytes", "3": 123, "4": "\\u00e0", "5": "2023-01-01T00:00:00+00:00"}'
+        )
+        expected_markup = Markup("<nobr>{}</nobr>").format(expected_encoded_dag_run_conf)
+
+        formatter = json_f("conf")
+        dagrun = Mock()
+        dagrun.get = Mock(return_value=dag_run_conf)
+
+        assert formatter(dagrun) == expected_markup
 
 
 class TestWrappedMarkdown:

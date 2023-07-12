@@ -21,6 +21,7 @@ import contextlib
 import datetime
 import logging
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 import time_machine
@@ -28,6 +29,7 @@ from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String
 
+from airflow.auth.managers.fab.fab_auth_manager import FabAuthManager
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.base import Base
@@ -303,8 +305,12 @@ def test_verify_public_role_has_no_permissions(security_manager):
     assert public.permissions == []
 
 
-def test_verify_default_anon_user_has_no_accessible_dag_ids(app, session, security_manager):
+@patch.object(FabAuthManager, "is_logged_in")
+def test_verify_default_anon_user_has_no_accessible_dag_ids(
+    mock_is_logged_in, app, session, security_manager
+):
     with app.app_context():
+        mock_is_logged_in.return_value = False
         user = AnonymousUser()
         app.config["AUTH_ROLE_PUBLIC"] = "Public"
         assert security_manager.get_user_roles(user) == {security_manager.get_public_role()}
@@ -331,15 +337,19 @@ def test_verify_default_anon_user_has_no_access_to_specific_dag(app, session, se
             assert has_dag_perm(permissions.ACTION_CAN_EDIT, dag_id, user) is False
 
 
+@patch.object(FabAuthManager, "is_logged_in")
 @pytest.mark.parametrize(
     "mock_dag_models",
     [["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]],
     indirect=True,
 )
-def test_verify_anon_user_with_admin_role_has_all_dag_access(app, security_manager, mock_dag_models):
+def test_verify_anon_user_with_admin_role_has_all_dag_access(
+    mock_is_logged_in, app, security_manager, mock_dag_models
+):
     test_dag_ids = mock_dag_models
     with app.app_context():
         app.config["AUTH_ROLE_PUBLIC"] = "Admin"
+        mock_is_logged_in.return_value = False
         user = AnonymousUser()
 
         assert security_manager.get_user_roles(user) == {security_manager.get_public_role()}
@@ -374,7 +384,6 @@ def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
 
 def test_get_user_roles(app_builder, security_manager):
     user = mock.MagicMock()
-    user.is_anonymous = False
     roles = app_builder.sm.find_role("Admin")
     user.roles = roles
     assert security_manager.get_user_roles(user) == roles
@@ -449,7 +458,8 @@ def test_get_current_user_permissions(app):
             assert len(user.perms) == 0
 
 
-def test_get_accessible_dag_ids(app, security_manager, session):
+@patch.object(FabAuthManager, "is_logged_in")
+def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, session):
     role_name = "MyRole1"
     permission_action = [permissions.ACTION_CAN_READ]
     dag_id = "dag_id"
@@ -465,6 +475,7 @@ def test_get_accessible_dag_ids(app, security_manager, session):
                 (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             ],
         ) as user:
+            mock_is_logged_in.return_value = True
             dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
             session.add(dag_model)
             session.commit()
@@ -476,7 +487,10 @@ def test_get_accessible_dag_ids(app, security_manager, session):
             assert security_manager.get_accessible_dag_ids(user) == {"dag_id"}
 
 
-def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(app, security_manager, session):
+@patch.object(FabAuthManager, "is_logged_in")
+def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
+    mock_is_logged_in, app, security_manager, session
+):
     # In this test case,
     # get_readable_dag_ids() don't return DAGs to which the user has CAN_EDIT action
     username = "Monsieur User"
@@ -492,6 +506,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(app, security
                 (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             ],
         ) as user:
+            mock_is_logged_in.return_value = True
             dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
             session.add(dag_model)
             session.commit()
