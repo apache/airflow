@@ -34,9 +34,7 @@ from rich.progress import Progress
 from rich.syntax import Syntax
 
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
-from airflow_breeze.commands.minor_release_command import create_minor_version_branch
-from airflow_breeze.commands.release_candidate_command import publish_release_candidate
-from airflow_breeze.commands.release_command import airflow_release
+from airflow_breeze.commands.release_management_group import release_management
 from airflow_breeze.global_constants import (
     ALLOWED_PLATFORMS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -49,7 +47,6 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
-from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.common_options import (
     argument_packages,
     option_airflow_constraints_mode_ci,
@@ -179,15 +176,6 @@ echo -e '\\e[34mRun this command to debug:
             output_outside_the_group=output_outside_the_group,
             **kwargs,
         )
-
-
-@click.group(
-    cls=BreezeGroup,
-    name="release-management",
-    help="Tools that release managers can use to prepare and manage Airflow releases",
-)
-def release_management():
-    pass
 
 
 @release_management.command(
@@ -1234,9 +1222,3 @@ def generate_providers_metadata(refresh_constraints: bool, python: str | None):
     import json
 
     PROVIDER_METADATA_JSON_FILE_PATH.write_text(json.dumps(metadata_dict, indent=4, sort_keys=True))
-
-
-# AIRFLOW RELEASE COMMANDS
-release_management.add_command(publish_release_candidate)
-release_management.add_command(airflow_release)
-release_management.add_command(create_minor_version_branch)
