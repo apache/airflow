@@ -118,6 +118,11 @@ class RunDataPipelineOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context):
         self.data_pipeline_hook = DataPipelineHook(gcp_conn_id=self.gcp_conn_id)
+        
+        if self.data_pipeline_name is None:
+            raise AirflowException(
+                "Data Pipeline name not given; cannot run unspecified pipeline."
+            )
 
 
         if self.data_pipeline_name is None:
