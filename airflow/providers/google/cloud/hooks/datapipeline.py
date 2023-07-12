@@ -106,7 +106,12 @@ class DataPipelineHook(GoogleBaseHook):
         location: str = DEFAULT_DATAPIPELINE_LOCATION,
     ) -> None:
         """
-        Runs DataPipeline.
+        Runs a Data Pipeline Instance using the Data Pipeline API 
+
+        :param data_pipeline_name:  The display name of the pipeline. In example 
+            projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
+        :param project_id: The ID of the GCP project that owns the job.
+        :param location: The location of the Data Pipeline instance to (example_dags uses uscentral-1).
         """
         parent = self.build_parent_name(project_id, location)
         service = self.get_conn()
