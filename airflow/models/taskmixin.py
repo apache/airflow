@@ -146,8 +146,10 @@ class DependencyMixin:
 
         if not TaskGroupContext.active:
             return
+        task_group = TaskGroupContext.get_current_task_group(None)
         for op in DependencyMixin._iter_references([self, other]):
-            TaskGroupContext.add_task(op)
+            if task_group:
+                op.add_to_taskgroup(task_group)
 
 
 class TaskMixin(DependencyMixin):

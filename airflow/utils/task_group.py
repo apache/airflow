@@ -213,15 +213,9 @@ class TaskGroup(DAGNode):
         :meta private:
         """
         from airflow.models.abstractoperator import AbstractOperator
-        from airflow.models.xcom_arg import PlainXComArg
 
         if TaskGroupContext.active:
-            if isinstance(task, PlainXComArg):
-                task = task.operator
-                if task.task_group and task.task_group != self:
-                    task.task_group.children.pop(task.node_id, None)
-                    task.task_group = self
-            elif task.task_group and task.task_group != self:
+            if task.task_group and task.task_group != self:
                 task.task_group.children.pop(task.node_id, None)
                 task.task_group = self
         existing_tg = task.task_group
@@ -554,12 +548,25 @@ class TaskGroup(DAGNode):
                         f"Encountered a DAGNode that is not a TaskGroup or an AbstractOperator: {type(child)}"
                     )
 
+    def add_task(self, task: AbstractOperator) -> None:
+        """Add a task to the task group.
+
+        :param task: the task to add
+        """
+        if not TaskGroupContext.active:
+            raise AirflowException(
+                "Using this method on a task group that's not a context manager is not supported."
+            )
+        task.add_to_taskgroup(self)
+
     def add_to_taskgroup(self, task_group: TaskGroup) -> None:
         """No-op, since we're not a task.
 
+        We only add tasks to TaskGroups and not TaskGroup, but we need
+        this to satisfy the interface.
+
         :meta private:
         """
-        ...
 
 
 class MappedTaskGroup(TaskGroup):
@@ -666,12 +673,6 @@ class TaskGroupContext:
                 return dag.task_group
 
         return cls._context_managed_task_group
-
-    @classmethod
-    def add_task(cls, task: DependencyMixin) -> None:
-        """Add the task to the current TaskGroup if not already there."""
-        if task_group := cls.get_current_task_group(None):
-            task.add_to_taskgroup(task_group)
 
 
 def task_group_to_dict(task_item_or_group):
