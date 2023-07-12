@@ -743,7 +743,7 @@ def _is_eligible_to_retry(task_instance: TaskInstance | TaskInstancePydantic):
 
     :meta private:
     """
-    if task_instance.state == State.RESTARTING:
+    if task_instance.state == TaskInstanceState.RESTARTING:
         # If a task is cleared when running, it goes into RESTARTING state and is always
         # eligible for retry
         return True
@@ -1010,7 +1010,7 @@ def _get_email_subject_content(
         'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
     )
 
-    # This function is called after changing the state from State.RUNNING,
+    # This function is called after changing the state from RUNNING,
     # so we need to subtract 1 from self.try_number here.
     current_try_number = task_instance.try_number - 1
     additional_context: dict[str, Any] = {
@@ -2107,34 +2107,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.log.info("Executing %s on %s", self.task, self.execution_date)
         return True
 
-<<<<<<< HEAD
-    def emit_state_change_metric(self, new_state: TaskInstanceState):
-=======
-    def _date_or_empty(self, attr: str) -> str:
-        result: datetime | None = getattr(self, attr, None)
-        return result.strftime("%Y%m%dT%H%M%S") if result else ""
-
-    def _log_state(self, lead_msg: str = "") -> None:
-        params = [
-            lead_msg,
-            str(self.state).upper(),
-            self.dag_id,
-            self.task_id,
-        ]
-        message = "%sMarking task as %s. dag_id=%s, task_id=%s, "
-        if self.map_index >= 0:
-            params.append(self.map_index)
-            message += "map_index=%d, "
-        self.log.info(
-            message + "execution_date=%s, start_date=%s, end_date=%s",
-            *params,
-            self._date_or_empty("execution_date"),
-            self._date_or_empty("start_date"),
-            self._date_or_empty("end_date"),
-        )
-
     def emit_state_change_metric(self, new_state: TaskInstanceState) -> None:
->>>>>>> main
         """
         Sends a time metric representing how much time a given state transition took.
         The previous state and metric name is deduced from the state the task was put in.
@@ -2613,11 +2586,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr("ti_failures", tags=ti.stats_tags)
 
         if not test_mode:
-<<<<<<< HEAD
-            session.add(Log(State.FAILED, ti))
-=======
-            session.add(Log(TaskInstanceState.FAILED.value, self))
->>>>>>> main
+            session.add(Log(TaskInstanceState.FAILED.value, ti))
 
             # Log failure duration
             session.add(TaskFail(ti=ti))
@@ -2650,13 +2619,8 @@ class TaskInstance(Base, LoggingMixin):
         except Exception:
             cls.logger().error("Unable to unmap task to determine if we need to send an alert email")
 
-<<<<<<< HEAD
         if force_fail or not ti.is_eligible_to_retry():
-            ti.state = State.FAILED
-=======
-        if force_fail or not self.is_eligible_to_retry():
-            self.state = TaskInstanceState.FAILED
->>>>>>> main
+            ti.state = TaskInstanceState.FAILED
             email_for_state = operator.attrgetter("email_on_failure")
             callbacks = task.on_failure_callback if task else None
 
@@ -2664,17 +2628,10 @@ class TaskInstance(Base, LoggingMixin):
                 tis = ti.get_dagrun(session).get_task_instances()
                 stop_all_tasks_in_dag(tis, session, task.task_id)
         else:
-<<<<<<< HEAD
-            if ti.state == State.QUEUED:
+            if ti.state == TaskInstanceState.QUEUED:
                 # We increase the try_number to fail the task if it fails to start after sometime
                 ti._try_number += 1
             ti.state = State.UP_FOR_RETRY
-=======
-            if self.state == TaskInstanceState.QUEUED:
-                # We increase the try_number so as to fail the task if it fails to start after sometime
-                self._try_number += 1
-            self.state = TaskInstanceState.UP_FOR_RETRY
->>>>>>> main
             email_for_state = operator.attrgetter("email_on_retry")
             callbacks = task.on_retry_callback if task else None
 
@@ -2722,19 +2679,7 @@ class TaskInstance(Base, LoggingMixin):
 
     def is_eligible_to_retry(self):
         """Is task instance is eligible for retry."""
-<<<<<<< HEAD
         return _is_eligible_to_retry(self)
-=======
-        if self.state == TaskInstanceState.RESTARTING:
-            # If a task is cleared when running, it goes into RESTARTING state and is always
-            # eligible for retry
-            return True
-        if not getattr(self, "task", None):
-            # Couldn't load the task, don't know number of retries, guess:
-            return self.try_number <= self.max_tries
-
-        return self.task.retries and self.try_number <= self.max_tries
->>>>>>> main
 
     def get_template_context(
         self,
@@ -2856,81 +2801,10 @@ class TaskInstance(Base, LoggingMixin):
         """
         Get the email subject content for exceptions.
 
-<<<<<<< HEAD
         :param exception: the exception sent in the email
         :param task:
         """
         return _get_email_subject_content(self, exception, task)
-=======
-        default_subject = "Airflow alert: {{ti}}"
-        # For reporting purposes, we report based on 1-indexed,
-        # not 0-indexed lists (i.e. Try 1 instead of
-        # Try 0 for the first attempt).
-        default_html_content = (
-            "Try {{try_number}} out of {{max_tries + 1}}<br>"
-            "Exception:<br>{{exception_html}}<br>"
-            'Log: <a href="{{ti.log_url}}">Link</a><br>'
-            "Host: {{ti.hostname}}<br>"
-            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-        )
-
-        default_html_content_err = (
-            "Try {{try_number}} out of {{max_tries + 1}}<br>"
-            "Exception:<br>Failed attempt to attach error logs<br>"
-            'Log: <a href="{{ti.log_url}}">Link</a><br>'
-            "Host: {{ti.hostname}}<br>"
-            'Mark success: <a href="{{ti.mark_success_url}}">Link</a><br>'
-        )
-
-        # This function is called after changing the state from RUNNING,
-        # so we need to subtract 1 from self.try_number here.
-        current_try_number = self.try_number - 1
-        additional_context: dict[str, Any] = {
-            "exception": exception,
-            "exception_html": exception_html,
-            "try_number": current_try_number,
-            "max_tries": self.max_tries,
-        }
-
-        if use_default:
-            default_context = {"ti": self, **additional_context}
-            jinja_env = jinja2.Environment(
-                loader=jinja2.FileSystemLoader(os.path.dirname(__file__)), autoescape=True
-            )
-            subject = jinja_env.from_string(default_subject).render(**default_context)
-            html_content = jinja_env.from_string(default_html_content).render(**default_context)
-            html_content_err = jinja_env.from_string(default_html_content_err).render(**default_context)
-
-        else:
-            # Use the DAG's get_template_env() to set force_sandboxed. Don't add
-            # the flag to the function on task object -- that function can be
-            # overridden, and adding a flag breaks backward compatibility.
-            dag = self.task.get_dag()
-            if dag:
-                jinja_env = dag.get_template_env(force_sandboxed=True)
-            else:
-                jinja_env = SandboxedEnvironment(cache_size=0)
-            jinja_context = self.get_template_context()
-            context_merge(jinja_context, additional_context)
-
-            def render(key: str, content: str) -> str:
-                if conf.has_option("email", key):
-                    path = conf.get_mandatory_value("email", key)
-                    try:
-                        with open(path) as f:
-                            content = f.read()
-                    except FileNotFoundError:
-                        self.log.warning(f"Could not find email template file '{path!r}'. Using defaults...")
-                    except OSError:
-                        self.log.exception(f"Error while using email template '{path!r}'. Using defaults...")
-                return render_template_to_string(jinja_env.from_string(content), jinja_context)
-
-            subject = render("subject_template", default_subject)
-            html_content = render("html_content_template", default_html_content)
-            html_content_err = render("html_content_template", default_html_content_err)
-
-        return subject, html_content, html_content_err
->>>>>>> main
 
     def email_alert(self, exception, task: BaseOperator) -> None:
         """
