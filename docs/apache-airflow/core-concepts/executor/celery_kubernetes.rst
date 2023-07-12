@@ -21,7 +21,7 @@
 CeleryKubernetes Executor
 =========================
 
-The :class:`~airflow.executors.celery_kubernetes_executor.CeleryKubernetesExecutor` allows users
+The :class:`~airflow.providers.celery.executors.celery_kubernetes_executor.CeleryKubernetesExecutor` allows users
 to run simultaneously a ``CeleryExecutor`` and a ``KubernetesExecutor``.
 An executor is chosen to run a task based on the task's queue.
 

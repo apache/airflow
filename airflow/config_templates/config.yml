@@ -2023,7 +2023,7 @@ celery:
       version_added: ~
       type: string
       example: ~
-      default: "airflow.executors.celery_executor"
+      default: "airflow.providers.celery.executors.celery_executor"
     worker_concurrency:
       description: |
         The concurrency that will be used when starting workers with the

@@ -67,7 +67,7 @@ class DefaultHelpParser(argparse.ArgumentParser):
                 executor_cls, _ = ExecutorLoader.import_executor_cls(executor)
                 classes = ()
                 try:
-                    from airflow.executors.celery_executor import CeleryExecutor
+                    from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
                     classes += (CeleryExecutor,)
                 except ImportError:
@@ -77,7 +77,9 @@ class DefaultHelpParser(argparse.ArgumentParser):
                     )
                     raise ArgumentError(action, message)
                 try:
-                    from airflow.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
+                    from airflow.providers.celery.executors.celery_kubernetes_executor import (
+                        CeleryKubernetesExecutor,
+                    )
 
                     classes += (CeleryKubernetesExecutor,)
                 except ImportError:
