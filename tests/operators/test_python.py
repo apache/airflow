@@ -1190,7 +1190,8 @@ def test_short_circuit_with_teardowns(
         op1.skip.assert_not_called()
 
 
-def test_short_circuit_with_teardowns_complicated(dag_maker):
+@pytest.mark.parametrize("config", ["sequence", "parallel"])
+def test_short_circuit_with_teardowns_complicated(dag_maker, config):
     with dag_maker():
         s1 = PythonOperator(task_id="s1", python_callable=print).as_setup()
         s2 = PythonOperator(task_id="s2", python_callable=print).as_setup()
@@ -1201,7 +1202,12 @@ def test_short_circuit_with_teardowns_complicated(dag_maker):
         op2 = PythonOperator(task_id="op2", python_callable=print)
         t1 = PythonOperator(task_id="t1", python_callable=print).as_teardown(setups=s1)
         t2 = PythonOperator(task_id="t2", python_callable=print).as_teardown(setups=s2)
-        s1 >> op1 >> s2 >> op2 >> [t1, t2]
+        if config == "sequence":
+            s1 >> op1 >> s2 >> op2 >> [t1, t2]
+        elif config == "parallel":
+            s1 >> op1 >> s2 >> op2 >> t2 >> t1
+        else:
+            raise ValueError("unexpected")
         op1.skip = MagicMock()
         dagrun = dag_maker.create_dagrun()
         tis = dagrun.get_task_instances()
