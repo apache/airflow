@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from airflow.jobs.job import Job
@@ -32,17 +33,17 @@ def check(args, session: Session = NEW_SESSION) -> None:
     if args.hostname and args.local:
         raise SystemExit("You can't use --hostname and --local at the same time")
 
-    query = session.query(Job).filter(Job.state == State.RUNNING).order_by(Job.latest_heartbeat.desc())
+    query = select(Job).where(Job.state == State.RUNNING).order_by(Job.latest_heartbeat.desc())
     if args.job_type:
-        query = query.filter(Job.job_type == args.job_type)
+        query = query.where(Job.job_type == args.job_type)
     if args.hostname:
-        query = query.filter(Job.hostname == args.hostname)
+        query = query.where(Job.hostname == args.hostname)
     if args.local:
-        query = query.filter(Job.hostname == get_hostname())
+        query = query.where(Job.hostname == get_hostname())
     if args.limit > 0:
         query = query.limit(args.limit)
 
-    alive_jobs: list[Job] = [job for job in query.all() if job.is_alive()]
+    alive_jobs: list[Job] = [job for job in session.scalars(query) if job.is_alive()]
 
     count_alive_jobs = len(alive_jobs)
     if count_alive_jobs == 0:
