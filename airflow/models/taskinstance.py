@@ -535,7 +535,7 @@ class TaskInstance(Base, LoggingMixin):
 
         self.run_id = run_id
 
-        self.try_number = 1
+        self.try_number = 0
         self.max_tries = self.task.retries
         self.unixname = getuser()
         if state:
