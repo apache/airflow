@@ -26,10 +26,10 @@ from subprocess import run
 
 from rich.console import Console
 
-from .docs_errors import DocBuildError, parse_sphinx_warnings
-from .helm_chart_utils import chart_version
-from .publish_docs_helpers import ALL_PROVIDER_YAMLS, pretty_format_path
-from .spelling_checks import SpellingError, parse_spelling_warnings
+from airflow_breeze.utils.docs_errors import DocBuildError, parse_sphinx_warnings
+from airflow_breeze.utils.helm_chart_utils import chart_version
+from airflow_breeze.utils.publish_docs_helpers import ALL_PROVIDER_YAMLS, pretty_format_path
+from airflow_breeze.utils.spelling_checks import SpellingError, parse_spelling_warnings
 
 PROCESS_TIMEOUT = 15 * 60
 CONSOLE_WIDTH = 180

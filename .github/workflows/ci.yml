@@ -639,7 +639,7 @@ jobs:
         run: >
           breeze release-management publish-docs
           --override-versioned
-          --package-filter ${{ needs.build-info.outputs.docs-filter-list-as-string }}
+          ${{ needs.build-info.outputs.docs-filter-list-as-string }}
       - name: Configure AWS credentials
         uses: ./.github/actions/configure-aws-credentials
         if: >

@@ -24,7 +24,6 @@ from glob import glob
 from pathlib import Path
 from typing import Any
 
-import jsonschema
 import yaml
 
 ROOT_DIR = Path(__file__).parents[5].resolve()
@@ -62,6 +61,8 @@ def load_package_data() -> list[dict[str, Any]]:
 
     :return: A list containing the contents of all provider.yaml files.
     """
+    import jsonschema
+
     schema = _load_schema()
     result = []
     for provider_yaml_path in get_provider_yaml_paths():
