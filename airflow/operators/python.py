@@ -252,8 +252,18 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.log.info("Proceeding with downstream tasks...")
             return condition
 
+        scope_teardowns = {x.task_id for x in self.get_upstreams_only_setups_and_teardowns() if x.is_teardown}
+
+        def is_relevant_teardown(other):
+            if other.task_id in scope_teardowns:
+                return True
+            elif other.is_teardown and not any(x.is_setup for x in other.upstream_list):
+                return True
+            else:
+                return False
+
         downstream_tasks = [
-            x for x in context["task"].get_flat_relatives(upstream=False) if not x.is_teardown
+            x for x in context["task"].get_flat_relatives(upstream=False) if not is_relevant_teardown(x)
         ]
         self.log.debug("Downstream task IDs %s", downstream_tasks)
 
@@ -264,17 +274,25 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
                 assert isinstance(execution_date, DateTime)
             if self.ignore_downstream_trigger_rules is True:
                 self.log.info("Skipping all downstream tasks...")
-                self.skip(dag_run, execution_date, downstream_tasks, map_index=context["ti"].map_index)
+                self.skip(
+                    dag_run=dag_run,
+                    execution_date=execution_date,
+                    tasks=downstream_tasks,
+                    map_index=context["ti"].map_index,
+                )
             else:
                 self.log.info("Skipping downstream tasks while respecting trigger rules...")
                 # Explicitly setting the state of the direct, downstream task(s) to "skipped" and letting the
                 # Scheduler handle the remaining downstream task(s) appropriately.
+                to_skip = [
+                    x
+                    for x in context["task"].get_direct_relatives(upstream=False)
+                    if not is_relevant_teardown(x)
+                ]
                 self.skip(
                     dag_run=dag_run,
                     execution_date=execution_date,
-                    tasks=(
-                        x for x in context["task"].get_direct_relatives(upstream=False) if not x.is_teardown
-                    ),
+                    tasks=to_skip,
                     map_index=context["ti"].map_index,
                 )
 
