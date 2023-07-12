@@ -27,6 +27,7 @@ import textwrap
 import warnings
 from collections import OrderedDict
 from unittest import mock
+from unittest.mock import patch
 
 import pytest
 from pytest import param
@@ -627,7 +628,7 @@ notacommand = OK
             # sensitive_config_values and therefore should return 'OK' from the environment variable's
             # echo command, and must not return 'NOT OK' from the configuration
             assert test_cmdenv_conf.get("testcmdenv", "itsacommand") == "OK"
-            # AIRFLOW__TESTCMDENV__xNOTACOMMAND_CMD maps to no entry in sensitive_config_values and therefore
+            # AIRFLOW__TESTCMDENV__NOTACOMMAND_CMD maps to no entry in sensitive_config_values and therefore
             # the option should return 'OK' from the configuration, and must not return 'NOT OK' from
             # the environment variable's echo command
             assert test_cmdenv_conf.get("testcmdenv", "notacommand") == "OK"
@@ -1599,9 +1600,6 @@ def test_sensitive_values():
     sensitive_values = {
         ("database", "sql_alchemy_conn"),
         ("core", "fernet_key"),
-        ("celery", "broker_url"),
-        ("celery", "flower_basic_auth"),
-        ("celery", "result_backend"),
         ("atlas", "password"),
         ("smtp", "smtp_password"),
         ("webserver", "secret_key"),
@@ -1609,6 +1607,10 @@ def test_sensitive_values():
         ("sentry", "sentry_dsn"),
         ("database", "sql_alchemy_engine_args"),
         ("core", "sql_alchemy_conn"),
+        ("celery_broker_transport_options", "sentinel_kwargs"),
+        ("celery", "broker_url"),
+        ("celery", "flower_basic_auth"),
+        ("celery", "result_backend"),
     }
     all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
@@ -1618,3 +1620,51 @@ def test_sensitive_values():
     suspected_sensitive -= exclude_list
     sensitive_values.update(suspected_sensitive)
     assert sensitive_values == conf.sensitive_config_values
+
+
+def test_restore_and_reload_provider_configuration():
+    from airflow.settings import conf
+
+    assert conf.providers_configuration_loaded is True
+    assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
+    conf.restore_core_default_configuration()
+    assert conf.providers_configuration_loaded is False
+    with pytest.raises(AirflowConfigException, match="not found"):
+        conf.get("celery", "celery_app_name")
+    conf.load_providers_configuration()
+    assert conf.providers_configuration_loaded is True
+    assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
+
+
+def test_error_when_contributing_to_existing_section():
+    from airflow.settings import conf
+
+    try:
+        assert conf.providers_configuration_loaded is True
+        assert conf.get("celery", "celery_app_name") == "airflow.providers.celery.executors.celery_executor"
+        conf.restore_core_default_configuration()
+        assert conf.providers_configuration_loaded is False
+        conf.configuration_description["celery"] = {
+            "description": "Celery Executor configuration",
+            "options": {
+                "celery_app_name": {
+                    "default": "test",
+                }
+            },
+        }
+        conf._default_values.add_section("celery")
+        conf._default_values.set("celery", "celery_app_name", "test")
+        assert conf.get("celery", "celery_app_name") == "test"
+        # patching restoring_core_default_configuration to avoid reloading the defaults
+        with patch.object(conf, "restore_core_default_configuration"):
+            with pytest.raises(
+                AirflowConfigException,
+                match="The provider apache-airflow-providers-celery is attempting to contribute "
+                "configuration section celery that has already been added before. "
+                "The source of it: Airflow's core package",
+            ):
+                conf.load_providers_configuration()
+        assert conf.get("celery", "celery_app_name") == "test"
+    finally:
+        conf.restore_core_default_configuration()
+        conf.load_providers_configuration()

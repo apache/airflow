@@ -27,7 +27,7 @@ from airflow.executors.kubernetes_executor import KubernetesExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.providers.celery.executors.celery_kubernetes_executor import CeleryKubernetesExecutor
 
-KUBERNETES_QUEUE = CeleryKubernetesExecutor.KUBERNETES_QUEUE
+KUBERNETES_QUEUE = "kubernetes"
 
 
 class TestCeleryKubernetesExecutor:
