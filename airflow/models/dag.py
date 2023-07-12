@@ -1403,7 +1403,7 @@ class DAG(LoggingMixin):
             ti = tis[-1]  # get first TaskInstance of DagRun
             ti.task = dag.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
-            context.update({"reason": reason})
+            context["reason"] = reason
             return callbacks, context
 
     @provide_session
