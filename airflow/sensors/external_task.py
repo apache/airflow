@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable
 import attr
 from sqlalchemy import func
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowSkipException, RemovedInAirflow3Warning
 from airflow.models.baseoperator import BaseOperatorLink
 from airflow.models.dag import DagModel
@@ -38,9 +39,8 @@ from airflow.utils.file import correct_maybe_zipped
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import tuple_in_condition
-from airflow.utils.state import State
-from airflow.utils.timezone import utcnow
 from airflow.utils.state import State, TaskInstanceState
+from airflow.utils.timezone import utcnow
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Query, Session
@@ -151,10 +151,11 @@ class ExternalTaskSensor(BaseSensorOperator):
         execution_date_fn: Callable | None = None,
         check_existence: bool = False,
         poll_interval: float = 2.0,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ):
         super().__init__(**kwargs)
+
         self.allowed_states = list(allowed_states) if allowed_states else [TaskInstanceState.SUCCESS.value]
         self.skipped_states = list(skipped_states) if skipped_states else []
         self.failed_states = list(failed_states) if failed_states else []

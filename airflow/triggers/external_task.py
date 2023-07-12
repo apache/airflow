@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 import asyncio
-import datetime
 import typing
 from datetime import datetime
 
@@ -28,7 +27,7 @@ from sqlalchemy.orm import Session
 from airflow.models import DagRun, TaskInstance
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import utcnow
 
 
@@ -38,7 +37,7 @@ class TaskStateTrigger(BaseTrigger):
 
     :param dag_id: The dag_id that contains the task you want to wait for
     :param task_id: The task_id that contains the task you want to
-        wait for. If ``None`` (default value) the sensor waits for the DAG
+        wait for.
     :param states: allowed states, default is ``['success']``
     :param execution_dates: task execution time interval
     :param poll_interval: The time interval in seconds to check the state.
@@ -53,9 +52,9 @@ class TaskStateTrigger(BaseTrigger):
     def __init__(
         self,
         dag_id: str,
-        states: list[str],
         execution_dates: list[datetime],
         trigger_start_time: datetime,
+        states: list[str] | None = None,
         task_id: str | None = None,
         poll_interval: float = 2.0,
     ):
@@ -66,6 +65,7 @@ class TaskStateTrigger(BaseTrigger):
         self.execution_dates = execution_dates
         self.poll_interval = poll_interval
         self.trigger_start_time = trigger_start_time
+        self.states = states if states else [TaskInstanceState.SUCCESS.value]
         self._timeout_sec = 60
 
     def serialize(self) -> tuple[str, dict[str, typing.Any]]:
@@ -157,7 +157,7 @@ class DagStateTrigger(BaseTrigger):
         self,
         dag_id: str,
         states: list[DagRunState],
-        execution_dates: list[datetime.datetime],
+        execution_dates: list[datetime],
         poll_interval: float = 5.0,
     ):
         super().__init__()

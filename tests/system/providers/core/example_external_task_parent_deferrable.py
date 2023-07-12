@@ -43,7 +43,10 @@ with DAG(
     trigger_child_task = TriggerDagRunOperator(
         task_id="trigger_child_task",
         trigger_dag_id="child_dag",
-        allowed_states=["success", "failed", "skipped"],
+        allowed_states=[
+            "success",
+            "failed",
+        ],
         execution_date="{{execution_date}}",
         poke_interval=5,
         reset_dag_run=True,
