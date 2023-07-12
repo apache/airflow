@@ -142,26 +142,10 @@ class BaseSetupTeardownContext:
             upstream_tasks = operator.upstream_list
             downstream_list = operator.downstream_list
         if setup:
-            if upstream_tasks:
-                cls.error("Setup tasks cannot have upstreams set manually on the context manager")
             cls.push_context_managed_setup_task(operator)
-            for task in downstream_list:
-                if not task.is_teardown:
-                    cls.error(
-                        "Downstream tasks to a setup task must be a teardown task on the context manager"
-                    )
-                if task.downstream_list:
-                    cls.error("Multiple shifts are not allowed in the context manager")
             if downstream_list:
                 cls.push_context_managed_teardown_task(list(downstream_list))
         else:
-            for task in upstream_tasks:
-                if not task.is_setup:
-                    cls.error("Upstream tasks to a teardown task must be a setup task on the context manager")
-                if task.upstream_list:
-                    cls.error("Multiple shifts are not allowed in the context manager")
-            if downstream_list:
-                cls.error("Downstream to a teardown task cannot be set manually on the context manager")
             cls.push_context_managed_teardown_task(operator)
             if upstream_tasks:
                 cls.push_context_managed_setup_task(list(upstream_tasks))

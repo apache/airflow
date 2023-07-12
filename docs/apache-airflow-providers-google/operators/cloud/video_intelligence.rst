@@ -21,7 +21,7 @@ Google Cloud Video Intelligence Operators
 Prerequisite Tasks
 ------------------
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: /operators/_partials/prerequisite_tasks.rst
 
 .. _howto/operator:CloudVideoIntelligenceDetectVideoLabelsOperator:
 
