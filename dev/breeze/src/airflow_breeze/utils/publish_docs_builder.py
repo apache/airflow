@@ -26,9 +26,10 @@ from subprocess import run
 
 from rich.console import Console
 
+from airflow_breeze.global_constants import get_airflow_version
 from airflow_breeze.utils.docs_errors import DocBuildError, parse_sphinx_warnings
 from airflow_breeze.utils.helm_chart_utils import chart_version
-from airflow_breeze.utils.publish_docs_helpers import ALL_PROVIDER_YAMLS, pretty_format_path
+from airflow_breeze.utils.publish_docs_helpers import load_package_data, pretty_format_path
 from airflow_breeze.utils.spelling_checks import SpellingError, parse_spelling_warnings
 
 PROCESS_TIMEOUT = 15 * 60
@@ -95,11 +96,10 @@ class PublishDocsBuilder:
         if not self.is_versioned:
             raise Exception("This documentation package is not versioned")
         if self.package_name == "apache-airflow":
-            from airflow.version import version as airflow_version
-
-            return airflow_version
+            return get_airflow_version()
         if self.package_name.startswith("apache-airflow-providers-"):
-            provider = next(p for p in ALL_PROVIDER_YAMLS if p["package-name"] == self.package_name)
+            all_providers_yaml = load_package_data()
+            provider = next(p for p in all_providers_yaml if p["package-name"] == self.package_name)
             return provider["versions"][0]
         if self.package_name == "helm-chart":
             return chart_version()
