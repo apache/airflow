@@ -21,6 +21,72 @@
 
 .. towncrier release notes start
 
+Airflow 2.6.3 (2023-07-10)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+- Use linear time regular expressions (#32303)
+- Fix triggerers alive check and add a new conf for triggerer heartbeat rate (#32123)
+- Catch the exception that triggerer initialization failed (#31999)
+- Hide sensitive values from extra in connection edit form (#32309)
+- Sanitize ``DagRun.run_id`` and allow flexibility (#32293)
+- Add triggerer canceled log (#31757)
+- Fix try number shown in the task view (#32361)
+- Retry transactions on occasional deadlocks for rendered fields (#32341)
+- Fix behaviour of LazyDictWithCache when import fails (#32248)
+- Remove ``executor_class`` from Job - fixing backfill for custom executors (#32219)
+- Fix bugged singleton implementation (#32218)
+- Use ``mapIndex`` to display extra links per mapped task. (#32154)
+- Ensure that main triggerer thread exits if the async thread fails (#32092)
+- Use ``re2`` for matching untrusted regex (#32060)
+- Render list items in rendered fields view (#32042)
+- Fix hashing of ``dag_dependencies`` in serialized dag (#32037)
+- Return ``None`` if an XComArg fails to resolve in a multiple_outputs Task (#32027)
+- Check for DAG ID in query param from url as well as kwargs (#32014)
+- Flash an error message instead of failure in ``rendered-templates`` when map index is not found (#32011)
+- Fix ``ExternalTaskSensor`` when there is no task group TIs for the current execution date (#32009)
+- Fix number param html type in trigger template (#31980, #31946)
+- Fix masking nested variable fields (#31964)
+- Fix ``operator_extra_links`` property serialization in mapped tasks (#31904)
+- Decode old-style nested Xcom value (#31866)
+- Add a check for trailing slash in webserver base_url (#31833)
+- Fix connection uri parsing when the host includes a scheme (#31465)
+- Fix database session closing with ``xcom_pull`` and ``inlets`` (#31128)
+- Fix DAG's ``on_failure_callback`` is not invoked when task failed during testing dag. (#30965)
+- Fix airflow module version check when using ``ExternalPythonOperator`` and debug logging level (#30367)
+
+Misc/Internal
+"""""""""""""
+- Fix ``task.sensor`` annotation in type stub (#31954)
+- Limit ``Pydantic`` to ``< 2.0.0`` until we solve ``2.0.0`` incompatibilities (#32312)
+- Fix ``Pydantic`` 2 pickiness about model definition (#32307)
+
+Doc only changes
+""""""""""""""""
+- Add explanation about tag creation and cleanup (#32406)
+- Minor updates to docs (#32369, #32315, #32310, #31794)
+- Clarify Listener API behavior (#32269)
+- Add information for users who ask for requirements (#32262)
+- Add links to DAGRun / DAG / Task in Templates Reference (#32245)
+- Add comment to warn off a potential wrong fix (#32230)
+- Add a note that we'll need to restart triggerer to reflect any trigger change (#32140)
+- Adding missing hyperlink to the tutorial documentation (#32105)
+- Added difference between Deferrable and Non-Deferrable Operators (#31840)
+- Add comments explaining need for special "trigger end" log message (#31812)
+- Documentation update on Plugin updates. (#31781)
+- Fix SemVer link in security documentation (#32320)
+- Update security model of Airflow (#32098)
+- Update references to restructured documentation from Airflow core (#32282)
+- Separate out advanced logging configuration (#32131)
+- Add ``™`` to Airflow in prominent places (#31977)
+
+
 Airflow 2.6.2 (2023-06-17)
 --------------------------
 

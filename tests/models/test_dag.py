@@ -3915,3 +3915,45 @@ class TestTaskClearingSetupTeardownBehavior:
                 "my_setup", include_upstream=upstream, include_downstream=downstream
             ).tasks
         } == expected
+
+    def test_validate_setup_teardown_dag(self, dag_maker):
+        """Test some invalid setups and teardowns in a dag"""
+        with dag_maker("test_dag") as dag:
+            s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
+
+            with s1:
+                w1 >> t1
+                w2 >> t1
+        with pytest.raises(
+            AirflowDagInconsistent, match="Dag has setup without teardown: dag='test_dag', task='s1'"
+        ):
+            dag.validate()
+
+        with dag_maker("test_dag") as dag:
+            s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
+            s1 >> w1 >> w2 >> t1
+        with pytest.raises(
+            AirflowDagInconsistent, match="Dag has setup without teardown: dag='test_dag', task='s1'"
+        ):
+            dag.validate()
+
+        with dag_maker("test_dag") as dag:
+            s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
+            w1 >> w2
+            with s1 >> t1:
+                ...
+        with pytest.raises(
+            AirflowDagInconsistent,
+            match="Dag has teardown task without an upstream work task: dag='test_dag', task='t1'",
+        ):
+            dag.validate()
+
+        with dag_maker("test_dag") as dag:
+            s1, w1, w2, t1 = self.make_tasks(dag, "s1, w1, w2, t1")
+            s1 >> t1 >> w1 >> w2
+
+        with pytest.raises(
+            AirflowDagInconsistent,
+            match="Dag has teardown task without an upstream work task: dag='test_dag', task='t1'",
+        ):
+            dag.validate()

@@ -28,7 +28,7 @@ from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import tuple_in_condition
-from airflow.utils.state import State
+from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -79,7 +79,7 @@ class SkipMixin(LoggingMixin):
 
             query.update(
                 {
-                    TaskInstance.state: State.SKIPPED,
+                    TaskInstance.state: TaskInstanceState.SKIPPED,
                     TaskInstance.start_date: now,
                     TaskInstance.end_date: now,
                 },
