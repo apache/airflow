@@ -241,6 +241,7 @@ class RenderedTaskInstanceFields(Base):
                 tuple_not_in_condition(
                     (cls.dag_id, cls.task_id, cls.run_id),
                     select(ti_clause.c.dag_id, ti_clause.c.task_id, ti_clause.c.run_id),
+                    session=session,
                 ),
             )
             .execution_options(synchronize_session=False)
