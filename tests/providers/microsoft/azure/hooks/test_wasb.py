@@ -200,6 +200,42 @@ class TestWasbHook:
         assert isinstance(hook.get_conn(), BlobServiceClient)
         assert isinstance(hook.get_conn().credential, ClientSecretCredential)
 
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.DefaultAzureCredential")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook.get_connection")
+    def test_active_directory_ID_used_as_host(self, mock_get_conn, mock_credential, mock_blob_service_client):
+        hook = WasbHook(wasb_conn_id="testconn")
+        mock_get_conn.return_value = Connection(
+            conn_id="testconn",
+            conn_type=self.connection_type,
+            login="testaccountname",
+            host="testaccountID",
+        )
+        hook.get_conn()
+        assert mock_blob_service_client.call_args == mock.call(
+            account_url="https://testaccountname.blob.core.windows.net/",
+            credential=mock_credential.return_value,
+        )
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.WasbHook.get_connection")
+    def test_sas_token_provided_and_active_directory_ID_used_as_host(
+        self, mock_get_conn, mock_blob_service_client
+    ):
+        hook = WasbHook(wasb_conn_id="testconn")
+        mock_get_conn.return_value = Connection(
+            conn_id="testconn",
+            conn_type=self.connection_type,
+            login="testaccountname",
+            host="testaccountID",
+            extra=json.dumps({"sas_token": "SAStoken"}),
+        )
+        hook.get_conn()
+        assert mock_blob_service_client.call_args == mock.call(
+            account_url="https://testaccountname.blob.core.windows.net/SAStoken",
+            sas_token="SAStoken",
+        )
+
     @pytest.mark.parametrize(
         argnames="conn_id_str",
         argvalues=[

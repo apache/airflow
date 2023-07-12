@@ -387,22 +387,6 @@ You will need to change it manually to see the docs
 
 - Copy the documentation to the ``airflow-site`` repository
 
-**NOTE** In order to run the publish documentation you need to activate virtualenv where you installed
-apache-airflow with doc extra:
-
-* `pip install '.[doc_gen]'`
-
-If you don't have virtual env set you can do:
-
-```shell script
-cd <path_you_want_to_save_your_virtual_env>
-virtualenv providers
-
-source venv/providers/bin/activate
-
-pip install 'apache-airflow[doc_gen]'
-```
-
 All providers (including overriding documentation for doc-only changes):
 
 ```shell script
