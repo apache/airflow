@@ -178,7 +178,7 @@ class S3ToRedshiftOperator(BaseOperator):
             where_statement = " AND ".join([f"{self.table}.{k} = {copy_destination}.{k}" for k in keys])
 
             sql = [
-                f"CREATE TABLE {copy_destination} (LIKE {destination});",
+                f"CREATE TABLE {copy_destination} (LIKE {destination} INCLUDING DEFAULTS);",
                 copy_statement,
                 "BEGIN;",
                 f"DELETE FROM {destination} USING {copy_destination} WHERE {where_statement};",
