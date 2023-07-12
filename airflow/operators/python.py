@@ -272,10 +272,10 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
                     yield t
 
         to_skip = get_tasks_to_skip()
+
+        # this let's us avoid an intermediate list unless debug logging
         if self.log.getEffectiveLevel() <= logging.DEBUG:
-            # this let's us avoid an intermediate list unless debug logging
-            to_skip = list(get_tasks_to_skip())
-            self.log.debug("Downstream task IDs %s", to_skip)
+            self.log.debug("Downstream task IDs %s", to_skip := list(get_tasks_to_skip()))
 
         self.log.info("Skipping downstream tasks")
         self.skip(
