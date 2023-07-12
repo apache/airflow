@@ -31,7 +31,7 @@ from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence
+from typing import Any, Callable, Collection, Iterable, Mapping, Sequence, cast
 
 import dill
 from pendulum import DateTime
@@ -258,9 +258,6 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             return
 
         dag_run = context["dag_run"]
-        execution_date = dag_run.execution_date
-        if TYPE_CHECKING:
-            assert isinstance(execution_date, DateTime)
 
         def get_tasks_to_skip():
             if self.ignore_downstream_trigger_rules is True:
@@ -280,7 +277,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
         self.log.info("Skipping downstream tasks")
         self.skip(
             dag_run=dag_run,
-            execution_date=execution_date,
+            execution_date=cast(DateTime, dag_run.execution_date),
             tasks=to_skip,
             map_index=context["ti"].map_index,
         )

@@ -1241,5 +1241,7 @@ class TestShortCircuitWithTeardown:
             ti: TaskInstance = [x for x in tis if x.task_id == "op1"][0]
             ti._run_raw_task()
             # we can't use assert_called_with because it's a set and therefore not ordered
-            actual_skipped = set(op1.skip.call_args.kwargs["tasks"])
+            actual_kwargs = op1.skip.call_args.kwargs
+            actual_skipped = set(actual_kwargs["tasks"])
+            assert actual_kwargs["execution_date"] == dagrun.logical_date
             assert actual_skipped == {op3}
