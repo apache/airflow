@@ -625,7 +625,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         """
         # actually enqueue them
         for ti in task_instances:
-            if ti.dag_run.state in State.finished:
+            if ti.dag_run.state in State.finished_dr_states:
                 ti.set_state(None, session=session)
                 continue
             command = ti.command_as_list(
@@ -1449,7 +1449,7 @@ class SchedulerJobRunner(BaseJobRunner[Job], LoggingMixin):
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
         schedulable_tis, callback_to_run = dag_run.update_state(session=session, execute_callbacks=False)
         # Check if DAG not scheduled then skip interval calculation to same scheduler runtime
-        if dag_run.state in State.finished:
+        if dag_run.state in State.finished_dr_states:
             # Work out if we should allow creating a new DagRun now?
             if self._should_update_dag_next_dagruns(dag, dag_model, session=session):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))

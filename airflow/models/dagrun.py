@@ -270,7 +270,7 @@ class DagRun(Base, LoggingMixin):
             raise ValueError(f"invalid DagRun state: {state}")
         if self._state != state:
             self._state = state
-            self.end_date = timezone.utcnow() if self._state in State.finished else None
+            self.end_date = timezone.utcnow() if self._state in State.finished_dr_states else None
             if state == DagRunState.QUEUED:
                 self.queued_at = timezone.utcnow()
 
