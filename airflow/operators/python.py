@@ -251,38 +251,33 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
         if condition:
             self.log.info("Proceeding with downstream tasks...")
             return condition
-        downstream_tasks = [
-            x for x in context["task"].get_flat_relatives(upstream=False) if not x.is_teardown
-        ]
-        self.log.debug("Downstream task IDs %s", downstream_tasks)
 
-        if downstream_tasks:
-            dag_run = context["dag_run"]
-            execution_date = dag_run.execution_date
-            if TYPE_CHECKING:
-                assert isinstance(execution_date, DateTime)
-            if self.ignore_downstream_trigger_rules is True:
-                self.log.info("Skipping all downstream tasks...")
-                self.skip(
-                    dag_run=dag_run,
-                    execution_date=execution_date,
-                    tasks=downstream_tasks,
-                    map_index=context["ti"].map_index,
-                )
-            else:
-                self.log.info("Skipping downstream tasks while respecting trigger rules...")
-                # Explicitly setting the state of the direct, downstream task(s) to "skipped" and letting the
-                # Scheduler handle the remaining downstream task(s) appropriately.
-                to_skip = [
-                    x for x in context["task"].get_direct_relatives(upstream=False) if not x.is_teardown
-                ]
-                self.skip(
-                    dag_run=dag_run,
-                    execution_date=execution_date,
-                    tasks=to_skip,
-                    map_index=context["ti"].map_index,
-                )
+        if not self.downstream_task_ids:
+            self.log.info("No downstream tasks; nothing to do.")
+            return
 
+        dag_run = context["dag_run"]
+        execution_date = dag_run.execution_date
+        if TYPE_CHECKING:
+            assert isinstance(execution_date, DateTime)
+        if self.ignore_downstream_trigger_rules is True:
+            self.log.info("Skipping all downstream tasks")
+            self.skip(
+                dag_run=dag_run,
+                execution_date=execution_date,
+                tasks=(x for x in context["task"].get_flat_relatives(upstream=False) if not x.is_teardown),
+                map_index=context["ti"].map_index,
+            )
+        else:
+            self.log.info("Skipping direct downstream tasks")
+            # Setting the state of only the direct downstream tasks to "skipped" and letting the
+            # scheduler handle the remaining downstream task(s) appropriately.
+            self.skip(
+                dag_run=dag_run,
+                execution_date=execution_date,
+                tasks=(x for x in context["task"].get_direct_relatives(upstream=False) if not x.is_teardown),
+                map_index=context["ti"].map_index,
+            )
         self.log.info("Done.")
 
 
