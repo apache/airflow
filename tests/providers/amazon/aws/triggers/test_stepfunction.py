@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.amazon.aws.triggers.stepfunctions import StepFunctionsStartExecutionTrigger
+from airflow.providers.amazon.aws.triggers.stepfunction import StepFunctionsStartExecutionTrigger
 
 TEST_EXECUTION_ARN = "test-execution-arn"
 TEST_WAITER_DELAY = 10
