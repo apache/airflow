@@ -60,6 +60,7 @@ class WebHDFSHook(BaseHook):
     def get_conn(self) -> Any:
         """
         Establishes a connection depending on the security mode set via config or environment variable.
+
         :return: a hdfscli InsecureClient or KerberosClient object.
         """
         connection = self._find_valid_server()

@@ -20,6 +20,7 @@ from __future__ import annotations
 from time import sleep
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
@@ -31,8 +32,7 @@ if TYPE_CHECKING:
 
 class LivyOperator(BaseOperator):
     """
-    This operator wraps the Apache Livy batch REST API, allowing to submit a Spark
-    application to the underlying cluster.
+    Wraps the Apache Livy batch REST API, allowing to submit a Spark application to the underlying cluster.
 
     :param file: path of the file containing the application to execute (required). (templated)
     :param class_name: name of the application Java/Spark main class. (templated)
@@ -89,10 +89,9 @@ class LivyOperator(BaseOperator):
         extra_options: dict[str, Any] | None = None,
         extra_headers: dict[str, Any] | None = None,
         retry_args: dict[str, Any] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs: Any,
     ) -> None:
-
         super().__init__(**kwargs)
 
         self.spark_params = {
@@ -204,8 +203,8 @@ class LivyOperator(BaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any]) -> Any:
         """
         Callback for when the trigger fires - returns immediately.
-        Relies on trigger to throw an exception, otherwise it assumes execution was
-        successful.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was successful.
         """
         # dump the logs from livy to worker through triggerer.
         if event.get("log_lines", None) is not None:

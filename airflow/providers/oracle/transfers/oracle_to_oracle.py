@@ -30,7 +30,6 @@ class OracleToOracleOperator(BaseOperator):
     """
     Moves data from Oracle to Oracle.
 
-
     :param oracle_destination_conn_id: destination Oracle connection.
     :param destination_table: destination table to insert rows.
     :param oracle_source_conn_id: :ref:`Source Oracle connection <howto/connection:oracle>`.

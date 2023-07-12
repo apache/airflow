@@ -28,10 +28,9 @@ if TYPE_CHECKING:
 
 class SparkJDBCOperator(SparkSubmitOperator):
     """
-    This operator extends the SparkSubmitOperator specifically for performing data
-    transfers to/from JDBC-based databases with Apache Spark. As with the
-    SparkSubmitOperator, it assumes that the "spark-submit" binary is available on the
-    PATH.
+    Extend the SparkSubmitOperator to perform data transfers to/from JDBC-based databases with Apache Spark.
+
+     As with the SparkSubmitOperator, it assumes that the "spark-submit" binary is available on the PATH.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

@@ -17,21 +17,22 @@
 
 
 
-Metrics
-=======
+Metrics Configuration
+=====================
 
-Airflow can be set up to send metrics to `StatsD <https://github.com/etsy/statsd>`__.
+Airflow can be set up to send metrics to `StatsD <https://github.com/etsy/statsd>`__
+or `OpenTelemetry <https://opentelemetry.io/>`__.
 
-Setup
------
+Setup - StatsD
+--------------
 
-First you must install StatsD requirement:
+To use StatsD you must first install the required packages:
 
 .. code-block:: bash
 
    pip install 'apache-airflow[statsd]'
 
-Add the following lines to your configuration file e.g. ``airflow.cfg``
+then add the following lines to your configuration file e.g. ``airflow.cfg``
 
 .. code-block:: ini
 
@@ -41,26 +42,9 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
     statsd_port = 8125
     statsd_prefix = airflow
 
-If you want to avoid sending all the available metrics to StatsD, you can configure an allow list of prefixes to send only
-the metrics that start with the elements of the list:
-
-.. code-block:: ini
-
-    [metrics]
-    statsd_allow_list = scheduler,executor,dagrun
-
-If you want to redirect metrics to different name, you can configure ``stat_name_handler`` option
-in ``[metrics]`` section.  It should point to a function that validates the StatsD stat name, applies changes
-to the stat name if necessary, and returns the transformed stat name. The function may looks as follow:
-
-.. code-block:: python
-
-    def my_custom_stat_name_handler(stat_name: str) -> str:
-        return stat_name.lower()[:32]
-
-If you want to use a custom StatsD client instead of the default one provided by Airflow, the following key must be added
-to the configuration file alongside the module path of your custom StatsD client. This module must be available on
-your :envvar:`PYTHONPATH`.
+If you want to use a custom StatsD client instead of the default one provided by Airflow,
+the following key must be added to the configuration file alongside the module path of your
+custom StatsD client. This module must be available on your :envvar:`PYTHONPATH`.
 
 .. code-block:: ini
 
@@ -69,10 +53,70 @@ your :envvar:`PYTHONPATH`.
 
 See :doc:`../modules_management` for details on how Python and Airflow manage modules.
 
+
+Setup - OpenTelemetry
+---------------------
+
+To use OpenTelemetry you must first install the required packages:
+
+.. code-block:: bash
+
+   pip install 'apache-airflow[otel]'
+
+Add the following lines to your configuration file e.g. ``airflow.cfg``
+
+.. code-block:: ini
+
+    [metrics]
+    otel_on = False
+    otel_host = localhost
+    otel_port = 8889
+    otel_prefix = airflow
+    otel_interval_milliseconds = 30000  # The interval between exports, defaults to 60000
+
+
+Allow/Block Lists
+-----------------
+
+If you want to avoid sending all the available metrics, you can configure an allow list or block list
+of prefixes to send or block only the metrics that start with the elements of the list:
+
+.. code-block:: ini
+
+    [metrics]
+    metrics_allow_list = scheduler,executor,dagrun
+
+.. code-block:: ini
+
+    [metrics]
+    metrics_block_list = scheduler,executor,dagrun
+
+
+Rename Metrics
+--------------
+
+If you want to redirect metrics to a different name, you can configure the ``stat_name_handler`` option
+in ``[metrics]`` section.  It should point to a function that validates the stat name, applies changes
+to the stat name if necessary, and returns the transformed stat name. The function may look as follows:
+
+.. code-block:: python
+
+    def my_custom_stat_name_handler(stat_name: str) -> str:
+        return stat_name.lower()[:32]
+
+
+Other Configuration Options
+---------------------------
+
 .. note::
 
     For a detailed listing of configuration options regarding metrics,
     see the configuration reference documentation - :ref:`config:metrics`.
+
+
+Metric Descriptions
+===================
+
 
 Counters
 --------
@@ -120,7 +164,7 @@ Name                                                                   Descripti
 ``task_removed_from_dag.<dag_id>``                                     Number of tasks removed for a given dag (i.e. task no longer exists in DAG)
 ``task_restored_to_dag.<dag_id>``                                      Number of tasks restored for a given dag (i.e. task instance which was
                                                                        previously in REMOVED state in the DB is added to DAG file)
-``task_instance_created-<operator_name>``                              Number of tasks instances created for a given Operator
+``task_instance_created_<operator_name>``                              Number of tasks instances created for a given Operator
 ``triggers.blocked_main_thread``                                       Number of triggers that blocked the main thread (likely due to not being
                                                                        fully asynchronous)
 ``triggers.failed``                                                    Number of triggers that errored before they could fire an event
@@ -154,7 +198,7 @@ Name                                                Description
 ``pool.queued_slots.<pool_name>``                   Number of queued slots in the pool
 ``pool.running_slots.<pool_name>``                  Number of running slots in the pool
 ``pool.starving_tasks.<pool_name>``                 Number of starving tasks in the pool
-``triggers.running``                                Number of triggers currently running (per triggerer)
+``triggers.running.<hostname>``                     Number of triggers currently running for a triggerer (described by hostname)
 =================================================== ========================================================================
 
 Timers

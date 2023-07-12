@@ -20,8 +20,93 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+
+``apache-airflow-providers-google``
+
+
 Changelog
 ---------
+
+10.3.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
+* ``Add deferrable mode to CloudSQLExportInstanceOperator (#30852)``
+* ``Adding 'src_fmt_configs' to the list of template fields. (#32097)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``[Issue-32069] Fix name format in the batch requests (#32070)``
+* ``Fix 'BigQueryInsertJobOperator'  error handling in deferrable mode (#32034)``
+* ``Fix 'BIGQUERY_JOB_DETAILS_LINK_FMT' in 'BigQueryConsoleLink' (#31953)``
+* ``Make the deferrable version of DataprocCreateBatchOperator handle a batch_id that already exists (#32216)``
+
+
+Misc
+~~~~
+
+* ``Switch Google Ads API version from v13 to v14 (#32028)``
+* ``Deprecate 'delimiter' param and source object's wildcards in GCS, introduce 'match_glob' param. (#31261)``
+* ``Refactor GKECreateClusterOperator's body validation (#31923)``
+* ``Optimize deferrable mode execution for 'BigQueryValueCheckOperator' (#31872)``
+* ``Add default_deferrable config (#31712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Google provider docstring improvements (#31731)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+
+10.2.0
+......
+
+.. note::
+  This release dropped support for Python 3.7
+
+Features
+~~~~~~~~
+
+* ``add a return when the event is yielded in a loop to stop the execution (#31985)``
+* ``Add deferrable mode to PubsubPullSensor (#31284)``
+* ``Add a new param to set parquet row group size in 'BaseSQLToGCSOperator' (#31831)``
+* ``Add 'cacheControl' field to google cloud storage (#31338)``
+* ``Add 'preserveAsciiControlCharacters' to 'src_fmt_configs' (#31643)``
+* ``Add support for credential configuation file auth to Google Secrets Manager secrets backend (#31597)``
+* ``Add credential configuration file support to Google Cloud Hook (#31548)``
+* ``Add deferrable mode to 'GCSUploadSessionCompleteSensor' (#31081)``
+* ``Add append_job_name parameter in DataflowStartFlexTemplateOperator (#31511)``
+* ``FIPS environments: Mark uses of md5 as "not-used-for-security" (#31171)``
+* ``Implement MetastoreHivePartitionSensor (#31016)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bigquery: fix links for already existing tables and datasets. (#31589)``
+* ``Provide missing project id and creds for TabularDataset (#31991)``
+
+Misc
+~~~~
+
+* ``Optimize deferrable mode execution for 'DataprocSubmitJobOperator' (#31317)``
+* ``Optimize deferrable mode execution for 'BigQueryInsertJobOperator' (#31249)``
+* ``Remove return statement after yield from triggers class (#31703)``
+* ``Replace unicodecsv with standard csv library (#31693)``
+* ``Optimize deferrable mode (#31758)``
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Replace spelling directive with spelling:word-list (#31752)``
+   * ``Add D400 pydocstyle check - Google provider only (#31422)``
+   * ``Add discoverability for triggers in provider.yaml (#31576)``
+   * ``Revert "Fix 'BIGQUERY_JOB_DETAILS_LINK_FMT' in 'BigQueryConsoleLink' (#31457)" (#31935)``
+   * ``Fix 'BIGQUERY_JOB_DETAILS_LINK_FMT' in 'BigQueryConsoleLink' (#31457)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 10.1.1
 ......

@@ -30,7 +30,7 @@ from urllib.parse import quote
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
 import elasticsearch
 import pendulum
-from elasticsearch_dsl import Search
+from elasticsearch.exceptions import ElasticsearchException, NotFoundError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -52,14 +52,42 @@ EsLogMsgType = List[Tuple[str, str]]
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 
 
+class Log:
+    """wrapper class to mimic the attributes in Search class used in elasticsearch_dsl.Search."""
+
+    def __init__(self, offset):
+        self.offset = offset
+
+
+class ElasticSearchResponse:
+    """wrapper class to mimic the Search class used in elasticsearch_dsl.Search."""
+
+    def __init__(self, **kwargs):
+        # Store all provided keyword arguments as attributes of this object
+        for key, value in kwargs.items():
+            if key == "log":
+                setattr(self, key, Log(**value))
+            else:
+                setattr(self, key, value)
+
+    def to_dict(self):
+        result = {}
+        for key in self.__dict__.keys():
+            if key == "log":
+                result[key] = self.__dict__[key].__dict__
+            else:
+                result[key] = self.__dict__[key]
+        return result
+
+
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
     """
-    ElasticsearchTaskHandler is a python log handler that
-    reads logs from Elasticsearch. Note that Airflow does not handle the indexing
-    of logs into Elasticsearch. Instead, Airflow flushes logs
-    into local files. Additional software setup is required
-    to index the logs into Elasticsearch, such as using
-    Filebeat and Logstash.
+    ElasticsearchTaskHandler is a python log handler that reads logs from Elasticsearch.
+
+    Note that Airflow does not handle the indexing of logs into Elasticsearch. Instead,
+    Airflow flushes logs into local files. Additional software setup is required to index
+    the logs into Elasticsearch, such as using Filebeat and Logstash.
+
     To efficiently query and sort Elasticsearch results, this handler assumes each
     log message has a field `log_id` consists of ti primary keys:
     `log_id = {dag_id}-{task_id}-{execution_date}-{try_number}`
@@ -67,6 +95,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     which is a unique integer indicates log message's order.
     Timestamps here are unreliable because multiple log messages
     might have the same timestamp.
+
+    :param base_log_folder: base folder to store logs locally
+    :param log_id_template: log id template
+    :param host: Elasticsearch host name
     """
 
     PAGE = 0
@@ -92,11 +124,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         filename_template: str | None = None,
         log_id_template: str | None = None,
     ):
-        """
-        :param base_log_folder: base folder to store logs locally
-        :param log_id_template: log id template
-        :param host: Elasticsearch host name
-        """
         es_kwargs = es_kwargs or {}
         super().__init__(base_log_folder, filename_template)
         self.closed = False
@@ -170,8 +197,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     @staticmethod
     def _clean_date(value: datetime | None) -> str:
         """
-        Clean up a date value so that it is safe to query in elasticsearch
-        by removing reserved characters.
+        Clean up a date value so that it is safe to query in elasticsearch by removing reserved characters.
 
         https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-query-string-query.html#_reserved_characters
         """
@@ -209,12 +235,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         offset = metadata["offset"]
         log_id = self._render_log_id(ti, try_number)
-
         logs = self.es_read(log_id, offset, metadata)
         logs_by_host = self._group_logs_by_host(logs)
-
         next_offset = offset if not logs else attrgetter(self.offset_field)(logs[-1])
-
         # Ensure a string here. Large offset numbers will get JSON.parsed incorrectly
         # on the client. Sending as a string prevents this issue.
         # https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
@@ -259,7 +282,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             return "\n".join(self._format_msg(lines[i]) for i in range(log_range))
 
         message = [(host, concat_logs(hosted_log)) for host, hosted_log in logs_by_host.items()]
-
         return message, metadata
 
     def _format_msg(self, log_line):
@@ -279,39 +301,50 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
     def es_read(self, log_id: str, offset: str, metadata: dict) -> list:
         """
-        Returns the logs matching log_id in Elasticsearch and next offset.
-        Returns '' if no log is found or there was an error.
+        Return the logs matching log_id in Elasticsearch and next offset or ''.
 
         :param log_id: the log_id of the log to read.
         :param offset: the offset start to read log from.
         :param metadata: log metadata, used for steaming log download.
         """
         # Offset is the unique key for sorting logs given log_id.
-        search = (
-            Search(index=self.index_patterns, using=self.client)
-            .query("match_phrase", log_id=log_id)
-            .sort(self.offset_field)
-        )
+        query = {
+            "query": {
+                "bool": {
+                    "must": [
+                        {"match_phrase": {"log_id": log_id}},
+                        {"range": {self.offset_field: {"gt": int(offset)}}},
+                    ]
+                }
+            },
+            "sort": [{self.offset_field: {"order": "asc"}}],
+        }
 
-        search = search.filter("range", **{self.offset_field: {"gt": int(offset)}})
-        max_log_line = search.count()
-        if "download_logs" in metadata and metadata["download_logs"] and "max_offset" not in metadata:
-            try:
-                if max_log_line > 0:
-                    metadata["max_offset"] = attrgetter(self.offset_field)(
-                        search[max_log_line - 1].execute()[-1]
-                    )
-                else:
-                    metadata["max_offset"] = 0
-            except Exception:
-                self.log.exception("Could not get current log size with log_id: %s", log_id)
+        try:
+            max_log_line = self.client.count(index=self.index_patterns, body=query)["count"]
+        except NotFoundError as e:
+            self.log.exception("The target index pattern %s does not exist", self.index_patterns)
+            raise e
+        except ElasticsearchException as e:
+            self.log.exception("Could not get current log size with log_id: %s", log_id)
+            raise e
 
         logs = []
         if max_log_line != 0:
             try:
-
-                logs = search[self.MAX_LINE_PER_PAGE * self.PAGE : self.MAX_LINE_PER_PAGE].execute()
-            except Exception:
+                res = self.client.search(
+                    index=self.index_patterns,
+                    body=query,
+                    size=self.MAX_LINE_PER_PAGE,
+                    from_=self.MAX_LINE_PER_PAGE * self.PAGE,
+                )
+                logs = [
+                    ElasticSearchResponse(
+                        **unwrap_response(response),
+                    )
+                    for response in res["hits"]["hits"]
+                ]
+            except elasticsearch.exceptions.ElasticsearchException:
                 self.log.exception("Could not read log with log_id: %s", log_id)
 
         return logs
@@ -429,3 +462,33 @@ def getattr_nested(obj, item, default):
         return attrgetter(item)(obj)
     except AttributeError:
         return default
+
+
+def unwrap_response(res):
+    source = res["_source"]
+    transformed = {
+        "log_id": source.get("log_id"),
+        "message": source.get("message"),
+        "meta": {
+            "id": res.get("_id"),
+            "index": res.get("_index"),
+            "version": res.get("_version"),
+            "headers": res.get("_headers"),
+        },
+    }
+    if "offset" in source:
+        transformed["offset"] = source["offset"]
+    if "asctime" in source:
+        transformed["asctime"] = source["asctime"]
+    if "filename" in source:
+        transformed["filename"] = source["filename"]
+    if "host" in source:
+        transformed["host"] = source["host"]
+    if "levelname" in source:
+        transformed["levelname"] = source["levelname"]
+    if "lineno" in source:
+        transformed["lineno"] = source["lineno"]
+    if "log" in source:
+        transformed["log"] = source["log"]
+
+    return transformed

@@ -32,6 +32,7 @@ from google.cloud.bigquery_datatransfer_v1 import (
 )
 
 from airflow import AirflowException
+from airflow.configuration import conf
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook, get_object_id
 from airflow.providers.google.cloud.links.bigquery_dts import BigQueryDataTransferConfigLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
@@ -218,10 +219,10 @@ class BigQueryDeleteDataTransferConfigOperator(GoogleCloudBaseOperator):
 
 class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperator):
     """
-    Start manual transfer runs to be executed now with schedule_time equal
-    to current time. The transfer runs can be created for a time range where
-    the run_time is between start_time (inclusive) and end_time
-    (exclusive), or for a specific run_time.
+    Start manual transfer runs to be executed now with schedule_time equal to current time.
+
+    The transfer runs can be created for a time range where the run_time is between
+    start_time (inclusive) and end_time (exclusive), or for a specific run_time.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -279,7 +280,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(GoogleCloudBaseOperat
         metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id="google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
-        deferrable: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

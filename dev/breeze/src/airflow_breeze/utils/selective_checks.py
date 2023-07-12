@@ -55,7 +55,6 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.exclude_from_matrix import excluded_combos
-from airflow_breeze.utils.github_actions import get_ga_output
 from airflow_breeze.utils.kubernetes_utils import get_kubernetes_python_combos
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_PROVIDERS_ROOT,
@@ -127,7 +126,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart",
             r"^airflow/kubernetes",
             r"^tests/kubernetes",
-            r"^tests/charts",
+            r"^helm_tests",
         ],
         FileGroupForCi.SETUP_FILES: [
             r"^pyproject.toml",
@@ -322,6 +321,8 @@ class SelectiveChecks:
         )
 
     def __str__(self) -> str:
+        from airflow_breeze.utils.github import get_ga_output
+
         output = []
         for field_name in dir(self):
             if not field_name.startswith("_"):
@@ -722,8 +723,12 @@ class SelectiveChecks:
         ):
             return _ALL_DOCS_LIST
         packages = []
-        if any([file.startswith("airflow/") for file in self._files]):
+        if any(
+            [file.startswith("airflow/") or file.startswith("docs/apache-airflow/") for file in self._files]
+        ):
             packages.append("apache-airflow")
+        if any([file.startswith("docs/apache-airflow-providers/") for file in self._files]):
+            packages.append("apache-airflow-providers")
         if any([file.startswith("chart/") or file.startswith("docs/helm-chart") for file in self._files]):
             packages.append("helm-chart")
         if any([file.startswith("docs/docker-stack/") for file in self._files]):

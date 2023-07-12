@@ -390,7 +390,7 @@ You will need to change it manually to see the docs
 **NOTE** In order to run the publish documentation you need to activate virtualenv where you installed
 apache-airflow with doc extra:
 
-* `pip install 'apache-airflow[doc_gen]'`
+* `pip install '.[doc_gen]'`
 
 If you don't have virtual env set you can do:
 
@@ -414,6 +414,10 @@ cd "${AIRFLOW_REPO_ROOT}"
     --override-versioned
 
 cd "${AIRFLOW_SITE_DIRECTORY}"
+cd post-docs
+python add-back-references.py providers
+cd ..
+
 ```
 
 If you see `ModuleNotFoundError: No module named 'docs'`, set:
@@ -451,6 +455,7 @@ execution of the script below. You will use link to that issue in the next step.
 set as your environment variable.
 
 You can also pass the token as `--github-token` option in the script.
+You can also pass list of PR to be excluded from the issue with `--excluded-pr-list`.
 
 ```shell script
 breeze release-management generate-issue-content-providers --only-available-in-dist
@@ -487,7 +492,8 @@ cat <<EOF
 Hey all,
 
 I have just cut the new wave Airflow Providers packages. This email is calling a vote on the release,
-which will last for 72 hours - which means that it will end on $(date -d '+3 days').
+which will last for 72 hours - which means that it will end on $(date -d '+3 days') and until 3 binding +1 votes have been received.
+
 
 Consider this my (binding) +1.
 
@@ -1012,7 +1018,9 @@ Announcement is done from official Apache-Airflow accounts.
 
 * Twitter: https://twitter.com/ApacheAirflow
 * Linkedin: https://www.linkedin.com/company/apache-airflow/
+* Fosstodon: https://fosstodon.org/@airflow
 
+Make sure attach the release image generated with Figma to the post.
 If you don't have access to the account ask PMC to post.
 
 ------------------------------------------------------------------------------------------------------------

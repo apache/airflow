@@ -56,6 +56,12 @@ Docker Desktop
 - **Docker problems**: Sometimes it is not obvious that space is an issue when you run into
   a problem with Docker. If you see a weird behaviour, try ``breeze cleanup`` command.
   Also see `pruning <https://docs.docker.com/config/pruning/>`_ instructions from Docker.
+- **Docker context**: In recent versions Docker Desktop is by default configured to use ``desktop-linux``
+  docker context that uses docker socket created in user home directory. Older versions (and plain docker)
+  uses ``/var/run/docker.sock`` socket and ``default`` context. Breeze will attempt to detect if you have
+  ``desktop-linux`` context configured and will use it if it is available, but you can force the
+  context by adding ``--builder`` flag to the commands that build image or run the container and forward
+  the socket to inside the image.
 
 Here is an example configuration with more than 200GB disk space for Docker:
 
@@ -84,8 +90,15 @@ Here is an example configuration with more than 200GB disk space for Docker:
 - ``newgrp docker``
 - 4. Check if docker can be run without root
 - ``docker run hello-world``
-|
-|
+- 5. In some cases you might make sure that "Allow the default Docker socket to
+  be used" in "Advanced" tab of "Docker Desktop" settings is checked
+
+.. raw:: html
+
+   <div align="center">
+        <img src="images/docker_socket.png" width="640"
+             alt="Docker socket used">
+    </div>
 
 Note: If you use Colima, please follow instructions at: `Contributors Quick Start Guide <https://github.com/apache/airflow/blob/main
 /CONTRIBUTORS_QUICK_START.rst>`__
@@ -846,7 +859,7 @@ blocked by it, or your proxy setting has not been done properly.
 Advanced commands
 =================
 
-Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testing. Under the
+Airflow Breeze is a Python script serving as a "swiss-army-knife" of Airflow testing. Under the
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
 environment. Breeze script allows performing the following tasks:
 
@@ -1925,6 +1938,21 @@ This bumps the constraint files to latest versions and stores hash of setup.py. 
 and setup.py hash files are stored in the ``files`` folder and while generating the constraints diff
 of changes vs the previous constraint files is printed.
 
+Generating Providers Metadata
+.............................
+
+The release manager can generate providers metadata per provider version - information about provider versions
+including the associated Airflow version for the provider version (i.e first airflow version released after the
+provider has been released) and date of the release of the provider version.
+
+These are all of the available flags for the ``generate-providers-metadata`` command:
+
+.. image:: ./images/breeze/output_release-management_generate-providers-metadata.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_release-management_generate-providers-metadata.svg
+  :width: 100%
+  :alt: Breeze release management generate providers metadata
+
+
 Releasing Production images
 ...........................
 
@@ -1955,6 +1983,43 @@ These are all of the available flags for the ``release-prod-images`` command:
   :width: 100%
   :alt: Breeze release management release prod images
 
+
+SBOM generation tasks
+----------------------
+
+Maintainers also can use Breeze for SBOM generation:
+
+.. image:: ./images/breeze/output_sbom.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom.svg
+  :width: 100%
+  :alt: Breeze sbom
+
+Generating SBOM information
+...........................
+
+Thanks to our constraints captured for all versions of Airflow we can easily generate SBOM information for
+Apache Airflow. SBOM information contains information about Airflow dependencies that are possible to consume
+by our users and allow them to determine whether security issues in dependencies affect them. The SBOM
+information is written directly to ``docs-archive`` in airflow-site repository.
+
+These are all of the available flags for the ``update-sbom-information`` command:
+
+.. image:: ./images/breeze/output_sbom_update-sbom-information.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbomt_update-sbom-information.svg
+  :width: 100%
+  :alt: Breeze update sbom information
+
+Generating Provider requirements
+.................................
+
+In order to generate SBOM information for providers, we need to generate requirements for them. This is
+done by the ``generate-provider-requirements`` command. This command generates requirements for the
+selected provider and python version, using the airflow version specified.
+
+.. image:: ./images/breeze/output_sbom_generate-provider-requirements.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/images/breeze/output_sbom_generate-provider-requirements.svg
+  :width: 100%
+  :alt: Breeze generate SBOM provider requirements
 
 Details of Breeze usage
 =======================

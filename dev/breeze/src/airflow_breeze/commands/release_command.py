@@ -51,19 +51,17 @@ def create_version_dir(version):
 
 def copy_artifacts_to_svn(rc, svn_dev_repo):
     if confirm_action(f"Copy artifacts to SVN for {rc}?"):
+        bash_command = f"""
+        for f in {svn_dev_repo}/{rc}/*; do
+            svn cp "$f" "$(basename "$f")/"
+        done
+        """
+
         run_command(
             [
-                "for",
-                "f",
-                "in",
-                f"{svn_dev_repo}/{rc}/*",
-                ";",
-                "do",
-                "svn",
-                "cp",
-                "$f",
-                "${$(basename $f)/}",
-                "done",
+                "bash",
+                "-c",
+                bash_command,
             ],
             dry_run_override=DRY_RUN,
             check=True,

@@ -98,6 +98,7 @@ class MongoHook(BaseHook):
     def _create_uri(self) -> str:
         """
         Create URI string from the given credentials.
+
         :return: URI string.
         """
         srv = self.extras.pop("srv", False)

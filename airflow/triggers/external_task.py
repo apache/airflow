@@ -27,12 +27,12 @@ from sqlalchemy.orm import Session
 from airflow.models import DagRun, TaskInstance
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.state import DagRunState
 
 
 class TaskStateTrigger(BaseTrigger):
     """
-    Waits asynchronously for a task in a different DAG to complete for a
-    specific logical date.
+    Waits asynchronously for a task in a different DAG to complete for a specific logical date.
 
     :param dag_id: The dag_id that contains the task you want to wait for
     :param task_id: The task_id that contains the task you want to
@@ -72,10 +72,7 @@ class TaskStateTrigger(BaseTrigger):
         )
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
-        """
-        Checks periodically in the database to see if the task exists, and has
-        hit one of the states yet, or not.
-        """
+        """Checks periodically in the database to see if the task exists and has hit one of the states."""
         while True:
             # mypy confuses typing here
             num_tasks = await self.count_tasks()  # type: ignore[call-arg]
@@ -114,7 +111,7 @@ class DagStateTrigger(BaseTrigger):
     def __init__(
         self,
         dag_id: str,
-        states: list[str],
+        states: list[DagRunState],
         execution_dates: list[datetime.datetime],
         poll_interval: float = 5.0,
     ):
@@ -137,10 +134,7 @@ class DagStateTrigger(BaseTrigger):
         )
 
     async def run(self) -> typing.AsyncIterator[TriggerEvent]:
-        """
-        Checks periodically in the database to see if the dag run exists, and has
-        hit one of the states yet, or not.
-        """
+        """Checks periodically in the database to see if the dag run exists and has hit one of the states."""
         while True:
             # mypy confuses typing here
             num_dags = await self.count_dags()  # type: ignore[call-arg]

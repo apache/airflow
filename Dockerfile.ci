@@ -56,7 +56,7 @@ function get_dev_apt_deps() {
         DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
 freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
-libssl-dev locales lsb-release openssh-client sasl2-bin \
+libssl-dev locales lsb-release openssh-client pkgconf sasl2-bin \
 software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
         export DEV_APT_DEPS
     fi
@@ -65,7 +65,7 @@ software-properties-common sqlite3 sudo unixodbc unixodbc-dev"
 function get_runtime_apt_deps() {
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
         RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
-curl dumb-init freetds-bin gosu krb5-user \
+curl dumb-init freetds-bin gosu krb5-user libgeos-dev \
 ldap-utils libffi7 libldap-2.4-2 libsasl2-2 libsasl2-modules libssl1.1 locales \
 lsb-release netcat openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
         export RUNTIME_APT_DEPS
@@ -1031,7 +1031,7 @@ else
         "tests/utils"
     )
     WWW_TESTS=("tests/www")
-    HELM_CHART_TESTS=("tests/charts")
+    HELM_CHART_TESTS=("helm_tests")
     INTEGRATION_TESTS=("tests/integration")
     SYSTEM_TESTS=("tests/system")
     ALL_TESTS=("tests")
@@ -1068,7 +1068,7 @@ else
         SELECTED_TESTS=("${WWW_TESTS[@]}")
     elif [[ ${TEST_TYPE:=""} == "Helm" ]]; then
         if [[ ${HELM_TEST_PACKAGE=} != "" ]]; then
-            SELECTED_TESTS=("tests/charts/${HELM_TEST_PACKAGE}")
+            SELECTED_TESTS=("helm_tests/${HELM_TEST_PACKAGE}")
         else
             SELECTED_TESTS=("${HELM_CHART_TESTS[@]}")
         fi
@@ -1268,12 +1268,7 @@ ENV HOME=${HOME} \
 RUN bash /scripts/docker/install_mysql.sh prod \
     && bash /scripts/docker/install_mysql.sh dev \
     && bash /scripts/docker/install_mssql.sh \
-    && bash /scripts/docker/install_postgres.sh dev \
-    && adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
-              --quiet "airflow" --home "/home/airflow" \
-    && echo -e "airflow\nairflow" | passwd airflow 2>&1 \
-    && echo "airflow ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/airflow \
-    && chmod 0440 /etc/sudoers.d/airflow
+    && bash /scripts/docker/install_postgres.sh dev
 
 # Install Helm
 ARG HELM_VERSION="v3.9.4"

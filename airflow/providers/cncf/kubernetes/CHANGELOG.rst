@@ -21,10 +21,69 @@
    and you want to add an explanation to the users on how they are supposed to deal with them.
    The changelog is updated and maintained semi-automatically by release manager.
 
+``apache-airflow-providers-cncf-kubernetes``
+
+
 Changelog
 ---------
 
+7.2.0
+.....
 
+Features
+~~~~~~~~
+
+* ``Add 'on_finish_action' to 'KubernetesPodOperator' (#30718)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix KubernetesPodOperator validate xcom json and add retries (#32113)``
+* ``Fix 'KubernetesPodTrigger' waiting strategy (#31348)``
+* ``fix spark-kubernetes-operator compatibality (#31798)``
+
+Misc
+~~~~
+* ``Add default_deferrable config (#31712)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``D205 Support - Providers: Apache to Common (inclusive) (#32226)``
+   * ``Improve provider documentation and README structure (#32125)``
+   * ``Remove spurious headers for provider changelogs (#32373)``
+   * ``Prepare docs for July 2023 wave of Providers (#32298)``
+
+7.1.0
+.....
+
+.. note::
+  This release dropped support for Python 3.7
+
+
+Features
+~~~~~~~~
+* ``KubernetesResourceOperator - KubernetesDeleteResourceOperator & KubernetesCreateResourceOperator (#29930)``
+* ``add a return when the event is yielded in a loop to stop the execution (#31985)``
+* ``Add possibility to disable logging the pod template in a case when task fails (#31595)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove return statement after yield from triggers class (#31703)``
+* ``Fix Fargate logging for AWS system tests (#31622)``
+
+Misc
+~~~~
+
+* ``Remove Python 3.7 support (#30963)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add D400 pydocstyle check (#31742)``
+   * ``Add discoverability for triggers in provider.yaml (#31576)``
+   * ``Add D400 pydocstyle check - Providers (#31427)``
+   * ``Add note about dropping Python 3.7 for providers (#32015)``
 
 7.0.0
 .....

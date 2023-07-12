@@ -137,7 +137,7 @@ repos:
       - id: insert-license
         name: Add license for all Markdown files
         files: \.md$
-        exclude: ^\.github/.*$|PROVIDER_CHANGES.*\.md$|^.*/.*_vendor/
+        exclude: PROVIDER_CHANGES.*\.md$|^.*/.*_vendor/
         args:
           - --comment-style
           - "<!--|| -->"
@@ -187,8 +187,8 @@ repos:
         pass_filenames: true
         # Since ruff makes use of multiple cores we _purposefully_ don't run this in docker so it can use the
         # host CPU to it's fullest
-        entry: ruff --fix --no-update-check --force-exclude
-        additional_dependencies: ['ruff==0.0.265']
+        entry: ruff --fix --force-exclude
+        additional_dependencies: ['ruff==0.0.272']
         files: \.pyi?$
         exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
   - repo: https://github.com/asottile/blacken-docs
@@ -317,7 +317,7 @@ repos:
         name: Lint OpenAPI using openapi-spec-validator
         entry: openapi-spec-validator --schema 3.0.0
         language: python
-        additional_dependencies: ['openapi-spec-validator']
+        additional_dependencies: ['openapi-spec-validator>=0.6.0']
         files: ^airflow/api_connexion/openapi/
       - id: lint-dockerfile
         name: Lint Dockerfile
@@ -495,7 +495,7 @@ repos:
           ^airflow/providers/microsoft/winrm/hooks/winrm.py$|
           ^airflow/www/fab_security/manager.py$|
           ^docs/.*commits.rst$|
-          ^docs/apache-airflow/administration-and-deployment/security/webserver.rst$|
+          ^docs/apache-airflow/security/webserver.rst$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^airflow/providers/microsoft/winrm/operators/winrm.py$|
           ^airflow/providers/opsgenie/hooks/opsgenie.py$|
@@ -929,6 +929,20 @@ repos:
         language: python
         pass_filenames: true
         files: ^tests/.*\.py$
+      - id: check-usage-of-re2-over-re
+        language: pygrep
+        name: Use re2 module instead of re
+        description: Use re2 module instead of re
+        entry: "^\\s*from re\\s|^\\s*import re\\s"
+        pass_filenames: true
+        files: \.py$
+        exclude: ^airflow/providers|^dev/.*\.py$|^scripts/.*\.py$|^tests/|^\w+_tests/|^docs/.*\.py$|^airflow/utils/helpers.py$
+      - id: check-deferrable-default-value
+        name: Check default value of deferrable attribute
+        language: python
+        entry: ./scripts/ci/pre_commit/pre_commit_check_deferrable_default.py
+        pass_filenames: false
+        files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: mypy-dev

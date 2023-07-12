@@ -21,19 +21,16 @@ import ast
 import io
 import logging
 import os
-import re
 import zipfile
 from collections import OrderedDict
 from pathlib import Path
-from typing import TYPE_CHECKING, Generator, NamedTuple, Pattern, Protocol, overload
+from typing import Generator, NamedTuple, Pattern, Protocol, overload
 
+import re2
 from pathspec.patterns import GitWildMatchPattern
 
 from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
-
-if TYPE_CHECKING:
-    import pathlib
 
 log = logging.getLogger(__name__)
 
@@ -63,8 +60,8 @@ class _RegexpIgnoreRule(NamedTuple):
     def compile(pattern: str, base_dir: Path, definition_file: Path) -> _IgnoreRule | None:
         """Build an ignore rule from the supplied regexp pattern and log a useful warning if it is invalid."""
         try:
-            return _RegexpIgnoreRule(re.compile(pattern), base_dir)
-        except re.error as e:
+            return _RegexpIgnoreRule(re2.compile(pattern), base_dir)
+        except re2.error as e:
             log.warning("Ignoring invalid regex '%s' from %s: %s", pattern, definition_file, e)
             return None
 
@@ -153,7 +150,7 @@ def mkdirs(path, mode):
     Path(path).mkdir(mode=mode, parents=True, exist_ok=True)
 
 
-ZIP_REGEX = re.compile(rf"((.*\.zip){re.escape(os.sep)})?(.*)")
+ZIP_REGEX = re2.compile(rf"((.*\.zip){re2.escape(os.sep)})?(.*)")
 
 
 @overload
@@ -194,18 +191,16 @@ def open_maybe_zipped(fileloc, mode="r"):
     if archive and zipfile.is_zipfile(archive):
         return io.TextIOWrapper(zipfile.ZipFile(archive, mode=mode).open(filename))
     else:
-
         return open(fileloc, mode=mode)
 
 
 def _find_path_from_directory(
-    base_dir_path: str,
+    base_dir_path: str | os.PathLike[str],
     ignore_file_name: str,
     ignore_rule_type: type[_IgnoreRule],
 ) -> Generator[str, None, None]:
-    """
-    Recursively search the base path and return the list of file paths that should not be ignored by
-    regular expressions in any ignore files at each directory level.
+    """Recursively search the base path and return the list of file paths that should not be ignored.
+
     :param base_dir_path: the base path to be searched
     :param ignore_file_name: the file name containing regular expressions for files that should be ignored.
     :param ignore_rule_type: the concrete class for ignore rules, which implements the _IgnoreRule interface.
@@ -221,7 +216,7 @@ def _find_path_from_directory(
         ignore_file_path = Path(root) / ignore_file_name
         if ignore_file_path.is_file():
             with open(ignore_file_path) as ifile:
-                lines_no_comments = [re.sub(r"\s*#.*", "", line) for line in ifile.read().split("\n")]
+                lines_no_comments = [re2.sub(r"\s*#.*", "", line) for line in ifile.read().split("\n")]
                 # append new patterns and filter out "None" objects, which are invalid patterns
                 patterns += [
                     p
@@ -258,12 +253,11 @@ def _find_path_from_directory(
 
 
 def find_path_from_directory(
-    base_dir_path: str,
+    base_dir_path: str | os.PathLike[str],
     ignore_file_name: str,
     ignore_file_syntax: str = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="regexp"),
 ) -> Generator[str, None, None]:
-    """
-    Recursively search the base path and return the list of file paths that should not be ignored.
+    """Recursively search the base path for a list of file paths that should not be ignored.
 
     :param base_dir_path: the base path to be searched
     :param ignore_file_name: the file name in which specifies the patterns of files/dirs to be ignored
@@ -280,12 +274,11 @@ def find_path_from_directory(
 
 
 def list_py_file_paths(
-    directory: str | pathlib.Path,
+    directory: str | os.PathLike[str] | None,
     safe_mode: bool = conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE", fallback=True),
     include_examples: bool | None = None,
 ) -> list[str]:
-    """
-    Traverse a directory and look for Python files.
+    """Traverse a directory and look for Python files.
 
     :param directory: the directory to traverse
     :param safe_mode: whether to use a heuristic to determine whether a file
@@ -307,16 +300,16 @@ def list_py_file_paths(
     if include_examples:
         from airflow import example_dags
 
-        example_dag_folder = example_dags.__path__[0]  # type: ignore
+        example_dag_folder = next(iter(example_dags.__path__))
         file_paths.extend(list_py_file_paths(example_dag_folder, safe_mode, include_examples=False))
     return file_paths
 
 
-def find_dag_file_paths(directory: str | pathlib.Path, safe_mode: bool) -> list[str]:
+def find_dag_file_paths(directory: str | os.PathLike[str], safe_mode: bool) -> list[str]:
     """Finds file paths of all DAG files."""
     file_paths = []
 
-    for file_path in find_path_from_directory(str(directory), ".airflowignore"):
+    for file_path in find_path_from_directory(directory, ".airflowignore"):
         try:
             if not os.path.isfile(file_path):
                 continue
@@ -333,7 +326,7 @@ def find_dag_file_paths(directory: str | pathlib.Path, safe_mode: bool) -> list[
     return file_paths
 
 
-COMMENT_PATTERN = re.compile(r"\s*#.*")
+COMMENT_PATTERN = re2.compile(r"\s*#.*")
 
 
 def might_contain_dag(file_path: str, safe_mode: bool, zip_file: zipfile.ZipFile | None = None) -> bool:

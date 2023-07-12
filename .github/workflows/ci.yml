@@ -591,7 +591,7 @@ jobs:
       - name: "Static checks: basic checks only"
         run: >
           breeze static-checks --show-diff-on-failure --color always --initialize-environment
-          --commit-ref "${{ github.sha }}"
+          --skip-image-check --commit-ref "${{ github.sha }}"
         env:
           VERBOSE: "false"
           SKIP_IMAGE_PRE_COMMITS: "true"

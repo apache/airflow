@@ -213,6 +213,7 @@ class StandaloneCommand:
     def is_ready(self):
         """
         Detects when all Airflow components are ready to serve.
+
         For now, it's simply time-based.
         """
         return (
