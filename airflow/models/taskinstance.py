@@ -1348,7 +1348,7 @@ class TaskInstance(Base, LoggingMixin):
         self._try_number += 1
 
         if not test_mode:
-            session.add(Log(State.RUNNING, self))
+            session.add(Log(TaskInstanceState.RUNNING.value, self))
 
         self.state = TaskInstanceState.RUNNING
         self.emit_state_change_metric(TaskInstanceState.RUNNING)
@@ -1937,7 +1937,7 @@ class TaskInstance(Base, LoggingMixin):
         Stats.incr("ti_failures", tags=self.stats_tags)
 
         if not test_mode:
-            session.add(Log(State.FAILED, self))
+            session.add(Log(TaskInstanceState.FAILED.value, self))
 
             # Log failure duration
             session.add(TaskFail(ti=self))
