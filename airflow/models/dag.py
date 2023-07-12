@@ -1383,7 +1383,11 @@ class DAG(LoggingMixin):
     @internal_api_call
     @provide_session
     def fetch_callback(
-        dag: DAG, dagrun: DagRun | DagRunPydantic, success=True, reason=None, session=NEW_SESSION
+        dag: DAG,
+        dagrun: DagRun | DagRunPydantic,
+        success: bool = True,
+        reason: str | None = None,
+        session: Session = NEW_SESSION,
     ):
         """
         Fetch the appropriate callbacks depending on the value of success, namely the
