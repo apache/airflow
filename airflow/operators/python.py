@@ -31,10 +31,9 @@ from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Collection, Iterable, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, Sequence
 
 import dill
-from pendulum import DateTime
 
 from airflow.exceptions import (
     AirflowConfigException,
@@ -50,6 +49,9 @@ from airflow.utils.context import Context, context_copy_partial, context_merge
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
+
+if TYPE_CHECKING:
+    from pendulum.datetime import DateTime
 
 
 def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
@@ -275,9 +277,13 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.log.debug("Downstream task IDs %s", to_skip := list(get_tasks_to_skip()))
 
         self.log.info("Skipping downstream tasks")
+
+        if TYPE_CHECKING:
+            assert isinstance(dag_run.execution_date, DateTime)
+
         self.skip(
             dag_run=dag_run,
-            execution_date=cast(DateTime, dag_run.execution_date),
+            execution_date=dag_run.execution_date,
             tasks=to_skip,
             map_index=context["ti"].map_index,
         )
