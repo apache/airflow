@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import os
 import pickle
 import shutil
@@ -260,24 +261,29 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
         execution_date = dag_run.execution_date
         if TYPE_CHECKING:
             assert isinstance(execution_date, DateTime)
-        if self.ignore_downstream_trigger_rules is True:
-            self.log.info("Skipping all downstream tasks")
-            self.skip(
-                dag_run=dag_run,
-                execution_date=execution_date,
-                tasks=(x for x in context["task"].get_flat_relatives(upstream=False) if not x.is_teardown),
-                map_index=context["ti"].map_index,
-            )
-        else:
-            self.log.info("Skipping direct downstream tasks")
-            # Setting the state of only the direct downstream tasks to "skipped" and letting the
-            # scheduler handle the remaining downstream task(s) appropriately.
-            self.skip(
-                dag_run=dag_run,
-                execution_date=execution_date,
-                tasks=(x for x in context["task"].get_direct_relatives(upstream=False) if not x.is_teardown),
-                map_index=context["ti"].map_index,
-            )
+
+        def get_tasks_to_skip():
+            if self.ignore_downstream_trigger_rules is True:
+                tasks = context["task"].get_flat_relatives(upstream=False)
+            else:
+                tasks = context["task"].get_direct_relatives(upstream=False)
+            for t in tasks:
+                if not t.is_teardown:
+                    yield t
+
+        to_skip = get_tasks_to_skip()
+        if self.log.getEffectiveLevel() <= logging.DEBUG:
+            # this let's us avoid an intermediate list unless debug logging
+            to_skip = list(get_tasks_to_skip())
+            self.log.debug("Downstream task IDs %s", to_skip)
+
+        self.log.info("Skipping downstream tasks")
+        self.skip(
+            dag_run=dag_run,
+            execution_date=execution_date,
+            tasks=to_skip,
+            map_index=context["ti"].map_index,
+        )
         self.log.info("Done.")
 
 
