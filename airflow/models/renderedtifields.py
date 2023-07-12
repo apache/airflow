@@ -232,7 +232,6 @@ class RenderedTaskInstanceFields(Base):
         session: Session,
     ) -> None:
         # This query might deadlock occasionally and it should be retried if fails (see decorator)
-        # breakpoint()
         stmt = (
             delete(cls)
             .where(
